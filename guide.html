@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>사용 가이드 — Paper Summarize</title>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  pre { background: #f5f5f5; padding: 1rem; border-radius: 8px; overflow-x: auto; line-height: 1.5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  .nav { margin-bottom: 1.5rem; }
+  .nav a { color: #4a90d9; text-decoration: none; }
+  .nav a:hover { text-decoration: underline; }
+  .section-box { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .highlight-box { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .warn-box { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; margin: 1rem 0; }
+  .step { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+</style>
+</head>
+<body>
+
+<div class="nav"><a href="index.html">&larr; 논문 목록으로 돌아가기</a></div>
+
+<h1>Paper Summarize 사용 가이드</h1>
+
+<div class="highlight-box">
+<p><strong>이 프로젝트는 무엇인가?</strong></p>
+<p>AI/ML 논문 PDF 또는 URL을 입력하면 <strong>Claude Code</strong>가 연구자 수준의 섹션별 요약을 HTML로 자동 생성하는 워크플로우입니다. 수식은 KaTeX로 렌더링되고, 비판적 분석과 검증 과정이 포함됩니다.</p>
+</div>
+
+<h2>프로젝트 구조</h2>
+
+<div class="section-box">
+<ul>
+  <li><code>CLAUDE.md</code> — 워크플로우 지침 및 템플릿 (Claude Code가 참조)</li>
+  <li><code>index.html</code> — 요약 목록 및 네비게이션 (자동 생성/업데이트)</li>
+  <li><code>guide.html</code> — 이 사용 가이드 (CLAUDE.md 기반 자동 생성)</li>
+  <li><code>*.html</code> — 개별 논문 요약 파일 (<code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code> 형식)</li>
+  <li><code>pdf_directory/</code> — 논문 PDF 저장 디렉토리 (git에서 제외)</li>
+</ul>
+</div>
+
+<h2>입력 방법</h2>
+
+<p>Claude Code에서 아래 방법 중 하나로 논문을 전달하면 자동으로 요약이 생성됩니다.</p>
+
+<h3>1. PDF 디렉토리</h3>
+<pre>pdf_directory에 새 논문 있으면 요약해줘</pre>
+<p><code>pdf_directory/</code>에 PDF를 넣어두면, 기존 요약 HTML과 대조하여 아직 처리되지 않은 PDF를 자동 감지하고 순차 처리합니다.</p>
+
+<h3>2. URL 직접 입력</h3>
+<pre>https://arxiv.org/abs/2602.21371</pre>
+<p>arXiv URL을 주면 자동으로 PDF를 다운로드하고 요약합니다. 여러 URL을 한번에 줄 수도 있습니다:</p>
+<pre>https://arxiv.org/abs/2602.12345
+https://arxiv.org/abs/2603.67890
+https://arxiv.org/pdf/2604.11111</pre>
+
+<h3>3. 파일 목록 (txt / csv)</h3>
+<p>URL이나 파일 경로가 담긴 텍스트 파일을 전달할 수 있습니다.</p>
+
+<p><strong>txt 예시</strong> (<code>papers.txt</code>):</p>
+<pre># 이번 주 읽을 논문
+https://arxiv.org/abs/2602.12345
+https://arxiv.org/abs/2603.67890
+/path/to/local/paper.pdf</pre>
+
+<p><strong>csv 예시</strong> (<code>papers.csv</code>):</p>
+<pre>url,memo
+https://arxiv.org/abs/2602.12345,attention 관련
+https://arxiv.org/abs/2603.67890,RL 관련</pre>
+
+<h2>요약 워크플로우 (3단계)</h2>
+
+<div class="step">
+<h3>Phase 1 — 빠른 개요 (Quick Overview)</h3>
+<ol>
+  <li>메타데이터 추출: 제목, 저자, 학회/저널, 연도</li>
+  <li>논문 구조(섹션 목록) 파악</li>
+  <li>TL;DR 생성 (문제 &rarr; 해결 &rarr; 왜 작동하는가 &rarr; 직관적 비유)</li>
+  <li>핵심 기여(Key Contributions) 3~5개 bullet 정리</li>
+</ol>
+</div>
+
+<div class="step">
+<h3>Phase 2 — 섹션별 정밀 요약 (Deep Dive)</h3>
+<p>각 섹션을 순서대로 깊이 있게 순차 처리합니다. 수식에는 직관적 설명을 병행하고, 실험 결과에는 패턴 분석을 추가합니다.</p>
+</div>
+
+<div class="step">
+<h3>Phase 3 — 검증 (Verification)</h3>
+<p>별도의 검증 에이전트가 원문 대비 요약을 교차 검증합니다.</p>
+
+<table>
+<tr><th>#</th><th>검증 항목</th><th>확인 내용</th></tr>
+<tr><td>1</td><td>섹션 완전성</td><td>원문의 모든 섹션이 요약에 포함되었는가?</td></tr>
+<tr><td>2</td><td>수치 정확성</td><td>정확도, 파라미터 수 등 핵심 수치가 원문과 일치하는가?</td></tr>
+<tr><td>3</td><td>수식 검증</td><td>주요 수식이 원문과 동일한가?</td></tr>
+<tr><td>4</td><td>누락된 핵심 내용</td><td>중요한 실험 결과, ablation이 빠지지 않았는가?</td></tr>
+<tr><td>5</td><td>환각 검출</td><td>원문에 없는 내용이 추가되지 않았는가?</td></tr>
+<tr><td>6</td><td>템플릿 준수</td><td>모든 필수 섹션이 채워졌는가?</td></tr>
+<tr><td>7</td><td>용어 일관성</td><td>약어 풀어쓰기, 기술 용어 영문 유지</td></tr>
+</table>
+
+<p><strong>검증 판정</strong>:</p>
+<ul>
+  <li><strong>PASS</strong>: 수정 사항 없음 &rarr; 완료</li>
+  <li><strong>MINOR</strong>: 경미한 수정 &rarr; 자동 수정 후 완료</li>
+  <li><strong>MAJOR</strong>: 중대한 누락/오류 &rarr; 재작성 후 재검증</li>
+</ul>
+</div>
+
+<h2>요약 구조</h2>
+
+<p>모든 논문 요약 HTML은 다음 섹션들을 포함합니다:</p>
+
+<div class="section-box">
+<ol>
+  <li><strong>메타데이터</strong>: 저자, 소속, 학회/저널, 연도, 링크</li>
+  <li><strong>TL;DR</strong>: 문제, 해결, 왜 작동하는가, 비유</li>
+  <li><strong>핵심 기여 (Key Contributions)</strong>: 3~5개 ordered list</li>
+  <li><strong>섹션별 정밀 요약</strong>: 원문 구조를 따라 깊이 있는 요약</li>
+  <li><strong>비판적 분석</strong>: 강점, 한계, 질문</li>
+  <li><strong>Key Takeaways</strong>: 이 논문에서 가져갈 것 3~5개</li>
+  <li><strong>개인 메모</strong>: Q&amp;A 및 추가 코멘트 누적 영역</li>
+</ol>
+</div>
+
+<h2>AI 논문 특화 가이드라인</h2>
+
+<h3>반드시 포착하는 핵심 요소</h3>
+<ul>
+  <li><strong>모델 아키텍처</strong>: 층(layer) 단위 설명, 입력&rarr;출력 흐름</li>
+  <li><strong>손실 함수 (Loss Function)</strong>: 전체 목적함수와 각 항(term)의 역할</li>
+  <li><strong>학습 세부사항</strong>: optimizer, learning rate, batch size, epoch, hardware</li>
+  <li><strong>데이터셋</strong>: 이름, 규모, 전처리, train/val/test 분할</li>
+  <li><strong>베이스라인 비교</strong>: 비교 모델, 공정성 여부</li>
+  <li><strong>Ablation Study</strong>: 컴포넌트 제거/변경 시 성능 변화</li>
+  <li><strong>SOTA 달성 여부</strong>: 벤치마크, 개선 폭</li>
+</ul>
+
+<h3>분야별 중점 확인 사항</h3>
+<table>
+<tr><th>분야</th><th>중점 확인 사항</th></tr>
+<tr><td>NLP / LLM</td><td>tokenizer, context length, pre-training corpus, fine-tuning 전략, 평가 벤치마크</td></tr>
+<tr><td>Computer Vision</td><td>backbone, resolution, augmentation, FLOPs/파라미터 수</td></tr>
+<tr><td>Reinforcement Learning</td><td>environment, reward design, exploration 전략, sample efficiency</td></tr>
+<tr><td>Generative Model</td><td>생성 품질 지표 (FID, IS, CLIP score), sampling 방법, inference 속도</td></tr>
+<tr><td>Graph Neural Network</td><td>그래프 구성 방법, message passing 방식, scalability</td></tr>
+<tr><td>Multimodal</td><td>modality 간 alignment 방법, fusion 전략, 각 modality의 encoder</td></tr>
+</table>
+
+<h2>서술 품질 원칙</h2>
+
+<div class="highlight-box">
+<ul>
+  <li><strong>스토리라인 우선</strong>: "왜 &rarr; 어떻게 &rarr; 효과" 흐름</li>
+  <li><strong>Background 충분히</strong>: 해당 분야에 익숙하지 않은 연구자도 이해할 수 있는 수준</li>
+  <li><strong>수식 + 직관</strong>: 모든 핵심 수식 뒤에 직관적 한 줄 설명</li>
+  <li><strong>실험은 "왜 &rarr; 결과 &rarr; 뒷받침"</strong>: 실험 의도, 수치, 주장 연결을 명확히</li>
+  <li><strong>패턴 분석</strong>: 테이블 나열 후 인사이트 서술</li>
+</ul>
+</div>
+
+<h2>수식 / 그림 / 테이블 처리</h2>
+
+<table>
+<tr><th>요소</th><th>처리 방식</th></tr>
+<tr><td>수식</td><td>KaTeX 렌더링. 인라인 <code>$...$</code>, 블록 <code>$$...$$</code>. 원문 notation 유지</td></tr>
+<tr><td>그림</td><td>blockquote로 내용과 의미를 상세히 기술</td></tr>
+<tr><td>테이블</td><td>HTML 테이블로 재현. 큰 테이블은 핵심 행 발췌 + 트렌드 설명</td></tr>
+<tr><td>알고리즘</td><td>pseudo-code + 텍스트 흐름도</td></tr>
+<tr><td>하이라이트</td><td><code>##텍스트##</code>로 감싸면 노란 배경 강조 (핵심 기여, SOTA 수치, 핵심 인사이트 등)</td></tr>
+</table>
+
+<h2>Q&A 처리</h2>
+
+<p>요약된 논문에 대해 질문하면, 답변과 함께 해당 내용이 요약 HTML에 자동 반영됩니다:</p>
+<ul>
+  <li>특정 섹션과 관련되면 해당 섹션 끝에 Q&amp;A 블록으로 추가</li>
+  <li>횡단적인 질문이면 문서 끝 "개인 메모" 섹션에 추가</li>
+</ul>
+
+<h2>정확성 기준</h2>
+
+<div class="warn-box">
+<ul>
+  <li>원문에 없는 내용 추가 금지 (비판적 분석, Key Takeaways 제외)</li>
+  <li>수식 번호는 원문과 일치</li>
+  <li>약어는 첫 등장 시 풀어쓰기</li>
+  <li>섹션 누락 없이 전체 커버</li>
+  <li>하이퍼파라미터, 데이터셋 규모 등 구체적 수치 반드시 포함</li>
+</ul>
+</div>
+
+<h2>언어 규칙</h2>
+<ul>
+  <li>기본 언어: <strong>한국어</strong></li>
+  <li>기술 용어: 영어 원문 유지 (예: "attention mechanism", "gradient descent")</li>
+  <li>형식: <code>한국어 설명 (English term)</code></li>
+</ul>
+
+<h2>파일 저장 규칙</h2>
+<ul>
+  <li>요약 파일: <code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code></li>
+  <li>날짜는 요약을 생성하는 당일 기준</li>
+  <li>index.html에 자동 등록 (역시간순 정렬)</li>
+  <li>git commit &amp; push로 GitHub Pages에 자동 배포</li>
+</ul>
+
+<hr>
+<p style="color: #888; font-size: 0.85rem; margin-top: 2rem;">이 페이지는 <a href="https://github.com/bubae/paper-summarize/blob/main/CLAUDE.md" style="color:#4a90d9;">CLAUDE.md</a> 기반으로 자동 생성되었습니다. 마지막 업데이트: 2026-03-03</p>
+
+</body>
+</html>
