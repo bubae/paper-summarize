@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mobile-O: Unified Multimodal Understanding and Generation on Mobile Device</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Mobile-O: Unified Multimodal Understanding and Generation on Mobile Device</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Abdelrahman Shaker*, Ahmed Heakl* (공동 1저자), Jaseel Muhammad, Ritesh Thawkar, Omkar Thawakar, Senmao Li, Hisham Cholakkal, Ian Reid, Eric P. Xing, Salman Khan, Fahad Shahbaz Khan</li>
+  <li><strong>소속</strong>: Mohamed bin Zayed University of Artificial Intelligence (MBZUAI), Carnegie Mellon University, Linköping University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.CV)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.20161">arXiv:2602.20161</a> · <a href="https://github.com/Amshaker/Mobile-O">Code</a> · <a href="https://huggingface.co/collections/Amshaker/mobile-o-models">Models</a> · <a href="https://huggingface.co/collections/Amshaker/mobile-o-datasets">Datasets</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 unified multimodal model (이미지 이해 + 생성을 동시에 수행)은 파라미터가 수십억 개에 달하고 대규모 pre-training 데이터(50M~1B 샘플)가 필요하여, 모바일/에지 디바이스에서의 실시간 배포가 불가능하다.</li>
+  <li><strong>해결</strong>: ##1.6B 파라미터의 경량 vision-language-diffusion 모델 Mobile-O를 제안##한다. 핵심 모듈인 Mobile Conditioning Projector (MCP)가 VLM hidden state를 diffusion 모델에 직접 연결하며, quadruplet 형식의 unified post-training으로 수백만 샘플만으로 이해/생성 성능을 동시에 향상시킨다.</li>
+  <li><strong>왜 작동하는가</strong>: MCP가 VLM의 마지막 K개 layer의 feature를 learnable weight로 fusion하고 depthwise-separable convolution으로 정제하여, 기존 learnable query token 방식보다 적은 파라미터로 효과적인 cross-modal alignment을 달성한다. 또한 quadruplet 데이터 형식이 이해와 생성 task를 하나의 샘플에서 동시에 학습하게 하여 cross-modal transfer를 극대화한다.</li>
+  <li><strong>비유</strong>: 기존 모델이 "대형 공장에서 이해 라인과 생성 라인을 분리 운영"하는 방식이라면, Mobile-O는 "하나의 소형 작업대에서 이해와 생성을 양손으로 동시에 처리하는 숙련된 장인"과 같다. MCP는 두 손(이해·생성)을 자연스럽게 연결하는 신경계 역할이다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Mobile-O 아키텍처</strong>: 효율적인 unified vision-language-diffusion 모델로, 1.6B 파라미터만으로 SOTA급 multimodal 이해 및 이미지 생성 성능을 달성하며 모바일 디바이스에서 실시간 추론이 가능하다.</li>
+  <li><strong>Mobile Conditioning Projector (MCP)</strong>: VLM의 multi-layer hidden state를 depthwise-separable convolution과 layerwise learnable fusion으로 diffusion 모델에 직접 연결하는 경량 cross-modal 모듈. 기존 learnable query token 접근법 대비 추가 토큰 예산 없이 파라미터를 절반으로 줄이면서 더 적은 pre-training 데이터로 동작한다.</li>
+  <li><strong>Quadruplet 기반 Unified Post-Training</strong>: (generation prompt, image, question, answer) 형태의 105K 샘플 unified dataset을 구성하여, 이해와 생성을 multi-task objective로 동시 최적화하는 post-training 기법. 기존 disjoint 또는 sequential training의 한계를 해결한다.</li>
+  <li><strong>에지 디바이스 실시간 배포</strong>: iPhone에서 512×512 이미지 생성에 ~3초, 이해 TTFT 248ms를 달성. MacBook, Jetson Nano에서도 기존 모델 대비 6~11배 빠른 속도를 보인다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction — 문제 정의와 동기</h2>
+
+<p>Unified multimodal model은 하나의 아키텍처 내에서 이미지 이해(captioning, VQA)와 이미지 생성(text-to-image)을 모두 수행한다. BLIP-3o, Janus, Show-O 등이 이 방향을 추구하지만, 실제 모바일 배포에는 두 가지 근본적 장벽이 존재한다:</p>
+
+<h3>장벽 1: 과도한 모델 크기</h3>
+<p>대부분의 unified model은 무거운 visual encoder와 denoising module을 사용한다. 예를 들어 BLIP-3o는 2.6B UNet + 3B VLM + 1.5B DiT = 총 7.1B 파라미터가 필요하다. 최근 JanusFlow 같은 효율성 연구도 여전히 에지 디바이스 실시간 배포에는 부적합하다.</p>
+
+<h3>장벽 2: 데이터 의존성</h3>
+<p>효과적인 cross-modal alignment을 위해 50M~1B 규모의 pre-training 데이터가 필요하여, 학습 비용과 시간이 막대하다.</p>
+
+<p>이러한 문제에서 출발한 핵심 연구 질문: <strong>"이해와 생성 모두에 효과적이면서, 모바일 폰 같은 소비자 디바이스에 배포 가능할 만큼 효율적인 unified multimodal model을 만들 수 있는가?"</strong></p>
+
+<!-- ============================================================ -->
+<h2>2. Related Work — 배경 지식</h2>
+
+<h3>2.1 Unified Multimodal Understanding &amp; Generation</h3>
+<p>초기 unified model (MagVLT, Unified-IO 2)은 단일 transformer로 이해와 생성을 통합했다. 이후 Janus, BLIP-3o, JanusFlow 같은 hybrid 설계가 diffusion decoder를 추가하여 text-to-image 생성 품질을 개선했고, Emu3는 autoregression만으로도 text-to-image가 가능함을 보였다. 그러나 이들은 CLIP-ViT 같은 무거운 image encoder나 UNet-style denoiser에 의존하며, 이해와 생성을 disjoint하게 학습하거나 sequential하게 학습하는 한계가 있다.</p>
+
+<h3>2.2 Efficient Multimodal Understanding Models</h3>
+<p><strong>FastVLM</strong> (Apple, CVPR 2025)은 본 논문의 이해 백본이다. FastViTHD라는 hybrid vision encoder를 도입하여, 고해상도 이미지에서 적은 수의 visual token을 생성함으로써 TTFT (Time-to-First-Token)를 획기적으로 줄였다. FastViT는 structural reparameterization을 활용한 빠른 hybrid vision transformer이며, FastVLM은 이를 확장하여 MobileCLIP 레시피로 pre-training한다. 0.5B 변형은 LLaVA-OneVision-0.5B 대비 85배 빠른 TTFT를 달성한다. SmolVLM은 aggressive tokenization과 architectural 최적화로 compact model에서도 경쟁력 있는 성능을 보여주었다.</p>
+
+<h3>2.3 Efficient Text-to-Image Generation Models</h3>
+<p><strong>SANA</strong> (NVIDIA, 2024)는 본 논문의 생성 백본이다. SANA는 Deep Compression Autoencoder로 이미지를 32배 압축하여 latent token 수를 줄이고, 모든 vanilla attention을 linear attention으로 대체하여 복잡도를 $O(N^2)$에서 $O(N)$으로 낮춘 Linear DiT (Diffusion Transformer) 아키텍처를 사용한다. SANA-0.6B는 Flux-12B보다 20배 작으면서 100배 이상 빠른 throughput을 달성한다. 단, SANA는 text encoder로 Gemma-2B를 사용하므로 총 파라미터가 2.6B에 달한다. SnapGen은 체계적 architecture 최적화와 cross-architecture distillation으로 모바일 T2I 생성을 추구하지만, 이해 기능은 없다.</p>
+
+<h3>2.4 Data Efficiency and Training Stages in Unified Models</h3>
+<p>기존 unified model의 학습 전략은 크게 두 갈래이다:</p>
+<ul>
+  <li><strong>Joint Training</strong> (Metamorph, Show-O): 이해와 생성 데이터를 섞어 multitask learning. 효과가 총 데이터 크기와 이해/생성 비율에 강하게 의존하며, 보통 각 task의 disjoint subset (예: LLaVA-665K + BLIP3o-60K)을 사용하여 cross-task alignment이 제한적이다.</li>
+  <li><strong>Sequential Training</strong> (BLIP-3o, Janus): VLM을 먼저 학습한 후 backbone을 freeze하고 생성 모듈만 학습. 이해 능력은 보존되지만, 학습 중 cross-task interaction을 활용하지 못한다.</li>
+</ul>
+<p>Mobile-O는 이 두 전략의 한계를 모두 해결하기 위해, quadruplet 형태의 unified post-training을 제안한다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Method — Mobile-O 아키텍처</h2>
+
+<h3>3.1 Baseline Mobile Unified Framework</h3>
+
+<p>Mobile-O의 기반은 기존 모바일 최적화 모델들을 결합하는 것에서 시작한다. 이해에는 <strong>FastVLM-0.5B</strong>, 생성에는 <strong>SANA-0.6B (DiT-style)</strong>를 사용한다.</p>
+
+<p>VLM $f_\theta$ (FastVLM)와 diffusion decoder $g_\phi$ (SANA-0.6B)가 있을 때, text prompt $p$와 (이해를 위한) optional image $x$가 주어지면, VLM은 layer별 hidden state $\{H^{(1)}, \ldots, H^{(L)}\}$를 생성한다. 여기서 $H^{(\ell)} \in \mathbb{R}^{N \times d_{\text{vlm}}}$이며, $N$은 token 길이, $d_{\text{vlm}}$은 hidden size이다.</p>
+
+<p>Diffusion model $g_\phi$는 cross-attention block을 가진 DiT-style decoder로, $d_{\text{cond}}$ 차원의 encoder feature를 받는다. ##핵심 설계 결정: SANA-0.6B가 원래 사용하던 Gemma-2B text encoder를 제거하고, 이해 모델의 LLM (Qwen2-0.5B)을 generation prompt 처리에도 공유##한다. 이를 통해 파라미터 효율이 크게 향상된다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: Mobile-O 전체 아키텍처 개요. 왼쪽은 전체 framework — 효율적인 image encoder와 compact autoregressive LM이 visual understanding을 담당하고, lightweight linear DiT와 VAE encoder-decoder가 image generation을 수행한다. 오른쪽은 MCP 모듈의 상세 구조 — VLM의 마지막 K개 layer hidden state를 learnable weight로 융합하고, depthwise separable Conv1D, efficient channel attention, 그리고 output projection을 거쳐 diffusion model의 conditioning signal을 생성한다.
+</blockquote>
+
+<h3>3.2 Mobile Conditioning Projector (MCP)</h3>
+
+<p>기존 unified framework는 VLM과 image decoder 사이에 <strong>learnable query token</strong>을 삽입하는 방식을 사용한다 (BLIP-3o, TBAC-UniImage 등). 이 방식은 대규모 모델에는 효과적이지만, ##대량의 pre-training 데이터 없이는 effective alignment이 어렵다##. Mobile-O는 이 대신 VLM hidden state를 diffusion decoder에 직접 연결하는 MCP를 설계한다.</p>
+
+<h4>Step 1: Layerwise Fusion</h4>
+<p>VLM의 마지막 $K$개 layer $S = \{L-K+1, \ldots, L\}$에서 hidden state를 추출하고, temperature-scaled softmax로 가중 결합한다:</p>
+
+$$\alpha_\ell = \frac{\exp(w_\ell / \tau)}{\sum_{j \in S} \exp(w_j / \tau)}, \quad H_{\text{fuse}} = \sum_{\ell \in S} \alpha_\ell H^{(\ell)} \in \mathbb{R}^{N \times d_{\text{vlm}}} \tag{1}$$
+
+<p>직관적으로, VLM의 서로 다른 깊이의 layer가 서로 다른 수준의 semantic 정보를 담고 있으므로, 학습 가능한 가중치 $\{w_\ell\}$이 각 layer의 기여도를 동적으로 조절한다. Temperature $\tau$는 학습 중 cosine annealing으로 조절된다.</p>
+
+<h4>Step 2: Compression and Refinement</h4>
+<p>융합된 표현을 compact space로 projection하고, depthwise-separable 1D convolution과 lightweight channel attention으로 정제한다:</p>
+
+$$\tilde{H} = \text{LN}(H_{\text{fuse}} W_c), \quad W_c \in \mathbb{R}^{d_{\text{vlm}} \times d_h} \tag{2}$$
+$$\tilde{H} \leftarrow \text{SeqRefine}(\tilde{H}) \tag{3}$$
+
+<p>SeqRefine 블록은 depthwise-separable Conv1D → pointwise mixing → tiny MLP-based channel attention으로 구성된다. 핵심은 <strong>sequence length $N$ 방향(1D)</strong>으로 동작한다는 점이다. 즉, 2D spatial convolution이 아닌 token sequence 위의 1D convolution이므로, 비용이 크게 절감되면서도 language stream과의 token-level alignment이 유지된다.</p>
+
+<h4>Step 3: Output Projection</h4>
+<p>Diffusion model의 cross-attention이 기대하는 $d_{\text{cond}}$ 차원으로 최종 변환한다:</p>
+
+$$E = \text{LN}(\tilde{H} W_o), \quad W_o \in \mathbb{R}^{d_h \times d_{\text{cond}}}, \quad E \in \mathbb{R}^{N \times d_{\text{cond}}} \tag{4}$$
+
+<p>$g_\phi$의 모든 cross-attention layer가 동일한 sequence $E$를 encoder feature로 사용한다. 이는 latent diffusion에서 CLIP-conditioning과 유사하지만, VLM과 end-to-end로 학습된다는 점이 다르다.</p>
+
+<h4>복잡도 분석</h4>
+<p>Hidden size $d_h$와 kernel size $k$에 대해, refinement block의 비용은 token당 $O(k \cdot d_h)$ (depthwise) + $O(d_h^2)$ (pointwise)이다. 이는 full 2D convolution이나 새로운 query token에 대한 attention보다 훨씬 저렴하다. MLP connector의 3.3M 파라미터 대비 MCP는 2.4M으로 약 27% 감소하면서 더 높은 성능을 달성한다.</p>
+
+<div class="flow-diagram">Mobile-O 아키텍처 흐름:
+
+[Image] → Image Encoder (FastViTHD) → Visual Tokens
+                                            ↓
+[Question] → Embedding Layer → Autoregressive LM (Qwen2-0.5B) → Answer (I2T Loss)
+                                     ↓ (Hidden States: Layer N-3 ~ N)
+                              [MCP: Layerwise Fusion]
+                                     ↓ (α-weighted sum)
+                              [Compress: Linear + LayerNorm]
+                                     ↓
+                              [SeqRefine: DW-Sep Conv1D + Channel Attn]
+                                     ↓
+                              [Output Projection → E]
+                                     ↓ (Cross-Attention conditioning)
+[Gen. Prompt] → Embedding → LM → Gen. Tokens → Linear → DiT → VAE Decoder → [Generated Image] (T2I Loss)
+</div>
+
+<h3>3.3 Training Scheme — 3단계 학습</h3>
+
+<p>Mobile-O는 점진적으로 multimodal 능력을 강화하는 3단계 학습을 수행한다.</p>
+
+<h4>Stage 1: Cross-Modal Alignment</h4>
+<ul>
+  <li><strong>목표</strong>: visual과 linguistic 표현 간 robust connection 수립</li>
+  <li><strong>데이터</strong>: JourneyDB 4M (다양한 visual concept의 고품질 text-image pair) + BLIP3o-Short-Caption 5M = 총 9M 샘플</li>
+  <li><strong>Trainable</strong>: DiT + MCP만 학습. Visual encoder, LLM backbone, VAE는 freeze</li>
+  <li><strong>설정</strong>: LR 2e-4 (cosine → 2e-6), batch 512, DeepSpeed ZeRO-3, 50K steps (~3 epochs), ~3일 (8×A100)</li>
+</ul>
+
+<h4>Stage 2: Supervised Fine-tuning (SFT)</h4>
+<ul>
+  <li><strong>목표</strong>: Stage 1 후 관찰된 특정 약점(복잡한 인체 동작, 일반 물체, 랜드마크)을 타겟팅하여 보완</li>
+  <li><strong>데이터</strong>: BLIP3o-60K + ShareGPT-4o-Image 45K = 105K curated prompt-image pair</li>
+  <li><strong>Trainable</strong>: Stage 1과 동일 (DiT + MCP)</li>
+  <li><strong>설정</strong>: LR 2e-4 (cosine → 1e-6), batch 384, 20 epochs, ~15시간</li>
+  <li><strong>배경</strong>: Mobile-O의 Stage 1 pre-training corpus는 BLIP-3o의 20%에 불과하여, compact corpus의 coverage 부족을 보완하는 단계</li>
+</ul>
+
+<h4>Stage 3: Unified Multimodal Post-Training</h4>
+<ul>
+  <li><strong>목표</strong>: ##이해와 생성 모두를 동시에 향상. 기존의 joint training이나 sequential training과 구별되는 핵심 기여##</li>
+  <li><strong>데이터</strong>: 105K quadruplet $\mathcal{S} = \{p, x_{\text{img}}, q, a\}$ (generation prompt, image, question, answer)</li>
+  <li><strong>데이터 구성 방법</strong>:
+    <ol>
+      <li>GPT-4o로 각 이미지에 대한 highly detailed compositionally-aware caption 생성</li>
+      <li>다양한 visual understanding 측면을 다루는 diverse question-answer set 합성</li>
+    </ol>
+  </li>
+  <li><strong>Trainable</strong>: DiT + MCP + LLM + Visual Encoder (LoRA, r=16, α=32, dropout=0.1). VAE만 freeze</li>
+  <li><strong>설정</strong>: LR 1e-4 (cosine → 1e-6), batch 128, 7 epochs, ~5시간</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: Unified Multimodal Post-Training 파이프라인 개요. 하나의 quadruplet 샘플에서 I2T loss (이해)와 T2I loss (생성)가 동시에 계산된다. Image encoder와 LLM은 LoRA로 학습하고, generation component (DiT, MCP, VAE Encoder)는 fully learnable이며, VAE Decoder만 freeze된다.
+</blockquote>
+
+<h3>3.4 Training Objectives</h3>
+
+<p>전체 학습 목적함수는 이해와 생성 목적함수의 가중 결합이다:</p>
+
+$$\mathcal{L}_{\text{unified}} = \lambda_{\text{lang}} \mathcal{L}_{\text{lang}} + \lambda_{\text{diff}} \mathcal{L}_{\text{diff}} \tag{5}$$
+
+<h4>Image-to-Text (I2T) Loss</h4>
+<p>표준 cross-entropy loss로 autoregressive LM의 출력 토큰을 학습한다:</p>
+
+$$\mathcal{L}_{\text{lang}} = -\sum_{t=1}^{|a|} \log P(a_t | x_{\text{img}}, q, a_{&lt;t}) \tag{6}$$
+
+<p>직관적으로, 모델이 이미지와 질문을 보고 정답 토큰을 순차적으로 예측하도록 학습한다.</p>
+
+<h4>Text-to-Image (T2I) Loss</h4>
+<p>표준 noise prediction 대신 <strong>flow-matching objective</strong>를 사용한다. Flow matching은 noise 분포에서 data 분포로의 직선 경로를 학습하는 방법으로, 표준 diffusion 대비 더 빠르고 안정적인 학습을 제공한다.</p>
+
+<p>Clean latent $x$ (VAE encoder 출력)과 noise $\epsilon \sim \mathcal{N}(0, I)$에서 noise level $\sigma \in [0, 1]$을 샘플링하여:</p>
+
+$$x_\sigma = (1 - \sigma)x + \sigma\epsilon, \quad v^\star(x_\sigma; \sigma) = \epsilon - x \tag{7}$$
+
+<p>DiT 모델이 MCP feature $c_p$로 conditioning된 velocity field $v_\phi(x_\sigma, \sigma, c_p)$를 예측한다:</p>
+
+$$\mathcal{L}_{\text{diff}} = \mathbb{E}_{x, p, \epsilon, \sigma} \left[ w(\sigma) \| v_\phi(x_\sigma, \sigma, c_p) - (\epsilon - x) \|_2^2 \right] \tag{8}$$
+
+<p>여기서 $w(\sigma)$는 scale-dependent weighting function이다. 직관적으로, 모델이 "현재 noisy 상태에서 noise를 빼고 원본 이미지를 더하는 방향(velocity)"을 예측하도록 학습하는 것이다. 이 formulation은 probability flow ODE를 직접 학습하므로, 표준 diffusion보다 빠르고 안정적이다.</p>
+
+<!-- ============================================================ -->
+<h2>4. Experiments</h2>
+
+<h3>4.1 Implementation Details</h3>
+
+<table>
+<tr><th>항목</th><th>이해 (Understanding)</th><th>생성 (Generation)</th></tr>
+<tr><td>모델</td><td>FastVLM-0.5B (FastViTHD + Qwen2-0.5B)</td><td>SANA-600M-512 (DiT-style)</td></tr>
+<tr><td>이미지 해상도</td><td>1024 × 1024 (bicubic interpolation)</td><td>512 × 512</td></tr>
+<tr><td>총 파라미터</td><td colspan="2" style="text-align: center;">1.6B (이해 + 생성 + MCP 합산)</td></tr>
+<tr><td>하드웨어</td><td colspan="2" style="text-align: center;">8 × NVIDIA A100 (80GB), single node</td></tr>
+<tr><td>Precision</td><td colspan="2" style="text-align: center;">BF16 mixed-precision, TF32 for MatMul</td></tr>
+</table>
+
+<table>
+<tr><th>Stage</th><th>데이터</th><th>샘플 수</th><th>Epochs</th><th>학습 시간</th><th>LR</th><th>Batch</th><th>Warmup</th></tr>
+<tr><td>1. Cross-Modal Alignment</td><td>JourneyDB + BLIP3o-Short</td><td>9M</td><td>~3</td><td>~3일</td><td>2e-4 → 2e-6</td><td>512</td><td>2%</td></tr>
+<tr><td>2. SFT</td><td>BLIP3o-60K + ShareGPT-4o-45K</td><td>105K</td><td>20</td><td>~15시간</td><td>2e-4 → 1e-6</td><td>384</td><td>5%</td></tr>
+<tr><td>3. Unified Post-Training</td><td>Quadruplet dataset</td><td>105K</td><td>7</td><td>~5시간</td><td>1e-4 → 1e-6</td><td>128</td><td>5%</td></tr>
+</table>
+
+<p>전 stage 공통: Optimizer AdamW ($\beta_2 = 0.95$), weight decay 0.01, cosine annealing LR schedule. Stage 1은 DeepSpeed ZeRO-3, Stage 2-3은 ZeRO-1 사용.</p>
+
+<p>모바일 배포: MLX (Apple) + CoreML로 변환. LLM은 MLX Swift에서 8-bit weights로 GPU decoding, vision encoder·DiT·VAE·MCP는 Core ML float32로 export. ##총 메모리 footprint 2GB 이하##.</p>
+
+<h3>4.2 Quantitative Comparison</h3>
+
+<p>본 논문의 실험은 다음 핵심 질문들에 답하기 위해 설계되었다:</p>
+<ol>
+  <li><strong>Q1</strong>: Mobile-O가 비슷한 크기(≤2B)의 unified model 대비 이해 성능에서 경쟁력이 있는가?</li>
+  <li><strong>Q2</strong>: 이미지 생성(text-to-image) 품질은 어떠한가?</li>
+  <li><strong>Q3</strong>: Unified post-training이 이해 성능을 해치지 않고 오히려 향상시키는가?</li>
+  <li><strong>Q4</strong>: 실제 에지 디바이스에서 실시간 배포가 가능한가?</li>
+</ol>
+
+<h4>Multimodal Visual Understanding (Q1, Q3 → Table 1)</h4>
+
+<p>7개 벤치마크에서 평가: MMMU (multi-discipline reasoning), TextVQA (OCR/text VQA), MM-Vet (integrated capabilities), SEED (generative comprehension), ChartQA (chart reasoning), POPE (hallucination robustness), GQA (scene understanding).</p>
+
+<table>
+<tr><th>Type</th><th>Model</th><th># Params</th><th>MMMU</th><th>TextVQA</th><th>MMVet</th><th>SEED</th><th>ChartQA</th><th>POPE</th><th>GQA</th><th>Avg</th></tr>
+<tr><td>Und. Only ≤1B</td><td>FastVLM-0.5B</td><td>0.6B</td><td>33.3</td><td>68.0</td><td>-</td><td>-</td><td>71.6</td><td>-</td><td>-</td><td>60.5</td></tr>
+<tr><td rowspan="5">Und.+Gen. ≤2B</td><td>Janus</td><td>2.1B</td><td>30.5</td><td>-</td><td>34.3</td><td>63.7</td><td>-</td><td>87.0</td><td>59.1</td><td>54.0</td></tr>
+<tr><td>Show-O</td><td>1.5B</td><td>25.1</td><td>-</td><td>20.9</td><td>51.6</td><td>44.7</td><td>73.8</td><td>48.7</td><td>46.8</td></tr>
+<tr><td>Show-O-Clip-ViT</td><td>1.6B</td><td>27.4</td><td>-</td><td>-</td><td>-</td><td>-</td><td>84.5</td><td>57.5</td><td>57.0</td></tr>
+<tr><td>JanusFlow</td><td>2.1B</td><td>29.3</td><td>55.5</td><td>30.9</td><td>70.5</td><td>64.6</td><td>88.0</td><td>60.3</td><td>57.0</td></tr>
+<tr style="font-weight:bold;"><td>Mobile-O-0.5B</td><td>1.6B</td><td>34.6</td><td>67.8</td><td>38.1</td><td>69.4</td><td>75.2</td><td>86.4</td><td>62.9</td><td>62.1</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Mobile-O-0.5B는 7개 벤치마크 평균 62.1%로, 동일 규모(≤2B) unified model 중 최고 성능##이다. JanusFlow 대비 +5.1% (절대값), Show-O 대비 +15.3% 개선.</li>
+  <li>특히 주목할 점: Mobile-O는 이해 전용 모델인 FastVLM-0.5B (60.5%)보다도 +1.6% 높다. 이는 unified post-training이 이해 능력을 해치기는커녕 오히려 향상시킨다는 강력한 증거이다 (Q3에 대한 답).</li>
+  <li>MMMU (34.6)와 ChartQA (75.2)에서 특히 큰 차이를 보이며, 이는 cross-modal post-training이 reasoning과 chart understanding에 특히 유리함을 시사한다.</li>
+</ul>
+
+<h4>Text-to-Image Generation (Q2 → Table 2)</h4>
+
+<p>GenEval 벤치마크에서 평가. GenEval은 object-focused framework로, Single Object, Two Object, Counting, Colors, Position, Color Attribution 등 6개 세부 항목의 text-image alignment을 측정한다.</p>
+
+<table>
+<tr><th>Type</th><th>Model</th><th># Params</th><th>Single</th><th>Two</th><th>Count</th><th>Colors</th><th>Position</th><th>Color Attr.</th><th>Overall</th></tr>
+<tr><td>Gen. Only ≤1B</td><td>SnapGen</td><td>0.4B</td><td>1.00</td><td>0.84</td><td>0.60</td><td>0.88</td><td>0.18</td><td>0.45</td><td>0.66</td></tr>
+<tr><td>Und.+Gen. &gt;2B</td><td>BLIP3o-4B</td><td>7.3B</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td><td>0.81</td></tr>
+<tr><td rowspan="4">Und.+Gen. ≤2B</td><td>Janus</td><td>2.1B</td><td>0.97</td><td>0.68</td><td>0.30</td><td>0.84</td><td>0.46</td><td>0.42</td><td>0.61</td></tr>
+<tr><td>Show-O-Clip-ViT</td><td>1.6B</td><td>0.98</td><td>0.85</td><td>0.67</td><td>0.81</td><td>0.28</td><td>0.55</td><td>0.69</td></tr>
+<tr><td>JanusFlow</td><td>2.1B</td><td>0.97</td><td>0.59</td><td>0.45</td><td>0.83</td><td>0.53</td><td>0.42</td><td>0.63</td></tr>
+<tr style="font-weight:bold;"><td>Mobile-O-0.5B</td><td>1.6B</td><td>0.98</td><td>0.87</td><td>0.57</td><td>0.86</td><td>0.68</td><td>0.49</td><td>0.74</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Mobile-O는 ≤2B unified model 중 GenEval 최고 점수 0.74를 달성##. Show-O-Clip-ViT 대비 +5%, JanusFlow 대비 +11%.</li>
+  <li><strong>Position (0.68)</strong>에서 압도적 우위: JanusFlow (0.53), Janus (0.46) 대비 큰 폭의 개선. 이는 MCP의 layerwise fusion이 spatial 관계를 더 잘 포착함을 시사한다.</li>
+  <li><strong>Two Object (0.87)</strong>도 최고 수준이며, Counting (0.57)은 Show-O-Clip-ViT (0.67)보다 낮다. Counting이 상대적 약점이다.</li>
+  <li>BLIP3o-4B (0.81)에는 못 미치지만, BLIP3o는 7.3B 파라미터로 4.6배 더 크다.</li>
+</ul>
+
+<h4>Text-and-Image-to-Image Generation (Image Editing)</h4>
+<p>MCP가 input image의 low-level visual detail을 포착하므로, source image + textual instruction → edited image의 image editing이 별도 아키텍처 수정 없이 가능하다. ShareGPT4V에서 46K editing 샘플만으로 fine-tuning하여 ImageEdit 벤치마크에서 2.5점을 달성했다. 전용 editing model (BLIP3o, Emu-Edit)이 훨씬 대규모 editing 데이터로 학습되었음을 고려하면 주목할 만한 결과이다.</p>
+
+<h4>Edge Deployment (Q4 → Table 6)</h4>
+
+<table>
+<tr><th>Platform</th><th>Model</th><th>Vision Enc. (ms)</th><th>TTFT (ms)</th><th>Gen. Latency (s)</th></tr>
+<tr><td rowspan="4">MacBook M2 Pro</td><td>Janus</td><td>783</td><td>289</td><td>201</td></tr>
+<tr><td>JanusFlow</td><td>1909</td><td>935</td><td>24</td></tr>
+<tr><td>Show-O</td><td>699</td><td>797</td><td>47</td></tr>
+<tr style="font-weight:bold;"><td>Mobile-O-0.5B</td><td>56</td><td>187</td><td>4</td></tr>
+<tr><td rowspan="4">Jetson Orin Nano</td><td>Janus</td><td>745</td><td>749</td><td>44</td></tr>
+<tr><td>JanusFlow</td><td>741</td><td>745</td><td>22</td></tr>
+<tr><td>Show-O</td><td>403</td><td>720</td><td>52</td></tr>
+<tr style="font-weight:bold;"><td>Mobile-O-0.5B</td><td>88</td><td>488</td><td>4</td></tr>
+<tr style="font-weight:bold;"><td>iPhone 17 Pro</td><td>Mobile-O-0.5B</td><td>102</td><td>248</td><td>3</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>MacBook에서 이해 latency: 원문 기준 ##Janus, Show-O 대비 2~8배 빠름## (understanding 전체 기준). Vision Enc.만 비교 시 Mobile-O (56ms) vs Janus (783ms) = 14배 차이. 생성 latency: Mobile-O (4s) vs Janus (201s), Show-O (47s) = ##11~46배 빠름##.</li>
+  <li>Jetson에서도 생성 4s로 다른 모델(22~52s) 대비 5.5~13배 빠르다.</li>
+  <li>##iPhone 17 Pro에서 512×512 이미지 생성 ~3초, TTFT 248ms##. 실시간 on-device unified multimodal의 첫 실용적 사례.</li>
+</ul>
+
+<h3>4.3 Qualitative Comparison</h3>
+<blockquote>
+<strong>[Figure 4 설명]</strong>: Text-to-image 생성(왼쪽)과 visual understanding(오른쪽)의 정성적 비교. 생성에서 Mobile-O는 Janus, JanusFlow, Show-O 대비 더 선명한 디테일, 일관된 레이아웃, 일관된 조명을 보여준다. 특히 복잡한 장면(나뭇잎 디테일, 원숭이 털 가닥)에서 우수하다. Janus와 JanusFlow는 counting 오류가 관찰된다. Understanding에서 Mobile-O는 ChartQA, TextVQA 질문에 정확히 답하며, 책 표지 요약에서 제목, 저자 등을 정확히 추출한다.
+</blockquote>
+
+<blockquote>
+<strong>[Figure 5 설명]</strong>: Mobile-O-0.5B의 image editing 결과. 46K 샘플만으로 fine-tuning했음에도, 물체 추가, 속성 변경(개 털 색상 → 갈색), 스타일 전환(유화풍) 등 다양한 editing을 수행한다.
+</blockquote>
+
+<h3>4.4 Ablation Study</h3>
+
+<h4>Ablation 1: Mobile-O의 일반성 (Table 3)</h4>
+<p><strong>실험 의도</strong>: MCP, unified post-training, 학습 레시피가 특정 backbone에 종속되지 않고 더 큰 모델에도 적용 가능한지 확인.</p>
+
+<p>FastVLM-0.5B/SANA-0.6B를 FastVLM-1.5B/SANA-1.5B로 교체하여 Mobile-O-1.5B (~3.5B total)를 구성.</p>
+
+<table>
+<tr><th>Model</th><th>Und. Acc. (%)</th><th>Gen. Acc. (%)</th></tr>
+<tr><td>FastVLM-1.5B (standalone)</td><td>64.8</td><td>-</td></tr>
+<tr><td>SANA-1.5B (standalone)</td><td>-</td><td>66</td></tr>
+<tr><td>Mobile-O-1.5B (SFT)</td><td>64.8</td><td>75</td></tr>
+<tr><td>Mobile-O-1.5B (Post-train)</td><td>66.2</td><td>78</td></tr>
+</table>
+
+<p><strong>결과가 뒷받침하는 주장</strong>:</p>
+<ul>
+  <li>SFT 후: 이해 성능 유지(64.8%) + 생성 능력 획득(75%). FastVLM 단독에 없던 generation이 추가되면서 understanding은 손실 없음.</li>
+  <li>##Post-training 후: 이해 +1.4% (66.2%), 생성 +3% (78%). 두 task 모두 향상.## 특히 생성은 standalone SANA-1.5B (66%)를 12%나 초과하여, unified training이 개별 component의 능력까지 강화함을 보여준다.</li>
+  <li>결론: Mobile-O framework는 architecture-agnostic하며, 더 큰 backbone에서도 일관되게 작동한다.</li>
+</ul>
+
+<h4>Ablation 2: MCP Design (Table 4)</h4>
+<p><strong>실험 의도</strong>: MCP의 각 구성 요소(layer fusion, learnable weighting, refinement block)의 개별 기여를 분리.</p>
+
+<table>
+<tr><th>Proj.</th><th># Layers</th><th>Fusion</th><th>Compress</th><th>CA</th><th>Acc (%)</th><th>Params (M)</th></tr>
+<tr><td>MLP</td><td>-</td><td>-</td><td>-</td><td>-</td><td>68.5</td><td>3.3</td></tr>
+<tr><td>MCP</td><td>1</td><td>-</td><td>✓</td><td>-</td><td>68.4</td><td>1.7</td></tr>
+<tr><td>MCP</td><td>4</td><td>Uniform</td><td>✓</td><td>-</td><td>69.6</td><td>1.7</td></tr>
+<tr><td>MCP</td><td>4</td><td>Learnable</td><td>✓</td><td>-</td><td>70.0</td><td>1.7</td></tr>
+<tr><td>MCP</td><td>4</td><td>Learnable</td><td>✓</td><td>✓</td><td>70.4</td><td>2.4</td></tr>
+</table>
+
+<p><strong>결과가 뒷받침하는 주장</strong>:</p>
+<ul>
+  <li>MLP (68.5%, 3.3M) → 단일 MCP (68.4%, 1.7M): 파라미터 절반으로 동등 성능. Compression의 효율성 입증.</li>
+  <li>1 layer → 4 layers (uniform): +1.2%. 다양한 depth의 feature 결합이 유효함.</li>
+  <li>Uniform → Learnable: +0.4%. 동적 attention이 도움됨.</li>
+  <li>##Channel attention 추가: 최종 70.4%. MLP 대비 +1.9% 성능 향상을 파라미터 27% 감소와 동시에 달성.##</li>
+</ul>
+
+<h4>Ablation 3: Layer 수에 따른 MCP 성능 (Table 7, Supplementary)</h4>
+<p><strong>실험 의도</strong>: MCP에 몇 개 layer를 aggregation하는 것이 최적인가?</p>
+
+<table>
+<tr><th># Layers</th><th>Accuracy (%)</th></tr>
+<tr><td>1</td><td>68.7</td></tr>
+<tr><td>2</td><td>69.8</td></tr>
+<tr><td>4</td><td>70.4</td></tr>
+<tr><td>8</td><td>70.2</td></tr>
+</table>
+
+<p><strong>패턴</strong>: 4개 layer가 최적. 8개는 오히려 소폭 하락(70.2%). 과도한 aggregation은 redundant하거나 conflicting한 정보를 도입하여 conditioning을 복잡하게 만든다. Mid-depth VLM feature가 compositional image generation에 가장 유관한 semantic abstraction을 포착하는 것으로 보인다.</p>
+
+<h4>Ablation 4: Unified Post-Training 효과 (Table 5)</h4>
+<p><strong>실험 의도</strong>: Quadruplet post-training이 단순 이미지-텍스트 pair post-training보다 우수한지 확인.</p>
+
+<table>
+<tr><th>Method</th><th>Und. Acc. (%)</th><th>Gen. Acc. (%)</th></tr>
+<tr><td>SFT only</td><td>60.5</td><td>73.3</td></tr>
+<tr><td>SFT + Post-Train (image-text pairs)</td><td>60.6</td><td>73.4</td></tr>
+<tr><td>SFT + Post-Train (quadruplets)</td><td>62.1</td><td>74.2</td></tr>
+</table>
+
+<p><strong>결과가 뒷받침하는 주장</strong>: 단순 image-text pair post-training은 거의 효과 없음 (+0.1%). 반면 ##quadruplet 형식은 이해 +1.6%, 생성 +0.9%를 동시에 달성##. 이는 하나의 샘플에서 두 task를 동시에 학습하는 multi-objective 구조가 cross-modal coherence를 효과적으로 향상시킴을 입증한다.</p>
+
+<!-- ============================================================ -->
+<h2>5. Conclusion</h2>
+
+<p>Mobile-O는 unified vision-language-diffusion model로, quadruplet 형식의 unified post-training과 Mobile Conditioning Projector를 통해 에지 디바이스에서 고품질 이미지 이해와 text-to-image 생성을 달성한다. MacBook M2 Pro, Jetson Orin Nano, iPhone에서 기존 unified model 대비 latency와 memory efficiency 모두에서 우위를 보이면서 visual fidelity와 semantic accuracy를 유지한다. iPhone에서 2GB 이하 메모리 footprint로 ~3초 내 이미지 생성이 가능하여, 실시간 on-device 배포의 첫 실용적 사례를 제시한다.</p>
+
+<h3>Limitations</h3>
+<p>Mobile-O는 이해 모델의 경량 LLM을 text encoder로 재사용하며, 별도의 standalone language model을 사용하지 않는다. 이 설계는 메모리를 크게 줄이지만, text representation의 표현력을 제한할 수 있다. 예를 들어 SANA는 Gemma-2B-it을 전용 text encoder로 사용하여 더 강력한 linguistic backbone의 혜택을 받지만, Gemma-2B만으로 FP16에서 ~4GB 메모리가 필요하여 대부분의 모바일 디바이스에서는 비현실적이다.</p>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>실용성 중심의 연구</strong>: "모바일에서 실시간 동작하는 unified model"이라는 명확한 목표와 실제 iPhone/Jetson 배포 결과는 학술적 기여를 넘어 산업적 의미가 크다.</li>
+  <li><strong>체계적인 ablation</strong>: MCP의 각 component, layer 수, post-training 형식까지 꼼꼼히 분리하여 분석했다.</li>
+  <li><strong>데이터 효율성</strong>: BLIP3o의 20%에 불과한 pre-training data로 경쟁력 있는 성능을 달성한 점은 실용적 가치가 높다.</li>
+  <li><strong>코드/모델/데이터 전체 공개</strong>: 재현 가능성이 높다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>벤치마크 범위</strong>: 생성은 GenEval 단일 벤치마크로만 평가. FID, CLIP score 등 다양한 지표와 COCO 같은 추가 벤치마크가 없다. GenEval의 object-focused 특성상, 복잡한 compositional generation이나 photorealistic quality 평가에는 한계가 있다.</li>
+  <li><strong>표준편차/반복 실험 미보고</strong>: 메인 결과에 표준편차가 없어 통계적 유의성 확인이 어렵다. Edge deployment latency (Table 6)에만 ± 표기가 있다.</li>
+  <li><strong>공정한 비교 문제</strong>: JanusFlow (2.1B)와 비교 시 파라미터 수 차이(1.6B vs 2.1B)가 있다. 같은 1.6B 규모에서의 비교는 Show-O-Clip-ViT뿐이며, 이 모델은 상대적으로 약한 baseline이다.</li>
+  <li><strong>해상도 제한</strong>: 생성이 512×512로 제한된다. SANA-0.6B 자체는 4096×4096까지 지원하지만, Mobile-O에서는 모바일 제약으로 512로 축소했다. 현대 사용자 기대치(1024+)와 gap이 있다.</li>
+  <li><strong>Quadruplet 데이터 구성의 확장성</strong>: GPT-4o를 사용하여 caption과 QA를 생성하는 과정의 비용과 품질 의존성에 대한 분석이 부족하다.</li>
+  <li><strong>Counting 성능</strong>: GenEval counting (0.57)이 Show-O-Clip-ViT (0.67)보다 낮아, compositional understanding의 특정 측면에서 약점이 있다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트</h3>
+<ul>
+  <li><strong>반복 실험</strong>: 메인 결과에 표준편차 미보고 ✗</li>
+  <li><strong>공정한 베이스라인</strong>: 파라미터 수 차이 존재하나, 동일 규모(≤2B) 범주 내에서 비교 △</li>
+  <li><strong>Ablation이 핵심 주장 뒷받침</strong>: MCP 설계, layer 수, post-training 형식 모두 체계적으로 분리 검증 ✓</li>
+  <li><strong>계산 비용 대비 실용성</strong>: 8×A100에서 총 ~4일, 상당히 합리적 ✓</li>
+  <li><strong>코드/데이터 공개</strong>: GitHub, HuggingFace 모두 공개 ✓</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Mobile deployment의 실현 가능성</strong>: Unified multimodal model이 2GB 이하 메모리로 iPhone에서 실시간 동작한다는 것은, on-device AI의 새로운 가능성을 열어준다. 프라이버시 보존, 오프라인 동작, 저지연이 필요한 실무 애플리케이션에 직접 적용 가능하다.</li>
+  <li><strong>Learnable query token의 대안</strong>: MCP는 VLM→diffusion 연결에서 learnable query token 없이 direct projection + layerwise fusion으로 더 적은 데이터와 파라미터로 효과적인 alignment을 달성한다. 다른 cross-modal 연결 설계에 참고할 수 있는 패턴이다.</li>
+  <li><strong>Unified post-training의 효과</strong>: Disjoint dataset이 아닌 quadruplet 형태로 하나의 샘플에서 이해+생성을 동시에 학습하는 것이 작은 데이터(105K)로도 양쪽 성능을 모두 올린다는 결과는, multi-task learning 전략 설계에 유용한 인사이트이다.</li>
+  <li><strong>기존 효율적 모델의 조합</strong>: Mobile-O는 완전히 새로운 아키텍처가 아니라 FastVLM + SANA라는 기존 효율적 모델을 잘 결합한 것이다. 이는 "efficient component를 잘 연결하고 unified training하면 1+1 > 2"라는 실용적 교훈을 준다.</li>
+  <li><strong>Scaling 가능성</strong>: Mobile-O-1.5B 실험이 보여주듯 framework가 architecture-agnostic하므로, 향후 더 강력한 mobile backbone이 나오면 plug-in 식으로 교체하여 성능을 높일 수 있다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

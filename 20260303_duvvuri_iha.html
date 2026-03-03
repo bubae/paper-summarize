@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interleaved Head Attention</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Interleaved Head Attention</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Sai Surya Duvvuri*, Chanakya Ekbote*, Rachit Bansal, Rishabh Tiwari, Devvrit Khatri, David Brandfonbrener, Paul Liang, Inderjit Dhillon, Manzil Zaheer</li>
+  <li><strong>소속</strong>: Meta (FAIR), UT Austin, UC Berkeley, Harvard University, MIT</li>
+  <li><strong>학회/저널</strong>: arXiv 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.21371">arXiv:2602.21371</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 Multi-Head Attention (MHA)에서 $H$개의 head는 각각 독립적으로 작동하여 정확히 $H$개의 attention pattern만 생성한다. 이는 multi-step reasoning처럼 여러 관계를 동시에 합성해야 하는 작업에서 head 수에 선형적으로 비례하는 확장 한계를 보인다.</li>
+  <li><strong>해결</strong>: Interleaved Head Attention (IHA)을 제안한다. 각 head마다 $P$개의 pseudo-head를 생성하여 (보통 $P = H$), 원래 head들의 query/key/value를 학습된 선형 결합으로 혼합한다. 이로써 head당 최대 $P^2$개의 attention pattern을 유도하여, $H$개에서 $HP^2$개로 이차적(quadratic) 확장을 달성한다.</li>
+  <li><strong>왜 작동하는가</strong>: MHA에서 각 head가 하나의 관계(예: "1-hop 연결")만 표현할 수 있는 반면, IHA는 pseudo-head 간 교차 상호작용으로 한 head 안에서 여러 관계 패턴을 합성할 수 있다. 이론적으로 polynomial filter 표현에 $\sqrt{k}$개 head만 필요하다 (MHA는 $k$개).</li>
+  <li><strong>비유</strong>: MHA의 각 head가 한 가지 악기만 연주할 수 있는 독주자라면, IHA의 pseudo-head는 여러 악기의 소리를 혼합하여 한 연주자가 오케스트라처럼 다양한 화음을 만들어내는 것과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Interleaved Head Attention (IHA) 아키텍처</strong>: 각 head에 $P$개의 pseudo-query, pseudo-key, pseudo-value를 생성하여 cross-head mixing을 가능하게 하는 새로운 attention 메커니즘. 표준 attention 연산자를 보존하여 FlashAttention과 호환된다.</li>
+  <li><strong>엄밀한 표현력 분리 증명</strong>: IHA가 MHA를 strict superset으로 포함함을 증명 ($\mathcal{M} \subsetneq \mathcal{P}_P$, $P \geq 2$). 추가 파라미터는 $4H^2P$로 소규모이다.</li>
+  <li><strong>이론적 효율성 개선</strong>: Polynomial Filter에서 $\Theta(\sqrt{k} n^2)$ vs. $\Theta(kn^2)$ 파라미터, CPM-3 (Count Permutation Match-3)에서 $\lceil\sqrt{N_{\max}}\rceil$ vs. $N_{\max}$ head — 두 합성 벤치마크에서 이차적 개선을 달성한다.</li>
+  <li><strong>실증적 성능 향상</strong>: FLOP-matched 조건에서 RULER Multi-Key Retrieval 10~20% 개선 (4k~16k), OpenThoughts fine-tuning 후 GSM8K +5.8%, MATH-500 +2.8% (Majority Vote) 개선을 달성한다.</li>
+</ol>
+
+<h2>1. Introduction 및 동기</h2>
+
+<h3>MHA의 근본적 한계: Head 격리</h3>
+
+<p>Multi-Head Attention (MHA) (Vaswani et al., 2017)은 현대 LLM의 핵심 연산 원소이다. MHA에서 각 head $h$는 자신만의 query/key/value projection을 사용하여 독립적으로 attention matrix를 계산한다. 따라서 $H$개 head는 정확히 $H$개의 독립적인 attention matrix만 생성하며, head 간 통신이 전혀 없다.</p>
+
+<p>이 선형적 확장 제약은 <strong>multi-step compositional reasoning</strong>에서 문제가 된다. 예를 들어 "The Hobbit의 저자가 태어난 곳은?"이라는 질문에 답하려면:</p>
+<ol>
+  <li>The Hobbit → J.R.R. Tolkien (1-hop)</li>
+  <li>Tolkien → South Africa 출생 (2-hop)</li>
+</ol>
+<p>이처럼 두 단계의 관계를 합성(compose)해야 하는데, 각 head가 하나의 관계 패턴만 표현할 수 있으므로, $k$개의 서로 다른 chain length를 모델링하려면 $\Theta(k)$개의 head (또는 추가 depth)가 필요하다.</p>
+
+<h3>IHA의 핵심 아이디어</h3>
+
+<p>##IHA는 각 head 내에서 cross-head mixing을 가능하게 하여, head당 최대 $P^2$개의 attention pattern을 유도한다.## 구체적으로, 각 head마다 $P$개의 pseudo-query, pseudo-key, pseudo-value를 원래 $H$개 head의 projection에 대한 학습된 선형 결합으로 구성한다. $P = H$로 설정하면 head당 $H^2$개의 attention pattern이 가능해져, MHA의 선형 확장을 이차적 확장으로 바꾼다.</p>
+
+<h2>2. Background: Polynomial Filter와 MHA의 한계</h2>
+
+<h3>Polynomial Graph Filter</h3>
+
+<p>Polynomial graph filter는 graph signal processing의 핵심 원소로, multi-step reasoning의 제어된 대리 문제(controlled proxy)로 사용된다.</p>
+
+<p><strong>정의 (Definition 2)</strong>: 그래프 인접 행렬 $A \in \mathbb{R}^{N \times N}$와 입력 특성 $X \in \mathbb{R}^{N \times d}$가 주어지면, polynomial filter bank는 다음과 같다:</p>
+
+$$\tilde{X} = [X, AX, \ldots, A^{k-1}X]$$
+
+<p>직관적으로, $A^i X$는 그래프에서 $i$-hop 이웃의 정보를 집계한다. 예를 들어 fact graph에서 "Mary picked up the football" → "Mary went to the kitchen"을 연결하려면, $AX$ (1-hop)로 직접 연결된 fact를 가져오고, $A^2X$ (2-hop)로 2단계 chain을 포착한다.</p>
+
+<h3>MHA는 왜 $k$개 head가 필요한가 (Theorem 1)</h3>
+
+<p>Linear MHA (softmax 없는)에서 각 head $h$의 출력은:</p>
+
+$$O_h = \hat{X} W_Q^{(h)} W_K^{(h)\top} \hat{X}^\top \cdot \hat{X} W_V^{(h)}$$
+
+<p>여기서 $\hat{X} = [X, I_N]$ (positional encoding 포함). $A^i$를 생성하려면 적절한 $W_Q^{(h)}, W_K^{(h)}$를 선택하여 $\hat{X} W_Q^{(h)} W_K^{(h)\top} \hat{X}^\top = A^i$가 되도록 해야 한다. 그런데 각 head는 단 하나의 attention matrix만 만들 수 있으므로, $A^0, A^1, \ldots, A^{k-1}$를 동시에 표현하려면 최소 $k$개 head가 필요하다.</p>
+
+<p>직관적으로 말하면, MHA에서 각 head는 "한 종류의 관계"만 볼 수 있는 단안경과 같다. $k$가지 관계를 동시에 파악하려면 $k$개의 단안경이 필요하다.</p>
+
+<h2>3. Interleaved Head Attention (IHA) 메커니즘</h2>
+
+<h3>알고리즘 (Algorithm 1)</h3>
+
+<div class="flow-diagram">입력: X ∈ R^{N×D}, H heads, P pseudo-heads, d = D/H
+
+Step 1: 표준 projection
+  Q, K, V ← reshape(XW_Q, XW_K, XW_V) → [N, H, d]
+
+Step 2: Pseudo-head 생성 (cross-head mixing)
+  Q̃ ← einsum('mhp,nmd → hpnd', α_Q, Q)  → (H, P, N, d)
+  K̃ ← einsum('mhp,nmd → hpnd', α_K, K)  → (H, P, N, d)
+  Ṽ ← einsum('mhp,nmd → hpnd', α_V, V)  → (H, P, N, d)
+
+Step 3: Interleave (pseudo dim을 sequence dim에 병합)
+  Q, K, V ← merge_pseudo(Q̃, K̃, Ṽ) → [H, NP, d]
+
+Step 4: 표준 scaled dot-product attention (per head)
+  O_h ← softmax(Q_h K_h^T / √d) V_h → [H, NP, d]
+
+Step 5: Unmerge & collapse pseudo-heads
+  P ← reshape(O, [H,N,P,d])
+  O ← einsum('hp,hnpd → hnd', R, P)  → [H, N, d]
+
+Step 6: Concatenate & output projection
+  X̃ ← reshape(O, [N,D]) · W_O</div>
+
+<h3>핵심 메커니즘 상세 설명</h3>
+
+<p><strong>Step 2 (Pseudo-head 생성)</strong>: 이것이 IHA의 핵심이다. 각 head $h$와 pseudo-index $j$에 대해, pseudo-query는 모든 원래 head의 query를 가중 합산한다:</p>
+
+$$\tilde{Q}_{h,j} = \sum_{m=1}^{H} \alpha^Q_{m,h,j} \cdot X W_Q^{(m)}$$
+
+<p>mixing coefficient $\alpha_Q, \alpha_K, \alpha_V \in \mathbb{R}^{H \times H \times P}$는 학습 가능한 파라미터이다. 직관적으로, 각 pseudo-head는 "여러 head의 관점을 혼합한 새로운 관점"이다.</p>
+
+<p><strong>Step 3 (Interleaving)</strong>: 각 원래 token을 $P$개의 연속적인 virtual token으로 대체하여, sequence가 $(1,1), (1,2), \ldots, (1,P), (2,1), \ldots, (N,P)$가 된다. 이로써 effective sequence length가 $NP$로 확장된다. 이 방식은 RoPE (Rotary Position Embedding)와 자연스럽게 호환된다 — 각 $(n, p)$에 고유한 RoPE phase가 할당되기 때문이다.</p>
+
+<p><strong>Step 4</strong>: 확장된 sequence에 대해 <strong>표준 attention</strong>을 한 번 실행한다. 이것이 핵심 장점으로, FlashAttention (Dao et al., 2022)과 완전 호환된다. Talking-Heads (Shazeer et al., 2020)이나 Knocking-Heads (Zhou et al., 2025)는 attention logit/weight 수준에서 head를 혼합하므로 FlashAttention과 호환되지 않는 반면, IHA는 attention <em>이전에</em> mixing을 수행한다.</p>
+
+<p><strong>Step 5 (Collapse)</strong>: collapse map $R \in \mathbb{R}^{H \times HP}$를 사용하여 $HP$개의 pseudo-output을 다시 $H$개 head로 축소한다.</p>
+
+<h3>파라미터 오버헤드</h3>
+
+<p>추가 파라미터는 mixing tensor $\alpha_Q, \alpha_K, \alpha_V \in \mathbb{R}^{H \times H \times P}$ (각 $H^2P$)와 collapse map $R \in \mathbb{R}^{H \times HP}$ ($H^2P$)로, 총 $4H^2P$이다. $H, P \ll d_{\text{model}}$이므로 전체 파라미터 대비 소규모이다.</p>
+
+<h2>4. 이론적 결과</h2>
+
+<h3>4.1 IHA는 MHA의 Strict Superset (Theorem 2)</h3>
+
+<p><strong>정리</strong>: 임의의 $P \geq 1$에 대해 $\mathcal{M} \subseteq \mathcal{P}_P$이고, $P \geq 2$이면 포함이 진(strict)하다: $\mathcal{M} \subsetneq \mathcal{P}_P$.</p>
+
+<p><strong>증명 핵심</strong>:</p>
+<ul>
+  <li><strong>포함 ($\mathcal{M} \subseteq \mathcal{P}_P$)</strong>: 임의의 MHA 인스턴스에 대해, $\alpha^Q_{m,h,j} = \mathbf{1}_{(m=h)}$로 설정하면 (identity mixing), IHA가 MHA와 동일한 함수를 계산한다.</li>
+  <li><strong>진 포함</strong>: repeated-token 입력 $X = \mathbf{1}_n x^\top$에서, MHA의 모든 head는 동일한 query/key/value를 가지므로 softmax가 uniform이 되어 출력이 $x$에 대해 <strong>선형</strong>이다. 반면, IHA ($P=2$)는 반대 부호의 pseudo-query/key를 생성하여 softmax 차이를 통한 <strong>비선형</strong> 함수를 구현할 수 있다.</li>
+</ul>
+
+<p>직관적으로 말하면, IHA는 MHA가 할 수 있는 모든 것을 할 수 있으면서, MHA가 할 수 없는 비선형 관계도 포착할 수 있다.</p>
+
+<h3>4.2 Polynomial Filter 표현 (Theorem 3)</h3>
+
+<p><strong>정리</strong>: $k$차 polynomial filter를 표현하는 데, MHA는 $k$개 head ($\Theta(kn^2)$ 파라미터)가 필요하지만, ##IHA는 $\lceil\sqrt{k}\rceil$개 head ($\Theta(\sqrt{k} n^2)$ 파라미터)만으로 충분하다.##</p>
+
+<p><strong>핵심 아이디어</strong>: IHA는 power index의 인수분해를 활용한다:</p>
+
+$$A^i = A^{(h-1)H + (j-1)}, \quad h, j \in \{1, \ldots, H\}$$
+
+<p>$H = \lceil\sqrt{k}\rceil$로 설정하면, query head $h$와 key head $j$의 상호작용이 $A^{(h-1)H+(j-1)}$를 생성한다. 따라서 $H$개의 query matrix와 $H$개의 key matrix가 pairwise interaction을 통해 $H^2 \geq k$개의 서로 다른 polynomial power를 생성한다.</p>
+
+<p><strong>예시 ($k=4$)</strong>: $H = P = 2$로 설정하면:</p>
+<ul>
+  <li>Head 1: query $I$, key $\{I, A\}$ → $A^0X, A^1X$</li>
+  <li>Head 2: query $A^2$, key $\{I, A\}$ → $A^2X, A^3X$</li>
+</ul>
+<p>2개 head로 4개 power를 모두 표현한다.</p>
+
+<h3>4.3 CPM-3 (Count Permutation Match-3) 표현 (Theorem 4)</h3>
+
+<p>CPM-3는 순서에 민감한(order-sensitive) composition과 counting을 격리하는 합성 과제이다. 각 position $i$에 대해 순서쌍 $(j_1, j_2)$의 개수를 세어야 한다:</p>
+
+$$\text{CPM}_i(3) = |\{(j_1, j_2) \in [N]^2 : \phi(x_i, x_{j_1}, x_{j_2}) = 0\}|$$
+
+<p>여기서 $\phi(x_i, x_{j_1}, x_{j_2}) := x_i + Gx_{j_1} + x_{j_2} \bmod M$ ($G > 2M$으로 순서 비불변성 보장).</p>
+
+<p><strong>결과</strong>: ##IHA는 $\lceil\sqrt{N_{\max}}\rceil$ head로 CPM-3를 구현할 수 있으며, 알려진 최선의 MHA 구성은 $N_{\max}$ head가 필요하다.## 이는 attention 비용에서 $\Theta(N_{\max}^{2.5})$ vs. $\Theta(N_{\max}^3)$의 차이로 이어진다.</p>
+
+<p>핵심 원리는 polynomial filter와 동일하다: cyclic shift $P^t$를 $P^{(h-1)H} \cdot P^{j-1}$로 인수분해하여, $\sqrt{N_{\max}}$개 head로 $N_{\max}$개의 shift를 모두 생성한다.</p>
+
+<h2>5. Related Work</h2>
+
+<p>IHA와 관련된 연구 흐름을 정리한다.</p>
+
+<h3>Cross-head interaction 방법들</h3>
+
+<table>
+<tr><th>방법</th><th>mixing 위치</th><th>FlashAttention 호환</th><th>핵심 특징</th></tr>
+<tr><td><strong>Talking-Heads</strong> (Shazeer et al., 2020)</td><td>attention logit/weight (softmax 전후)</td><td>X</td><td>학습된 전이 행렬로 head 간 attention weight를 직접 혼합. head 수 증가에 강건</td></tr>
+<tr><td><strong>Knocking-Heads</strong> (Zhou et al., 2025)</td><td>attention logit/weight</td><td>X</td><td>Talking-Heads의 확장. head 간 상호작용 강화</td></tr>
+<tr><td><strong>Diff Transformer</strong> (Ye et al., 2024)</td><td>attention map (두 softmax의 차이)</td><td>O (변형)</td><td>differential amplifier 아이디어로 noise 제거. sparse attention 유도</td></tr>
+<tr><td><strong>IHA (본 논문)</strong></td><td>attention <em>이전</em> (Q, K, V mixing)</td><td>O</td><td>pseudo-head로 $P^2$ attention pattern 유도. 표준 attention 연산 보존</td></tr>
+</table>
+
+<h3>기타 관련 연구</h3>
+<ul>
+  <li><strong>Higher-order attention</strong>: 2-Simplicial Transformer (Clift et al., 2019), Multi-Token Attention (Golovneva et al., 2025) 등이 3개 이상 token 간 상호작용을 모델링하지만, 파라미터가 크게 증가한다.</li>
+  <li><strong>효율적 attention</strong>: MQA (Multi-Query Attention) (Shazeer, 2019), GQA (Grouped Query Attention) (Ainslie et al., 2023)는 KV cost를 줄이는 방향. IHA와 보완적이다.</li>
+  <li><strong>반복 계산</strong>: Looped Transformer (Saunshi et al., 2025)는 depth/recurrence로 multi-step reasoning을 해결하지만 sequential 계산이 증가한다. IHA는 단일 layer 내에서 interaction 용량을 높이는 보완적 접근이다.</li>
+</ul>
+
+<h2>6. Experiments</h2>
+
+<p>논문은 두 가지 핵심 질문에 답한다:</p>
+<ol>
+  <li>IHA가 long-context retrieval과 length generalization을 개선하는가?</li>
+  <li>IHA가 수학/코드 추론 벤치마크에서 reasoning을 개선하는가?</li>
+</ol>
+
+<h3>6.1 실험 설정</h3>
+
+<p><strong>모델 아키텍처</strong>: 2.4B-parameter decoder-only Transformer</p>
+<ul>
+  <li>Hidden size: 2560, 26 layers, $H = 20$ attention heads (head dim 128)</li>
+  <li>FFN: 4× expansion (FFN size 10,240)</li>
+  <li>Vocabulary: 128,256 (Llama 3 tokenizer)</li>
+  <li>Positional encoding: RoPE ($\theta = 500{,}000$)</li>
+  <li>Pretraining context length: 8,192 tokens</li>
+</ul>
+
+<p><strong>학습 설정</strong>:</p>
+<ul>
+  <li>240,000 steps (240B tokens)</li>
+  <li>Peak learning rate: $8 \times 10^{-4}$, 1,000-step warmup, cosine decay → $8 \times 10^{-6}$</li>
+  <li>Optimizer: AdamW ($\beta_1 = 0.9$, $\beta_2 = 0.95$, weight decay 0.1)</li>
+  <li>Gradient clipping: 1.0, BF16 mixed precision</li>
+  <li>Hardware: FSDP over 128 H200 GPUs</li>
+</ul>
+
+<p><strong>IHA FLOP matching</strong>: interleaving으로 effective sequence length가 $NP$로 확장되어 per-head complexity가 $O(P^2 N^2 d)$로 증가한다. 이를 보상하기 위해 <strong>hybrid local-global schedule</strong>을 사용한다: sliding-window IHA layer 4개 (window $W = N/(2P^2)$) + global layer 1개 (4:1 비율). 평균 cost가 global attention과 동일하도록 매칭한다.</p>
+
+<p><strong>비교 baseline들</strong>:</p>
+<ol>
+  <li><strong>Global Attention</strong> (Vaswani et al., 2017): 표준 MHA, 전체 sequence에 attend</li>
+  <li><strong>Global+Local</strong>: sliding-window (512) + global attention을 4:1로 교대</li>
+  <li><strong>Talking Heads</strong> (Shazeer et al., 2020): softmax 전후에 head 간 linear projection 삽입</li>
+  <li><strong>Diff Transformer</strong> (Ye et al., 2024): 두 softmax attention map의 차이로 attention 정의</li>
+</ol>
+
+<h3>6.2 Long-Context 평가 (RULER)</h3>
+
+<p>모든 모델을 64k context로 fine-tuning한 뒤 RULER (Hsieh et al., 2024) 벤치마크로 평가하였다. RULER는 long-context에서의 정보 검색 능력을 측정하는 벤치마크이다.</p>
+
+<p><strong>Multi-Key Retrieval 결과</strong>:</p>
+
+<table>
+<tr><th>Context Length</th><th>IHA 개선폭 (vs. Global Attention)</th></tr>
+<tr><td>4k</td><td>+27%</td></tr>
+<tr><td>8k</td><td>+32%</td></tr>
+<tr><td>16k</td><td>##+112%##</td></tr>
+</table>
+
+<p>##Context length가 길어질수록 IHA의 개선폭이 급격히 증가##한다는 점이 주목할 만하다. 16k에서 +112% 개선은, 긴 문맥에서 여러 key를 동시에 검색해야 하는 작업에서 cross-head mixing이 특히 효과적임을 시사한다.</p>
+
+<p><strong>RULER 전체 EM (Exact Match) 결과</strong>:</p>
+
+<table>
+<tr><th>Model</th><th>Average EM</th></tr>
+<tr><td><strong>IHA</strong></td><td><strong>44.0%</strong></td></tr>
+<tr><td>Global+Local</td><td>40.6%</td></tr>
+<tr><td>Diff Transformer</td><td>37.2%</td></tr>
+<tr><td>Global Attention</td><td>35.0%</td></tr>
+</table>
+
+<p>이 실험은 "cross-head mixing이 multi-key retrieval에서 attention pattern의 다양성을 높여 성능을 개선한다"는 주장을 뒷받침한다.</p>
+
+<h3>6.3 Reasoning 평가</h3>
+
+<h4>Pre-trained 모델 (5-shot) — Table 2</h4>
+
+<p>SFT 이전의 순수 pre-training 능력을 평가한다.</p>
+
+<table>
+<tr><th>Model</th><th>GSM8K EM</th><th>Δ</th><th>GSM8K Maj@5</th><th>Δ</th><th>MATH-500 EM</th><th>Δ</th><th>MBPP P@1</th><th>Δ</th><th>HumanEval P@1</th><th>Δ</th><th>Avg. Rank↓</th></tr>
+<tr><td><strong>IHA</strong></td><td><strong>8.34%</strong></td><td>+2.73</td><td><strong>8.42%</strong></td><td>+2.81</td><td><strong>3.54%</strong></td><td>+0.66</td><td>24.5%</td><td>+1.1</td><td>17.1%</td><td>−0.1</td><td><strong>1.4</strong></td></tr>
+<tr><td>Global Attention</td><td>5.61%</td><td>–</td><td>5.61%</td><td>–</td><td>2.88%</td><td>–</td><td>23.4%</td><td>–</td><td>17.2%</td><td>–</td><td>2.9</td></tr>
+<tr><td>Global+Local</td><td>6.82%</td><td>+1.21</td><td>6.90%</td><td>+1.29</td><td>2.26%</td><td>−0.62</td><td>23.6%</td><td>+0.2</td><td>16.0%</td><td>−1.2</td><td>2.9</td></tr>
+<tr><td>Talking Heads</td><td>5.46%</td><td>−0.15</td><td>5.38%</td><td>−0.23</td><td>–</td><td>–</td><td>23.8%</td><td>+0.4</td><td>16.0%</td><td>−1.2</td><td>4.0</td></tr>
+<tr><td>Diff Transformer</td><td>5.46%</td><td>−0.15</td><td>5.61%</td><td>–</td><td>–</td><td>–</td><td>25.0%</td><td>+1.6</td><td>15.4%</td><td>−1.8</td><td>3.5</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>IHA는 reasoning 메트릭 (GSM8K, MATH-500)에서 가장 일관적으로 우수하며, Avg. Rank 1.4로 최고</li>
+  <li>Coding (MBPP, HumanEval)에서는 Diff Transformer (MBPP 25.0%)가 미세하게 앞서는 경우도 있음</li>
+  <li>Talking Heads는 pre-training 단계에서 기대보다 저조한 성능</li>
+</ul>
+
+<h4>SFT 후 평가 (OpenThoughts fine-tuning) — Table 1</h4>
+
+<p>OpenThoughts (Guha et al., 2025) 데이터(8B tokens)로 fine-tuning 후, temperature 0.6으로 16개 generation을 생성하여 평가하였다.</p>
+
+<table>
+<tr><th>Model</th><th>GSM8K P@1</th><th>GSM8K Maj@16</th><th>MATH-500 P@1</th><th>MATH-500 Maj@16</th><th>MBPP P@1</th><th>MBPP P@10</th><th>Avg. Rank↓</th></tr>
+<tr><td><strong>IHA</strong></td><td><strong>34.3%</strong></td><td><strong>54.2%</strong></td><td><strong>10.0%</strong></td><td>18.4%</td><td>15.5%</td><td>41.6%</td><td><strong>1.5</strong></td></tr>
+<tr><td>Global Attention</td><td>29.5%</td><td>48.4%</td><td>8.8%</td><td>15.6%</td><td>14.7%</td><td>41.2%</td><td>3.8</td></tr>
+<tr><td>Global+Local</td><td>26.5%</td><td>46.9%</td><td>7.6%</td><td>15.0%</td><td>15.0%</td><td>41.9%</td><td>4.3</td></tr>
+<tr><td>Talking Heads</td><td>29.3%</td><td>49.4%</td><td>7.8%</td><td>18.2%</td><td><strong>15.9%</strong></td><td><strong>43.1%</strong></td><td>2.5</td></tr>
+<tr><td>Diff Transformer</td><td>31.6%</td><td>53.5%</td><td>9.0%</td><td>18.0%</td><td>15.3%</td><td>39.2%</td><td>2.8</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>IHA는 모든 reasoning 메트릭에서 최고 성능: ##GSM8K Maj@16에서 54.2% (+5.8 over Global Attention), MATH-500 Maj@16에서 18.4% (+2.8)##</li>
+  <li>SFT 후 pre-training 대비 모든 baseline에서 격차가 확대됨 — IHA의 표현력 우위가 reasoning fine-tuning에서 더 두드러진다</li>
+  <li>Coding (MBPP)에서는 Talking Heads가 최고 (15.9% P@1, 43.1% P@10), IHA는 2위. Head mixing이 function-level 코드 생성에서 다른 장점을 보이는 것으로 해석</li>
+  <li>Diff Transformer도 reasoning에서 강한 성능 (GSM8K Maj@16: 53.5%)을 보이며, Talking Heads는 SFT 후 대폭 개선됨</li>
+</ul>
+
+<h3>6.4 합성 추론 과제 (Appendix D)</h3>
+
+<p>Binary relation composition (2-hop)과 ternary relation composition (3-hop) 과제에서 single-layer, 8-head 설정으로 평가하였다.</p>
+
+<p><strong>Binary Relation Composition</strong>: boolean 행렬 $R$이 주어지면 $R \circ R$를 계산. $(R \circ R)_{ij} = 1 \iff \exists k : R_{ik} = 1 \wedge R_{kj} = 1$.</p>
+
+<p><strong>결과</strong>:</p>
+<ul>
+  <li>IHA는 두 학습률 모두에서 최고 성능 (binary: 77.7%, ternary: 83.1% at $\eta = 10^{-3}$)</li>
+  <li>Simplicial attention 대비 binary에서 +4.7%, ternary에서 +3.3% 개선</li>
+  <li>파라미터 수는 거의 동일 (IHA: 208,513, MHA: 206,849, Simplicial: 239,873)</li>
+</ul>
+
+<p>이 결과는 IHA의 이론적 우위(cross-head mixing을 통한 multi-hop composition 효율성)가 실제 학습에서도 유효함을 뒷받침한다.</p>
+
+<h2>7. Compute 및 FLOP Matching 세부사항</h2>
+
+<p>IHA의 global complexity는 effective sequence length 증가로 인해 $O(P^2 N^2 d)$이다 (MHA 대비 $P^2$ 배). 공정한 비교를 위해 hybrid local-global schedule을 사용한다:</p>
+
+$$W = \frac{N}{2P^2}$$
+
+<p>Sliding-window IHA layer의 per-layer cost:</p>
+
+$$O(H \cdot (NP) \cdot (WP) \cdot d) = O\left(H \cdot \frac{N^2 d}{2}\right)$$
+
+<p>Local 4개 + global 1개를 평균하면:</p>
+
+$$\frac{4 \cdot O(HN^2d/2) + O(HN^2d)}{5} = \frac{3}{5} O(HN^2d) \approx O(HN^2d)$$
+
+<p>이렇게 global attention baseline과 상수 배 이내로 FLOP을 매칭한다.</p>
+
+<h2>8. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론과 실험의 일관성</strong>: polynomial filter와 CPM-3에서의 이론적 이차 개선이 실제 벤치마크(RULER, GSM8K)에서도 관찰된다. 이론-실험 간 gap이 적다.</li>
+  <li><strong>실용적 설계</strong>: FlashAttention 호환성은 실제 배포에서 큰 장점이다. Talking-Heads, Knocking-Heads가 custom kernel을 요구하는 반면, IHA는 표준 attention 연산을 보존한다.</li>
+  <li><strong>FLOP-matched 비교</strong>: 추가 compute가 아닌 아키텍처 효율성의 순수 효과를 분리한다.</li>
+  <li><strong>일관적 성능</strong>: Avg. Rank 기준으로 IHA가 모든 실험 설정에서 가장 안정적이다 (pre-training 1.4, SFT 1.5).</li>
+</ul>
+
+<h3>한계 및 질문</h3>
+<ul>
+  <li><strong>단일 모델 크기</strong>: 2.4B 모델에서만 실험. 더 큰 모델 (7B, 70B)에서 IHA의 이점이 유지되는지, 또는 head 수 증가로 MHA의 한계가 자연스럽게 완화되는지 불확실</li>
+  <li><strong>Pretraining-from-scratch만 평가</strong>: 기존 pre-trained 모델에 IHA를 retrofit하는 실험이 없다. GQA처럼 기존 모델에서 변환 가능한지가 실용성의 핵심</li>
+  <li><strong>표준편차 미보고</strong>: 대부분의 실험에서 단일 run 결과만 보고. GSM8K 5.8% 차이가 통계적으로 유의한지 확인 어려움</li>
+  <li><strong>Hybrid schedule의 영향</strong>: IHA 자체의 효과와 local-global hybrid schedule의 효과를 분리하기 어렵다. Global+Local baseline이 존재하지만, IHA의 sliding window와는 설정이 다르다</li>
+  <li><strong>추론 속도/메모리</strong>: Interleaving으로 effective sequence length가 $NP$배가 되므로, KV cache 크기와 inference latency에 미치는 영향이 보고되지 않음</li>
+  <li><strong>코드 미공개</strong>: 논문 시점에서 코드/모델이 공개되지 않은 것으로 보임</li>
+</ul>
+
+</div>
+
+<h2>9. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Head 격리는 MHA의 근본적 병목</strong>: $H$개 head가 $H$개 attention pattern만 만드는 것은 multi-step reasoning에서 선형적 확장 한계를 초래한다. IHA는 이를 이차적으로 개선하여 $HP^2$개 pattern을 가능하게 한다.</li>
+  <li><strong>Attention 이전의 mixing이 핵심</strong>: Talking-Heads (logit/weight 수준)과 달리, Q/K/V 수준에서의 cross-head mixing은 FlashAttention 호환성을 유지하면서도 표현력을 극대화한다. 이 설계 원칙은 향후 attention 변형 연구에 참고할 만하다.</li>
+  <li><strong>Long-context에서 특히 효과적</strong>: 16k context에서 +112% 개선은, 긴 문맥에서의 multi-key retrieval이 cross-head interaction으로부터 큰 이점을 얻음을 보여준다. RAG/long-context 응용에서 유망하다.</li>
+  <li><strong>Polynomial filter 프레임워크의 유용성</strong>: Multi-step reasoning을 polynomial filter로 형식화하여 이론적 분석을 가능하게 한 접근은, 다른 attention 변형 연구에도 분석 도구로 활용될 수 있다.</li>
+  <li><strong>실용적 적용 가능성</strong>: $4H^2P$의 소규모 추가 파라미터로 일관적인 성능 향상을 달성하므로, 새로운 모델 학습 시 MHA를 IHA로 교체하는 것이 합리적인 선택이 될 수 있다. 다만 기존 모델 retrofit에 대한 연구가 필요하다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

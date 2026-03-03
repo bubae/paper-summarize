@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LLMs Can Learn to Reason Via Off-Policy RL</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>LLMs Can Learn to Reason Via Off-Policy RL</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Daniel Ritter, Owen Oertell, Bradley Guo, Jonathan Chang, Kianté Brantley, Wen Sun</li>
+  <li><strong>소속</strong>: Cornell University, Databricks, Harvard University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.LG)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.19362">arXiv:2602.19362</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM의 RL post-training에서 trainer와 inference engine 간 log-probability 불일치로 인해 데이터가 사실상 off-policy가 되지만, GRPO (Group Relative Policy Optimization) 등 기존 방법은 on-policy를 가정한다. 이를 보정하기 위한 importance sampling은 variance를 증가시키고, inference engine 수정은 속도를 저하시킨다.</li>
+  <li><strong>해결</strong>: ##Off-policyness를 결함이 아닌 특성으로 받아들이는 새로운 off-policy RL 알고리즘 OAPL (Optimal Advantage-based Policy Optimization with Lagged Inference policy)을 제안##한다. KL-regularized RL의 closed-form solution을 활용하여 importance sampling 없이도 안정적인 squared regression 목적함수를 유도한다.</li>
+  <li><strong>왜 작동하는가</strong>: OAPL의 목적함수(Eq. 3)는 optimal policy $\pi^\star$가 유일한 minimizer이므로, 학습 데이터가 어떤 분포에서 왔든(off-policy) 올바른 방향으로 수렴한다. 또한 KL regularization이 trainer를 inference engine에 명시적으로 묶어두어 entropy collapse를 방지하고 test-time scaling을 개선한다.</li>
+  <li><strong>비유</strong>: GRPO가 "항상 최신 교과서만 사용해야 하는 학생"이라면, OAPL은 "며칠 전 교과서라도 핵심 원리는 변하지 않으므로 효율적으로 공부하는 학생"이다. 오래된 자료를 쓰되, 원리(optimal advantage)에 직접 regression함으로써 학습 효과를 유지한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>OAPL 알고리즘</strong>: KL-regularized RL의 closed-form optimal advantage를 활용한 off-policy RL 알고리즘. Importance sampling이나 clipping 없이 단순한 least-squares regression loss로 구현되며, 400+ gradient step의 policy lag에서도 안정적으로 동작한다.</li>
+  <li><strong>수학 추론에서 GRPO 능가</strong>: AIME 2025, HMMT 2025, BRUMO 2025의 3개 수학 경시 벤치마크에서 다양한 Pass@k 지표에 걸쳐 GRPO+IS baseline을 능가한다.</li>
+  <li><strong>코드 생성에서 3배 샘플 효율</strong>: LiveCodeBench v5에서 DeepCoder (GRPO+추가 heuristic)와 동등 이상의 성능을 ~200K 샘플로 달성. DeepCoder는 ~650K 샘플을 사용하여 약 3배의 샘플 효율 차이를 보인다.</li>
+  <li><strong>Entropy collapse 방지 및 test-time scaling 개선</strong>: OAPL은 학습 중 entropy가 collapse하지 않으며, Pass@k에서 k가 1~256까지 증가할 때 GRPO보다 일관되게 좋은 scaling을 보인다. 이는 "RL이 base model distribution을 단순 sharpening하는 것"이라는 기존 주장에 대한 반례이다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction — 문제 정의와 동기</h2>
+
+<p>DeepSeek-R1 이후, LLM의 reasoning 능력을 RL로 끌어올리는 연구가 활발하다. 이 흐름의 핵심 알고리즘이 GRPO (Group Relative Policy Optimization)인데, 실제 학습 환경에서 안정성을 확보하기 어렵다.</p>
+
+<h3>근본 문제: Training-Inference Mismatch</h3>
+<p>현대 RL post-training 인프라에는 두 종류의 policy가 존재한다:</p>
+<ul>
+  <li><strong>Trainer $\pi$</strong>: 생성된 sequence에 대해 gradient update를 수행하는 모델 (예: HuggingFace 모델)</li>
+  <li><strong>Inference engine $\pi_{\text{vllm}}$</strong>: 빠른 generation을 위한 모델 (예: vLLM)</li>
+</ul>
+
+<p>같은 weight를 공유하더라도 이 둘은 동일한 sequence에 대해 서로 다른 log-probability를 출력할 수 있다. 이유는:</p>
+<ol>
+  <li><strong>Kernel 구현 차이</strong>: trainer와 inference engine의 연산 커널이 다르면 부동소수점 결과가 미세하게 달라진다.</li>
+  <li><strong>비동기 학습</strong>: asynchronous pipeline에서 inference engine이 trainer보다 오래된 weight를 가질 수 있다.</li>
+</ol>
+
+<p>이 불일치는 policy gradient 학습을 사실상 off-policy로 만든다: 현재 policy를 최적화하는 데 사용하는 데이터가 그 policy에서 생성된 것이 아니다. 그런데 GRPO와 그 전신인 PPO (Proximal Policy Optimization)는 REINFORCE에서 파생된 on-policy 알고리즘이다.</p>
+
+<h3>기존 접근법과 그 한계</h3>
+<p>이 문제를 해결하려는 두 가지 접근이 있다:</p>
+<ol>
+  <li><strong>Importance Sampling (IS) 추가</strong>: $\frac{\pi_{\text{old}}(y_t|x, y_{&lt;t})}{\pi_{\text{vllm}}(y_t|x, y_{&lt;t})}$ 비율로 GRPO loss를 reweight. 그러나 IS는 behavior policy와 target policy가 많이 다를 때 variance가 급증한다. 이를 완화하기 위한 clipping, token/rollout 삭제 등의 heuristic은 policy gradient theory에서 점점 벗어나며, GRPO loss에 특화된 것이라 일반화가 불확실하다.</li>
+  <li><strong>Inference engine 수정</strong>: FP16 연산 맞추기 등으로 trainer와의 gap을 줄임. 그러나 inference 속도가 느려지고, asynchronous training에서의 gap을 완전히 해소하지 못한다.</li>
+</ol>
+
+<p>본 논문의 핵심 질문: <strong>"RL post-training에 on-policy 알고리즘이 꼭 필요한가? 단순하고 scalable한 off-policy RL 알고리즘을 설계할 수 있는가?"</strong></p>
+
+<p>저자들은 on-policy가 불필요하다고 주장하며, 이는 전통 RL에서도 off-policy 방법(DDPG, SAC)이 on-policy 방법(PPO, REINFORCE)보다 효율적이었던 것과 일맥상통한다고 논한다.</p>
+
+<!-- ============================================================ -->
+<h2>2. Background — 배경 지식</h2>
+
+<h3>Training-Inference Mismatch 문제의 구체적 영향</h3>
+<p>Liu et al. (2025b)은 inference engine과 trainer 간 KL divergence를 측정하여, 이 divergence의 급격한 증가가 GRPO의 training instability와 policy collapse에 기여함을 발견했다. 비동기 학습에서는 $\pi_{\text{vllm}}$이 trainer $\pi$보다 여러 gradient step 뒤처질 수 있어 gap이 더 벌어진다.</p>
+
+<h3>GRPO with Importance Sampling (주요 Baseline)</h3>
+<p>본 논문의 주요 비교 대상인 GRPO+IS의 loss function은 다음과 같다:</p>
+
+$$\mathbb{E}_{\{y_i\}_{i=1}^G \sim \pi_{\text{vllm}}(\cdot|x)} \frac{1}{G} \sum_{y \in G} \frac{1}{|y|} \sum_{t=1}^{|y|} \underbrace{\frac{\pi_{\text{old}}(y_t|x, y_{&lt;t})}{\pi_{\text{vllm}}(y_t|x, y_{&lt;t})}}_{\text{IS ratio}} \cdot \min\{r_t A_t, \text{clip}(r_t, 1-\epsilon, 1+\epsilon) A_t\}$$
+
+<p>여기서 $r_t = \frac{\pi(y_t|x, y_{&lt;t})}{\pi_{\text{old}}(y_t|x, y_{&lt;t})}$는 PPO-style likelihood ratio이고, $A_t$는 normalized advantage이다. Token-level IS ratio $\frac{\pi_{\text{old}}}{\pi_{\text{vllm}}}$는 $\pi_{\text{vllm}}$에서 샘플링된 토큰을 마치 $\pi_{\text{old}}$에서 생성된 것처럼 reweight한다.</p>
+
+<p>문제점: IS ratio가 너무 크거나 작은 토큰을 clipping하거나 삭제하는 등의 heuristic이 필요하며, 이는 classic policy gradient theory에서 점점 벗어나는 ad-hoc 해결책이다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Method — OAPL</h2>
+
+<h3>3.1 Off-policy Loss Function 유도</h3>
+
+<p>출발점은 KL-regularized RL objective이다:</p>
+
+$$\max_\pi \mathbb{E}_{x, y \sim \pi(\cdot|x)} r(x, y) - \beta \text{KL}(\pi \| \pi_{\text{vllm}}) \tag{1}$$
+
+<p>직관적으로, reward $r$을 최대화하되 inference policy $\pi_{\text{vllm}}$으로부터 너무 멀어지지 않도록 KL penalty를 부과한다. 중요: ##이 KL은 $\pi_{\text{ref}}$ (original pre-trained model)에 대한 것이 아니라, 현재 inference engine $\pi_{\text{vllm}}$에 대한 것##이다.</p>
+
+<p>이 formulation의 well-known closed-form solution:</p>
+
+$$\pi^\star(y|x) \propto \pi_{\text{vllm}}(y|x) \exp(r(x, y) / \beta)$$
+$$V^\star(x) = \beta \ln \mathbb{E}_{y \sim \pi_{\text{vllm}}(\cdot|x)} \exp(r(x, y) / \beta)$$
+
+<p>항을 정리하면 optimal advantage가 도출된다:</p>
+
+$$\beta \ln \frac{\pi^\star(y|x)}{\pi_{\text{vllm}}(y|x)} = \underbrace{r(x, y) - V^\star(x)}_{\text{optimal advantage } A^\star}$$
+
+<p>직관적으로, optimal policy와 inference policy의 log-ratio가 정확히 optimal advantage와 같다는 것이다. 이는 "어떤 응답이 평균 대비 얼마나 좋은지"를 log-probability 차이로 표현할 수 있음을 의미한다.</p>
+
+<h4>$V^\star$ 추정: Group-based Estimator</h4>
+<p>$V^\star$의 기댓값은 $\pi_{\text{vllm}}$ 하에서 계산되므로, prompt $x$에 대해 $G$개의 rollout $\{y_1, \ldots, y_G\}$을 $\pi_{\text{vllm}}$에서 샘플링하면 다음으로 추정 가능하다:</p>
+
+$$\hat{V}^\star(x) = \beta \ln \frac{1}{G} \sum_{i=1}^G \exp(r(x, y_i) / \beta) \tag{2}$$
+
+<p>$\beta$의 역할은 smoothing이다:</p>
+<ul>
+  <li>$\beta \to 0$: $\hat{V}^\star(x) = \max_i r(x, y_i)$ — group 내 최고 reward</li>
+  <li>$\beta \to \infty$: $\hat{V}^\star(x) = \frac{1}{G}\sum_i r(x, y_i)$ — 평균 reward (unbiased estimate)</li>
+</ul>
+<p>Binary reward의 경우, $\pi_{\text{vllm}}$이 문제를 풀 확률이 0이 아니면, $G$가 증가함에 따라 $\hat{V}^\star \to V^\star$로 수렴한다 (Brantley et al., 2025). 이 group rollout 기반 추정의 실용적 이점은 $V^\star$를 상수로 근사하거나 (Zhu et al., 2024) 별도 neural network으로 모델링하는 것 (Richemond et al., 2024)을 피할 수 있다는 것이다 — 추가 가정이나 계산 비용이 필요 없다.</p>
+
+<h4>최종 Off-policy 목적함수</h4>
+<p>$\hat{V}^\star$로부터 optimal advantage $A^\star(x, y) = r(x, y) - \hat{V}^\star(x)$를 추정하고, A*PO (Brantley et al., 2025)의 목적함수를 채택한다:</p>
+
+$$\min_\pi \sum_x \sum_{i=1}^G \left( \beta \ln \frac{\pi(y_i|x)}{\pi_{\text{vllm}}(y_i|x)} - (r(x, y_i) - \hat{V}^\star(x)) \right)^2 \tag{3}$$
+
+<p>직관적으로, "$\beta \ln \frac{\pi}{\pi_{\text{vllm}}}$가 optimal advantage에 가까워지도록 학습하라"는 것이다. ##$\hat{V}^\star = V^\star$이면 이 loss의 unique minimizer가 정확히 $\pi^\star$이며, 이는 데이터의 sampling 분포에 무관하다## — 즉, off-policy 데이터로도 올바르게 수렴한다.</p>
+
+<p>A*PO와의 핵심 차이: A*PO는 on-policy 알고리즘으로 설계되어 고정된 $\pi_{\text{ref}}$에 대해 $\ln \frac{\pi}{\pi_{\text{ref}}}$를 사용하고 $\pi_{\text{ref}}$를 절대 업데이트하지 않는다. 반면 OAPL은 off-policy로 운용하며, $\pi_{\text{vllm}}$을 주기적으로 업데이트하고, 항상 $\pi_{\text{vllm}}$의 log-probability를 직접 loss에 사용한다.</p>
+
+<h3>3.2 OAPL: The Off-policy RL Algorithm</h3>
+
+<div class="flow-diagram">Algorithm 1: OAPL (Optimal Advantage-Based Policy Optimization with Lagged Inference Policy)
+
+Input: Policy model π, Inference engine π_vllm, Data buffer D, Policy lag L
+1. Synchronize π and π_vllm
+2. for t = 1 → T do
+3.   Sample batch {x, {y_i}^G} from π_vllm, store in D      ← 비동기 data generation
+4.   Optimize π using data from D via gradient descent on Eq. 3  ← Off-policy update
+5.   if t mod L = 0 then
+6.     Synchronize π_vllm ← π, clear D                         ← Inference engine 업데이트
+7.   end if
+8. end for</div>
+
+<p>핵심 설계 원리:</p>
+<ul>
+  <li><strong>Infrequent synchronization</strong>: $L$ iteration마다만 $\pi_{\text{vllm}}$을 $\pi$에 동기화. $L$이 클수록 더 off-policy이다. 수학 실험에서 $L=50$, 코드 실험에서 $L \approx 400$.</li>
+  <li><strong>Buffer clearing</strong>: 동기화 시 buffer $D$를 비워서, $\hat{V}^\star$와 advantage가 항상 단일 $\pi_{\text{vllm}}$ 분포에서 계산되도록 보장한다.</li>
+  <li><strong>완전 비동기</strong>: 두 동기화 사이에서 trainer와 inference engine이 완전히 비동기적으로 동작 가능하다.</li>
+</ul>
+
+<h3>GRPO와의 비교</h3>
+<p>GRPO는 PPO를 따라 $\frac{\pi(y|x)}{\pi_{\text{old}}(y|x)}$에 clipping operator를 적용하여 $\pi$가 $\pi_{\text{old}}$로부터 너무 멀어지는 것을 방지한다. 그러나 $\pi = \pi_{\text{old}}$에서 시작하면 첫 gradient update에서는 clipping이 전혀 발동하지 않으므로, 큰 gradient 한 스텝만으로도 $\pi$가 $\pi_{\text{old}}$에서 크게 벗어날 수 있다 (PPO의 알려진 문제, Hsu et al., 2020). ##반면 OAPL은 $\pi_{\text{old}}$ 개념을 완전히 폐기하고, KL regularization으로 $\pi_{\text{vllm}}$에 직접 묶는다.## 이 덕분에 매 iteration마다 $\pi$가 $\pi_{\text{vllm}}$ 가까이에 머무르면서 reward를 최적화하며, infrequent sync와 결합하여 entropy collapse를 방지한다.</p>
+
+<!-- ============================================================ -->
+<h2>4. Related Work</h2>
+
+<p>Off-policy RL post-training 접근법은 크게 두 범주로 나뉜다:</p>
+
+<h3>IS를 사용하지 않는 방법들</h3>
+<ul>
+  <li><strong>Melo et al. (2025)</strong>: Fisher information 추정으로 token masking</li>
+  <li><strong>Arnal et al. (2025)</strong>: 목적함수 biasing으로 performance improvement guarantee</li>
+  <li><strong>REBEL, REFUEL, AGRO, Kimi K2</strong>: Squared regression loss를 사용하나, $V^\star$를 추정하지 않고 group-relative baseline (RLOO estimator 유사)으로 대체. OAPL과 달리 optimal advantage에 직접 regression하지 않는다.</li>
+</ul>
+
+<h3>IS를 사용하는 방법들</h3>
+<ul>
+  <li><strong>DeepSeek-v3.2</strong>: $\pi$ 하에서 likelihood가 작은 rollout 삭제</li>
+  <li><strong>Zhao et al. (2025), Zheng et al. (2025b)</strong>: Token-level ratio가 너무 크거나 작은 토큰 삭제</li>
+  <li><strong>Roux et al. (2025), Su et al. (2026)</strong>: 큰 IS ratio를 가진 토큰의 gradient를 bound</li>
+</ul>
+<p>OAPL은 IS를 완전히 피하므로, 유용한 샘플/토큰을 삭제하지 않으며, ratio/gradient clipping의 추가 tuning 비용도 없다.</p>
+
+<h3>비동기 RL 환경에서의 관련 연구</h3>
+<p>비동기 대규모 RL 학습에서도 off-policy 문제를 다뤄왔다. 대부분 truncated importance sampling을 사용하거나 (IMPALA, Noukhovitch et al., 2025), 데이터 생성을 제한하여 off-policy 정도를 낮추거나 (OpenAI Dota 2), Q-function을 학습하는 방식 (SAC, DQN)을 택한다. OAPL은 IS 없이 $\ln \frac{\pi}{\pi_{\text{vllm}}}$를 function approximator로 사용하여 optimal advantage $A^\star$를 직접 추정하는 <strong>value learning approach</strong>로도 이해할 수 있다는 점에서 독특하다.</p>
+
+<!-- ============================================================ -->
+<h2>5. Experimental Setup</h2>
+
+<h3>5.1 Math 실험</h3>
+<table>
+<tr><th>항목</th><th>OAPL</th><th>GRPO (Baseline)</th></tr>
+<tr><td>Base model</td><td colspan="2" style="text-align:center;">Qwen3-4B-Thinking-2507</td></tr>
+<tr><td>Training data</td><td colspan="2" style="text-align:center;">Deepscaler dataset</td></tr>
+<tr><td>Evaluation</td><td colspan="2" style="text-align:center;">AIME 2025, HMMT 2025 (Feb+Nov), BRUMO 2025</td></tr>
+<tr><td>Max generation length</td><td colspan="2" style="text-align:center;">16,384 tokens</td></tr>
+<tr><td>Policy lag $L$</td><td>50 iterations</td><td>Off-by-one (최대 1 iteration lag)</td></tr>
+<tr><td>$\beta_1, \beta_2$</td><td>$\beta_1=1, \beta_2=10^{-3}$</td><td>Clip ratio = 0.2, length normalization</td></tr>
+<tr><td>Optimizer</td><td colspan="2" style="text-align:center;">AdamW (LR $10^{-6}$, $\beta_1^{\text{Adam}}=0.9$, $\beta_2^{\text{Adam}}=0.95$, WD $10^{-2}$)</td></tr>
+<tr><td>Generations per prompt</td><td colspan="2" style="text-align:center;">$G=8$</td></tr>
+<tr><td>Global batch size</td><td colspan="2" style="text-align:center;">128</td></tr>
+</table>
+
+<p>참고: Eq. 2와 Eq. 3에서 각각 다른 $\beta_1, \beta_2$를 사용하여 hyperparameter 자유도를 높인다 (Brantley et al., 2025의 설정을 따름).</p>
+
+<h3>5.2 Code Generation 실험</h3>
+<table>
+<tr><th>항목</th><th>값</th></tr>
+<tr><td>Base model</td><td>DeepSeek-R1-Distill-Qwen-14B</td></tr>
+<tr><td>비교 대상</td><td>DeepCoder (GRPO + clip-high, overlong filtering 등 추가 heuristic)</td></tr>
+<tr><td>Training data</td><td>DeepCoder's training dataset</td></tr>
+<tr><td>Evaluation</td><td>LiveCodeBench v5 (279 problems)</td></tr>
+<tr><td>Max generation length</td><td>학습 32K, 평가 64K</td></tr>
+<tr><td>Policy lag $L$</td><td>~418 gradient steps (1 epoch)</td></tr>
+<tr><td>Total iterations $T$</td><td>2 (2-stage offline rollout)</td></tr>
+<tr><td>$\beta_1, \beta_2$</td><td>$\beta_1=1, \beta_2=10^{-3}$</td></tr>
+</table>
+
+<p><strong>2-stage 학습 과정</strong>:</p>
+<ol>
+  <li><strong>Round 1</strong>: Base model로 모든 prompt에 대해 8개 response를 offline 생성. 정답이 하나도 없는 prompt는 필터링. 이 offline dataset으로 1 epoch 학습 (π와 π_vllm 동기화 없이).</li>
+  <li><strong>Round 2</strong>: Round 1 결과 모델로 4,000개 prompt subset에서 새 offline dataset 생성 → 4 epoch 추가 학습. 4개 epoch checkpoint 모두를 평가하여 최고 성능 checkpoint를 보고.</li>
+</ol>
+
+<p>즉, ##코드 실험에서 policy lag은 ~400 gradient step으로, 기존 접근법의 100배 이상 off-policy##이다.</p>
+
+<!-- ============================================================ -->
+<h2>6. Experimental Results</h2>
+
+<p>실험은 세 축을 따라 평가한다:</p>
+<ol>
+  <li>표준 reasoning 벤치마크에서의 최종 정확도</li>
+  <li>비동기 rollout 하에서의 학습 안정성 (entropy, training curve)</li>
+  <li>Pass@k에서의 test-time scaling</li>
+</ol>
+
+<h3>6.1 Results on Competition Math</h3>
+
+<h4>벤치마크 성능 (Q: OAPL이 GRPO를 능가하는가?)</h4>
+<blockquote>
+<strong>[Figure 1 설명]</strong>: 3개 수학 벤치마크(HMMT 2025, AIME 2025, BRUMO 2025)에서 OAPL과 GRPO의 Pass@1, Pass@2, Pass@4, Pass@8 비교. 3회 반복 실험의 평균과 표준오차를 보고. OAPL이 ##모든 벤치마크, 모든 Pass@k 지표에서 GRPO를 능가##한다.
+</blockquote>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: 학습 곡선 (3개 벤치마크 평균 정확도). Pass@1, Pass@5, Pass@10 모두에서 OAPL이 더 높은 정확도에 수렴하며, 학습이 더 안정적이다 (표준오차 밴드가 좁음).
+</blockquote>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>OAPL과 GRPO 모두에서, Pass@1 reward (outcome reward)만으로 학습해도 Pass@k ($k > 1$)이 개선된다. 이는 "RL이 Pass@k for $k > 1$을 개선하지 못한다"는 일부 선행 연구의 주장과 배치된다.</li>
+  <li>OAPL의 우위는 Pass@5, Pass@10에서 더 두드러진다. 이는 아래의 entropy 분석과 직결된다.</li>
+</ul>
+
+<h4>Entropy 행동 (Q: OAPL은 왜 test-time scaling에서 더 좋은가?)</h4>
+<blockquote>
+<strong>[Figure 3 Left 설명]</strong>: 학습 중 sequence entropy 변화. ##GRPO는 entropy가 점진적으로 collapse하지만, OAPL의 entropy는 유지##된다. 이것이 OAPL의 Pass@5, Pass@10 우위의 직접적 원인이다.
+</blockquote>
+
+<p>저자들은 이 행동이 (1) infrequent synchronization과 (2) $\pi_{\text{vllm}}$에 대한 명시적 KL regularization의 결합에서 비롯된다고 분석한다. GRPO의 clipping은 πold에 대해서만 작동하는 반면, OAPL은 (상대적으로 오래된) $\pi_{\text{vllm}}$에 KL을 직접 부과하므로 policy가 과도하게 좁아지는 것을 방지한다.</p>
+
+<p>참고: 실험에서 GRPO와 OAPL 모두 $\pi_{\text{ref}}$ (원래 pre-trained model)에 대한 KL regularization은 사용하지 않는다. 목표는 순수하게 reward 최대화이다.</p>
+
+<h4>Pass@k Scaling (Q: 더 높은 entropy가 실제로 더 나은 scaling으로 이어지는가?)</h4>
+<blockquote>
+<strong>[Figure 4 설명]</strong>: 각 방법의 best checkpoint에서 k=1~256까지 Pass@k를 평가. (a) 전체 평균, (b-e) 개별 벤치마크. ##OAPL이 GRPO와 base model 모두보다 전 범위에서 우수. 특히 HMMT Nov 2025에서 gap이 크다.## BRUMO에서는 두 방법 모두 k=64에서 90%+ 달성하여 차이가 작다.
+</blockquote>
+
+<p><strong>중요한 관찰</strong>: ##RL 학습 (OAPL, GRPO 모두)이 base model 대비 큰 k에서도 Pass@k를 개선##한다. 예를 들어 HMMT Nov 2025에서 OAPL과 base의 gap은 k가 증가해도 오히려 커진다. 이는 "RL이 base model distribution을 단순히 sharpen한다 (따라서 큰 k에서는 효과가 사라진다)"는 Yue et al. (2025)의 주장에 대한 명확한 반례이다.</p>
+
+<h4>Large Policy Lag에서의 안정성 (Q: OAPL은 더 큰 lag에서도 작동하는가?)</h4>
+<blockquote>
+<strong>[Figure 3 Right 설명]</strong>: Policy lag $L=100$ (50 대비 2배)으로 OAPL을 실행한 결과. Pass@1, Pass@5, Pass@10 모두 안정적으로 학습이 진행되며, off-policyness에 대한 robustness를 보여준다.
+</blockquote>
+
+<h3>6.2 Results on Code Generation</h3>
+
+<h4>Pass@k 성능 (Q: 극단적 off-policy에서도 OAPL이 효과적인가?)</h4>
+<blockquote>
+<strong>[Figure 5 Left 설명]</strong>: LiveCodeBench에서 OAPL, DeepCoder, base model의 Pass@k (k=1~10) 비교. ##전 범위에서 OAPL이 DeepCoder와 동등하거나 약간 우수##하다. Base model 대비 두 방법 모두 큰 k에서도 Pass@k를 개선.
+</blockquote>
+
+<p><strong>참고</strong>: 저자들의 DeepCoder 정확도는 원 논문 보고치(60.6%)보다 낮다. 동일한 sampling parameter와 software environment 재현에 어려움이 있었으며, 이는 다른 연구자들도 겪은 문제이다. 20개 샘플/prompt로 평가하여 randomness를 줄였다.</p>
+
+<h4>Sample Efficiency (Q: OAPL이 얼마나 더 효율적인가?)</h4>
+<blockquote>
+<strong>[Figure 5 Right 설명]</strong>: Pass@1 정확도 vs 총 training generation 수. DeepCoder는 ~650K 샘플 (650 steps × 1024 samples/step), OAPL은 ~200K 샘플. ##OAPL이 동등 성능을 약 3배 적은 샘플로 달성##.
+</blockquote>
+
+<p><strong>패턴 분석</strong>: DeepCoder의 초반 160 step은 16K length generation으로 제한되어 있어, 이를 'half' sample로 계산해도 ~580K 샘플이며 여전히 OAPL 대비 ~3배이다. Off-policy 특성 덕분에 이전에 생성한 데이터를 재사용할 수 있어 sample efficiency가 높다.</p>
+
+<!-- ============================================================ -->
+<h2>7. Conclusion</h2>
+
+<p>본 연구는 단순한 off-policy RL 방법(OAPL)이 LLM post-training에서 on-policy GRPO보다 더 효과적일 수 있음을 보여준다. Off-policy 방법은 완전 비동기 학습을 가능하게 하고, 이전 샘플을 재사용하여 우수한 computational/sample efficiency를 제공한다. 경쟁 수학과 코드 생성에서 GRPO 대등 이상의 성능을 달성하면서, 유의미한 sample efficiency 개선을 보였다.</p>
+
+<p><strong>향후 연구</strong>: Off-policy value function 학습으로 더 나은 credit assignment, 추가 offline data (예: human data)의 활용.</p>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론적 근거가 명확</strong>: KL-regularized RL의 closed-form solution에서 출발하여 off-policy objective를 유도하며, "unique minimizer가 sampling 분포에 무관"이라는 이론적 보장이 핵심 claim을 뒷받침한다.</li>
+  <li><strong>단순한 구현</strong>: Clipping, IS ratio, token/rollout 삭제 같은 heuristic 없이 단순 squared regression loss만 사용. 기존 GRPO pipeline에서 loss function만 교체하면 되므로 실용성이 높다.</li>
+  <li><strong>반복 실험</strong>: 수학 실험에서 3회 반복의 평균 + 표준오차를 보고한다.</li>
+  <li><strong>Entropy 분석</strong>: 단순 성능 비교를 넘어 entropy 행동을 추적함으로써 OAPL의 우위가 "왜" 발생하는지에 대한 메커니즘적 설명을 제공한다.</li>
+  <li><strong>코드/체크포인트 공개</strong>: 코드 실험의 offline dataset, 체크포인트, 학습 코드가 공개되어 있다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>모델 규모 제한</strong>: 수학은 4B (Qwen3-4B), 코드는 14B (DeepSeek-R1-Distill-Qwen-14B)로 실험. 70B+ 규모에서의 효과는 미검증이다. DeepSeek-R1이 671B MoE에서 GRPO로 학습되었음을 고려하면, 대규모 모델에서의 검증이 중요하다.</li>
+  <li><strong>코드 실험의 공정성</strong>: DeepCoder와의 비교에서 원 논문의 60.6%를 재현하지 못했다. 저자들이 이를 투명하게 밝혔지만, 자체 환경에서의 DeepCoder 성능이 과소평가되었을 가능성이 있다.</li>
+  <li><strong>Reward 함수 의존성</strong>: 수학/코드 모두 binary reward (정답/오답)를 사용. 더 복잡하거나 soft한 reward (예: RLHF의 reward model)에서의 효과는 검증되지 않았다.</li>
+  <li><strong>$V^\star$ 추정의 한계</strong>: $\hat{V}^\star$의 정확도는 $G$와 $\pi_{\text{vllm}}$의 solve rate에 의존한다. 매우 어려운 문제에서 $\pi_{\text{vllm}}$의 정답률이 극히 낮으면 추정이 부정확해질 수 있다.</li>
+  <li><strong>$\beta$ 선택의 민감도</strong>: $\beta_1, \beta_2$를 분리하여 hyperparameter 탐색을 수행했지만, 탐색 범위가 좁고 ($\beta_1 \in \{1, 5\}$, $\beta_2 \in \{10^{-2}, 10^{-3}\}$), 코드 실험에서는 자원 제약으로 sweep을 하지 못했다.</li>
+  <li><strong>벤치마크 다양성</strong>: 수학 3개 + 코드 1개 = 4개 벤치마크. General reasoning, instruction following, alignment 등 다른 RL post-training 시나리오에서의 효과는 미검증이다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트</h3>
+<ul>
+  <li><strong>반복 실험</strong>: 수학 3회, 표준오차 보고 ✓ / 코드는 반복 없음 (자원 제약) △</li>
+  <li><strong>공정한 베이스라인</strong>: GRPO+IS와 동일 설정에서 비교 ✓ / DeepCoder 재현 문제 투명 공개 ✓</li>
+  <li><strong>Ablation이 핵심 주장 뒷받침</strong>: Policy lag 변경 (L=50 vs 100), entropy 추적, Pass@k scaling 분석 ✓</li>
+  <li><strong>계산 비용 대비 실용성</strong>: GRPO 대비 3배 적은 generation으로 동등 성능 — 높은 효율 ✓</li>
+  <li><strong>코드/데이터 공개</strong>: 코드 실험 dataset + checkpoint + training code 공개 ✓ / 수학 checkpoint 예정 △</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>On-policy는 필수가 아니다</strong>: LLM RL post-training에서 on-policy 가정은 실제로 이미 깨져 있으며, 이를 보정하려는 노력(IS, engine 수정)보다 off-policy를 직접 수용하는 것이 더 간단하고 효과적일 수 있다. 이는 전통 RL에서 SAC/DDPG가 PPO/REINFORCE보다 효율적이었던 것과 일관된다.</li>
+  <li><strong>KL-regularized RL의 closed-form이 강력한 도구</strong>: $V^\star$와 $\pi^\star$의 closed-form expression을 활용하면, IS 없이도 off-policy 데이터에서 올바른 objective를 구성할 수 있다. 이 수학적 도구는 다른 RL 문제에도 적용 가능하다.</li>
+  <li><strong>Entropy preservation이 test-time scaling의 핵심</strong>: GRPO의 entropy collapse가 큰 k에서의 Pass@k를 제한한다면, entropy를 유지하는 알고리즘(OAPL)이 test-time compute scaling에서 유리하다. Best-of-N이나 majority voting 같은 test-time 전략에서 중요한 함의이다.</li>
+  <li><strong>Sample efficiency가 실무적으로 중요</strong>: 3배 적은 generation으로 동등 성능이라는 것은, 학습 비용이 1/3로 줄어든다는 의미이다. 대규모 RL training이 점점 비싸지는 상황에서 직접적인 비용 절감 효과를 제공한다.</li>
+  <li><strong>"RL은 base model을 sharpen할 뿐"이라는 주장에 대한 반례</strong>: OAPL과 GRPO 모두에서 큰 k에서도 base model 대비 Pass@k가 개선되며, OAPL은 그 gap이 k 증가에 따라 오히려 벌어진다. RL이 base model에 없던 새로운 reasoning 능력을 학습할 수 있음을 시사한다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agent World Model: Infinity Synthetic Environments for Agentic Reinforcement Learning</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Agent World Model: Infinity Synthetic Environments for Agentic Reinforcement Learning</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhaoyang Wang, Canwen Xu, Boyi Liu, Yite Wang, Siwei Han, Zhewei Yao, Huaxiu Yao*, Yuxiong He* (* 공동 교신저자)</li>
+  <li><strong>소속</strong>: University of North Carolina at Chapel Hill, Snowflake</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.AI)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.10090">arXiv:2602.10090</a> · <a href="https://github.com/Snowflake-Labs/agent-world-model">Code</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM agent의 tool-use 능력을 RL로 학습시키려면 다양하고 실행 가능한 환경이 필요하지만, 현실 환경은 비용이 높고 확장이 어렵다. 기존 합성 데이터 연구는 task/trajectory 합성에 집중하며 환경 자체를 합성하지 않고, LLM 시뮬레이션 환경은 hallucination과 높은 inference 비용 문제가 있다.</li>
+  <li><strong>해결</strong>: ##코드 기반의 실행 가능한 환경을 자동 합성하는 파이프라인 AWM (Agent World Model)을 제안##한다. 시나리오 → 태스크 → 데이터베이스 → 인터페이스(MCP) → 검증 코드의 5단계로 1,000개 환경(35,062개 도구, 10,000개 태스크)을 생성한다. 모든 상태 전이는 SQLite DB에 의해 보장되며, code-augmented LLM-as-a-Judge가 RL reward를 제공한다.</li>
+  <li><strong>왜 작동하는가</strong>: 환경이 코드 기반이므로 LLM 시뮬레이션 대비 (1) 상태 전이가 결정적이고 일관적이며, (2) 에이전트 상호작용이 훨씬 효율적이고, (3) DB 상태 diff를 활용한 grounded verification이 가능하다. 또한 다양한 도메인(쇼핑, 금융, 여행 등)을 포괄하는 1,000개 환경이 OOD (Out-of-Distribution) 일반화를 지원한다.</li>
+  <li><strong>비유</strong>: 기존 agent 학습이 "소수의 실제 가게에서만 직접 연습"하는 것이라면, AWM은 "자동으로 수천 개의 가상 가게를 코드로 생성하여 다양한 상황을 경험하게 하는 시뮬레이터"이다. 가게 내부 상태(재고, 주문 등)가 실제 데이터베이스에 기록되므로, LLM이 상상으로 답하는 것보다 훨씬 신뢰성 있는 연습이 가능하다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>AWM 합성 파이프라인</strong>: 시나리오 → 태스크 → DB → MCP interface → verification code의 5단계로 실행 가능한 tool-use 환경을 자동 생성하는 오픈소스 파이프라인. Human prior (API 문서, 기존 task set 등) 없이 100개 seed 도메인 이름만으로 확장 가능하다.</li>
+  <li><strong>1,000개 환경 데이터셋</strong>: 35,062개 도구, 10,000개 태스크, 환경당 평균 ~2,000줄 코드. SQL-backed 상태 일관성을 보장하며, 현존 최대 규모의 오픈소스 tool-use 환경 셋이다.</li>
+  <li><strong>Agentic RL 기법</strong>: Code-augmented LLM-as-a-Judge (hybrid verification), step-level format 보상, history-aware training (학습-추론 일관성)을 결합한 multi-turn RL 학습 프레임워크.</li>
+  <li><strong>OOD 일반화 실증</strong>: AWM에서만 학습한 에이전트가 BFCLv3, τ²-bench, MCP-Universe 등 벤치마크-specific 학습 없이 강력한 일반화 성능을 보인다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction — 문제 정의와 동기</h2>
+
+<p>LLM 기반 자율 에이전트는 multi-turn tool 상호작용으로 복잡한 태스크를 수행할 수 있지만, 이를 대규모 RL로 학습시키려면 다양하고 신뢰성 있는 환경이 필수적이다. 현재 환경 확보의 세 가지 한계:</p>
+
+<ol>
+  <li><strong>현실 환경</strong>: 공개 API가 없거나, 수천 번의 안정적 상호작용이 비현실적. 비용이 높고 확장 불가.</li>
+  <li><strong>인간 제작 환경</strong>: τ-bench (2개), τ²-bench (3개), TheMCPCompany (5개) 등 소규모. 다양성과 확장성 부족.</li>
+  <li><strong>LLM 시뮬레이션</strong>: 매 상태 전이마다 LLM을 호출하므로 hallucination 위험과 높은 inference 비용. RL 학습에 부적합.</li>
+</ol>
+
+<p>기존 합성 연구는 주로 <strong>task 합성</strong> (Self-Instruct, AgentSynth) 또는 <strong>trajectory 수집</strong> (AgentBank, AgentTrek)에 집중하며, 환경 자체를 합성하지 않는다. 환경 합성을 시도한 연구도 있으나 (AutoForge: 36개 game-like 환경, EnvScaler: 191개), 규모가 제한적이거나 human prior에 의존한다.</p>
+
+<p>DeepSeek-V3.2와 Qwen Tongyi도 환경 합성 파이프라인을 사용했다고 언급하지만, ##파이프라인과 환경 모두 비공개##이다. AWM은 이 gap을 메우기 위해 파이프라인과 1,000개 환경을 모두 오픈소스로 공개한다.</p>
+
+<!-- ============================================================ -->
+<h2>2. Related Work</h2>
+
+<h3>Tool-use Agents</h3>
+<p>Toolformer (Schick et al., 2023)는 supervised learning으로 tool-use를 학습하고, ToolLLM (Qin et al., 2024)은 실제 API를 curate하되 tool response는 시뮬레이션한다. Gorilla (Patil et al., 2024)는 API 문서로 fine-tuning하며, ReAct (Yao et al., 2023)과 SWE-agent는 interactive 환경에서 reasoning과 acting을 교대 수행한다. 그러나 대부분의 학습 데이터는 정적이거나 소규모 환경에서 수집된다. 기존 벤치마크(τ-bench, BFCLv3, MCP-Universe)는 평가에는 적합하지만 대규모 RL 학습 환경으로 사용하기는 어렵다.</p>
+
+<h3>Environment Synthesis</h3>
+<p>환경 합성은 두 방향으로 나뉜다:</p>
+<ul>
+  <li><strong>LLM-based simulation</strong>: 매 상태 전이를 reasoning model로 생성. Hallucination과 비효율성 문제.</li>
+  <li><strong>Programming-based synthesis</strong>: 코드와 DB로 환경을 구축. AutoForge (10개, Tool Doc 의존), EnvScaler (191개, 기존 task set에 의존), AutoEnv (36개 game-like).</li>
+</ul>
+<p>AWM은 (1) 사전 정의된 task set이나 API 문서 없이 scratch에서 합성, (2) SQL-backed 상태 관리로 일관성 보장, (3) 1,000개 환경으로 최대 규모라는 점에서 차별화된다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Agent World Model — 파이프라인</h2>
+
+<p>AWM은 환경을 POMDP (Partially Observable Markov Decision Process)로 합성한다. 각 환경 $E_i$는 5개 구성 요소를 포함한다: 상태 공간 $S_{E_i}$, 행동 공간 $A_{E_i}$, 관측 공간 $O_{E_i}$, 전이 함수 $T_{E_i}: S_{E_i} \times A_{E_i} \to S_{E_i} \times O_{E_i}$, 그리고 태스크별 보상 함수 $R_\tau$.</p>
+
+<div class="flow-diagram">AWM 파이프라인 (5단계):
+
+Step 1: Scenario Synthesis
+  100개 seed 도메인명 → LLM 확장 → 필터링/중복제거 → 1,000개 시나리오
+
+Step 2: Task Synthesis
+  각 시나리오 → LLM → 10개 task/시나리오 → 10,000개 태스크
+
+Step 3: Database Design &amp; Data Synthesis
+  시나리오 + 태스크 → LLM → SQLite 스키마 + 샘플 데이터 → 상태 공간 S
+
+Step 4: Interface Synthesis
+  태스크 + DB 스키마 → LLM → MCP 도구 스키마 → Python 구현 코드
+  → 행동 공간 A, 관측 공간 O, 전이 함수 T
+
+Step 5: Verification &amp; Online RL
+  태스크 + DB → LLM → 검증 코드 + 성공/실패 기준 → 보상 함수 R
+  → Code-augmented LLM-as-a-Judge → RL 학습
+</div>
+
+<h3>3.1 Scenario Generation</h3>
+<p>100개의 인기 도메인 이름(seed)에서 Self-Instruct 스타일로 확장한다. LLM이 stateful application (e-commerce, CRM 등)에 적합한 시나리오를 생성하고, 두 가지 필터를 적용한다:</p>
+<ul>
+  <li><strong>LLM 분류기</strong>: CRUD (Create, Read, Update, Delete) 연산이 핵심인 시나리오만 선택. 뉴스/위키 같은 읽기 전용 시나리오 제외.</li>
+  <li><strong>Embedding 기반 중복 제거</strong>: Cosine similarity 0.85 임계값으로 유사 시나리오 제거. 과잉 대표 카테고리에 cap을 걸어 다양성 유지.</li>
+</ul>
+<p>결과: 금융, 여행, 소매, 소셜 미디어, 분석, 워크플로우 등을 포괄하는 1,000개 unique 시나리오. 카테고리 분포는 Other (16.8%), Analytics (8.6%), Workflow (8.6%), E-commerce (8.2%) 등으로 고르게 분포.</p>
+
+<h3>3.2 Task Generation</h3>
+<p>각 시나리오에 대해 LLM이 $k=10$개의 다양한 user task를 생성한다. 두 가지 설계 원칙:</p>
+<ol>
+  <li><strong>API-solvability</strong>: 클릭, 페이지 네비게이션 같은 순수 UI 의존 작업 배제. API로 해결 가능한 태스크만.</li>
+  <li><strong>Post-authentication context</strong>: 로그인 완료를 가정하여 깊은 기능에 집중. 인증은 현실에서 인간이 처리하므로.</li>
+</ol>
+<p>결과: 10,000개의 실행 가능한 태스크. 이 태스크들이 후속 환경 백엔드 합성의 기능 요구 사항 역할을 한다.</p>
+
+<h3>3.3 Environment Synthesis</h3>
+
+<h4>Database (상태 공간 $S_{E_i}$)</h4>
+<p>시나리오와 태스크 셋이 주어지면, LLM이 모든 태스크를 실행 가능하게 만드는 최소한의 relational schema를 추론한다. ##SQLite를 상태 백엔드로 사용##하여 구조화된 relational state를 관리한다. 이는 concurrent work들이 사용하는 단순화된 NoSQL/key-value store와 차별화된다.</p>
+
+<p>스키마만으로는 부족하다 — 많은 태스크가 기존 레코드를 조회/갱신해야 하므로, LLM이 각 태스크의 전제 조건을 분석하여 realistic initial state $s_0$를 만드는 샘플 데이터를 합성한다.</p>
+
+<h4>Interface (행동/관측 공간 $A_{E_i}$, $O_{E_i}$, 전이 함수 $T_{E_i}$)</h4>
+<p>에이전트가 DB를 직접 조작하지 못하도록, ##MCP (Model Context Protocol)## 인터페이스를 통해 도구를 노출한다. MCP는 Anthropic이 2024년에 제안한 통합 agent-tool 상호작용 프로토콜이다.</p>
+
+<p>합성은 두 단계: (1) 먼저 toolset schema를 설계 (도구 이름, 매개변수 타입, 응답 스키마), (2) 그 다음 Python 구현 코드를 생성. Pilot 실험에서 환경이 3,000줄 이상의 코드를 필요로 할 수 있어, 스키마 가이드 없이 직접 코드 생성은 어려웠다.</p>
+
+<h4>Verification (보상 함수 $R_\tau$)</h4>
+<p>각 태스크 $\tau$에 대해, 에이전트 실행 전후의 DB 상태를 비교하는 검증 모듈을 합성한다. 이 모듈이 추출하는 구조화된 검증 신호(변경 레코드, 예상 결과, 진단 신호)를 LLM-as-a-Judge에 전달하여 최종 판정을 받는다.</p>
+
+<p><strong>왜 LLM-as-a-Judge를 병용하는가?</strong> 순수 코드 검증은 합성 환경의 불완전성(부분 실행, 인프라 이슈 등)에 취약하다. 현실의 WebArena, τ²-bench, SWE-Bench도 brittle verification 때문에 수정된 바 있다. ##Code-augmented LLM-as-a-Judge는 코드 검증의 정밀성과 LLM의 유연성을 결합##하여, 구조화된 증거를 기반으로 코드만으로 해결할 수 없는 모호성을 처리한다.</p>
+
+<p>최종 판정: <code>Completed</code>, <code>Partially Completed</code>, <code>Agent Error</code>, <code>Environment Error</code> 중 하나를 반환.</p>
+
+<h4>Self-Correction 메커니즘</h4>
+<p>모든 합성 단계에서 코드가 실패하면 오류 메시지를 LLM에 피드백하여 수정을 시도한다. 최대 5회 반복. 85% 이상의 first-attempt 성공률, 평균 1.13회 correction iteration.</p>
+
+<h3>3.4 Pipeline Results and Analysis</h3>
+
+<table>
+<tr><th>합성 단계</th><th>성공률 (%)</th><th>평균 시도 횟수</th><th>비용 ($/100 샘플)</th></tr>
+<tr><td>Scenario</td><td>-</td><td>-</td><td>0.43</td></tr>
+<tr><td>Task</td><td>-</td><td>-</td><td>0.56</td></tr>
+<tr><td>Database</td><td>88.3</td><td>1.12</td><td>3.59</td></tr>
+<tr><td>Sample Data</td><td>88.2</td><td>1.12</td><td>13.75</td></tr>
+<tr><td>Toolset Schema</td><td>-</td><td>-</td><td>23.74</td></tr>
+<tr><td>Env Code</td><td>86.8</td><td>1.13</td><td>12.81</td></tr>
+<tr><td>Verification</td><td>-</td><td>-</td><td>2.21</td></tr>
+<tr style="font-weight:bold;"><td>Total</td><td>-</td><td>-</td><td>57.09</td></tr>
+</table>
+
+<p>GPT-5를 generation model로 사용. 환경 100개당 총 비용 약 $57.</p>
+
+<table>
+<tr><th>환경 복잡도 지표</th><th>Mean</th><th>Median</th><th>Top 90%</th></tr>
+<tr><td>Database Tables</td><td>18.5</td><td>18.0</td><td>25.0</td></tr>
+<tr><td>Sample Data Records</td><td>129.3</td><td>121.0</td><td>192.0</td></tr>
+<tr><td>Exposed Tools</td><td>35.1</td><td>35.0</td><td>45.0</td></tr>
+<tr><td>Environment Code Lines</td><td>1,984.7</td><td>1,944.0</td><td>2,586.0</td></tr>
+<tr><td>Agent Steps per Task</td><td>8.5</td><td>6.0</td><td>20.0</td></tr>
+<tr><td>Unique Tools per Task</td><td>7.1</td><td>6.0</td><td>12.0</td></tr>
+</table>
+
+<p>기존 환경 셋과의 비교:</p>
+<table>
+<tr><th>Method</th><th>합성?</th><th>의존성</th><th>SQL</th><th># Envs</th><th># Tools</th><th># Code Lines</th></tr>
+<tr><td>τ-bench / τ²-bench</td><td>X</td><td>Human</td><td>X</td><td>2 / 3</td><td>12.5 / 22.7</td><td>-</td></tr>
+<tr><td>MCP-Universe</td><td>X</td><td>Real APIs</td><td>-</td><td>11</td><td>12.1</td><td>-</td></tr>
+<tr><td>AutoForge</td><td>O</td><td>Tool Doc</td><td>X</td><td>10</td><td>-</td><td>-</td></tr>
+<tr><td>EnvScaler</td><td>O</td><td>Task Set</td><td>X</td><td>191</td><td>18.6</td><td>662.1</td></tr>
+<tr style="font-weight:bold;"><td>AWM</td><td>O</td><td>Names Only</td><td>O</td><td>1,000</td><td>35.1</td><td>1,984.7</td></tr>
+</table>
+
+<p>##AWM은 가장 가까운 concurrent work EnvScaler보다 5배 많은 환경을 생성하면서, 100개 시나리오 이름만을 입력으로 사용##한다.</p>
+
+<!-- ============================================================ -->
+<h2>4. Agentic Reinforcement Learning</h2>
+
+<h3>4.1 Reward Design</h3>
+<p>순수 outcome-based reward는 수학 추론에서는 성공했지만, multi-turn tool-use에서는 불충분하고 비효율적이다. AWM은 <strong>hybrid reward</strong>를 사용한다:</p>
+
+<p><strong>Step-level</strong>: 매 step에서 tool call의 format 준수 여부 확인. 위반 시 즉시 rollout 종료 + $r_t = -1.0$. 이는 invalid action을 억제하고 long-horizon에서의 계산 낭비를 방지한다.</p>
+
+<p><strong>Task-level (정상 종료 시)</strong>: Code-augmented LLM-as-a-Judge가 최종 보상을 결정:</p>
+
+$$R_\tau = \begin{cases} 1.0, & \text{if task } \tau \text{ Completed} \\ 0.1, & \text{if task } \tau \text{ Partially Completed} \\ 0.0, & \text{otherwise} \end{cases} \tag{1}$$
+
+<p>직관적으로, 완전 성공은 1.0, 부분 성공은 0.1 (약간의 positive signal), 실패는 0을 부여한다. Environment Error는 에이전트의 잘못이 아니므로 $r_t = 0$으로 처리하여 잘못된 negative signal을 방지한다.</p>
+
+<h3>4.2 History-Aware Training</h3>
+<p>에이전트 배포 시에는 긴 상호작용 히스토리를 sliding window로 truncation하는 것이 일반적이다. 그러나 기존 RL 학습 파이프라인은 full history를 사용하여 최적화하므로 학습-추론 간 <strong>distribution mismatch</strong>가 발생한다.</p>
+
+<p>Full history $h_t = (o_1, a_1, o_2, a_2, \ldots, o_t)$를 사용하는 기존 방식:</p>
+$$L = -r \log \pi_\theta(o_1, a_1, o_2, a_2, \ldots, o_T, a_T) \cdot [0, 1, 0, 1, \ldots, 0, 1] \tag{2}$$
+<p>여기서 mask는 action token만 선택하고 observation은 무시한다.</p>
+
+<p>##AWM은 학습 중에도 추론과 동일한 truncation을 적용##하여 일관성을 보장한다. GRPO 하에서, 각 태스크 $\tau$에 대해 $G$개의 rollout을 샘플링하고 다음을 최적화한다:</p>
+
+$$L_{\text{GRPO}} = \mathbb{E}_{\tau, E_i, \{y^{(k)}\}} \left[ \frac{1}{G} \sum_{k=1}^G A^{(k)} \sum_{t=1}^{T_k} \log \pi_\theta(a_t^{(k)} | h_t^{\text{trunc},(k)}) \right] \tag{3}$$
+
+<p>여기서 $A^{(k)} = (R^{(k)} - \bar{R}) / \sigma_R$은 group-relative advantage이고, $h_t^{\text{trunc}}$는 sliding window $w=3$으로 truncation된 히스토리이다. 직관적으로, 긴 trajectory를 여러 sub-trajectory로 분할하여, 각각이 추론 시 에이전트가 실제로 보는 context와 동일하도록 만드는 것이다.</p>
+
+<!-- ============================================================ -->
+<h2>5. Experiments</h2>
+
+<h3>5.1 Experimental Setup</h3>
+
+<p>실험의 핵심 질문: <strong>합성 환경에서만 학습한 에이전트가 벤치마크-specific 환경 없이도 일반화할 수 있는가?</strong></p>
+
+<p><strong>벤치마크</strong> (모두 OOD — AWM 학습에 포함되지 않음):</p>
+<ul>
+  <li><strong>τ²-bench</strong> (verified version): 항공, 소매, 통신 3개 시나리오의 multi-turn 대화형 에이전트 태스크</li>
+  <li><strong>BFCLv3</strong> (Berkeley Function Calling Leaderboard v3): function-calling 능력 종합 평가. Non-live, Live, Multi-turn, Hallucination 4개 카테고리</li>
+  <li><strong>MCP-Universe</strong>: 실제 MCP 서버 기반. Location, Financial, Browser, Web, Multi-server 5개 도메인</li>
+</ul>
+
+<p><strong>Baselines</strong>:</p>
+<ul>
+  <li><strong>Base</strong>: 추가 학습 없는 원래 LLM</li>
+  <li><strong>Simulator</strong>: GPT-5가 환경 전이를 시뮬레이션하는 LLM-simulated 환경에서 RL 학습</li>
+  <li><strong>EnvScaler</strong>: 191개 programming-based 합성 환경에서 SFT/RL 학습</li>
+</ul>
+
+<p><strong>Implementation</strong>:</p>
+<table>
+<tr><th>항목</th><th>값</th></tr>
+<tr><td>환경 합성 LLM</td><td>GPT-5</td></tr>
+<tr><td>Agent base models</td><td>Qwen3-4B/8B/14B (Thinking)</td></tr>
+<tr><td>RL framework</td><td>AgentFly + verl (GRPO)</td></tr>
+<tr><td>학습 환경 수</td><td>526 / 1,000 (compute 제약)</td></tr>
+<tr><td>학습 태스크 수</td><td>3,315</td></tr>
+<tr><td>Optimization steps</td><td>최대 96</td></tr>
+<tr><td>Learning rate</td><td>7 × 10⁻⁷ (fixed)</td></tr>
+<tr><td>Batch size / Rollouts</td><td>64 / 16</td></tr>
+<tr><td>환경 인스턴스/step</td><td>1,024 (병렬)</td></tr>
+<tr><td>Sliding window $w$</td><td>3</td></tr>
+<tr><td>Max interaction turns</td><td>20</td></tr>
+<tr><td>KL coefficient</td><td>0.001</td></tr>
+<tr><td>Clip ratio</td><td>0.28 (DAPO 권장)</td></tr>
+</table>
+
+<h3>5.2 Main Results</h3>
+
+<h4>BFCLv3 (Function Calling)</h4>
+<table>
+<tr><th>Size</th><th>Method</th><th>Non-Live</th><th>Live</th><th>Multi-Turn</th><th>Hall.</th><th>Overall</th></tr>
+<tr><td rowspan="4">4B</td><td>Base</td><td>61.44</td><td>63.95</td><td>39.38</td><td>73.93</td><td>54.92</td></tr>
+<tr><td>Simulator</td><td>66.10</td><td>62.69</td><td>37.75</td><td>75.48</td><td>55.52</td></tr>
+<tr><td>EnvScaler</td><td>60.31</td><td>64.25</td><td>37.63</td><td>85.25</td><td>54.06</td></tr>
+<tr style="font-weight:bold;"><td>AWM</td><td>78.60</td><td>76.91</td><td>39.38</td><td>73.70</td><td>64.50</td></tr>
+<tr><td rowspan="4">8B</td><td>Base</td><td>59.58</td><td>58.03</td><td>43.88</td><td>76.42</td><td>53.83</td></tr>
+<tr><td>Simulator</td><td>56.35</td><td>59.36</td><td>41.88</td><td>74.06</td><td>52.53</td></tr>
+<tr><td>EnvScaler</td><td>33.67</td><td>31.83</td><td>45.00</td><td>90.30</td><td>36.83</td></tr>
+<tr style="font-weight:bold;"><td>AWM</td><td>80.44</td><td>72.39</td><td>45.00</td><td>70.80</td><td>65.94</td></tr>
+<tr><td rowspan="3">14B</td><td>Base</td><td>69.48</td><td>67.28</td><td>47.00</td><td>77.94</td><td>61.25</td></tr>
+<tr><td>Simulator</td><td>77.23</td><td>73.43</td><td>52.38</td><td>76.91</td><td>67.68</td></tr>
+<tr style="font-weight:bold;"><td>AWM</td><td>81.46</td><td>77.20</td><td>51.88</td><td>78.37</td><td>70.18</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##AWM이 모든 모델 규모에서 전체 벤치마크 대비 최고 성능##. 8B에서 Base 대비 +12.11% (53.83 → 65.94).</li>
+  <li>Hallucination 카테고리에서는 약점을 보임 (4B: 73.70 vs EnvScaler 85.25). 이는 format correctness reward가 항상 tool use를 장려하고 refusal을 벌칙하기 때문으로, 저자들이 직접 지적.</li>
+  <li>EnvScaler는 8B에서 Base 대비 오히려 -17% 하락 (53.83 → 36.83). AWM은 모든 벤치마크에서 일관되게 Base를 개선하는 반면, EnvScaler는 τ²-bench에서 개선되지만 BFCLv3와 MCP-Universe에서 하락.</li>
+</ul>
+
+<h4>τ²-bench (Conversational Agent)</h4>
+<p>AWM은 τ²-bench에서 EnvScaler와 경쟁적이며 Simulator보다 일관되게 우수하다. 단, EnvScaler는 기존 task set에 의존하여 합성하므로 τ²-bench와 overlap이 있을 수 있어 이 비교에서 유리할 수 있다.</p>
+
+<h4>MCP-Universe (Real-world MCP)</h4>
+<p>##AWM이 모든 규모에서 최고 overall 성능##. 8B: 11.17% (Base 6.70%, EnvScaler 5.59%, Simulator 6.15%). 특히 Financial과 Location 도메인에서 큰 개선. Programming-based 상태 일관성이 LLM-simulated 학습보다 안정적인 learning signal을 제공하며, 학습 latency도 크게 줄인다 (Simulator는 매 interaction step마다 LLM 호출 필요).</p>
+
+<!-- ============================================================ -->
+<h2>6. Analysis</h2>
+
+<h3>6.1 환경 품질 분석 (Table 5)</h3>
+<p><strong>실험 의도</strong>: AWM의 합성 환경이 실제로 실행 가능하고 일관적인지 정량 평가.</p>
+
+<p>100개 샘플 환경에 대해 GPT-5.1과 Claude-4.5-Sonnet으로 LLM-as-a-Judge 점수 (1~5 scale)를 매겼다:</p>
+<table>
+<tr><th>Metric</th><th>AWM (GPT-5.1)</th><th>EnvScaler (GPT-5.1)</th></tr>
+<tr><td>Task Feasibility</td><td>3.68</td><td>2.94</td></tr>
+<tr><td>Data Alignment</td><td>4.04</td><td>3.73</td></tr>
+<tr><td>Toolset Completeness</td><td>3.65</td><td>2.89</td></tr>
+<tr><td>Envs w/ Bugs</td><td>74%</td><td>88%</td></tr>
+<tr><td>Blocked Tasks</td><td>14.0%</td><td>57.1%</td></tr>
+</table>
+
+<p><strong>패턴</strong>: AWM이 세 품질 지표 모두에서 우수. ##특히 Blocked Tasks가 14.0% vs 57.1%로 큰 차이## — RL에서 blocked task는 탐색을 truncation하고 체계적으로 잘못된 negative signal을 주입하므로 이 차이가 결정적이다. AWM 환경이 EnvScaler보다 약 3배 더 많은 코드를 포함하면서도 버그 비율은 오히려 낮아, 효과적인 scalability를 보여준다. RL 학습 중 environment error rate는 약 4%로 일관되게 낮다.</p>
+
+<h3>6.2 Verification Design 분석 (Table 6)</h3>
+<p><strong>실험 의도</strong>: 세 가지 verification 전략(LLM-only, code-only, code-augmented)의 효과 비교.</p>
+
+<table>
+<tr><th>Size</th><th>Verification</th><th>BFCLv3</th><th>τ² P@1</th><th>τ² P@4</th><th>MCP</th></tr>
+<tr><td rowspan="3">8B</td><td>LLM-only</td><td>55.46</td><td>26.44</td><td>52.52</td><td>10.62</td></tr>
+<tr><td>Code-only</td><td>60.00</td><td>29.59</td><td>52.88</td><td>5.59</td></tr>
+<tr style="font-weight:bold;"><td>Augmented</td><td>65.94</td><td>33.45</td><td>55.40</td><td>11.17</td></tr>
+</table>
+
+<p><strong>결과가 뒷받침하는 주장</strong>:</p>
+<ul>
+  <li>LLM-only: trajectory만으로 판단하므로 DB 상태 변화에 grounding되지 않아 가장 약함.</li>
+  <li>Code-only: LLM-only보다 개선되지만, 환경 불완전성 시 rigid check가 false negative를 유발. MCP-Universe에서 5.59%로 오히려 하락.</li>
+  <li>##Code-augmented가 모든 모델 규모와 벤치마크에서 일관되게 최고##. 구조화된 증거를 grounding하면서 trajectory context로 모호성을 해결.</li>
+</ul>
+<p>GPT-5 judge의 추가 비용은 학습 step당 약 $1.80 (최대 1,024 샘플), 비동기 실행으로 latency는 무시할 수준.</p>
+
+<h3>6.3 History-Aware Training 분석 (Table 7)</h3>
+<p><strong>실험 의도</strong>: 학습-추론 간 history truncation 일치(aligned)와 불일치(misaligned)의 영향.</p>
+
+<table>
+<tr><th>Setting</th><th>Method</th><th>BFCLv3</th><th>τ² P@1</th><th>τ² P@4</th><th>MCP</th></tr>
+<tr><td rowspan="2">Aligned</td><td>w/ HL</td><td>64.50</td><td>22.57</td><td>43.89</td><td>6.70</td></tr>
+<tr><td>w/o HL</td><td>55.35</td><td>15.92</td><td>36.33</td><td>6.15</td></tr>
+<tr><td rowspan="2">Misaligned</td><td>w/ HL</td><td>61.85</td><td>9.35</td><td>15.11</td><td>5.03</td></tr>
+<tr><td>w/o HL</td><td>56.80</td><td>16.10</td><td>33.09</td><td>6.15</td></tr>
+</table>
+
+<p><strong>결과가 뒷받침하는 주장</strong>: ##Aligned w/ HL (학습과 추론 모두 truncation)이 전반적으로 최고 성능##. Misaligned w/ HL (truncation으로 학습 + full history로 추론)은 τ²에서 큰 폭 하락 (22.57 → 9.35). 이는 history management가 단순한 추론 시 heuristic이 아니라 policy optimization의 일부로 다뤄져야 함을 시사한다.</p>
+
+<h3>6.4 Environment Scaling Curve (Figure 4)</h3>
+<p><strong>실험 의도</strong>: 학습 환경 수를 늘릴수록 성능이 향상되는지 확인.</p>
+
+<blockquote>
+<strong>[Figure 4 설명]</strong>: 4B 모델로 환경 수 10 → 100 → 526에 따른 성능 변화. 10개 환경에서는 모든 벤치마크에서 심각한 성능 저하 (overfitting). 100개에서 큰 도약. ##526개에서 추가 개선이 계속되며, monotonic improvement가 환경 다양성의 중요성을 보여준다##. Embedding diversity 분석에서 환경 수 증가에도 새로운 환경이 계속 novel content를 추가하므로, 1,000개 이상으로의 확장도 유효할 것으로 예상된다.
+</blockquote>
+
+<!-- ============================================================ -->
+<h2>7. Conclusion &amp; Limitations</h2>
+
+<p>AWM은 실용적 소프트웨어 개발을 모방하여 실행 가능한 agentic 환경을 대규모로 합성하는 파이프라인이다. 1,000개 환경, 35,062개 도구, 10,000개 태스크를 합성하고, 3개 벤치마크에서 OOD 일반화를 실증했다.</p>
+
+<h3>Limitations</h3>
+<ul>
+  <li><strong>Self-Evolving 부재</strong>: 현재 파이프라인은 고정된 생성 프로세스. 학습된 에이전트가 새 환경 합성에 기여하는 self-evolving 패러다임은 향후 과제.</li>
+  <li><strong>합성 파이프라인 최적화</strong>: Self-correction이 trial-and-error에 의존하며, LLM을 활용한 proactive한 논리적 불일치 탐지가 미비. Multi-scenario spanning task도 향후 확장 방향.</li>
+  <li><strong>학습 규모</strong>: 1,000개 중 526개로 학습 (compute 제약). Qwen3 4B/8B/14B만 실험. 다른 모델 family에서의 효과는 미검증.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>시스템 기여의 완결성</strong>: 파이프라인, 환경, 학습 코드를 모두 오픈소스로 공개하여, 커뮤니티가 즉시 활용할 수 있다.</li>
+  <li><strong>실용적 설계</strong>: 소프트웨어 개발 패턴(요구사항 → 스키마 → 코드 → 테스트)을 따르는 합성 프로세스는 직관적이고 확장 가능하다.</li>
+  <li><strong>철저한 ablation</strong>: Verification 전략 (3가지), history management (aligned/misaligned), environment 수, format reward 등 다각도에서 분석.</li>
+  <li><strong>OOD 일반화 설계</strong>: 벤치마크-specific 환경에서 학습하지 않으므로, 결과가 진정한 일반화 능력을 반영한다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>합성 품질의 한계</strong>: 74% 환경에 버그 존재, 14% 태스크가 blocked. 이는 현실 환경과의 fidelity gap을 의미하며, 더 복잡한 시나리오에서는 비율이 올라갈 수 있다.</li>
+  <li><strong>Hallucination 약점</strong>: BFCLv3 hallucination 카테고리에서 Base 대비 하락. Format reward가 "항상 도구를 사용하라"고 장려하므로, 도구 사용을 거부해야 하는 상황을 학습하지 못한다.</li>
+  <li><strong>GPT-5 의존성</strong>: 합성과 verification 모두 GPT-5에 의존. 합성 비용 ($57/100 환경)은 합리적이나, RL 학습 중 매 step마다 GPT-5 judge 호출은 완전한 자율성을 제한한다.</li>
+  <li><strong>벤치마크 절대 성능</strong>: MCP-Universe에서 14B 모델도 12.29%에 그쳐, 실제 MCP 환경에서의 tool-use는 아직 초기 단계임을 보여준다. AWM 학습의 효과가 존재하지만 절대 성능은 낮다.</li>
+  <li><strong>반복 실험 부족</strong>: τ²-bench Pass@1만 4회 반복. BFCLv3와 MCP-Universe는 단일 실행 결과. 통계적 유의성 확인이 어렵다.</li>
+  <li><strong>모델 다양성</strong>: Qwen3 family만 실험. LLaMA, Gemma 등 다른 모델에서의 효과는 미검증.</li>
+</ul>
+
+<h3>AI 논문 체크리스트</h3>
+<ul>
+  <li><strong>반복 실험</strong>: τ²-bench Pass@1만 4회 △</li>
+  <li><strong>공정한 베이스라인</strong>: Simulator, EnvScaler와 동일 base model에서 비교 ✓</li>
+  <li><strong>Ablation이 핵심 주장 뒷받침</strong>: Verification 전략, history-aware training, scaling curve 등 ✓</li>
+  <li><strong>계산 비용</strong>: 환경 합성 비용 공개 ($57/100 envs) ✓. RL 학습 비용은 미공개 △</li>
+  <li><strong>코드/데이터 공개</strong>: 파이프라인 + 환경 + 학습 코드 모두 GitHub 공개 ✓</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>환경 합성이 agentic RL의 병목을 해소한다</strong>: 기존에는 환경 부족이 agent 학습의 최대 제약이었다. AWM은 코드 기반 환경 합성으로 이 병목을 정면 돌파하며, 1,000개 규모까지 자동 확장이 가능함을 실증했다. 이는 데이터 합성을 넘어 "인프라 합성"이라는 새로운 패러다임을 제시한다.</li>
+  <li><strong>SQL-backed 상태 관리가 LLM 시뮬레이션보다 우월하다</strong>: LLM이 환경을 시뮬레이션하면 hallucination과 비용이 문제인 반면, DB 기반 코드 실행은 결정적이고 효율적이다. Simulator 대비 AWM의 일관된 우위가 이를 뒷받침한다.</li>
+  <li><strong>Code-augmented verification이 RL reward의 핵심이다</strong>: 순수 코드 검증도, 순수 LLM 판정도 불완전하다. 코드가 구조화된 증거를 제공하고 LLM이 context-aware 판단을 내리는 hybrid 방식이 가장 robust하다. 이 패턴은 다른 합성 환경/벤치마크에서도 적용할 수 있다.</li>
+  <li><strong>학습-추론 일관성이 중요하다</strong>: History truncation을 추론 시에만 적용하면 distribution mismatch가 발생한다. 학습 중에도 동일한 truncation을 적용하는 history-aware training이 성능을 크게 향상시킨다. 이는 multi-turn agent RL의 일반적 가이드라인이 될 수 있다.</li>
+  <li><strong>환경 다양성이 일반화의 핵심이다</strong>: 10개 → 100개 → 526개로 환경 수를 늘릴수록 성능이 monotonically 향상된다. EnvScaler의 일부 벤치마크에서의 하락은 환경 다양성 부족(191개, 기존 task set 의존)이 원인일 수 있다. 범용 agent 학습에는 대규모 다양한 환경이 필수적이다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
