@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>What Makes Low-Bit QAT Work for Reasoning LLMs?</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>What Makes Low-Bit Quantization-Aware Training Work for Reasoning LLMs? A Systematic Study</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Keyu Lv*, Manyi Zhang*, Xiaobo Xia, Jingchen Ni, Shannan Yan, Xianzhi Yu, Lu Hou, Chun Yuan#, Haoli Bai#</li>
+  <li><strong>소속</strong>: Tsinghua University, Huawei Technologies, National University of Singapore</li>
+  <li><strong>학회/저널</strong>: arXiv 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2601.14888">arXiv:2601.14888</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Reasoning LLM을 3-bit/2-bit 같은 극저비트로 PTQ (Post-Training Quantization)하면 reasoning 벤치마크에서 심각한 성능 하락이 발생한다 (예: AIME-120에서 11.67%↓, MATH-500에서 12.80%↓). 일반 NLP 태스크보다 reasoning에서 하락이 훨씬 크다.</li>
+  <li><strong>해결</strong>: QAT (Quantization-Aware Training)의 핵심 요인 4가지를 체계적으로 분석하고, 이를 통합한 Reasoning-QAT 워크플로우를 제안한다: PTQ 초기화 → Knowledge Distillation → Cold-start RL (GRPO).</li>
+  <li><strong>왜 작동하는가</strong>: KD는 soft label로 uncertainty 구조를 보존하여 hard-label SFT보다 안정적이고, PTQ 초기화는 더 나은 출발점을 제공하며, KD로 viable policy를 확보한 뒤 RL을 적용하면 추가 개선이 가능하다.</li>
+  <li><strong>비유</strong>: 심하게 손상된 그림(극저비트 양자화)을 복원할 때, 먼저 AI 보정(PTQ)으로 윤곽을 잡고, 원본을 참고하며 채색(KD)한 뒤, 세부 터치(RL)로 완성하는 3단계 복원 과정과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>체계적 실증 연구</strong>: Reasoning LLM의 QAT에 영향을 미치는 4가지 핵심 요인(학습 목표, PTQ 초기화, RL 통합, 학습 데이터)을 체계적으로 분석한 최초의 연구</li>
+  <li><strong>KD 우위 발견</strong>: Knowledge Distillation이 SFT-trained 모델과 RL-trained 모델 모두에서 SFT보다 일관적으로 우수한 QAT 목표 함수임을 실증</li>
+  <li><strong>Cold-start RL 패턴 발견</strong>: 극저비트 양자화 모델에 직접 RL을 적용하면 붕괴하지만, KD cold start 후 RL을 적용하면 추가 성능 향상이 가능함을 발견</li>
+  <li><strong>Reasoning-QAT 워크플로우</strong>: 위 발견들을 통합한 3단계 워크플로우로, Qwen3-0.6B에서 GPTQ 대비 MATH-500 44.53% 개선, 2-bit에서도 유의미한 성능 회복 달성</li>
+</ol>
+
+<h2>1. 배경: PTQ의 한계와 연구 동기</h2>
+
+<h3>Quantization 기본 개념</h3>
+
+<p>Quantization은 BF16 모델 파라미터 $W$를 저비트 정수 표현 $W_{\text{int}}$로 변환하는 기법이다:</p>
+
+$$W_{\text{int}} = \text{clip}\left(\left\lfloor \frac{W}{s} \right\rceil + z, Q_{\min}, Q_{\max}\right) \tag{1}$$
+
+<p>여기서 $s$는 scaling factor, $z$는 zero point이다. Symmetric quantization에서는 $s = \frac{\max(|W|)}{2^{N-1}-1}$, $z=0$이다. Forward pass에서 저비트 가중치는 $\hat{W} = s \cdot (W_{\text{int}} - z)$로 dequantize되어 사용된다.</p>
+
+<p>직관적으로 말하면, 연속적인 실수값을 이산적인 정수 격자에 매핑하는 것으로, 비트가 적을수록 격자가 조밀하지 못해 정보 손실이 커진다.</p>
+
+<h3>PTQ가 Reasoning에서 특히 취약한 이유</h3>
+
+<p>Figure 1의 핵심 관찰: 4-bit group-wise weight quantization (group size 128)은 거의 무손실이지만, ##3-bit에서는 reasoning task의 성능 하락이 non-reasoning task보다 훨씬 크다.##</p>
+
+<table>
+<tr><th>모델</th><th>태스크 유형</th><th>벤치마크</th><th>3-bit 하락</th></tr>
+<tr><td rowspan="2">R1-Qwen-1.5B</td><td>Reasoning</td><td>AIME-120 / MATH-500</td><td>11.67%↓ / 12.80%↓</td></tr>
+<tr><td>Non-Reasoning</td><td>Winogrande / Hellaswag</td><td>1.03%↓ / 3.13%↓</td></tr>
+</table>
+
+<p>이는 reasoning이 정밀한 중간 추론 단계에 의존하기 때문으로, 양자화 노이즈가 추론 체인 전체에 누적되어 오류가 증폭된다.</p>
+
+<h3>QAT (Quantization-Aware Training)</h3>
+
+<p>QAT는 학습 중 저정밀 inference를 시뮬레이션하여 양자화 효과에 적응하는 방법이다. Forward pass에서 fake quantization을 삽입하고, backward pass에서는 양자화가 미분 불가능하므로 Straight-Through Estimator (STE)를 사용한다:</p>
+
+$$\frac{\partial L}{\partial W} = \frac{\partial L}{\partial \hat{W}} \cdot \mathbf{1}(Q_{\min} \leq W/s \leq Q_{\max})$$
+
+<p>직관적으로, 학습 중에 "양자화된 척"을 하면서 가중치를 조정하여, 실제 양자화 시 성능 하락을 줄이는 것이다.</p>
+
+<h2>2. 체계적 연구: 4가지 핵심 질문</h2>
+
+<p>논문은 다음 4가지 연구 질문을 순차적으로 탐구한다:</p>
+<ul>
+  <li><strong>RQ1</strong>: 어떤 학습 목표(SFT vs KD)가 reasoning QAT에 적합한가?</li>
+  <li><strong>RQ2</strong>: 저비트 QAT의 학습 효율을 어떻게 개선할 수 있는가?</li>
+  <li><strong>RQ3</strong>: QAT와 RL (GRPO)은 저비트에서 어떻게 상호작용하는가?</li>
+  <li><strong>RQ4</strong>: QAT 학습 데이터의 선택이 양자화된 reasoning 성능에 어떤 영향을 미치는가?</li>
+</ul>
+
+<h3>실험 설정</h3>
+<ul>
+  <li><strong>양자화 설정</strong>: W3G128 (3-bit weight-only, group size 128), W2G128 (2-bit), W4A4KV4 (4-bit weight-activation-KV cache)</li>
+  <li><strong>모델</strong>: DeepSeek-R1-Distill-Qwen-1.5B (SFT 기반), Qwen3-0.6B / Qwen3-4B (RL 기반)</li>
+  <li><strong>데이터</strong>: OpenR1-Math (94k problems), NuminaMath-1.5 (calibration)</li>
+  <li><strong>평가</strong>: AIME-120, MATH-500, GSM8K, LiveCodeBench, GPQA-Diamond</li>
+  <li><strong>RL</strong>: GRPO (Group Relative Policy Optimization) with correctness rewards</li>
+  <li><strong>평가 설정</strong>: temperature 0.6, top-p 0.95, max tokens 32,768, 3 random seeds 평균</li>
+</ul>
+
+<h3>RQ1: 학습 목표 — KD vs SFT (Table 1)</h3>
+
+<p><strong>실험 의도</strong>: SFT (hard-label cross-entropy)와 KD (soft-label KL divergence) 중 어떤 것이 양자화된 reasoning 모델의 성능 회복에 더 효과적인가?</p>
+
+<table>
+<tr><th>모델</th><th>방법</th><th>AIME-120</th><th>MATH-500</th><th>GSM8K</th><th>AVG</th><th>Drop↓</th></tr>
+<tr><td rowspan="3">R1-Qwen-1.5B (SFT 기반)</td><td>BF16</td><td>21.67</td><td>84.40</td><td>84.61</td><td>63.56</td><td>–</td></tr>
+<tr><td>SFT</td><td>10.00</td><td>73.60</td><td>75.54</td><td>53.05</td><td>10.51↓</td></tr>
+<tr><td>KD</td><td>14.44</td><td>76.20</td><td>75.87</td><td>55.50</td><td>8.06↓</td></tr>
+<tr><td rowspan="3">Qwen3-4B (RL 기반)</td><td>BF16</td><td>58.89</td><td>95.33</td><td>94.49</td><td>82.90</td><td>–</td></tr>
+<tr><td>SFT</td><td>14.44</td><td>81.80</td><td>88.25</td><td>61.50</td><td>21.40↓</td></tr>
+<tr><td>KD</td><td>37.50</td><td>92.00</td><td>91.43</td><td>73.64</td><td>9.26↓</td></tr>
+</table>
+
+<p><strong>핵심 발견</strong>:</p>
+<ul>
+  <li>##KD는 SFT/RL 기반 모델 모두에서 SFT보다 우수하며, 특히 RL 기반 모델(Qwen3-4B)에서 격차가 극대화된다## (21.40%↓ vs 9.26%↓)</li>
+  <li>KD는 두 paradigm 간 일관적인 drop (8.06% vs 9.26%)을 보이지만, SFT는 RL-trained 모델에서 훨씬 큰 drop (21.40%)</li>
+  <li><strong>가설</strong>: KD는 출력 분포를 정렬하여 uncertainty 구조를 보존하므로, hard-label SFT보다 부드러운 학습 신호를 제공한다</li>
+</ul>
+
+<h3>RQ2: 학습 효율 — PTQ 초기화 (Figure 2-3)</h3>
+
+<p><strong>실험 의도</strong>: PTQ (예: GPTQ)로 사전 조정된 가중치로 QAT를 시작하면 학습 효율이 개선되는가?</p>
+
+<p><strong>결과</strong>: GPTQ+KD는 RTN+KD 대비 (1) 더 높은 시작점 (test accuracy), (2) 더 낮은 초기 loss, (3) 더 빠른 수렴을 보인다. GPTQ는 Hessian 기반 보상으로 양자화 오차를 사전 최소화하므로, QAT가 더 적은 step으로 수렴할 수 있다.</p>
+
+<p>또한 KD는 SFT 대비 수렴 속도도 빠르다 (Figure 3). 즉, PTQ 초기화 + KD 조합이 학습 효율을 극대화한다.</p>
+
+<h3>RQ3: RL 통합 — Cold-start의 필요성 (Table 2)</h3>
+
+<p><strong>실험 의도</strong>: 극저비트 양자화 모델에 RL을 적용할 수 있는가? 어떤 전제 조건이 필요한가?</p>
+
+<table>
+<tr><th>KD</th><th>RTN</th><th>GRPO</th><th>AIME-120</th><th>MATH-500</th><th>GSM8K</th><th>AVG</th></tr>
+<tr><td></td><td>✓</td><td></td><td>0.83</td><td>15.00</td><td>15.39</td><td>10.41</td></tr>
+<tr><td></td><td>✓</td><td>✓</td><td>1.67</td><td>15.33</td><td>15.52</td><td>10.84</td></tr>
+<tr><td>✓</td><td></td><td></td><td>14.44</td><td>78.00</td><td>77.93</td><td>56.79</td></tr>
+</table>
+
+<p><strong>핵심 발견</strong>: ##RTN-quantized 모델에 직접 RL을 적용하면 완전히 붕괴한다 (AVG 10.41 → 10.84).## 양자화 오차가 너무 심해 유효한 출력을 sampling할 수 없어 reward 생성이 불가능하기 때문이다. 반면, KD cold start 후 RL을 적용하면 약 46% 정확도 향상이 가능하다.</p>
+
+<p><strong>RL의 역할 (Figure 4)</strong>:</p>
+<ul>
+  <li>(a) Reward 증가와 response length 감소를 동시에 달성 — 길이 exploitation 방지</li>
+  <li>(b) Entropy 감소로 예측 랜덤성을 줄여 양자화 노이즈에 대한 저항력 강화</li>
+  <li>(c) Test accuracy 증가와 response length 감소를 동시 달성 — 불필요한 장황함 없는 일반화</li>
+</ul>
+
+<h3>RQ4: 학습 데이터 도메인 (Figure 5)</h3>
+
+<p><strong>실험 의도</strong>: PTQ calibration 데이터와 QAT 학습 데이터의 도메인 일치/불일치가 성능에 미치는 영향은?</p>
+
+<p>4가지 조합 비교: (PTQ calibration, QAT training) = {Wikitext2, NuminaMath} × {Wikitext2, OpenR1-Math}</p>
+
+<p><strong>핵심 발견 3가지</strong>:</p>
+<ol>
+  <li><strong>도메인 일치 → 빠른 수렴</strong>: numina+openr1 조합이 가장 빨리 수렴</li>
+  <li><strong>도메인 불일치 → 유해한 재조정</strong>: numina+wiki는 좋은 초기화에서 시작하지만, Wikitext2 학습 후 급격한 정확도 하락</li>
+  <li><strong>Reasoning 도메인 데이터가 최종 성능에 결정적</strong>: wiki+wiki는 가장 낮은 최종 정확도</li>
+</ol>
+
+<h2>3. Reasoning-QAT 워크플로우</h2>
+
+<div class="flow-diagram">Step 1: PTQ 초기화 (GPTQ)
+  → Hessian 기반 보상으로 양자화 내성 확보, 더 나은 출발점
+
+Step 2: Knowledge Distillation
+  → Full-precision teacher의 출력 분포 정렬 (KL divergence 최소화)
+  → 양자화 성능 회복 + RL을 위한 cold-start actor 확보
+
+Step 3: Cold-start RL (GRPO)
+  → Correctness reward 기반 GRPO
+  → Entropy 감소로 양자화 노이즈 저항, 추론 능력 추가 향상</div>
+
+<h2>4. 실험 결과</h2>
+
+<h3>3-Bit Weight-only Quantization (Table 3)</h3>
+
+<table>
+<tr><th>모델</th><th>방법</th><th>AIME-120</th><th>MATH-500</th><th>GSM8K</th><th>GPQA-D</th><th>LCB</th><th>AVG</th><th>Drop↓</th></tr>
+<tr><td rowspan="3">Qwen3-0.6B</td><td>GPTQ</td><td>0.00</td><td>13.27</td><td>23.33</td><td>26.43</td><td>0.00</td><td>12.61</td><td>-28.49</td></tr>
+<tr><td>AWQ</td><td>0.00</td><td>5.20</td><td>10.01</td><td>26.77</td><td>0.00</td><td>8.40</td><td>-32.70</td></tr>
+<tr><td><strong>R-QAT</strong></td><td>3.89</td><td>57.80</td><td>67.02</td><td>27.78</td><td>1.87</td><td><strong>31.67</strong></td><td><strong>-9.43</strong></td></tr>
+<tr><td rowspan="3">R1-Qwen-1.5B</td><td>GPTQ</td><td>10.00</td><td>71.60</td><td>75.66</td><td>23.74</td><td>9.33</td><td>38.07</td><td>-10.65</td></tr>
+<tr><td>AWQ</td><td>3.33</td><td>48.80</td><td>65.81</td><td>37.88</td><td>4.85</td><td>32.13</td><td>-16.58</td></tr>
+<tr><td><strong>R-QAT</strong></td><td>16.39</td><td>79.80</td><td>79.35</td><td>30.30</td><td>10.45</td><td><strong>43.26</strong></td><td><strong>-5.46</strong></td></tr>
+<tr><td rowspan="3">Qwen3-4B</td><td>GPTQ</td><td>34.17</td><td>90.07</td><td>91.74</td><td>38.05</td><td>20.77</td><td>54.96</td><td>-15.67</td></tr>
+<tr><td>AWQ</td><td>25.00</td><td>87.00</td><td>90.07</td><td>37.88</td><td>19.03</td><td>51.80</td><td>-18.83</td></tr>
+<tr><td><strong>R-QAT</strong></td><td>41.11</td><td>93.47</td><td>93.48</td><td>45.79</td><td>38.06</td><td><strong>62.38</strong></td><td><strong>-8.25</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Qwen3-0.6B에서 Reasoning-QAT는 GPTQ 대비 AVG 19.06% 개선 (12.61 → 31.67)##, MATH-500에서 44.53% 개선</li>
+  <li>모델 크기가 클수록 BF16과의 gap이 작음: 0.6B(-9.43), 1.5B(-5.46), 4B(-8.25)</li>
+  <li>LiveCodeBench는 모든 방법에서 회복이 가장 어려움 — 코드 생성이 양자화에 특히 민감</li>
+</ul>
+
+<h3>2-Bit Weight-only Quantization</h3>
+
+<p>2-bit은 극도로 도전적인 설정으로, PTQ baseline은 대부분 붕괴한다:</p>
+<ul>
+  <li>##R1-Qwen-1.5B: MATH-500이 GPTQ 3.67% → Reasoning-QAT 55.00%##</li>
+  <li>Qwen3-4B: MATH-500 4.80% → 78.27%, AIME-120 0.00% → 22.78%</li>
+</ul>
+
+<h3>QAT Baseline 비교 (Table 4)</h3>
+
+<table>
+<tr><th>방법</th><th>AIME-120</th><th>MATH-500</th><th>GSM8K</th><th>AVG</th></tr>
+<tr><td>Standard SFT-QAT</td><td>10.00</td><td>73.60</td><td>75.54</td><td>53.05</td></tr>
+<tr><td>EfficientQAT</td><td>10.83</td><td>74.20</td><td>76.26</td><td>53.76</td></tr>
+<tr><td>BitDistiller</td><td>14.72</td><td>78.00</td><td>78.46</td><td>57.06</td></tr>
+<tr><td><strong>Reasoning-QAT</strong></td><td><strong>16.39</strong></td><td><strong>79.80</strong></td><td><strong>79.35</strong></td><td><strong>58.51</strong></td></tr>
+</table>
+
+<p>동일 프로토콜(R1-Qwen-1.5B, W3G128, OpenR1-Math)에서 Reasoning-QAT가 EfficientQAT 대비 +4.75%, BitDistiller 대비 +1.45% 우위.</p>
+
+<h3>Ablation Study (Table 5/8)</h3>
+
+<table>
+<tr><th>Configuration</th><th>AIME-120</th><th>MATH-500</th><th>GSM8K</th><th>AVG</th></tr>
+<tr><td>BF16</td><td>21.67</td><td>84.40</td><td>84.61</td><td>63.56</td></tr>
+<tr><td>RTN</td><td>0.83</td><td>15.00</td><td>15.39</td><td>10.41</td></tr>
+<tr><td>GPTQ (PTQ init)</td><td>10.00</td><td>71.60</td><td>75.66</td><td>52.42</td></tr>
+<tr><td>GPTQ + SFT</td><td>14.17</td><td>75.53</td><td>76.12</td><td>55.27</td></tr>
+<tr><td>GPTQ + KD</td><td>13.89</td><td>78.20</td><td>77.26</td><td>56.45</td></tr>
+<tr><td>GPTQ + KD + GRPO</td><td><strong>16.39</strong></td><td><strong>79.80</strong></td><td><strong>79.35</strong></td><td><strong>58.51</strong></td></tr>
+</table>
+
+<p>각 단계의 incremental 기여: RTN→GPTQ 초기화(+42.01%), GPTQ→GPTQ+KD(+4.03%, SFT 대비 KD의 추가 개선은 +1.18%), GPTQ+KD→GPTQ+KD+GRPO(+2.06%). 최종 워크플로우는 BF16 대비 -5.05% gap까지 축소.</p>
+
+<h3>W4A4KV4 설정 (Appendix A.3)</h3>
+
+<p>Weight-activation 양자화(W4A4KV4)에서도 FlatQuant 초기화를 사용하여 Reasoning-QAT를 적용. Qwen3-4B에서 FlatQuant 58.28% → Reasoning-QAT 60.78%. FlatQuant의 layer-wise correction을 network-wise QAT로 확장하여 양자화 오류의 layer 간 전파를 보상한다.</p>
+
+<p><strong>QuaRot 전이 실험 (Table 12-13)</strong>: W4A4KV4에서 QuaRot 초기화 시 KD는 성공적으로 성능을 개선하지만, 이후 RL 학습은 붕괴한다 — QuaRot의 base capability가 RL을 유지하기에 불충분하기 때문이다. 또한 RTN 초기화로 W4A4 QAT를 시도하면 학습이 완전히 붕괴한다. 이는 ##"strong PTQ initialization이 RL의 전제 조건"##이라는 핵심 주장을 추가로 뒷받침한다.</p>
+
+<h3>General Domain 성능 유지 (Table 10)</h3>
+
+<p>Reasoning-QAT가 non-reasoning 벤치마크(HellaSwag, PIQA, Winogrande)에서도 PTQ baseline과 동등하거나 약간 나은 성능을 유지한다. 예를 들어 R1-Qwen-1.5B에서 PIQA가 +2.45% 개선되었다. 이는 reasoning-focused QAT가 general capability를 해치지 않음을 보여준다.</p>
+
+<h2>5. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>체계적 접근</strong>: 4가지 연구 질문을 독립적으로 분리하여 각 요인의 효과를 명확히 밝힘. Ablation이 충분히 상세함</li>
+  <li><strong>다양한 모델 커버리지</strong>: SFT 기반 (R1-Qwen-1.5B)과 RL 기반 (Qwen3-0.6B, 4B) 모두 검증</li>
+  <li><strong>실용적 가이드라인</strong>: 새 알고리즘 제안이 아닌, 기존 기법의 최적 조합을 제시하므로 즉시 적용 가능</li>
+  <li><strong>3 random seeds 평균 보고</strong>: 결과의 신뢰성 확보</li>
+</ul>
+
+<h3>한계 및 질문</h3>
+<ul>
+  <li><strong>수학 중심 데이터</strong>: 학습/평가 모두 수학 위주. 코딩(LiveCodeBench)이나 과학(GPQA) 도메인으로의 일반화가 제한적 — 특히 작은 모델에서 LiveCodeBench 성능 회복이 거의 없음</li>
+  <li><strong>Empirical study의 한계</strong>: 새로운 양자화 기법을 제안하지 않고 기존 방법(GPTQ, KD, GRPO)의 조합만 탐색한다. 최적 조합이 향후 새로운 기법이 등장하면 달라질 수 있다</li>
+  <li><strong>소규모 모델만 실험</strong>: 최대 4B. 7B, 14B, 70B 모델에서 동일 패턴이 유지되는지 불확실</li>
+  <li><strong>학습 비용 미보고</strong>: QAT + RL의 실제 GPU hours, 메모리 사용량이 명시되지 않아 PTQ 대비 실용성 판단 어려움</li>
+  <li><strong>Inference 속도 미검증</strong>: 양자화의 궁극적 목표인 inference 가속 (latency, throughput)이 보고되지 않음</li>
+  <li><strong>KD의 teacher 의존성</strong>: KD는 full-precision teacher가 필요하므로, teacher를 배포할 수 없는 환경에서는 적용 어려움</li>
+</ul>
+
+</div>
+
+<h2>6. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Reasoning LLM 양자화는 일반 LLM보다 훨씬 어렵다</strong>: 3-bit에서 reasoning task의 하락이 non-reasoning 대비 3~4배 크다. 4-bit 이하에서는 PTQ만으로는 불충분하다.</li>
+  <li><strong>KD > SFT for QAT</strong>: Soft label이 양자화된 모델의 uncertainty 구조를 보존하는 데 핵심적이다. 특히 RL-trained 모델에서 SFT는 크게 실패하지만 KD는 안정적이다.</li>
+  <li><strong>PTQ → KD → RL 순서가 중요하다</strong>: 각 단계가 다음 단계의 전제 조건이 되는 의존성 구조. 직접 RL 적용은 붕괴를 유발한다.</li>
+  <li><strong>도메인 일치가 수렴을 가속한다</strong>: PTQ calibration 데이터와 QAT 학습 데이터의 도메인이 일치해야 안정적이고 빠른 학습이 가능하다.</li>
+  <li><strong>실무 적용 시</strong>: Reasoning LLM을 극저비트로 배포해야 할 때, 이 3단계 워크플로우를 참고할 수 있다. 다만, 수학 외 도메인에서는 추가 검증 필요.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
