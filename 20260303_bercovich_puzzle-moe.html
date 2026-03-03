@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Extending Puzzle for Mixture-of-Experts Reasoning Models with Application to GPT-OSS Acceleration</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Extending Puzzle for Mixture-of-Experts Reasoning Models with Application to GPT-OSS Acceleration</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Akhiad Bercovich, Nir Ailon, Vladimir Anisimov, Tomer Asida, ..., Ran El-Yaniv (총 24명)</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (Technical Report), February 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.11937">arXiv:2602.11937</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Reasoning LLM은 긴 reasoning trace를 생성하여 답변 품질을 높이지만, 추가 토큰이 serving 비용을 크게 증가시킨다. 특히 MoE (Mixture-of-Experts) 아키텍처와 128K 이상의 long-context에서는 KV-cache가 메모리와 bandwidth를 지배하여 throughput이 급격히 저하된다.</li>
+  <li><strong>해결</strong>: Puzzle이라는 post-training NAS (Neural Architecture Search) 프레임워크를 MoE reasoning 모델에 확장 적용하여, gpt-oss-120B에서 gpt-oss-puzzle-88B를 파생. Heterogeneous expert pruning, selective window attention, FP8 KV-cache quantization, RL + checkpoint merging을 결합.</li>
+  <li><strong>왜 작동하는가</strong>: Puzzle의 decomposed replace-1-block scoring이 각 layer의 중요도를 독립적으로 평가하여, layer별로 최적의 압축 수준을 결정한다. 초기 MoE layer가 후기보다 중요하다는 비대칭성을 포착하여 heterogeneous pruning을 가능하게 하고, long-context-aware scoring으로 window attention 전환에 안전한 layer를 식별한다.</li>
+  <li><strong>비유</strong>: 퍼즐 맞추기처럼, 각 layer(퍼즐 조각)에 대해 "가벼운 대체 조각"을 시도해보고, 전체 그림(모델 품질)이 가장 잘 보존되는 조합을 MIP (Mixed-Integer Program)으로 찾는 것이다. 무작정 모든 조각을 작게 만드는 대신, 중요한 조각은 원본을 유지하고 덜 중요한 조각만 교체한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>MoE 모델에 Puzzle NAS 확장</strong>: Expert-parallel 배포 제약을 존중하면서 layer별 expert 수를 다르게 pruning하는 heterogeneous MoE expert removal 방법을 제안</li>
+  <li><strong>Long-context-aware window attention scoring</strong>: Activation-based 대신 AA-LCR (Artificial Analysis Long-Context Reasoning) 벤치마크 기반 scoring으로, window attention 전환에 안전한 layer를 식별. 40% KV-cache 절감 달성</li>
+  <li><strong>RL + Checkpoint merging 전략</strong>: High-effort RL (정확도↑, 길이↑)과 balanced RL (길이↓, 제어성↑) 두 변형을 학습 후 weight averaging으로 결합하여, 정확도와 생성 길이를 동시에 최적화</li>
+  <li><strong>FP8 KV-cache quantization with calibrated scales</strong>: Max calibration + power-of-2 rounding으로 KV-cache를 2배 압축하면서 정확도 유지</li>
+  <li><strong>Request-level efficiency 메트릭 제안</strong>: Per-token throughput이 reasoning 모델에서는 부적절함을 지적하고, 생성 토큰 수를 반영하는 request-level 효율성 프레임워크를 제시</li>
+</ol>
+
+<h2>1. 배경: Puzzle 프레임워크와 Reasoning 모델의 과제</h2>
+
+<h3>Puzzle NAS 프레임워크</h3>
+
+<p>Puzzle (Bercovich et al., 2025d)은 학습된 parent 모델에서 출발하여, 배포 효율성 제약(메모리, latency, throughput) 하에서 정확도를 최대한 보존하는 파생 아키텍처를 탐색하는 decomposed NAS 프레임워크이다. 핵심 아이디어는:</p>
+
+<ol>
+  <li><strong>Block library 구축</strong>: 각 transformer layer(block)에 대해 대체 가능한 "퍼즐 조각"들의 집합을 정의. 예를 들어 attention은 {global, window}, MoE FFN은 {128, 96, 64, 32, 16, 8 experts}</li>
+  <li><strong>Replace-1-block scoring</strong>: 각 대체 조각을 원래 위치에 교체하고 나머지는 유지한 상태에서, parent 모델과의 output divergence를 측정. 전체 아키텍처의 품질은 개별 replace-1-block 점수의 합으로 추정</li>
+  <li><strong>MIP (Mixed-Integer Program) 탐색</strong>: 주어진 비용/점수 프로파일에서, 배포 제약을 만족하면서 품질을 최대화하는 조합을 최적화</li>
+</ol>
+
+<p>Puzzle은 이전에 Llama-3 Instruct 시리즈에서 Llama-Nemotron으로 파생할 때 사용되어, 1.7~2.1× speedup을 달성한 바 있다.</p>
+
+<h3>Reasoning 모델로의 확장 과제</h3>
+
+<p>최근 LLM에 Puzzle을 적용할 때 새로운 도전이 발생한다:</p>
+
+<ul>
+  <li><strong>MoE FFN의 복잡성</strong>: MoE layer에서는 routing 동작과 expert-parallel 배포 제약을 존중하면서 "얼마나 pruning할 것인가"를 layer-dependent하게 결정해야 함</li>
+  <li><strong>Long-context에서 attention bottleneck</strong>: Reasoning 모델은 128K 이상의 context를 사용하므로, KV-cache가 메모리와 bandwidth를 지배. Window/streaming attention이 KV-cache를 줄여주지만, 잘못된 layer에 적용하면 long-range dependency를 손상</li>
+  <li><strong>Scoring 신호의 locality bias</strong>: 기존 activation-MSE 기반 replace-1-block scoring은 next-token prediction의 local 특성으로 인해 long-context 의존성 손상을 제대로 감지하지 못함</li>
+</ul>
+
+<h2>2. 방법론: Puzzle 최적화</h2>
+
+<h3>2.1 Search Space 설계</h3>
+
+<p>gpt-oss-120B의 각 transformer layer는 attention 모듈과 MoE FFN 모듈로 구성된다. Layer $i$의 search space는 $A_i \times F_i$로, attention과 FFN 선택의 곱으로 정의된다.</p>
+
+<ul>
+  <li><strong>Attention 대안</strong>: {원래 parent attention, window attention (W=8192)}. Parent 모델 gpt-oss-120B는 128-token sliding window와 global attention을 번갈아 사용하는 구조</li>
+  <li><strong>MoE FFN 대안</strong>: 원래 128개 expert에서 {8, 16, 32, 64, 96, 128}개로 축소된 변형들. Expert-parallel inference에 호환되도록 설계</li>
+</ul>
+
+<h3>2.2 Heterogeneous MoE Expert Pruning</h3>
+
+<p>각 MoE layer에서 expert의 중요도를 ranking하여, layer별로 다른 수의 expert를 유지하는 heterogeneous pruning을 수행한다.</p>
+
+<p><strong>Expert contribution score</strong>: 각 MoE layer $f$에 대해, expert $i$를 제거했을 때의 output 변화를 MSE로 측정:</p>
+
+$$\text{expert\_score}_i = \mathbb{E}_x \left[ \text{MSE}\left(f(x), f^{(i)}(x)\right) \right]$$
+
+<p>여기서 $f^{(i)}$는 expert $i$를 제거한 MoE layer, $x$는 입력 hidden state이다. 직관적으로, 제거 시 output 변화가 큰 expert일수록 중요하다.</p>
+
+<p>중요한 발견: ##초기 MoE layer가 후기 layer보다 훨씬 더 중요하다## (Figure 2). 따라서 Puzzle은 초기 layer는 128개 expert를 유지하고, 후기 layer는 64개 이하로 대폭 줄이는 heterogeneous 구조를 선택한다. 전체적으로 약 25%의 expert가 pruning되어 88B parameter 모델이 생성된다.</p>
+
+<p><strong>구현 세부사항</strong>: Parent 분포에 일치하는 데이터를 사용하는 것이 중요도 추정에 매우 중요. LNPT-gpt-oss 데이터셋을 사용하여 12K packed sequences (8K 길이)로 expert contribution score를, 128 packed sequences (32K 길이)로 replace-1-block score를 계산.</p>
+
+<h3>2.3 Selective Window Attention</h3>
+
+<p>Window attention은 각 토큰이 최근 $W$개 토큰만 참조하도록 제한하여, KV-cache를 sequence length $L$이 아닌 window size $W$에 비례하게 만든다. 이는 very long context에서 특히 유리하다.</p>
+
+<p>그러나 모든 global attention layer를 window attention으로 전환하면 long-range dependency가 심각하게 손상된다. 따라서 "window-able"한 layer만 선택적으로 전환하는 것이 핵심이다.</p>
+
+<p><strong>Long-context-aware scoring</strong>: 기존 activation-MSE scoring은 inherent locality bias가 있어 long-context 손상을 제대로 감지하지 못한다. 이를 해결하기 위해 ##AA-LCR (Artificial Analysis Long-Context Reasoning) 벤치마크의 정확도 하락을 replace-1-block 점수로 사용##한다. 즉, layer $i$를 window attention으로 교체했을 때의 AA-LCR 점수 하락이 작을수록 해당 layer는 window attention에 적합하다고 판단한다.</p>
+
+<p><strong>결과</strong>: 18개 global attention layer 중 8개가 window attention (W=8192)으로 전환되어, ##KV-cache 크기가 parent 대비 40% 감소##.</p>
+
+<p><strong>RoPE scaling 조정</strong>: Window attention 도입 후 long-context 동작을 지원하기 위해, YaRN positional encoding의 RoPE scaling factor를 32에서 56으로 증가. 128K 길이에서의 phase wrapping을 줄여 long-range attention을 안정화.</p>
+
+<h3>2.4 Multi-Constraint Optimization</h3>
+
+<p>Puzzle을 단일 실행으로 두 가지 배포 시나리오를 동시에 최적화:</p>
+
+<div class="flow-diagram">Puzzle 입력: gpt-oss-120B (parent, 128 experts × 36 layers)
+    ├─ [제약 1] 64K/64K (long-context): 1.6× throughput 개선 목표
+    │   └─ KV-cache 지배 → Selective window attention 주력
+    │       → 18개 중 8개 global attention → window (8192)
+    │       → KV-cache 40% 감소
+    ├─ [제약 2] 4K/4K (short-context): 1.2× throughput 개선 목표
+    │   └─ MoE 지배 → Expert pruning 주력
+    │       → 128 → layer별 8~128 experts (평균 ~25% 제거)
+    └─ 출력: gpt-oss-puzzle-88B (heterogeneous architecture)</div>
+
+<h2>3. 학습 및 평가 설정</h2>
+
+<h3>3.1 Knowledge Distillation</h3>
+
+<p>Puzzle phase 이후, blockwise substitution으로 인한 품질 저하를 회복하기 위해 knowledge distillation을 수행한다:</p>
+<ul>
+  <li><strong>데이터</strong>: LNPT-gpt-oss 데이터셋 (nvidia/Llama-Nemotron-Post-Training-Dataset 기반). Mathematics, code generation, general reasoning, instruction following 프롬프트에 대해 parent 모델이 high/medium reasoning effort로 생성한 응답</li>
+  <li><strong>토큰 수</strong>: 총 84B 토큰</li>
+  <li><strong>Sequence length</strong>: 128K</li>
+  <li><strong>Batch size</strong>: 33M tokens (global)</li>
+  <li><strong>프레임워크</strong>: Megatron-LM</li>
+  <li><strong>고정</strong>: MoE experts와 router는 frozen. Distillation은 high + medium effort 응답을 동등하게 혼합하여, 다양한 사용 패턴에서의 정확도를 보존</li>
+</ul>
+
+<h3>3.2 Reinforcement Learning + Checkpoint Merging</h3>
+
+<p>Distillation 이후 RL을 통해 reasoning 정확도를 추가로 개선한다. 핵심 통찰은 ##RL 데이터의 reasoning effort 구성이 정확도와 생성 길이 사이의 근본적 tension을 야기한다##는 것이다:</p>
+
+<table>
+<tr><th>RL 변형</th><th>정확도</th><th>생성 길이</th><th>제어성</th></tr>
+<tr><td>High-effort only</td><td>최고</td><td>모든 effort에서 길어짐</td><td>effort length ratio 증가 → 비효율적</td></tr>
+<tr><td>Balanced mix (all efforts)</td><td>더 낮음</td><td>짧음 (length regularization 효과)</td><td>effort 간 길이가 수렴 → 제어성 약화</td></tr>
+</table>
+
+<p><strong>해결책</strong>: 두 RL checkpoint를 weight averaging으로 결합. 이를 통해 high-effort RL의 정확도를 유지하면서도, balanced RL의 짧은 생성 길이와 parent 수준의 effort length ratio를 복원한다.</p>
+
+<p>RL 세부사항: Learning rate 1e-6 (constant), mathematics/coding/general reasoning environment 사용 (tool-use 제외), MoE experts와 router는 frozen.</p>
+
+<h3>3.3 FP8 KV-Cache Quantization</h3>
+
+<p>Parent 모델 gpt-oss-120B의 MXFP4 expert quantization을 유지하면서, KV-cache에 FP8 quantization을 추가 적용:</p>
+<ul>
+  <li>KV scales 없이 quantization하면 정확도가 저하됨을 발견</li>
+  <li>LNPT-gpt-oss 데이터셋을 사용한 max calibration으로 KV scales를 계산</li>
+  <li>##Scales를 power-of-2로 반올림##하여, rounding error가 "scales 없는 경우"와 유사하게 동작하면서도 dynamic range adaptation을 통해 underflow 방지</li>
+  <li>효과: ~2× KV-cache 토큰 용량 + 더 빠른 attention 모듈</li>
+</ul>
+
+<h3>3.4 평가 벤치마크</h3>
+
+<p>Reasoning 중심 벤치마크로 정확도를 평가:</p>
+<table>
+<tr><th>벤치마크</th><th>영역</th></tr>
+<tr><td>MMLU-Pro</td><td>Reasoning + knowledge</td></tr>
+<tr><td>GPQA-Diamond</td><td>Scientific reasoning</td></tr>
+<tr><td>HLE (Humanity's Last Exam)</td><td>Challenging knowledge</td></tr>
+<tr><td>AIME-25</td><td>수학적 reasoning</td></tr>
+<tr><td>SciCode</td><td>Coding</td></tr>
+<tr><td>IFBench</td><td>Instruction following</td></tr>
+<tr><td>RULER (128K)</td><td>Long-context performance</td></tr>
+<tr><td>AA-LCR</td><td>Long-context reasoning (내부 Puzzle scoring에만 사용)</td></tr>
+</table>
+
+<p>모든 벤치마크는 OpenAI의 reasoning effort scheme (high, medium, low)에 따라 3가지 설정에서 평가. 분산 감소를 위해 각 벤치마크를 여러 번 측정하여 평균 보고. 평가 파라미터: temp=0.6, top_p=0.95, max_tokens=128K. vLLM v0.11.2 사용.</p>
+
+<h2>4. 실험 결과</h2>
+
+<p>이 논문의 실험은 다음 핵심 질문들에 답한다:</p>
+<ol>
+  <li><strong>Q1</strong>: 목표 throughput 제약을 달성했는가? (Section 4.1)</li>
+  <li><strong>Q2</strong>: 정확도가 parent 모델 수준으로 유지되는가? (Section 4.2)</li>
+  <li><strong>Q3</strong>: Per-token throughput 외에 request-level에서도 효율적인가? (Section 4.1, Figure 1)</li>
+  <li><strong>Q4</strong>: KV scale calibration이 FP8 quantization에 얼마나 중요한가? (Section 4.2.1)</li>
+  <li><strong>Q5</strong>: Window attention scoring 방법이 정확도에 어떤 영향을 미치는가? (Appendix C)</li>
+</ol>
+
+<h3>4.1 Inference Efficiency (Q1, Q3)</h3>
+
+<h4>Per-token Throughput (Q1)</h4>
+
+<p><strong>실험 의도</strong>: Puzzle이 설정한 dual constraints (64K/64K에서 1.6×, 4K/4K에서 1.2×)를 달성하는가?</p>
+
+<table>
+<tr><th>시나리오</th><th>하드웨어</th><th>gpt-oss-puzzle-88B</th><th>gpt-oss-120B</th><th>Speedup</th></tr>
+<tr><td>4K/4K</td><td>8×H100</td><td>36.1K tok/s</td><td>29.6K tok/s</td><td><strong>1.22×</strong></td></tr>
+<tr><td>64K/64K</td><td>8×H100</td><td>9.3K tok/s</td><td>5.7K tok/s</td><td><strong>1.63×</strong></td></tr>
+<tr><td>4K/4K</td><td>1×H100</td><td>3.3K tok/s</td><td>1.4K tok/s</td><td><strong>2.44×</strong></td></tr>
+<tr><td>64K/64K</td><td>1×H100</td><td>0.8K tok/s</td><td>0.3K tok/s</td><td><strong>2.82×</strong></td></tr>
+</table>
+
+<p>두 목표 제약을 모두 충족하였다. ##단일 H100에서 더 극적인 개선 (2.44~2.82×)##을 보이는 이유는, parent 모델이 메모리 한계로 batch size 1에 제한되는 반면, expert pruning과 window attention이 메모리를 절약하여 더 큰 batch size를 허용하기 때문이다.</p>
+
+<p>Latency-throughput frontier에서도, ITL (Inter-Token Latency) 10ms 제약 하에서 gpt-oss-puzzle-88B는 parent 대비 ~1.5× 높은 throughput (6.4K vs 4.2K tok/s)을 제공한다.</p>
+
+<p><strong>B200 결과</strong> (Appendix A): 8×B200에서 64K/64K 1.40×, 4K/4K 1.15× speedup. H100보다 상대적 이득이 작지만, 절대 throughput은 훨씬 높음 (21.2K vs 9.3K tok/s).</p>
+
+<h4>Request-Level Efficiency (Q3)</h4>
+
+<p><strong>실험 의도</strong>: Per-token throughput이 reasoning 모델에서 실제 end-to-end 효율성을 정확히 반영하는가?</p>
+
+<p>Per-token throughput만으로는 reasoning 모델의 효율성을 판단할 수 없다. 모델 변형이나 reasoning effort에 따라 생성 토큰 수가 달라지므로, ##2× throughput 이득이 trace가 2× 길어지면 상쇄##된다. 반대로, throughput 이득을 더 많은 reasoning 토큰에 "투자"하여 정확도를 높일 수도 있다.</p>
+
+<p>저자들은 <strong>relative request rate</strong>를 제안한다:</p>
+
+$$\text{Relative Request Rate} = \frac{\text{Max Token Throughput} / \text{Avg Tokens Generated per Request}}{\text{Baseline Request Rate}}$$
+
+<p>직관적으로, 초당 처리할 수 있는 요청 수를 정규화한 것이다.</p>
+
+<p>HyperNova-60B (Multiverse Computing, 제3자 gpt-oss-120B 압축 모델)와의 비교가 이를 잘 보여준다: HyperNova-60B는 architectural efficiency가 높지만, 더 긴 reasoning trace를 생성하여 request-level에서의 이점이 상쇄된다. 반면, gpt-oss-puzzle-88B는 ##accuracy-speed frontier 전체에서 parent를 능가하며, 최대 1.29× higher request-level efficiency##를 달성한다.</p>
+
+<h4>생성 토큰 수 분석 (Table 3)</h4>
+
+<table>
+<tr><th>Reasoning Effort</th><th>Pre-RL</th><th>Balanced Mix RL</th><th>High RL</th><th>gpt-oss-puzzle-88B</th><th>gpt-oss-120B</th><th>Ratio (Ours/Parent)</th></tr>
+<tr><td>High</td><td>15.63K</td><td>9.96K</td><td>21.56K</td><td>14.28K</td><td>13.05K</td><td>1.09×</td></tr>
+<tr><td>Medium</td><td>–</td><td>3.88K</td><td>6.30K</td><td>4.79K</td><td>3.05K</td><td>1.57×</td></tr>
+<tr><td>Low</td><td>1.4K</td><td>2.01K</td><td>1.56K</td><td>1.73K</td><td>1.35K</td><td>1.28×</td></tr>
+</table>
+
+<p>gpt-oss-puzzle-88B는 parent보다 약간 더 많은 토큰을 생성하지만 (1.09~1.57×), architectural throughput 이득이 이를 상쇄하여 request-level에서도 효율적이다. Checkpoint merging이 high-effort-only RL의 과도한 생성 길이(21.56K)를 14.28K로 줄이는 데 성공했음을 확인할 수 있다.</p>
+
+<h3>4.2 Accuracy (Q2)</h3>
+
+<p><strong>실험 의도</strong>: 압축 모델이 parent 수준의 정확도를 유지하는가?</p>
+
+<h4>Table 2: Reasoning effort별 정확도 (KV FP8 비교)</h4>
+
+<table>
+<tr><th>모델</th><th>Average</th><th>MMLU-Pro</th><th>GPQA-D</th><th>HLE</th><th>AA-LCR</th><th>AIME25</th><th>IFBench</th><th>SciCode</th><th>RULER 128K</th></tr>
+<tr><td colspan="10"><strong>High reasoning</strong></td></tr>
+<tr><td>gpt-oss-120B (FP8)</td><td>58.19</td><td>80.60</td><td>77.34</td><td>18.86</td><td>46.75</td><td>89.58</td><td>65.76</td><td>40.83</td><td>45.82</td></tr>
+<tr><td>gpt-oss-puzzle-88B (FP8)</td><td><strong>58.67</strong></td><td>79.19</td><td>75.25</td><td>16.40</td><td>40.75</td><td><strong>93.33</strong></td><td><strong>67.01</strong></td><td><strong>41.42</strong></td><td><strong>56.02</strong></td></tr>
+<tr><td colspan="10"><strong>Medium reasoning</strong></td></tr>
+<tr><td>gpt-oss-120B (FP8)</td><td>52.89</td><td>78.71</td><td>68.88</td><td>9.68</td><td>41.50</td><td>77.92</td><td>58.67</td><td>42.75</td><td>45.04</td></tr>
+<tr><td>gpt-oss-puzzle-88B (FP8)</td><td><strong>54.93</strong></td><td>78.18</td><td><strong>71.15</strong></td><td><strong>10.47</strong></td><td>35.75</td><td><strong>86.67</strong></td><td><strong>63.35</strong></td><td>40.09</td><td><strong>53.77</strong></td></tr>
+<tr><td colspan="10"><strong>Low reasoning</strong></td></tr>
+<tr><td>gpt-oss-120B (FP8)</td><td>44.71</td><td>75.04</td><td>60.54</td><td>4.40</td><td>34.75</td><td>51.88</td><td>43.71</td><td>40.09</td><td>47.28</td></tr>
+<tr><td>gpt-oss-puzzle-88B (FP8)</td><td><strong>48.38</strong></td><td><strong>75.62</strong></td><td><strong>63.51</strong></td><td><strong>5.51</strong></td><td>28.75</td><td><strong>62.89</strong></td><td><strong>56.21</strong></td><td>38.46</td><td><strong>56.11</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Suite-average accuracy retention: High 100.8%, Medium 103.9%, Low 108.2%## — parent를 일관적으로 매칭하거나 약간 초과</li>
+  <li><strong>Low effort에서 가장 큰 개선</strong> (108.2%): RL + checkpoint merging이 low effort에서 특히 효과적. AIME25에서 51.88→62.89 (+21%), IFBench에서 43.71→56.21 (+29%)</li>
+  <li><strong>일부 벤치마크에서 하락</strong>: AA-LCR에서 일관적으로 parent 이하 (High: 46.75→40.75, Low: 34.75→28.75). 이는 AA-LCR이 Puzzle scoring에 내부적으로 사용되었기 때문에 overfitting 리스크가 있을 수 있으나, 동시에 RULER 128K에서는 오히려 대폭 개선 (45.82→56.02)</li>
+  <li>MMLU-Pro와 SciCode는 모든 effort에서 parent와 거의 동일</li>
+</ul>
+
+<h3>4.3 KV Scaling Impact (Q4)</h3>
+
+<p><strong>실험 의도</strong>: FP8 KV-cache quantization에서 calibrated scales가 정확도에 어떤 영향을 미치는가?</p>
+
+<h4>Table 4: KV Scales 유무 비교 (gpt-oss-puzzle-88B, High reasoning)</h4>
+
+<table>
+<tr><th>설정</th><th>Average</th><th>MMLU-Pro</th><th>GPQA-D</th><th>HLE</th><th>AA-LCR</th><th>AIME25</th><th>IFBench</th><th>SciCode</th><th>RULER 128K</th></tr>
+<tr><td>No Scales</td><td>58.14</td><td>79.40</td><td>75.00</td><td>15.99</td><td>40.25</td><td>90.42</td><td>66.89</td><td>40.68</td><td>56.47</td></tr>
+<tr><td>KV Scales</td><td><strong>58.67</strong></td><td>79.19</td><td><strong>75.25</strong></td><td><strong>16.40</strong></td><td><strong>40.75</strong></td><td><strong>93.33</strong></td><td><strong>67.01</strong></td><td><strong>41.42</strong></td><td>56.02</td></tr>
+</table>
+
+<p>KV scales 사용 시 suite-average가 58.14→58.67로 개선 (+0.53pp). 특히 AIME25에서 90.42→93.33으로 가장 큰 개선. 수학적 reasoning 같은 정밀도에 민감한 태스크에서 KV scales의 효과가 두드러진다.</p>
+
+<h3>4.4 Window Attention Scoring Ablation (Q5)</h3>
+
+<p><strong>실험 의도</strong>: AA-LCR 기반 scoring이 기존 activation-MSE 기반 scoring보다 window attention layer 선택에 더 효과적인가?</p>
+
+<p>Table 7 (Appendix C)에서 두 scoring 방법을 비교:</p>
+<ul>
+  <li>9개 FullAttn 유지 (50% global→window 전환), Window 8192: AA-LCR scoring이 AA-LCR 벤치마크에서 88.12 vs 79.17 (+11.3%), AIME25에서 14.00 vs 8.00으로 압도적 우위</li>
+  <li>12개 FullAttn 유지 (33% 전환), Window 8192: 두 방법이 비슷하지만, AA-LCR에서 여전히 AALCR 기반이 소폭 우위 (90.00 vs 88.33)</li>
+  <li>##Window attention 전환 비율이 높을수록 (50%), task-aware scoring의 이점이 극대화##된다. 압축이 보수적이면 어느 방법이든 유사한 결과</li>
+</ul>
+
+<p>Layerwise 분석 (Figure 8): 두 scoring 신호는 대체로 layer 중요도에 동의하지만, 중간 layer 부근에서 분기. Representational similarity (activation MSE)와 task-level degradation (AA-LCR)이 다른 sensitivity를 강조하는 경우가 있음을 시사.</p>
+
+<h2>5. 전체 파이프라인 흐름도</h2>
+
+<div class="flow-diagram">gpt-oss-120B (parent, 120B params, 128 experts/layer, 18 global attn)
+    │
+    ├─ [Phase 1: Puzzle NAS]
+    │   ├─ Expert contribution scoring (MSE, 12K sequences)
+    │   ├─ Replace-1-block scoring (activation MSE, 128 sequences)
+    │   ├─ Window attention scoring (AA-LCR benchmark)
+    │   └─ MIP solver → heterogeneous architecture 선택
+    │       ├─ 8/18 global → window attention (8192)
+    │       └─ 25% experts pruned (layer별 8~128)
+    │
+    ├─ [Phase 2: Knowledge Distillation]
+    │   └─ 84B tokens, seq_len=128K, experts/router frozen
+    │
+    ├─ [Phase 3: Reinforcement Learning]
+    │   ├─ Variant A: High-effort only → 정확도↑, 길이↑
+    │   ├─ Variant B: Balanced mix → 길이↓, 제어성↑
+    │   └─ Checkpoint weight averaging → 최적 trade-off
+    │
+    └─ [Phase 4: FP8 KV Quantization]
+        └─ Max calibration + power-of-2 scales
+            │
+            └─ gpt-oss-puzzle-88B (88B params)
+                ├─ 1.63× throughput (64K/64K, 8×H100)
+                ├─ 2.82× throughput (64K/64K, 1×H100)
+                └─ 100.8~108.2% accuracy retention</div>
+
+<h2>6. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>End-to-end 실용적 파이프라인</strong>: NAS → KD → RL → quantization의 완전한 파이프라인을 제시하여, 실제 배포에 즉시 적용 가능한 수준의 완성도</li>
+  <li><strong>Multi-constraint 최적화</strong>: 단일 Puzzle 실행으로 long/short context 두 시나리오를 동시에 최적화하는 실용적 접근</li>
+  <li><strong>Request-level efficiency 프레임워크</strong>: Per-token throughput의 한계를 명확히 지적하고, reasoning 모델에 적합한 평가 메트릭을 제안. HyperNova-60B 비교가 이를 설득력 있게 보여줌</li>
+  <li><strong>RL checkpoint merging의 참신성</strong>: 정확도-길이 tension을 weight averaging으로 해결하는 간단하지만 효과적인 방법</li>
+  <li><strong>하드웨어별 분석</strong>: 8×H100, 1×H100, 8×B200 등 다양한 배포 환경에서의 결과 제시</li>
+</ul>
+
+<h3>한계 및 질문</h3>
+<ul>
+  <li><strong>gpt-oss 특화 결과</strong>: 모든 실험이 gpt-oss-120B 단일 모델에 대한 것. 다른 MoE 모델 (DeepSeek-V3, Qwen-3-MoE 등)로의 일반화 가능성은 불확실. Puzzle이 Llama-3에서도 작동했다는 점이 간접적 증거이나, MoE 특화 기법의 transferability는 미검증</li>
+  <li><strong>AA-LCR 의존성</strong>: Window attention scoring에 AA-LCR을 사용하고, 평가에도 AA-LCR을 포함. 이 벤치마크의 representative성에 대한 분석 없이, scoring과 evaluation의 circular dependency 리스크가 존재. RULER 결과가 이를 보완하지만 AA-LCR에서의 일관된 하락 (High: 46.75→40.75)은 우려</li>
+  <li><strong>Standard deviation 보고가 제한적</strong>: 그래프에서 ±1σ 밴드를 보여주지만, 정확도 Table에서는 개별 결과만 보고. "여러 번 측정하여 평균"이라고 명시하나 구체적 반복 횟수와 표준편차 미제시</li>
+  <li><strong>생성 길이 증가의 trade-off</strong>: Parent 대비 1.09~1.57× 더 많은 토큰 생성. Medium effort에서 1.57×는 상당한 증가로, 일부 사용 사례에서는 architectural throughput 이득을 상쇄할 수 있음</li>
+  <li><strong>Ablation의 제한적 범위</strong>: Expert pruning 단독, window attention 단독, 결합 효과를 분리한 ablation이 부족. Figure 4b에서 "MoE pruning only" 곡선이 일부 이를 보여주지만 체계적 분석은 아님</li>
+  <li><strong>Training cost 미보고</strong>: KD 84B 토큰 + RL 학습의 총 GPU-hours가 명시되지 않아 재현 비용 판단이 어려움</li>
+</ul>
+
+</div>
+
+<h2>7. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Post-training NAS가 MoE reasoning 모델에도 효과적</strong>: Puzzle 프레임워크의 decomposed scoring + MIP 접근이 MoE의 heterogeneous 특성을 잘 포착하여, 초기 layer는 보존하고 후기 layer를 공격적으로 pruning하는 최적 전략을 자동으로 발견.</li>
+  <li><strong>Per-token throughput은 reasoning 모델 평가에 부적절</strong>: 생성 토큰 수가 모델과 effort에 따라 다르므로, request-level efficiency 메트릭이 실제 배포 비용을 더 정확히 반영한다. 압축 모델 개발 시 반드시 생성 길이 변화를 모니터링해야 한다.</li>
+  <li><strong>Task-aware scoring이 aggressive 압축에서 중요</strong>: Window attention 전환 비율이 높을수록 activation-MSE와 AA-LCR scoring의 차이가 커진다. 압축이 보수적이면 어떤 scoring이든 유사하지만, 더 높은 압축률을 목표로 할 때 task-aware signal이 필수적.</li>
+  <li><strong>RL checkpoint merging은 정확도-효율성 Pareto 개선의 간단한 방법</strong>: 서로 다른 objective를 가진 RL 변형들을 weight averaging으로 결합하는 것은 비용이 거의 없으면서도 양쪽의 장점을 취할 수 있다.</li>
+  <li><strong>Single GPU에서의 이득이 가장 극적</strong>: 메모리 제약이 심한 환경(1×H100)에서 2.82× speedup은, expert pruning + window attention의 메모리 절약이 batch size 확대로 이어지는 선순환 효과를 보여준다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

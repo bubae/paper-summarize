@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniComp: A Unified Evaluation of Large Language Model Compression via Pruning, Quantization, and Distillation</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>UniComp: A Unified Evaluation of Large Language Model Compression via Pruning, Quantization, and Distillation</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Jonathan von Rad, Yong Cao, Andreas Geiger</li>
+  <li><strong>소속</strong>: University College London, University of Tübingen / Tübingen AI Center</li>
+  <li><strong>학회/저널</strong>: arXiv preprint, February 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.09130">arXiv:2602.09130</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 LLM 압축 평가는 knowledge-centric multiple-choice 벤치마크에 편중되어 있어, reasoning, 다국어, instruction following, reliability 등 다양한 능력에 대한 압축 영향이 체계적으로 파악되지 않았다. Pruning, quantization, knowledge distillation을 통합 비교한 연구도 부재.</li>
+  <li><strong>해결</strong>: Performance(knowledge, reasoning, multilingual, instruction following), Reliability(truthfulness, safety, fairness, robustness, privacy, ethics), Efficiency(runtime, inference, compute cost) 3차원 13개 메트릭으로 구성된 통합 평가 프레임워크 UniComp를 제안하고, 40개 이상의 데이터셋에서 6가지 압축 기법을 체계적으로 비교.</li>
+  <li><strong>왜 작동하는가</strong>: 다차원 평가를 통해 단일 벤치마크에서는 드러나지 않는 "knowledge bias" — 지식 태스크는 보존되지만 reasoning/다국어/instruction following은 크게 하락하는 현상 — 을 포착하고, 각 압축 방법의 실질적 trade-off를 드러낸다.</li>
+  <li><strong>비유</strong>: 건강검진에서 혈압(knowledge)만 재면 "건강"으로 판정되지만, CT·MRI·혈액검사(reasoning, reliability, efficiency)를 종합하면 숨은 문제가 드러나는 것과 같다. UniComp는 압축 모델의 종합 건강검진이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>UniComp 프레임워크</strong>: Pruning, quantization, knowledge distillation을 performance·reliability·efficiency 3차원에서 통합 비교하는 최초의 체계적 프레임워크. 13개 메트릭, 40개 이상의 데이터셋 활용</li>
+  <li><strong>Knowledge Bias 발견</strong>: 압축 시 knowledge-intensive 태스크는 잘 보존되지만, reasoning·multilingual·instruction following은 크게 하락하는 일관적 편향을 식별. 기존 평가가 이를 간과했음을 입증</li>
+  <li><strong>Reasoning-aware Calibration 효과</strong>: Pruning 모델에 reasoning-centric calibration 데이터를 사용하면 reasoning 성능이 최대 50% 개선됨을 발견. 단, quantization에서는 효과 없음</li>
+</ol>
+
+<h2>1. 배경: 기존 압축 평가의 한계</h2>
+
+<h3>LLM 압축 기법 개관</h3>
+
+<p>LLM 압축은 크게 세 가지 패러다임으로 나뉜다:</p>
+<ul>
+  <li><strong>Pruning</strong>: 가중치를 제거하여 모델 크기를 줄이는 방법. Unstructured (SparseGPT, Wanda)와 semi-structured (2:4 sparsity) 방식이 있다</li>
+  <li><strong>Quantization</strong>: 가중치의 수치 정밀도를 낮추는 방법. Weight-only PTQ (Post-Training Quantization)인 GPTQ와 AWQ가 대표적</li>
+  <li><strong>Knowledge Distillation (KD)</strong>: Teacher 모델에서 student 모델로 지식을 전이하는 방법. Prune→distill 파이프라인(Minitron)이나 soft pruning 기반(Low-Rank Clone)이 있다</li>
+</ul>
+
+<h3>기존 평가의 문제점</h3>
+
+<p>기존 압축 문헌은 MMLU, ARC 등 knowledge-intensive multiple-choice 벤치마크에 집중하여, 이들에서 "거의 무손실"이라는 결론을 내리는 경향이 있다. 그러나:</p>
+<ul>
+  <li>Reasoning, multilingual, instruction following에 대한 영향은 체계적으로 평가되지 않음</li>
+  <li>Reliability (안전성, 공정성, 견고성 등)에 대한 평가가 거의 없음</li>
+  <li>Pruning, quantization, KD를 동일 조건에서 통합 비교한 연구가 부재</li>
+  <li>최신 reasoning 모델(CoT)이나 MoE (Mixture-of-Experts) 모델이 포함되지 않음</li>
+</ul>
+
+<h2>2. UniComp 프레임워크</h2>
+
+<h3>3차원 평가 구조</h3>
+
+<p>모든 점수는 [0, 100]으로 스케일링되며, Performance와 Reliability는 base 모델 대비 retained performance 비율로 계산한다.</p>
+
+<h4>I. Performance (4개 메트릭)</h4>
+
+<p><strong>Knowledge ($S_K$)</strong>: 표준 multiple-choice 벤치마크 (MMLU, ARC-E/C, HellaSwag, PIQA, Winogrande)에서의 정확도 유지율. 각 태스크의 base 대비 비율의 비가중 평균:</p>
+
+$$S_K = \frac{100}{N} \sum_{i=1}^{N} \frac{s_{\text{Comp}_i}^K}{s_{\text{Base}_i}^K} \tag{1}$$
+
+<p><strong>Multilingual & Cultural ($S_{\text{Mul}}$)</strong>: 다국어 이해(Global-MMLU-Lite, 14개 언어)와 편향 감지(BBQ)의 평균 유지율:</p>
+
+$$S_{\text{Mul}} = \frac{100}{2} \left(\frac{s_{\text{Comp}}^{\text{Lan}}}{s_{\text{Base}}^{\text{Lan}}} + \frac{s_{\text{Comp}}^{\text{Bias}}}{s_{\text{Base}}^{\text{Bias}}}\right) \tag{2}$$
+
+<p><strong>Reasoning ($S_R$)</strong>: GSM8K (4-shot), MATH-500 (4-shot), GPQA-Diamond (5-shot) 등 challenging 벤치마크에서의 유지율. 수식 (1)과 동일 구조.</p>
+
+<p><strong>Instruction Following ($S_{\text{IF}}$)</strong>: IFBench에서의 지시 수행 능력 유지율.</p>
+
+<h4>II. Reliability (6개 메트릭)</h4>
+
+<p>TrustLLM(Huang et al., 2024) 프레임워크를 따르며, 30개 이상의 데이터셋에서 GPT-4o-mini를 judge로 사용하여 평가한다:</p>
+
+<table>
+<tr><th>메트릭</th><th>평가 내용</th><th>구성 요소</th></tr>
+<tr><td>$S_{\text{Truth}}$</td><td>Truthfulness</td><td>내부/외부 misinformation, hallucination, sycophancy</td></tr>
+<tr><td>$S_{\text{Safe}}$</td><td>Safety</td><td>jailbreak 저항, misuse 거부, 과도한 안전 인식</td></tr>
+<tr><td>$S_{\text{Fair}}$</td><td>Fairness</td><td>stereotype 인식, 비하, 선호 편향</td></tr>
+<tr><td>$S_{\text{Rob}}$</td><td>Robustness</td><td>자연 노이즈, OOD (Out-of-Distribution) 저항</td></tr>
+<tr><td>$S_{\text{Pri}}$</td><td>Privacy</td><td>개인정보 인식, 유출 방지</td></tr>
+<tr><td>$S_{\text{Eth}}$</td><td>Ethics</td><td>implicit/explicit 윤리, 역할 인식</td></tr>
+</table>
+
+<h4>III. Efficiency (3개 메트릭)</h4>
+
+<p>Efficiency 메트릭은 방법 간 상대 비교로 정규화한다. 최적 방법에 1을 부여하고, geometric mean으로 bottleneck을 페널티:</p>
+
+<p>각 메트릭은 방법 간 상대 비교로 정규화한다. 각 요소를 최적 방법 기준 $[0, 1]$로 스케일링한 뒤, geometric mean으로 집계하여 bottleneck을 페널티한다:</p>
+
+$$\text{Score} = 100 \times \left(\prod_{j=1}^{M} \frac{x_j}{\max_k x_{k,j}}\right)^{1/M} \tag{5}$$
+
+<p>직관적으로, 한 차원이라도 극단적으로 낮으면 기하평균이 크게 감소하므로, 균형 잡힌 효율성을 보상하는 메트릭이다.</p>
+
+<ul>
+  <li><strong>Runtime Acceleration ($S_{\text{RA}}$)</strong>: Throughput과 latency의 기하평균 $S_{\text{RA}} = 100 \times \sqrt{\frac{T}{T_{\max}} \cdot \frac{L_{\min}}{L}}$ (6)</li>
+  <li><strong>Inference Efficiency ($S_{\text{IE}}$)</strong>: GPU 메모리, 모델 크기, FLOPs의 기하평균 $S_{\text{IE}} = 100 \times \left(\frac{M_{\min}}{M} \cdot \frac{P_{\min}}{P} \cdot \frac{F_{\min}}{F}\right)^{1/3}$ (7)</li>
+  <li><strong>Compute Cost ($S_{\text{CC}}$)</strong>: 압축 시간과 peak GPU 메모리의 기하평균 $S_{\text{CC}} = 100 \times \sqrt{\frac{t_{\min}}{t} \cdot \frac{m_{\min}}{m}}$ (8)</li>
+</ul>
+
+<h3>실험 설정</h3>
+
+<p><strong>모델</strong>: 주요 실험은 LLaMA-3.1-8B와 Qwen-2.5-7B. 확장 실험에서 LLaMA-2 (7B~70B), Qwen-3 (0.6B~32B), DeepSeek-R1 distillation, MoE (Qwen-3-30B-A3) 등 다양한 아키텍처 포함.</p>
+
+<p><strong>압축 기법</strong>:</p>
+<table>
+<tr><th>패러다임</th><th>방법</th><th>압축률</th></tr>
+<tr><td rowspan="2">Pruning</td><td>SparseGPT</td><td>50% unstructured / 2:4 semi-structured</td></tr>
+<tr><td>Wanda</td><td>50% unstructured / 2:4 semi-structured</td></tr>
+<tr><td rowspan="2">Quantization</td><td>GPTQ</td><td>W4A16 (4-bit weight-only)</td></tr>
+<tr><td>AWQ</td><td>W4A16 (4-bit weight-only)</td></tr>
+<tr><td rowspan="2">Distillation</td><td>Minitron (Depth/Width)</td><td>50% depth/width pruning + 194B token (teacher correction 94B + distillation 100B) 파이프라인</td></tr>
+<tr><td>Low-Rank Clone (LRC-4B)</td><td>Soft pruning + 20B token 증류 (Qwen-2.5-7B)</td></tr>
+</table>
+
+<p><strong>구현</strong>: H100 GPU, Lighteval + lm-evaluation-harness + vLLM 백엔드. Reliability는 GPT-4o-mini judge.</p>
+
+<h2>3. 실험 결과</h2>
+
+<h3>3.1 Performance: Knowledge Bias 발견</h3>
+
+<p><strong>실험 의도</strong>: 압축이 knowledge, reasoning, multilingual, instruction following 각 능력에 어떤 차별적 영향을 미치는가?</p>
+
+<h4>LLaMA-3.1-8B 결과 (Table 1, 발췌)</h4>
+
+<table>
+<tr><th>방법</th><th>압축률</th><th>$S_K$</th><th>$S_{\text{Mul}}$</th><th>GSM8K</th><th>MATH-500</th><th>GPQA-D</th><th>$S_R$</th><th>$S_{\text{IF}}$</th></tr>
+<tr><td>Baseline</td><td>0%</td><td>1.00</td><td>–</td><td>76.80</td><td>30.20</td><td>33.33</td><td>–</td><td>–</td></tr>
+<tr><td>Wanda</td><td>50%</td><td>0.86</td><td>68.20</td><td>19.48</td><td>7.60</td><td>23.30</td><td>40.15</td><td>72.96</td></tr>
+<tr><td>SparseGPT</td><td>50%</td><td>0.89</td><td>73.53</td><td>36.92</td><td>8.40</td><td>22.20</td><td>47.50</td><td>88.25</td></tr>
+<tr><td>AWQ</td><td>INT4</td><td><strong>1.00</strong></td><td><strong>96.48</strong></td><td><strong>73.31</strong></td><td><strong>22.00</strong></td><td><strong>31.31</strong></td><td><strong>87.41</strong></td><td><strong>100.00</strong></td></tr>
+<tr><td>GPTQ</td><td>INT4</td><td><strong>1.00</strong></td><td>90.10</td><td>71.57</td><td>19.80</td><td>28.28</td><td>81.20</td><td>89.41</td></tr>
+<tr><td>Minitron-Depth</td><td>50%</td><td>0.93</td><td>66.05</td><td>29.95</td><td>5.60</td><td>27.78</td><td>46.96</td><td>49.42</td></tr>
+<tr><td>Minitron-Width</td><td>50%</td><td>0.95</td><td>65.29</td><td>51.63</td><td>12.40</td><td>25.25</td><td>61.35</td><td>44.72</td></tr>
+</table>
+
+<h4>Qwen-2.5-7B 결과 (Table 1, 발췌)</h4>
+
+<table>
+<tr><th>방법</th><th>압축률</th><th>$S_K$</th><th>$S_{\text{Mul}}$</th><th>GSM8K</th><th>MATH-500</th><th>GPQA-D</th><th>$S_R$</th><th>$S_{\text{IF}}$</th></tr>
+<tr><td>Baseline</td><td>0%</td><td>1.00</td><td>–</td><td>86.66</td><td>75.60</td><td>32.83</td><td>–</td><td>–</td></tr>
+<tr><td>AWQ</td><td>INT4</td><td><strong>0.99</strong></td><td><strong>99.65</strong></td><td><strong>86.58</strong></td><td><strong>72.20</strong></td><td>29.80</td><td><strong>95.39</strong></td><td><strong>100.00</strong></td></tr>
+<tr><td>GPTQ</td><td>INT4</td><td><strong>0.99</strong></td><td>96.10</td><td><strong>86.58</strong></td><td><strong>72.60</strong></td><td><strong>33.30</strong></td><td><strong>99.12</strong></td><td>91.10</td></tr>
+<tr><td>SparseGPT</td><td>50%</td><td>0.94</td><td>94.13</td><td>74.91</td><td>43.20</td><td>28.20</td><td>76.49</td><td>68.90</td></tr>
+<tr><td>Low-Rank Clone</td><td>43%</td><td>0.93</td><td>94.09</td><td>64.29</td><td>15.80</td><td>25.25</td><td>57.33</td><td>91.10</td></tr>
+</table>
+
+<p><strong>핵심 발견</strong>:</p>
+<ul>
+  <li>##Knowledge Bias: 모든 압축 방법에서 knowledge 태스크($S_K$)는 86~100% 유지되지만, reasoning은 40~87%로 큰 격차.## 특히 MATH-500이 가장 민감 — pruning에서 5.60~8.40으로 대폭 하락</li>
+  <li><strong>Quantization이 전반적으로 최강</strong>: AWQ/GPTQ는 $S_K \approx 1.00$, $S_R \approx 81$~99%, $S_{\text{IF}} \approx 89$~100%로 다른 방법 대비 압도적</li>
+  <li><strong>Pruning은 reasoning에 치명적</strong>: 50% pruning에서 MATH-500이 baseline 대비 70~80% 하락. Multi-step reasoning이 파라미터 제거에 매우 민감</li>
+  <li>##Minitron-Depth vs Width: 후반 layer를 제거하는 Depth 방식이 Width보다 reasoning에서 훨씬 열등## (MATH-500: 5.60 vs 12.40). Later layer가 reasoning에 핵심적임을 시사</li>
+  <li><strong>Low-Rank Clone &gt; Minitron</strong>: LRC-4B는 10배 적은 토큰(20B vs 200B)으로 증류했음에도 instruction following과 multilingual에서 Minitron을 능가. Soft pruning이 hard pruning보다 효과적</li>
+  <li><strong>Semi-structured pruning (2:4)은 비경쟁적</strong>: Knowledge 이외의 모든 영역에서 심각한 하락. Hardware acceleration 이점에도 불구하고 불리한 trade-off</li>
+  <li><strong>Qwen-2.5-7B가 LLaMA-3.1-8B보다 압축에 강건</strong>: 동일 트렌드를 보이지만 degradation 폭이 더 작음</li>
+</ul>
+
+<h3>3.2 Reliability: Performance-Reliability 비상관</h3>
+
+<p><strong>실험 의도</strong>: 성능 보존이 잘 되는 방법이 reliability도 잘 보존하는가?</p>
+
+<h4>LLaMA-3.1-8B Reliability 결과 (Table 3, 발췌)</h4>
+
+<table>
+<tr><th>방법</th><th>$S_{\text{Truth}}$</th><th>$S_{\text{Safe}}$</th><th>$S_{\text{Fair}}$</th><th>$S_{\text{Rob}}$</th><th>$S_{\text{Pri}}$</th><th>$S_{\text{Eth}}$</th></tr>
+<tr><td>Wanda (50%)</td><td>88.71</td><td>100.67</td><td>85.03</td><td>84.27</td><td>94.72</td><td>89.09</td></tr>
+<tr><td>SparseGPT (50%)</td><td>92.06</td><td>100.93</td><td>70.85</td><td>92.95</td><td>81.97</td><td>96.31</td></tr>
+<tr><td>AWQ (INT4)</td><td>90.88</td><td>98.03</td><td>67.51</td><td><strong>98.85</strong></td><td>96.09</td><td><strong>100.33</strong></td></tr>
+<tr><td>GPTQ (INT4)</td><td>92.95</td><td>84.42</td><td>77.45</td><td>92.29</td><td>92.23</td><td>99.32</td></tr>
+<tr><td>Minitron-Depth</td><td>71.45</td><td>86.36</td><td>69.33</td><td>83.77</td><td>61.97</td><td>81.73</td></tr>
+</table>
+
+<p><strong>핵심 발견</strong>:</p>
+<ul>
+  <li>##Performance-Reliability Decoupling: 성능 보존이 최강인 quantization이 reliability에서 반드시 최강이 아니다.## AWQ는 robustness/ethics에서 최고이지만 fairness에서 67.51로 최저</li>
+  <li>일부 압축 모델이 baseline보다 높은 reliability 점수(>100)를 기록 — 압축이 특정 reliability 차원을 개선할 수 있음</li>
+  <li><strong>Truthfulness와 Safety는 상대적으로 안정적</strong>이지만, Fairness와 Robustness는 높은 분산</li>
+  <li><strong>Distillation은 reliability 보존이 가장 약함</strong>: Minitron 모델이 대부분의 reliability 차원에서 최저</li>
+  <li>Pruning 결과는 모델에 크게 의존 — LLaMA에서는 fairness/robustness 보존이 양호하지만, Qwen에서는 하락</li>
+</ul>
+
+<h3>3.3 Efficiency: Quantization의 최적 Trade-off</h3>
+
+<p><strong>실험 의도</strong>: 각 압축 방법의 실질적 배포 효율성을 runtime, inference, compute cost 차원에서 비교.</p>
+
+<h4>LLaMA-3.1-8B Efficiency 결과 (Table 4, 발췌)</h4>
+
+<table>
+<tr><th>방법</th><th>Throughput</th><th>Latency</th><th>$S_{\text{RA}}$</th><th>GPU Mem</th><th>$S_{\text{IE}}$</th><th>Time</th><th>$S_{\text{CC}}$</th></tr>
+<tr><td>Baseline</td><td>41,498 t/s</td><td>955ms</td><td>55.04</td><td>20.39GB</td><td>46.4</td><td>–</td><td>–</td></tr>
+<tr><td>Wanda (2:4)</td><td>71,194 t/s</td><td>588ms</td><td>91.87</td><td>20.39GB</td><td>46.4</td><td>41s</td><td>100</td></tr>
+<tr><td>SparseGPT (2:4)</td><td>72,531 t/s</td><td>590ms</td><td>92.58</td><td>20.39GB</td><td>46.4</td><td>4.25m</td><td>40.1</td></tr>
+<tr><td>AWQ (INT4)</td><td>38,150 t/s</td><td>661ms</td><td>63.43</td><td>10.53GB</td><td>81.2</td><td>16m32s</td><td>12.53</td></tr>
+<tr><td>GPTQ (INT4)</td><td>41,562 t/s</td><td>730ms</td><td>63.00</td><td>10.53GB</td><td>81.2</td><td>10m</td><td>26.14</td></tr>
+<tr><td>Minitron-Depth</td><td>78,606 t/s</td><td>548ms</td><td><strong>100.0</strong></td><td>13.73GB</td><td>78.7</td><td>~140h</td><td>0.01</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Distillation</strong>: Runtime acceleration과 inference efficiency 최고이지만, compute cost가 압도적으로 높음 (~140시간, 256 GPU). Offline compute가 풍부할 때만 적합</li>
+  <li>##Quantization이 가장 균형 잡힌 trade-off를 제공##: GPU 메모리 절반 이하(20.39→10.53GB), 적당한 runtime 개선, 합리적 compute cost (10~16분)</li>
+  <li><strong>Pruning</strong>: 2:4 semi-structured에서만 유의미한 runtime acceleration (throughput ~1.7배). Unstructured pruning은 메모리 절약도 runtime 개선도 미미 — 실제 배포에서 이점 제한적</li>
+  <li><strong>Wanda</strong>: Compute cost 최저 (41초) — 빠른 실험에 유용하지만, 성능/메모리 이점은 적음</li>
+</ul>
+
+<h3>3.4 추가 분석</h3>
+
+<h4>모델 규모와 아키텍처 영향</h4>
+
+<p>0.6B~70B, dense/reasoning/MoE 아키텍처에서 pruning·quantization을 평가. ##큰 모델이 반드시 압축에 더 강건한 것은 아니며, 아키텍처에 따라 결정적으로 달라진다.## Reasoning 모델과 MoE는 dense 모델보다 압축에 훨씬 민감하여 perplexity가 크게 증가한다.</p>
+
+<h4>Calibration 데이터의 영향 (Figure 3c)</h4>
+
+<p><strong>실험 의도</strong>: SparseGPT/Wanda의 기본 calibration 데이터(C4)를 reasoning-centric 데이터(MATH, GSM8K, ARC-c)로 교체하면 reasoning 성능이 개선되는가?</p>
+
+<p><strong>결과</strong>:</p>
+<ul>
+  <li>##Pruned LLaMA-3.1-8B에서 GSM8K 정확도가 36.9% → 55.0%로 향상 (+50% 상대 개선)##</li>
+  <li>Qwen-2.5-7B에서도 일관적 개선 확인</li>
+  <li>단, quantization에서는 reasoning-aware calibration이 유의미한 개선을 보이지 않음 — calibration 데이터의 영향은 pruning에 특화</li>
+  <li>Knowledge 성능은 calibration 변경으로 하락하지 않음 — reasoning 개선이 knowledge 희생 없이 달성</li>
+</ul>
+
+<h4>High- vs Low-Resource 언어</h4>
+
+<p>Global-MMLU-Lite에서 고자원/저자원 언어 간 체계적 추가 하락은 관찰되지 않음. 압축이 특정 언어를 차별적으로 손상시키기보다, 전반적인 knowledge 능력을 균등하게 감소시킨다.</p>
+
+<h2>4. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>포괄적 프레임워크</strong>: Performance·Reliability·Efficiency 3차원에 걸친 13개 메트릭은 기존 어떤 압축 벤치마크보다 넓은 범위. 40개 이상 데이터셋 사용</li>
+  <li><strong>Knowledge bias 발견의 실용적 가치</strong>: Knowledge 벤치마크만으로 "거의 무손실"이라는 결론이 얼마나 오해를 유발할 수 있는지 정량적으로 보여줌</li>
+  <li><strong>공정한 압축 비교</strong>: KD를 "teacher에서 student를 직접 도출"하는 경우로 한정하여, 별도 pretrained student와의 불공정 비교를 회피</li>
+  <li><strong>Calibration 효과 분석</strong>: Task-specific calibration의 효과를 pruning/quantization 양쪽에서 체계적으로 검증</li>
+  <li><strong>다양한 아키텍처 포함</strong>: Dense, reasoning (Qwen-3, DeepSeek-R1), MoE 등 최신 모델 포함</li>
+</ul>
+
+<h3>한계 및 질문</h3>
+<ul>
+  <li><strong>주요 실험 2개 모델 한정</strong>: 심층 분석은 LLaMA-3.1-8B와 Qwen-2.5-7B에 집중. Scaling 효과는 perplexity로만 측정하여 reasoning/reliability에 대한 규모별 분석 부족</li>
+  <li><strong>코드 생성, multi-agent 미포함</strong>: 저자도 인정하듯 코드 생성, multi-agent 협업 등 중요 도메인이 벤치마크에 누락</li>
+  <li><strong>QAT (Quantization-Aware Training) 미포함</strong>: PTQ만 비교. QAT가 reasoning 보존에 더 효과적일 수 있으나 검토하지 않음</li>
+  <li><strong>Reliability 판정의 GPT-4o-mini 의존</strong>: Judge 모델의 편향이 reliability 점수에 영향을 줄 수 있음. Human evaluation과의 상관 검증 없음</li>
+  <li><strong>Standard deviation 미보고</strong>: 결과의 통계적 유의성 확인 불가. 특히 reliability 점수의 높은 분산을 고려하면 반복 실험이 중요</li>
+  <li><strong>Efficiency 비교의 공정성</strong>: Distillation은 ~140시간/256 GPU vs pruning 41초/1 GPU — 본질적으로 다른 자원 요구를 단일 점수로 비교하는 것이 적절한지 의문</li>
+</ul>
+
+</div>
+
+<h2>5. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Knowledge 벤치마크만으로 압축 모델을 평가하면 안 된다</strong>: "Knowledge Bias" — knowledge-intensive 태스크에서의 강건성이 reasoning, multilingual, instruction following의 심각한 하락을 가린다. 압축 모델을 배포하기 전 reasoning·reliability 평가가 필수적이다.</li>
+  <li><strong>4-bit Quantization이 현재 가장 실용적인 선택</strong>: Performance, reliability, efficiency 모든 차원에서 가장 균형 잡힌 trade-off. 특히 AWQ가 전반적으로 우수하며, 배포 시 "safe default"로 권장.</li>
+  <li><strong>Pruning + Reasoning-aware Calibration의 조합이 유망</strong>: C4 기본 calibration 대신 reasoning-centric 데이터로 calibration하면 pruned 모델의 reasoning이 최대 50% 개선. Knowledge 손실 없이 달성 가능.</li>
+  <li><strong>Performance 보존 ≠ Reliability 보존</strong>: 성능이 잘 유지되는 방법이 안전성·공정성도 유지한다는 가정은 위험. 두 차원을 독립적으로 평가해야 한다.</li>
+  <li><strong>모델 아키텍처가 압축 강건성을 결정</strong>: Reasoning 모델과 MoE는 dense 모델보다 압축에 훨씬 민감. 모델 선택 시 압축 호환성을 고려해야 한다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
