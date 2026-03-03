@@ -90,6 +90,11 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <p>Fine-tuning의 흔적은 주로 해석(interpretation)과 안전성(safety) 연구에 활용되어 왔다. Fine-tuned BERT 모델의 파라미터 변화가 저차원 부분공간에 집중된다는 발견(Zhang et al., 2023)이나, truthfulness와 refusal 행동이 특정 weight update에 인코딩된다는 발견(Du et al., 2025)이 있다. 그러나 이러한 연구들은 weight-only compression에 필요한 fine-grained importance score를 제공하지 않으며, SVD 등을 사용하여 LRM 규모에서는 비용이 크다. QuantLRM은 간단한 heuristic("protecting both ends")으로 이 gap을 메운다.</p>
 
+<blockquote>
+<strong>[Figure 1 설명]</strong>: QuantLRM의 전체 개요. Fine-tuning(SFT/DPO/RL)에서 발생하는 weight update $\Delta W$에 대해, restricted quadratic mapping으로 양 극단의 importance를 추출(좌측)하고, zero weight update를 count(우측)하여 element-wise 곱으로 최종 channel importance를 계산한다.
+</blockquote>
+<img src="images/quantlrm/fig1.png" alt="Figure 1: Overview of channel importance computation" style="width:100%;max-width:700px;margin:1rem 0;">
+
 <h2>2. 방법론: Protecting Both Ends</h2>
 
 <h3>2.1 가설 및 검증</h3>
@@ -123,6 +128,11 @@ document.addEventListener("DOMContentLoaded", function() {
 $$f(\Delta w) = \begin{cases} y_{\min} & \Delta w = 0 \\ y_{\min} + (y_{\max} - y_{\min}) \left(\frac{\Delta w_{\text{mid}} - \Delta w}{\Delta w_{\text{mid}} - \Delta w_{\text{min}}}\right)^2 & 0 < \Delta w \leq \Delta w_{\text{mid}} \\ y_{\min} + (y_{\max} - y_{\min}) \left(\frac{\Delta w - \Delta w_{\text{mid}}}{\Delta w_{\text{max}} - \Delta w_{\text{mid}}}\right)^2 & \Delta w > \Delta w_{\text{mid}} \end{cases} \tag{5}$$
 
 <p>직관적으로, 이 함수는 U자 형태로, median 부근은 낮은 importance ($y_{\min} = 1$), 양 극단은 높은 importance ($y_{\max} = 10$)를 부여한다. Zero update는 별도 처리하여 median 계산에서 제외한다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: Channel importance $\mathbf{I}_{m\ell}$를 AWQ scaling에 주입하는 과정. Importance 값(예: 5.4, 14.6 등)이 높은 channel에는 큰 scaling factor $\alpha$가 적용되어 quantization error가 작아지고 (Low $\mathcal{L}$), 낮은 channel은 더 거친 양자화를 허용한다 (High $\mathcal{L}$).
+</blockquote>
+<img src="images/quantlrm/fig2.png" alt="Figure 2: Injecting channel importance into AWQ scaling" style="width:100%;max-width:600px;margin:1rem 0;">
 
 <h3>2.3 Zero Update Count의 통합</h3>
 

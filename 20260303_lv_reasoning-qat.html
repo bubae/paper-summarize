@@ -88,6 +88,11 @@ $$W_{\text{int}} = \text{clip}\left(\left\lfloor \frac{W}{s} \right\rceil + z, Q
 
 <h3>PTQ가 Reasoning에서 특히 취약한 이유</h3>
 
+<blockquote>
+<strong>[Figure 1 설명]</strong>: DeepSeek-R1-Distill-Qwen-1.5B (좌)와 Qwen3-4B (우)에서 BF16 대비 W4G128/W3G128 양자화 후 성능 하락. Reasoning task (AIME-120, MATH-500, GSM8K)에서 3-bit 하락이 압도적으로 크고, non-reasoning task는 상대적으로 안정적.
+</blockquote>
+<img src="images/reasoning-qat/fig1.png" alt="Figure 1: Performance degradation by PTQ" style="width:100%;max-width:800px;margin:1rem 0;">
+
 <p>Figure 1의 핵심 관찰: 4-bit group-wise weight quantization (group size 128)은 거의 무손실이지만, ##3-bit에서는 reasoning task의 성능 하락이 non-reasoning task보다 훨씬 크다.##</p>
 
 <table>
@@ -189,6 +194,11 @@ $$\frac{\partial L}{\partial W} = \frac{\partial L}{\partial \hat{W}} \cdot \mat
 </ol>
 
 <h2>3. Reasoning-QAT 워크플로우</h2>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: Reasoning-QAT의 전체 워크플로우. Step 1에서 PTQ 기반 초기화로 출발점을 마련하고, Step 2에서 원본 full-precision 모델로부터 KD로 성능을 회복하며, Step 3에서 cold-start RL로 reasoning 능력을 추가 강화한다.
+</blockquote>
+<img src="images/reasoning-qat/fig6.png" alt="Figure 6: Overall workflow of Reasoning-QAT" style="width:100%;max-width:500px;margin:1rem 0;">
 
 <div class="flow-diagram">Step 1: PTQ 초기화 (GPTQ)
   → Hessian 기반 보상으로 양자화 내성 확보, 더 나은 출발점

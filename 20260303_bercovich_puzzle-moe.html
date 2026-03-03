@@ -120,6 +120,11 @@ $$\text{expert\_score}_i = \mathbb{E}_x \left[ \text{MSE}\left(f(x), f^{(i)}(x)\
 
 <p>여기서 $f^{(i)}$는 expert $i$를 제거한 MoE layer, $x$는 입력 hidden state이다. 직관적으로, 제거 시 output 변화가 큰 expert일수록 중요하다.</p>
 
+<blockquote>
+<strong>[Figure 2 설명]</strong>: Puzzle이 선택한 모델 아키텍처. X축은 layer index (0~35), 주황색 막대는 attention type (Global/Window 8192/Window 128), 파란색 막대는 expert 수 (128~8). 초기 layer일수록 128개 expert를 유지하고, 후기 layer에서 공격적으로 expert를 제거하는 heterogeneous 패턴이 뚜렷하다.
+</blockquote>
+<img src="images/puzzle-moe/fig2.png" alt="Figure 2: Model Architecture chosen by Puzzle" style="width:100%;max-width:800px;margin:1rem 0;">
+
 <p>중요한 발견: ##초기 MoE layer가 후기 layer보다 훨씬 더 중요하다## (Figure 2). 따라서 Puzzle은 초기 layer는 128개 expert를 유지하고, 후기 layer는 64개 이하로 대폭 줄이는 heterogeneous 구조를 선택한다. 전체적으로 약 25%의 expert가 pruning되어 88B parameter 모델이 생성된다.</p>
 
 <p><strong>구현 세부사항</strong>: Parent 분포에 일치하는 데이터를 사용하는 것이 중요도 추정에 매우 중요. LNPT-gpt-oss 데이터셋을 사용하여 12K packed sequences (8K 길이)로 expert contribution score를, 128 packed sequences (32K 길이)로 replace-1-block score를 계산.</p>
@@ -279,6 +284,11 @@ $$\text{Relative Request Rate} = \frac{\text{Max Token Throughput} / \text{Avg T
 <tr><td>gpt-oss-120B (FP8)</td><td>44.71</td><td>75.04</td><td>60.54</td><td>4.40</td><td>34.75</td><td>51.88</td><td>43.71</td><td>40.09</td><td>47.28</td></tr>
 <tr><td>gpt-oss-puzzle-88B (FP8)</td><td><strong>48.38</strong></td><td><strong>75.62</strong></td><td><strong>63.51</strong></td><td><strong>5.51</strong></td><td>28.75</td><td><strong>62.89</strong></td><td><strong>56.21</strong></td><td>38.46</td><td><strong>56.11</strong></td></tr>
 </table>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: 좌측은 벤치마크별 accuracy retention (%), 우측은 하드웨어/시나리오별 throughput speedup. Low reasoning effort에서 가장 큰 정확도 개선, 64K/64K 1×H100에서 2.82× 최고 speedup.
+</blockquote>
+<img src="images/puzzle-moe/fig3.png" alt="Figure 3: Accuracy Retention and Throughput Speedup" style="width:100%;max-width:800px;margin:1rem 0;">
 
 <p><strong>패턴 분석</strong>:</p>
 <ul>
