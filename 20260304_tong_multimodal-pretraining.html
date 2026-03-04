@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Beyond Language Modeling: An Exploration of Multimodal Pretraining</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Beyond Language Modeling: An Exploration of Multimodal Pretraining</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Shengbang Tong*, David Fan*, John Nguyen*, Ellis Brown, Gaoyue Zhou, Shengyi Qian, Boyang Zheng, Théophane Vallaeys, Junlin Han, Rob Fergus, Naila Murray, Marjan Ghazvininejad, Mike Lewis, Nicolas Ballas, Amir Bar, Michael Rabbat, Jakob Verbeek, Luke Zettlemoyer†, Koustuv Sinha†, Yann LeCun†, Saining Xie† (*equal contribution, †equal advising)</li>
+  <li><strong>소속</strong>: FAIR, Meta / New York University</li>
+  <li><strong>학회/저널</strong>: arXiv 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.03276">arXiv:2603.03276</a> · <a href="https://beyond-llms.github.io/">Project Page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 통합 multimodal pretraining의 설계 공간(visual representation, 데이터 구성, 아키텍처, scaling)이 체계적으로 탐구되지 않았으며, 대부분의 기존 연구가 pretrained LLM 위에 finetuning하기 때문에 multimodal 학습 자체의 효과를 분리하기 어려웠다.</li>
+  <li><strong>해결</strong>: Transfusion 프레임워크(언어는 next-token prediction, 비전은 flow matching)로 처음부터(from scratch) 단일 모델을 학습하며, visual representation(RAE vs VAE vs raw pixel), 데이터 혼합, MoE (Mixture-of-Experts) 아키텍처, scaling law를 체계적으로 실험한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) RAE (Representation Autoencoder) 기반 semantic encoder(SigLIP 2)가 이해와 생성 모두에 최적이며, (2) 시각 데이터가 언어 성능을 저해하지 않고 오히려 시너지를 내고, (3) MoE가 modality 간 capacity 비대칭을 데이터 기반으로 자동 학습하여 해소한다.</li>
+  <li><strong>비유</strong>: 언어만 학습하는 것은 플라톤의 동굴에서 그림자만 보는 것과 같다. 이 연구는 시각이라는 "동굴 바깥 세계"를 언어와 함께 하나의 모델에 담되, 각 감각에 최적의 전문가(expert)를 배치하는 방법을 체계적으로 탐구한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>RAE가 최적의 통합 visual representation</strong>: SigLIP 2 같은 semantic encoder가 VAE 기반 접근보다 이해(VQA)와 생성(DPGBench, GenEval) 모두에서 우수하며, ##단일 encoder로 dual-encoder 대비 더 나은 성능을 달성##한다.</li>
+  <li><strong>시각-언어 데이터 시너지</strong>: 비전 데이터는 텍스트 성능을 거의 저하시키지 않으며, 다양한 multimodal 데이터 혼합이 VQA와 world modeling에서 task-specific 데이터만 늘리는 것보다 효과적이다.</li>
+  <li><strong>World modeling의 창발</strong>: 범용 multimodal pretraining만으로 Navigation World Model (NWM) 능력이 자연스럽게 출현하며, ##도메인 데이터 1%만으로도 경쟁력 있는 성능에 도달##한다.</li>
+  <li><strong>MoE의 multimodal 효과</strong>: Fine-grained expert (G=16)와 높은 sparsity가 언어·비전 모두를 개선하며, modality 전문화가 인간 사전지식 없이 자연 발생한다.</li>
+  <li><strong>Scaling law의 modality 비대칭 발견</strong>: Dense 모델에서 비전은 언어보다 훨씬 data-hungry($b \approx 0.63$ vs $b \approx 0.53$)하지만, ##MoE가 이 비대칭을 크게 완화##한다($b \approx 0.64$ vs $b \approx 0.59$).</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<h3>배경: 언어 너머로</h3>
+
+<p>Foundation model 시대는 언어 pretraining의 성공으로 정의되어 왔다. 그러나 텍스트는 근본적으로 현실의 "손실 압축(lossy compression)"이다. 저자들은 플라톤의 동굴 비유를 빌려, 언어 모델이 그림자(텍스트)의 패턴은 잘 학습하지만 물리적 세계의 고해상도 물리학, 기하학, 인과관계를 놓친다고 지적한다. 또한 고품질 텍스트 데이터는 유한하고 고갈에 가까워지고 있는 반면(Sutskever, 2025), 시각 세계는 현실의 원시 역학을 포착하는 무한한 신호 스트림을 제공한다.</p>
+
+<p>통합 multimodal pretraining의 과학적 지형은 여전히 불투명하다. 최근 연구들(Wang et al., 2024; Zhou et al., 2025a 등)이 language-only pretraining을 넘어서기 시작했지만, 대부분은 pretrained language model 위에 초기화하여 multimodal 학습 자체의 효과와 기존 언어 지식의 효과를 분리하기 어렵다.</p>
+
+<h3>본 연구의 접근</h3>
+
+<p>이 연구는 Transfusion 프레임워크를 사용하여 처음부터(from scratch) 단일 모델을 학습한다. 텍스트, 비디오, 이미지-텍스트 쌍, action-conditioned 비디오 등 다양한 데이터에 대해 통제된 실험을 수행하며, 5가지 축을 탐구한다:</p>
+
+<ul>
+  <li><strong>Visual Representation</strong>: VAE부터 semantic encoder(RAE)까지 → RAE가 최적 (Section 3)</li>
+  <li><strong>Data</strong>: 다양한 데이터 혼합의 효과 → modality 간 최소 간섭, 긍정적 시너지 (Section 4)</li>
+  <li><strong>World Modeling</strong>: NWM 설정으로 확장 → 범용 pretraining에서 능력 창발 (Section 5)</li>
+  <li><strong>Architecture</strong>: MoE 설계 공간 → 자연스러운 modality 분리와 통합 (Section 6)</li>
+  <li><strong>Scaling Properties</strong>: IsoFLOP 분석 → 비전-언어 비대칭, MoE가 격차 해소 (Section 7)</li>
+</ul>
+
+<h2>2. Experiment Setup</h2>
+
+<h3>2.1 Training and Inference</h3>
+
+<p><strong>Language modeling</strong>: 텍스트 시퀀스 $(x_1, \ldots, x_n)$에 대해 표준 autoregressive cross-entropy를 최소화한다:</p>
+
+$$\mathcal{L}_{\text{LM}} = -\sum_{i=1}^{n} \log p_\theta(x_i \mid x_{<i}). \tag{1}$$
+
+<p><strong>Image-wise flow matching</strong>: 이미지/비디오 프레임의 clean latent $z_0$에 대해, $\epsilon \sim \mathcal{N}(0, I)$를 샘플링하고 $t \sim \mathcal{U}[0,1]$에서 보간된 latent $z_t = (1-t)\epsilon + t z_0$를 구성한다. 모델은 velocity field $v_\theta(z_t, t, \text{context})$를 예측하고, squared error를 최소화한다:</p>
+
+$$\mathcal{L}_{\text{flow}} = \mathbb{E}_{t, z_0, \epsilon}\left[\|v_\theta(z_t, t, \cdot) - (z_0 - \epsilon)\|_2^2\right]. \tag{2}$$
+
+<p>직관적으로, 모델은 노이즈가 섞인 이미지에서 원래 이미지를 복원하는 방향(velocity field)을 학습한다. RAE에 맞춰 noise schedule을 noisy 쪽으로 이동시키고, 각 이미지/프레임에 독립적인 $t$를 샘플링하여 Diffusion Forcing 방식의 학습 역학을 유지한다.</p>
+
+<p><strong>Mixture training</strong>: 텍스트 전용, 비디오 전용, 이미지-텍스트 쌍, action-conditioned 데이터를 배치 내에서 혼합하며, 가중 결합 목적함수를 최적화한다:</p>
+
+$$\mathcal{L} = \lambda_{\text{LM}}\mathcal{L}_{\text{LM}} + \lambda_{\text{flow}}\mathcal{L}_{\text{flow}}, \tag{3}$$
+
+<p>기본적으로 $\lambda_{\text{LM}} = 1.0$, $\lambda_{\text{flow}} = 3.0$을 사용한다.</p>
+
+<p><strong>Causal vision and language masking</strong>: FlexAttention을 통해 hybrid masking 전략을 구현한다. 언어는 표준 causal mask를 사용하고, 시각 데이터는 block-wise causal mask를 적용한다 — 같은 프레임 내 토큰은 bidirectional하게 attend하되, 이전 토큰/프레임에는 causal하게만 attend한다.</p>
+
+<p><strong>Inference</strong>: 텍스트 생성은 표준 autoregressive prediction. 시각 생성은 25-step Euler sampler로 denoising 후 pretrained decoder로 pixel 공간에 매핑한다. CFG (Classifier-Free Guidance) 3.0 고정. 학습 중 10% 확률로 conditioning을 drop하여 CFG를 활성화한다.</p>
+
+<h3>학습 세부사항 (Implementation Details)</h3>
+
+<ul>
+  <li><strong>Optimizer</strong>: AdamW, peak LR $3 \times 10^{-4}$, 1000 warmup steps, cosine decay to 5% of peak LR</li>
+  <li><strong>Batch size</strong>: sequence length 4096, GPU당 4 sequences, 128 GPU → 총 ≈2M tokens/step</li>
+  <li><strong>Hardware</strong>: 128 GPUs (MoE 실험은 64 NVIDIA H200 GPUs, 8 nodes)</li>
+  <li><strong>Loss weighting</strong>: $\lambda_{\text{LM}} = 1.0$, $\lambda_{\text{flow}} = 3.0$ (Transfusion 기본값 $\lambda_{\text{flow}} = 6.0$과 다름에 주의)</li>
+</ul>
+
+<div class="flow-diagram">텍스트 토큰(T) + 시각 토큰(I) → [Hybrid Attention Masking (FlexAttention)]
+  T: standard causal mask
+  I: block-wise causal mask (frame 내 bidirectional, frame 간 causal)
+→ [Modality-Specific FFN]
+  T → Text FFN → Language Head → next-token prediction (L_LM)
+  I → Vision FFN → Continuous Head → velocity field (L_flow)
+→ 가중 합: L = λ_LM · L_LM + λ_flow · L_flow</div>
+
+<h3>2.2 Model and Tokenization</h3>
+
+<p><strong>Backbone</strong>: Transfusion과 유사한 decoder-only Transformer를 처음부터(from scratch) 학습한다. U-Net 대신 simple linear projection layer를 사용하여 visual token 수를 조정하지 않는다. 각 self-attention block 내에서 ##modality-specific FFN (텍스트용 1개, 비전용 1개)##을 기본 사용한다. 이 설계는 shared FFN 대비 text perplexity 감소 + 이미지 생성/VQA 향상을 동시에 달성한다.</p>
+
+<p>기본 모델은 총 2.3B 파라미터, 토큰당 1.5B 활성 파라미터이다 (modality-specific FFN으로 인해 한 번에 하나의 FFN만 활성).</p>
+
+<p><strong>Text tokens</strong>: LLaMA-3의 표준 BPE tokenizer 사용. <strong>Visual tokens</strong>: frozen visual encoder로 이미지/비디오 프레임을 latent 토큰에 매핑. 기본적으로 SigLIP 2 So400M 사용. 모든 프레임은 224×224 픽셀로 전처리되며 256개 토큰(16×16 grid)으로 인코딩된다.</p>
+
+<h3>2.3 Data Sources</h3>
+
+<p>4가지 범주의 학습 데이터를 사용한다:</p>
+
+<table>
+  <tr><th>데이터 타입</th><th>Modality</th><th>소스</th></tr>
+  <tr><td>Text</td><td>T → T</td><td>DCLM (대규모 웹 텍스트)</td></tr>
+  <tr><td>Video</td><td>I → I</td><td>YouTube-Temporal 1B, SomethingSomething V2, Kinetics (1 FPS)</td></tr>
+  <tr><td>Image-Text Pairs</td><td>I → T, T → I</td><td>MetaCLIP, in-house Shutterstock</td></tr>
+  <tr><td>Action-Conditioned</td><td>I + T → I</td><td>NWM, in-house Text-Annotated Videos</td></tr>
+</table>
+
+<h3>2.4 Evaluation</h3>
+
+<p>주요 평가 지표: (i) text perplexity (PPL) — DCLM val + in-house Notes 코퍼스, (ii) diffusion loss — CC12M val, (iii) image generation score — DPGBench + GenEval, (iv) average VQA accuracy — Cambrian 16개 벤치마크 (1 epoch finetuning on Cambrian-7M).</p>
+
+<h2>3. Visual Representations for Unified Multimodal Pretraining</h2>
+
+<h3>배경: 이해 vs 생성의 이분법</h3>
+
+<p>기존에는 VQA 같은 이해 과제에는 semantic encoder(SigLIP 2 등)가, 이미지 생성에는 VAE가 필요하다고 널리 가정되었다. Janus, BAGEL 같은 모델은 실제로 이해용과 생성용으로 별도의 visual representation을 사용한다. 이 이분법은 모델 설계와 추론을 복잡하게 만든다.</p>
+
+<p>그러나 최근 Representation Autoencoder (RAE)에 대한 연구(Zheng et al., 2026; Tong et al., 2026)는 고차원 semantic latent 공간에서도 diffusion model이 효과적으로 동작함을 보여준다. 이 연구는 이 발견을 활용하여, 단일 encoder로 이해와 생성 모두를 처리하는 설계를 채택한다.</p>
+
+<h3>실험: 3가지 encoder 계열 비교</h3>
+
+<p>총 7가지 visual representation을 비교한다:</p>
+
+<ul>
+  <li><strong>VAE</strong>: SD-VAE (Stable Diffusion), FLUX.1 VAE — 저차원 latent, 생성에 특화</li>
+  <li><strong>Semantic Encoder (RAE)</strong>: SigLIP 2 So400m (language-supervised), DINOv2-L (self-supervised), WebSSL-L — 고차원 semantic latent</li>
+  <li><strong>Raw Pixel</strong>: 14×14 패치의 RGB 값을 직접 사용, 추가로 x-prediction 변형</li>
+</ul>
+
+<blockquote>
+<p><strong>[Figure 4 설명]</strong>: 5개 메트릭(DCLM PPL, Notes PPL, DPGBench, GenEval, Avg VQA)에 걸쳐 visual representation 비교. SigLIP 2가 DPGBench, GenEval, VQA에서 최고 성능을 달성하면서 text perplexity는 text-only 베이스라인과 동등하게 유지한다. VAE(SD-VAE, FLUX.1)는 생성에서도 semantic encoder에 뒤지며, raw pixel은 생성 품질이 가장 낮지만 VQA 격차는 좁다.</p>
+</blockquote>
+
+<h3>핵심 발견</h3>
+
+<ul>
+  <li><strong>Text 성능</strong>: 모든 visual representation이 text-only 베이스라인과 유사한(때로는 약간 더 나은) text perplexity를 달성. 즉, ##multimodal pretraining이 어떤 visual representation을 쓰든 언어 능력을 거의 저하시키지 않는다##.</li>
+  <li><strong>Visual generation + understanding</strong>: Semantic encoder가 VAE를 이해와 생성 모두에서 일관되게 능가한다. SigLIP 2는 생성 벤치마크(DPGBench, GenEval)에서도 FLUX.1 VAE를 이긴다.</li>
+  <li><strong>Raw pixel의 가능성</strong>: 생성 품질은 떨어지지만 VQA 격차는 좁아, 더 많은 compute/scale에서 유망한 방향이다.</li>
+</ul>
+
+<p><strong>결론</strong>: SigLIP 2 기반 RAE 단일 encoder가 아키텍처를 단순화하면서 이해와 생성 모두에서 최선이다.</p>
+
+<h2>4. Understanding the Impact of Data</h2>
+
+<h3>이 섹션이 답하려는 핵심 질문</h3>
+<ol>
+  <li>다양한 multimodal 데이터가 텍스트 성능에 간섭하는가?</li>
+  <li>이미지-텍스트 데이터의 종류에 따라 생성/이해에 미치는 영향이 다른가?</li>
+  <li>Multimodal co-training이 실질적인 시너지를 내는가?</li>
+</ol>
+
+<h3>4.1 Pretraining Data Composition</h3>
+
+<p>텍스트 520B + multimodal 520B 토큰(총 ≈1T)으로 3가지 데이터 혼합을 테스트한다: (1) Text + Video, (2) Text + MetaCLIP, (3) Text + Video + MetaCLIP + Action.</p>
+
+<blockquote>
+<p><strong>[Figure 5 설명]</strong>: Text + Video가 DCLM PPL에서 text-only와 거의 동일하며 심지어 약간 더 낫다. 이는 raw 비디오 데이터가 언어 모델링과 호환 가능하며 modality competition의 주요 원인이 아님을 시사한다.</p>
+</blockquote>
+
+<p><strong>핵심 발견</strong>: Vision 데이터 자체는 텍스트 성능을 저하시키지 않는다. 성능 저하의 원인은 image caption의 분포적 차이 (distributional gap)에 있다. 이미지-텍스트 캡션은 pretraining 텍스트와 분포가 달라 perplexity에 영향을 준다.</p>
+
+<h3>4.2 Image-Text Distribution</h3>
+
+<p>3종의 이미지-텍스트 소스를 분석한다:</p>
+
+<table>
+  <tr><th>소스</th><th>Cosine Distance to DCLM ↓</th><th>특성</th></tr>
+  <tr><td>MetaCLIP</td><td>0.196</td><td>웹 크롤링, DCLM과 분포 유사</td></tr>
+  <tr><td>MetaCLIP (Recaption)</td><td>0.286</td><td>합성 캡션, VQA 향상에 효과적</td></tr>
+  <tr><td>SSTK (Shutterstock)</td><td>0.215</td><td>고심미성, 생성 품질 향상에 효과적</td></tr>
+</table>
+
+<p>소스별로 영향이 다르다: recaptioned 데이터는 VQA를 개선하고, 고심미성 데이터(SSTK)는 이미지 생성 품질을 개선한다. 따라서 목적(image-to-text vs text-to-image)에 따라 데이터를 분리하여 MetaCLIP은 I2T용, SSTK는 T2I용으로 사용하면 양쪽 장점을 모두 취할 수 있다.</p>
+
+<h3>4.3 Synergy in Multimodal Pretraining</h3>
+
+<p>고정된 vision budget에 text 토큰을 추가하면 diffusion loss와 GenEval이 지속적으로 개선되어 multimodal-only 베이스라인을 넘어선다. 이는 이미지 생성 벤치마크가 text-conditioned이기 때문에, 언어 모델링 개선이 text-to-image alignment를 향상시키기 때문으로 추정된다.</p>
+
+<blockquote>
+<p><strong>[Figure 9 설명]</strong>: 20B VQA 토큰 + 80B 이종 데이터(비디오, MetaCLIP, 텍스트)가 100B VQA-only 베이스라인을 능가한다. ##5배 적은 도메인 데이터로도 다양한 pretraining이 더 강한 foundation을 제공##한다.</p>
+</blockquote>
+
+<p><strong>Multimodal pretraining이 VQA를 일관되게 개선한다</strong>: 520B text + 520B multimodal 토큰으로 pretraining한 뒤 VQA finetuning한 모델이, 520B text-only pretraining 후 finetuning한 모델을 모든 visual representation에서 능가한다 (SigLIP 2: 40.3% vs 33.9%). Semantic encoder(SigLIP 2)가 VAE 기반 encoder를 일관되게 이기며, 이는 Section 3의 발견을 재확인한다.</p>
+
+<h2>5. Towards World Modeling in Unified Multimodal Models</h2>
+
+<h3>배경: Navigation World Model (NWM)</h3>
+
+<p>World modeling은 현재 상태와 행동으로부터 미래 시각 상태를 예측하는 과제이다. Navigation World Model (NWM, Bar et al., 2025)은 egocentric 로봇 내비게이션 환경에서 State$_t$ + Action → State$_{t+1}$을 예측한다. 기존 NWM은 navigation action(이동/회전 delta)을 특수한 연속 벡터로 인코딩하고 별도의 action-specific adapter를 도입한다.</p>
+
+<p>이 연구는 action을 일반 텍스트 토큰(숫자 문자열)으로 직접 표현하여, 아키텍처 변경 없이 통합 multimodal 모델 안에서 I + T → I 예측으로 프레이밍한다. 직관적으로, "action: dx=+4.96, dy=+1.50, dyaw=+0.51, rel_t=0.19"와 같은 텍스트를 행동 명령으로 사용한다.</p>
+
+<h3>5.1 실험 프로토콜</h3>
+
+<p>Egocentric 로봇 내비게이션 데이터셋(SCAND, RECON)으로 학습. 평가는 Cross-Entropy Method (CEM)으로 zero-shot planning: N=120 candidate action sequence를 8-step horizon에서 샘플링하고, 예측된 최종 프레임과 목표 이미지 간 LPIPS distance를 최소화한다. 보고 지표: ATE (Absolute Trajectory Error), RPE (Relative Pose Error).</p>
+
+<h3>5.2 World Modeling Emerges from Multimodal Pretraining</h3>
+
+<blockquote>
+<p><strong>[Figure 12 설명]</strong>: NWM 데이터 50B 단독 대비, 범용 비디오/텍스트/이미지-텍스트를 보충하면 ATE와 RPE 모두 개선된다. 특히 순수 비디오를 추가할 때 가장 큰 이득이 있다. 이는 world modeling이 도메인 특화 데이터보다 범용 multimodal pretraining에서 더 많이 획득됨을 시사한다.</p>
+</blockquote>
+
+<blockquote>
+<p><strong>[Figure 13 설명]</strong>: 총 200B 토큰 학습 예산에서 NWM 데이터 비율을 0.1%~25%로 변화시킨 결과, ##1% 수준에서 이미 성능이 포화##한다. 핵심 world modeling 능력은 범용 pretraining에서 대부분 학습되고, 도메인 데이터는 최소한의 정렬(alignment)만 제공하면 된다.</p>
+</blockquote>
+
+<h3>5.3 Free-form Language as Actions</h3>
+
+<p>Action을 텍스트로 표현하기 때문에, WASD 스타일 키보드 명령뿐만 아니라 자유형 자연어 명령(예: "get out of the shadow!", "go on the road")도 action으로 사용 가능하다. 이는 학습 데이터에 없는 out-of-distribution 명령이지만, multimodal pretraining에서 얻은 semantic 이해가 성공적으로 전이된다.</p>
+
+<h2>6. Unified Multimodal Architecture Design</h2>
+
+<h3>이 섹션이 답하려는 핵심 질문</h3>
+<ol>
+  <li>MoE가 고정된 modality-specific FFN보다 효과적으로 modality 간 capacity를 분배할 수 있는가?</li>
+  <li>Expert granularity, sparsity, shared expert 전략의 최적 설계는?</li>
+  <li>MoE가 학습하는 전문화 패턴은 어떤 모습인가?</li>
+</ol>
+
+<h3>6.1 MoE Design Space 탐색</h3>
+
+<p><strong>Expert Granularity ($G$)</strong>: 모델 차원 $d_{\text{model}}$과 expert 차원 $d_{\text{expert}}$의 비율로 정의된다:</p>
+
+$$G = \frac{4 d_{\text{model}}}{d_{\text{expert}}}. \tag{4}$$
+
+<p>직관적으로, $G$가 커지면 각 expert의 크기는 작아지고 활성 expert 수는 늘어난다. $G=1$은 16개의 큰 expert($d=8192$)에 Top-1 routing이고, $G=64$는 1024개의 작은 expert($d=128$)에 Top-64 routing이다.</p>
+
+<blockquote>
+<p><strong>[Figure 15 설명]</strong>: $G$를 1에서 16까지 올리면 모든 메트릭이 개선된다. 특히 비전은 $G=4$에서, 언어는 $G=16$에서 포화된다. 즉, ##언어가 fine-grained routing에서 더 많은 이득을 얻는다##. 이후 실험에서 $G=16$을 채택한다.</p>
+</blockquote>
+
+<p><strong>Sparsity (총 expert 수 확장)</strong>: 활성 expert 수(16개, hidden dim 512)를 고정하고 총 expert 수를 32에서 1008까지 늘린다. Active ratio는 50%에서 1.6%로 감소한다.</p>
+
+<blockquote>
+<p><strong>[Figure 16 설명]</strong>: 총 expert가 늘어날수록(즉, sparsity가 높아질수록) 텍스트 PPL은 낮아지고, diffusion loss는 감소하고, GenEval 점수는 높아진다 — 모두 고정된 active compute에서. 이는 MoE가 언어에서뿐 아니라 통합 multimodal pretraining으로도 확장됨을 확인한다.</p>
+</blockquote>
+
+<p><strong>Prediction target</strong>: RAE(SigLIP 2)에서는 $x$-prediction이 $v$-prediction보다 모든 granularity에서 이미지 생성에서 우수하면서 언어에 미미한 영향을 미친다. VAE(FLUX.1)에서는 반대로 $v$-prediction이 안정적이다. 저차원 representation에서 expert 차원이 작아지면 $x$-pred이 manifold 가정을 활용하여 더 효과적이라는 가설이다.</p>
+
+<p><strong>Shared Expert 전략</strong>:</p>
+
+<table>
+  <tr><th>Configuration</th><th>DCLM PPL ↓</th><th>Notes PPL ↓</th><th>Diff. Loss ↓</th><th>GenEval ↑</th></tr>
+  <tr><td>No Shared Expert</td><td>14.802</td><td>27.392</td><td>0.484</td><td>0.360</td></tr>
+  <tr><td>Global Shared Expert</td><td>14.794</td><td>27.249</td><td>0.483</td><td>0.364</td></tr>
+  <tr><td>Per-Modality Shared Expert</td><td><strong>14.785</strong></td><td><strong>27.161</strong></td><td><strong>0.483</strong></td><td><strong>0.367</strong></td></tr>
+</table>
+
+<p>Per-Modality Shared Expert (텍스트용 1개 + 비전용 1개를 항상 활성)가 모든 메트릭에서 최선이다. 서로 다른 modality가 전용 capacity로부터 이득을 얻는다는 것을 시사한다.</p>
+
+<h3>6.2 Emergent Expert Specialization</h3>
+
+<p>13.5B 파라미터 MoE 모델(1.5B active, $G=16$, 256 experts, SigLIP 2, $x$-pred)을 1T 토큰으로 학습한 후, expert 할당을 분석한다.</p>
+
+<p><strong>Modality 전문화가 자연 발생한다</strong>: 각 expert를 DCLM(텍스트)과 CC12M(이미지) 토큰에 대한 routing 선호도로 Text/Vision/Multimodal로 분류하면, ##모델이 보조 load-balancing loss에도 불구하고 텍스트에 현저히 더 많은 expert를 할당##한다. 이는 Section 7의 scaling law와 일치: 언어는 parameter-hungry, 비전은 data-hungry이므로 모델이 자연스럽게 언어에 더 많은 capacity를 할당한다.</p>
+
+<blockquote>
+<p><strong>[Figure 18 설명]</strong>: 레이어별 expert 구성 — 초기 레이어는 텍스트 전문 expert가 지배적이고, 후기 레이어로 갈수록 비전/multimodal expert 비율이 증가한다. 모델이 "먼저 각 modality를 전용 파라미터로 처리하고, 후에 깊은 레이어에서 융합하는" separate-then-integrate 전략을 학습한다.</p>
+</blockquote>
+
+<p><strong>Vision expert는 범용적이다</strong>: Diffusion noise schedule의 timestep에 따라 전문화가 일어나는지 검증한 결과, CV 점수가 0.15 근처에 분포하여 ##시각 expert는 timestep에 특화되지 않는다## — 동일한 expert가 전체 생성 과정을 처리한다.</p>
+
+<p><strong>이해와 생성이 같은 expert를 공유한다</strong>: Image generation(T→I)과 image understanding(I→T)의 expert 선택 패턴 간 Pearson 상관관계가 모든 레이어에서 $r \geq 0.90$으로 매우 높다. 즉, 학습 가능한 capacity 분리를 통해 모델이 진정한 통합 visual representation에 수렴한다.</p>
+
+<h3>6.3 Stacking Design Choices</h3>
+
+<p>각 설계 축을 순차적으로 쌓아 올리며 누적 효과를 검증한다:</p>
+
+<blockquote>
+<p><strong>[Figure 21 설명]</strong>: Transfusion 베이스라인(PPL 15.93, DPG 0.45)에서 시작하여 modality-specific FFN(15.13, 0.47) → SigLIP 2 encoder(15.06, 0.57) → MoE(12.49, 0.63)로 점진적으로 개선된다. $x$-pred 전환 시 PPL은 12.69로 약간 상승하지만 DPG가 0.63→0.65로 생성 품질이 추가 개선되어, 최종적으로 가장 균형 잡힌 구성을 달성한다.</p>
+</blockquote>
+
+<p>Mixture-of-Transformers (MoT, Liang et al., 2024)와도 비교한다. MoT는 attention block까지 분리하는 deep separation인 반면, MoE는 데이터 기반 분리이다. MoE(PPL 12.49, DPG 0.63)가 MoT(14.74, 0.58)와 dense(15.06, 0.57) 모두를 능가하며, 이는 학습 기반 routing이 hand-crafted 분리 전략보다 우수함을 보여준다 — "bitter lesson"과 일치한다.</p>
+
+<p><strong>Knowledge-informed generation (WISE 벤치마크)</strong>: Semantic encoder(SigLIP 2)와 MoE 조합이 Biology, Chemistry, Physics 등 지식 카테고리에서 VAE 기반 모델 대비 3~4배 높은 WISE 점수를 달성한다. MoE가 언어에서 학습한 semantic prior를 시각 생성에 효과적으로 전달한다.</p>
+
+<h2>7. Scaling Laws for Unified Multimodal Models</h2>
+
+<h3>IsoFLOP 방법론</h3>
+
+<p>Chinchilla 스타일 분석을 수행한다. 고정된 compute budget $C$에서 모델 크기 $N$과 토큰 수 $D$를 sweep하며, $6ND \approx C$ (dense) 또는 $6N_{\text{active}}D \approx C$ (MoE). 언어(DCLM val)와 비전(CC12M val) 각각의 validation loss에 대해 $N_{\text{opt}}(C)$와 $D_{\text{opt}}(C)$를 추정하고, power-law $N_{\text{opt}} \propto C^a$, $D_{\text{opt}} \propto C^b$ (where $a + b = 1$)를 피팅한다.</p>
+
+<h3>Dense 모델의 Scaling Law</h3>
+
+<blockquote>
+<p><strong>[Figure 23 설명]</strong>: IsoFLOP 곡선과 피팅 결과. 언어에서 $a \approx 0.47$, $b \approx 0.53$으로 Chinchilla와 거의 동일한 균형 배분. 비전에서 $a \approx 0.37$, $b \approx 0.63$으로 ##비전이 언어보다 현저히 data-hungry##하다.</p>
+</blockquote>
+
+<p>이 비대칭은 실질적 딜레마를 만든다. 모델 크기에 직접 연결하면, 비전에 필요한 최적 데이터 대 언어 최적 데이터의 비율이 $\mathcal{O}(N^{0.57})$로 증가한다. 1B 모델에서 14배, 1T 모델에서 51배의 격차가 벌어진다. 즉, 언어를 과도하게 overtrain하거나 비전을 under-train하는 trade-off가 불가피하다.</p>
+
+<p><strong>Compute efficiency</strong>: $L(C) = A \cdot C^{-\alpha} + E$ 피팅 결과, 통합 multimodal 모델이 Text-Only와 T2I-Only 단일 모달 베이스라인 모두를 넘거나 동등하게 맞춘다. 비전에서는 통합 모델이 T2I-Only를 능가하여, 언어 학습이 생성 품질을 개선하는 보완 신호를 제공함을 시사한다.</p>
+
+<h3>MoE 모델의 Scaling Law</h3>
+
+<p>Sparsity ratio 16(총 expert가 active의 16배)인 MoE에서:</p>
+
+<ul>
+  <li><strong>언어</strong>: $a \approx 0.41$, $b \approx 0.59$ — dense 대비 data exponent가 0.53 → 0.59로 증가</li>
+  <li><strong>비전</strong>: $a \approx 0.36$, $b \approx 0.64$ — dense와 유사</li>
+</ul>
+
+<p>##MoE가 parameter scaling exponent 격차를 0.10(dense)에서 0.05로 절반으로 줄인다##. 언어의 data exponent가 비전 쪽으로 이동하여 두 modality의 scaling 행태가 더 유사해진다. Sparsity가 효율성 이상의 역할을 하며, 근본적으로 서로 다른 scaling 행태를 가진 modality들이 공존할 수 있는 구조적 유연성을 제공한다.</p>
+
+<p><strong>MoE Compute Efficiency</strong>: MoE 통합 모델은 전체 compute 범위에서 단일 모달 MoE 베이스라인을 closely 추적한다. $10^{21}$ FLOPs에서 DCLM PPL 12.3 (vs 12.0 MoE Text-Only), FID 39.2 (vs 39.8 MoE T2I-Only)로, 단일 모델이 양쪽 단일 모달 성능에 근접한다.</p>
+
+<h2>8. Related Work</h2>
+
+<p><strong>Multimodal pretraining</strong>: Transfusion(Zhou et al., 2025a)과 Janus 시리즈(Wu et al., 2025; Ma et al., 2025), Show-o(Xie et al., 2025b), Emu3(Wang et al., 2024) 등이 단일 transformer로 언어와 비전을 통합한다. 이 연구는 이들의 설계 공간을 체계적으로 탐구하고, hand-crafted 분리 대신 MoE로 데이터 기반 최적 분리를 학습할 것을 제안한다.</p>
+
+<p><strong>Visual representations</strong>: 이해는 SigLIP, DINOv2 같은 semantic latent, 생성은 VAE latent를 사용하는 것이 관행이었다. 이 연구는 RAE(semantic latent)가 생성에서도 VAE 이상이며, MoE 분석에서 같은 expert가 이해와 생성 모두에 활성화됨을 보여 이 이분법에 의문을 제기한다.</p>
+
+<p><strong>Scaling laws</strong>: Chinchilla(Hoffmann et al., 2022)의 compute-optimal 방법론을 multimodal 설정으로 확장하여, 비전-언어 간 scaling 비대칭을 최초로 정량적으로 분석한다.</p>
+
+<h2>9. Discussion</h2>
+
+<h3>핵심 논점 정리</h3>
+
+<p><strong>단일 visual representation으로 충분하다</strong>: RAE(SigLIP 2)가 이해와 생성 모두에서 뛰어나며, MoE 분석에서 같은 expert가 양쪽 task에 활성화된다. 이 수렴은 인간 prior 없이 순수하게 데이터에서 학습된 것이다.</p>
+
+<p><strong>Modality competition은 대체로 해결 가능하다</strong>: "modality tax"의 실제 원인은 두 가지이다: (1) image caption의 분포적 차이(비전 자체가 아님), (2) dense 모델의 고정된 capacity 분배(modality-specific FFN이 부분적으로, MoE가 완전히 해결). 순수 비디오 데이터는 언어에 보완적이며, 다양한 multimodal pretraining이 VQA와 world modeling에 시너지를 제공한다.</p>
+
+<p><strong>MoE의 효과적이고 효율적인 scaling</strong>: 높은 granularity($G=16$)와 visual representation에 맞는 prediction target이 필수적이다. IsoFLOP 분석은 dense 모델에서 비전-언어 간 근본적 scaling 비대칭을 드러내며, MoE가 이를 완화하는 구조적 해결책임을 보여준다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>체계적 실험 설계</strong>: From-scratch training으로 confounding variable을 제거하고, 한 번에 하나의 변수만 변경하는 통제된 ablation이 매우 설득력 있다.</li>
+  <li><strong>광범위한 탐색 축</strong>: Visual representation, 데이터 구성, 아키텍처, scaling law를 모두 다루며, 각 선택이 누적적으로 쌓이는 것을 Figure 21에서 검증한다.</li>
+  <li><strong>Scaling law의 modality 비대칭 발견</strong>: Dense 모델에서 비전의 data exponent가 언어보다 크다는 정량적 발견과, MoE가 이를 완화한다는 통찰은 향후 대규모 multimodal 모델 설계에 직접적 가이드를 제공한다.</li>
+  <li><strong>MoE 전문화 분석</strong>: Emergent specialization과 understanding-generation expert 공유(r ≥ 0.90)에 대한 정밀한 분석이 인상적이다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Scale 한계</strong>: 대부분의 실험이 1.5B~2.3B active 파라미터 규모에서 수행되었다. 7B+ 규모에서 동일한 결론이 유지되는지 직접적 검증이 없다.</li>
+  <li><strong>Interleaved data 미포함</strong>: 웹에서 흔한 interleaved image-text 데이터가 데이터 혼합 실험에서 제외되었다. 이는 실제 대규모 multimodal pretraining의 중요한 데이터 유형이다.</li>
+  <li><strong>Instruction tuning / post-training 부재</strong>: 모든 평가가 pretraining 체크포인트에서 수행된다 (VQA 제외). 실제 배포 시 instruction tuning 후의 성능 차이가 어떻게 변하는지 불확실하다.</li>
+  <li><strong>반복 실험 미보고</strong>: 표준편차/신뢰구간이 보고되지 않아, 특히 소규모 IsoFLOP 실험에서 결과의 안정성을 확인하기 어렵다.</li>
+  <li><strong>224×224 고정 해상도</strong>: 실제 이미지 생성 모델은 훨씬 높은 해상도를 사용한다. 이 연구의 생성 품질 결론이 고해상도에서도 유지되는지 확인 필요.</li>
+  <li><strong>코드/데이터 공개</strong>: Project page 존재하나, 학습 코드와 모델 weight의 완전 공개 여부가 명시되지 않았다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>RAE(SigLIP 2)를 기본 visual representation으로 채택하라</strong>: Dual-encoder(이해용 + 생성용)보다 단일 semantic encoder가 더 단순하고 더 효과적이다. VAE는 더 이상 생성 전용이 아니다.</li>
+  <li><strong>비전 데이터를 두려워하지 말라</strong>: 순수 비디오, 이미지-텍스트 데이터를 추가해도 언어 성능이 거의 저하되지 않으며, VQA/world modeling에서 명확한 시너지가 있다. "modality tax"는 주로 caption 분포 차이에서 비롯된다.</li>
+  <li><strong>MoE + 높은 granularity가 multimodal 통합의 핵심 아키텍처</strong>: Hand-crafted modality separation(modality-specific FFN, MoT)보다 데이터 기반 learned routing이 우수하다. $G=16$ 이상, per-modality shared expert가 좋은 출발점이다.</li>
+  <li><strong>비전은 data-hungry, 언어는 parameter-hungry</strong>: 이 비대칭을 인식하고 MoE로 완화할 수 있다. 대규모 multimodal 모델 설계 시 비전 데이터 budget을 언어보다 넉넉하게 잡아야 한다.</li>
+  <li><strong>범용 pretraining이 도메인 특화 학습을 대체한다</strong>: World modeling(NWM)이 1% 도메인 데이터로 포화하는 결과는, 다양한 pretraining에서 emerging capability의 가능성을 시사하며, embodied AI 연구에 중요한 함의를 가진다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
