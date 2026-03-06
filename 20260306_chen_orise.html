@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Reinforcement Learning Enhanced Full-Duplex Spoken Dialogue Language Models for Conversational Interactions</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Reinforcement Learning Enhanced Full-Duplex Spoken Dialogue Language Models for Conversational Interactions</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chen Chen, Kevin Hu, Chao-Han Huck Yang, Ankita Pasad, Edresson Casanova, Weiqing Wang, Szu-Wei Fu, Jason Li, Zhehuai Chen, Jagadeesh Balam, Boris Ginsburg</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: COLM 2025</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://openreview.net/pdf?id=QbLbXz8Idp">OpenReview</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Full-duplex SDLM (Spoken Dialogue Language Model)은 사용자와 동시에 듣고 말해야 하지만, 기존 SFT (Supervised Fine-Tuning) 방식만으로는 user barge-in(끼어들기), turn-taking(차례 넘기), backchanneling(맞장구) 같은 복잡한 대화 역학을 안정적으로 처리하지 못한다.</li>
+  <li><strong>해결</strong>: ORISE (Online Reinforcement with Interactive Speech Evaluation) — 모델이 자체 생성한 음성에 대해 VAD (Voice Activity Detection) 및 ASR (Automatic Speech Recognition) 기반 자동 reward를 부여하고, REINFORCE 알고리즘으로 대화 행동을 최적화한다.</li>
+  <li><strong>왜 작동하는가</strong>: SFT의 exposure bias(학습 시 ground truth, 추론 시 자체 생성의 불일치)를 RL의 online sampling으로 해소하며, rule-based reward가 인간 annotation 없이 대화 품질을 측정하여 unseen noise 환경에도 비지도 적응이 가능하다.</li>
+  <li><strong>비유</strong>: SFT가 "정답 대본을 외우는 연습"이라면, ORISE는 "실제 무대에서 즉흥 연기를 하면서 관객 반응(자동 reward)을 보고 연기를 개선하는 과정"이다. 대본에 없는 상황(소음, 끼어들기)에도 유연하게 대응할 수 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Full-duplex SDLM을 위한 최초의 RL 최적화 방법</strong>: ORISE는 자동 annotation 기반 reward로 자체 생성 샘플을 평가하여, ##SFT의 exposure bias를 해소하는 최초의 full-duplex 전용 RL 프레임워크##이다.</li>
+  <li><strong>Moshi 대비 1/6 파라미터로 우수한 대화 행동</strong>: 1.1B TinyLlama 기반 SDLM이 turn-taking latency 0.43초, barge-in accuracy 96.8%, backchannel accuracy 95.7%를 달성하며 Moshi(7B)를 능가한다.</li>
+  <li><strong>Unseen noise에 대한 비지도 적응</strong>: ORISE는 labeled data 없이 배경 소음 환경에서 turn-taking과 barge-in 성능 저하를 효과적으로 완화하여 실세계 배포 가능성을 보여준다.</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<h3>배경: Half-duplex vs Full-duplex SDLM</h3>
+
+<p>기존 SDLM은 대부분 <strong>half-duplex</strong> 방식으로, 사용자 입력을 한 세그먼트씩 처리한 뒤 응답을 생성한다. "듣기"와 "말하기" 모드를 엄격히 교대하므로, 실제 인간 대화에서 흔히 발생하는 복잡한 대화 역학을 처리하기 어렵다.</p>
+
+<p><strong>Full-duplex SDLM</strong>은 사용자 음성을 streaming으로 수신하면서 동시에 에이전트 음성을 생성한다. 이 동시적 입출력 모델링으로 세 가지 핵심 대화 행동을 처리해야 한다:</p>
+
+<ul>
+  <li><strong>User barge-in</strong>: 사용자가 에이전트의 발화 중 끼어들면, 에이전트가 즉시 발화를 중단하고 listening 모드로 전환해야 한다.</li>
+  <li><strong>Turn-taking</strong>: 사용자 발화가 끝나면 적절한 시점에 에이전트가 응답을 시작해야 한다.</li>
+  <li><strong>Backchanneling</strong>: 사용자의 짧은 맞장구("yeah", "Mm-hmm" 등)나 제3자 음성에 의해 에이전트가 부적절하게 발화를 중단하면 안 된다.</li>
+</ul>
+
+<p>추가로 배경 소음에 대한 robustness도 필수적이다.</p>
+
+<h3>SFT의 한계와 RL의 동기</h3>
+
+<p>SFT는 teacher-forcing으로 학습하여, 학습 시에는 ground truth 이전 토큰을 보지만 추론 시에는 자체 생성한 토큰을 보는 <strong>exposure bias</strong> 문제가 있다. 이는 sequence generation 분야에서 오래된 문제로(Bahdanau et al., 2016; Rennie et al., 2017; He et al., 2019b), 특히 long-sequence 생성인 음성 대화에서 누적 오류가 심각해진다. ORISE는 이 불일치를 RL의 online sampling으로 해결한다.</p>
+
+<h2>2. Related Work</h2>
+
+<h3>2.1 Full-Duplex Spoken Dialogue Language Models</h3>
+
+<p>Full-duplex 모델은 크게 두 유형으로 나뉜다:</p>
+
+<ul>
+  <li><strong>Cascaded 방식</strong>: 음성→텍스트→LLM→텍스트→음성으로 파이프라인 구성. Freeze-Omni(Wang et al., 2024c), MiniCPM-Duplex(Zhang et al., 2024c) 등이 해당. 별도의 STT/TTS 컴포넌트에 여전히 의존한다.</li>
+  <li><strong>End-to-end 방식</strong>: User/agent 두 채널을 jointly 처리. dGSLM(Nguyen et al., 2023)은 Siamese network + cross-attention, Moshi(Défossez et al., 2024)는 parallel stream으로 speaker/listener 분리, SyncLLM(Veluri et al., 2024)은 time-synchronous decoding, OmniFlatten(Zhang et al., 2024b)은 speech+text 시퀀스를 flatten. 기타 SALMONN-omni, MinMo, Parrot 등.</li>
+</ul>
+
+<h3>2.2 Reinforcement Learning in Language Generation</h3>
+
+<p>RL 기반 최적화는 LLM 이전에도 ASR(Prabhavalkar et al., 2018), image captioning(Rennie et al., 2017), machine translation(Bahdanau et al., 2016) 등에 적용되어 왔다. LLM 시대에는 RLHF(Ouyang et al., 2022)가 주류이며, DPO(Rafailov et al., 2024)와 같은 implicit reward 방식도 등장했다. 이 연구는 인간 annotation 대신 ##자동화된 rule-based reward를 SDLM에 최초로 적용##한다.</p>
+
+<h2>3. Speech to Speech (S2S) Full-Duplex Modeling</h2>
+
+<h3>모델 아키텍처 개요</h3>
+
+<p>User stream $X$(potentially noisy)가 주어지면, duplex S2S 모델 $\theta$가 text 출력 $Y^1$과 speech 출력 $Y^2$를 동시에 streaming 예측한다:</p>
+
+$$P_\theta(Y^1, Y^2 \mid X) = \prod_{t=1}^{T} P\left[\langle y_t^1, y_t^2 \rangle \mid y_{<t}^1, y_{<t}^2, X_{\leq t}\right], \tag{1}$$
+
+<p>직관적으로, 매 time step $t$마다 모델은 (1) 지금까지의 user stream $X_{\leq t}$, (2) 이전 자체 생성 텍스트 $y_{<t}^1$, (3) 이전 자체 생성 speech $y_{<t}^2$를 조건으로 다음 텍스트 토큰과 speech 토큰을 동시에 예측한다.</p>
+
+<blockquote>
+<p><strong>[Figure 3 설명]</strong>: Full-duplex 모델 구조. 왼쪽: Streaming speech encoder가 user stream을 실시간으로 continuous embedding $X'$로 변환하고, causal mask와 함께 text-based LLM에 입력된다. LLM은 text channel과 audio channel을 동시에 예측한다. 오른쪽: Audio-text alignment — 텍스트 토큰($T_1 \sim T_3$) 뒤에 <code>&lt;pad&gt;</code> 토큰이 이어져 음성 토큰과 길이를 맞추며, 텍스트가 audio보다 1 토큰 앞서 예측된다.</p>
+</blockquote>
+
+<div class="flow-diagram">User speech stream X → [Streaming Speech Encoder (100M params, 80ms context)]
+  → continuous embeddings X' ∈ R^(T×d₁)
+  → projection layer → fuse with (y^1_{t-1}, y^2_{t-1})
+  → [Text-based LLM (TinyLlama 1.1B)] with causal mask
+  → hidden representation h_t
+    → original linear layer → text logits (vocab v₁)    → Y¹ (text)
+    → K parallel linear layers → audio logits (vocab v₂) → Y² (speech, K codebooks)</div>
+
+<h3>핵심 설계 요소</h3>
+
+<p><strong>Speech Tokenization</strong>: NanoCodec(Anonymous, 2025)을 사용하며, FSQ (Finite Scalar Quantization, Casanova et al., 2025)로 codebook 간 독립성을 보장한다. 0.6 kbps bitrate, $K=4$ codebook layers, 각 4,037 entries. 기존 RVQ (Residual Vector Quantization)와 달리 FSQ는 codebook 간 독립이어서 ##$K$개 codebook을 병렬 예측 가능##하여 저지연을 달성한다.</p>
+
+<p><strong>Audio-Text Alignment</strong>: Speech $Y^2$가 text $Y^1$보다 일반적으로 더 길다. 텍스트 출력 후 <code>&lt;pad&gt;</code> 토큰을 생성하여 audio와 길이를 맞추는 padding mechanism을 도입한다. Moshi처럼 word-level alignment가 필요 없고, user barge-in으로 $Y^2$가 중단되어도 생성된 $Y^1$이 다음 대화의 context로 사용 가능하다.</p>
+
+<p><strong>User Stream Perception</strong>: Pretrained 100M-parameter streaming 모델(80ms right context)에서 continuous embedding을 추출한다. Audio codec으로 discretize하는 Moshi 방식과 달리, ##continuous embedding은 end-to-end 학습이 가능하고 음향 환경의 미묘한 뉘앙스를 더 유연하게 포착##한다.</p>
+
+<p><strong>LLM Backbone</strong>: Text-based LLM의 word embedding matrix $W \in \mathbb{R}^{v_1 \times d_2}$를 $W' \in \mathbb{R}^{(v_1 + v_2 \times K) \times d_2}$로 확장하여 audio 토큰을 수용한다. Text channel에 더 높은 가중치($\lambda_1 = 3$)를 부여하고, audio channel에 1-token delay(80ms)를 두어 텍스트가 먼저 지식을 학습하도록 유도한다.</p>
+
+<p><strong>Cross-entropy 학습 loss</strong>:</p>
+
+$$\mathcal{L}_{CE} = -\sum_{t=1}^{T}\left[\lambda_1 \log p\left(y_t^1 \mid \mathbf{h}_t\right) + \lambda_2 \log p\left(y_{t-1}^2 \mid \mathbf{h}_t\right)\right] \tag{2}$$
+
+<p>$\lambda_1 = 3$, $\lambda_2 = 1$. 직관적으로, 텍스트 채널의 정확성을 우선시하면서 audio는 한 스텝 뒤따르게 하여, 텍스트에서 학습된 지식이 음성 생성을 가이드한다.</p>
+
+<h3>S2S Training Data</h3>
+
+<p>기존 공개 대화 데이터셋(Fisher 등)만으로는 부족하여, 다양한 합성 대화 데이터를 구축한다:</p>
+
+<table>
+  <tr><th>Task</th><th>Dataset</th><th>시간</th><th>Speech</th><th>Multi-turn</th><th>Barge-in</th></tr>
+  <tr><td rowspan="4">Spoken QA</td><td>ASR-QA</td><td>20k hr</td><td>Mix (real+TTS)</td><td>Augment</td><td>✗</td></tr>
+  <tr><td>MS MARCO</td><td>0.2k hr</td><td>TTS</td><td>Augment</td><td>✗</td></tr>
+  <tr><td>Alpaca</td><td>0.2k hr</td><td>TTS</td><td>Augment</td><td>✗</td></tr>
+  <tr><td>Internal SFT</td><td>3k hr</td><td>TTS</td><td>Real</td><td>✓</td></tr>
+  <tr><td rowspan="2">Conversation</td><td>UltraChat</td><td>3k hr</td><td>TTS</td><td>Augment</td><td>✓</td></tr>
+  <tr><td>Topic</td><td>0.3k hr</td><td>TTS</td><td>Augment</td><td>✓</td></tr>
+</table>
+
+<p>Multi-speaker TTS 모델(Hussain et al., 2025)로 Alpaca, MS-MARCO 등 text 데이터를 음성화하고, Mistral LLM으로 추가 QA 세트를 구성한다. 학습 레이블에 Δ=0.64초 offset을 삽입하여 자연스러운 turn-taking/barge-in 타이밍을 학습한다.</p>
+
+<h2>4. Online Reinforce with Interactive Speech Evaluation (ORISE)</h2>
+
+<h3>핵심 동기: SFT의 exposure bias 해소</h3>
+
+<p>SFT는 teacher-forcing으로 학습하지만, inference 시에는 자체 생성 토큰에 의존하여 오류가 누적된다. ORISE는 모델이 스스로 생성한 음성을 평가하는 RL 프레임워크로 이 불일치를 해소한다. 핵심은 ##인간 annotation이 아닌, 자동화된 metrics $\mathcal{R}$로 생성 품질을 측정##하는 것이다.</p>
+
+<p>최적화 목표:</p>
+
+$$\mathbb{E}_{X \in \mathcal{D}, Y^1, Y^2 \in \pi_\theta}\left[\mathcal{R}(X, Y^1, Y^2)\right] - \beta \mathbb{D}_{\text{KL}}(\pi_\theta(\langle Y^1, Y^2 \rangle | X) \| \pi_{\text{ref}}(\langle Y^1, Y^2 \rangle | X)), \tag{3}$$
+
+<p>여기서 $\pi_{\text{ref}}$는 reference model(SFT 모델의 복제본), $\beta$는 KL divergence 가중치(= 0.2)로 policy가 reference에서 급격히 벗어나는 것을 방지한다.</p>
+
+<h3>3가지 자동 Reward 기준</h3>
+
+<p><strong>$\mathcal{C}_1$: Turns Consistency (턴 일관성)</strong></p>
+
+<p>Multi-turn 대화에서 에이전트 응답 턴 수가 사용자 턴 수와 일치해야 한다(backchannel 턴 제외). VAD 모델(Silero, 2024)로 $Y^2$의 턴 수를 검출한다:</p>
+
+$$\mathcal{R}_1 = -|\text{Number of turns}(X) - \text{Number of turns}(Y^2)|$$
+
+<p>직관적으로, 사용자가 3번 말했으면 에이전트도 3번 응답해야 하며, 불필요한 추가 발화나 누락이 있으면 패널티를 준다.</p>
+
+<p><strong>$\mathcal{C}_2$: Conversational Behavior (대화 행동)</strong></p>
+
+<p>사용자 음성 세그먼트의 끝 timestamp $t'$와 agent의 speaking state(1=말하는 중, 0=침묵)를 기반으로 세 가지 바람직한 행동을 정의한다:</p>
+
+<table>
+  <tr><th>Index</th><th>User Intent</th><th>Transition</th><th>Agent Behavior</th><th>Reward</th></tr>
+  <tr><td>$\mathcal{C}_{2\text{-}1}$</td><td>Normal query</td><td>0 → 1</td><td>$\Delta t_1$ 이내에 turn-taking</td><td>-</td></tr>
+  <tr><td>$\mathcal{C}_{2\text{-}2}$</td><td>Barge-in</td><td>1 → 0</td><td>$\Delta t_2$ 이내에 발화 중단</td><td>1</td></tr>
+  <tr><td>$\mathcal{C}_{2\text{-}3}$</td><td>Backchanneling</td><td>1 → 1</td><td>$t' + \Delta t_3$까지 발화 지속</td><td>1</td></tr>
+</table>
+
+<p>$\mathcal{R}_2 = \mathbb{I}[\mathcal{C}_{2\text{-}2}] + \mathbb{I}[\mathcal{C}_{2\text{-}3}]$: barge-in과 backchannel 조건이 전체 대화에서 만족되면 각각 1점. VAD 모델로 생성된 음성 $Y^2$를 분석하여 ground truth 없이 자동 판정한다.</p>
+
+<p><strong>$\mathcal{C}_3$: Text-Speech Alignment (텍스트-음성 정합성)</strong></p>
+
+<p>텍스트 $Y^1$과 음성 $Y^2$를 독립 생성하므로 내용이 일치해야 한다. ASR 모델(Galvez et al., 2024)로 $Y^2$를 transcribe한 뒤, 예측된 텍스트 $Y^1$과의 WER (Word Error Rate)을 계산한다. 단, user barge-in으로 중단되지 않은 샘플에만 적용한다(중단 시 $Y^1$이 $Y^2$보다 더 많은 내용을 포함할 수 있으므로).</p>
+
+<p>최종 reward: $\mathcal{R} = \mathcal{R}_1 + \mathcal{R}_2 + \mathcal{R}_3$ (Eq. 6)</p>
+
+<h3>ORISE 최적화 알고리즘</h3>
+
+<p>REINFORCE(Williams, 1992)를 online sampling으로 적용한다. User input $X$에 대해 $N$개 샘플 $\langle \hat{Y}^1, \hat{Y}^2 \rangle$를 online decoding으로 생성하고:</p>
+
+$$\mathcal{L} = -\frac{1}{N}\sum_{n=1}^{N}\left[\left(\lambda_1 P_\theta(\hat{Y}_n^1 \mid X) + \lambda_2 P_\theta(\hat{Y}_n^2 \mid X)\right) \mathcal{A}_n - \beta \mathbb{D}_{\text{KL}}(\pi_\theta \| \pi_{\text{ref}})\right], \tag{4}$$
+
+<p>여기서 advantage $\mathcal{A}_n$은:</p>
+
+$$\mathcal{A}_n = \frac{\mathcal{R}(X, \hat{Y}_n^2) - \text{mean}(\mathcal{R}(X, \hat{Y}^2))}{\text{std}(\mathcal{R}(X, \hat{Y}^2))}, \tag{5}$$
+
+<p>직관적으로, 같은 user input에 대해 여러 응답을 생성하고, 평균보다 높은 reward를 받은 응답의 확률은 높이고, 낮은 reward를 받은 응답의 확률은 낮춘다. KL term은 Schulman(2020)의 근사를 사용한다.</p>
+
+<div class="flow-diagram">Algorithm 1: ORISE
+─────────────────────────────────────
+Require: SFT model π_θ, VAD model ϕ, Unlabeled dataset D = {X_i, t'_i}
+1: Duplicate π_θ → reference model π_ref
+2: for each training step do
+3:   Sample user input X
+4:   Obtain N pairs ⟨Y¹, Y²⟩ via online sampling from π_θ
+5:   Calculate reward R_n for Y²_n using ϕ and states of X
+6:   Compute loss L (Eq. 4)
+7:   Update: θ ← θ − η∇_θ L
+8: end for
+9: return Optimized model θ</div>
+
+<p>Reward가 $Y^2$ 기반이지만, 텍스트 채널 $Y^1$이 speech보다 1 토큰 앞서 예측되므로 $Y^1$의 행동도 대체로 일관성을 유지한다.</p>
+
+<h2>5. Experimental Setup</h2>
+
+<h3>5.1 Dataset</h3>
+
+<p><strong>Training Data</strong>: Multi-speaker TTS 모델로 Alpaca, MS-MARCO 등을 음성화. ASR-QA(20k hr)는 real + TTS 혼합. UltraChat(3k hr)과 Topic(0.3k hr)은 multi-turn 대화용.</p>
+
+<p><strong>Background Noise</strong>: WHAM!(Wichern et al., 2019) 데이터셋을 user channel에 동적 혼합. SNR 10~30 dB 범위에서 랜덤 샘플링. Unseen noise 테스트용으로 MUSAN(Snyder et al., 2015) 사용.</p>
+
+<p><strong>User Backchannel</strong>: GPT-4o로 20개 맞장구 문구 생성 → LibriTTS 200명 화자와 조합 → multi-speaker TTS로 4,000개 backchannel audio 합성. 에이전트 응답 시작 후 4초 이상 침묵 구간에 랜덤 삽입 (삽입 시점: 에이전트 발화 시작 후 ≤2초).</p>
+
+<h3>5.2 Training Details</h3>
+
+<ul>
+  <li><strong>Framework</strong>: PyTorch + NeMo Toolkit</li>
+  <li><strong>Hardware</strong>: 32× A100 (80GB) GPU</li>
+  <li><strong>Batch</strong>: GPU당 1000초 audio</li>
+  <li><strong>Speech encoder</strong>: 100M-parameter streaming pretrained model (80ms right context)</li>
+  <li><strong>LLM backbone</strong>: 1.1B TinyLlama(Zhang et al., 2024a)에서 초기화</li>
+  <li><strong>Tokenizer</strong>: 32k SentencePiece (text) + 0.6 kbps NanoCodec, 4 codebook layers × 4,037 entries (speech)</li>
+  <li><strong>Loss weights</strong>: $\lambda_1 = 3$ (text), $\lambda_2 = 1$ (speech)</li>
+  <li><strong>Optimizer</strong>: FusedAdam, inverse square root annealing, peak LR 3e-4 (SFT) / 1e-5 (RL)</li>
+  <li><strong>Gradient clipping</strong>: 1.0, $\beta$ (KL weight) = 0.2</li>
+  <li><strong>RL baselines</strong>: DPO(Rafailov et al., 2024), IPO(Azar et al., 2024), KTO(Ethayarajh et al., 2024)</li>
+</ul>
+
+<h3>5.3 Evaluation Metrics</h3>
+
+<ul>
+  <li><strong>Response Quality</strong>: GPT score (0~10, GPT-4o-mini가 agent 전체 턴의 hypothesis + reference 기반 평가), UTMOS (pretrained speech quality model)</li>
+  <li><strong>User Barge-in</strong>: <em>Impatient</em> 테스트셋 (agent 응답 시간 평균 2초, 95%에서 barge-in 발생). $\Delta t_1 = 1.5$초 이내 발화 중단 시 성공. <strong>Accuracy</strong>와 <strong>latency</strong> 보고.</li>
+  <li><strong>Backchanneling</strong>: 모든 agent 턴마다 backchannel 삽입. 1.5초 이내 발화 중단 시 실패. <strong>Accuracy</strong> 보고.</li>
+  <li><strong>Turn-taking</strong>: 사용자 발화 종료~에이전트 응답 시작 간 <strong>latency</strong>. 학습 레이블에 0.64초 delay 삽입, 추론 시 latency는 0.4~0.9초 범위에서 동적 변동.</li>
+</ul>
+
+<h2>6. Results and Analysis</h2>
+
+<h3>이 섹션이 답하려는 핵심 질문</h3>
+<ol>
+  <li>ORISE 모델이 기존 full-duplex 베이스라인(Moshi, Freeze-Omni, dGSLM) 대비 대화 행동에서 얼마나 우수한가?</li>
+  <li>RL 최적화가 SFT 대비, 그리고 DPO/IPO/KTO 대비 어떤 차이를 만드는가?</li>
+  <li>Unseen noise 환경에서 ORISE가 비지도 적응을 할 수 있는가?</li>
+</ol>
+
+<h3>6.1 Main Results — 대화 행동 비교</h3>
+
+<table>
+  <tr><th>Model</th><th>E2E</th><th>Turn-Taking Latency (s)</th><th>Barge-in Acc (%)</th><th>Barge-in Latency (s)</th><th>Backchannel Acc (%)</th><th>MOS</th></tr>
+  <tr><td>Freeze-Omni</td><td>✗</td><td>1.17*</td><td>79.5*</td><td>1.20*</td><td>-</td><td>4.3</td></tr>
+  <tr><td>dGSLM</td><td>✓</td><td>0.57</td><td>85</td><td>0.86</td><td>-</td><td>2.2</td></tr>
+  <tr><td>Moshi</td><td>✓</td><td>n.a.</td><td>55.1</td><td>0.81</td><td>-</td><td>3.9</td></tr>
+  <tr><td><strong>ORISE</strong></td><td>✓</td><td><strong>0.43</strong></td><td><strong>96.8</strong></td><td><strong>0.61</strong></td><td><strong>95.7</strong></td><td>4.2</td></tr>
+</table>
+
+<p>* 표시는 Lin et al. (2025a)에서 보고된 수치. "-"는 해당 기능 미지원.</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Turn-taking</strong>: End-to-end 모델이 cascaded(Freeze-Omni) 대비 현저히 낮은 latency. Moshi는 사용자 발화 종료 전에 응답하는 경향이 있어 "n.a." Barge-in에서 ORISE(96.8%)가 Moshi(55.1%)를 크게 앞선다. Moshi의 낮은 barge-in 정확도는 사용자 끼어들기에 적절히 반응하지 못함을 시사한다.</li>
+  <li><strong>Backchanneling</strong>: ORISE만 이 기능을 지원하며 95.7% 정확도 달성. 다른 모델은 backchannel을 처리하는 메커니즘이 없다.</li>
+  <li><strong>MOS (음질)</strong>: ORISE(4.2)가 Moshi(3.9), dGSLM(2.2)보다 높으며, Freeze-Omni(4.3)에 근접. ##Moshi 대비 1/6 파라미터(1.1B vs 7B)로 더 나은 대화 행동과 유사한 음질##을 달성한다.</li>
+</ul>
+
+<h3>Main Results — 응답 품질 (GPT Score)</h3>
+
+<table>
+  <tr><th>ID</th><th>Models</th><th>LLM Backbone</th><th colspan="3">Multiturn Conversation</th><th colspan="2">Spoken QA</th></tr>
+  <tr><th></th><th></th><th></th><th>UltraChat</th><th>Roleplay</th><th>Topic</th><th>ASR-QA</th><th>Alpaca</th></tr>
+  <tr><td>1</td><td>Moshi</td><td>Helium-7B</td><td>3.4</td><td>1.7</td><td>2.8</td><td>1.9</td><td>1.7</td></tr>
+  <tr><td>2</td><td>SFT Model</td><td>Qwen2-1.5B</td><td>3.7</td><td>3.7</td><td><strong>6.1</strong></td><td>6.3</td><td>3.3</td></tr>
+  <tr><td>3</td><td>SFT Model</td><td>TinyLLaMA-1.2B</td><td>3.5</td><td>4.6</td><td><strong>6.1</strong></td><td>7.8</td><td>2.9</td></tr>
+  <tr><td>4</td><td>SFT + ORISE</td><td>TinyLLaMA-1.2B</td><td>4.0</td><td>4.1</td><td>5.8</td><td>7.7</td><td>2.9</td></tr>
+  <tr><td>5</td><td>GT+LLM (oracle)</td><td>TinyLLaMA-1.2B</td><td>6.4</td><td>4.9</td><td>5.5</td><td>5.8</td><td>5.0</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>System ID-2 vs ID-3: 다른 LLM backbone(Qwen2 vs TinyLlama)에서도 S2S 모델링이 효과적으로 동작하여, 이 접근이 특정 backbone에 국한되지 않음을 확인한다.</li>
+  <li>System ID-3 vs ID-4: ##ORISE가 대화 행동을 개선하면서 응답 품질(GPT score)을 저하시키지 않는다##. UltraChat에서 3.5→4.0으로 오히려 개선.</li>
+  <li>System ID-4 vs ID-5 (GT+LLM oracle): 여전히 oracle cascaded 시스템과의 격차가 존재하여, S2S 모델링에서 knowledge retention이 향후 과제이다.</li>
+</ul>
+
+<h3>6.2 Effect of ORISE — RL 방법 비교</h3>
+
+<table>
+  <tr><th>Metric</th><th>Test set</th><th colspan="3">SFT Augmented by</th><th colspan="3">RL Optimization</th></tr>
+  <tr><th></th><th></th><th>0%</th><th>20%</th><th>80%</th><th>DPO</th><th>IPO</th><th>KTO</th><th>ORISE</th></tr>
+  <tr><td>BLEU</td><td rowspan="3"><em>UltraChat</em></td><td>10.5</td><td>10.0</td><td>10.1</td><td>6.2</td><td>8.3</td><td>5.5</td><td>9.8</td></tr>
+  <tr><td>Barge-in-Acc</td><td>83.0</td><td>74.1</td><td>70.7</td><td>66.9</td><td>70.9</td><td>75.5</td><td><strong>83.7</strong></td></tr>
+  <tr><td>Backchannel-Acc</td><td>-</td><td>85.8</td><td>86.4</td><td>88.0</td><td>92.7</td><td><strong>96.0</strong></td><td>95.7</td></tr>
+  <tr><td>Barge-in-Acc</td><td><em>Impatient</em></td><td>94.5</td><td>94.1</td><td>96.5</td><td>94.7</td><td>94.7</td><td>95.2</td><td><strong>96.8</strong></td></tr>
+</table>
+
+<p>"Augmented by 80%"는 SFT 학습 데이터의 80%에 backchannel을 삽입한 설정이며, RL 최적화(DPO, IPO, KTO, ORISE) 모두 이 80% augmentation SFT 모델을 시작점으로 사용한다.</p>
+
+<p><strong>핵심 발견</strong>:</p>
+
+<ul>
+  <li><strong>SFT augmentation의 trade-off</strong>: Backchannel 비율을 높이면(0% → 80%) backchannel accuracy는 개선되지만(- → 86.4%), UltraChat에서의 barge-in accuracy가 83.0% → 70.7%로 크게 하락한다. SFT만으로는 barge-in과 backchannel을 동시에 잘 처리하기 어렵다.</li>
+  <li><strong>DPO/IPO/KTO의 한계</strong>: Preference 기반 방법들은 barge-in에서 UltraChat과 Impatient 간 일관되지 않은 결과를 보인다. 특히 UltraChat의 multi-turn 대화에서 backchannel 비율이 높아지면 barge-in 성공률이 하락한다.</li>
+  <li><strong>ORISE의 균형</strong>: ##ORISE는 barge-in(83.7%, 96.8%)과 backchannel(95.7%) 모두에서 균형 잡힌 개선##을 달성하며, BLEU(9.8)도 SFT 수준을 유지하여 응답 품질 저하 없이 대화 행동을 개선한다.</li>
+</ul>
+
+<blockquote>
+<p><strong>[Figure 2 설명]</strong>: 학습 중 $-\mathcal{R}_1$ (turns consistency)과 $\mathcal{R}_2$ (backchanneling) reward의 변화. 학습 초기 $-\mathcal{R}_1$이 급격히 감소(턴 수 일관성 개선)하고, $\mathcal{R}_2$는 높은 수준을 유지한다. 이는 ORISE가 대화 행동의 여러 측면을 동시에 최적화함을 보여준다.</p>
+</blockquote>
+
+<h3>6.3 Adaptation on Unseen Noises</h3>
+
+<p>WHAM! noise로 학습한 SFT 모델을 WHAM!(seen)과 MUSAN(unseen) noise로 평가한다:</p>
+
+<table>
+  <tr><th>Noise</th><th>Model</th><th>Turn-Taking Acc (%)</th><th>Barge-in Acc (%)</th><th>Backchannel Acc (%)</th></tr>
+  <tr><td rowspan="2">WHAM!</td><td>SFT Model</td><td>79.1</td><td>62.0</td><td>94.2</td></tr>
+  <tr><td>+ORISE</td><td><strong>84.1</strong></td><td><strong>72.6</strong></td><td><strong>96.7</strong></td></tr>
+  <tr><td rowspan="2">MUSAN</td><td>SFT Model</td><td>75.4</td><td>76.3</td><td>94.3</td></tr>
+  <tr><td>+ORISE</td><td><strong>77.2</strong></td><td><strong>84.0</strong></td><td>92.5</td></tr>
+</table>
+
+<p><strong>핵심 발견</strong>:</p>
+<ul>
+  <li>Noise 도입 시 backchannel accuracy는 크게 개선(86.4% → 94%+)되는데, 이는 모델이 제3자 목소리에 둔감해지기 때문이다. 반면 turn-taking과 barge-in 성능은 현저히 저하된다.</li>
+  <li>##ORISE는 labeled data 없이 unseen noise(MUSAN)에서도 barge-in accuracy를 76.3% → 84.0%로, turn-taking을 75.4% → 77.2%로 개선##한다. Rule-based reward가 도메인 전환에도 유효하기 때문이다.</li>
+  <li>MUSAN에서 backchannel이 94.3% → 92.5%로 약간 하락하지만, 다른 행동의 개선을 고려하면 전반적으로 더 균형 잡힌 결과이다.</li>
+</ul>
+
+<h2>7. Conclusion</h2>
+
+<p>ORISE는 full-duplex SDLM을 위한 RL 최적화 프레임워크로, 자동 annotation 기반 reward로 대화 행동(turn-taking, barge-in, backchanneling)을 효과적으로 개선한다. Labeled data 없이 unseen noise에도 적응 가능하여, 실세계 conversational AI 배포에 실용적 가치를 제공한다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>실용적 문제 정의</strong>: Barge-in, turn-taking, backchanneling이라는 구체적이고 측정 가능한 대화 행동에 집중하여, 모호한 "대화 품질" 대신 명확한 개선 목표를 설정한다.</li>
+  <li><strong>자동 Reward 설계의 우아함</strong>: VAD + ASR만으로 인간 annotation 없이 reward를 구성하며, 이것이 unseen noise 적응까지 가능하게 하는 핵심 enabler이다.</li>
+  <li><strong>효율성</strong>: Moshi(7B) 대비 1/6 파라미터(1.1B)로 더 나은 대화 행동 달성. TinyLlama 기반이라 접근성이 높다.</li>
+  <li><strong>포괄적 비교</strong>: SFT augmentation 비율 변화, DPO/IPO/KTO 비교, unseen noise 실험까지 다양한 ablation을 제공한다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>소규모 모델</strong>: S2S 프레임워크가 LLM의 full fine-tuning을 요구하여 1.1B TinyLlama에 국한되어 있다. 더 큰 LLM에서의 효과가 불확실하며, GT+LLM oracle과의 격차가 여전히 크다(특히 UltraChat 4.0 vs 6.4).</li>
+  <li><strong>합성 데이터 의존</strong>: 학습 데이터 대부분이 TTS 합성. 실제 인간 대화의 다양한 prosody, 감정, 방언 등을 충분히 반영하는지 의문이다.</li>
+  <li><strong>영어 단일 언어</strong>: 다국어 환경에서의 효과가 검증되지 않았다.</li>
+  <li><strong>Reward 설계의 경직성</strong>: 3가지 rule-based reward가 대화 품질의 모든 측면을 커버하지 못한다. 감정, 화자 정체성, 상호작용 스타일 등 paralinguistic 요소가 고려되지 않는다.</li>
+  <li><strong>반복 실험 미보고</strong>: 표준편차/신뢰구간이 없어 결과의 안정성을 확인하기 어렵다.</li>
+  <li><strong>실시간 latency 분석 부재</strong>: RL online sampling의 학습 비용(시간, GPU 사용량)이 보고되지 않았다. 실제 배포 시의 inference latency도 구체적으로 분석되지 않았다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Full-duplex SDLM에서 RL은 SFT의 필수 보완재</strong>: SFT만으로는 barge-in과 backchanneling을 동시에 잘 처리하기 어려운 trade-off가 있으며, ORISE가 이를 균형 있게 해결한다.</li>
+  <li><strong>자동 Reward 설계 패턴</strong>: VAD + ASR 같은 off-the-shelf 도구로 reward를 구성하는 패턴은 음성 대화 외에도 multimodal RL에 적용 가능한 범용적 아이디어이다.</li>
+  <li><strong>Exposure bias는 음성 대화에서 특히 심각</strong>: Long-sequence generation인 음성 대화에서 SFT의 teacher-forcing과 inference 간 불일치가 누적되므로, online sampling 기반 RL이 큰 효과를 발휘한다.</li>
+  <li><strong>소규모 모델의 가능성</strong>: 1.1B 모델이 7B Moshi를 대화 행동에서 압도하는 결과는, 적절한 아키텍처 설계(streaming encoder, FSQ codec, modality-specific loss weighting)와 최적화 전략(ORISE)이 모델 크기보다 중요할 수 있음을 시사한다.</li>
+  <li><strong>Unseen domain 적응의 비지도 RL 접근</strong>: Labeled data 없이 rule-based reward만으로 새로운 noise 환경에 적응 가능하다는 결과는, 실세계 배포에서의 domain shift 문제에 대한 실용적 해법을 제시한다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
