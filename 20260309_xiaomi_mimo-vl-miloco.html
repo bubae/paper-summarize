@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Xiaomi MiMo-VL-Miloco Technical Report</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Xiaomi MiMo-VL-Miloco Technical Report</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: MiLM-Plus Xiaomi (Core: Jiaze Li, Jingyang Chen, Yuxun Qu, Jianzhong Ju, Zhenbo Luo, Jian Luan)</li>
+  <li><strong>소속</strong>: Xiaomi</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2512.17436v2)</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2512.17436">arXiv</a> · <a href="https://github.com/XiaoMi/xiaomi-mimo-vl-miloco">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 스마트홈 환경에서 일상 활동 인식과 제스처 이해를 수행하는 vision-language model (VLM)이 필요하지만, 기존 범용 VLM은 홈 시나리오에 특화되지 않았고, 프라이버시와 지연 시간 제약으로 edge device에서 동작해야 한다</li>
+  <li><strong>해결</strong>: MiMo-VL-7B backbone 위에 2단계 학습 파이프라인 — (1) Chain-of-Thought (CoT) 감독 + token-budget-aware reasoning을 활용한 SFT, (2) GRPO 기반 RL로 일반 멀티모달 능력 회복 — 을 적용하여 7B 규모의 홈 특화 VLM인 MiMo-VL-Miloco-7B를 구축</li>
+  <li><strong>왜 작동하는가</strong>: SFT가 홈 시나리오 지식을 효과적으로 주입하고, 후속 RL이 SFT로 인한 일반 능력의 catastrophic forgetting을 복구하면서도 홈 시나리오 성능을 유지하는 상보적 2단계 구조 덕분</li>
+  <li><strong>비유</strong>: 범용 의사(MiMo-VL-7B)를 가정의학 전문의로 레지던시 훈련(SFT)시킨 뒤, 범용 의학 실력이 녹슬지 않도록 인턴십 로테이션(RL)을 병행하는 것과 유사</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Edge-deployable 홈 특화 VLM</strong>: 7B 파라미터 규모로 활동 인식, 제스처 이해, 자연어 상호작용을 수행하며, ##모든 홈 시나리오 카테고리에서 Gemini-2.5-Pro를 포함한 closed-source 모델보다 높은 F1을 달성##</li>
+  <li><strong>2단계 학습 프레임워크</strong>: CoT 감독 + token-budget-aware SFT → GRPO 기반 RL with difficulty-aware filtering으로 구성된 효율적 학습 파이프라인 설계</li>
+  <li><strong>오픈 에코시스템</strong>: MiMo-VL-Miloco-7B, 양자화 GGUF 변환 모델, Gradio 데모, Xiaomi Miloco 프레임워크 통합을 모두 공개</li>
+</ol>
+
+<h2>1. Introduction — 스마트홈 VLM의 필요성</h2>
+
+<h3>배경: 스마트홈과 VLM</h3>
+<p>최근 vision-language model (VLM)은 이미지와 비디오를 인식하고 추론하는 핵심 인프라로 자리잡았다. 스마트홈 도메인에서는 단순한 "if-this-then-that" 규칙을 넘어, 사용자의 행동을 이해하고 시각적 맥락을 세밀하게 해석하며 실시간으로 안전한 판단을 내릴 수 있는 모델이 필요하다. 특히 프라이버시와 지연 시간 제약으로 인해 클라우드 추론 대신 ##edge device에서 로컬 실행 가능한 compact 모델##이 요구된다.</p>
+
+<h3>MiMo-VL-Miloco-7B의 위치</h3>
+<p>MiMo-VL-Miloco-7B는 Xiao<strong>Mi</strong> <strong>lo</strong>cal <strong>co</strong>pilot 프레임워크의 perception core로, MiMo-VL-7B를 backbone으로 활용한다. 5가지 일상 활동(Play Esports, Workout, Watch TV, Reading, Play on the Phone)과 5가지 제스처(Thumbs Up, V Sign, Open Palm, OK, Shaka Sign)를 인식한다. Xiaomi MiJIA 카메라를 visual sensor로 사용하고 IoT 생태계와 연동하여, "누군가 독서 중이면 독서등 켜기", "아기가 10시 이후에 울면 아이방 조명 10%로 낮추고 천장 스피커에서 백색소음 재생 후 부모 폰에 알림 보내기" 등의 복잡한 자동화를 가능하게 한다.</p>
+
+<h3>핵심 아이디어: 2단계 학습</h3>
+<p>홈 시나리오 지식을 주입하면서도 base model의 범용성을 유지하기 위해 2단계 접근법을 채택한다:</p>
+<ol>
+  <li><strong>Stage 1 — SFT</strong>: 홈 환경 데이터에 대해 CoT 감독과 token-budget-aware reasoning을 적용한 supervised fine-tuning</li>
+  <li><strong>Stage 2 — RL</strong>: SFT 후 퇴행한 일반 멀티모달 능력(비디오 이해, GUI grounding, 추론)을 복구하기 위한 GRPO 기반 reinforcement learning</li>
+</ol>
+
+<h2>2. Approach</h2>
+
+<h3>2.1 Supervised Fine-Tuning (SFT)</h3>
+
+<h4>2.1.1 아키텍처</h4>
+<p>MiMo-VL-Miloco-7B의 아키텍처는 세 가지 주요 컴포넌트로 구성된다:</p>
+<ol>
+  <li><strong>Vision Transformer (ViT)</strong>: native resolution을 지원하는 시각 인코더로, 비디오 프레임 또는 이미지를 visual token으로 변환</li>
+  <li><strong>MLP Projector</strong>: visual encoding을 LLM의 latent space에 정렬하는 다층 퍼셉트론 프로젝터</li>
+  <li><strong>LLM Backbone</strong>: 텍스트 이해와 추론을 담당하는 대규모 언어 모델</li>
+</ol>
+<p>세 컴포넌트 모두 MiMo-VL-7B의 사전학습 가중치로 초기화되어 멀티모달 이해/추론 능력을 상속받는다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: MiMo-VL-Miloco-7B의 전체 아키텍처 개요. 비디오 프레임(홈 장면 또는 제스처)이 ViT를 거쳐 MLP projector로 visual token이 되고, 동시에 사용자 프롬프트가 tokenizer를 통해 text token으로 변환된다. 두 종류의 token이 concatenate되어 LLM backbone에 입력되며, &lt;think&gt;...&lt;/think&gt; 과정을 거쳐 최종 응답을 생성한다.
+</blockquote>
+
+<div class="flow-diagram">비디오/이미지 → [ViT] → Visual Tokens ─┐
+                                       ├─→ [LLM Backbone] → &lt;think&gt;...&lt;/think&gt; → Response
+사용자 프롬프트 → [Tokenizer] → Text Tokens ─┘</div>
+
+<h4>2.1.2 데이터 구성</h4>
+<p><strong>홈 시나리오 데이터</strong>: 공개 데이터가 부족한 홈 활동/제스처 인식을 위해 내부 데이터 수집 파이프라인을 구축했다. 자원봉사자를 모집하여 다양한 환경 조건에서 활동과 제스처를 수행하도록 하고, 표준화된 프로토콜에 따라 수집했다. 모든 annotation은 AI 연구자의 검수를 거쳤다.</p>
+
+<p>단순 레이블 예측을 넘어 ##chain-of-thought (CoT) annotation##을 생성한다. CoT는 모델이 홈 시나리오에서의 추론 패턴을 명시적으로 학습하게 하여, 제한된 레이블 데이터로도 깊은 이해를 가능하게 한다. 한편, edge 배포 시 긴 CoT 생성의 추론 지연 문제를 해결하기 위해 ##token-budget-aware reasoning 데이터##를 도입한다. 이 데이터는 명시적 추론 단계 없이 직접 답변을 출력하도록 유도하여, 모델이 지식을 data-efficient하게 내재화하면서도 추론 속도를 유지하게 한다.</p>
+
+<p><strong>범용 데이터</strong>: MiMo-VL의 학습 corpus에서 가져온 다양한 멀티모달 데이터로, 다음 과제 유형을 포함한다:</p>
+<ul>
+  <li><strong>VQA</strong>: 범용 멀티모달 이해 강화</li>
+  <li><strong>Grounding</strong>: 일반 이미지 grounding + GUI grounding으로 cross-modal localization 향상</li>
+  <li><strong>OCR</strong>: 문서, 정보 그래픽, 차트에서의 정보 추출</li>
+  <li><strong>Video</strong>: dense captioning, temporal grounding, synthetic QA로 장시간 비디오 이해</li>
+  <li><strong>Reasoning</strong>: MiMo-VL에서 검증된 추론 데이터로 인식과 추론 능력 동시 강화</li>
+</ul>
+
+<h4>2.1.3 학습 세부사항</h4>
+<table>
+  <tr><th>항목</th><th>설정</th></tr>
+  <tr><td>Optimizer</td><td>AdamW</td></tr>
+  <tr><td>Batch size</td><td>128</td></tr>
+  <tr><td>Learning rate</td><td>$1 \times 10^{-5}$</td></tr>
+  <tr><td>Max sequence length</td><td>32,768</td></tr>
+  <tr><td>Warmup ratio</td><td>0.03</td></tr>
+  <tr><td>Fine-tuning 방식</td><td>Full-parameter (모든 파라미터 업데이트)</td></tr>
+</table>
+
+<h3>2.2 Reinforcement Learning (RL)</h3>
+
+<p><strong>문제: SFT 후 일반 능력 퇴행</strong> — SFT가 홈 시나리오 능력을 성공적으로 향상시키지만, 비디오 이해, GUI grounding, 복잡한 멀티모달 추론 등 일반 과제에서 성능 퇴행이 발생한다. 이는 continual learning에서 잘 알려진 ##catastrophic forgetting## 현상으로, 도메인 특화 지식 습득이 기존 능력을 덮어쓰는 trade-off이다. 이를 해결하기 위해 RL을 적용하여 홈 시나리오 성능을 유지하면서 일반 능력을 복구한다.</p>
+
+<h4>2.2.1 RL 데이터 구성</h4>
+<p>SFT 후 퇴행이 발생한 도메인을 체계적으로 분석하여 타겟 RL 데이터를 구성한다:</p>
+<ul>
+  <li><strong>Video Understanding</strong>: temporal grounding 과제 중심. VTG-IT, TimeIT, TimePro, HTStep, LongVid 등의 데이터 활용</li>
+  <li><strong>GUI Grounding</strong>: GUI 요소의 해석과 localization을 복구하기 위한 다출처 데이터</li>
+  <li><strong>Multimodal Reasoning</strong>: STEM 문제와 수학 관련 질의로 일반 추론 능력 보강</li>
+</ul>
+<p>Time-R1의 데이터 구성 전략에 영감을 받아, ##난이도 필터(difficulty filter)##를 적용하여 너무 쉽거나 지나치게 어려운 샘플을 제외한다. 이는 (1) 일관된 optimization gradient를 제공하여 학습을 안정화하고, (2) 홈 시나리오 지식 보존과의 간섭을 최소화하면서 수렴을 가속한다.</p>
+
+<h4>2.2.2 GRPO (Group Relative Policy Optimization)</h4>
+<p>별도의 critic model 없이 group 기반 advantage estimation을 활용하는 RL 알고리즘이다. 표준 PPO (Proximal Policy Optimization)에 비해 메모리 오버헤드와 학습 복잡도를 줄인다.</p>
+
+<p><strong>최적화 목적함수</strong>: 각 쿼리 $q$에 대해 현재 정책 $\pi_\theta$로부터 $G$개의 출력 $\{o_1, o_2, \ldots, o_G\}$를 샘플링한다:</p>
+
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q \sim P(Q), \{o_i\}_{i=1}^G \sim \pi_{\theta_{\text{old}}}} \left[ \frac{1}{G} \sum_{i=1}^{G} \left( \min\left( \frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\text{old}}}(o_i|q)} \hat{A}_i, \; \text{clip}\left(\frac{\pi_\theta(o_i|q)}{\pi_{\theta_{\text{old}}}(o_i|q)}, 1-\epsilon, 1+\epsilon \right) \hat{A}_i \right) - \beta \mathbb{D}_{\text{KL}}(\pi_\theta || \pi_{\text{ref}}) \right) \right] \tag{1}$$
+
+<p>직관적으로 말하면, PPO처럼 정책 비율을 clipping하여 과도한 업데이트를 방지하되, 별도의 value network 대신 그룹 내 상대적 보상으로 advantage를 추정한다. $\epsilon$은 clipping 범위, $\beta$는 KL-divergence 페널티 하이퍼파라미터이다.</p>
+
+<p><strong>Advantage 추정</strong>: 그룹 내 보상의 평균과 표준편차를 baseline으로 사용하여 정규화한다:</p>
+
+$$\hat{A}_i = \frac{r_i - \text{mean}(\{r_1, \ldots, r_G\})}{\text{std}(\{r_1, \ldots, r_G\})} \tag{2}$$
+
+<p>즉, 그룹 내에서 평균보다 좋은 응답은 양의 advantage, 나쁜 응답은 음의 advantage를 받아 상대적 비교를 통해 학습한다.</p>
+
+<h4>보상 설계 (Reward Modeling)</h4>
+<p>모든 과제에 대해 정확도 보상 $r_{\text{acc}}$와 형식 준수 보상 $r_{\text{fmt}}$의 가중합으로 총 보상을 정의한다:</p>
+
+$$r = \lambda_{\text{acc}} \cdot r_{\text{acc}}(y, y^*) + \lambda_{\text{fmt}} \cdot r_{\text{fmt}}(y) \tag{3}$$
+
+<p>여기서 $\lambda_{\text{acc}} = 0.9$, $\lambda_{\text{fmt}} = 0.1$이다. $r_{\text{fmt}}(y)$는 출력이 요구된 형식(예: 특정 토큰으로 답을 감싸는 것)을 준수하는지 여부를 나타내는 이진 값이다.</p>
+
+<p><strong>과제별 정확도 보상</strong>:</p>
+
+<p><strong>1. Temporal Grounding Reward</strong>: 비디오의 예측 시간 구간 $T_{\text{pred}} = [t^{\text{pred}}_{\text{start}}, t^{\text{pred}}_{\text{end}}]$와 정답 구간 $T_{\text{gt}} = [t^{\text{gt}}_{\text{start}}, t^{\text{gt}}_{\text{end}}]$ 간의 1D IoU (Intersection over Union)를 계산한다:</p>
+
+$$r^{\text{temp}}_{\text{acc}} = \frac{\max(0, \min(t^{\text{pred}}_{\text{end}}, t^{\text{gt}}_{\text{end}}) - \max(t^{\text{pred}}_{\text{start}}, t^{\text{gt}}_{\text{start}}))}{(t^{\text{pred}}_{\text{end}} - t^{\text{pred}}_{\text{start}}) + (t^{\text{gt}}_{\text{end}} - t^{\text{gt}}_{\text{start}}) - \max(0, \min(t^{\text{pred}}_{\text{end}}, t^{\text{gt}}_{\text{end}}) - \max(t^{\text{pred}}_{\text{start}}, t^{\text{gt}}_{\text{start}}))} \tag{4}$$
+
+<p><strong>2. GUI Grounding Reward</strong>: 예측 bounding box $B_{\text{pred}}$와 정답 box $B_{\text{gt}}$의 2D IoU를 사용한다:</p>
+
+$$r^{\text{gui}}_{\text{acc}} = \frac{\text{Area}(B_{\text{pred}} \cap B_{\text{gt}})}{\text{Area}(B_{\text{pred}} \cup B_{\text{gt}})} \tag{5}$$
+
+<p><strong>3. Mathematical Reasoning Reward</strong>: CoT에서 추출된 최종 답과 정답의 exact match를 사용한다:</p>
+
+$$r^{\text{math}}_{\text{acc}} = \mathbb{I}[y = y^*] \tag{6}$$
+
+<p>직관적으로, temporal/GUI 과제는 연속적인 IoU 보상으로 "얼마나 가까운지"를 반영하고, 수학 과제는 이진 보상으로 "정확한지 아닌지"만 판별한다.</p>
+
+<h2>3. Experiments</h2>
+
+<h3>실험이 답하려는 핵심 질문들</h3>
+<ol>
+  <li><strong>Q1</strong>: MiMo-VL-Miloco-7B가 홈 시나리오(활동 인식, 제스처 인식)에서 기존 모델을 얼마나 능가하는가?</li>
+  <li><strong>Q2</strong>: 홈 특화 학습이 범용 멀티모달 벤치마크 성능에 미치는 영향은?</li>
+  <li><strong>Q3</strong>: RL 단계가 SFT의 일반 능력 퇴행을 얼마나 효과적으로 복구하는가?</li>
+</ol>
+
+<h3>3.1 평가 설정</h3>
+<ul>
+  <li><strong>이미지</strong>: dynamic resolution, 최대 4,096 패치 (28×28 pixels), 최대 generation 32,768 tokens, greedy search</li>
+  <li><strong>비디오</strong>: 2 FPS 샘플링, 최대 256 프레임, context limit 16,384 tokens</li>
+  <li><strong>추론 과제</strong>: 최대 32,768 new tokens, temperature 0.6, top-p 0.95</li>
+  <li>LMMs-Eval 프레임워크를 확장하여 long-CoT 모델 지원 및 과제별 평가 로직 보정</li>
+</ul>
+
+<h3>3.2 홈 시나리오 이해 (Q1)</h3>
+
+<blockquote>
+<strong>[Figure 1 설명]</strong>: 레이더 차트 2개. 좌측은 제스처 인식(OK, Thumbs Up, V Sign, Shaka Sign, Open Palm)의 카테고리별 F1, 우측은 활동 인식(Watch TV, Reading, Play on the Phone, Play Esports, Workout)의 카테고리별 F1. MiMo-VL-Miloco-7B(주황색)가 모든 축에서 가장 바깥쪽에 위치하여 전 카테고리 최고 성능을 보여준다.
+</blockquote>
+
+<table>
+  <tr><th colspan="6">Table 1: 홈 시나리오 카테고리별 F1 점수 비교</th></tr>
+  <tr><th>카테고리</th><th>Metric</th><th>Qwen2.5-VL-7B</th><th>Gemini-2.5-Pro</th><th>MiMo-VL-7B-SFT-2508</th><th>MiMo-VL-Miloco-7B</th></tr>
+  <tr><td colspan="6"><strong>Daily Activity</strong></td></tr>
+  <tr><td>Watch TV</td><td>F1</td><td>81.2</td><td>93.8</td><td>86.0</td><td><strong>98.3</strong></td></tr>
+  <tr><td>Reading</td><td>F1</td><td>78.7</td><td>88.9</td><td>81.7</td><td><strong>90.8</strong></td></tr>
+  <tr><td>Play on the Phone</td><td>F1</td><td>88.4</td><td>81.9</td><td>75.3</td><td><strong>90.5</strong></td></tr>
+  <tr><td>Play Esports</td><td>F1</td><td>95.2</td><td>95.9</td><td>95.2</td><td><strong>99.2</strong></td></tr>
+  <tr><td>Workout</td><td>F1</td><td>88.9</td><td>91.9</td><td>93.7</td><td><strong>96.7</strong></td></tr>
+  <tr><td colspan="6"><strong>Gesture</strong></td></tr>
+  <tr><td>OK</td><td>F1</td><td>73.8</td><td>81.8</td><td>75.6</td><td><strong>86.3</strong></td></tr>
+  <tr><td>Thumbs Up</td><td>F1</td><td>78.6</td><td>86.9</td><td>77.1</td><td><strong>90.5</strong></td></tr>
+  <tr><td>V Sign</td><td>F1</td><td>67.0</td><td>86.7</td><td>86.5</td><td><strong>90.3</strong></td></tr>
+  <tr><td>Shaka Sign</td><td>F1</td><td>33.3</td><td>70.1</td><td>67.4</td><td><strong>88.3</strong></td></tr>
+  <tr><td>Open Palm</td><td>F1</td><td>53.4</td><td>87.4</td><td>79.8</td><td><strong>87.5</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>일상 활동에서 MiMo-VL-Miloco-7B는 가장 강한 baseline 대비 2~4 F1 포인트 개선을 달성한다. 특히 Play Esports(99.2)와 Watch TV(98.3)에서 거의 완벽에 가깝다.</li>
+  <li>##제스처 인식에서 개선이 가장 두드러지며, Shaka Sign에서 +18.2 F1 (70.1→88.3, vs Gemini-2.5-Pro)의 대폭 향상##을 보인다. 이는 복잡한 손 제스처에서 CoT 감독의 효과가 크다는 것을 시사한다.</li>
+  <li>Qwen2.5-VL-7B은 제스처 인식에서 전반적으로 약하며(Shaka Sign 33.3), 홈 특화 학습 없이는 세밀한 제스처 구별이 어렵다는 것을 보여준다.</li>
+</ul>
+
+<h3>3.3 범용 벤치마크 성능 (Q2, Q3)</h3>
+
+<table>
+  <tr><th colspan="7">Table 2: 범용 멀티모달 벤치마크 비교 (발췌)</th></tr>
+  <tr><th>벤치마크</th><th>Metric</th><th>Gemma-3-27B-IT</th><th>Qwen2.5-VL-7B</th><th>InternVL3-8B</th><th>MiMo-VL-7B-SFT-2508</th><th>MiMo-VL-Miloco-7B</th></tr>
+  <tr><td colspan="7"><strong>General</strong></td></tr>
+  <tr><td>MMMU-Pro<sub>standard</sub></td><td>Acc.</td><td>37.8</td><td>34.7</td><td>45.6</td><td>43.0</td><td><strong>55.7</strong></td></tr>
+  <tr><td>MMMU-Pro<sub>vision</sub></td><td>Acc.</td><td>24.9</td><td>29.4</td><td>37.8</td><td>36.4</td><td><strong>47.2</strong></td></tr>
+  <tr><td colspan="7"><strong>Video</strong></td></tr>
+  <tr><td>Video-MME</td><td>Acc.</td><td>-</td><td>65.1</td><td>66.3</td><td>67.8</td><td><strong>68.0</strong></td></tr>
+  <tr><td>Video-MMMU</td><td>Acc.</td><td>-</td><td>47.4</td><td>48.9</td><td>57.6</td><td><strong>63.6</strong></td></tr>
+  <tr><td>Charades-STA</td><td>Acc.</td><td>-</td><td>43.6</td><td>25.4</td><td>44.3</td><td><strong>46.6</strong></td></tr>
+  <tr><td colspan="7"><strong>GUI</strong></td></tr>
+  <tr><td>ScreenSpot</td><td>CenterAcc.</td><td>-</td><td>84.7</td><td>79.5</td><td>89.5</td><td><strong>89.8</strong></td></tr>
+  <tr><td>ScreenSpot-v2</td><td>CenterAcc.</td><td>-</td><td>88.0</td><td>81.4</td><td>92.0</td><td><strong>92.1</strong></td></tr>
+  <tr><td>ScreenSpot-Pro</td><td>CenterAcc.</td><td>-</td><td>29.0</td><td>-</td><td>37.3</td><td><strong>37.8</strong></td></tr>
+  <tr><td colspan="7"><strong>Reasoning</strong></td></tr>
+  <tr><td>OlympiadBench</td><td>Acc.</td><td>-</td><td>-</td><td>-</td><td><strong>57.9</strong></td><td><strong>57.9</strong></td></tr>
+  <tr><td>MathVision</td><td>Acc.</td><td>-</td><td>-</td><td>-</td><td><strong>57.2</strong></td><td>54.0</td></tr>
+  <tr><td colspan="7"><strong>Text</strong></td></tr>
+  <tr><td>MMLU-Pro</td><td>EM</td><td>-</td><td>45.3</td><td>48.7</td><td>58.3</td><td><strong>68.5</strong></td></tr>
+  <tr><td>GPQADiamond</td><td>Pass@1</td><td>-</td><td>40.9</td><td>30.3</td><td>33.5</td><td><strong>55.1</strong></td></tr>
+  <tr><td>MATH500</td><td>Pass@1</td><td>29.3</td><td>25.4</td><td>29.4</td><td><strong>96.8</strong></td><td>95.2</td></tr>
+  <tr><td colspan="7"><strong>Doc &amp; OCR</strong></td></tr>
+  <tr><td>ChartQA</td><td>Acc.</td><td>78.0</td><td>90.2</td><td>89.6</td><td><strong>93.2</strong></td><td>92.0</td></tr>
+  <tr><td>DocVQA</td><td>Acc.</td><td>86.6</td><td>95.5</td><td>89.4</td><td><strong>95.5</strong></td><td>95.2</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>이미지 이해</strong>: MMMU-Pro<sub>standard</sub> 55.7, MMMU-Pro<sub>vision</sub> 47.2로 Gemma-3-27B-IT(27B 규모)와 InternVL3-8B보다 큰 폭으로 우수하다. 7B 모델이 27B 모델을 크게 능가하는 결과이다.</li>
+  <li><strong>비디오 이해</strong>: ##Video-MMMU 63.6, Charades-STA 46.6으로 open-source 모델 중 최고 성능##을 달성하며, RL 단계의 효과를 입증한다.</li>
+  <li><strong>GUI Grounding</strong>: ScreenSpot 89.8, ScreenSpot-v2 92.1, ScreenSpot-Pro 37.8로 GUI agent 과제에서 새로운 최고 기록을 수립한다.</li>
+  <li><strong>텍스트/추론</strong>: MMLU-Pro 68.5, GPQADiamond 55.1 Pass@1로 open-source 모델 중 최고이며, MiMo-VL family 최고 수준에 필적한다. MATH500에서 base model(96.8) 대비 1.6 포인트 하락(95.2)으로 홈 특화 trade-off가 경미하다. OlympiadBench 57.9로 base model과 동일한 성능을 유지하나, MathVision은 57.2→54.0으로 소폭 하락했다.</li>
+  <li><strong>문서/OCR</strong>: ChartQA(92.0)와 DocVQA(95.2)에서 base model보다 약간 뒤지지만, 이는 홈 시나리오 우선화에 따른 ##경미한 trade-off이며 실용적으로 무시할 수 있는 수준##이다.</li>
+</ul>
+
+<h2>4. Conclusions</h2>
+<p>MiMo-VL-Miloco-7B는 타겟 홈 특화 튜닝이 넓은 멀티모달 역량과 효과적으로 공존할 수 있음을 보여준다. 향후 연구로 (1) 오디오와 밀리미터파 센서 등 다양한 sensing modality 통합, (2) heterogeneous 센서 입력에 대한 공동 추론으로 가정 장면 이해와 세밀한 공간 인식 향상, (3) 모델 압축과 아키텍처 최적화로 더 작은 모델과 효율적 추론 달성을 계획한다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li>모든 홈 시나리오 카테고리에서 Gemini-2.5-Pro(closed-source)를 포함한 모든 baseline을 능가하는 인상적인 결과</li>
+  <li>SFT→RL 2단계 파이프라인이 도메인 특화와 범용성 유지 사이의 trade-off를 잘 관리</li>
+  <li>모델, 양자화 GGUF, Gradio 데모, 평가 도구까지 공개하여 재현성과 실용성 확보</li>
+  <li>edge deployment를 고려한 token-budget-aware reasoning 전략이 실용적</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>데이터 비공개</strong>: 핵심 차별화 요소인 홈 시나리오 학습 데이터가 proprietary로 재현이 불가능하다. 데이터의 규모(샘플 수, 시간), 수집 환경의 다양성 등 핵심 정보가 누락되어 있다.</li>
+  <li><strong>평가의 공정성</strong>: 홈 시나리오 벤치마크도 내부 벤치마크로, 외부 독립 검증이 어렵다. 비교 모델들이 이 특정 도메인에 최적화되지 않았으므로, 데이터 도메인 매칭에 의한 이점이 클 수 있다.</li>
+  <li><strong>반복 실험 부재</strong>: 표준편차나 신뢰 구간이 보고되지 않아 결과의 안정성을 판단하기 어렵다.</li>
+  <li><strong>Ablation 부족</strong>: CoT 감독의 효과, token-budget-aware reasoning의 효과, SFT만 vs SFT+RL 등의 체계적 ablation이 없어 각 컴포넌트의 기여도를 분리하기 어렵다. SFT 단독 성능과 RL 후 성능의 정량적 비교가 제시되지 않았다.</li>
+  <li><strong>제한적 홈 시나리오 범위</strong>: 5개 활동과 5개 제스처만 다루며, 실제 홈 환경의 다양한 시나리오(요리, 청소, 아동 활동 등)는 포함되지 않는다.</li>
+  <li><strong>계산 비용 정보 부재</strong>: SFT와 RL 각 단계의 GPU 시간, 학습 데이터 규모 등이 보고되지 않아 실용적 재현성 판단이 어렵다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>도메인 특화 + 범용성 유지 전략</strong>: SFT로 도메인 지식을 주입한 뒤 RL로 catastrophic forgetting을 복구하는 2단계 접근법은 다른 도메인(의료, 제조, 교육 등)에도 적용 가능한 일반적 패턴이다</li>
+  <li><strong>Edge AI의 실용적 설계</strong>: token-budget-aware reasoning으로 추론 지연과 정확도의 trade-off를 관리하는 접근법은 on-device AI 배포 시 참고할 만하다</li>
+  <li><strong>GRPO의 범용 능력 복구 효과</strong>: critic model 없는 가벼운 RL 알고리즘으로도 SFT의 부작용을 효과적으로 교정할 수 있다는 실증적 증거를 제공한다</li>
+  <li><strong>IoU 기반 연속 보상의 활용</strong>: temporal grounding과 GUI grounding에 IoU 보상을 적용한 것은 이진 보상보다 풍부한 학습 신호를 제공하는 좋은 예시이다</li>
+  <li><strong>한계 인식</strong>: 비공개 데이터와 내부 벤치마크에 의존하므로, 이 논문의 접근법을 채택할 때는 자체 데이터와 평가 체계를 갖추어야 한다</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

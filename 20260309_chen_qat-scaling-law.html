@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scaling Law for Quantization-Aware Training</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Scaling Law for Quantization-Aware Training</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Mengzhao Chen, Chaoyi Zhang, Jing Liu, Yutao Zeng, Zeyue Xue, Zhiheng Liu, Yunshui Li, Jin Ma, Jie Huang, Xun Zhou, Ping Luo</li>
+  <li><strong>소속</strong>: The University of Hong Kong / ByteDance Seed</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2505.14302v1)</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2505.14302">arXiv</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 4-bit QAT (Quantization-Aware Training)의 scaling behavior가 잘 이해되지 않으며, 기존 QAT scaling law는 모델 크기($N$)만 고려하고 학습 토큰 수($D$)와 양자화 granularity($G$)를 무시하여 실용성이 제한적</li>
+  <li><strong>해결</strong>: 268회의 W4A4 QAT 실험을 통해, quantization error를 $N$, $D$, $G$의 함수로 모델링하는 통합 QAT scaling law를 제안하고, error를 weight/activation 성분으로 분해하여 FC2 Proj 입력의 activation quantization이 주요 병목임을 규명</li>
+  <li><strong>왜 작동하는가</strong>: quantization error를 독립적으로 모델링하는 additive 항으로 분리하여 기존 Chinchilla scaling law와 호환되게 설계했고, $\log_2(G)$로 granularity를 연속 변수화하여 모든 granularity에 대해 단일 곡선으로 피팅 가능</li>
+  <li><strong>비유</strong>: 기존 scaling law가 "지도에 도시 크기만 표시한 것"이라면, 이 연구는 "도시 크기뿐 아니라 인구 밀도(학습 데이터)와 도로 폭(양자화 해상도)까지 표시한 상세 지도"를 제공하는 것과 유사</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>통합 QAT scaling law</strong>: QAT quantization error를 모델 크기 $N$, 데이터 볼륨 $D$, group size $G$의 함수로 포착하는 수학적 모델 제안. 기존 방법 대비 상대 오차를 W4A16에서 19.3%→5.2%, W4A4에서 8.5%→4.7%로 대폭 개선</li>
+  <li><strong>268회 QAT 실험 기반 실증 검증</strong>: $N \in \{74\text{M}, 145\text{M}, 297\text{M}, 595\text{M}\}$, $D \in \{10\text{B}, 20\text{B}, 50\text{B}, 100\text{B}\}$, $G \in \{32, 64, 128, 256, \text{per-token/channel}\}$의 체계적 조합으로 세 가지 핵심 트렌드를 실증</li>
+  <li><strong>Quantization error 분해</strong>: W4A4 error를 weight ($\delta_{W4A16}$)와 activation ($\delta_{W16A4}$) 성분으로 분해하여 각각의 민감도 차이를 규명. Weight error는 $D$에 더 민감하고, activation error는 $G$에 더 민감</li>
+  <li><strong>FC2 bottleneck 분석</strong>: ##FC2 Proj 입력의 activation이 SwiGLU에 의한 outlier로 인해 4-bit quantization의 주요 병목##임을 kurtosis 분석으로 규명하고, FC2 입력을 8-bit으로 처리하는 mixed-precision 전략으로 병목 해소 가능성 입증</li>
+</ol>
+
+<h2>1. Introduction — QAT Scaling의 미완성 퍼즐</h2>
+
+<h3>배경: LLM과 양자화</h3>
+<p>LLM의 대규모 파라미터는 배포 시 상당한 연산/메모리 부담을 초래한다. Quantization은 weight와 activation의 precision을 줄여 이를 해결하는 핵심 기법이다. Post-Training Quantization (PTQ)은 8-bit(W8A8)에서 거의 무손실이지만, 4-bit(W4A4)에서는 성능이 크게 하락한다. QAT (Quantization-Aware Training)는 학습 중에 quantization을 통합하여 모델이 저정밀도에 적응하게 함으로써, PTQ보다 공격적인 압축을 지원한다.</p>
+
+<h3>Scaling law의 중요성</h3>
+<p>Scaling law는 모델 크기, 데이터, 연산 자원에 따른 성능 변화를 예측하는 도구이다. Kaplan scaling law는 모델 크기-데이터-연산의 관계를 처음 정리했고, Chinchilla scaling law는 고정 연산 예산 하에서 $N$과 $D$의 최적 균형을 제시했다. 최근에는 양자화에 대한 scaling law도 등장했으나:</p>
+<ul>
+  <li>PTQ scaling law: 모델이 커질수록 양자화 error 감소, 데이터가 많을수록 higher precision 필요</li>
+  <li>기존 QAT scaling law: $N$에 effective parameter multiplier (EPM)를 곱하는 방식으로 $N$만 고려. ##$D$와 $G$의 영향을 무시하여 실용성이 제한적##</li>
+</ul>
+
+<h3>본 논문의 접근</h3>
+<p>저자들은 268회의 체계적 QAT 실험을 통해 세 가지 핵심 관찰을 확인하고, 이를 통합하는 새로운 scaling law를 제안한다:</p>
+<ol>
+  <li>Quantization error는 모델 크기 $N$이 커질수록 <strong>감소</strong></li>
+  <li>Quantization error는 학습 토큰 수 $D$가 많을수록 <strong>증가</strong></li>
+  <li>Quantization error는 양자화 granularity $G$가 세밀할수록 <strong>감소</strong></li>
+</ol>
+
+<h2>2. Related Works</h2>
+
+<h3>LLM의 Scaling Law</h3>
+<p><strong>Kaplan scaling law</strong> (2020)는 LLM의 성능이 모델 크기, 데이터, 연산의 power-law 관계를 따름을 보여주었다. <strong>Chinchilla scaling law</strong> (Hoffmann et al., 2022)는 이를 정교화하여, 최적 성능을 위해 $N$과 $D$를 동일하게 확장해야 한다고 제안했다. 최근 연구는 이 프레임워크를 양자화로 확장했으나, PTQ와 QAT의 scaling behavior가 다르다는 점이 중요하다.</p>
+
+<h3>LLM 양자화</h3>
+<p>PTQ는 8-bit에서 잘 동작하나 4-bit에서 성능이 급락하며, 이는 효율적 4-bit GEMM kernel의 채택을 제한한다. QAT는 학습 중 quantization을 통합하여 low bit-width에서의 정확도를 회복하며, BitNet 등의 연구는 QAT가 PTQ를 능가함을 보여주었다. 그러나 very low bit-width에서도 full-precision 대비 gap이 남아 있어, QAT의 scaling behavior를 이해하는 것이 더 나은 전략 설계에 핵심적이다.</p>
+
+<h2>3. Preliminaries — 기존 Scaling Law의 한계</h2>
+
+<p><strong>Chinchilla scaling law</strong>: 모델 크기 $N$과 학습 토큰 수 $D$를 사용하여 최종 loss를 모델링한다:</p>
+
+$$L(N, D) = \frac{A}{N^\alpha} + \frac{B}{D^\beta} + E \tag{1}$$
+
+<p>여기서 $A$, $\alpha$, $B$, $\beta$, $E$는 피팅 상수이다. 직관적으로, 첫 항은 모델 용량 부족에 의한 error, 둘째 항은 데이터 부족에 의한 error, $E$는 irreducible error이다.</p>
+
+<p><strong>기존 QAT scaling law</strong> (EPM 방식): $N$에 effective parameter multiplier $\text{eff}(\mathbf{C}) \in [0,1]$을 곱하여 양자화 효과를 반영한다:</p>
+
+$$L(N, D) = \frac{A}{(N \cdot \text{eff}(\mathbf{C}))^\alpha} + \frac{B}{D^\beta} + E \tag{2}$$
+
+<p>EPM이 1에 가까울수록 원본 BFloat16 성능에 가깝다. 이 방식의 <strong>문제점</strong>: Eq.(2)에서 Eq.(1)을 빼면 quantization error $\delta_p$가 $N$에만 의존하고 $D$에 무관하다:</p>
+
+$$\delta_p(N) = \frac{A}{(N \cdot \text{eff}(\mathbf{C}))^\alpha} - \frac{A}{N^\alpha} \tag{3}$$
+
+<p>그러나 실험적으로 ##W4A4 QAT와 BF16 모델의 loss 차이는 데이터가 많아질수록 증가##한다. 즉 기존 방법은 $D$의 영향을 포착하지 못한다.</p>
+
+<h3>제안하는 QAT Scaling Law</h3>
+<p>Chinchilla loss에 quantization error 항을 additive로 추가한다:</p>
+
+$$L(N, D, G) = \underbrace{\frac{A}{N^\alpha} + \frac{B}{D^\beta} + E}_{\text{Chinchilla loss}} + \underbrace{\delta_p(N, D, G)}_{\text{low-bit QAT effect}} \tag{4}$$
+
+<p>여기서 quantization error 항은:</p>
+
+$$\delta_p(N, D, G) = \frac{k \cdot D^{\gamma_D} \cdot (\log_2(G))^{\gamma_G}}{N^{\gamma_N}} \tag{5}$$
+
+<p>$k$, $\gamma_N$, $\gamma_D$, $\gamma_G > 0$은 피팅 파라미터이다. 직관적으로 말하면:</p>
+<ul>
+  <li>$N$이 커지면 error 감소 (분모 증가) — 큰 모델은 양자화에 더 강건</li>
+  <li>$D$가 많으면 error 증가 (분자 증가) — 많이 학습할수록 full-precision과의 gap이 벌어짐</li>
+  <li>$G$가 크면(coarser) error 증가 ($\log_2(G)$ 증가) — 세밀한 양자화가 유리</li>
+  <li>$G=1$이면 $\log_2(1) = 0$이므로 $\delta_p = 0$ — 양자화 없음과 일치</li>
+</ul>
+
+<h2>4. QAT Scaling Law — 통합 프레임워크</h2>
+
+<h3>4.1 실험 설정</h3>
+<ul>
+  <li><strong>모델</strong>: Llama3-style 아키텍처, $N \in \{74\text{M}, 145\text{M}, 297\text{M}, 595\text{M}\}$</li>
+  <li><strong>데이터</strong>: OLMo2-Mix-1124 pre-training dataset, $D \in \{10\text{B}, 20\text{B}, 50\text{B}, 100\text{B}\}$</li>
+  <li><strong>검증</strong>: 973M 파라미터 모델로 100B, 200B 토큰 학습하여 extrapolation 검증</li>
+  <li><strong>양자화 정밀도</strong>: W4A4 (weight 4-bit, activation 4-bit), W4A16, W16A4</li>
+  <li><strong>Group size</strong>: $G \in \{32, 64, 128, 256, \text{per-token/channel}\}$</li>
+  <li><strong>Quantizer</strong>: weight에 AbsMax, activation에 AbsMax ($G < 256$) 또는 LAC ($G \geq 256$)</li>
+  <li><strong>연산 비용</strong>: A100 GPU에서 총 276K GPU-hours</li>
+  <li><strong>평가 지표</strong>: smoothed training loss (validation loss의 unbiased estimate)</li>
+</ul>
+
+<table>
+  <tr><th colspan="7">Table 3: 모델 아키텍처 및 학습 하이퍼파라미터 (발췌)</th></tr>
+  <tr><th>Model Size</th><th>74M</th><th>145M</th><th>297M</th><th>595M</th><th>973M</th><th>2.8B</th></tr>
+  <tr><td>Layers</td><td>12</td><td>12</td><td>12</td><td>24</td><td>16</td><td>28</td></tr>
+  <tr><td>Hidden Size</td><td>768</td><td>1024</td><td>1536</td><td>1536</td><td>2048</td><td>3072</td></tr>
+  <tr><td>FFN Hidden Size</td><td>2048</td><td>3072</td><td>4096</td><td>4096</td><td>8192</td><td>8192</td></tr>
+  <tr><td>Attention Heads</td><td>16</td><td>16</td><td>24</td><td>24</td><td>32</td><td>24</td></tr>
+  <tr><td>Optimizer</td><td colspan="6">AdamW ($\beta_1=0.9$, $\beta_2=0.95$)</td></tr>
+  <tr><td>LR Schedule</td><td colspan="6">Cosine, Warmup 500 steps</td></tr>
+  <tr><td>Sequence Length</td><td colspan="6">2048</td></tr>
+</table>
+
+<h3>4.2 Unified Scaling Law</h3>
+
+<p><strong>관찰 1: 모델 크기 증가 → error 감소</strong></p>
+<blockquote>
+<strong>[Figure 4a 설명]</strong>: $\delta_{W4A4}$와 모델 크기의 관계. 74M→594M으로 모델이 커질 때, 모든 granularity에서 $\delta_{W4A4}$가 일관되게 감소한다. 평균 34% 감소.
+</blockquote>
+
+<p><strong>관찰 2: 학습 토큰 증가 → error 증가</strong></p>
+<blockquote>
+<strong>[Figure 4b 설명]</strong>: $\delta_{W4A4}$와 학습 토큰 수의 관계. 10B→100B로 토큰이 증가할 때, 모든 granularity에서 $\delta_{W4A4}$가 증가한다. 평균 22% 증가. ##이는 기존 QAT scaling law가 포착하지 못한 핵심 트렌드##이다.
+</blockquote>
+
+<p><strong>관찰 3: 세밀한 granularity → error 감소</strong></p>
+<blockquote>
+<strong>[Figure 4c 설명]</strong>: $\delta_{W4A4}$와 group size의 관계. Token/channel(가장 세밀) → Group 256(가장 거친) 순서로 error가 증가하며, 최대-최소 차이는 0.037로 가장 거친 granularity error의 거의 절반에 해당.
+</blockquote>
+
+<h4>추가 실험 결과</h4>
+
+<p><strong>INT4 vs FP4 비교</strong>: 4-bit quantization에는 integer (INT4)와 floating-point (FP4, E2M1 format) 두 가지 포맷이 있다. 실험 결과(Figure 2), group-wise quantization에서 INT4와 FP4는 동등한 성능을 보이며, per-channel/token quantization에서는 INT4가 loss에서 0.015 우위를 보인다. 이는 INT4의 16개 representable value가 FP4의 15개보다 약간 많기 때문이다. 따라서 본 연구는 INT4 포맷을 채택한다.</p>
+
+<p><strong>Learning rate 민감도</strong>: W4A4 QAT 모델과 uncompressed BF16 모델을 $5 \times 10^{-4}$~$4 \times 10^{-3}$ 범위의 learning rate에서 비교한 결과(Figure 3), $\delta_{W4A4}$는 [0.6, 0.65] 범위로 거의 일정하다. 이는 4-bit QAT가 learning rate에 둔감하며, BF16과 동일한 하이퍼파라미터를 사용해도 무방함을 의미한다.</p>
+
+<p><strong>Quantizer ablation</strong> (Figure 14): Weight quantizer (AbsMax, LSQ, LWC)는 per-tensor를 제외한 모든 granularity에서 loss 차이가 0.003 미만으로 매우 작다. 반면, activation quantizer는 outlier에 민감하여 $G \geq 256$에서 LAC가 AbsMax를 유의미하게 능가한다. 따라서 weight에는 AbsMax, activation에는 fine group ($G < 256$)에서 AbsMax, coarse group ($G \geq 256$)에서 LAC를 사용한다.</p>
+
+<h4>피팅 결과</h4>
+<p>Eq.(5)를 80회 W4A4 QAT 실험 결과에 피팅한다:</p>
+
+<table>
+  <tr><th colspan="4">Table 1: 피팅된 하이퍼파라미터 (주요 항목)</th></tr>
+  <tr><th>Type</th><th>Constant</th><th>Value</th><th>의미</th></tr>
+  <tr><td rowspan="4">$\delta_{W4A4}$</td><td>$k$</td><td>0.1582</td><td>전체 스케일</td></tr>
+  <tr><td>$\gamma_N$</td><td>0.2186</td><td>$N$에 대한 민감도</td></tr>
+  <tr><td>$\gamma_D$</td><td>0.0745</td><td>$D$에 대한 민감도</td></tr>
+  <tr><td>$\gamma_G$</td><td>0.7779</td><td>$G$에 대한 민감도</td></tr>
+  <tr><td rowspan="4">$\delta_{W4A16}$</td><td>$k$</td><td>0.2522</td><td></td></tr>
+  <tr><td>$\gamma_N$</td><td>0.3589</td><td></td></tr>
+  <tr><td>$\gamma_D$</td><td>0.1610</td><td></td></tr>
+  <tr><td>$\gamma_G$</td><td>0.3533</td><td></td></tr>
+  <tr><td rowspan="4">$\delta_{W16A4}$</td><td>$k$</td><td>0.1004</td><td></td></tr>
+  <tr><td>$\gamma_N$</td><td>0.1816</td><td></td></tr>
+  <tr><td>$\gamma_D$</td><td>0.0331</td><td></td></tr>
+  <tr><td>$\gamma_G$</td><td>0.9812</td><td></td></tr>
+</table>
+
+<blockquote>
+<strong>[Figure 5 설명]</strong>: 예측 vs 실제 $\delta_{W4A4}$ 산점도. MSE 0.003, $R^2$ 0.944로 높은 피팅 품질. 973M 모델 (100B, 200B 토큰)에서도 정확한 extrapolation 확인.
+</blockquote>
+
+<blockquote>
+<strong>[Figure 1 설명]</strong>: Quantization error contour. (a) W4A4G32, (b) W4A4G256에서 $(\log N, \log D)$ 공간의 등고선. 우하단(큰 모델, 적은 데이터)에서 error가 최소이고, 좌상단(작은 모델, 많은 데이터)에서 최대. G=256이 G=32보다 전반적으로 높은 error를 보임.
+</blockquote>
+
+<h4>기존 방법과 비교</h4>
+<table>
+  <tr><th colspan="7">Table 2: 다른 Scaling Law와의 비교</th></tr>
+  <tr><th>Method</th><th>$N$</th><th>$D$</th><th>$G$</th><th>Precision</th><th>Num. of $\delta_p$</th><th>Relative Error</th></tr>
+  <tr><td rowspan="2">[12] [20]</td><td rowspan="2">✓</td><td rowspan="2">✗</td><td rowspan="2">✗</td><td>W4A16</td><td>5</td><td>19.3%</td></tr>
+  <tr><td>W4A4</td><td>5</td><td>8.5%</td></tr>
+  <tr><td rowspan="2"><strong>Ours</strong></td><td rowspan="2">✓</td><td rowspan="2">✓</td><td rowspan="2">✓</td><td>W4A16</td><td>1</td><td><strong>5.2%</strong></td></tr>
+  <tr><td>W4A4</td><td>1</td><td><strong>4.7%</strong></td></tr>
+</table>
+<p>기존 방법은 각 granularity마다 별도의 $\delta_p$ 곡선(총 5개)을 필요로 하지만, 본 방법은 ##단일 수식으로 모든 granularity를 통합하면서도 상대 오차를 1/3~1/4로 줄임##.</p>
+
+<h3>4.3 Quantization Error 분해: Weight vs. Activation</h3>
+
+<p>W4A4 error의 원인이 weight에서 오는지 activation에서 오는지 이해하기 위해, W4A16(weight만 4-bit)과 W16A4(activation만 4-bit)를 별도로 학습한다.</p>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: $\delta_{W4A4}$와 $\delta_{W4A16} + \delta_{W16A4}$의 산점도. 상관 계수 $k = 0.906$으로 $\delta_{W4A4} \approx k(\delta_{W4A16} + \delta_{W16A4})$가 성립하여, 두 성분의 합으로 전체 error를 근사할 수 있다.
+</blockquote>
+
+<p><strong>핵심 발견 — 세 가지 민감도 차이</strong>:</p>
+<ul>
+  <li><strong>모델 크기에 대한 민감도</strong>: $\delta_{W4A16}$의 $\gamma_N = 0.3589$ > $\delta_{W16A4}$의 $\gamma_N = 0.1816$. 즉, ##weight quantization error가 모델 크기 증가에 더 빠르게 감소##한다. 74M→594M에서 $\delta_{W4A16}$은 51% 감소, $\delta_{W16A4}$는 34% 감소.</li>
+  <li><strong>학습 토큰에 대한 민감도</strong>: $\delta_{W4A16}$의 $\gamma_D = 0.1610$ >> $\delta_{W16A4}$의 $\gamma_D = 0.0331$. Weight error가 데이터 증가에 훨씬 더 민감하다. 10B→100B에서 $\delta_{W4A16}$은 43% 증가, $\delta_{W16A4}$는 12%만 증가.</li>
+  <li><strong>Granularity에 대한 민감도</strong>: $\delta_{W16A4}$의 $\gamma_G = 0.9812$ >> $\delta_{W4A16}$의 $\gamma_G = 0.3533$. ##Activation error가 granularity에 훨씬 더 민감##하다. 최대-최소 granularity 차이가 $\delta_{W16A4}$에서 0.031로 $\delta_{W4A16}$의 거의 8배.</li>
+</ul>
+
+<p><strong>어느 쪽이 더 큰 영향을 미치는가?</strong></p>
+<p>$R = \frac{\delta_{W16A4}}{\delta_{W4A16}}$으로 activation 대 weight error의 비율을 정의한다. 대부분의 $\frac{D}{N}$ 비율과 $G$에서 $R > 1$이므로, activation quantization error가 일반적으로 weight보다 크다. 그러나:</p>
+<ul>
+  <li>$\frac{D}{N}$ 증가 시 $R$ 감소 — 예를 들어 $G=32$에서, $\frac{D}{N}=100$일 때 $R=1.67$이지만 $\frac{D}{N}=1000$일 때 $R=1.20$으로 하락. Weight error가 $D$에 더 민감하므로 점차 주도적 요인이 됨</li>
+  <li>$G$ 증가 시 $R$ 증가 — $\frac{D}{N}=1000$에서, $G=32$일 때 $R=1.20$이지만 $G=256$일 때 $R=1.62$. Activation error가 $G$에 더 민감하므로 coarse granularity에서 gap 확대</li>
+</ul>
+
+<h3>4.4 FC2 Proj 입력의 Activation Bottleneck</h3>
+
+<p>Activation quantization error가 주요 병목인 이유를 분석한다. LLM의 각 transformer block에는 4개의 linear layer가 있다: QKV Proj, O Proj, FC1 Proj, FC2 Proj.</p>
+
+<blockquote>
+<strong>[Figure 9a 설명]</strong>: 각 linear layer 입력 activation의 kurtosis 비교 (595M 모델, 100B 토큰, G=128). BF16 모델에서 FC2 Proj 입력의 kurtosis가 123으로 다른 레이어(QKV ~20, O ~20, FC1 ~15)보다 압도적으로 높다. W4A4 QAT 후에도 FC2 입력 kurtosis는 89로 여전히 매우 높다.
+</blockquote>
+
+<p><strong>원인</strong>: FC2 Proj의 입력은 SwiGLU 모듈의 출력이다. SwiGLU (Swish-Gated Linear Unit)의 gating mechanism과 비선형 변환이 복잡한 activation 분포를 만들어 outlier를 증폭시킨다. QAT가 regularizer 역할을 하여 outlier를 다소 억제하지만(kurtosis 123→89로 감소), 여전히 다른 레이어(QKV, O, FC1: 15~20)보다 훨씬 높아 4-bit quantization이 이를 포착하지 못한다.</p>
+
+<h4>Mixed-precision 해법</h4>
+<p>FC2 Proj 입력만 8-bit으로 양자화하고 나머지는 4-bit을 유지하는 "FC2 input 8-bit" 전략을 적용한다.</p>
+
+<blockquote>
+<strong>[Figure 9b 설명]</strong>: Mixed-precision 전후 비교. FC2 입력을 8-bit으로 올리면, G=32에서 20.5%, G=256에서 42.9%의 quantization error 감소. Coarse granularity에서 효과가 더 크다.
+</blockquote>
+
+<p>FC2 input 8-bit 적용 후:</p>
+<ul>
+  <li>$\delta_{W16A4}$의 $\gamma_G$가 0.9812→0.4491로 대폭 감소 — granularity 민감도가 크게 줄어듦</li>
+  <li>$\delta_{W4A16}$과 $\delta_{W16A4}$의 비율 $R$이 0.85~1.10 범위로 수렴 — ##weight와 activation error가 거의 동등해져, 향후 개선은 둘 다 최적화해야 함##</li>
+</ul>
+
+<h2>5. Conclusions</h2>
+<p>본 논문은 4-bit QAT를 위한 포괄적 scaling law를 제안하여, 모델 크기 $N$, 학습 데이터 $D$, 양자화 granularity $G$를 통합적으로 모델링한다. FC2 입력을 8-bit으로 처리하면 activation bottleneck이 해소되어 weight와 activation error가 거의 동등하게 기여한다. 이는 향후 QAT 알고리즘이 activation outlier에만 집중하는 것을 넘어 weight quantization error도 함께 고려해야 함을 시사한다.</p>
+
+<h2>부록 — 추가 분석 요약</h2>
+
+<h3>A. Limitations</h3>
+<ul>
+  <li>MoE (Mixture of Experts) 아키텍처에서의 실험 미수행 — MoE는 weight 파라미터 대비 activation 크기 비율이 달라 weight/activation error 비율이 다를 수 있음</li>
+  <li>W4A4에 집중하며, ternary quantization 등 극저비트 QAT는 다루지 않음</li>
+  <li>최대 학습 규모가 595M/100B로, 더 큰 모델에서의 extrapolation 정확도는 추가 검증 필요</li>
+</ul>
+
+<h3>H. Efficient Parameter Multiplier (EPM)</h3>
+<p>제안된 $\delta_p$를 이용하여 EPM을 도출할 수 있다:</p>
+
+$$\text{eff}(\mathbf{C}) = \left( \frac{A}{A + k \cdot D^{\gamma_D} \cdot (\log_2(G))^{\gamma_G} \cdot N^{\alpha - \gamma_N}} \right)^{\frac{1}{\alpha}} \tag{13}$$
+
+<p>이 수식은 EPM이 $D$와 $G$가 증가할수록 감소하며, $N$과의 관계는 $\alpha - \gamma_N$에 의존함을 보여준다. W4A4의 EPM은 대부분의 설정에서 0.5를 초과하여, W4A4 QAT가 lossless W8A8보다 나은 trade-off를 제공함을 시사한다.</p>
+
+<h3>I. PTQ vs QAT Scaling Law</h3>
+<p>PTQ에서도 학습 데이터가 많을수록 quantization error가 증가하지만, PTQ는 post-training에서만 양자화가 적용되어 error 증가 속도가 더 빠르다. QAT는 학습 과정 전체에 양자화를 통합하므로 error 증가가 상대적으로 완만하다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>체계적 실험 설계</strong>: 268회 실험으로 $N$, $D$, $G$의 조합을 체계적으로 탐색하고, 973M/2.8B 모델로 extrapolation까지 검증. 276K GPU-hours의 상당한 투자</li>
+  <li><strong>실용적 인사이트</strong>: 단순히 scaling law를 제시하는 것을 넘어, error를 weight/activation으로 분해하고 FC2 bottleneck을 정확히 특정하여 실용적 해결책(mixed-precision)까지 제시</li>
+  <li><strong>수학적 엄밀성</strong>: Chinchilla scaling law와 호환되는 additive 구조 + $\log_2(G)$를 통한 granularity 연속화가 우아하며, $G=1$에서 자연스럽게 error가 0이 되는 boundary condition 만족</li>
+  <li><strong>포괄적 ablation</strong>: quantizer 비교 (AbsMax, LSQ, LWC, LAC), INT vs FP 비교, learning rate 민감도 등 다양한 차원에서 검증</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>모델 규모 제한</strong>: 피팅에 사용된 최대 모델이 595M으로, 실제 배포되는 7B+ 모델과의 gap이 크다. 973M validation은 있으나 1B 미만이며, 2.8B 이상은 Chinchilla law 검증에만 사용</li>
+  <li><strong>Dense 모델 한정</strong>: MoE, sparse attention 등 최신 아키텍처에서의 적용 가능성이 검증되지 않음</li>
+  <li><strong>Downstream 성능 미평가</strong>: training loss만 평가하고 실제 downstream task 성능(MMLU, HumanEval 등)과의 관계를 보이지 않음. Training loss 감소가 반드시 task 성능 향상을 의미하지 않을 수 있음</li>
+  <li><strong>OLMo2 단일 데이터셋</strong>: 학습 데이터 다양성이 없어, 다른 pre-training corpus에서도 동일 scaling law가 성립하는지 불확실</li>
+  <li><strong>Mixed-precision의 실용성</strong>: FC2 입력만 8-bit으로 올리는 전략이 실제 하드웨어에서 추론 속도에 미치는 영향(overhead)이 분석되지 않음</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>데이터가 많을수록 양자화가 어려워진다</strong>: QAT에서 학습 토큰 수 $D$가 증가하면 full-precision과의 gap이 벌어진다. 이는 QAT 모델의 학습 스케줄을 계획할 때 반드시 고려해야 할 요소이다</li>
+  <li><strong>FC2 Proj 입력이 W4A4의 Achilles heel</strong>: SwiGLU의 outlier가 FC2 입력에서 높은 kurtosis를 유발하여 activation quantization의 주요 병목이 된다. Mixed-precision 또는 outlier suppression으로 이를 해결해야 한다</li>
+  <li><strong>Activation bottleneck 해소 후에는 weight error도 중요</strong>: FC2 입력을 8-bit으로 처리하면 weight와 activation error가 동등해지므로, 기존의 activation-focused 접근을 넘어 weight quantization도 최적화해야 한다</li>
+  <li><strong>실용적 규칙: EPM > 0.5이면 4-bit QAT가 유리</strong>: W4A4 QAT의 EPM이 대부분 0.5 이상이므로, 연산 비용 대비 성능 trade-off에서 lossless W8A8보다 4-bit QAT가 나은 선택일 수 있다</li>
+  <li><strong>Scaling law의 실무 활용</strong>: 목표 quantization error에서 역으로 필요한 모델 크기나 최대 학습 토큰 수를 추정할 수 있어, QAT 프로젝트 계획에 실질적 도구를 제공</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
