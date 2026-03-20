@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemotron-Cascade 2: Post-Training LLMs with Cascade RL and Multi-Domain On-Policy Distillation</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Nemotron-Cascade 2: Post-Training LLMs with Cascade RL and Multi-Domain On-Policy Distillation</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhuolin Yang*, Zihan Liu*, Yang Chen*, Wenliang Dai*, Boxin Wang*, Sheng-Chieh Lin, Chankyu Lee, Yangyi Chen, Dongfu Jiang, Jiafan He, Renjie Pi, Grace Lam, Nayeon Lee, Alexander Bukharin, Mohammad Shoeybi, Bryan Catanzaro, Wei Ping*†</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.19220">arXiv:2603.19220</a> · <a href="https://huggingface.co/nvidia/Nemotron-Cascade-2-30B-A3B">Model</a> · <a href="https://huggingface.co/nvidia/Nemotron-Cascade-2-SFT-Data">SFT Data</a> · <a href="https://huggingface.co/nvidia/Nemotron-Cascade-2-RL-Data">RL Data</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM post-training에서 RL을 다양한 도메인(수학, 코드, agentic, alignment 등)으로 확장할 때, 도메인 간 간섭(catastrophic forgetting), reward signal 다양성, 학습 불안정성 등이 발생한다. 기존의 단일 multi-domain RL은 이러한 문제를 해결하기 어렵다.</li>
+  <li><strong>해결</strong>: Cascade RL — 도메인별 순차 RL 파이프라인(IF-RL → Multi-domain RL → MOPD → RLHF → Long-context RL → Code RL → SWE RL)을 적용하고, Multi-domain On-Policy Distillation (MOPD)으로 각 단계에서 최강 teacher checkpoint를 선택해 on-policy 증류하여 성능 회복 및 안정화를 달성한다.</li>
+  <li><strong>왜 작동하는가</strong>: Cascade RL은 도메인별 하이퍼파라미터 최적화와 도메인 간 간섭 최소화를 가능하게 하고, MOPD는 dense token-level distillation으로 sparse outcome reward 대비 빠르게 수렴하며 RL 단계 간 regression을 효과적으로 복구한다.</li>
+  <li><strong>비유</strong>: 학생이 여러 과목을 동시에 공부하면 혼란스러우니, 각 과목을 순차적으로 집중 학습(Cascade RL)하되, 중간중간 전 과목 최고 성적의 선생님에게 개인 과외(MOPD)를 받아 종합 성적을 끌어올리는 것과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Cascade RL의 확장</strong>: Nemotron-Cascade 1 대비 RL 도메인을 크게 확장하여 IF-RL, Multi-domain RL, MOPD, RLHF, Long-context RL, Code RL, SWE RL 7단계 파이프라인을 구축하고, 도메인 간 간섭을 최소화하는 순서 결정 원칙을 제시한다.</li>
+  <li><strong>Multi-domain On-Policy Distillation (MOPD)</strong>: ##Cascade RL 파이프라인의 각 단계에서 최강 intermediate teacher checkpoint를 선택하여 on-policy 증류##함으로써 벤치마크 regression을 효과적으로 복구하고, GRPO 대비 훨씬 빠른 수렴을 달성한다.</li>
+  <li><strong>Gold Medal급 수학/코딩 성능</strong>: ##30B MoE (3B activated) 모델로 IMO 2025 Gold (35/42), IOI 2025 Gold (439.28/600), ICPC World Finals 2025 Gold (10/12)##을 동시 달성한 두 번째 오픈 모델이다 (첫 번째는 DeepSeek-V3.2-Speciale-671B).</li>
+  <li><strong>완전 오픈소스</strong>: 모델 체크포인트, SFT 데이터, RL 데이터를 모두 공개하여 연구 커뮤니티의 재현과 확장을 가능하게 한다.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>Cascade RL이란?</h3>
+<p>Reinforcement Learning (RL)은 LLM post-training의 핵심 기법으로, reasoning, agentic 능력, alignment 등을 향상시킨다. 그러나 RL을 다양한 도메인으로 확장하면 reward signal, 응답 형식, 검증 환경이 모두 달라 학습 복잡도가 급증한다.</p>
+
+<p>Nemotron-Cascade 1 (Wang et al., 2025)에서 처음 도입된 <strong>Cascade RL</strong>은 도메인별로 순차적 RL 학습을 수행하는 프레임워크이다. 핵심 장점 세 가지:</p>
+<ol>
+  <li><strong>Catastrophic forgetting에 강건</strong>: 도메인별 RL은 이전 도메인 성능을 거의 저하시키지 않으며, 오히려 개선할 수 있다.</li>
+  <li><strong>도메인별 최적화 가능</strong>: 각 도메인에 맞는 하이퍼파라미터, reward function, training curriculum을 독립적으로 설계할 수 있다.</li>
+  <li><strong>계산 효율성</strong>: 단일 도메인 내 task 동질성이 높아 응답 길이와 검증 시간이 균일하므로, wall-clock 시간이 크게 절약된다.</li>
+</ol>
+
+<h3>Nemotron-Cascade 2의 확장점</h3>
+<p>Nemotron-Cascade 2는 이전 버전 대비 세 가지 핵심 차별점을 갖는다:</p>
+<ol>
+  <li><strong>Cascade RL 도메인 확장</strong>: reasoning과 agentic 영역을 훨씬 넓게 커버하도록 RL 단계를 확장</li>
+  <li><strong>Multi-domain On-Policy Distillation (MOPD)</strong>: Cascade RL 단계에서 발생하는 벤치마크 regression을 복구하기 위해, 각 도메인 최강 teacher로부터 on-policy 증류를 수행하는 새로운 안정화 단계 도입</li>
+  <li><strong>Multi-domain RL 통합</strong>: 유사한 응답 형식과 검증 비용을 가진 도메인은 하나의 RL 단계에서 jointly 학습하여 효율성 향상</li>
+</ol>
+
+<h2>2. Main Results</h2>
+
+<p>Nemotron-Cascade-2-30B-A3B는 Nemotron-3-Nano-30B-A3B-Base 위에 post-training된 30B MoE (Mixture-of-Experts) 모델로, 3B activated parameters만 사용한다. 비교 대상은 Nemotron-3-Nano-30B-A3B, Nemotron-3-Super-120B-A12B, Qwen3.5-35B-A3B이다.</p>
+
+<h3>Table 1: 주요 벤치마크 결과 (pass@1)</h3>
+<table>
+  <tr><th>Benchmark</th><th>Nemotron-3-Nano 30B-A3B</th><th>Nemotron-3-Super 120B-A12B</th><th>Qwen3.5 35B-A3B</th><th>Nemotron-Cascade-2 30B-A3B</th></tr>
+  <tr><td colspan="5"><strong>Math</strong></td></tr>
+  <tr><td>IMO 2025</td><td>–</td><td>–</td><td>–</td><td>🥇 <strong>35 pts</strong></td></tr>
+  <tr><td>IMO AnswerBench</td><td>70.4</td><td>77.2</td><td>74.8</td><td><strong>79.3</strong></td></tr>
+  <tr><td>IMO ProofBench</td><td>–</td><td>–</td><td>–</td><td><strong>72.9</strong></td></tr>
+  <tr><td>AIME 2025</td><td>89.1</td><td>90.2</td><td>91.9</td><td><strong>92.4</strong> (98.6 TIR)</td></tr>
+  <tr><td>AIME 2026</td><td>89.9</td><td>89.8</td><td>91.1</td><td><strong>90.9</strong> (95.0 TIR)</td></tr>
+  <tr><td>HMMT Feb25</td><td>84.6</td><td>93.7</td><td>89.0</td><td><strong>94.6</strong></td></tr>
+  <tr><td colspan="5"><strong>Code Reasoning</strong></td></tr>
+  <tr><td>IOI 2025</td><td>–</td><td>–</td><td>348.6</td><td>🥇 <strong>439.28</strong></td></tr>
+  <tr><td>ICPC World Finals 2025</td><td>–</td><td>–</td><td>–</td><td>🥇 <strong>10/12</strong></td></tr>
+  <tr><td>LiveCodeBench v6</td><td>68.3</td><td>78.7</td><td>74.6</td><td><strong>87.2</strong> (88.4 TIR)</td></tr>
+  <tr><td>LiveCodeBenchPro 25Q2 (Med)</td><td>3.50</td><td>23.2</td><td>17.8</td><td><strong>27.6</strong> (36.8 TIR)</td></tr>
+  <tr><td>SciCode</td><td>33.3</td><td>42.1</td><td>38.0</td><td><strong>36.4</strong></td></tr>
+  <tr><td colspan="5"><strong>Knowledge &amp; STEM</strong></td></tr>
+  <tr><td>MMLU-Redux</td><td>–</td><td>–</td><td>93.3</td><td><strong>86.3</strong></td></tr>
+  <tr><td>MMLU-Pro</td><td>78.3</td><td>83.7</td><td>85.3</td><td>79.8</td></tr>
+  <tr><td>GPQA-Diamond</td><td>73.0</td><td>79.2</td><td>84.2</td><td>76.1</td></tr>
+  <tr><td>HLE (no tool)</td><td>10.6</td><td>18.3</td><td>22.4</td><td>17.7</td></tr>
+  <tr><td colspan="5"><strong>Alignment &amp; Instruction Following</strong></td></tr>
+  <tr><td>ArenaHard v2 (Avg.)</td><td>67.7</td><td>–</td><td>65.4</td><td><strong>83.5</strong></td></tr>
+  <tr><td>IFBench (prompt)</td><td>71.5</td><td>72.6</td><td>70.2</td><td><strong>82.9</strong></td></tr>
+  <tr><td>Scale AI Multi-Challenge</td><td>38.5</td><td>55.2</td><td>60.0</td><td>45.3</td></tr>
+  <tr><td colspan="5"><strong>Agentic</strong></td></tr>
+  <tr><td>BFCL v4</td><td>53.8</td><td>–</td><td>67.3</td><td>52.9</td></tr>
+  <tr><td>τ²-Bench</td><td>49.0</td><td>61.2</td><td>81.2</td><td>58.9</td></tr>
+  <tr><td>Terminal Bench 2.0</td><td>8.5</td><td>31.0</td><td>40.5</td><td>21.1</td></tr>
+  <tr><td>SWE Verified (OpenHands)</td><td>38.8</td><td>60.5</td><td>69.2</td><td>50.2</td></tr>
+  <tr><td colspan="5"><strong>Long Context &amp; Context Learning</strong></td></tr>
+  <tr><td>AA-LCR</td><td>35.9</td><td>58.3</td><td>58.5</td><td>39.1</td></tr>
+  <tr><td>LongBench v2</td><td>39.6</td><td>–</td><td>59.0</td><td>40.3</td></tr>
+  <tr><td>NIAH@1M (RULER Subset)</td><td>94.8</td><td>98.3</td><td>94.3</td><td>99.0</td></tr>
+  <tr><td>CL-Bench</td><td>12.0</td><td>–</td><td>15.5</td><td>12.2</td></tr>
+  <tr><td colspan="5"><strong>Multilingual</strong></td></tr>
+  <tr><td>MMLU-ProX</td><td>59.5</td><td>79.4</td><td>81.0</td><td>72.5</td></tr>
+  <tr><td>WMT24++ (en→xx)</td><td>86.2</td><td>86.7</td><td>87.6</td><td>84.1</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##수학과 코드에서 best-in-class 성능##: AIME 2025 92.4, LiveCodeBench v6 87.2, IMO Gold, IOI Gold, ICPC Gold를 동시에 달성하며, 이는 20배 작은 파라미터(vs DeepSeek-V3.2-Speciale 671B)로 달성한 성과이다.</li>
+  <li><strong>Alignment과 instruction following에서 강력</strong>: ArenaHard v2 83.5, IFBench 82.9로 Qwen3.5-35B-A3B를 크게 상회한다.</li>
+  <li><strong>Knowledge-intensive와 agentic 태스크에서 상대적 약세</strong>: MMLU-Pro 79.8, GPQA-Diamond 76.1, BFCL v4 52.9, SWE Verified 50.2 등에서 Qwen3.5-35B-A3B 대비 열세. 이는 pretrain 단계의 지식 집약도와 agentic RL 확장의 여지를 시사한다.</li>
+</ol>
+
+<h3>Table 2: 경시대회 성적</h3>
+<table>
+  <tr><th>Competition</th><th>P1</th><th>P2</th><th>P3</th><th>P4</th><th>P5</th><th>P6</th><th>Overall</th><th>Medal</th></tr>
+  <tr><td>IMO 2025</td><td>7</td><td>7†</td><td>7</td><td>7</td><td>7</td><td>0</td><td>35/42</td><td>🥇 Gold</td></tr>
+  <tr><td>IOI 2025</td><td>39</td><td>88.53</td><td>100</td><td>100</td><td>28.75</td><td>83</td><td>439.28/600</td><td>🥇 Gold</td></tr>
+</table>
+<table>
+  <tr><th>Competition</th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th><th>H</th><th>I</th><th>J</th><th>K</th><th>L</th><th>Overall</th><th>Medal</th></tr>
+  <tr><td>ICPC WF 2025</td><td>+</td><td>-</td><td>+</td><td>+</td><td>+</td><td>+</td><td>-</td><td>+</td><td>+</td><td>+</td><td>+</td><td>+</td><td>10/12</td><td>🥇 Gold</td></tr>
+</table>
+<p>† IMO P2는 분석기하적 접근의 복잡성으로 인해 LLM ProofAutoGrader (Ma et al., 2025)로 채점하였다.</p>
+<p>이전에는 이 세 대회 모두에서 Gold Medal을 달성한 오픈 모델은 DeepSeek-V3.2-Speciale-671B-A37B뿐이었다. Nemotron-Cascade-2는 ##20배 적은 파라미터로 동일한 위업을 달성##한 최초의 모델이다.</p>
+
+<h2>3. Supervised Fine-Tuning (SFT)</h2>
+
+<p>SFT는 post-training 파이프라인의 첫 번째 단계로, 모델에 reasoning, 대화, instruction following, agentic 능력의 기초를 부여한다.</p>
+
+<h3>3.1 Training Framework</h3>
+<ul>
+  <li><strong>시퀀스 길이</strong>: 최대 256K tokens로 packing</li>
+  <li><strong>학습</strong>: 약 1.5 epochs에서 최적 성능 도달 (33,000 steps)</li>
+  <li><strong>Optimizer</strong>: AdamW ($\beta_1=0.9, \beta_2=0.98$), weight decay 0.1, cosine scheduler</li>
+  <li><strong>LR</strong>: max $5 \times 10^{-5}$, min $5 \times 10^{-6}$, 200 warmup steps</li>
+</ul>
+
+<h4>Chat Template 변경</h4>
+<p>Nemotron-Cascade 1과의 두 가지 변경: (1) <code>/think</code>, <code>/no_think</code> 태그 제거, (2) 비추론 모드 활성화를 위해 빈 <code>&lt;think&gt;&lt;/think&gt;</code> 블록 사용. Tool calling은 시스템 프롬프트 내 <code>&lt;tools&gt;</code> 태그에 도구 정의, <code>&lt;tool_call&gt;</code> 태그로 호출.</p>
+
+<h3>3.2 SFT Data Curation</h3>
+
+<table>
+  <tr><th>Domain</th><th>Data Scale</th><th>Key Sources / Teacher</th></tr>
+  <tr><td>Math (non-proof)</td><td>4.4M (1.8M tool + 2.6M non-tool)</td><td>DeepSeek-V3.2 / DeepSeek-V3.2-Speciale</td></tr>
+  <tr><td>Math Proof</td><td>816K (410K generation + 400K verification)</td><td>DeepSeek-V3.2-Speciale</td></tr>
+  <tr><td>Code Reasoning</td><td>~165K prompts → 4.2M traces (1.9M Py + 1.0M C++14 + 1.3M tool)</td><td>GPT-OSS-120B</td></tr>
+  <tr><td>Scientific Coding</td><td>1.1M</td><td>GPT-OSS-120B</td></tr>
+  <tr><td>Science</td><td>2.7M (1.4M + 1.3M)</td><td>GPT-OSS-120B</td></tr>
+  <tr><td>Long Context</td><td>234K (160K + 74K ChatQA-2)</td><td>Nemotron-3-Nano</td></tr>
+  <tr><td>General Chat</td><td>~10.9M (reasoning-on + reasoning-off + multi-turn)</td><td>GPT-OSS-120B, DeepSeek-V3</td></tr>
+  <tr><td>Instruction Following</td><td>~791K</td><td>GPT-OSS-120B, Qwen3 variants</td></tr>
+  <tr><td>Safety</td><td>4K</td><td>Nemotron-3-Nano</td></tr>
+  <tr><td>Conversational Agent</td><td>822K</td><td>Qwen3 variants, GPT-OSS-120B</td></tr>
+  <tr><td>SWE Agent</td><td>514K (125K agentic + 389K agentless)</td><td>OpenHands, SWE-Agent, Mini-SWE-Agent</td></tr>
+  <tr><td>Terminal Agent</td><td>490K</td><td>Terminal-Task-Gen framework</td></tr>
+</table>
+
+<p>주목할 점: Code Reasoning에서 24.2%의 중복 프롬프트를 sample I/O fingerprinting + n-gram 분석으로 제거하여 다양성을 확보했다. SWE 데이터에서는 agentic + agentless를 결합하는 것이 agentic 단독보다 효과적임을 발견 (Pass@1 49.9 vs 48.9, Pass@4 65.2 vs 62.8).</p>
+
+<h2>4. Cascade RL and Multi-Domain On-Policy Distillation</h2>
+
+<h3>전체 학습 파이프라인</h3>
+<div class="flow-diagram">Base Model → SFT → IF-RL → Multi-domain RL → MOPD → RLHF → Long-context RL → Code RL → SWE RL → Nemotron-Cascade 2</div>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: 학습 파이프라인의 전체 흐름. SFT 이후 두 갈래로 나뉘어 진행되는 것처럼 보이지만, 실제로는 순차적이다. 시각적으로 상하 2행에 배치되어 있지만, 실제로는 SFT → IF-RL → Multi-domain RL → MOPD → RLHF → Long-context RL → Code RL → SWE RL의 단일 순차 파이프라인이다.
+</blockquote>
+
+<h3>4.1 Training Framework</h3>
+
+<h4>4.1.1 Cascade RL 순서 결정 원칙</h4>
+<p>최적의 RL 단계 순서는 모델의 행동 역학에 따라 달라지며, 세 가지 원칙을 따른다:</p>
+<ol>
+  <li><strong>Inter-domain interference 최소화</strong>: 도메인 간 경쟁/충돌(예: IF-RL의 strict instruction adherence vs RLHF의 human preference alignment)을 관찰하고, foundational prior 역할을 하는 태스크를 먼저, specialized refinement를 나중에 배치한다.</li>
+  <li><strong>Multi-domain integration으로 확장</strong>: 성능 충돌이 없는 도메인은 하나의 RL 단계에서 jointly 학습하여 효율성을 높인다.</li>
+  <li><strong>MOPD로 안정화</strong>: MOPD가 critical stabilization point 역할을 하여 이전 단계의 regression을 복구한다.</li>
+</ol>
+
+<h4>4.1.2 RL Training Configuration</h4>
+<p>전체 Cascade RL에서 GRPO (Group Relative Policy Optimization) 알고리즘을 사용하며, strict on-policy training (importance sampling ratio = 1)을 채택한다. KL divergence term을 제거하여 표준 REINFORCE objective로 단순화한다:</p>
+
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{(q,a)\sim\mathcal{D},\,\{o_i\}_{i=1}^G \sim \pi_\theta(\cdot|q)} \left[ \frac{1}{\sum_{i=1}^G |o_i|} \sum_{i=1}^G \sum_{t=1}^{|o_i|} \hat{A}_{i,t} \right], \quad \text{where } \hat{A}_{i,t} = \frac{r_i - \text{mean}(\{r_i\}_{i=1}^G)}{\text{std}(\{r_i\}_{i=1}^G)} \text{ for all } t \quad (1)$$
+
+<p>직관적으로, 동일 질문에 대한 $G$개 rollout의 reward를 group-normalize하여, 평균 이상 응답은 강화하고 이하는 약화하는 방식이다. 각 iteration마다 현재 policy에서 rollout을 생성하고 single gradient update를 수행한다.</p>
+
+<h3>4.2 Instruction-Following RL (IF-RL)</h3>
+
+<p><strong>실험 의도</strong>: Cascade RL의 첫 단계로 instruction adherence를 확립하여, 후속 단계의 기초를 마련한다.</p>
+
+<p><strong>왜 첫 번째 단계인가</strong>: (1) IF-RL이 human alignment(ArenaHard)에 부정적 영향을 미칠 수 있으나, 후속 RLHF가 이를 복구 가능. (2) IF-RL 이후의 모델이 MOPD의 강한 teacher가 됨.</p>
+
+<p><strong>핵심 설계 결정</strong>:</p>
+<ul>
+  <li>Thinking mode에서만 학습 (reward model 없이)</li>
+  <li>Dynamic filtering: 모든 rollout이 전부 맞거나 전부 틀린 프롬프트는 제거하여 유효 gradient 보장</li>
+  <li>Overlong penalty: 최대 길이 초과 시 reward = 0</li>
+  <li>결과: ##IFBench에서 SOTA 83.13%## 달성</li>
+</ul>
+
+<p><strong>하이퍼파라미터</strong>: batch 128, 16 rollouts/prompt, LR $2 \times 10^{-6}$, AdamW, ~180 steps</p>
+
+<h3>4.3 Multi-domain RL</h3>
+
+<p><strong>실험 의도</strong>: IF-RL 이후, MCQA (STEM), agentic tool calling, structured output instruction following 세 도메인을 jointly 학습한다.</p>
+
+<p><strong>왜 jointly 학습하는가</strong>: (1) 세 도메인 간 성능 충돌이 관찰되지 않으며, 오히려 MMLU-Pro, τ²-Bench, IF-Bench 모두에서 일관된 개선을 보인다. (2) 응답 길이와 검증 시간이 유사하여 학습 효율이 높다.</p>
+
+<p><strong>데이터 믹스</strong>: 55% MCQA, 30% agentic tool calling (Workplace Assistant), 15% structured output.</p>
+
+<p><strong>하이퍼파라미터</strong>: batch 128, 16 rollouts, LR $3 \times 10^{-6}$, Adam, ~70 steps</p>
+
+<h3>4.4 Multi-domain On-Policy Distillation (MOPD)</h3>
+
+<p><strong>실험 의도</strong>: Cascade RL의 여러 단계를 거치면서 발생하는 벤치마크 fluctuation과 capability drift를 복구하여, 균형 잡힌 최종 모델을 만든다.</p>
+
+<p><strong>왜 MOPD가 필요한가</strong>: 잘 설계된 Cascade RL도 도메인 수가 증가하면 완전히 drift를 제거하지 못한다. RLVR 학습은 model entropy를 낮추고 reasoning trace를 짧게 만들어 수학 성능에 악영향을 줄 수 있고, RLHF는 instruction-following behavior와 trade-off가 발생할 수 있다.</p>
+
+<h4>MOPD 작동 방식</h4>
+<p>핵심 아이디어: Cascade RL 파이프라인의 각 도메인별 최강 validation checkpoint를 teacher로 선택하여, student에게 on-policy 증류한다.</p>
+
+<p><strong>Teacher 선택</strong>: 기본 설정에서 3개 domain teacher를 사용한다:</p>
+<ul>
+  <li><strong>Math teacher</strong>: SFT checkpoint (수학 reasoning trace가 가장 긴 상태)</li>
+  <li><strong>RLHF teacher</strong>: RLHF 최적화 checkpoint</li>
+  <li><strong>RLVR teacher</strong>: IF-RL + Multi-domain RL 초기 단계 checkpoint</li>
+</ul>
+
+<p>Student policy $\pi^{inf}$에서 응답 $y = (y_1, ..., y_T)$를 샘플링하고, 프롬프트의 도메인에 해당하는 teacher $\pi^{domain_t}$를 선택한다. Token-level distillation advantage를 reverse-KL로 정의한다:</p>
+
+$$a_t^{MOPD} = \log \pi^{domain_t}(y_t \mid s_t) - \log \pi^{train}(y_t \mid s_t) \quad (2)$$
+
+<p>직관적으로, teacher가 현재 student보다 해당 토큰에 더 높은 확률을 부여할 때 양수가 되어, 그 토큰을 강화하라는 dense signal이 된다. 학습이 진행될수록 이 advantage는 0으로 수렴한다.</p>
+
+<p>Train-infer mismatch를 보정하기 위해 truncated importance weighting을 적용한다:</p>
+
+$$r_t = \frac{\pi^{train}(y_t \mid s_t)}{\pi^{inf}(y_t \mid s_t)}, \quad w_t = \text{sg}[r_t] \, \mathbb{1}[\epsilon_{\text{low}} \leq r_t \leq \epsilon_{\text{high}}] \quad (3)$$
+
+<p>최종 surrogate objective:</p>
+
+$$\mathcal{L}_{MOPD} = -\mathbb{E}_{x \sim D, y \sim \pi^{inf}(\cdot|x)} \left[ \frac{1}{|\mathcal{V}(y)|} \sum_{t \in \mathcal{V}(y)} w_t \, \text{sg}[a_t^{MOPD}] \log \pi^{train}(y_t \mid s_t) \right] \quad (4)$$
+
+<p>여기서 $\mathcal{V}(y)$는 token mask에 의해 유효한 응답 토큰의 집합이다.</p>
+
+<h4>MOPD의 학습 효율성 이점</h4>
+<p>##MOPD는 dense token-level signal을 제공하므로 GRPO의 sparse sequence-level reward 대비 훨씬 빠르게 수렴##한다:</p>
+<ul>
+  <li><strong>AIME25</strong>: GRPO는 25 steps 후 89.9→91.0, MOPD는 30 steps 만에 92.0 달성 (teacher 수준 회복)</li>
+  <li><strong>ArenaHard v2</strong>: MOPD는 52 steps로 Hard Prompt 71.5→85.5 + Creative Writing 40.6→71.0 동시 달성. RLHF는 160 steps로 80.7 + 71.2 (Table 3)</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: (a) Reverse KL: 학습 초기 급감 후 수렴, student가 teacher를 빠르게 모방함을 보여준다. (b) grad_norm: 초기에 매우 크다가 warmup 후 급감하여, warmup이 안정적 학습에 필수적임을 시사한다. (c) AIME25 (avg@64): MOPD(파란 실선)가 GRPO(주황 실선)보다 적은 step으로 teacher 수준(점선)에 도달한다.
+</blockquote>
+
+<p><strong>하이퍼파라미터</strong>: rollout size 4, batch 128 prompts (effective batch 512), max response 98K tokens. 본문에서는 LR $2 \times 10^{-6}$ (warmup $2 \times 10^{-7}$, 30 steps), 40-50 steps 수렴으로 기술하고, Table 8에서는 LR $3 \times 10^{-6}$, 52 steps로 기재. $\epsilon_{\text{low}} = 0.5$, $\epsilon_{\text{high}} = 2.0$.</p>
+
+<h3>4.5 RLHF (Reinforcement Learning from Human Feedback)</h3>
+
+<p><strong>실험 의도</strong>: Creative writing, 비검증 가능 problem-solving의 품질 향상과 human preference alignment.</p>
+
+<p><strong>핵심 설계</strong>:</p>
+<ul>
+  <li>GenRM (Generative Reward Model): Qwen3-235B-A22B-Thinking-2507 기반, HelpSteer3 프레임워크</li>
+  <li>데이터: HelpSteer3, arena-human-preference-140k subset, synthetic safety blend</li>
+  <li>Thinking mode에서만 학습 (non-thinking 포함 시 IF 성능 저하 관찰)</li>
+  <li>Length-normalized reward + quality-gated conciseness bonus로 응답 길이 증가 억제</li>
+</ul>
+
+<p><strong>하이퍼파라미터</strong>: batch 128, 16 rollouts, LR $3 \times 10^{-6}$, max response 16K, KL coefficient 0.03, ~25-30 steps</p>
+
+<h3>4.6 Long-context RL</h3>
+
+<p><strong>실험 의도</strong>: Long-context understanding과 reasoning 강화. 다른 도메인을 포함하면 성능 저하가 관찰되어 domain-specific으로 분리.</p>
+
+<p><strong>설정</strong>: NVIDIA Nano-v3 RL data blend (long-context만), Nemo-Gym 환경, Qwen3-235B-A22B-Instruct-2507 LLM judge, input 32K / output 49K tokens, ~30 steps</p>
+
+<h3>4.7 Code RL</h3>
+
+<p><strong>실험 의도</strong>: 경쟁 프로그래밍 수준의 코딩 능력 강화.</p>
+
+<p><strong>핵심 설계</strong>:</p>
+<ul>
+  <li><strong>Data curation</strong>: GPT-OSS-120B가 8/8 rollout 모두 정답인 쉬운 문제를 제거하여 ##최종 3.5K 고난도 프롬프트만 사용##</li>
+  <li><strong>Max response 118K tokens</strong>: 극도로 어려운 문제의 긴 reasoning trace 포착</li>
+  <li>Strict binary reward (reward hacking 방지)</li>
+  <li>비동기 reward verification 서버: $128 \times 16 = 2,048$ code executions/step, 384 CPU cores, batch당 427.2초</li>
+</ul>
+
+<p><strong>하이퍼파라미터</strong>: batch 128, 16 rollouts, LR $3 \times 10^{-6}$, top-p 0.95, ~22 steps</p>
+
+<h3>4.8 SWE RL (Software Engineering RL)</h3>
+
+<h4>4.8.1 Agentless RL</h4>
+<p>Code repair 능력 강화를 위한 agentless 접근. GPT-OSS-120B를 reward model로, golden localization + top-5 retrieved localization으로 프롬프트 구성. reward > 0.5인 rollout이 하나도 없는 어려운 프롬프트는 loss를 mask 처리한다.</p>
+
+<p><strong>Table 4: Agentless RL의 효과</strong></p>
+<table>
+  <tr><th>Scaffold</th><th>Agentless Mini avg@4</th><th>Agentless Mini pass@4</th><th>OpenHands avg@4</th><th>OpenHands pass@4</th></tr>
+  <tr><td>Init.</td><td>41.9%</td><td>55.2%</td><td>49.8%</td><td>64.2%</td></tr>
+  <tr><td>after Agentless RL</td><td>44.3%</td><td>57.4%</td><td>50.8%</td><td>65.0%</td></tr>
+</table>
+<p>Agentless code repair 능력이 agentic 설정(OpenHands)으로도 전이됨을 확인.</p>
+
+<h4>4.8.2 Execution-based Agentic SWE RL</h4>
+<p>RLVR (Reinforcement Learning from Verifiable Rewards)를 agentic SWE scaffold 내에서 직접 적용. OpenHands 프레임워크를 사용하여 agent가 repository interaction → patch 생성 → test execution의 전체 trajectory를 최적화한다.</p>
+
+<p><strong>핵심 설정</strong>:</p>
+<ul>
+  <li>Max context 256K tokens, 최대 200 interaction turns</li>
+  <li>데이터: SWE-Gym + R2E-Subset</li>
+  <li>100% accuracy (너무 쉬운) 문제와 0% accuracy (너무 어려운, 90% 제거) 문제를 필터링</li>
+  <li>Batch 1024 (16 prompts × 64 rollouts)</li>
+</ul>
+
+<h2>5. International Mathematical Olympiad (IMO)</h2>
+
+<h3>5.1 IMO 2025</h3>
+<p>Self-improving test-time scaling framework (Shao et al., 2025)를 사용하여, 모델이 후보 해법을 반복적으로 생성-검증-개선한다. ##30B-A3B 규모에서 처음 5문제를 모두 풀어 35/42점으로 Gold Medal##을 달성했다.</p>
+
+<p>전문가 리뷰 소견: 일부 증명이 불필요하게 길고 여분의 중간 단계를 포함하며, P2에서는 기하학적 접근 대신 분석기하적(analytic) 접근을 취한다.</p>
+
+<h3>5.2 IMO-ProofBench</h3>
+
+<p><strong>Table 5: IMO-ProofBench 결과</strong></p>
+<table>
+  <tr><th>Model</th><th>Basic (30)</th><th>Advanced (30)</th><th>Overall (60)</th></tr>
+  <tr><td>Gemini Deep Think (IMO Gold)</td><td>89.0</td><td>65.7</td><td>76.7</td></tr>
+  <tr><td>DeepSeek-Math-V2-671B-A37B</td><td>99.0</td><td>61.9</td><td>80.2</td></tr>
+  <tr><td>DeepSeek-Math-V2-671B (재현)</td><td>99.5</td><td>57.7</td><td>78.6</td></tr>
+  <tr><td><strong>Nemotron-Cascade-2-30B-A3B</strong></td><td><strong>92.5</strong></td><td><strong>53.4</strong></td><td><strong>72.9</strong></td></tr>
+  <tr><td>GPT-5.2-Thinking (high)</td><td>-</td><td>35.7</td><td>-</td></tr>
+  <tr><td>GPT-5 Pro</td><td>-</td><td>28.6</td><td>-</td></tr>
+</table>
+<p>##10배 적은 파라미터임에도 DeepSeek-Math-V2-671B과 8점 차이##로 근접. Basic에서 90+ 달성, QED-Nano-4B (54.0)를 18점 앞선다. Test-time compute 증가 시 Advanced 점수가 round 1의 40.7에서 round 5의 53.4로 점진적으로 향상된다.</p>
+
+<h2>6. Competitive Coding</h2>
+
+<h3>6.1 IOI 2025 and ICPC World Finals 2025</h3>
+
+<p><strong>IOI 2025</strong>: Multi-round generate-select-submit framework 사용. 각 subtask당 최대 50 rounds, round당 40개 후보 생성. 총 최대 $40 \times 50 = 2,000$회 생성으로 439.28점 Gold Medal 달성. Problem 2에서는 5 rounds 만에 86점 이상 달성하여 self-refinement과 cross-subtask insight의 효과를 입증.</p>
+
+<p><strong>ICPC World Finals 2025</strong>: 문제당 최대 1,000개 solution 생성 후 제출. 12문제 중 10문제를 풀어 #4 Gold Medal 달성, 8문제는 100회 제출 내 해결.</p>
+
+<h3>6.2 Competitive Coding Benchmark Results</h3>
+
+<p><strong>Table 6: Competitive Coding 벤치마크 (주요 모델)</strong></p>
+<table>
+  <tr><th>Model</th><th>LiveCodeBench v6</th><th>LCBPro 25Q1 Easy</th><th>LCBPro 25Q2 Med</th><th>Codeforces ELO</th></tr>
+  <tr><td>GPT-5.2 (high)</td><td>-</td><td>96.6</td><td>59.6</td><td>2590</td></tr>
+  <tr><td>DeepSeek-v3.2-Speciale</td><td>88.7</td><td>89.7</td><td>43.1</td><td>2353</td></tr>
+  <tr><td>GPT-OSS-120B (high)</td><td>87.0</td><td>88.8</td><td>31.1</td><td>2320</td></tr>
+  <tr><td>Qwen-3.5-35B-A3B</td><td>74.6</td><td>84.6</td><td>17.8</td><td>2233</td></tr>
+  <tr><td><strong>Nemotron-Cascade-2</strong></td><td><strong>87.2</strong></td><td><strong>88.1</strong></td><td><strong>27.6</strong></td><td><strong>2320</strong></td></tr>
+  <tr><td><strong>Nemotron-Cascade-2 (TIR)</strong></td><td><strong>88.4</strong></td><td><strong>91.0</strong></td><td><strong>36.8</strong></td><td><strong>2345</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##30B-A3B 모델이 100B+ 오픈소스 모델과 대등하거나 우수한 코딩 성능##을 달성. TIR (Tool-Integrated Reasoning)로 Python executor를 활용하면 추가 향상.</li>
+  <li>LiveCodeBench Pro Hard에서 0% 이상 달성 (8회 시도 내). 이는 인간에게도 극도로 어려운 문제.</li>
+  <li>Codeforces ELO 2345 (TIR)로 Qwen-3.5-397B-A17B (2333), DeepSeek-v3.2-Speciale (2353)과 대등.</li>
+</ol>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>탁월한 파라미터 효율성</strong>: 3B activated parameters로 IMO/IOI/ICPC Gold Medal을 동시 달성한 것은 intelligence density 관점에서 획기적이다. 20배 작은 모델이 671B 모델과 경쟁하는 것은 Cascade RL + MOPD의 효과를 강력히 입증한다.</li>
+  <li><strong>체계적인 ablation</strong>: MOPD vs GRPO 비교 (Table 3, Figure 3c), Agentless RL의 agentic 전이 효과 (Table 4), IF-RL positioning 근거 등 각 설계 결정에 대한 실증적 근거가 풍부하다.</li>
+  <li><strong>완전 오픈소스</strong>: 모델, SFT 데이터, RL 데이터 모두 공개하여 재현성이 높다.</li>
+  <li><strong>포괄적 평가</strong>: Math, Code, Knowledge, Alignment, Long-context, Agentic, Multilingual 7개 범주에 걸쳐 30+ 벤치마크에서 평가.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>Knowledge-intensive 및 agentic 태스크 약세</strong>: MMLU-Pro 79.8 (vs Qwen3.5 85.3), GPQA-Diamond 76.1 (vs 84.2), BFCL v4 52.9 (vs 67.3), SWE Verified 50.2 (vs 69.2)로 상당한 격차. 저자도 "stronger knowledge-intensive pretraining and agentic RL"이 필요하다고 인정하지만, 이 약점이 전체 실용성에 미치는 영향 분석이 부족하다.</li>
+  <li><strong>Cascade RL 순서의 최적성 미증명</strong>: 7단계 파이프라인의 순서가 "Rule of thumb"과 실험적 관찰에 기반하지만, 체계적인 순서 탐색(예: 순열 비교)은 보고되지 않았다. 다른 순서가 더 나을 수 있다는 가능성이 열려 있다.</li>
+  <li><strong>표준편차/반복 실험 미보고</strong>: IMO, IOI 등 경시대회 결과는 단일 시도이며, AIME 등 벤치마크도 대부분 단일 점추정치로 보고된다. Seed에 따른 변동성이 불분명하다.</li>
+  <li><strong>Compute cost 미공개</strong>: 7단계 Cascade RL 파이프라인의 총 GPU 시간, Code RL의 384 CPU core 검증 서버 비용 등이 보고되지 않아 실용적 재현 가능성 판단이 어렵다.</li>
+  <li><strong>IMO 채점 방법의 한계</strong>: P2에서 LLM grader를 사용한 것은 인간 채점과의 차이를 야기할 수 있으며, 전체 35점의 신뢰성에 의문이 남는다.</li>
+  <li><strong>SFT 데이터의 proprietary teacher 의존</strong>: GPT-OSS-120B, DeepSeek-V3.2-Speciale 등 대형 모델에서 생성된 합성 데이터에 크게 의존. 이러한 모델 없이 파이프라인을 재현하기 어렵다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Cascade RL은 multi-domain RL의 실용적 해법</strong>: 도메인별 순차 학습이 joint 학습 대비 도메인 간 간섭을 크게 줄이고, 하이퍼파라미터 튜닝의 자유도를 높인다. 도메인 수가 증가할수록 이 장점이 더 두드러진다.</li>
+  <li><strong>MOPD는 Cascade RL의 핵심 안정화 기법</strong>: Dense token-level distillation이 sparse outcome reward보다 빠르게 수렴하며, RL 단계 간 regression을 효과적으로 복구한다. ##MOPD 52 steps = RLHF 160 steps## 수준의 효율성.</li>
+  <li><strong>Intelligence density의 새로운 기준</strong>: 3B activated parameters로 수학 올림피아드 Gold Medal을 달성할 수 있음을 보여주며, 이는 post-training의 중요성이 model size를 넘어설 수 있음을 시사한다.</li>
+  <li><strong>고난도 데이터의 가치</strong>: Code RL에서 "쉬운 문제 제거"(GPT-OSS-120B가 8/8 정답인 문제 필터링)가 3.5K 프롬프트만으로도 강력한 코딩 성능을 이끌어냄. 데이터 양보다 난이도가 중요하다.</li>
+  <li><strong>Execution-based agentic RL의 가능성</strong>: SWE scaffold 내에서 직접 RL을 수행하여 전체 agent trajectory를 최적화하는 접근이 실용적임을 보여준다. 컴파일 결과와 테스트 통과 여부가 자연스러운 verifiable reward가 된다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
