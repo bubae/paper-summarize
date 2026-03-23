@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPSDC: On-Policy Self-Distillation for Reasoning Compression</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>OPSDC: On-Policy Self-Distillation for Reasoning Compression</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Hejian Sang†, Yuanda Xu*, Zhengze Zhou*, Ran He*, Zhipeng Wang, Jiachen Sun</li>
+  <li><strong>소속</strong>: Iowa State University, Princeton University, Cornell University, Columbia University, Rice University, University of Michigan</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026, under review)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.05433">arXiv:2603.05433v3</a> · <a href="https://github.com/HJSang/OPSD_Reasoning_Compression">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Reasoning 모델(OpenAI o1, DeepSeek-R1, Qwen3 등)은 수천 토큰의 장황한 reasoning trace를 생성하며, 쉬운 문제에서도 불필요한 탐색과 자기 의심을 반복한다. 기존 압축 방법은 ground-truth 답변이 필요하거나(RL 기반), 분포 이동이 발생하거나(SFT 기반), 프롬프트 제거 시 효과가 사라진다(prompting 기반).</li>
+  <li><strong>해결</strong>: OPSDC (On-Policy Self-Distillation for Reasoning Compression) — 동일 모델에 "간결하게 풀어라"라는 conciseness instruction을 붙인 버전을 teacher로, 없는 버전을 student로 설정하고, student 자신의 rollout 위에서 per-token reverse KL을 최소화하여 간결한 행동을 내재화한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Reverse KL의 mode-seeking 특성으로 student가 teacher의 고확률 모드(간결한 경로)에 집중하고, (2) on-policy 학습으로 분포 이동 없이 점진적 압축이 가능하며, (3) 주기적 teacher 갱신으로 progressive compression이 발생한다. 결정적으로, 불필요한 토큰은 단순히 낭비가 아니라 compounding error를 유발하므로, 압축이 정확도를 오히려 향상시킨다.</li>
+  <li><strong>비유</strong>: 시험에서 풀이 과정을 장황하게 쓰면 실수할 확률이 높아진다. 간결하게 쓰는 연습을 할 때, 누군가의 모범답안(ground-truth)이 아니라 "너 자신이 간결하게 쓴 버전"을 보고 배우면 자신의 사고 스타일을 유지하면서도 군더더기를 줄일 수 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>극도로 단순한 self-distillation 프레임워크</strong>: ##Ground-truth 답변, reward model, 난이도 추정, 토큰 예산 없이## — conciseness instruction 하나와 per-token reverse KL만으로 reasoning 압축을 달성한다. 표준 SFT 인프라만 필요하다.</li>
+  <li><strong>"Less is more" 현상의 실증과 이론적 설명</strong>: ##MATH-500에서 57-59% 토큰 감소와 동시에 정확도 9-16pp 향상##이라는 직관에 반하는 결과를 보이고, compounding error 이론(Proposition 3)으로 이를 설명한다.</li>
+  <li><strong>자동 난이도 적응 압축</strong>: 별도 난이도 추정 없이 KL objective 자체에서 쉬운 문제는 강하게, 어려운 문제는 약하게 압축하는 difficulty-adaptive behavior가 자연스럽게 창발한다 (Proposition 1).</li>
+  <li><strong>Entropy 보존</strong>: RL 기반 길이 패널티가 entropy collapse를 유발하는 반면, OPSDC는 reverse KL의 mode-seeking 특성으로 학습 전반에 걸쳐 entropy를 안정적으로 유지한다.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>Reasoning 모델의 장황함 문제</h3>
+<p>OpenAI o1, Gemini 2.5, DeepSeek-R1, Qwen3 같은 현대 reasoning 모델은 답에 도달하기 전 수천 토큰의 내부 deliberation을 수행한다. 이 장황함은 어려운 문제에서는 유용하지만, $2+2$ 같은 문제에서도 binary arithmetic 가능성까지 고려하며 500 토큰을 소비하는 등, ##쉬운 문제에서 과도한 토큰 낭비##가 발생한다.</p>
+
+<h3>기존 압축 방법의 한계</h3>
+<p>기존 접근법은 모두 trade-off를 수반한다 (Table 1):</p>
+<ul>
+  <li><strong>RL + length penalty</strong> (L1, DiPO, DIET, Leash, DLER, ThinkPrune): On-policy이지만 ground-truth 답변이 필수이고, 난이도 적응이 안 되며, ##entropy collapse##를 유발한다. "Wait", "Alternatively", "Let me reconsider..." 같은 탐색적 토큰을 일률적으로 억제하여 어려운 문제의 풀이 능력을 훼손한다.</li>
+  <li><strong>SFT on compressed CoT</strong> (SEER, TokenSkip, DAP/LiteCoT, S3-CoT): Off-policy이므로 분포 이동 발생. 다른 모델의 짧은 풀이로 학습하면 자신의 reasoning 스타일을 잃는다.</li>
+  <li><strong>Prompting/pruning</strong> (Chain of Draft, TrimR, NoWait, FlowSteer): 학습 불필요하지만 프롬프트 제거 시 효과 소멸. 압축 한계도 제한적.</li>
+</ul>
+
+<p>OPSDC는 네 가지 바람직한 속성을 모두 만족하는 유일한 방법이다: <strong>On-policy</strong> + <strong>No GT needed</strong> + <strong>Difficulty-adaptive</strong> + <strong>Entropy-preserving</strong>.</p>
+
+<h2>2. Related Work</h2>
+
+<h3>On-policy self-distillation</h3>
+<p>OPSDC의 가장 가까운 선행 연구:</p>
+<ul>
+  <li><strong>OPSD</strong> (Zhao et al., 2026): Teacher에게 ground-truth 답변을 제공하여 GRPO 대비 4-8배 효율적. 그러나 GT 답변에 의존.</li>
+  <li><strong>SDPO</strong> (Hübotter et al., 2026): Rich feedback에 조건화하여 dense credit assignment.</li>
+  <li><strong>SDFT</strong> (Shenfeld et al., 2026): On-policy distillation이 off-policy SFT 대비 forgetting을 극적으로 줄임을 보임.</li>
+  <li><strong>OPCD</strong> (Ye et al., 2026): System prompt 행동을 weight에 증류.</li>
+</ul>
+<p>OPSDC의 차별점: ##conciseness instruction을 privileged context로 사용하여, ground-truth supervision 없이 압축을 달성##하는 것이 핵심 기여이다.</p>
+
+<h2>3. Method</h2>
+
+<h3>3.1 Problem Formulation</h3>
+<p>Reasoning 모델 $\pi_\theta$는 입력 $x$에 대해 reasoning trace $r$과 답변 $a$로 구성된 출력 $y = (r, a)$를 생성한다. 목표: 정확도를 유지하면서 더 짧은 reasoning trace를 생성하는 $\theta^*$를 학습한다.</p>
+
+<p>Conciseness instruction $c$ (예: "Solve concisely, avoid unnecessary steps")를 정의하고:</p>
+<ul>
+  <li><strong>Teacher</strong>: $\pi_{\bar{\theta}}(\cdot \mid x, c)$ — 동일 모델에 conciseness instruction을 추가한 버전</li>
+  <li><strong>Student</strong>: $\pi_\theta(\cdot \mid x)$ — instruction 없는 기본 모델</li>
+</ul>
+<p>Teacher와 student는 동일한 파라미터 $\theta$를 공유하되, 입력 context만 다르다. 이것이 OPSD (Zhao et al., 2026)와의 핵심 차이로, OPSD는 teacher에게 ground-truth 답변을 제공한다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: Student prompt는 원래 문제만 포함하고, Teacher prompt는 동일 문제 앞에 conciseness instruction $c$가 추가된다. 핵심은 teacher에게 어떠한 정답 정보도 제공하지 않는다는 점이다. DAPO-17K 데이터셋의 원래 프롬프트를 student에, conciseness instruction을 prepend한 버전을 teacher에 사용한다.
+</blockquote>
+
+<h3>3.2 Training Objective</h3>
+<p>OPSDC는 student rollout 위에서 per-token reverse KL divergence를 최소화한다:</p>
+
+$$\mathcal{L}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)} \left[ \sum_{t=1}^{|y|} D_{\text{KL}}\Big(\pi_\theta(\cdot \mid x, y_{<t}) \,\Big\|\, \pi_{\bar{\theta}}(\cdot \mid x, c, y_{<t})\Big) \right] \quad (1)$$
+
+<p>여기서 $\bar{\theta}$는 teacher weights로, 주기적으로 student와 동기화되며, teacher의 forward pass에는 gradient가 흐르지 않는다. $y \sim \pi_\theta(\cdot \mid x)$로 student 자신이 생성한 rollout에서 학습하므로 on-policy이다.</p>
+
+<h4>왜 Reverse KL인가?</h4>
+<p>KL divergence의 방향 선택이 핵심이다:</p>
+<ul>
+  <li><strong>Reverse KL</strong> $D_{\text{KL}}(\pi_\theta \| \pi_{\bar{\theta}})$: Student 자신의 분포에 의해 가중되므로, student가 현재 생성하는 토큰 영역에서만 gradient 업데이트가 발생한다. Teacher의 고확률 모드를 추종하는 <strong>mode-seeking</strong> 특성. Teacher가 갱신되어도 student가 이미 teacher의 high-probability mode를 커버하고 있으므로, 각 갱신이 작은 incremental adjustment만 요구한다.</li>
+  <li><strong>Forward KL</strong> $D_{\text{KL}}(\pi_{\bar{\theta}} \| \pi_\theta)$: Teacher의 분포에 의해 가중되어, teacher가 갱신될 때마다 gradient signal의 크기와 방향이 급변한다. 실험적으로 ##forward KL은 progressive accuracy collapse##를 유발한다 — step 190까지 AIME gap이 23% 이상 벌어지고, 어려운 문제의 reasoning chain이 잘린다 (Appendix G).</li>
+</ul>
+
+<h3>3.3 Teacher Parameterization — Periodic Teacher Update</h3>
+<p>Frozen teacher ($\bar{\theta} = \theta_0$, 초기 가중치 고정)는 단순하지만, student가 초기 conciseness signal을 내재화하면 더 이상 압축이 진행되지 않는다. Teacher가 더 이상 student를 이끌지 못하기 때문이다.</p>
+
+<p>이를 해결하기 위해 <strong>periodic teacher update</strong>를 도입한다:</p>
+
+$$\bar{\theta} \leftarrow \theta \quad \text{every } M \text{ steps} \quad (2)$$
+
+<p>직관적으로, student가 간결해지면 그 student를 teacher로 삼았을 때 conciseness instruction을 추가하면 더 간결해진다. 이 progressive compression 효과가 frozen teacher의 한계를 넘어선다.</p>
+
+<h3>3.4 Training Algorithm</h3>
+
+<div class="flow-diagram">Algorithm 1: OPSDC
+Input: 모델 π_θ, 데이터 D={x_i}, conciseness instruction c, LR η, teacher update interval M
+
+Initialize teacher: θ̄ ← θ₀
+for each training step k = 1, 2, ... do
+    if k mod M = 0 then
+        Update teacher: θ̄ ← θ              // periodic refresh
+    end
+    Sample batch {x₁,...,x_B} ~ D
+    for each x_i in batch do
+        Generate student rollout: y_i ~ π_θ(· | x_i)
+        for each token position t = 1,...,|y_i| do
+            Compute student logits: q_t ← π_θ(· | x_i, y_{&lt;t})
+            Compute teacher logits: p_t ← π_θ̄(· | x_i, c, y_{&lt;t})  // no grad
+            Compute D_KL(q_t ∥ p_t)
+        end
+        L_i ← Σ_t D_KL(q_t ∥ p_t)
+    end
+    Update student: θ ← θ - η∇_θ (1/B) Σ_i L_i  // normalized by |y_i|
+end
+return π_{θ*}</div>
+
+<p><strong>계산 비용 및 단순성</strong>: Reward model, value function, advantage estimation, multi-rollout sampling이 모두 불필요하다. 각 training step에 forward pass 두 번(student with gradient + teacher without gradient, $M$-step window 내 캐싱 가능)만 필요하다. RL 방법의 복잡한 인프라(PPO clipping, GAE 등) 대비 현저히 단순하다.</p>
+
+<h3>Difficulty-adaptive Compression</h3>
+<p>압축 signal이 자연스럽게 난이도에 적응한다: 쉬운 문제에서는 concise teacher가 훨씬 짧은 trace를 생성하여 강한 KL signal을 만들고, 어려운 문제에서는 teacher도 긴 reasoning이 필요하므로 약한 KL signal만 발생한다. 이를 Proposition 1에서 형식화하고 Section 5.3에서 실증적으로 검증한다.</p>
+
+<h2>4. Theoretical Analysis</h2>
+
+<h3>4.1 Training Loss = Sequence-Level KL</h3>
+<p><strong>Lemma</strong> (Lemma 1): Autoregressive 모델에서 per-token KL의 합은 sequence-level KL divergence $D_{\text{KL}}(\pi_\theta(\cdot \mid x) \| \pi_{\bar{\theta}}(\cdot \mid x, c))$와 동일하다 (chain rule of KL for autoregressive factorization).</p>
+
+<h3>4.2 Implicit Reward Interpretation</h3>
+<p><strong>Theorem 1</strong> (Implicit reward): OPSDC의 objective (Eq. 1)은 다음과 같은 implicit reward를 최대화하는 것과 동등하다:</p>
+
+$$r(y_t, x) = \log \pi_{\bar{\theta}}(y_t \mid x, c, y_{<t}) - \log \pi_\theta(y_t \mid x, y_{<t}) \quad (3)$$
+
+<p>직관적으로, concise teacher가 student보다 해당 토큰에 더 높은 확률을 부여하면 positive reward, 더 낮은 확률을 부여하면 negative reward가 된다. ##OPSDC는 명시적 길이 패널티 없이도 간결한 reasoning을 암묵적으로 보상##한다. Frozen teacher window 내에서 teacher weights가 implicit trust region 역할을 하여 unbounded policy drift를 방지한다 (Remark 1).</p>
+
+<h3>4.3 Accuracy Preservation</h3>
+<p><strong>Theorem 2</strong> (Accuracy preservation): Training loss가 $\epsilon_{\text{KL}}$로 수렴하고, concise teacher가 base model 대비 $\epsilon_T$의 정확도 차이를 가질 때:</p>
+
+$$\text{Acc}(\pi_{\theta^*}) \geq \text{Acc}(\pi_{\bar{\theta}}) - \epsilon_T - \sqrt{\epsilon_{\text{KL}}/2} \quad (6)$$
+
+<p>Pinsker's inequality로 KL bound를 total variation bound로 변환하고, 이를 correctness event의 확률 차이에 적용한 결과이다. 실제로 $\epsilon_T$는 ##음수## (concise teacher가 base model보다 더 정확)이므로, bound는 $\text{Acc}(\pi_{\bar{\theta}}) + |\epsilon_T| - \sqrt{\epsilon_{\text{KL}}/2}$가 되어 teacher의 정확도 이득이 distillation gap을 초과하면 정확도가 향상된다.</p>
+
+<h3>4.4 Difficulty-Adaptive Compression (Proposition 1)</h3>
+<p>Per-token compression signal $S(x)$는 문제 난이도 $d(x)$에 대해 non-increasing이다:</p>
+<ul>
+  <li>토큰을 essential (teacher가 student보다 높은 확률 부여, $r(y_t, x) \geq 0$)과 compressible ($r(y_t, x) < 0$)로 분류</li>
+  <li>가정: 어려운 문제일수록 essential 토큰 비율 $\rho(x)$가 높고, compressible 토큰의 KL이 essential보다 크다 ($D_C > D_\mathcal{E}$)</li>
+  <li>결론: $S(x) = D_C - \rho(x)(D_C - D_\mathcal{E})$는 $\rho(x)$의 감소 affine 함수이므로, 쉬운 문제에서 더 강한 압축</li>
+</ul>
+<p>MATH-500에서 ~57-59% 압축 vs AIME에서 ~35% 압축으로 실증적으로 확인된다.</p>
+
+<h3>4.5 Bounded Forgetting (Proposition 2)</h3>
+<p>On-policy self-distillation의 base model 대비 divergence는 conciseness gap $\gamma(x) = d_{\text{TV}}(\pi_{\theta_0}(\cdot \mid x), \pi_{\theta_0}(\cdot \mid x, c))$에 의해 bounded된다:</p>
+
+$$\mathbb{E}_x[d_{\text{TV}}(\pi_{\theta^*}(\cdot \mid x), \pi_{\theta_0}(\cdot \mid x))] \leq \sqrt{\epsilon_{\text{KL}}/2} + \mathbb{E}_x[\gamma(x)] \quad (7)$$
+
+<p>어려운 문제에서는 conciseness instruction이 출력 분포를 거의 변화시키지 않으므로 $\gamma(x) \approx 0$이고, forgetting이 최소이다. 이는 off-policy SFT가 teacher-base model 간 전체 분포 불일치에 비례하는 forgetting을 가지는 것과 대조된다.</p>
+
+<h3>4.6 Compression Reduces Compounding Error (Proposition 3)</h3>
+<p>각 토큰이 독립적으로 $p_{\text{err}}$의 확률로 reasoning error를 도입하는 모델에서, 길이 $L$에서 $\alpha L$로 압축하면 정확도 비율이:</p>
+
+$$\frac{\text{Acc}(\alpha L)}{\text{Acc}(L)} = (1 - p_{\text{err}})^{-(1-\alpha)L} \geq 1 + (1-\alpha)L \cdot p_{\text{err}} \quad (33)$$
+
+<p>즉, ##제거된 토큰 수 $(1-\alpha)L$에 대해 지수적으로 증가##한다. MATH-500에서 $L \approx 4,660$, $\alpha \approx 0.41$이면 $p_{\text{err}} = 10^{-4}$만으로도 ~28% 상대 정확도 개선이 예측된다. 실제 오류는 양의 상관관계(이전 오류가 후속 오류를 유발)가 있으므로 이는 하한이며, 실험적 개선(70.0→86.1)이 이 예측을 크게 초과한다.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>5.1 Experimental Setting</h3>
+
+<table>
+  <tr><th>항목</th><th>설정</th></tr>
+  <tr><td>Models</td><td>Qwen3-8B, Qwen3-14B</td></tr>
+  <tr><td>Training data</td><td>DAPO-Math-17k (~13,600 competition math prompts, GT 답변 미사용)</td></tr>
+  <tr><td>Epochs</td><td>1 (실질 ~100 steps에서 수렴)</td></tr>
+  <tr><td>LR</td><td>$1 \times 10^{-6}$</td></tr>
+  <tr><td>Batch size</td><td>32</td></tr>
+  <tr><td>Teacher update $M$</td><td>50</td></tr>
+  <tr><td>Max response length</td><td>8,192 tokens</td></tr>
+  <tr><td>Temperature</td><td>1.0</td></tr>
+  <tr><td>Rollouts per prompt</td><td>1 (single rollout, complete response 불필요)</td></tr>
+  <tr><td>Hardware</td><td>8× H200 GPUs</td></tr>
+</table>
+
+<p>핵심: OPSDC는 per-token KL objective를 최적화하므로 ##완전한 응답이 아니어도 유용한 training signal##을 제공한다 (partial rollout도 유효). 이는 outcome-based reward를 사용하는 RL 방법과의 중요한 차이이다.</p>
+
+<h3>5.2 Main Results — "Less is More"</h3>
+
+<p><strong>실험 의도</strong>: OPSDC가 reasoning trace를 압축하면서 동시에 정확도를 향상시킬 수 있는지를 검증한다.</p>
+
+<p><strong>Table 2: Main Results (30K token budget)</strong></p>
+<table>
+  <tr><th></th><th colspan="3">MATH-500</th><th colspan="3">AIME 2024</th><th colspan="3">AIME 2025</th><th>MMLU</th></tr>
+  <tr><th>Method</th><th>Acc</th><th>Len</th><th>Red.</th><th>Acc</th><th>Len</th><th>Red.</th><th>Acc</th><th>Len</th><th>Red.</th><th>Acc</th></tr>
+  <tr><td colspan="11"><em>Qwen3-8B</em></td></tr>
+  <tr><td>Base Model</td><td>77.7</td><td>4,661</td><td>—</td><td>72.5</td><td>14,170</td><td>—</td><td>62.5</td><td>16,682</td><td>—</td><td>73.2</td></tr>
+  <tr><td>Concise prompt</td><td>80.9</td><td>2,941</td><td>36.9%</td><td>67.5</td><td>11,589</td><td>18.2%</td><td>56.3</td><td>14,347</td><td>14.0%</td><td>—</td></tr>
+  <tr><td><strong>OPSDC</strong></td><td><strong>86.6</strong></td><td><strong>1,921</strong></td><td><strong>58.8%</strong></td><td>69.6</td><td><strong>9,152</strong></td><td><strong>35.4%</strong></td><td>57.1</td><td><strong>10,726</strong></td><td><strong>35.7%</strong></td><td>73.3</td></tr>
+  <tr><td colspan="11"><em>Qwen3-14B</em></td></tr>
+  <tr><td>Base Model</td><td>70.0</td><td>3,872</td><td>—</td><td>65.8</td><td>12,844</td><td>—</td><td>67.1</td><td>15,642</td><td>—</td><td>76.9</td></tr>
+  <tr><td>Concise prompt</td><td>83.8</td><td>2,426</td><td>37.3%</td><td>68.3</td><td>9,866</td><td>23.2%</td><td>58.3</td><td>12,831</td><td>18.0%</td><td>—</td></tr>
+  <tr><td><strong>OPSDC</strong></td><td><strong>86.1</strong></td><td><strong>1,686</strong></td><td><strong>56.5%</strong></td><td><strong>76.3</strong></td><td><strong>7,577</strong></td><td><strong>41.0%</strong></td><td>61.7</td><td><strong>10,137</strong></td><td><strong>35.2%</strong></td><td>76.9</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li><strong>Finding 1: Less is more</strong>: ##MATH-500에서 두 모델 모두 ~86% 정확도 달성 (8B: +8.9pp, 14B: +16.1pp)하면서 57-59% 토큰 감소##. 이는 기존의 "압축 = 정확도 손실" trade-off를 완전히 뒤집는다.</li>
+  <li><strong>AIME 2024에서 14B 모델의 큰 개선</strong>: 65.8→76.3 (+10.5pp), 41% 압축. 경쟁 수준 벤치마크에서도 압축이 정확도를 향상시킴.</li>
+  <li><strong>AIME 2025에서의 modest trade-off</strong>: 가장 어려운 벤치마크에서는 정확도가 소폭 하락 (~5pp). 이는 difficulty-adaptive compression의 예상된 행동이다.</li>
+  <li><strong>큰 모델이 더 많이 이득</strong>: Qwen3-14B는 MATH-500에서 더 낮은 base accuracy (70.0% vs 77.7%)에서 시작하지만, OPSDC 후 유사한 정확도 (86.1% vs 86.6%)에 도달하여 +16.1pp vs +8.9pp의 차이를 보인다. 큰 모델이 conciseness instruction을 더 잘 따르고, 제거할 수 있는 redundancy가 더 많기 때문이다.</li>
+  <li><strong>MMLU 완전 보존</strong>: 73.2→73.3 (8B), 76.9→76.9 (14B). On-policy self-distillation이 일반 능력을 훼손하지 않음.</li>
+  <li><strong>Concise prompt 단독도 유효</strong>: Training 없이 conciseness prompt만으로도 MATH-500 정확도가 14-37% 향상. 이는 base model의 reasoning 중 상당 부분이 이미 불필요함을 확인.</li>
+</ol>
+
+<h3>5.3 Compression Naturally Adapts to Difficulty</h3>
+<p><strong>Finding 2</strong>: 가장 쉬운 MATH-500에서 56.5-58.8% 압축, 가장 어려운 AIME 2025에서 35.2-35.7% 압축. ##~1.6배 비율로 난이도에 자동 적응##하며, 별도의 난이도 추정기가 필요 없다.</p>
+
+<h3>5.4 Entropy 보존</h3>
+<p><strong>Finding 3</strong>: RL 기반 length penalty 방법은 "Wait", "Alternatively" 같은 high-entropy 탐색 토큰을 체계적으로 억제하여 entropy collapse를 유발한다. OPSDC는 ##학습 전반에 걸쳐 per-token entropy가 안정적으로 유지##된다 (Figure 3). Reverse KL의 mode-seeking 특성 덕분에: teacher가 낮은 확률을 부여하는 곳에 student가 확률을 두면 패널티를 받지만, teacher도 uncertain한 곳에서 확률을 유지하는 것은 패널티가 되지 않는다.</p>
+
+<h3>5.5 왜 압축이 정확도를 높이는가?</h3>
+<p><strong>Finding 4</strong>: Reverse KL objective가 암묵적으로 concise, correct 토큰에 보상을 부여하고 (Theorem 1), 확률 질량을 teacher의 preferred mode에 집중시킨다. Training-time accuracy가 correctness reward 없이도 단조 증가한다 (Figure 4): Qwen3-8B ~52%→~66%, Qwen3-14B ~46%→~72%.</p>
+
+<h3>5.6 Qualitative Examples</h3>
+<blockquote>
+<strong>[Figure 5 설명]</strong>: 두 가지 사례. Problem 1: "2월에 Suzanne가 3일마다 4마일 걷기의 최소 마일 수" — Base model (3,042 tokens)은 장황한 탐색 끝에 잘못된 답(4)을 내지만, OPSDC (1,220 tokens, 60% 감소)는 간결하고 올바른 답(36)을 생성. Problem 2: "다항식의 유리 근 개수" — Base model (3,520 tokens)은 맞지만 post-&lt;/think&gt; 반복으로 answer extraction 실패. OPSDC (390 tokens, 89% 감소)는 간결하게 정답(4)을 출력. 두 경우 모두 ##과도한 deliberation이 실제 오류를 유발##함을 보여준다.
+</blockquote>
+
+<h3>5.7 Ablation Study</h3>
+
+<h4>5.7.1 정성적 vs 정량적 압축 지시</h4>
+
+<p><strong>실험 의도</strong>: "간결하게 풀어라"(qualitative)와 "$p$% 적은 토큰으로 풀어라"(quantitative soft budget) 중 어느 것이 더 효과적인지 비교한다.</p>
+
+<p><strong>Table 3: Concise instruction vs Soft budget ($p \in \{20, 50, 80\}$%)</strong></p>
+<table>
+  <tr><th></th><th colspan="3">MATH-500</th><th colspan="3">AIME 2024</th><th colspan="3">AIME 2025</th></tr>
+  <tr><th>Context</th><th>Acc</th><th>Red.</th><th>ΔAcc</th><th>Acc</th><th>Red.</th><th>ΔAcc</th><th>Acc</th><th>Red.</th><th>ΔAcc</th></tr>
+  <tr><td colspan="10"><em>Qwen3-8B</em></td></tr>
+  <tr><td>Concise</td><td><strong>86.6</strong></td><td>58.8%</td><td>+8.9</td><td>69.6</td><td>35.4%</td><td>-2.9</td><td>57.1</td><td>35.7%</td><td>-5.4</td></tr>
+  <tr><td>Soft (p=20%)</td><td>86.2</td><td>60.1%</td><td>+8.6</td><td><strong>70.8</strong></td><td>39.5%</td><td>-1.7</td><td>52.9</td><td>33.7%</td><td>-9.6</td></tr>
+  <tr><td>Soft (p=50%)</td><td>85.9</td><td>60.4%</td><td>+8.2</td><td>63.8</td><td>36.3%</td><td>-8.8</td><td>52.1</td><td>36.2%</td><td>-10.4</td></tr>
+  <tr><td>Soft (p=80%)</td><td>84.1</td><td><strong>63.8%</strong></td><td>+6.5</td><td>67.9</td><td><strong>41.5%</strong></td><td>-4.6</td><td>49.6</td><td><strong>39.5%</strong></td><td>-12.9</td></tr>
+  <tr><td colspan="10"><em>Qwen3-14B</em></td></tr>
+  <tr><td><strong>Concise</strong></td><td><strong>86.1</strong></td><td>56.5%</td><td><strong>+16.1</strong></td><td><strong>76.3</strong></td><td>41.0%</td><td><strong>+10.5</strong></td><td>61.7</td><td>35.2%</td><td>-5.4</td></tr>
+  <tr><td>Soft (p=20%)</td><td>80.7</td><td>67.8%</td><td>+10.8</td><td>67.1</td><td>47.8%</td><td>+1.3</td><td>57.9</td><td>45.8%</td><td>-9.2</td></tr>
+  <tr><td>Soft (p=50%)</td><td>80.7</td><td>67.2%</td><td>+10.8</td><td>67.1</td><td>49.7%</td><td>+1.3</td><td>57.5</td><td>48.8%</td><td>-9.6</td></tr>
+  <tr><td>Soft (p=80%)</td><td>79.8</td><td><strong>68.9%</strong></td><td>+9.9</td><td>68.3</td><td><strong>50.8%</strong></td><td>+2.5</td><td>54.6</td><td><strong>50.7%</strong></td><td>-12.5</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>: Soft budget은 더 높은 압축률을 달성하지만, 정확도에서 일관되게 열세. AIME 2024에서 Concise 76.3% vs soft budget 67-68%. ##모호한 정성적 지시가 정밀한 정량적 목표보다 더 나은 teacher를 만든다## — "vague instructions make better teachers than precise ones."</p>
+
+<h4>5.7.2 Teacher Update Interval $M$ 민감도</h4>
+
+<p><strong>실험 의도</strong>: $M \in \{1, 10, 20, 40, 50, 60\}$에서 안정성-압축 trade-off를 분석한다.</p>
+
+<blockquote>
+<strong>[Figure 7 설명]</strong>: Qwen3-14B, MATH-500에서 4개 메트릭 (Student Entropy, Loss, Accuracy, Avg Response Tokens)의 학습 곡선. 세 가지 regime이 관찰됨: (1) $M=1$은 catastrophically unstable — entropy가 ~0.32에서 ~0.58로 폭발하고 정확도가 step 10에서 ~82% peak 후 step 100까지 ~2%로 붕괴. (2) $M \in \{40, 50, 60\}$은 stable plateau를 형성하여 ~86-87% 정확도에 수렴. (3) $M=10$은 borderline — 초기 ~83% 도달 후 step 50 이후 하락.
+</blockquote>
+
+<p>$M=50$을 기본값으로 채택: stable plateau 내에서 progressive compression을 허용하면서 안정적.</p>
+
+<h2>6. Limitations and Future Work</h2>
+<ul>
+  <li><strong>Instruction-following 능력 의존</strong>: OPSDC는 base model이 conciseness instruction을 따를 수 있어야 한다. 큰 모델이 더 많이 이득 (14B: +16.1pp vs 8B: +8.9pp on MATH-500). 최소 능력 임계점 탐색이 향후 과제.</li>
+  <li><strong>Progressive compression의 한계</strong>: 어려운 벤치마크(AIME)에서는 teacher 자신도 긴 reasoning이 필요하여 compression signal이 약해진다. 이는 설계 의도된 난이도 적응 특성이지만, 한계이기도 하다.</li>
+  <li><strong>수학에만 검증</strong>: MATH-500, AIME 2024/2025만 평가. 코드 생성, 과학 QA 등 다른 reasoning 도메인으로의 일반화 검증이 필요.</li>
+  <li><strong>Teacher quality characterization 부족</strong>: Conciseness instruction이 언제/왜 정확도를 향상시키거나 저하시키는지에 대한 fine-grained 분석이 필요.</li>
+</ul>
+
+<h2>7. Conclusion</h2>
+<p>"We set out to make reasoning models more concise. We ended up making them more accurate." — Reasoning 모델의 장황한 출력 중 상당 부분은 deliberation이 아니라 noise이며, 불필요한 토큰은 compounding error의 원천이다. On-policy self-distillation으로 이 noise를 제거하면 정확도가 오히려 향상된다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>극도의 단순성</strong>: Reward model, GT 답변, 난이도 추정, 토큰 예산 없이 동작. 구현이 매우 간단하고 재현 가능성이 높다.</li>
+  <li><strong>이론적 뒷받침이 풍부</strong>: 5개의 정리/명제로 implicit reward, accuracy preservation, difficulty adaptation, bounded forgetting, compounding error reduction을 형식화. 단순히 실험적 관찰을 넘어 왜 작동하는지를 설명한다.</li>
+  <li><strong>Counterintuitive 결과의 강력한 실증</strong>: MATH-500에서 59% 압축 + 16pp 정확도 향상은 매우 인상적이며, 두 모델(8B, 14B)에서 일관되게 재현된다.</li>
+  <li><strong>KL 방향의 careful analysis</strong>: Forward KL vs Reverse KL 비교 (Appendix G)가 설계 결정의 근거를 명확히 한다.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>매우 제한적인 평가 범위</strong>: 수학 reasoning (MATH-500, AIME)에서만 평가. 저자가 "domain-agnostic"을 주장하지만, 코드, 과학, 일반 추론 등에서의 검증이 전무하다. 수학 문제에서 특히 redundancy가 심할 수 있어, 다른 도메인에서 동일한 효과가 나타날지 불확실.</li>
+  <li><strong>두 모델에서만 검증</strong>: Qwen3-8B, Qwen3-14B만 사용. 다른 model family (Llama, DeepSeek, Gemma 등)나 더 큰/작은 모델에서의 효과 미검증.</li>
+  <li><strong>AIME 2025에서의 정확도 하락</strong>: 가장 어려운 벤치마크에서 5-6pp 하락은 "difficulty-adaptive"로 프레이밍하지만, 실용적으로는 어려운 문제에서의 성능 저하가 우려된다.</li>
+  <li><strong>Conciseness instruction의 효과 변동성</strong>: Table 2에서 concise prompt 단독 결과가 AIME 2024/2025에서는 오히려 base model보다 열등. 이는 concise teacher의 품질이 일관적이지 않음을 시사하며, OPSDC의 robustness에 대한 의문을 제기한다.</li>
+  <li><strong>반복 실험 미보고</strong>: Single rollout, 단일 학습 seed. 학습 안정성과 결과 변동성 불명.</li>
+  <li><strong>다른 compression 방법과의 직접 비교 부재</strong>: L1, DLER, SEER 등 기존 방법과 동일 모델/데이터에서의 head-to-head 비교가 없다. Table 1의 속성 비교는 있지만 성능 비교는 없다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Reasoning의 장황함은 noise이지 deliberation이 아니다</strong>: 불필요한 토큰을 제거하면 정확도가 향상된다. 이는 "더 많이 생각할수록 더 정확하다"는 통념을 뒤집으며, ##매 불필요한 토큰이 compounding error를 유발##한다는 중요한 통찰을 제공한다.</li>
+  <li><strong>Self-distillation의 새로운 활용</strong>: 같은 모델에 conciseness instruction이라는 privileged context를 부여하여 teacher를 만드는 아이디어는 매우 우아하다. GT 답변, reward model 없이 behavioral instruction만으로 self-improvement가 가능하다는 것은 다른 행동 특성(안전성, 형식 등)에도 적용 가능할 수 있다.</li>
+  <li><strong>Reverse KL의 mode-seeking이 compression에 이상적</strong>: Forward KL은 teacher 갱신마다 instability를 유발하지만, reverse KL은 student의 기존 분포 위에서 점진적 조정만 요구하여 안정적이다. Entropy 보존은 RL 기반 방법 대비 핵심 장점.</li>
+  <li><strong>"Vague instructions make better teachers"</strong>: 정량적 목표(50% 줄여라)보다 정성적 지시(간결하게 풀어라)가 더 나은 teacher를 만든다. 이는 모델이 문제별 최적 압축률을 스스로 결정하게 해야 한다는 통찰을 제공한다.</li>
+  <li><strong>실용적 서빙 비용 절감</strong>: 57-59% 토큰 감소는 inference 비용을 거의 절반으로 줄이면서 정확도까지 향상시킨다. 학습도 단일 에폭, 8× H200으로 매우 저비용이다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
