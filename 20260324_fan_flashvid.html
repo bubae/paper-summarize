@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlashVID: Efficient Video Large Language Models via Training-Free Tree-Based Spatiotemporal Token Merging</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>FlashVID: Efficient Video Large Language Models via Training-Free Tree-Based Spatiotemporal Token Merging</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Ziyang Fan, Keyu Chen, Ruilong Xing, Yulin Li, Li Jiang, Zhuotao Tian*</li>
+  <li><strong>소속</strong>: Harbin Institute of Technology (Shenzhen), The Chinese University of Hong Kong (Shenzhen), Shenzhen Loop Area Institute</li>
+  <li><strong>학회/저널</strong>: ICLR 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.08024">arXiv:2602.08024</a> · <a href="https://github.com/Fanziyang-v/FlashVID">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Video Large Language Model (VLLM)은 대량의 visual token을 처리해야 하며, attention의 $O(n^2)$ 복잡도로 인해 계산/메모리 비용이 급증한다. 기존 가속 방법은 spatial redundancy와 temporal redundancy를 독립적으로 압축하여, 비디오의 동적 특성(위치/크기/방향 변화)으로 인한 시공간 상관관계를 놓친다.</li>
+  <li><strong>해결</strong>: FlashVID — (1) ADTS (Attention and Diversity-based Token Selection)로 각 프레임에서 informative하면서도 diverse한 대표 토큰을 선별한 뒤, (2) TSTM (Tree-based Spatiotemporal Token Merging)으로 인접 프레임 간 유사 토큰을 계층적 redundancy tree로 연결하여 시공간 redundancy를 jointly 압축한다.</li>
+  <li><strong>왜 작동하는가</strong>: 비디오에서 의미적으로 유사한 객체는 프레임 간 고정된 위치에 있지 않고 이동/변형하므로, rigid spatial correspondence 대신 feature similarity 기반으로 tree를 구성하면 동적 변화를 포착하면서 redundancy를 정확히 식별할 수 있다.</li>
+  <li><strong>비유</strong>: 영상 편집에서 중복 장면을 제거할 때, 기존 방법은 "같은 화면 위치의 픽셀이 비슷하면 제거"(TTM)하는 반면, FlashVID는 "장면 속 같은 객체가 움직여도 추적하여 중복된 표현을 하나로 합치는"(TSTM) 방식이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>시공간 redundancy의 coupled 특성 규명</strong>: 비디오에서 temporal redundancy는 고정된 공간 위치에 국한되지 않으며, spatial/temporal redundancy가 본질적으로 결합되어 있음을 관찰하고, 이를 jointly 모델링해야 함을 주장한다.</li>
+  <li><strong>TSTM (Tree-based Spatiotemporal Token Merging)</strong>: ##Feature similarity 기반으로 인접 프레임의 토큰을 계층적 redundancy tree로 연결하고, tree 단위로 aggregation##하여 비디오의 동적 변화를 포착하면서 시공간 redundancy를 제거한다.</li>
+  <li><strong>ADTS (Attention and Diversity-based Token Selection)</strong>: [CLS] attention + event relevance로 calibrate된 Max-Min Diversity Problem (MMDP)을 풀어, 각 프레임에서 informative하면서 diverse한 대표 토큰을 선별한다.</li>
+  <li><strong>Training-free plug-and-play</strong>: 추가 학습 없이 기존 VLLM에 적용 가능하며, ##10% visual token만 유지해도 LLaVA-OneVision의 99.1% 성능 보존##. Qwen2.5-VL에 적용 시 10배 더 많은 프레임 처리로 8.6% 성능 향상.</li>
+</ol>
+
+<h2>2. Background and Motivation</h2>
+
+<h3>2.1 VLLM Inference Pipeline</h3>
+<p>VLLM의 inference는 세 단계로 구성된다:</p>
+<ol>
+  <li><strong>Encoding</strong>: Vision encoder (CLIP, SigLIP 등)가 각 프레임을 독립 처리하여 $N_v$개 visual embedding 생성 → modality connector로 text space에 투영하여 $H_v \in \mathbb{R}^{F \times N_v \times d}$ 생성</li>
+  <li><strong>Prefilling</strong>: LLM이 전체 입력 $H$에 대해 self-attention 수행. 각 layer $l$에서 $\mathbf{Q}^l = H^l \mathbf{W}_Q^l$, $\mathbf{K}^l = H^l \mathbf{W}_K^l$, $\mathbf{V}^l = H^l \mathbf{W}_V^l$ 계산하고 KV Cache에 저장</li>
+  <li><strong>Decoding</strong>: Auto-regressive 생성, 새 토큰의 KV만 cache에 추가</li>
+</ol>
+
+<p><strong>Efficiency bottleneck</strong>: FLOPs $= L \times (4nd^2 + 2n^2d + 2ndm)$으로, 시퀀스 길이 $n$에 quadratic하게 증가. 비디오에서는 visual token 수 $n_v$가 text token $n_t$보다 수십 배 많으므로, visual token 압축이 핵심이다.</p>
+
+<h3>2.2 Key Observations</h3>
+<p>비디오의 시공간 redundancy에 대한 두 가지 핵심 관찰:</p>
+<ol>
+  <li><strong>Temporal redundancy는 고정된 공간 위치에 국한되지 않는다</strong>: 의미적으로 유사한 시각 요소가 프레임 간 위치/크기/방향을 변화시키므로, rigid spatial correspondence에 기반한 temporal merging (Temporal Token Merging, TTM)은 덜 상관된 토큰을 병합할 위험이 있다.</li>
+  <li><strong>Spatial과 temporal redundancy는 본질적으로 결합되어 있다</strong>: 한 프레임 내의 redundant 영역이 여러 프레임에 걸쳐 반복되므로, 분리 압축은 이 구조를 놓친다.</li>
+</ol>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: (a) 동일 threshold에서 TSTM(주황색)이 TTM(파란색)보다 프레임당 더 많은 토큰을 병합하면서, 평균 병합 유사도(녹색)도 더 높다. 이는 TSTM이 실제로 더 유사한 토큰 쌍을 찾아 병합함을 의미한다. (b) TTM은 같은 공간 위치의 토큰끼리만 비교하므로 객체 이동 시 다른 토큰을 병합할 수 있다. (c) TSTM은 feature similarity 기반 tree 구조로 이동/변형된 객체도 올바르게 추적하여 병합한다.
+</blockquote>
+
+<h2>3. Methodology</h2>
+
+<h3>3.1 Overview</h3>
+<p>FlashVID는 두 개의 시너지 모듈을 순차적으로 적용한다:</p>
+
+<div class="flow-diagram">Video Frames → Vision Encoder → Visual Features E_v ∈ R^{F×N_v×d}
+  → [Stage 1: ADTS] Frame-wise token selection (MMDP + calibration)
+    → Representative tokens I^(f), Remaining tokens R^(f)
+  → [Stage 2: TSTM] Cross-frame redundancy tree construction + aggregation
+    → Compressed tokens C ∪ (⋃ I^(f))
+  → LLM → Response</div>
+
+<blockquote>
+<strong>[Figure 4 설명]</strong>: FlashVID의 전체 구조. 왼쪽: ADTS가 intra-frame distance matrix를 calibrate하여 diverse + informative 토큰을 선별. TSTM이 인접 프레임 간 similarity로 spatiotemporal redundancy tree를 구성하고 aggregation. 오른쪽: Vision Encoder → Compression → LLM의 before-LLM compression 파이프라인.
+</blockquote>
+
+<h3>3.2 TSTM (Tree-based Spatiotemporal Token Merging)</h3>
+
+<p><strong>Step 1: Spatiotemporal redundancy tree 구성</strong></p>
+<p>Video features $E_v \in \mathbb{R}^{F \times N_v \times d}$에서, 인접 프레임 간 cosine similarity matrix를 계산한다:</p>
+
+$$S^{(f)} = \cos(E_v^{(f)}, E_v^{(f+1)}) \in \mathbb{R}^{N_v \times N_v} \quad (4)$$
+
+<p>$S^{(f)}(j, k)$는 프레임 $f$의 $j$번째 토큰과 프레임 $(f+1)$의 $k$번째 토큰 간 유사도이다. 각 토큰은 이전 프레임에서 가장 유사한 토큰에 연결되며, 유사도가 merging threshold $T_\tau$를 초과할 때만 연결한다. 이렇게 점진적으로 spatiotemporal redundancy tree가 형성되며, 비유사한 토큰의 병합을 방지한다.</p>
+
+<p><strong>Step 2: Tree aggregation으로 시공간 redundancy 압축</strong></p>
+
+$$c^{(i)} = \text{Agg}(\mathcal{T}^{(i)}) \quad (5)$$
+
+<p>$\mathcal{T}^{(i)}$는 $i$번째 redundancy tree, $\text{Agg}(\cdot)$는 aggregation function (mean pooling)이다. 각 tree의 모든 토큰이 하나의 compact representation으로 합쳐진다.</p>
+
+<p>핵심: TTM (Temporal Token Merging)은 같은 공간 위치($j = k$)의 토큰만 비교하지만, ##TSTM은 모든 위치 간 비교##($N_v \times N_v$ matrix)를 수행하여, 움직이거나 변형된 객체도 올바르게 추적하여 병합한다.</p>
+
+<h3>3.3 ADTS (Attention and Diversity-based Token Selection)</h3>
+
+<p>TSTM만으로는 noisy/redundant 입력에서 중요한 토큰을 놓칠 수 있으므로, ADTS가 각 프레임에서 대표 토큰을 먼저 선별한다.</p>
+
+<p><strong>기본 원리</strong>: Frame-wise Max-Min Diversity Problem (MMDP)을 풀어, 최대 최소 거리를 가진 diverse token subset을 선택한다.</p>
+
+<p>Frame-wise cosine distance matrix:</p>
+$$D^{(f)} = 1 - \cos(E_v^{(f)}, E_v^{(f)}) \quad (6)$$
+
+<p>Diversity만으로는 가장 informative한 토큰을 놓칠 수 있으므로, 두 가지 calibration을 도입한다:</p>
+
+<h4>[CLS] Attention Calibration</h4>
+<p>Vision encoder의 attention matrix에서 각 토큰이 받는 평균 attention weight를 추출한다:</p>
+$$A = \text{Softmax}(QK^T / \sqrt{d}) \in \mathbb{R}^{F \times N_v \times N_v} \quad (7)$$
+<p>$A_{\text{[CLS]}} \in \mathbb{R}^{F \times N_v}$로 각 토큰의 informative 정도를 나타낸다.</p>
+
+<h4>Event Relevance Calibration</h4>
+<p>각 토큰이 전체 비디오 이벤트와 얼마나 관련되는지를 측정한다. Global average pooling으로 프레임 임베딩 $f_v = \text{GAP}(E_v)$를 얻고:</p>
+$$\mathbf{S}_e = \frac{1}{F} \sum_{i=1}^{F} (E_v \cdot f_v^\top)[:, :, i] \in \mathbb{R}^{F \times N_v} \quad (8)$$
+<p>이를 통해 비디오의 전체 맥락과 관련된 토큰을 강조한다.</p>
+
+<p>최종 calibrated MMDP:</p>
+$$\mathcal{I} = \text{MMDP}(D, A_{\text{[CLS]}}, \mathbf{S}_e) \quad (9)$$
+
+<h3>Algorithm 1: FlashVID Compression</h3>
+<div class="flow-diagram">Stage 1: ADTS
+  for f = 1 to F:
+    Compute D^(f), A_[CLS]^(f), S_e^(f)
+    I^(f) ← MMDP(D^(f), A_[CLS]^(f), S_e^(f))   // selected tokens
+    R^(f) ← E_v^(f) \ I^(f)                        // remaining tokens
+
+Stage 2: TSTM
+  Initialize R^(1) tokens as root nodes, C = ∅
+  for f = 2 to F:
+    for each r_i^f ∈ R^(f):
+      p* ← argmax_{p ∈ R^(f-1)} sim(r_i^f, p)
+      if sim(r_i^f, p*) ≥ T_τ: connect r_i^f to p*
+  for each tree T:
+    C ← C ∪ Agg(T)                                // mean pooling
+  return X̃ = C ∪ (⋃ I^(f))                       // compressed output</div>
+
+<h2>4. Experiments</h2>
+
+<p>FlashVID의 효과를 검증하기 위한 핵심 질문:</p>
+<ul>
+  <li><strong>RQ1</strong>: FlashVID가 기존 SOTA training-free 방법 대비 더 나은 성능-효율 trade-off를 보이는가?</li>
+  <li><strong>RQ2</strong>: 고정 계산 예산에서 더 많은 프레임을 처리할 수 있는가?</li>
+  <li><strong>RQ3</strong>: ADTS와 TSTM 각각의 기여는?</li>
+</ul>
+
+<h3>4.1 Experimental Settings</h3>
+<ul>
+  <li><strong>벤치마크 (5개)</strong>: VideoMME, EgoSchema, LongVideoBench, MVBench, MLVU</li>
+  <li><strong>VLLM (3개)</strong>: LLaVA-OneVision, LLaVA-Video, Qwen2.5-VL</li>
+  <li><strong>비교 대상 (4개)</strong>: FastV, VisionZip, PruneVID, FastVID</li>
+  <li><strong>Hardware</strong>: NVIDIA A800 80G GPUs</li>
+  <li><strong>평가 도구</strong>: LMMs-Eval</li>
+</ul>
+
+<h3>4.2 Main Results</h3>
+
+<h4>RQ1: LLaVA-OneVision 결과 (Table 1 발췌)</h4>
+
+<p><strong>실험 의도</strong>: 다양한 retention ratio $R$에서 FlashVID가 기존 방법을 능가하는지 확인한다.</p>
+
+<table>
+  <tr><th>Method</th><th>R</th><th>VideoMME</th><th>EgoSchema</th><th>LongVideo</th><th>MVBench</th><th>Avg Rel. Acc (%)</th></tr>
+  <tr><td>Vanilla</td><td>100%</td><td>60.3</td><td>56.6</td><td>58.3</td><td>58.4</td><td>100.0</td></tr>
+  <tr><td>FastV</td><td rowspan="4">10%</td><td>56.0</td><td>52.4</td><td>53.4</td><td>53.6</td><td>91.8</td></tr>
+  <tr><td>VisionZip</td><td>58.5</td><td>49.4</td><td>54.8</td><td>54.0</td><td>92.5</td></tr>
+  <tr><td>FastVID</td><td>58.7</td><td>55.7</td><td>57.0</td><td>57.1</td><td>97.8</td></tr>
+  <tr><td><strong>FlashVID</strong></td><td><strong>60.0</strong></td><td><strong>56.5</strong></td><td><strong>57.4</strong></td><td><strong>57.9</strong></td><td><strong>99.1</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##$R=10\%$ (visual token 90% 제거)에서도 vanilla 대비 99.1% 성능 보존##. FastVID(97.8%)보다 1.3pp 높고, VisionZip(92.5%)보다 6.6pp 높다.</li>
+  <li>$R \in \{15\%, 20\%, 25\%\}$에서 FlashVID가 오히려 vanilla(100% token)을 능가 — ##"less is more" 현상##. 과도한 redundant token이 오히려 성능을 저해함을 의미한다.</li>
+  <li>VisionZip은 높은 retention(25%, 20%)에서는 경쟁력이 있으나 15%, 10%에서 급격히 성능 저하. FlashVID는 모든 retention에서 일관적으로 최고 성능.</li>
+</ol>
+
+<h4>RQ1: Qwen2.5-VL 결과 (Table 2 발췌)</h4>
+<table>
+  <tr><th>Method</th><th>R</th><th>VideoMME</th><th>EgoSchema</th><th>LongVideo</th><th>MVBench</th><th>Avg Rel. Acc (%)</th></tr>
+  <tr><td>Vanilla</td><td>100%</td><td>61.3</td><td>58.3</td><td>58.9</td><td>68.0</td><td>100.0</td></tr>
+  <tr><td>FastVID</td><td rowspan="2">10%</td><td>49.0</td><td>56.3</td><td>55.6</td><td>62.3</td><td>93.2</td></tr>
+  <tr><td><strong>FlashVID</strong></td><td><strong>57.3</strong></td><td><strong>57.1</strong></td><td><strong>65.5</strong></td><td><strong>58.9</strong></td><td><strong>95.6</strong></td></tr>
+</table>
+<p><strong>LLaVA-Video 결과</strong>: LLaVA-Video에서도 FlashVID가 모든 retention ratio에서 SOTA를 달성한다. $R=10\%$에서 Rel. Acc. 95.9%, $R=20\%$에서 97.7%로 기존 방법을 일관되게 상회한다.</p>
+
+<p>다른 아키텍처(Qwen2.5-VL)에서도 일관되게 SOTA. 특히 LongVideoBench에서 vanilla(58.9) 대비 FlashVID(65.5)가 더 높은 결과는, 10% 토큰만으로도 noise 제거 효과로 long video 이해가 오히려 개선됨을 시사한다.</p>
+
+<h4>RQ2: 고정 계산 예산에서 프레임 확장 (Table 3)</h4>
+
+<p><strong>실험 의도</strong>: 토큰 압축으로 절약된 예산을 프레임 수 증가에 투자하면, 더 긴 시간적 맥락이 성능을 개선하는지 검증한다.</p>
+
+<table>
+  <tr><th>Method</th><th>#Frames</th><th>R</th><th>VideoMME</th><th>EgoSchema</th><th>LongVideo</th><th>MLVU</th><th>Avg Rel. Acc (%)</th></tr>
+  <tr><td>Vanilla</td><td>16 (1x)</td><td>100%</td><td>58.2</td><td>55.6</td><td>56.9</td><td>40.6</td><td>100.0</td></tr>
+  <tr><td>FlashVID</td><td>80 (5x)</td><td>20%</td><td>61.4</td><td>58.6</td><td><strong>58.9</strong></td><td><strong>45.0</strong></td><td><strong>106.8</strong></td></tr>
+  <tr><td>FlashVID</td><td>160 (10x)</td><td>10%</td><td><strong>61.2</strong></td><td><strong>59.5</strong></td><td><strong>58.9</strong></td><td><strong>47.5</strong></td><td><strong>108.6</strong></td></tr>
+</table>
+
+<p>##Qwen2.5-VL에서 10배 프레임(160 vs 16) 처리로 동일 계산 예산 내 8.6% 성능 향상## (Rel. Acc. 108.6%). MLVU에서 40.6→47.5로 큰 개선, 긴 비디오에서의 시간적 맥락 확장 효과를 확인.</p>
+
+<p><strong>참고</strong>: 위 테이블의 VideoMME는 Total 수치이다. Short/Medium/Long/Overall 서브 컬럼은 원문 Table 3 참조.</p>
+
+<h3>4.3 Ablation Studies</h3>
+
+<h4>ADTS 모듈 ablation (Table 4)</h4>
+
+<p><strong>실험 의도</strong>: ADTS의 각 구성 요소(ATS: attention-based, DTS: diversity-based, calibration terms)의 기여를 분리한다.</p>
+
+<table>
+  <tr><th>Method</th><th>VideoMME</th><th>EgoSchema</th><th>LongVideo</th><th>MVBench</th><th>Rel. Acc.</th></tr>
+  <tr><td>ATS (attention only)</td><td>55.5</td><td>59.5</td><td>55.0</td><td>56.2</td><td>96.9</td></tr>
+  <tr><td>DTS (diversity only)</td><td>55.7</td><td><strong>60.3</strong></td><td>55.5</td><td>55.8</td><td>97.1</td></tr>
+  <tr><td>w/ E.R. (event relevance)</td><td>56.0</td><td>60.2</td><td>55.1</td><td>56.8</td><td>97.6</td></tr>
+  <tr><td>w/ C.A. ([CLS] attention)</td><td>57.3</td><td>59.7</td><td>55.7</td><td>57.3</td><td>98.5</td></tr>
+  <tr><td><strong>ADTS (full)</strong></td><td><strong>57.8</strong></td><td>60.0</td><td><strong>56.5</strong></td><td><strong>57.4</strong></td><td><strong>99.1</strong></td></tr>
+</table>
+
+<p>ATS/DTS 단독보다 결합한 ADTS가 일관되게 우수하며, [CLS] attention과 event relevance calibration이 각각 성능을 향상시킨다.</p>
+
+<h4>ADTS-TSTM 비율 $\alpha$ ablation (Table 5)</h4>
+
+<p><strong>실험 의도</strong>: $\alpha$는 ADTS와 TSTM 간 visual token 배분을 제어한다 ($\alpha = 0$: TSTM only, $\alpha = 1$: ADTS only).</p>
+
+<table>
+  <tr><th>$\alpha$</th><th>VideoMME</th><th>EgoSchema</th><th>LongVideo</th><th>MVBench</th><th>Rel. Acc.</th></tr>
+  <tr><td>0.0 (TSTM)</td><td>56.7</td><td>60.2</td><td>55.3</td><td>55.6</td><td>97.4</td></tr>
+  <tr><td>0.4</td><td>56.4</td><td>60.0</td><td>55.1</td><td>57.2</td><td>97.9</td></tr>
+  <tr><td><strong>0.7</strong></td><td><strong>57.8</strong></td><td><strong>60.0</strong></td><td><strong>56.5</strong></td><td>57.4</td><td><strong>99.1</strong></td></tr>
+  <tr><td>1.0 (ADTS)</td><td>56.9</td><td>60.1</td><td>55.6</td><td><strong>57.6</strong></td><td>98.5</td></tr>
+</table>
+
+<p>ADTS 단독($\alpha=1$)이 TSTM 단독($\alpha=0$)보다 우수하지만, ##최적 성능은 $\alpha=0.7$ (ADTS 70% + TSTM 30%)##에서 달성되어 두 모듈의 시너지를 확인.</p>
+
+<h3>4.4 Efficiency Analysis (Table 6)</h3>
+
+<p><strong>실험 의도</strong>: FlashVID의 실제 inference 속도 이점을 FastVID와 비교한다.</p>
+
+<table>
+  <tr><th>Method</th><th>R</th><th>TFLOPs</th><th>Compression (ms)</th><th>LLM Forward (ms)</th><th>Total Prefill (ms)</th><th>TTFT (ms)</th><th>Rel. Acc. (%)</th></tr>
+  <tr><td>Vanilla</td><td>100%</td><td>113.4</td><td>-</td><td>1220.8</td><td>1220.8 (1.0×)</td><td>2005.8 (1.0×)</td><td>100.0</td></tr>
+  <tr><td>FastVID</td><td>25%</td><td>22.4</td><td>28.6</td><td>273.2</td><td>301.8 (4.0×)</td><td>1086.8 (1.8×)</td><td>98.5</td></tr>
+  <tr><td><strong>FlashVID</strong></td><td>10%</td><td>8.6</td><td>60.2</td><td>133.1</td><td>193.3 (<strong>6.3×</strong>)</td><td>978.3 (<strong>2.1×</strong>)</td><td><strong>99.1</strong></td></tr>
+</table>
+
+<p>FlashVID는 $R=10\%$에서 FastVID($R=25\%$)보다 더 높은 정확도(99.1% vs 98.5%)를 달성하면서, prefilling 6.3배 가속, TTFT (Time-To-First-Token) 2.1배 가속을 보인다. Compression 오버헤드(60.2ms)가 FastVID(28.6ms)보다 크지만, LLM forward에서의 절감이 이를 상쇄한다.</p>
+
+<h2>5. Conclusion</h2>
+<p>FlashVID는 ADTS + TSTM 두 모듈로 비디오의 시공간 redundancy를 jointly 압축하는 training-free acceleration framework이다. 3개 VLLM × 5개 벤치마크에서 기존 SOTA를 일관되게 능가하며, plug-and-play 모듈로 더 긴 비디오 처리를 가능하게 한다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>명확한 문제 정의와 직관적 해법</strong>: "시공간 redundancy는 coupled되어 있다"는 관찰이 설득력 있고, tree-based merging이라는 해법이 자연스럽다. Figure 3의 TSTM vs TTM 비교가 매우 효과적이다.</li>
+  <li><strong>포괄적 실험</strong>: 3개 VLLM (LLaVA-OneVision, LLaVA-Video, Qwen2.5-VL) × 5개 벤치마크 × 4개 retention ratio로 광범위하게 검증. 아키텍처 일반성을 잘 보여준다.</li>
+  <li><strong>실용적 가치</strong>: Training-free, plug-and-play로 즉시 적용 가능. 10% retention에서 99.1% 성능 보존은 매우 실용적이다.</li>
+  <li><strong>ICLR 2026 accepted</strong>: 검증된 venue에서 accept됨.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>TSTM의 $O(F \times N_v^2)$ 복잡도</strong>: 인접 프레임 간 $N_v \times N_v$ similarity matrix 계산이 필요. 프레임당 토큰 수가 많으면 compression 자체의 오버헤드가 커진다 (Table 6에서 60.2ms). 실시간 비디오 처리에서는 병목이 될 수 있다.</li>
+  <li><strong>Merging threshold $T_\tau$의 민감도 미분석</strong>: TSTM의 핵심 하이퍼파라미터인 $T_\tau$에 대한 ablation이 본문에 없다. Appendix A.3에서 DPC-kNN threshold ablation은 있으나 $T_\tau$ 자체는 불명확.</li>
+  <li><strong>Audio/subtitle 등 다른 modality 미고려</strong>: Long video understanding에서 audio 정보가 중요할 수 있으나, visual token만 압축한다.</li>
+  <li><strong>Tree depth/breadth 제약의 효과 미검증</strong>: 저자가 "tree depth와 breadth를 제약해봤으나 무시할 수 있는 차이"라고 언급하지만, 이에 대한 수치가 본문에 없다.</li>
+  <li><strong>표준편차 미보고</strong>: 모든 결과가 단일 점추정치로 보고되어 통계적 유의성 불명.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>시공간 redundancy는 jointly 압축해야 한다</strong>: 비디오에서 spatial/temporal redundancy를 독립 처리하면 객체의 동적 변화를 놓치고 무관한 토큰을 병합할 위험이 있다. Feature similarity 기반의 tree 구조가 이를 해결하는 효과적인 방법이다.</li>
+  <li><strong>"Less is more"가 VLLM에서도 성립</strong>: 90% 토큰을 제거해도 99.1% 성능 보존, 심지어 일부 설정에서는 vanilla을 능가. 과도한 visual token이 오히려 노이즈로 작용할 수 있다.</li>
+  <li><strong>Training-free compression으로 프레임 수를 10배 확장</strong>: 토큰 압축으로 절약한 예산을 프레임 수 증가에 투자하면, 동일 비용으로 더 긴 시간적 맥락을 활용하여 ##long video understanding에서 8.6% 성능 향상##을 달성할 수 있다.</li>
+  <li><strong>Diversity + Relevance의 조합이 핵심</strong>: MMDP(diversity)만으로는 informative 토큰을 놓치고, attention(relevance)만으로는 다양성이 부족. [CLS] attention + event relevance로 calibrate된 MMDP가 최적의 token selection을 제공한다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
