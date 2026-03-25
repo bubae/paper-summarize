@@ -156,31 +156,97 @@ document.addEventListener("DOMContentLoaded", function() {
 <p><strong>Zero-valued gradient 분석</strong>: NVFP4 학습 시 weight gradient의 7%가 zero-valued로 수렴하는 현상 관찰. 이는 expert layer의 FC1 output channel과 FC2 input channel에서 magnitude pattern이 형성되어 발생하며, NVFP4의 low precision이 small-magnitude gradient를 underflow시키기 때문이다. 그러나 BF16으로 전환해도 이미 유사한 magnitude pattern이 존재하므로, ##NVFP4가 BF16의 자연스러운 학습 동역학을 가속할 뿐 새로운 문제를 도입하지 않는다##.</p>
 
 <h3>2.3 Pretraining Data</h3>
-<p>25T 토큰, 16개 high-level category, 2-phase curriculum:</p>
+<p>25T 토큰, 16개 high-level category, 2-phase curriculum. Nemotron-CC taxonomy (Su et al., 2025)에 따라 web crawl을 5단계 품질로 분류하고, 합성 대응물과 함께 배합한다.</p>
 <ul>
-  <li><strong>Phase 1 (80%, 20T)</strong>: 다양성과 broad coverage 중심 (crawl data, code, math, multilingual 등)</li>
-  <li><strong>Phase 2 (20%, 5T)</strong>: 고품질 데이터와 benchmark accuracy 중심 (Wikipedia, code-sft, stem-sft 비중 증가)</li>
-</ul>
-<p>Nemotron 3 Nano 이후 추가된 합성 데이터: Synthetic Code Concepts (15M problem-solution pairs), Unconditional Algorithmic (LeetCode 스타일), Economics (다양한 MCQ), Formal Logic, Multiple Choice (3.5M MMLU-style samples).</p>
-
-<h3>2.4-2.5 Hyperparameters & Checkpoint Merging</h3>
-<ul>
-  <li>WSD (Warmup-Stable-Decay) LR schedule: peak $4.5 \times 10^{-4}$, 200B warmup, minus-sqrt decay for last 5T</li>
-  <li>AdamW ($\beta_1=0.9, \beta_2=0.95$), weight decay 0.1, batch 3,072 × 8,192 = 25.17M tokens/batch</li>
-  <li>Checkpoint merging: stable LR phase에서 2-4pp 향상, ~16% pretraining FLOP 절약</li>
+  <li><strong>Phase 1 (80%, 20T)</strong>: 다양성과 broad coverage 중심. crawl-medium, crawl-medium-high, crawl-high + syn-crawl variants, nemotron-cc-code, code-sft, general-sft, multilingual, crawl++, academic, code, math, finepdfs 등</li>
+  <li><strong>Phase 2 (20%, 5T)</strong>: 고품질 데이터와 benchmark accuracy 중심. Wikipedia, code-sft, stem-sft, crawl-high 비중 대폭 증가. Crawl++ = OpenWebText, BigScience, Reddit datasets</li>
 </ul>
 
-<h3>2.7 Base Model Results (Table 4 발췌)</h3>
+<blockquote>
+<strong>[Figure 10 설명]</strong>: Phase 1과 Phase 2의 데이터 혼합 비율 pie chart. Phase 1에서는 syn-crawl-high (22.4%)가 최대 비중이고 crawl-medium, nemotron-cc-code, general-sft 등이 고르게 분포. Phase 2에서는 syn-crawl-high (22.4%)와 crawl-high (8.0%), code (14.2%), math (7.4%)가 강화된다.
+</blockquote>
+
+<h4>Nemotron 3 Nano 이후 추가된 합성 Pretraining 데이터</h4>
+<p>Nemotron-Pretraining-Specialized-v1.1로 공개:</p>
+<ul>
+  <li><strong>Synthetic Code Concepts</strong>: 91개 프로그래밍 concept taxonomy에서 GPT-OSS-20B로 ~14M Python 문제 생성, GPT-OSS-120B로 문제당 5개 solution 생성 (60줄 제한). AST validation + import 검증 후 15M problem-solution pairs. HumanEval, MBPP, CRUXEval-O에서 1-2pp 개선</li>
+  <li><strong>Unconditional Algorithmic</strong>: Qwen3-235B-A22B + gpt-oss-120b로 LeetCode 스타일 문제 생성. 난이도별(easy/medium/hard) unit test 추가, 중복 제거 (5-8 word title 기반). ~0.2B tokens</li>
+  <li><strong>Economics</strong>: Qwen3-235B-A22B-Thinking-2507로 micro/macroeconomics, econometrics MCQ 생성. Model-based verification for clarity, solvability, accuracy</li>
+  <li><strong>Formal Logic</strong>: 자연어 ↔ predicate/propositional logic 번역, truth table 기반 논리 문제. Random persona와 logic connectives (∧, ∨, ⊃, ≡, ~)로 다양성 확보</li>
+  <li><strong>Multiple Choice (MMLU-aux-train-SDG)</strong>: MMLU auxiliary training set에서 bootstrap하여 ~3.5M MMLU-style MCQ 생성 (~1.6B tokens). Qwen3-235B-A22B로 유사 질문 생성 → DeepSeek-V3로 풀이 → majority voting으로 filtering. MMLU 77.22→77.51, MATH Level 5 78.55→79.05, AIME-2024 53.3→56.7 개선</li>
+</ul>
+
+<h3>2.4 Hyperparameters</h3>
+<ul>
+  <li>WSD (Warmup-Stable-Decay) LR schedule: peak $4.5 \times 10^{-4}$, 200B tokens warmup</li>
+  <li>Stable plateau phase 후, 최종 5T tokens에서 <code>minus-sqrt</code> decay로 $4.5 \times 10^{-6}$까지 annealing</li>
+  <li>AdamW optimizer: $\beta_1=0.9$, $\beta_2=0.95$, weight decay 0.1</li>
+  <li>Batch: 3,072 sequences × 8,192 tokens = 25.17M tokens/batch</li>
+  <li>MoE: 512 experts, top-22 routing, sigmoid router score + expert biasing</li>
+  <li>Load balancing: auxiliary-loss-free strategy (update rate $10^{-3}$) + standard load balancing loss ($10^{-4}$)</li>
+  <li>MTP objective: loss scaling factor 0.3</li>
+  <li>Hybrid precision: BF16 + NVFP4 혼합</li>
+</ul>
+
+<h3>2.5 Tracking Merge Evaluation</h3>
+<p>WSD schedule의 stable phase에서는 LR이 일정하여 개별 checkpoint의 벤치마크 성능이 noisy하다. <strong>Checkpoint merging</strong> (sliding window weighted average)을 적용하여, 별도 LR decay run 없이도 안정적인 모델 품질 readout을 얻는다.</p>
+<ul>
+  <li>Merge window: {125B, 250B, 500B} tokens, 1,000 iteration마다 checkpoint 저장 (≈25B tokens/checkpoint)</li>
+  <li>12개 벤치마크 (MMLU-Pro, MMLU, HumanEval, HumanEval+, MBPP, MBPP+, GSM8K, MATH-500, RACE, ARC-Challenge, HellaSwag, WinoGrande) 평균에서 merged checkpoint가 trained checkpoint 대비 ##일관되게 2-4pp 향상##</li>
+  <li>LR decay phase (20T→25T)에서는 gap이 좁아져 수렴. 짧은 annealing horizon에서 merge가 가장 효과적</li>
+  <li>##~16% pretraining FLOP 절약## (별도 decay run 불필요: ~4T tokens 분량의 compute 절감)</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 11 설명]</strong>: 25T 학습 전체에 걸친 trained checkpoint (파란색) vs best offline merge (주황색)의 12-benchmark 평균. Stable phase에서 merge가 2-4pp 일관적 우위. LR decay phase (음영 영역)에서 gap이 좁아진다.
+</blockquote>
+
+<h3>2.6 Long-Context Extension</h3>
+<p>사전학습 말미에 long-context phase (LC-Phase)를 추가하여 1M context를 지원한다:</p>
+<ul>
+  <li><strong>Stage 1</strong>: Continuous pretraining (CPT)으로 1,048,576 (1M) context length에서 34B tokens 학습. LR $4.5 \times 10^{-6}$, global batch 16, 64-way context parallelism + 2-way TP + 64-way EP, GB200 GPU</li>
+  <li><strong>Stage 2</strong>: 1M과 4K 시퀀스를 교대로 학습 (17B tokens). Stage 1에서 관찰된 수학 벤치마크 소폭 하락을 완화하기 위함</li>
+  <li>LC data blend: 20% document QA (Nemotron 2 & 3 Nano에서 재사용) + 80% downscaled Phase 2 data</li>
+</ul>
+
+<h3>2.7 Base Model Results (Table 4)</h3>
 <table>
-  <tr><th>Task</th><th>N-3-Super Base</th><th>Ling-flash-base-2.0</th><th>GLM-4.5-Air-Base</th></tr>
-  <tr><td>MMLU</td><td><strong>86.01</strong></td><td>81.00</td><td>81.00</td></tr>
-  <tr><td>MMLU-Pro</td><td><strong>75.65</strong></td><td>62.10</td><td>58.20</td></tr>
-  <tr><td>GPQA-Diamond</td><td><strong>60.00</strong></td><td>36.00</td><td>23.20</td></tr>
-  <tr><td>MATH Level 5</td><td><strong>70.00</strong></td><td>39.80</td><td>26.30</td></tr>
-  <tr><td>AIME 2024 (pass@32)</td><td><strong>53.33</strong></td><td>30.00</td><td>20.00</td></tr>
-  <tr><td>RULER 1M</td><td><strong>74.39</strong></td><td>–</td><td>–</td></tr>
+  <tr><th>Task</th><th>Metric</th><th>N-3-Super Base</th><th>Ling-flash-base-2.0</th><th>GLM-4.5-Air-Base</th></tr>
+  <tr><td colspan="5"><strong>General Knowledge</strong></td></tr>
+  <tr><td>MMLU</td><td>5-shot, acc</td><td><strong>86.01</strong></td><td>81.00</td><td>81.00</td></tr>
+  <tr><td>MMLU-Pro</td><td>5-shot, CoT EM</td><td><strong>75.65</strong></td><td>62.10</td><td>58.20</td></tr>
+  <tr><td>AGIEval-En</td><td>3/5-shot, CoT EM</td><td><strong>77.92</strong></td><td>61.70</td><td>62.40</td></tr>
+  <tr><td>GPQA-Diamond</td><td>5-shot, CoT EM</td><td><strong>60.00</strong></td><td>36.00</td><td>23.20</td></tr>
+  <tr><td colspan="5"><strong>Math</strong></td></tr>
+  <tr><td>GSM8K</td><td>8-shot, EM</td><td>90.67</td><td><strong>90.75</strong></td><td>82.60</td></tr>
+  <tr><td>MATH</td><td>4-shot, EM</td><td><strong>84.84</strong></td><td>63.80</td><td>50.36</td></tr>
+  <tr><td>MATH Level 5</td><td>4-shot, EM</td><td><strong>70.00</strong></td><td>39.80</td><td>26.30</td></tr>
+  <tr><td>AIME 2024</td><td>pass@32</td><td><strong>53.33</strong></td><td>30.00</td><td>20.00</td></tr>
+  <tr><td colspan="5"><strong>Code</strong></td></tr>
+  <tr><td>HumanEval</td><td>0-shot, pass@1, n=32</td><td><strong>79.40</strong></td><td>70.10</td><td>76.30</td></tr>
+  <tr><td>MBPP-Sanitized</td><td>3-shot, pass@1, n=32</td><td><strong>78.38</strong></td><td>77.30</td><td>77.50</td></tr>
+  <tr><td colspan="5"><strong>Commonsense Understanding</strong></td></tr>
+  <tr><td>ARC-Challenge</td><td>25-shot, acc_norm</td><td><strong>96.08</strong></td><td>94.80</td><td>93.90</td></tr>
+  <tr><td>HellaSwag</td><td>10-shot, acc_norm</td><td><strong>88.97</strong></td><td>84.69</td><td>87.70</td></tr>
+  <tr><td>WinoGrande</td><td>5-shot, acc</td><td>78.93</td><td>78.37</td><td><strong>83.82</strong></td></tr>
+  <tr><td colspan="5"><strong>Reading Comprehension</strong></td></tr>
+  <tr><td>RACE</td><td>0-shot, acc</td><td><strong>91.00</strong></td><td>90.10</td><td>89.50</td></tr>
+  <tr><td colspan="5"><strong>Multilingual</strong></td></tr>
+  <tr><td>MMLU Global Lite</td><td>5-shot, avg</td><td><strong>85.72</strong></td><td>74.94</td><td>79.25</td></tr>
+  <tr><td>MGSM</td><td>8-shot, avg</td><td><strong>87.47</strong></td><td>82.73</td><td>80.33</td></tr>
+  <tr><td colspan="5"><strong>Long Context</strong></td></tr>
+  <tr><td>RULER 64K</td><td>0-shot</td><td><strong>93.17</strong></td><td>–</td><td>81.58</td></tr>
+  <tr><td>RULER 128K</td><td>0-shot</td><td><strong>89.00</strong></td><td>57.56</td><td>63.62</td></tr>
+  <tr><td>RULER 256K</td><td>0-shot</td><td><strong>86.18</strong></td><td>–</td><td>–</td></tr>
+  <tr><td>RULER 512K</td><td>0-shot</td><td><strong>82.16</strong></td><td>–</td><td>–</td></tr>
+  <tr><td>RULER 1M</td><td>0-shot</td><td><strong>74.39</strong></td><td>–</td><td>–</td></tr>
 </table>
-<p>Base model이 동급 SOTA 모델 대비 압도적으로 우수. 특히 GPQA-Diamond 60.00, MATH Level 5 70.00은 base model로서는 매우 높은 수치.</p>
+<p>##Base model이 거의 모든 벤치마크에서 동급 SOTA를 대폭 상회##. 특히 GPQA-Diamond 60.00 (vs GLM 23.20), MATH Level 5 70.00 (vs GLM 26.30), AIME 2024 53.33 (vs GLM 20.00)은 base model로서는 매우 높은 수치. RULER 1M 74.39로 1M context를 base model 단계에서 이미 지원.</p>
+
+<h3>Throughput 비교 (Figure 1)</h3>
+<blockquote>
+<strong>[Figure 1 설명]</strong>: 왼쪽 — 8개 벤치마크(IFBench, HMMT Feb25, SWE-Bench, HLE, Terminal Bench Hard, Arena-Hard V2, TauBench V2, RULER@1M)에서 Nemotron 3 Super BF16/NVFP4, GPT-OSS-120B MXFP4, Qwen3.5-122B BF16의 정확도 비교. Nemotron 3 Super가 GPT-OSS-120B와 대등하면서 대부분의 벤치마크에서 우위. 오른쪽 — ISL/OSL 8K/64K 설정에서의 상대 throughput. ##Nemotron 3 Super가 GPT-OSS-120B 대비 2.2×, Qwen3.5-122B 대비 7.5× throughput##. B200 GPU, vLLM + TRT-LLM best-of-two 측정. GPT-OSS-120B는 MXFP4 weights + MXFP8 activations + FP8 KV-Cache, Qwen3.5-122B는 BF16 사용.
+</blockquote>
 
 <h2>3. Post-Training</h2>
 
@@ -203,39 +269,117 @@ document.addEventListener("DOMContentLoaded", function() {
   <li><strong>Stage 2: Sample-level average</strong>: $\mathcal{L}_{\text{samp}} = \frac{1}{|\mathcal{B}|} \sum_{c \in \mathcal{B}} \left(\frac{1}{|\mathcal{O}_c|} \sum_{t \in \mathcal{O}_c} \ell_t \right)$ — 각 conversation을 output-token count로 정규화 후 평균 (Eq. 2). Long output이 loss를 지배하는 것을 방지.</li>
 </ul>
 
-<h4>SFT Data Blend (Figure 16)</h4>
-<p>7M+ samples: ##Agent 36% > Reasoning 31% > Chat 23% > Long Context 8%##. Nemotron 3 Nano 대비 agentic 데이터의 volume과 diversity를 대폭 확대.</p>
-
-<p>주요 새 SFT 데이터:</p>
+<h4>SFT Training Configuration</h4>
 <ul>
-  <li><strong>Software Engineering</strong>: SWE-Gym, R2E-Gym, SWE-rebench에서 OpenHands trajectory를 Qwen3-Coder-480B-A35B로 증류</li>
-  <li><strong>Agentic CLI</strong>: 15K synthesis tasks + 3K SWE + 10K web dev → Codex, OpenCode, Qwen Code CLI, Stirrup에서 interaction 기록 → OpenAI format으로 정규화</li>
-  <li><strong>Financial Reasoning</strong>: SecQue benchmark 565 seed → 366K financial Q&A</li>
-  <li><strong>CUDA</strong>: 100K synthetic samples (kernel generation, repair, optimization)</li>
-  <li><strong>Conversational Tool Use</strong>: 6-stage pipeline (Domain → Policy → Scenario → Trajectory → Verification → Selection), 279K conversations across 838 domains</li>
-  <li><strong>General-Purpose Tool Use</strong>: 1.5M diverse tool-calling trajectories</li>
+  <li><strong>Stage 1</strong>: 256K sequence length packing, global batch 64, constant LR $1 \times 10^{-5}$, 30K warmup samples</li>
+  <li><strong>Stage 2</strong>: 512K sequence length packing (256K/512K long context data 포함), global batch 32, constant LR $1 \times 10^{-5}$</li>
+  <li><strong>MTP during SFT</strong>: 사전학습에서 사용한 shared-weight MTP head를 유지하여 SFT 중에도 2개 MTP layer를 학습. Auxiliary loss = per-token loss × 0.3 scaling factor</li>
 </ul>
+
+<h4>SFT Data Blend (Figure 16)</h4>
+<p>7M+ samples, 8GB tokens: ##Agent 36% > Reasoning 31% > Chat 23% > Long Context 8% > Misc 2%##. Nemotron 3 Nano 대비 agentic 데이터의 volume과 diversity를 대폭 확대.</p>
+
+<p>Nemotron 3 Nano에서 재사용하는 데이터셋: Chat, Infinibyte, Formal Proofs. 새 teacher model (DeepSeek v3.2, Kimi K2)로 refresh한 데이터셋: Competition Math, Competition Code, Conversational Tool Use, Multilingual, Science.</p>
+
+<h4>새로운/대폭 수정된 SFT 데이터</h4>
+<ul>
+  <li><strong>Software Engineering</strong>: SWE-Gym, R2E-Gym (Qwen3-Coder-480B-A35B로 problem statement 재생성), SWE-rebench에서 OpenHands agent harness로 trajectory 수집. Qwen3-Coder-480B-A35B-Instruct를 teacher로 증류</li>
+  <li><strong>Agentic CLI (Figure 13)</strong>: (1) Seed task generation — NeMo Data Designer로 24개 CLI action taxonomy에서 20K query 생성 → GPT-OSS-120B judge로 15K 필터링 + AGENTS.md spec 추가. (2) 3K SWE tasks + 10K web dev tasks (Node.js) 통합. (3) Qwen-3-Coder-480B, Minimax M2.5가 Codex, OpenCode, Qwen Code CLI, Stirrup 환경에서 실행한 interaction 기록. (4) OpenAI message format + tool definitions으로 정규화. Agent Skills, Bash-only, multi-step planning, parallel tools 등 다양한 capability를 targeting</li>
+  <li><strong>Long Context</strong>: books, papers, financial reports, code repos에서 long sequence (128K/256K/512K)를 topic 기반으로 clustering + concatenation. Cross-document, multi-hop reasoning이 필요한 QA pair 생성 (최소 4-7 retrieval/reasoning steps). Semantic majority voting + shortest answer selection. 7개 synthetic reasoning task + SQL-based record concatenation QA 추가</li>
+  <li><strong>Financial Reasoning</strong>: SecQue benchmark 565 seed questions → S&amp;P 500 companies × fiscal years (2019-2024) × GICS Sub-Industry 제약 조합 확장. GPT-OSS-120B가 question 당 3개 reformulation + 5개 answer 생성 → Qwen3-235B-A22B judge가 best 선택 → Qwen3-30B-A3B가 ANSWERABLE/UNANSWERABLE 분류. 최종 366,243 financial Q&A pairs</li>
+  <li><strong>CUDA</strong>: 100K samples. PyTorch reference → CUDA C++ kernel 생성, 자연어 spec → CUDA kernel, faulty kernel repair, slow kernel optimization. DeepSeek-R1 + GPT-OSS-120B로 생성. Thrust, CUB, cuBLAS, cuDNN, cuSPARSE, cuRAND, cuSOLVER 라이브러리 커버</li>
+  <li><strong>Safety</strong>: Nemotron Content Safety v2, Gretel Safety Alignment v1, Harmful Tasks, Red-Team-2K에 더해, over-refusal, demographic bias, copyright reproduction, indirect prompt injection 대응 합성 프롬프트 추가. ##Explicit response policy framework##: prompt metadata + safety category + auxiliary classifier 예측을 결합하여 response mode를 multi-class classification으로 결정. 2-stage deliberative alignment (reasoning trace → final response 분리 생성)</li>
+  <li><strong>Search</strong>: Wikidata knowledge graph에서 25개 entity class, 4-8 hop random walk → natural language multi-hop question 생성 → obfuscation (breadcrumb chain 제거) → MiniMax-M2가 Tavily MCP로 web search하여 grounded trajectory 생성. 평균 12 tool calls/trajectory</li>
+  <li><strong>Terminal Use</strong>: Terminal-Task-Gen methodology, 84,864 samples (68,924 synthetic + 8,125 Nemotron-Cascade-Math + 7,815 Nemotron-Cascade-Code). DeepSeek-V3.2로 solution trace 생성, Terminus 2 agent framework으로 scaffolding</li>
+  <li><strong>Multilingual</strong>: English SFT examples를 Qwen2.5-Instruct-14b로 6개 언어(DE, ES, FR, IT, JA, ZH)로 번역. Qwen3-4B-Thinking-2507으로 format compliance 후처리. Chinese↔English pairs 추가</li>
+  <li><strong>SQL</strong>: NeMo Data Designer로 96.5K text-to-SQL records 생성. MySQL, PostgreSQL, SQLite × ~700 domain topics × 90 SQL concept buckets. Distractor tables/columns 삽입으로 robustness 강화. 5개 style axis (imperative/declarative/interrogative/contextual/abbreviated) × linguistic register × politeness level</li>
+  <li><strong>Conversational Tool Use (Figure 14)</strong>: 6-stage synthetic pipeline — Domain Generation → Policy and Tool Generation (self-refinement) → Scenario Generation (personas) → Trajectory Collection (16 rollouts per policy-scenario) → Verification (outcome + process-level judge) → SFT Data Selection (difficulty filtering). Qwen3-235B-A22B-Thinking-2507, Qwen3-32B, deepseek-r1-0528, DeepSeek-V3.2, gpt-oss-120b 활용. 279,116 conversations across 838 domains (Nano의 15,588 / 5 domains에서 대폭 확장)</li>
+  <li><strong>General-Purpose Tool Use (Figure 15)</strong>: ToolEyes, API-Bank, UltraTools, AutoTools, xLAM, Glaive-Function-Calling-v2, Toucan-1.5M 등에서 144 toolsets seed. Persona Sampler (1M profiles) + Conversation Type (single/multi-turn/multi-step) + Theme Sampler → User-LLM + Assistant-LLM + Tool-LLM 3-agent simulation. Inline Judge + Tool Verifier + Trajectory Judge 다단계 검증. DeepSeek-v3.2, GLM-4.7로 ##1.5M diverse tool-calling trajectories## 생성</li>
+</ul>
+
+<h4>3.1.3 Reasoning Control</h4>
+<p>세 가지 reasoning mode를 지원: <strong>reasoning-on</strong> (full thinking), <strong>reasoning-off</strong> (no thinking), <strong>low-effort</strong> (짧은 thinking). Low-effort mode는 GPT-OSS-120B의 low-effort 출력으로 SFT data의 2%를 구성. Reasoning-off는 3% 샘플에서 thinking trace를 strip. Inference-time budget control을 위해 main SFT 후 350 steps의 semi-on-policy SFT 추가 (모델 rollout 수집 후 12% reasoning trace를 random 길이로 truncate).</p>
 
 <h3>3.2 Reinforcement Learning</h3>
 
 <h4>Stage 1: Multi-environment RLVR</h4>
-<p>##21개 환경, 37개 RL dataset##에 걸쳐 통합 학습. Single-environment RL이 다른 벤치마크에서 심각한 regression을 유발하므로, 모든 환경을 동시에 학습하여 안정적 개선을 달성한다. 도메인: Math, Code, STEM, Safety, Instruction Following, Long Context, Agentic Tool Use, Reasoning Gym 등.</p>
+<p>##21개 환경, 37개 RL dataset##에 걸쳐 통합 학습. Single-environment RL이 다른 벤치마크에서 심각한 regression을 유발하므로, 모든 환경을 동시에 학습하여 안정적 개선을 달성한다. 3 rounds로 진행:</p>
+<ul>
+  <li><strong>Round 1</strong>: 25개 environment types</li>
+  <li><strong>Round 2</strong>: 30개 environment types + Low Effort reasoning mode 추가</li>
+  <li><strong>Round 3</strong>: 26개 environment types + Agentic Focused 강화</li>
+</ul>
 
-<p><strong>Low-effort reasoning</strong>: RL prompt 중 1-2%를 low-effort mode로 변환하여, correctness와 token 수 모두를 기반으로 reward를 조정.</p>
+<p><strong>RLVR 도메인 상세</strong>:</p>
+<ul>
+  <li><strong>Math</strong>: 경쟁 수학 문제, Python execution tool 유무 두 설정. 새로운 formal proof verification 환경 추가</li>
+  <li><strong>Code</strong>: Nemotron 3 Nano + Nemotron-Cascade code data (Wang et al., 2025a)</li>
+  <li><strong>STEM</strong>: Nano의 STEM dataset + 더 어려운 scientific problems 추가 큐레이션</li>
+  <li><strong>Instruction Following</strong>: Nano data + new multi-challenge dataset (복잡한 user instruction을 predetermined rubric으로 평가)</li>
+  <li><strong>Safety</strong>: (1) over-refusal 감소 환경, (2) jailbreak robustness 환경. PAIR (Chao et al., 2024) attack pipeline으로 초기 SFT checkpoint을 공격하여 high attack success rate 프롬프트를 수집하고 RL seed로 사용</li>
+  <li><strong>Long Context</strong>: Nemotron 3 Nano와 동일한 long-context 환경</li>
+  <li><strong>Agentic Tool Use</strong>: Nano의 tool-use environments + conversational tool use 및 terminal use 전용 환경 추가</li>
+  <li><strong>Reasoning Gym</strong> (Stojanovski et al., 2025): 다양한 reasoning task를 포괄하는 환경</li>
+</ul>
 
-<p>비동기 GRPO 알고리즘: 256 prompts/step × 16 rollouts = batch 4,096. 최대 generation length 49K→64K tokens. Importance sampling ratio masking으로 off-policy 효과를 최소화.</p>
+<p><strong>Low-effort reasoning</strong>: RL prompt 중 초기 2% → 후기 1%를 low-effort mode로 변환. Math, STEM QA, competitive coding의 subset을 대상으로 하며, reward는 correctness와 generated token 수의 함수로 조정. Competitive coding에서는 SFT에서 withheld된 별도 문제 set을 사용.</p>
+
+<h4>3.2.4 Asynchronous GRPO Algorithm</h4>
+<p>Training과 inference가 분리된 비동기 설정:</p>
+<ul>
+  <li>Inference workers가 지속적으로 trajectory를 생성하여 rollout buffer에 저장</li>
+  <li>충분한 trajectory 수집 시 training engine에 batch 전송 → single gradient update</li>
+  <li>Weight update 즉시 inference workers에 push (in-flight weight update). 진행 중인 rollout 완료를 기다리지 않음</li>
+  <li>단, 과도한 policy lag 방지를 위해 inference workers는 최대 1-step 이전 모델까지만 허용</li>
+  <li>Importance sampling ratio masking으로 train-inference mismatch와 policy lag의 off-policy 효과를 안정화</li>
+  <li>Multi-environment RLVR: 256 prompts/step × 16 rollouts = batch 4,096. Max generation 49K→64K tokens</li>
+</ul>
 
 <h4>PivotRL — Agentic RL 효율화</h4>
-<p>Long-horizon agentic task(tool use, terminal, SWE)에서 end-to-end RL은 비용이 높다. ##PivotRL은 offline SFT expert trajectory에서 "pivot" (모델이 불확실한 informative turn)을 선별하고, assistant-turn-level RL##을 수행한다. Domain-appropriate reward로 expert action에 근접한 action에도 credit을 부여하여 SFT의 OOD 문제 없이 효율적으로 agentic 능력을 강화한다.</p>
+<p>Long-horizon agentic task(conversational tool use, terminal, SWE)에서 end-to-end RL은 매 update마다 online interactive rollout이 필요하여 비용이 매우 높다. SFT는 저렴하지만 OOD generalization이 약하다. ##PivotRL은 이 trade-off를 해결하는 assistant-turn-level RL 방법##이다:</p>
+<ol>
+  <li>Offline SFT expert trajectory에서 "pivots" — 현재 policy가 불확실한 informative assistant turn — 을 식별</li>
+  <li>이 pivot turn에서만 RL을 수행하여, expert의 전체 trajectory를 재실행하지 않고도 학습</li>
+  <li>Domain-appropriate reward를 사용하여 expert action과 정확히 일치하지 않아도 유사한 action에 credit을 부여</li>
+</ol>
+<p>PivotRL을 Agentic Programming, Search, Terminal Use, Conversational Tool Use 전 agentic 도메인에 적용. End-to-end agentic RL의 OOD 문제 없이 효율적으로 agentic 능력 강화.</p>
 
 <h4>Stage 2: SWE-RL</h4>
-<p>OpenHands agent loop + Apptainer container에서 GitHub issue를 자율적으로 해결. OpenCode, Codex agent class를 구현하여 multi-harness 학습. Binary reward (test pass/fail).</p>
+<p>Software engineering 능력 전용 RL. SWE rollout은 생성이 느리고 context가 길어 (최대 256K) 다른 환경과 co-training 시 throughput bottleneck이 되므로 별도 stage로 분리.</p>
+<ul>
+  <li><strong>환경</strong>: Apptainer (formerly Singularity) container에서 target repo + OpenHands agent loop 실행. .sif pre-built image로 filesystem isolation</li>
+  <li><strong>Agent loop</strong>: Modified OpenHands — runtime 초기화 → problem statement 제시 → configurable turn limit → git patch 추출 → cleanup</li>
+  <li><strong>Reward</strong>: Ground-truth test에 대한 binary pass/fail</li>
+  <li><strong>Harness diversity</strong>: OpenCode, Codex agent class를 OpenHands 내에 구현하여 Claude Code/Codex CLI의 tool I/O format을 매칭. 학습 중 harness를 변경하면서 단일 환경에서 multi-harness 학습</li>
+  <li><strong>Infrastructure</strong>: Memory watchdog (RSS 모니터링 + OOM 방지), command blocklist (kill/pkill 차단), orjson serialization (대용량 trajectory payload 최적화)</li>
+  <li><strong>Scaling</strong>: Ray + SPREAD scheduling으로 수백 개 concurrent agent-codebase interaction을 분산 실행</li>
+</ul>
 
 <h4>Stage 3: RLHF</h4>
-<p>GenRM 기반 (Qwen3-235B-A22B-Thinking-2507에서 초기화). HelpSteer 3 + lmarena-140k + human preference data. Multi-environment RL 전체에서 GenRM을 함께 사용하고, 마지막에 별도 RLHF-only stage도 수행.</p>
+<p>GenRM (Generative Reward Model)을 학습하여 instruction-following, robustness, interaction quality를 개선:</p>
+<ul>
+  <li><strong>GenRM 학습</strong>: Qwen3-235B-A22B-Thinking-2507에서 초기화. Principled GenRM (Wang et al., 2025b) 접근 — identity/safety 등 중요 도메인에서 모델 행동을 guide</li>
+  <li><strong>데이터</strong>: HelpSteer 3 (Wang et al., 2025c), lmarena-140k commercially friendly subset, 최근 수집 human preference data</li>
+  <li><strong>적용</strong>: Multi-environment RL 전체에서 GenRM을 함께 사용 (RLVR rounds에서도) + 마지막에 별도 RLHF-only stage 수행</li>
+</ul>
 
 <h4>Stage 4: MTP Healing</h4>
-<p>RLVR 이후 MTP head의 정확도가 저하되므로, ##모델 본체를 frozen하고 MTP head만 RLVR prompt의 생성 응답에 대해 SFT##하여 MTP accuracy를 크게 회복.</p>
+<p>RLVR 이후 MTP head의 정확도가 저하된다 — RL이 main model weight만 최적화하고 MTP head는 frozen이 아니지만 RL objective에 직접 포함되지 않기 때문. 이를 복구하기 위해:</p>
+<ul>
+  <li>##모델 본체(backbone)를 frozen##하고 MTP head만 학습 가능하게 설정</li>
+  <li>RLVR에서 사용된 prompts에서 현재 모델이 생성한 응답을 수집</li>
+  <li>이 (prompt, generated response) pairs에 대해 negative log-likelihood loss로 MTP head를 SFT</li>
+  <li>18B tokens 학습, MTP accuracy를 유의미하게 회복</li>
+</ul>
+
+<h4>3.2.5 Infrastructure — Large-Scale Async RL</h4>
+<p>NeMo Gym + NeMo RL 통합 인프라:</p>
+<ul>
+  <li><strong>NeMo Gym</strong>: Agent servers (rollout kernel), Model servers (vLLM inference engine), Resource servers (reward verification API)의 3가지 서버 추상화</li>
+  <li><strong>NeMo RL</strong>: Megatron-Core 기반 training loop controller. 모든 rollout은 NeMo Gym + vLLM을 통해 routing</li>
+  <li><strong>Deployment</strong>: Ray cluster에서 training workers, vLLM generation workers, Gym environments, judge models를 모두 orchestration</li>
+  <li><strong>Resiliency (1K GPU scale)</strong>: (1) Port conflict 해결 — TOCTOU race condition으로 인한 port binding failure → 해결, (2) Startup 최적화 — 병렬 초기화, 가상환경/바이너리 프리페칭, upstream repo 캐싱, (3) Checkpoint recovery — intermittent hardware/software failure에서의 자동 복구</li>
+</ul>
 
 <h3>3.3 Post-trained Model Results (Table 5)</h3>
 
@@ -245,46 +389,119 @@ document.addEventListener("DOMContentLoaded", function() {
   <tr><td>MMLU-Pro</td><td>83.73</td><td><strong>86.70</strong></td><td>81.00</td></tr>
   <tr><td colspan="4"><strong>Reasoning</strong></td></tr>
   <tr><td>AIME25 (no tools)</td><td>90.21</td><td><strong>90.36</strong></td><td>92.50</td></tr>
+  <tr><td>HMMT Feb25 (no tools)</td><td><strong>93.67</strong></td><td>91.40</td><td>90.00</td></tr>
   <tr><td>HMMT Feb25 (with tools)</td><td><strong>94.73</strong></td><td>89.55</td><td>–</td></tr>
+  <tr><td>GPQA (no tools)</td><td>79.23</td><td><strong>86.60</strong></td><td>80.10</td></tr>
   <tr><td>GPQA (with tools)</td><td>82.70</td><td>–</td><td>80.09</td></tr>
-  <tr><td>LiveCodeBench v5</td><td>81.19</td><td>78.93</td><td><strong>88.00</strong></td></tr>
+  <tr><td>LiveCodeBench (v5 2024-07↔2024-12)</td><td>81.19</td><td>78.93</td><td><strong>88.00</strong></td></tr>
+  <tr><td>SciCode (subtask)</td><td><strong>42.05</strong></td><td>42.00</td><td>39.00</td></tr>
+  <tr><td>HLE (no tools)</td><td><strong>18.26</strong></td><td>25.30</td><td>14.90</td></tr>
   <tr><td>HLE (with tools)</td><td><strong>22.82</strong></td><td>–</td><td>19.0</td></tr>
   <tr><td colspan="4"><strong>Agentic</strong></td></tr>
-  <tr><td>Terminal Bench Core 2.0</td><td><strong>31.00</strong></td><td>37.50</td><td>18.70</td></tr>
+  <tr><td>Terminal Bench (hard subset)</td><td>25.78</td><td>26.80</td><td>24.00</td></tr>
+  <tr><td>Terminal Bench Core 2.0</td><td>31.00</td><td><strong>37.50</strong></td><td>18.70</td></tr>
   <tr><td>SWE-Bench (OpenHands)</td><td>60.47</td><td><strong>66.40</strong></td><td>41.9</td></tr>
+  <tr><td>SWE-Bench (OpenCode)</td><td>59.20</td><td><strong>67.40</strong></td><td>–</td></tr>
   <tr><td>SWE-Bench (Codex)</td><td>53.73</td><td><strong>61.20</strong></td><td>–</td></tr>
-  <tr><td>TauBench V2 Average</td><td>61.15</td><td><strong>74.53</strong></td><td>61.0</td></tr>
+  <tr><td>SWE-Bench Multilingual (OpenHands)</td><td>45.78</td><td>–</td><td>30.80</td></tr>
+  <tr><td>TauBench V2 — Airline</td><td>56.25</td><td><strong>66.0</strong></td><td>49.2</td></tr>
+  <tr><td>TauBench V2 — Retail</td><td>62.83</td><td>62.6</td><td><strong>67.80</strong></td></tr>
+  <tr><td>TauBench V2 — Telecom</td><td>64.36</td><td><strong>95.00</strong></td><td>66.00</td></tr>
+  <tr><td>TauBench V2 — Average</td><td>61.15</td><td><strong>74.53</strong></td><td>61.0</td></tr>
+  <tr><td>BrowseComp with Search</td><td>31.28</td><td>–</td><td>33.89</td></tr>
+  <tr><td>BIRD Bench</td><td>41.80</td><td>–</td><td>38.25</td></tr>
   <tr><td colspan="4"><strong>Chat & Instruction Following</strong></td></tr>
   <tr><td>IFBench (prompt)</td><td>72.56</td><td><strong>73.77</strong></td><td>68.32</td></tr>
-  <tr><td>Arena-Hard-V2</td><td>73.88</td><td><strong>75.15</strong></td><td>90.26</td></tr>
+  <tr><td>Scale AI Multi-Challenge</td><td><strong>55.23</strong></td><td>61.50</td><td>58.29</td></tr>
+  <tr><td>Arena-Hard-V2 (Hard Prompt)</td><td>73.88</td><td>75.15</td><td><strong>90.26</strong></td></tr>
   <tr><td colspan="4"><strong>Long Context</strong></td></tr>
+  <tr><td>AA-LCR</td><td>58.31</td><td><strong>66.90</strong></td><td>51.00</td></tr>
   <tr><td>RULER 256k</td><td>96.30</td><td><strong>96.74</strong></td><td>52.30</td></tr>
+  <tr><td>RULER 512k</td><td>95.67</td><td><strong>95.95</strong></td><td>46.70</td></tr>
   <tr><td>RULER 1M</td><td><strong>91.75</strong></td><td>91.33</td><td>22.30</td></tr>
   <tr><td colspan="4"><strong>Multilingual</strong></td></tr>
-  <tr><td>MMLU-ProX</td><td>79.36</td><td><strong>85.06</strong></td><td>76.59</td></tr>
+  <tr><td>MMLU-ProX (avg over langs)</td><td>79.36</td><td><strong>85.06</strong></td><td>76.59</td></tr>
   <tr><td>WMT24++ (en→xx)</td><td>86.67</td><td><strong>87.84</strong></td><td>88.89</td></tr>
 </table>
 
 <p><strong>핵심 관찰</strong>:</p>
 <ol>
-  <li>##GPT-OSS-120B 대비 거의 모든 벤치마크에서 동등 이상##이면서 2.2× throughput.</li>
-  <li>Qwen3.5-122B-A10B와 대등하거나 근접하며 7.5× throughput. HMMT Feb25 94.73, RULER 1M 91.75에서는 Qwen3.5를 상회.</li>
-  <li>Agentic 벤치마크(SWE-Bench, TauBench)에서 Qwen3.5 대비 열세. 이는 agentic 학습의 추가 확장 여지를 시사.</li>
+  <li>##GPT-OSS-120B 대비 거의 모든 벤치마크에서 동등 이상##이면서 2.2× throughput. 특히 SWE-Bench OpenHands 60.47 vs 41.9, Terminal Bench Core 31.00 vs 18.70, RULER 1M 91.75 vs 22.30에서 대폭 상회.</li>
+  <li>Qwen3.5-122B-A10B와 대등하거나 근접하며 7.5× throughput. HMMT Feb25 (no tools) 93.67 vs 91.40, HMMT Feb25 (tools) 94.73 vs 89.55, RULER 1M 91.75 vs 91.33에서는 Qwen3.5를 상회.</li>
+  <li>##Agentic 벤치마크에서 Qwen3.5 대비 열세##: SWE-Bench (OpenHands) 60.47 vs 66.40, TauBench Telecom 64.36 vs 95.00, Terminal Bench Core 31.00 vs 37.50. 이는 agentic 학습의 추가 확장 여지를 시사.</li>
+  <li><strong>Reasoning 영역에서 Nemotron 3 Super의 주요 열세 포인트</strong>: GPQA (no tools) 79.23 vs Qwen 86.60, LiveCodeBench v5 81.19 vs GPT-OSS 88.00. Knowledge-intensive reasoning에서 개선 여지.</li>
+  <li><strong>Long context에서 강력</strong>: RULER 256k/512k/1M 모두 90%+ 유지. GPT-OSS-120B가 256k에서 52.30, 1M에서 22.30으로 급락하는 것과 대조적.</li>
 </ol>
 
 <h2>4. Quantization for Inference</h2>
 
-<h3>FP8 (W8A8) 및 NVFP4 (W4A4) 체크포인트</h3>
-<p>Model-Optimizer를 사용한 PTQ (Post-Training Quantization):</p>
+<h3>4.1 FP8 (W8A8) Checkpoint</h3>
+<p>FP8 PTQ calibration: 256 samples, 65,536 context length, post-training SFT data 사용.</p>
+<table>
+  <tr><th>Configuration</th><th>FP8 Checkpoint</th><th>BF16 Baseline</th></tr>
+  <tr><td>Embedding</td><td>BF16</td><td>BF16</td></tr>
+  <tr><td>Attention GEMM (QKV, Out Proj)</td><td>BF16</td><td>BF16</td></tr>
+  <tr><td>KV Cache + Attention BMM1</td><td>FP8</td><td>FP8</td></tr>
+  <tr><td>Attention BMM2</td><td>BF16</td><td>BF16</td></tr>
+  <tr><td>MoE GEMM (Sparse + Shared Experts)</td><td>FP8</td><td>BF16</td></tr>
+  <tr><td>MoE Latent Projection GEMM</td><td>BF16</td><td>BF16</td></tr>
+  <tr><td>Router</td><td>FP32</td><td>FP32</td></tr>
+  <tr><td>Mamba GEMM</td><td>FP8</td><td>BF16</td></tr>
+  <tr><td>Mamba SSM Cache</td><td>FP16</td><td>FP32</td></tr>
+  <tr><td>Mamba 1D Conv</td><td>BF16</td><td>BF16</td></tr>
+  <tr><td>Output Layers</td><td>BF16</td><td>BF16</td></tr>
+</table>
+
+<h3>4.2 NVFP4 (W4A4) Checkpoint</h3>
+<p>NVFP4는 prefill-heavy workload (coding-agent 등)에서 linear/MoE GEMM이 주요 bottleneck이므로 특히 매력적. Blackwell GPU에서 native NVFP4 가속.</p>
+
+<p><strong>NVFP4 inference format</strong>: Signed E2M1 values, 1D blocks (size 16), per-block FP8 E4M3 scale + per-tensor FP32 global scale.</p>
+
+<p><strong>Hybrid FP4 PTQ recipe</strong> (baseline 대비 개선):</p>
 <ul>
-  <li><strong>FP8</strong>: MoE GEMM + Mamba GEMM을 FP8, KV Cache FP8, Mamba state cache FP16</li>
-  <li><strong>NVFP4</strong>: AutoQuantize (NAS-inspired)로 per-operator 최적 precision 탐색. Sparse expert GEMM → NVFP4, attention/Mamba projection → FP8/BF16 혼합. ##99.8% median accuracy relative to BF16##.</li>
+  <li><strong>Weight scaling</strong>: Max-based가 아닌 MSE-minimizing per-block scale (calibrated offline → 비용 무시 가능)</li>
+  <li><strong>Activation scaling</strong>: Dynamic per-block max-based (runtime에서 효율적 계산)</li>
+  <li><strong>Selective promotion</strong>: AutoQuantize (NAS-inspired)로 per-operator sensitivity를 추정하고, NVFP4/FP8/BF16 중 최적 precision을 knapsack-style optimization으로 할당. Effective precision budget 4.75 bits</li>
 </ul>
 
+<p><strong>AutoQuantize 결과 (Table 7)</strong>:</p>
+<ul>
+  <li>Sparse Expert (Routed) GEMM: NVFP4 (전체)</li>
+  <li>Shared Expert GEMM: NVFP4 / FP8 / BF16 혼합</li>
+  <li>MoE Latent Projection GEMM: FP8 / BF16 혼합</li>
+  <li>Attention/Mamba Projection GEMM: FP8 / BF16 혼합</li>
+  <li>Router: FP32 (고정)</li>
+</ul>
+<p>Full mixed-precision PTQ: 단일 B200 node (8 GPU)에서 512 SFT samples, seq_len 4096으로 2시간 미만 완료. ##결과 모델은 BF16 대비 99.8% median accuracy##.</p>
+
 <h3>4.3 Mamba State Quantization — Stochastic Rounding</h3>
-<p>Mamba의 recurrent state에서 quantization error가 누적되는 문제를 발견:</p>
+
+<p>Memory-bound decoding에서 Mamba SSM cache (state cache)의 DRAM read가 주요 bottleneck이 된다. SSM cache는 기본 FP32로 저장되며, FP16으로 cast하면 메모리를 절반으로 줄일 수 있다.</p>
+
+<p><strong>문제</strong>: Mamba의 recurrent state update $h_t = A_t h_{t-1} + B_t x_t$에서, 양자화 error $e_t$가 이전 step의 error를 전파하여 누적된다:</p>
 $$h_{q,t} = h_t + \sum_{i=0}^{t} \left(\prod_{j=i+1}^{t} A_j\right) e_i \quad (3)$$
-<p>##FP32→FP16 cast 시 RTNE (Round to Nearest Even) rounding이 biased error를 유발##하여, recurrent update에서 systematic drift가 누적. Stochastic rounding으로 대체하면 unbiased noise가 되어 verbosity 증가 없이 정확도를 유지한다. Philox$\langle 5 \rangle$로 구현.</p>
+<p>이 누적은 단일 step의 local error와 달리 시간에 따라 증가하며, 특히 ##FP32→FP16 cast 시 RTNE (Round to Nearest, Ties to Even) rounding이 deterministic bias를 도입##한다. 동일 input에 대해 항상 같은 방향으로 rounding되므로, recurrent 구조에서 이 bias가 coherently 누적되어 systematic drift를 유발한다.</p>
+
+<p><strong>증상</strong>: SSM cache를 FP16으로 cast하면 ##코드 생성에서 최대 40% verbosity 증가## (Table 8). Weight/activation이 BF16인 경우에도 SSM cache FP16만으로 37% verbosity 증가.</p>
+
+<p><strong>해결: Stochastic rounding</strong>: RTNE 대신 stochastic rounding을 적용하면, 각 rounding이 확률적으로 위/아래로 이루어져 ##expectation에서 unbiased## — systematic drift가 zero-mean noise로 대체된다.</p>
+
+<p><strong>Table 8: SSM cache recipe 비교 (LiveCodeBench, SciCode)</strong></p>
+<table>
+  <tr><th>Weight/Act Precision</th><th>SSM cache recipe</th><th>LCB pass@1</th><th>SciCode pass@1</th><th>LCB tokens</th><th>SciCode tokens</th><th>LCB Verbosity↑</th><th>SciCode Verbosity↑</th></tr>
+  <tr><td>W16A16</td><td>FP32</td><td>72.91</td><td>40.90</td><td>21769</td><td>3680</td><td>0.00%</td><td>0.00%</td></tr>
+  <tr><td>W16A16</td><td>FP16</td><td>73.24</td><td>42.01</td><td>29812</td><td>3760</td><td>36.95%</td><td>2.19%</td></tr>
+  <tr><td>W16A16</td><td>FP16+SR</td><td>72.00</td><td>41.94</td><td>21392</td><td>3580</td><td>-1.73%</td><td>-2.72%</td></tr>
+  <tr><td>W8A8</td><td>FP16</td><td>73.13</td><td>40.98</td><td>30536</td><td>3780</td><td><strong>40.27%</strong></td><td>2.70%</td></tr>
+  <tr><td>W8A8</td><td>FP16+SR (Philox 5)</td><td>72.63</td><td>41.86</td><td>22159</td><td>3720</td><td>1.79%</td><td>1.08%</td></tr>
+  <tr><td>W8A8</td><td>FP16+SR (Philox 3)</td><td>70.07</td><td>39.94</td><td>24098</td><td>3827</td><td>10.70%</td><td>3.98%</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ul>
+  <li>FP16+SR (stochastic rounding, Philox 5)은 W8A8에서 verbosity 증가를 40.27%→1.79%로 대폭 감소시킴</li>
+  <li>Philox$\langle 5 \rangle$를 선택한 이유: (1) block scale factor 계산/저장/로드 불필요, (2) Blackwell이 type conversion 시 stochastic rounding을 dedicated PTX instruction으로 지원, (3) cuRAND를 통한 Philox pseudorandom generation 지원. Philox round 수 증가 → 통계적 품질 향상이나 overhead 증가. Philox$\langle 5 \rangle$가 accuracy와 verbosity 모두 유지하면서 overhead 최소화</li>
+</ul>
 
 <h3>Table 9: Quantized Model 성능 (발췌)</h3>
 <table>
