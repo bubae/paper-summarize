@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MolmoWeb: Open Visual Web Agent and Open Data for the Open Web</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MolmoWeb: Open Visual Web Agent and Open Data for the Open Web</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Tanmay Gupta†*, Piper Wolters*, Zixian Ma*, Peter Sushko*, Rock Yuren Pang, Diego Llanes, Yue Yang, Taira Anderson, Boyuan Zheng, Zhongzheng Ren, Harsh Trivedi, Taylor Blanton, Caleb Ouellette, Winson Han, Ali Farhadi, Ranjay Krishna</li>
+  <li><strong>소속</strong>: Allen Institute for AI (Ai2), University of Washington, UNC-Chapel Hill</li>
+  <li><strong>학회/저널</strong>: Technical Report (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://allenai.org/papers/molmoweb">Paper</a> · <a href="https://allenai.org/blog/molmoweb">Blog</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 가장 성능이 좋은 웹 에이전트들은 비공개 모델, 비공개 학습 데이터, 비공개 레시피에 의존하여, 과학적 이해와 재현성, 커뮤니티 발전이 제한된다. 오픈 웹의 에이전트는 오픈으로 구축되어야 한다.</li>
+  <li><strong>해결</strong>: (1) MolmoWebMix — 100K+ synthetic trajectory + 30K+ human demonstration + atomic skill trajectory + GUI perception 데이터를 혼합한 대규모 오픈 학습 데이터, (2) MolmoWeb — Molmo2 backbone 위에 SFT로 학습한 4B/8B 크기의 fully open visual web agent. 스크린샷만으로 브라우저를 조작하며, HTML/AxTree/API에 접근하지 않는다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) 다양한 생성 파이프라인(AxTree single/multi-agent, node traversal, human)의 합성 trajectory가 서로 다른 강점을 커버하고, (2) GUI perception 데이터(grounding + screenshot QA)가 웹 스크린샷 이해 능력의 기초를 제공하며, (3) vision-only 접근이 DOM의 취약성과 토큰 오버헤드를 회피한다.</li>
+  <li><strong>비유</strong>: 사람이 컴퓨터를 사용하듯이 화면만 보고 클릭/타이핑/스크롤하는 에이전트를 만드는데, 교육 자료로 (1) AI 튜터의 시범(synthetic), (2) 사람의 시범(human), (3) 화면 읽기 연습(GUI perception)을 모두 활용하여, 코드를 들여다보지 않고도 어떤 웹사이트든 조작할 수 있게 된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>MolmoWebMix — 완전 오픈 학습 데이터</strong>: ##278.5K task trajectory (2.2M steps, 2.6K domains) + 10.5M GUI perception 데이터##를 포함하는 대규모 오픈 데이터셋. Proprietary vision agent로부터의 distillation 없이, AxTree agent와 human demonstration으로 구축.</li>
+  <li><strong>MolmoWeb — 오픈 visual web agent</strong>: ##8B 모델이 GPT-4o SoM agent를 능가##하고, o3/GPT-5 SoM agent에 근접하는 성능. WebVoyager 78.2%, DeepShop 42.3%, WebTailBench 49.5%로 동일 크기 오픈 모델 중 SOTA.</li>
+  <li><strong>Test-time scaling</strong>: Parallel rollout + best-of-N selection으로 pass@4에서 WebVoyager 94.7%, Online-Mind2Web 60.5% 달성. 이는 단일 rollout 대비 20pp+ 향상.</li>
+  <li><strong>Fully open release</strong>: 모델 체크포인트, 학습 데이터, 코드, 통합 평가 harness를 모두 공개하여 재현 가능한 오픈 웹 에이전트 연구를 촉진.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>웹 에이전트의 두 가지 접근</h3>
+<p>웹 에이전트는 크게 두 가지 방식으로 웹페이지를 인식한다:</p>
+<ul>
+  <li><strong>Text-based (AxTree/DOM)</strong>: Accessibility tree나 HTML 구조를 텍스트로 직렬화하여 LLM에 입력. 정확하지만 웹사이트별로 DOM 구조가 다르고, 동적 렌더링 콘텐츠에서 불완전할 수 있으며, 수만 토큰을 소비한다.</li>
+  <li><strong>Vision-based (Screenshot)</strong>: 스크린샷 이미지를 VLM (Vision-Language Model)에 입력. 사람이 보는 것과 동일한 인터페이스를 사용하므로 일반성이 높지만, pixel-space에서의 정확한 pointing이 어렵다.</li>
+</ul>
+
+<p>MolmoWeb은 ##vision-only 접근##을 채택한다. 세 가지 이유:</p>
+<ol>
+  <li>사람이 웹을 사용하는 방식을 그대로 모방하여 해석 가능성이 높다</li>
+  <li>DOM 기반 표현의 취약성(웹사이트/프레임워크별 차이, 동적 콘텐츠의 불완전성)을 회피한다</li>
+  <li>AxTree 입력의 수만 토큰 오버헤드를 피하고, 단일 스크린샷으로 compact한 정보 표현이 가능하다</li>
+</ol>
+
+<h3>핵심 차별점: Proprietary distillation 없음</h3>
+<p>기존 오픈 웹 에이전트(Fara 등)는 proprietary vision agent에서 증류한 데이터를 사용하지만, ##MolmoWeb은 vision-based proprietary agent로부터의 distillation을 사용하지 않는다##. 대신 text-only AxTree agent(Gemini-3-Flash)가 생성한 합성 trajectory와 인간 시연 데이터를 활용한다.</p>
+
+<h2>2. MolmoWebMix — 학습 데이터</h2>
+
+<p>학습 데이터는 3개 broad category로 구성된다: task trajectory, atomic skill trajectory, GUI perception data.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: MolmoWebMix의 구성. 좌상단: Screenshot QA (OCR, 추론 질문), 우상단: Grounding (element description → click point), 하단: Task trajectory — "birria taco recipe under 3 hours" 찾기 예시. 각 step에서 thought와 action이 생성되며, goto → click → type → keypress → click → send_msg_to_user 흐름으로 태스크를 완수한다.
+</blockquote>
+
+<h3>2.1 Task Trajectories</h3>
+
+<h4>AxTree Agent에 의한 합성 trajectory</h4>
+<p>Gemini-3-Flash-Preview를 backbone으로, AxTree(accessibility tree)를 관찰 공간으로 사용하는 LLM agent가 합성 trajectory를 생성한다. 각 step에서 스크린샷도 동시에 캡처하여, AxTree로 행동을 결정하되 학습 데이터에는 스크린샷을 포함시킨다. Bid-space의 action은 pixel-space로 후처리된다. 성공 여부는 WebVoyager LLM judge로 필터링.</p>
+
+<h4>Multi-agent trajectory 생성</h4>
+<p>더 높은 품질의 trajectory를 위해 3-agent 파이프라인을 설계한다:</p>
+<ul>
+  <li><strong>Planner</strong> (Gemini-2.5-Flash): 고수준 목표를 순차적 subgoal로 분해</li>
+  <li><strong>Operator</strong> (Gemini AxTree agent): 현재 스크린샷와 subgoal에 기반하여 low-level 브라우저 action 실행</li>
+  <li><strong>Verifier</strong> (GPT-4o): 최근 5개 스크린샷을 분석하여 subgoal 달성 여부 판정</li>
+</ul>
+<p>이 multi-agent 구조가 단일 AxTree agent보다 높은 task completion rate을 달성 (WebVoyager 78.5 vs 74.4).</p>
+
+<h4>Human trajectory</h4>
+<p>Chrome extension으로 crowdworker의 브라우저 상호작용(click, scroll, keystroke)을 캡처한다. 각 task는 subtask 시퀀스로 분해되어 fine-grained annotation이 가능하다. 각 trajectory는 인간 리뷰를 거쳐 품질을 보장한다.</p>
+
+<h4>Node traversal trajectory</h4>
+<p>500+ 인기 웹사이트에서 breadth-first exploration으로 directed graph를 구축하고, root-to-leaf 경로를 LLM-free 결정론적 프로세스로 replay하여 trajectory를 생성한다. URL 매칭으로 성공 여부를 직접 검증 가능하여 신뢰성이 높다.</p>
+
+<h3>2.2 Atomic Skill Trajectories</h3>
+<p>End-to-end task가 아닌 개별 웹 기술을 학습하기 위한 데이터. Human trajectory의 subtask 분할에서 자동 추출하거나, AxTree agent에 <code>fill_form</code>, <code>find_and_open</code> 등 기술별 지시를 주어 생성한다.</p>
+
+<p><strong>Table 1: Atomic web skills taxonomy</strong></p>
+<table>
+  <tr><th>Skill</th><th>Description</th></tr>
+  <tr><td><code>go_to</code></td><td>Navigate directly to a specified URL</td></tr>
+  <tr><td><code>search</code></td><td>Enter a query into a search box and submit</td></tr>
+  <tr><td><code>find</code> / <code>find_and_open</code> / <code>find_and_click</code></td><td>Locate an element or information on the page</td></tr>
+  <tr><td><code>fill_form</code> / <code>fill_form_and_submit</code></td><td>Fill form fields with specified values</td></tr>
+  <tr><td><code>apply_filters</code> / <code>apply_filters_and_search</code></td><td>Set filter or sort controls</td></tr>
+  <tr><td><code>add_to_cart</code></td><td>Add the current item to a shopping cart</td></tr>
+  <tr><td><code>navigate</code></td><td>Free-form navigation when stepwise decomposition is unknown</td></tr>
+</table>
+
+<h3>2.3 GUI Perception</h3>
+
+<h4>Grounding</h4>
+<p>(스크린샷, element description) → click point pair. AxTree에서 모든 clickable element를 열거하고, accessible name/role로 natural language description을 생성. Ground-truth click 좌표는 bounding box 내에서 clipped Gaussian prior로 샘플링하여 정확한 중심만이 아닌 spatially robust clicking을 학습. ##총 7M+ grounding QA pairs## (3.4M template + 3.8M GPT-5 생성). PixmoPoints 데이터에서 1.1M도 포함.</p>
+
+<h4>Screenshot QA</h4>
+<p>(스크린샷, 질문) → 답변 pair. 395개 웹사이트에서 2,237,252 QA pairs. 54% OCR, 26% affordance (페이지에서 가능한 action), 20% summarization. AxTree 특정 정보(element ID 등)를 참조하는 sample은 제거.</p>
+
+<h3>Table 2: MolmoWebMix 통계</h3>
+<table>
+  <tr><th>Dataset / Source</th><th>Trajectories</th><th>Steps</th><th>Domains</th><th>Avg steps</th><th>Mixture Ratio</th></tr>
+  <tr><td colspan="6"><strong>MolmoWebMix-Traj</strong> — <strong>278.5K trajectories, 2.2M steps, 2.6K domains</strong></td></tr>
+  <tr><td><em>Synthetic</em></td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td>  AxTree Single-Agent</td><td>70K</td><td>793K</td><td>1.3K</td><td>11.4</td><td>0.35</td></tr>
+  <tr><td>  AxTree Multi-Agent</td><td>35K</td><td>438K</td><td>1.1K</td><td>12.5</td><td>0.18</td></tr>
+  <tr><td>  AxTree Atomic Skills</td><td>5.5K</td><td>68.7K</td><td>540</td><td>12.4</td><td>0.02</td></tr>
+  <tr><td>  Node-Traversal</td><td>16K</td><td>151K</td><td>833</td><td>9.5</td><td>0.02</td></tr>
+  <tr><td><em>Human</em></td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td>  Human</td><td>36K</td><td>623K</td><td>1.1K</td><td>20.8</td><td>0.18</td></tr>
+  <tr><td>  Human Skills</td><td>116K</td><td>781K</td><td>1.1K</td><td>6.8</td><td>0.05</td></tr>
+  <tr><td colspan="6"><strong>MolmoWebMix-Perception</strong> — <strong>10.5M examples</strong></td></tr>
+  <tr><td>  PixMoPoints + SyntheticGround</td><td>–</td><td>8.3M</td><td>–</td><td>–</td><td>0.15</td></tr>
+  <tr><td>  ScreenshotQA</td><td>–</td><td>2.2M</td><td>–</td><td>–</td><td>0.05</td></tr>
+</table>
+
+<h2>3. MolmoWeb — 모델 아키텍처와 학습</h2>
+
+<h3>3.1 Architecture</h3>
+<p>Molmo2 아키텍처 기반 — Qwen3 language model + SigLIP2 vision encoder. 이미지와 텍스트의 interleaved sequence를 처리하는 multimodal language model이다.</p>
+
+<h3>3.2 Observation and Action Space</h3>
+
+<p><strong>Observation</strong>: 각 step $t$에서 현재 브라우저 스크린샷 + task instruction + 최근 10개 action history (URL, 페이지 제목 포함).</p>
+
+<p><strong>Action</strong>: 모델은 JSON 형식의 <em>thought</em> + <em>action</em>을 출력한다. Thought는 선택 이유에 대한 자연어 설명, action은 브라우저 조작 명령이다.</p>
+
+<p><strong>Table 3: Action space</strong></p>
+<table>
+  <tr><th>Action</th><th>Description</th></tr>
+  <tr><td><code>goto(url)</code></td><td>Navigate to URL</td></tr>
+  <tr><td><code>mouse_click(x, y, ...)</code></td><td>Click at viewport coordinate</td></tr>
+  <tr><td><code>mouse_drag_and_drop(...)</code></td><td>Drag from one coordinate to another</td></tr>
+  <tr><td><code>scroll(delta_x, delta_y)</code></td><td>Scroll by offset</td></tr>
+  <tr><td><code>keyboard_type(text)</code></td><td>Type a string</td></tr>
+  <tr><td><code>keyboard_press(key)</code></td><td>Press a key</td></tr>
+  <tr><td><code>scroll_at(x, y, dx, dy)</code></td><td>Scroll at a specific coordinate</td></tr>
+  <tr><td><code>hover_at(x, y)</code></td><td>Hover at a specific coordinate</td></tr>
+  <tr><td><code>go_back()</code></td><td>Navigate to previous page</td></tr>
+  <tr><td><code>new_tab()</code></td><td>Open a new browser tab</td></tr>
+  <tr><td><code>tab_focus(index)</code></td><td>Switch focus to a browser tab</td></tr>
+  <tr><td><code>noop(wait_ms)</code></td><td>Wait (page load, captcha 등)</td></tr>
+  <tr><td><code>send_msg_to_user(msg)</code></td><td>Display message to user (task 완료 등)</td></tr>
+</table>
+
+<p>Mouse action의 좌표는 $[0, 100]$으로 정규화하여 학습하고, 실행 시 viewport pixel로 역정규화한다.</p>
+
+<h3>3.3 Training</h3>
+<ul>
+  <li>Molmo2의 single-image checkpoint에서 시작하여 SFT (supervised fine-tuning)</li>
+  <li>모든 데이터 타입(task trajectory, atomic skill, GUI perception)을 단일 학습 단계에서 혼합</li>
+  <li>64 H100 GPUs, global batch size 128, 최대 50K steps (~3.2 epochs)</li>
+  <li>Vision encoder, language model, adapter를 모두 fine-tune</li>
+</ul>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Evaluation Setup</h3>
+<ul>
+  <li><strong>벤치마크 (4개)</strong>: WebVoyager, Online-Mind2Web, DeepShop, WebTailBench</li>
+  <li>Live 웹사이트에서 평가, 시간에 민감한 task는 날짜 수정</li>
+  <li>벤치마크별 3회 평가, 최대 30 steps/task</li>
+  <li>LLM judge: GPT-4o (WebVoyager, DeepShop), o4-mini (Online-Mind2Web), WebVoyager judge (WebTailBench)</li>
+  <li>Browserbase 환경에서 실행</li>
+</ul>
+
+<h3>4.2 Main Results (Table 4)</h3>
+
+<p><strong>실험 의도</strong>: MolmoWeb이 오픈 모델 중 SOTA를 달성하고, 대형 proprietary 모델과 어떻게 비교되는지 검증한다.</p>
+
+<table>
+  <tr><th>Model</th><th># Steps</th><th>WebVoyager</th><th>Online-Mind2Web</th><th>DeepShop</th><th>WebTailBench</th></tr>
+  <tr><td colspan="6"><em>API only — w/o vision</em></td></tr>
+  <tr><td>AxTree Agent (GPT-5)</td><td>30</td><td>70.6</td><td>41.9</td><td>40.7</td><td>29.2</td></tr>
+  <tr><td>AxTree Agent (Gemini-3-flash)</td><td>30</td><td>74.4</td><td>34.8</td><td>45.1</td><td>62.1</td></tr>
+  <tr><td>AxTree Agent (Gemini-3-flash)</td><td>100</td><td>85.6</td><td>44.8</td><td>55.3</td><td>63.5</td></tr>
+  <tr><td colspan="6"><em>API only — w/ vision (SoM)</em></td></tr>
+  <tr><td>SoM Agent (GPT-4o)*</td><td>100</td><td>65.1</td><td>34.6</td><td>16.0</td><td>30.8</td></tr>
+  <tr><td>SoM Agent (o3)*</td><td>100</td><td>79.3</td><td>55.4</td><td>49.7</td><td>52.7</td></tr>
+  <tr><td>SoM Agent (GPT-5)*</td><td>100</td><td>90.6</td><td>57.7</td><td>49.1</td><td>60.4</td></tr>
+  <tr><td>OpenAI computer-use-preview*</td><td>100</td><td>70.9</td><td>42.9</td><td>24.7</td><td>25.7</td></tr>
+  <tr><td>Gemini computer-use-preview</td><td>100</td><td>88.6</td><td>53.7</td><td>62.0</td><td>63.0</td></tr>
+  <tr><td colspan="6"><em>Open weight</em></td></tr>
+  <tr><td>Holo1-7B</td><td>30</td><td>55.4</td><td>–</td><td>–</td><td>–</td></tr>
+  <tr><td>UI-TARS-1.5-7B*</td><td>100</td><td>66.4</td><td>31.3</td><td>11.6</td><td>19.5</td></tr>
+  <tr><td>GLM-4.1V-9B-Thinking*</td><td>100</td><td>66.8</td><td>33.9</td><td>32.0</td><td>22.4</td></tr>
+  <tr><td>Fara-7B*</td><td>100</td><td>73.5</td><td><u>34.1</u></td><td>26.2</td><td>38.4</td></tr>
+  <tr><td><strong>MolmoWeb-4B</strong></td><td>100</td><td><u>75.2</u></td><td>31.3</td><td><u>35.6</u></td><td><u>43.8</u></td></tr>
+  <tr><td><strong>MolmoWeb-8B</strong></td><td>100</td><td><strong>78.2</strong></td><td><strong>35.3</strong></td><td><strong>42.3</strong></td><td><strong>49.5</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li><strong>오픈 모델 SOTA</strong>: ##MolmoWeb-8B가 모든 벤치마크에서 오픈 모델 최고 성능##. Fara-7B 대비 WebVoyager +4.7pp, DeepShop +16.1pp, WebTailBench +11.1pp.</li>
+  <li><strong>Proprietary model 능가</strong>: MolmoWeb-8B가 GPT-4o SoM agent를 WebVoyager에서 13pp, DeepShop에서 26pp 상회. ##AxTree+SoM 기반의 더 큰 모델이 더 풍부한 입력(AxTree+visual)을 사용함에도, well-trained vision-only 8B 모델이 더 높은 task completion rate을 달성##.</li>
+  <li><strong>Non-visual teacher 대비</strong>: Synthetic trajectory 생성에 사용된 Gemini-3-flash AxTree agent(85.6 on WebV)보다 MolmoWeb-8B(78.2)가 5+pp 낮지만, vision-only 관찰과 8B 규모를 고려하면 격차가 작다. DeepShop과 WebTailBench에서는 10+pp 격차가 있어 개선 여지가 있음.</li>
+</ol>
+
+<h3>4.3 Test-Time Scaling</h3>
+
+<p><strong>실험 의도</strong>: Inference 시 더 많은 compute를 투입하면 성능이 향상되는지, parallel rollout과 step 수 증가 중 어느 것이 효과적인지 비교한다.</p>
+
+<h4>Parallel Rollout + Best-of-N Selection</h4>
+<p>동일 task에 $k$개 독립 agent를 실행하고 LLM judge로 최선을 선택한다. Pass@k 추정:</p>
+
+$$\widehat{\text{pass@}k} = 1 - \frac{\binom{m-c}{k}}{\binom{m}{k}} \quad (1)$$
+
+<p>$m$개 rollout 중 $c$개 성공, $m=5$로 설정.</p>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: WebVoyager와 Online-Mind2Web에서의 pass@k 성능. k 증가에 따라 일관된 향상. MolmoWeb-8B는 max 100 steps에서 ##pass@4 기준 WebVoyager 94.7%, Online-Mind2Web 60.5%## 달성. 30 steps에서도 pass@4가 pass@1(100 steps)보다 높아, parallel rollout이 step 수 증가보다 효과적이라는 결과. 이는 single incorrect action으로 인한 compounding error를 parallel rollout이 완화하기 때문.</li>
+</blockquote>
+
+<h4>Inference step 증가</h4>
+<p>30→100 steps로 증가 시 일관된 개선이 있으나, parallel rollout 3회(총 90 steps)가 단일 100-step run보다 더 효과적 (8B WebVoyager: 86.2% vs 78.2%).</p>
+
+<h3>4.4 Training Data Ablations</h3>
+
+<p><strong>실험 의도</strong>: 데이터 규모, synthetic vs human 데이터의 효과를 분석한다.</p>
+
+<h4>Table 5a: 데이터 규모 효과</h4>
+<table>
+  <tr><th>Training data</th><th>WebV</th><th>OM2W</th></tr>
+  <tr><td>1%</td><td>44.5</td><td>11.7</td></tr>
+  <tr><td>10%</td><td>63.2</td><td>20.4</td></tr>
+  <tr><td>100%</td><td><strong>68.5</strong></td><td><strong>21.9</strong></td></tr>
+</table>
+<p>10%만으로도 최종 성능의 85-90%를 달성. 데이터 혼합의 효과성을 입증.</p>
+
+<h4>Table 5b: Synthetic vs Human</h4>
+<table>
+  <tr><th>Training data</th><th>#trajs</th><th>WebV</th><th>OM2W</th></tr>
+  <tr><td>human only</td><td>28K</td><td>27.8</td><td>13.2</td></tr>
+  <tr><td>synthetic only</td><td>106K</td><td>67.8</td><td><strong>22.0</strong></td></tr>
+  <tr><td>synthetic + human</td><td>134K</td><td><strong>68.5</strong></td><td>21.4</td></tr>
+</table>
+<p><strong>핵심 발견</strong>: ##Human data의 벤치마크 기여가 제한적##이며, synthetic trajectory가 훨씬 효과적. Human은 탐색적 행동, 우회 경로, annotation 노이즈가 많고, AxTree agent는 풍부한 구조/의미 정보를 활용하여 더 직접적이고 일관된 trajectory를 생성하기 때문.</p>
+
+<h4>Table 6: 동일 task에서 synthetic vs human</h4>
+<table>
+  <tr><th>Source</th><th>#trajs</th><th>DeepShop</th><th>WebV</th><th>OM2W</th></tr>
+  <tr><td>human</td><td>2.7K</td><td>19.8</td><td>35.4</td><td>9.0</td></tr>
+  <tr><td>synthetic</td><td>2.7K</td><td><strong>24.4</strong></td><td><strong>53.0</strong></td><td><strong>16.8</strong></td></tr>
+</table>
+<p>동일 task에서도 synthetic이 일관되게 우수. Signal-to-noise ratio의 차이가 핵심 원인.</p>
+
+<h3>4.5 Sampling Strategies (Table 7)</h3>
+<table>
+  <tr><th>Strategy</th><th>WebV</th></tr>
+  <tr><td>greedy (temperature=0.0)</td><td>61.4</td></tr>
+  <tr><td>top-k (temperature=0.7, k=20)</td><td>67.4</td></tr>
+  <tr><td>top-p (temperature=0.7, p=0.8)</td><td><strong>68.5</strong></td></tr>
+</table>
+<p>Greedy decoding은 특정 상태에서 stuck하는 문제가 있으며, stochastic sampling이 5%+ 개선. Nucleus sampling (top-p=0.8, temp=0.7)을 기본값으로 사용.</p>
+
+<h3>4.6 Grounding Experiments (Table 8)</h3>
+<table>
+  <tr><th>Model</th><th>ScreenSpot</th><th>ScreenSpot v2</th></tr>
+  <tr><td>Claude 3.7</td><td>–</td><td>87.6</td></tr>
+  <tr><td>OpenAI CUA</td><td>–</td><td>87.9</td></tr>
+  <tr><td>Gemini-3-Pro</td><td>–</td><td><strong>93.7</strong></td></tr>
+  <tr><td>Holo1-7B</td><td><u>87.4</u></td><td>89.9</td></tr>
+  <tr><td>MolmoWeb-4B</td><td>87.2</td><td>89.5</td></tr>
+  <tr><td>MolmoWeb-Ground-8B</td><td><strong>88.7</strong></td><td><u>91.8</u></td></tr>
+</table>
+<p>Grounding specialist (MolmoWeb-Ground-8B)는 ScreenSpot에서 오픈 모델 최고, ScreenSpot v2에서 Claude 3.7과 OpenAI CUA를 능가.</p>
+
+<h2>6. Capabilities and Limitations</h2>
+<ul>
+  <li><strong>Instruction following</strong>: 구체적인 지시에서 잘 작동하나, 모호하거나 많은 필터/제약이 있는 지시에서 성능 저하</li>
+  <li><strong>OCR/Reading</strong>: 스크린샷에서 암묵적으로 OCR을 수행하지만, 작은 텍스트나 긴 문단에서 실패 가능</li>
+  <li><strong>Latency</strong>: 효율적 trajectory를 학습하나, 모델 inference 자체의 latency 최적화는 미적용. Quantization/pruning으로 개선 가능</li>
+  <li><strong>Thoughts as memory</strong>: Thought가 trajectory 중 정보 저장 역할을 하지만 (예: 뉴스 헤드라인 추적), 강건하지 않으며 thought-action 불일치 발생</li>
+  <li><strong>Action space 한계</strong>: <code>scroll_at</code>, <code>mouse_drag_and_drop</code>, <code>hover</code> 같은 드문 action에서 어려움. <code>web_search(query)</code> 같은 효율적 action 미포함</li>
+  <li><strong>Error correction</strong>: <code>go_back</code> 등으로 일부 복구 가능하나, 동일 action 반복(stuck)에서 벗어나지 못하는 경우 존재</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>완전한 오픈 생태계</strong>: 모델, 데이터, 코드, 평가 harness를 모두 공개. 이는 오픈 웹 에이전트 연구의 재현성과 발전에 크게 기여한다.</li>
+  <li><strong>Proprietary distillation 없음</strong>: Vision-based proprietary agent로부터 증류하지 않고도 경쟁력 있는 성능을 달성. 이는 데이터 파이프라인 설계와 혼합 전략의 가치를 입증한다.</li>
+  <li><strong>다양한 데이터 소스의 체계적 분석</strong>: Synthetic vs human, 데이터 규모, sampling strategy 등 ablation이 풍부하여 실무적 가이드를 제공한다.</li>
+  <li><strong>Test-time scaling의 실용적 가능성</strong>: Pass@4에서 WebVoyager 94.7%는 실제 배포 시나리오에서 parallel rollout 전략의 가치를 보여준다.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>Synthetic trajectory의 teacher 모델 비용</strong>: Gemini-3-Flash, GPT-4o, Gemini-2.5-Flash 등 대형 proprietary 모델을 trajectory 생성에 사용. "Proprietary distillation 없음"이라 하지만, 실질적으로 proprietary 모델에 강하게 의존한다.</li>
+  <li><strong>Non-visual teacher와의 성능 격차</strong>: Gemini-3-flash AxTree(85.6 WebV) 대비 MolmoWeb-8B(78.2)는 7pp 격차. Vision-only 제약의 한계가 명확히 드러나며, 이 격차를 줄이기 위한 추가 연구가 필요.</li>
+  <li><strong>Human data의 낮은 기여</strong>: 30K+ human trajectory 수집 비용 대비 벤치마크 기여가 미미. Synthetic + human이 synthetic only와 거의 동일 (68.5 vs 67.8 WebV). Human annotation의 ROI에 의문.</li>
+  <li><strong>Live web 평가의 재현성</strong>: 실제 웹사이트에서 평가하므로 시간에 따른 변화(UI 업데이트, 콘텐츠 변경)로 재현이 어려움. 3회 반복의 표준편차도 미보고.</li>
+  <li><strong>RL/self-improvement 미적용</strong>: SFT만 사용하고 RL이나 self-play/self-improvement는 미적용. 저자도 이를 향후 과제로 인정.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Vision-only 웹 에이전트가 실용적 수준에 도달</strong>: HTML/DOM 접근 없이 스크린샷만으로 8B 모델이 GPT-4o SoM agent를 능가한다. 이는 well-curated 데이터가 model scale과 input richness를 보완할 수 있음을 보여준다.</li>
+  <li><strong>Synthetic trajectory가 human demo보다 효과적</strong>: ##동일 task에서 합성 데이터로 학습한 모델이 인간 데이터보다 일관되게 우수##. AxTree agent의 구조적 이해가 더 직접적이고 일관된 행동 패턴을 생성하며, human annotation의 noise가 모방 학습을 방해한다.</li>
+  <li><strong>Parallel rollout이 step 증가보다 효과적</strong>: 90 steps (3 parallel × 30) > 100 steps (1 sequential). Single incorrect action의 compounding error를 parallel로 완화하는 것이 더 긴 trajectory를 허용하는 것보다 낫다.</li>
+  <li><strong>Multi-agent trajectory 생성이 single agent보다 우수</strong>: Planner-Operator-Verifier 구조가 단일 AxTree agent 대비 더 높은 task completion rate과 thought 품질을 제공한다.</li>
+  <li><strong>Atomic skill 분해가 compositional web task 학습을 촉진</strong>: End-to-end trajectory뿐 아니라 개별 기술(search, fill_form 등)을 따로 학습함으로써, 새로운 조합의 task에 일반화하는 능력이 향상된다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
