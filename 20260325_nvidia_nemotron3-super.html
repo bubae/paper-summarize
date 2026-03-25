@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemotron 3 Super: Open, Efficient MoE Hybrid Mamba-Transformer Model for Agentic Reasoning</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Nemotron 3 Super: Open, Efficient MoE Hybrid Mamba-Transformer Model for Agentic Reasoning</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: NVIDIA (수백 명의 기여자)</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: Technical Report (2026-03-11)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf">Paper</a> · <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16">HuggingFace</a> · <a href="https://github.com/NVIDIA-NeMo/Nemotron">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 대규모 LLM은 높은 정확도를 달성하지만, inference 비용과 throughput이 실용적 배포의 병목이다. 기존 MoE 설계는 FLOP 효율에 초점을 맞추지만, memory bandwidth, 통신 오버헤드, 실제 하드웨어 제약을 간과하여 실질적 비효율이 발생한다.</li>
+  <li><strong>해결</strong>: Nemotron 3 Super — 120B total / 12B active parameter의 hybrid Mamba-2 + LatentMoE + Attention 아키텍처. LatentMoE로 expert 연산을 latent space에서 수행하여 accuracy-per-byte를 최적화하고, shared-weight MTP (Multi-Token Prediction)로 native speculative decoding을 지원하며, NVFP4로 25T 토큰을 안정적으로 사전학습한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) LatentMoE가 hidden dimension을 줄이는 대신 expert 수와 top-K를 비례 증가시켜 동일 inference cost에서 더 높은 accuracy를 달성, (2) Mamba-2 블록의 linear-time 처리 + 소수의 attention anchor로 1M context를 효율적으로 지원, (3) 21개 도메인에 걸친 multi-environment RL + PivotRL로 agentic 능력을 체계적으로 강화.</li>
+  <li><strong>비유</strong>: 고급 레스토랑 주방에서, 기존 MoE가 모든 셰프에게 큰 도마(hidden dim)를 주는 대신, LatentMoE는 작은 도마를 주되 셰프 수를 대폭 늘린다. 각 셰프가 처리하는 양은 줄지만 더 다양한 전문 셰프가 요리에 참여하여 전체 품질이 향상된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>LatentMoE — 하드웨어 효율적 MoE 아키텍처</strong>: ##Latent space에서 expert 연산을 수행하여 memory bandwidth와 통신 비용을 줄이면서, 절약분으로 expert 수(512)와 top-K(22)를 확대##하여 동일 inference cost에서 더 높은 accuracy를 달성한다.</li>
+  <li><strong>Shared-weight MTP로 robust speculative decoding</strong>: 독립 offset head 대신 ##공유 파라미터 MTP head##를 사용하여 draft 길이 증가 시에도 안정적인 acceptance rate을 유지 (SPEED-Bench 평균 3.45, DeepSeek-R1 2.70 대비).</li>
+  <li><strong>NVFP4 대규모 사전학습</strong>: ##25T 토큰을 NVFP4 정밀도로 안정적으로 사전학습##한 최초의 120B급 모델. Zero-valued weight gradient 현상을 분석하고 BF16 대비 성능 저하 없음을 확인.</li>
+  <li><strong>Agentic 능력 중심 post-training</strong>: 21개 환경 × 37개 RL dataset으로 multi-environment RLVR + SWE-RL + RLHF + MTP healing 4단계 파이프라인. PivotRL로 agentic RL의 효율성을 크게 개선.</li>
+  <li><strong>GPT-OSS-120B 대비 2.2배, Qwen3.5-122B 대비 7.5배 throughput</strong>: 동등 이상의 accuracy에서 inference throughput을 크게 상회 (8K input / 64K output 기준, B200 GPU).</li>
+</ol>
+
+<h2>2. Pretraining</h2>
+
+<h3>2.1 Model Architecture</h3>
+
+<p>Nemotron 3 Nano에서 도입된 hybrid Mamba-Attention MoE 아키텍처를 120.6B 총 파라미터 / 12.7B active 파라미터로 확장한다. 세 가지 핵심 구성 요소:</p>
+
+<h4>Table 1: 아키텍처 구성</h4>
+<table>
+  <tr><th>Configuration</th><th>Value</th></tr>
+  <tr><td>Total Layers</td><td>88</td></tr>
+  <tr><td>Model Dimension</td><td>4096</td></tr>
+  <tr><td>Q-Heads / KV-Heads / Head Dim</td><td>32 / 2 / 128 (GQA)</td></tr>
+  <tr><td>Mamba State Dim / Groups / Heads / Head Dim</td><td>128 / 8 / 128 / 64</td></tr>
+  <tr><td>Expert Hidden Dimension</td><td>2688</td></tr>
+  <tr><td>Shared Expert Intermediate Size</td><td>5376</td></tr>
+  <tr><td>Total Experts per Layer</td><td>512</td></tr>
+  <tr><td>Top-K (Activated Experts)</td><td>22</td></tr>
+  <tr><td>MoE Latent Size ($\ell$)</td><td>1024</td></tr>
+  <tr><td>MTP layers (shared weight)</td><td>2</td></tr>
+</table>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: 88-layer stack의 interleaving 패턴. [Mamba-2, LatentMoE] × 3 → [Mamba-2, LatentMoE, Attention, LatentMoE] × 4 → [Mamba-2, LatentMoE] × 3 ... 형태로, Mamba-2 블록이 주를 이루고 소수의 Attention layer가 "global anchor"로 삽입된다.
+</blockquote>
+
+<h4>2.1.1 LatentMoE — Hardware-Aware Expert Design</h4>
+
+<p>기존 MoE 설계의 5가지 원칙을 도출하여 LatentMoE를 설계한다:</p>
+<ol>
+  <li><strong>Low-latency serving</strong>: Memory bandwidth가 expert weight 읽기에 지배 → expert FFN의 hidden dimension $d$를 줄여야 한다</li>
+  <li><strong>Throughput serving</strong>: All-to-all routing이 $d \times K$에 비례 → $d$ 또는 $K$를 줄여야 한다</li>
+  <li><strong>Quality 보존</strong>: 유효 비선형 예산 $K \cdot m$은 유지해야 한다 → $K$와 $m$을 고정</li>
+  <li><strong>Feature rank</strong>: 과제별 effective feature rank $r_{\text{eff}}$가 $d$의 하한 → $d$를 과도하게 줄이면 성능 붕괴</li>
+  <li><strong>Expert 조합 확장</strong>: $N$과 $K$를 동시에 늘리면 expert 조합 공간이 지수적으로 확장되어 품질 향상</li>
+</ol>
+
+<p>##핵심 아이디어##: 원칙 (1)-(3)에서 hidden dimension $d$가 가장 유망한 축소 대상이고, 원칙 (5)에서 절약분으로 $N$과 $K$를 $d/\ell$만큼 증가시키면 동일 inference cost에서 더 높은 accuracy를 달성할 수 있다.</p>
+
+<p>LatentMoE 작동 방식: 입력 토큰 $x \in \mathbb{R}^d$를 learnable down-projection $W_\downarrow \in \mathbb{R}^{\ell \times d}$로 latent space $\mathbb{R}^\ell$에 투영 → latent space에서 routing 및 expert 연산 수행 → up-projection $W_\uparrow \in \mathbb{R}^{d \times \ell}$로 원래 dimension $d$로 복원. Routing gate, shared expert, non-expert layer는 원래 dimension $d$에서 작동하여 품질을 보존한다.</p>
+
+<p>Nemotron 3 Super에서: $d = 4096$, $\ell = 1024$ (4배 축소). Expert 수를 128에서 ##512로 4배##, top-K를 5에서 ##22로 ~4배## 확대하여 동일 비용에서 더 풍부한 expert 조합을 제공한다.</p>
+
+<h4>2.1.2 Multi-Token Prediction (MTP)</h4>
+
+<p>MTP는 각 position에서 다음 여러 토큰을 동시에 예측하는 auxiliary objective이다. (1) Multi-step dependency를 포착하여 representation 품질 향상, (2) 예측 head가 native speculative decoding의 draft model 역할.</p>
+
+<p><strong>Shared-weight MTP head 설계</strong>: 기존 MTP는 각 offset별 독립 head를 학습하지만, inference 시 self-generated hidden state에 조건화되면 train-inference mismatch가 발생하여 acceptance rate이 draft 길이 증가 시 급격히 저하된다. Nemotron 3 Super는 ##여러 MTP head가 파라미터를 공유##하여, 각 head가 multiple offset에 노출되어 regularization 효과를 얻고, autoregressive drafting 시 self-generated state에 대한 robustness가 향상된다.</p>
+
+<p><strong>Table 2: SPEED-Bench 평균 acceptance length</strong> (draft length 7)</p>
+<table>
+  <tr><th>Category</th><th>DeepSeek-R1</th><th>Qwen3-Next</th><th>Nemotron3 Super</th></tr>
+  <tr><td>Coding</td><td>2.99</td><td><strong>4.32</strong></td><td>3.78</td></tr>
+  <tr><td>Math</td><td>2.98</td><td><strong>3.89</strong></td><td>3.73</td></tr>
+  <tr><td>Multilingual</td><td>2.83</td><td>3.97</td><td><strong>4.05</strong></td></tr>
+  <tr><td>RAG</td><td>2.79</td><td>3.53</td><td><strong>3.78</strong></td></tr>
+  <tr><td>Reasoning</td><td>2.80</td><td>3.47</td><td><strong>3.59</strong></td></tr>
+  <tr><td><strong>Average</strong></td><td>2.70</td><td>3.33</td><td><strong>3.45</strong></td></tr>
+</table>
+<p>Nemotron 3 Super가 전체 평균에서 최고 acceptance length를 달성하며, DeepSeek-R1을 모든 카테고리에서 상회한다.</p>
+
+<h4>2.1.3 Hybrid Interleaved MoE Architecture</h4>
+<p>88-layer stack에서 Mamba-2 블록이 주를 이루고, 소수의 self-attention layer가 "global anchor"로 삽입된다. Mamba-2는 constant-size state로 linear-time sequence modeling을 제공하여 memory overhead와 latency를 대폭 줄이고, attention anchor가 full-token interaction과 long-range information routing을 가능하게 한다. 이 조합으로 1M context length를 지원한다.</p>
+
+<h3>2.2 NVFP4 Pretraining</h3>
+
+<p>대부분의 linear layer를 NVFP4 (E2M1 format, 16-element micro-block, E4M3 micro-block scaling, FP32 global scale)로 학습한다. 안정성을 위해 일부 layer는 BF16 또는 MXFP8로 유지:</p>
+
+<table>
+  <tr><th>Layer Type</th><th>Format</th><th>Rationale</th></tr>
+  <tr><td>All Linear (default)</td><td>NVFP4</td><td>–</td></tr>
+  <tr><td>Final 15% of Network</td><td>BF16</td><td>학습 안정성</td></tr>
+  <tr><td>Latent Projections</td><td>BF16</td><td>Step-time 영향 무시할 수준</td></tr>
+  <tr><td>MTP Layers</td><td>BF16</td><td>Multi-token prediction 보존</td></tr>
+  <tr><td>QKV & Attention Projections</td><td>BF16</td><td>소수 attention layer의 fidelity</td></tr>
+  <tr><td>Mamba Output Projection</td><td>MXFP8</td><td>NVFP4에서 underflow 관찰</td></tr>
+  <tr><td>Embeddings</td><td>BF16</td><td>–</td></tr>
+</table>
+
+<p><strong>Zero-valued gradient 분석</strong>: NVFP4 학습 시 weight gradient의 7%가 zero-valued로 수렴하는 현상 관찰. 이는 expert layer의 FC1 output channel과 FC2 input channel에서 magnitude pattern이 형성되어 발생하며, NVFP4의 low precision이 small-magnitude gradient를 underflow시키기 때문이다. 그러나 BF16으로 전환해도 이미 유사한 magnitude pattern이 존재하므로, ##NVFP4가 BF16의 자연스러운 학습 동역학을 가속할 뿐 새로운 문제를 도입하지 않는다##.</p>
+
+<h3>2.3 Pretraining Data</h3>
+<p>25T 토큰, 16개 high-level category, 2-phase curriculum:</p>
+<ul>
+  <li><strong>Phase 1 (80%, 20T)</strong>: 다양성과 broad coverage 중심 (crawl data, code, math, multilingual 등)</li>
+  <li><strong>Phase 2 (20%, 5T)</strong>: 고품질 데이터와 benchmark accuracy 중심 (Wikipedia, code-sft, stem-sft 비중 증가)</li>
+</ul>
+<p>Nemotron 3 Nano 이후 추가된 합성 데이터: Synthetic Code Concepts (15M problem-solution pairs), Unconditional Algorithmic (LeetCode 스타일), Economics (다양한 MCQ), Formal Logic, Multiple Choice (3.5M MMLU-style samples).</p>
+
+<h3>2.4-2.5 Hyperparameters & Checkpoint Merging</h3>
+<ul>
+  <li>WSD (Warmup-Stable-Decay) LR schedule: peak $4.5 \times 10^{-4}$, 200B warmup, minus-sqrt decay for last 5T</li>
+  <li>AdamW ($\beta_1=0.9, \beta_2=0.95$), weight decay 0.1, batch 3,072 × 8,192 = 25.17M tokens/batch</li>
+  <li>Checkpoint merging: stable LR phase에서 2-4pp 향상, ~16% pretraining FLOP 절약</li>
+</ul>
+
+<h3>2.7 Base Model Results (Table 4 발췌)</h3>
+<table>
+  <tr><th>Task</th><th>N-3-Super Base</th><th>Ling-flash-base-2.0</th><th>GLM-4.5-Air-Base</th></tr>
+  <tr><td>MMLU</td><td><strong>86.01</strong></td><td>81.00</td><td>81.00</td></tr>
+  <tr><td>MMLU-Pro</td><td><strong>75.65</strong></td><td>62.10</td><td>58.20</td></tr>
+  <tr><td>GPQA-Diamond</td><td><strong>60.00</strong></td><td>36.00</td><td>23.20</td></tr>
+  <tr><td>MATH Level 5</td><td><strong>70.00</strong></td><td>39.80</td><td>26.30</td></tr>
+  <tr><td>AIME 2024 (pass@32)</td><td><strong>53.33</strong></td><td>30.00</td><td>20.00</td></tr>
+  <tr><td>RULER 1M</td><td><strong>74.39</strong></td><td>–</td><td>–</td></tr>
+</table>
+<p>Base model이 동급 SOTA 모델 대비 압도적으로 우수. 특히 GPQA-Diamond 60.00, MATH Level 5 70.00은 base model로서는 매우 높은 수치.</p>
+
+<h2>3. Post-Training</h2>
+
+<div class="flow-diagram">Base (1M context) → SFT (7M samples, 8GB tokens)
+  → RLVR Round 1 (25 env types)
+  → RLVR Round 2 (30 env types, + Low Effort)
+  → RLVR Round 3 (26 env types, + Agentic Focused)
+  [37 environments total, up to 4,000 instances/batch]
+  → MTP Healing (18B tokens)
+  → RLHF (18B tokens)
+  → SWE-RL (20B tokens)
+  → Nemotron 3 Super</div>
+
+<h3>3.1 Supervised Fine-Tuning</h3>
+
+<h4>Two-stage SFT Loss</h4>
+<p>Single-stage SFT가 long-input-short-output 시나리오에서 성능 저하를 유발하므로 2-stage 접근을 채택:</p>
+<ul>
+  <li><strong>Stage 1: Token-level global average</strong>: $\mathcal{L}_{\text{tok}} = \frac{\sum_{c \in \mathcal{B}} \sum_{t \in \mathcal{O}_c} \ell_t}{\sum_{c \in \mathcal{B}} |\mathcal{O}_c|}$ — 모든 output token에 대한 평균 loss (Eq. 1). 강한 reasoning 행동을 유도.</li>
+  <li><strong>Stage 2: Sample-level average</strong>: $\mathcal{L}_{\text{samp}} = \frac{1}{|\mathcal{B}|} \sum_{c \in \mathcal{B}} \left(\frac{1}{|\mathcal{O}_c|} \sum_{t \in \mathcal{O}_c} \ell_t \right)$ — 각 conversation을 output-token count로 정규화 후 평균 (Eq. 2). Long output이 loss를 지배하는 것을 방지.</li>
+</ul>
+
+<h4>SFT Data Blend (Figure 16)</h4>
+<p>7M+ samples: ##Agent 36% > Reasoning 31% > Chat 23% > Long Context 8%##. Nemotron 3 Nano 대비 agentic 데이터의 volume과 diversity를 대폭 확대.</p>
+
+<p>주요 새 SFT 데이터:</p>
+<ul>
+  <li><strong>Software Engineering</strong>: SWE-Gym, R2E-Gym, SWE-rebench에서 OpenHands trajectory를 Qwen3-Coder-480B-A35B로 증류</li>
+  <li><strong>Agentic CLI</strong>: 15K synthesis tasks + 3K SWE + 10K web dev → Codex, OpenCode, Qwen Code CLI, Stirrup에서 interaction 기록 → OpenAI format으로 정규화</li>
+  <li><strong>Financial Reasoning</strong>: SecQue benchmark 565 seed → 366K financial Q&A</li>
+  <li><strong>CUDA</strong>: 100K synthetic samples (kernel generation, repair, optimization)</li>
+  <li><strong>Conversational Tool Use</strong>: 6-stage pipeline (Domain → Policy → Scenario → Trajectory → Verification → Selection), 279K conversations across 838 domains</li>
+  <li><strong>General-Purpose Tool Use</strong>: 1.5M diverse tool-calling trajectories</li>
+</ul>
+
+<h3>3.2 Reinforcement Learning</h3>
+
+<h4>Stage 1: Multi-environment RLVR</h4>
+<p>##21개 환경, 37개 RL dataset##에 걸쳐 통합 학습. Single-environment RL이 다른 벤치마크에서 심각한 regression을 유발하므로, 모든 환경을 동시에 학습하여 안정적 개선을 달성한다. 도메인: Math, Code, STEM, Safety, Instruction Following, Long Context, Agentic Tool Use, Reasoning Gym 등.</p>
+
+<p><strong>Low-effort reasoning</strong>: RL prompt 중 1-2%를 low-effort mode로 변환하여, correctness와 token 수 모두를 기반으로 reward를 조정.</p>
+
+<p>비동기 GRPO 알고리즘: 256 prompts/step × 16 rollouts = batch 4,096. 최대 generation length 49K→64K tokens. Importance sampling ratio masking으로 off-policy 효과를 최소화.</p>
+
+<h4>PivotRL — Agentic RL 효율화</h4>
+<p>Long-horizon agentic task(tool use, terminal, SWE)에서 end-to-end RL은 비용이 높다. ##PivotRL은 offline SFT expert trajectory에서 "pivot" (모델이 불확실한 informative turn)을 선별하고, assistant-turn-level RL##을 수행한다. Domain-appropriate reward로 expert action에 근접한 action에도 credit을 부여하여 SFT의 OOD 문제 없이 효율적으로 agentic 능력을 강화한다.</p>
+
+<h4>Stage 2: SWE-RL</h4>
+<p>OpenHands agent loop + Apptainer container에서 GitHub issue를 자율적으로 해결. OpenCode, Codex agent class를 구현하여 multi-harness 학습. Binary reward (test pass/fail).</p>
+
+<h4>Stage 3: RLHF</h4>
+<p>GenRM 기반 (Qwen3-235B-A22B-Thinking-2507에서 초기화). HelpSteer 3 + lmarena-140k + human preference data. Multi-environment RL 전체에서 GenRM을 함께 사용하고, 마지막에 별도 RLHF-only stage도 수행.</p>
+
+<h4>Stage 4: MTP Healing</h4>
+<p>RLVR 이후 MTP head의 정확도가 저하되므로, ##모델 본체를 frozen하고 MTP head만 RLVR prompt의 생성 응답에 대해 SFT##하여 MTP accuracy를 크게 회복.</p>
+
+<h3>3.3 Post-trained Model Results (Table 5)</h3>
+
+<table>
+  <tr><th>Benchmark</th><th>N-3-Super</th><th>Qwen3.5-122B-A10B</th><th>GPT-OSS-120B</th></tr>
+  <tr><td colspan="4"><strong>General Knowledge</strong></td></tr>
+  <tr><td>MMLU-Pro</td><td>83.73</td><td><strong>86.70</strong></td><td>81.00</td></tr>
+  <tr><td colspan="4"><strong>Reasoning</strong></td></tr>
+  <tr><td>AIME25 (no tools)</td><td>90.21</td><td><strong>90.36</strong></td><td>92.50</td></tr>
+  <tr><td>HMMT Feb25 (with tools)</td><td><strong>94.73</strong></td><td>89.55</td><td>–</td></tr>
+  <tr><td>GPQA (with tools)</td><td>82.70</td><td>–</td><td>80.09</td></tr>
+  <tr><td>LiveCodeBench v5</td><td>81.19</td><td>78.93</td><td><strong>88.00</strong></td></tr>
+  <tr><td>HLE (with tools)</td><td><strong>22.82</strong></td><td>–</td><td>19.0</td></tr>
+  <tr><td colspan="4"><strong>Agentic</strong></td></tr>
+  <tr><td>Terminal Bench Core 2.0</td><td><strong>31.00</strong></td><td>37.50</td><td>18.70</td></tr>
+  <tr><td>SWE-Bench (OpenHands)</td><td>60.47</td><td><strong>66.40</strong></td><td>41.9</td></tr>
+  <tr><td>SWE-Bench (Codex)</td><td>53.73</td><td><strong>61.20</strong></td><td>–</td></tr>
+  <tr><td>TauBench V2 Average</td><td>61.15</td><td><strong>74.53</strong></td><td>61.0</td></tr>
+  <tr><td colspan="4"><strong>Chat & Instruction Following</strong></td></tr>
+  <tr><td>IFBench (prompt)</td><td>72.56</td><td><strong>73.77</strong></td><td>68.32</td></tr>
+  <tr><td>Arena-Hard-V2</td><td>73.88</td><td><strong>75.15</strong></td><td>90.26</td></tr>
+  <tr><td colspan="4"><strong>Long Context</strong></td></tr>
+  <tr><td>RULER 256k</td><td>96.30</td><td><strong>96.74</strong></td><td>52.30</td></tr>
+  <tr><td>RULER 1M</td><td><strong>91.75</strong></td><td>91.33</td><td>22.30</td></tr>
+  <tr><td colspan="4"><strong>Multilingual</strong></td></tr>
+  <tr><td>MMLU-ProX</td><td>79.36</td><td><strong>85.06</strong></td><td>76.59</td></tr>
+  <tr><td>WMT24++ (en→xx)</td><td>86.67</td><td><strong>87.84</strong></td><td>88.89</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##GPT-OSS-120B 대비 거의 모든 벤치마크에서 동등 이상##이면서 2.2× throughput.</li>
+  <li>Qwen3.5-122B-A10B와 대등하거나 근접하며 7.5× throughput. HMMT Feb25 94.73, RULER 1M 91.75에서는 Qwen3.5를 상회.</li>
+  <li>Agentic 벤치마크(SWE-Bench, TauBench)에서 Qwen3.5 대비 열세. 이는 agentic 학습의 추가 확장 여지를 시사.</li>
+</ol>
+
+<h2>4. Quantization for Inference</h2>
+
+<h3>FP8 (W8A8) 및 NVFP4 (W4A4) 체크포인트</h3>
+<p>Model-Optimizer를 사용한 PTQ (Post-Training Quantization):</p>
+<ul>
+  <li><strong>FP8</strong>: MoE GEMM + Mamba GEMM을 FP8, KV Cache FP8, Mamba state cache FP16</li>
+  <li><strong>NVFP4</strong>: AutoQuantize (NAS-inspired)로 per-operator 최적 precision 탐색. Sparse expert GEMM → NVFP4, attention/Mamba projection → FP8/BF16 혼합. ##99.8% median accuracy relative to BF16##.</li>
+</ul>
+
+<h3>4.3 Mamba State Quantization — Stochastic Rounding</h3>
+<p>Mamba의 recurrent state에서 quantization error가 누적되는 문제를 발견:</p>
+$$h_{q,t} = h_t + \sum_{i=0}^{t} \left(\prod_{j=i+1}^{t} A_j\right) e_i \quad (3)$$
+<p>##FP32→FP16 cast 시 RTNE (Round to Nearest Even) rounding이 biased error를 유발##하여, recurrent update에서 systematic drift가 누적. Stochastic rounding으로 대체하면 unbiased noise가 되어 verbosity 증가 없이 정확도를 유지한다. Philox$\langle 5 \rangle$로 구현.</p>
+
+<h3>Table 9: Quantized Model 성능 (발췌)</h3>
+<table>
+  <tr><th>Benchmark</th><th>N-3-Super BF16</th><th>FP8</th><th>NVFP4</th></tr>
+  <tr><td>MMLU-Pro</td><td>83.73</td><td>83.63</td><td>83.33</td></tr>
+  <tr><td>HMMT Feb25 (tools)</td><td>94.73</td><td>94.38</td><td>95.36</td></tr>
+  <tr><td>LiveCodeBench v5</td><td>81.19</td><td>80.99</td><td>80.56</td></tr>
+  <tr><td>SWE-Bench (OpenHands)</td><td>60.47</td><td>–</td><td>–</td></tr>
+  <tr><td>TauBench V2 Average</td><td>61.15</td><td>61.07</td><td>60.46</td></tr>
+  <tr><td>IFBench</td><td>72.58</td><td>72.32</td><td>73.30</td></tr>
+  <tr><td>RULER 512k</td><td>96.09</td><td>95.66</td><td>96.23</td></tr>
+</table>
+<p>FP8과 NVFP4 모두 BF16 대비 거의 무손실. 일부 벤치마크에서 NVFP4가 BF16을 능가하는 경우도 있다 (HMMT Feb25 95.36 vs 94.73).</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>완전한 기술 공개</strong>: 아키텍처 세부사항, NVFP4 학습 분석, zero-gradient 현상, Mamba state quantization의 stochastic rounding까지 매우 상세한 기술 보고서.</li>
+  <li><strong>LatentMoE의 원리적 설계</strong>: 5가지 MoE 설계 원칙을 명시하고, 이를 기반으로 LatentMoE를 도출하는 과정이 체계적. Hardware-software co-design 관점이 인상적.</li>
+  <li><strong>Throughput 이점이 실질적</strong>: 정확도만이 아니라 실제 B200 GPU에서의 throughput 비교를 제시하여, 실용적 가치를 명확히 보여준다.</li>
+  <li><strong>Mamba state quantization 분석</strong>: Recurrent state에서의 error 누적을 수식으로 분석하고, stochastic rounding으로 해결한 것은 hybrid Mamba-Transformer 양자화의 중요한 기여.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>LatentMoE의 standalone ablation 부재</strong>: Standard MoE vs LatentMoE의 controlled comparison (동일 active param budget)이 본 보고서에 없다. Elango et al. (2026) 별도 논문에 위임.</li>
+  <li><strong>Agentic 벤치마크에서 Qwen3.5 대비 열세</strong>: SWE-Bench 60.47 vs 66.40, TauBench 61.15 vs 74.53. "Agentic reasoning"을 강조하지만, 가장 중요한 agentic 벤치마크에서 경쟁 모델에 뒤진다.</li>
+  <li><strong>Post-training 복잡도</strong>: SFT (2-stage) + RLVR (3 rounds, 21 env) + MTP healing + RLHF + SWE-RL의 6+ 단계 파이프라인. 재현 난이도가 높고, 각 단계의 기여를 분리하기 어렵다.</li>
+  <li><strong>PivotRL 상세 미공개</strong>: "We will have a manuscript with more details soon"으로 핵심 기법의 상세가 미공개.</li>
+  <li><strong>NVFP4 pretraining의 명확한 이점 미입증</strong>: NVFP4로 학습한 것이 BF16 대비 어떤 구체적 이점(학습 속도, 비용)을 제공하는지 정량적으로 비교되지 않음.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>LatentMoE는 MoE 효율성의 새로운 방향</strong>: Hidden dimension을 축소하고 expert 수/top-K를 확대하는 전략이 동일 inference cost에서 더 높은 accuracy를 달성한다. 이는 ##accuracy per FLOP가 아닌 accuracy per byte/per-parameter##를 최적화하는 것이 실제 deployment에서 더 중요하다는 통찰을 제공한다.</li>
+  <li><strong>Shared-weight MTP는 speculative decoding의 실용적 해법</strong>: 별도 draft model 없이 3.45 average acceptance length를 달성하여, 추가 메모리/계산 없이 inference를 가속한다.</li>
+  <li><strong>Multi-environment RL이 single-environment보다 안정적</strong>: 21개 환경을 동시에 학습하면 개별 벤치마크의 regression을 방지하면서 전반적 성능을 향상시킨다. Cascade RL (Nemotron-Cascade 2)과는 다른 접근이지만 유사한 목표를 추구한다.</li>
+  <li><strong>Mamba의 recurrent state quantization은 특별한 주의가 필요</strong>: Standard rounding(RTNE)의 bias가 recurrent 구조에서 누적되어 verbosity 증가를 유발하므로, ##stochastic rounding이 hybrid Mamba-Transformer의 양자화에서 필수적##이다.</li>
+  <li><strong>Two-stage SFT loss가 reasoning과 long-context를 동시에 지원</strong>: Token-level average로 reasoning을 강화한 뒤, sample-level average로 long-input-short-output 성능을 복구하는 전략은 다른 모델에도 적용 가능하다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
