@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Voxtral TTS</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Voxtral TTS</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Mistral AI (Core: Alexander H. Liu, Alexis Tacnet, Andy Ehrenberg, Andy Lo, Chen-Yo Sun, Guillaume Lample, Henry Lagarde, Jean-Malo Delignon, Jaeyoung Kim, John Harvill 외 다수)</li>
+  <li><strong>소속</strong>: Mistral AI</li>
+  <li><strong>학회/저널</strong>: Technical Report (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.25551">arXiv:2603.25551</a> · <a href="https://mistral.ai/news/voxtral-tts">Webpage</a> · <a href="https://huggingface.co/mistralai/Voxtral-4B-TTS-2603">HuggingFace</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Zero-shot TTS에서 자연스럽고 표현력 있는 음성을 생성하는 것은 여전히 어려운 과제이다. 기존 hierarchical autoregressive 방식(Moshi 등)은 acoustic token을 depth-wise AR로 생성하여 느리고, speech codec이 semantic과 acoustic 정보를 분리하지 못하면 TTS의 효율성이 저하된다.</li>
+  <li><strong>해결</strong>: Voxtral TTS — (1) Voxtral Codec: hybrid VQ-FSQ 양자화로 semantic (VQ, 1 token) + acoustic (FSQ, 36 tokens) 을 분리 인코딩하는 speech tokenizer, (2) Decoder backbone (Ministral 3B): semantic token만 autoregressive로 생성, (3) Flow-Matching Transformer: acoustic token을 continuous flow-matching으로 생성. 이 hybrid 설계가 AR의 long-range consistency와 flow-matching의 rich acoustic detail을 결합한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Semantic token을 Whisper ASR에서 distill하여 텍스트 의미와 강하게 정렬되므로 AR backbone이 intelligible한 시퀀스를 생성하고, (2) Acoustic detail은 per-frame flow-matching으로 독립 생성하여 36-depth AR 대비 8 NFE (Number of Function Evaluations)로 충분하며, (3) DPO를 semantic + acoustic 양쪽에 적용하여 WER, speaker similarity, naturalness를 동시에 개선한다.</li>
+  <li><strong>비유</strong>: 소설을 쓸 때, 줄거리(semantic)는 한 장씩 순서대로 쓰고(AR), 각 장의 문체와 분위기(acoustic)는 별도의 스타일리스트가 한꺼번에 다듬어주는(flow-matching) 것과 같다. 줄거리를 depth-wise로 한 단어씩 다듬는(기존 방식) 것보다 훨씬 효율적이고 표현력이 풍부하다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Voxtral Codec — Hybrid VQ-FSQ speech tokenizer</strong>: ##1 semantic VQ token + 36 acoustic FSQ tokens##으로 12.5 Hz, 2.14 kbps의 저비트레이트 표현을 달성. ASR distillation으로 semantic token이 텍스트와 강하게 정렬되며, Mimi(Moshi의 codec) 대비 모든 재구성 메트릭에서 우수.</li>
+  <li><strong>Hybrid AR + Flow-Matching architecture</strong>: Semantic token은 decoder-only transformer로 AR 생성하고, acoustic token은 ##lightweight 3-layer flow-matching transformer##로 생성. 기존 36-depth AR (Moshi) 대비 8 NFE로 충분하여 효율적이면서 human eval에서 더 표현력 있음.</li>
+  <li><strong>DPO for hybrid discrete-continuous TTS</strong>: ##Standard DPO (semantic) + flow-based preference objective (acoustic)##를 결합한 최초의 시도. WER, UTMOS를 동시에 개선하고 hallucination과 volume tapering을 감소.</li>
+  <li><strong>Production-ready serving</strong>: vLLM-Omni 기반 2-stage pipeline + CUDA graph acceleration + asynchronous chunked streaming. 단일 H200에서 ##RTF 0.103 (concurrency 1), 1,430 char/s/GPU (concurrency 32)##.</li>
+  <li><strong>9개 언어 지원, 3초 reference로 voice cloning</strong>: Human evaluation에서 ##ElevenLabs Flash v2.5 대비 68.4% win rate## (voice cloning), flagship voices에서 58.3% win rate. CC BY-NC 라이센스로 weights 공개.</li>
+</ol>
+
+<h2>2. Modeling</h2>
+
+<h3>2.1 Voxtral Codec (~300M params)</h3>
+
+<p>24 kHz mono waveform을 12.5 Hz 프레임의 37개 discrete tokens (1 semantic + 36 acoustic)으로 압축하는 convolutional-transformer autoencoder이다.</p>
+
+<h4>Waveform Autoencoder</h4>
+<p>"Patchified" waveform 방식: 24 kHz input을 240 sample 단위로 non-overlapping patch로 분할하여 100 Hz input을 생성.</p>
+
+<p><strong>Encoder</strong>: Causal convolution (kernel 7) → 1024-dim projection → 4 encoder blocks. 각 block:</p>
+<ul>
+  <li>2-layer causal self-attention transformer (sliding window attention, ALiBi positional bias, QK-norm, LayerScale $\epsilon=0.01$). Window sizes: $16 \rightarrow 8 \rightarrow 4 \rightarrow 2$</li>
+  <li>Causal CNN layer (stride 2로 downsample, 첫 3 block). 4번째 block은 stride 1 + 1024→292 dim projection</li>
+  <li>총 8× downsampling: 100 Hz → 12.5 Hz, 최종 292-dim latent</li>
+</ul>
+
+<p><strong>Decoder</strong>: Encoder의 역구조. 292-dim → 1024-dim causal CNN → 4 blocks (transposed CNN 2× upsample + 2-layer causal self-attention transformer) → causal convolution (kernel 7) → 240 samples로 unpatch.</p>
+
+<h4>Representation Quantization — Hybrid VQ + FSQ</h4>
+<p>292-dim latent을 두 component로 분리:</p>
+<ul>
+  <li><strong>Semantic component</strong> (256-dim): Learned VQ (Vector Quantization) with codebook size 8192. Training 시 50% 확률로 VQ 적용, 나머지 50%는 unquantized pass-through</li>
+  <li><strong>Acoustic component</strong> (36-dim): 각 dimension을 tanh → 21 uniform levels로 FSQ (Finite Scalar Quantization). Training 시 dither-style: 50% FSQ, 25% uniform noise ($1/L$, $L=21$), 25% unquantized</li>
+</ul>
+<p>총 bitrate: $12.5 \times (\log_2 8192 + 36 \times \log_2 21) \approx 2.14$ kbps.</p>
+
+<h4>Semantic Token Learning — ASR Distillation</h4>
+<p>기존 방법은 self-supervised representations (HuBERT 등)을 distill하지만 이는 "phonetic"에 가까운 토큰을 생성한다. Voxtral Codec은 ##supervised ASR model (frozen Whisper)에서 distill##하여 더 effective semantic representation을 생성한다.</p>
+
+<p>Whisper의 마지막 decoder layer hidden states $h_l$에 대해, post-VQ semantic embedding $z_f$를 linearly project하여 alignment. Whisper의 cross-attention weights에서 soft alignment matrix $A \in \mathbb{R}^{L \times F}$를 추출 (word-level timestamp와 가장 잘 correlation하는 attention head subset을 DTW로 식별):</p>
+
+$$\mathcal{L}_{\text{ASR}} = 1 - \frac{1}{L} \sum_{l=1}^{L} \frac{\tilde{z}_l \cdot h_l}{\|\tilde{z}_l\| \|h_l\|}, \quad \tilde{z}_l = \sum_{f=1}^{F} A_{l,f} \, z_f \quad (1)$$
+
+<p>$\tilde{z}_l$은 codec frame $f$의 semantic embedding의 attention-weighted sum으로, Whisper의 $l$번째 decoder token에 정렬된 codec representation이다. 이 설계로 ##외부 forced aligner나 paired transcript 없이도 text-aligned semantic token을 학습##할 수 있다.</p>
+
+<h4>Adversarial Training</h4>
+<p>Multi-resolution discriminator: 8 STFT sizes (2296, 1418, 876, 542, 334, 206, 126, 76). 각 discriminator는 real/reconstructed audio를 hinge loss로 분류. $L_1$-based feature-matching loss를 standard GAN generator loss 대신 사용 (evolving discriminator features가 더 discriminative한 signal 제공):</p>
+
+$$\mathcal{L}_{\text{feature}}(\boldsymbol{x}, \hat{\boldsymbol{x}}) = \frac{1}{MN} \sum_{m=1}^{M} \sum_{n=1}^{N} \|D_n^m(\boldsymbol{x}) - D_n^m(\hat{\boldsymbol{x}})\|_1 \quad (2)$$
+
+<h4>Training Objective</h4>
+$$\alpha \mathcal{L}_{\text{feature}} + \beta \mathcal{L}_{\text{ASR}} + \gamma \mathcal{L}_{\text{L1}} + \gamma \mathcal{L}_{\text{STFT}} + \delta \mathcal{L}_{\text{commit}} \quad (3)$$
+<p>$\alpha=1.0$, $\beta=1.0$, $\gamma=0.9999^t$ (exponential decay), $\delta=0.1$. Reconstruction losses ($\mathcal{L}_{\text{L1}}$: waveform L1, $\mathcal{L}_{\text{STFT}}$: STFT magnitude L1)는 exponential decay로 학습 초기에 bootstrap하고, 후반에는 adversarial signal이 지배하도록 한다.</p>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: Voxtral Codec 아키텍처. Encoder: Patch → Causal Conv → Transformer Block × 4 (Strided Causal Conv 포함) → Linear $\sigma$ (split to 256+36) → VQ (semantic, codebook 8192) + FSQ (acoustic, 21 levels × 36). Decoder: 역구조. Semantic token에는 frozen Whisper ASR model에서의 soft-aligned distillation loss가 추가. Adversarial + Reconstruction losses가 전체에 적용.
+</blockquote>
+
+<h4>Table 1: Voxtral Codec 하이퍼파라미터</h4>
+<table>
+  <tr><th>Parameter</th><th>Value</th></tr>
+  <tr><td>Sampling rate</td><td>24,000 Hz</td></tr>
+  <tr><td>Patch size</td><td>240 samples</td></tr>
+  <tr><td>Encoder patch projection</td><td>kernel 7, dim 1024</td></tr>
+  <tr><td>Encoder transformer layers</td><td>2 → 2 → 2 → 2 (per block)</td></tr>
+  <tr><td>Encoder sliding window sizes</td><td>16 → 8 → 4 → 2</td></tr>
+  <tr><td>Encoder conv kernels / strides</td><td>4→4→4→3 / 2→2→2→1</td></tr>
+  <tr><td>Semantic VQ codebook</td><td>8192</td></tr>
+  <tr><td>Acoustic FSQ</td><td>36 dims × 21 levels</td></tr>
+  <tr><td>Discriminator FFT sizes</td><td>2296, 1418, 876, 542, 334, 206, 126, 76</td></tr>
+  <tr><td>Total parameters</td><td>~300M</td></tr>
+</table>
+
+<h3>2.2 Decoder Backbone (Ministral 3B)</h3>
+
+<p>Ministral 3B 아키텍처의 autoregressive decoder-only transformer. 입력 시퀀스: [voice reference audio tokens] + [text prompt tokens] → 출력: [semantic audio tokens] + &lt;EOA&gt;.</p>
+
+<ul>
+  <li>각 audio frame은 37개 discrete tokens (1 semantic + 36 acoustic)로 표현</li>
+  <li>각 codebook은 독립적인 embedding lookup table을 가지며, 프레임별로 합산하여 단일 embedding 생성</li>
+  <li>Linear head가 hidden state $h$를 semantic codebook vocabulary (8192 + &lt;EOA&gt;)에 대한 logits로 투영, standard cross-entropy loss로 학습</li>
+  <li>Acoustic token 예측은 flow-matching transformer에 위임 (Section 2.3)</li>
+  <li>FM transformer의 float-valued output은 21 FSQ levels로 discretize되어 다음 AR step의 discrete token input으로 사용 → ##fully discrete token interface 유지##</li>
+</ul>
+
+<h3>2.3 Flow-Matching Transformer</h3>
+
+<p>각 AR generation step에서, decoder backbone의 hidden state $h$를 조건으로 acoustic token (36-dim continuous vector)을 생성하는 bidirectional 3-layer transformer.</p>
+
+<p><strong>Flow-matching formulation</strong>: Gaussian noise $x_0$에서 acoustic embedding $x_1$으로의 velocity field를 모델링. $0 \leq t \leq 1$의 function evaluation steps에서:</p>
+<ul>
+  <li>Input: $h$ (hidden state from backbone), $t$ (current step, sinusoidal embedding), $x_t$ (current acoustic state, $x_t \in \mathbb{R}^{36}$)</li>
+  <li>각 입력은 별도 projection layer (activation scale이 다르므로)</li>
+  <li>DiT-style AdaLN보다 separate projection이 우수 (ablation 확인)</li>
+</ul>
+
+<p><strong>Training</strong>: Hidden state를 10% dropout하여 "unconditional" modeling → inference 시 CFG (Classifier-Free Guidance) 적용:</p>
+
+$$v_t = \alpha v_\theta(x_t, t, h) + (1-\alpha) v_\theta(x_t, t, \emptyset) \quad (4)$$
+$$x_{t-\Delta t} = x_t - v_t \cdot \Delta t \quad (5)$$
+
+<p>$\Delta t = 1/8$, $\alpha = 1.2$. ##CFG가 FM transformer에만 적용되므로, decoder backbone 전체에 CFG를 적용하는 것보다 계산량이 현저히 적다##. 8 NFE (Number of Function Evaluations)가 기본, 16 NFE에서 marginal improvement만 있으므로 8을 채택.</p>
+
+<p><strong>대안 아키텍처와의 비교</strong>:</p>
+<ul>
+  <li><strong>MaskGIT</strong>: 36 acoustic codebook position + conditioning = per-frame sequence length 38 (vs FM의 3). Human eval에서 expressiveness 열세</li>
+  <li><strong>Depth Transformer</strong> (Moshi 방식): 36 autoregressive decoding steps/frame (vs FM의 8 NFE). Quality, compute, latency 모두 열세</li>
+</ul>
+
+<h2>3. Training</h2>
+
+<h3>3.1 Pretraining</h3>
+<p>Voxtral Mini Transcribe로 pseudo-labeled된 paired audio + transcript 사용. 각 학습 샘플: $(A_1, T_2, A_2)$ — $A_1$은 voice reference, $T_2$는 transcript, $A_2$는 생성 target.</p>
+
+<ul>
+  <li>$A_1$, $A_2$: 동일 화자의 single-speaker segments, 반드시 temporally adjacent는 아님</li>
+  <li>Maximum duration: $A_1, A_2$ 각각 180초, $A_1$ 최소 1초</li>
+  <li>Voice prompt 최적 길이: 3-25초 (장시간 대화의 long-tail 특성 고려)</li>
+  <li>&lt;next&gt; special token으로 $A_1$과 $T_2$ 사이를, &lt;repeat&gt; token으로 $T_2$와 $A_2$ 사이를 구분</li>
+</ul>
+
+<p><strong>Loss</strong>: $A_2$의 tokens에만 loss 계산. Two-part loss:</p>
+<ol>
+  <li><strong>Semantic loss</strong> ($\mathcal{L}_{\text{semantic}}$): Semantic token에 대한 cross-entropy</li>
+  <li><strong>Acoustic loss</strong> ($\mathcal{L}_{\text{acoustic}}$): Conditional flow-matching objective</li>
+</ol>
+
+$$\mathcal{L}_{\text{acoustic}} = \mathbb{E}_{t \sim \mathcal{U}[0,1], x_0 \sim \mathcal{D}, x_1 \sim \mathcal{N}(0,1)} \|v_\theta(x_t, t) - u_t(x_t | x_1, x_0)\|_2^2 \quad (6)$$
+$$u_t(x_t | x_1, x_0) = x_1 - x_0 \quad (7)$$
+
+<p><strong>Implementation details</strong>:</p>
+<ul>
+  <li>Backbone: Ministral 3B에서 초기화. FM transformer, audio codebook embedding lookup-tables, output projection은 random initialize</li>
+  <li>Text-embedding layers는 freeze (Voxtral Mini Transcribe의 low-frequency text token에 대한 robustness)</li>
+  <li>VAD로 speech 없는 프레임에 lower loss weight, extremely long silence에 loss weight 0</li>
+  <li>LLM-based transcript rewrite로 normalized vs un-normalized text robustness 확보 (예: "5 - 4" vs "five minus four")</li>
+</ul>
+
+<h3>3.2 Direct Preference Optimization (DPO)</h3>
+
+<p>WER, speaker similarity 개선을 위한 post-training. ##Hybrid discrete-continuous 설정에 DPO를 적용하는 최초의 시도##:</p>
+
+<h4>Semantic DPO</h4>
+<p>Standard DPO objective with uniform weights:</p>
+
+$$\mathcal{L}(\theta) = -\mathbb{E}_{t \sim \mathcal{U}(0,1), x^w, x^l} \log \sigma \left(-\beta \left(\Delta_\theta(x^w, x^l, t) - \Delta_{\theta_{\text{ref}}}(x^w, x^l, t)\right)\right) \quad (8)$$
+
+<h4>Flow-based Acoustic DPO</h4>
+<p>Acoustic token이 flow-matching으로 생성되므로, flow-matching objective를 preference objective로 변환 (Ziv et al., 2025 기반):</p>
+
+$$\Delta_\theta(x^w, x^l, t) = \|v_\theta(x_t^w, t) - u_t(x_t^w | x^w)\|_2^2 - \|v_\theta(x_t^l, t) - u_t(x_t^l | x^l)\|_2^2 \quad (9)$$
+
+<p>Autoregressive 설정에 맞게, 각 토큰이 다른 $\mathbf{t}$를 샘플링하도록 수정:</p>
+
+$$\Delta_\theta(x^w, x^l, \mathbf{t}^l) = \sum_{i=1}^{N_w} \|v_\theta(x_{i,\mathbf{t}_i}^w, \mathbf{t}_i) - u_{i,\mathbf{t}_i}^w\|_2^2 - \sum_{i=1}^{N_l} \|v_\theta(x_{i,\mathbf{t}_i}^l, \mathbf{t}_i) - u_{i,\mathbf{t}_i}^l\|_2^2 \quad (10)$$
+
+<p>Length normalization (winner 길이로 나누기)은 instability를 유발하여 사용하지 않음. $\beta_{\text{semantic}} = 0.1$, $\beta_{\text{acoustic}} = 0.5$, LR $8 \times 10^{-8}$.</p>
+
+<p><strong>DPO 데이터 생성</strong>: Rejection-sampling pipeline — single-speaker voice samples + 합성 text prompts (Mistral Small Creative로 생성) → pretrained checkpoint로 multiple samples 생성 → WER, speaker similarity, loudness consistency, UTMOS-v2, LM judge로 winner/loser pair 구성. Pretraining objective와 DPO loss를 결합하여 high-quality speech에서 1 epoch 학습. Synthetic data로 장시간 학습하면 robotic speech가 되므로 1 epoch이 최적.</p>
+
+<h2>4. Results</h2>
+
+<h3>4.1 Voxtral Codec vs Mimi (Table 2)</h3>
+
+<p><strong>실험 의도</strong>: Voxtral Codec이 Mimi (Moshi의 codec) 대비 동일 bitrate에서 우수한 재구성 품질을 달성하는지 검증. Expresso dataset 사용.</p>
+
+<table>
+  <tr><th>Model</th><th>fps</th><th>tokens/frame × vocab</th><th>bitrate (kbps)</th><th>Mel↓</th><th>STFT↓</th><th>PESQ↑</th><th>ESTOI↑</th><th>ASR-WER↓</th><th>Speaker Sim↑</th></tr>
+  <tr><td>Mimi – 8cb (Moshi)</td><td>12.5</td><td>8 × 2048</td><td>1.1</td><td>0.702</td><td>1.177</td><td>2.07</td><td>0.803</td><td>11.75</td><td>0.672</td></tr>
+  <tr><td>Mimi – 16cb</td><td>12.5</td><td>16 × 2048</td><td>2.2</td><td>0.618</td><td>1.100</td><td>2.67</td><td>0.865</td><td>11.01</td><td>0.829</td></tr>
+  <tr><td>Mimi – full 32cb</td><td>12.5</td><td>32 × 2048</td><td>4.4</td><td>0.552</td><td>1.040</td><td>3.18</td><td>0.910</td><td>10.25</td><td>0.902</td></tr>
+  <tr><td><strong>Voxtral Codec</strong></td><td>12.5</td><td>1×8192 + 36×21</td><td>2.1</td><td><strong>0.545</strong></td><td><strong>0.982</strong></td><td><strong>3.05</strong></td><td><strong>0.882</strong></td><td><strong>10.66</strong></td><td><strong>0.843</strong></td></tr>
+</table>
+
+<p>##Voxtral Codec (2.1 kbps)이 Mimi 16cb (2.2 kbps)를 모든 메트릭에서 상회##하며, Mimi full 32cb (4.4 kbps, 2배 bitrate)와도 대부분 경쟁적. 특히 PESQ 3.05, STFT 0.982에서 16cb을 크게 앞섬.</p>
+
+<h3>4.2 Automatic Evaluations — SEED-TTS & MiniMax-TTS (Table 3)</h3>
+
+<p><strong>실험 의도</strong>: Voxtral TTS, ElevenLabs v3, ElevenLabs Flash v2.5의 WER/UTMOS/Speaker Similarity를 9개 언어에서 비교.</p>
+
+<table>
+  <tr><th rowspan="2">Task</th><th colspan="3">WER (%) ↓</th><th colspan="3">UTMOS ↑</th><th colspan="3">Speaker Sim ↑</th></tr>
+  <tr><th>Voxtral</th><th>EL v3</th><th>EL Flash</th><th>Voxtral</th><th>EL v3</th><th>EL Flash</th><th>Voxtral</th><th>EL v3</th><th>EL Flash</th></tr>
+  <tr><td>Arabic</td><td>2.68</td><td>3.67</td><td>2.86</td><td>2.50</td><td>2.50</td><td>2.89</td><td><strong>0.746</strong></td><td>0.546</td><td>0.539</td></tr>
+  <tr><td>German</td><td>0.83</td><td><strong>0.45</strong></td><td>1.08</td><td>3.12</td><td>2.90</td><td><strong>3.27</strong></td><td><strong>0.721</strong></td><td>0.457</td><td>0.489</td></tr>
+  <tr><td>English</td><td>0.63</td><td>0.48</td><td><strong>0.33</strong></td><td><strong>4.30</strong></td><td>4.27</td><td>4.27</td><td><strong>0.786</strong></td><td>0.484</td><td>0.489</td></tr>
+  <tr><td>Spanish</td><td>0.51</td><td>0.87</td><td><strong>0.49</strong></td><td><strong>3.41</strong></td><td>3.18</td><td>2.99</td><td><strong>0.762</strong></td><td>0.443</td><td>0.541</td></tr>
+  <tr><td>French</td><td>3.22</td><td>2.34</td><td><strong>2.26</strong></td><td>2.83</td><td>2.90</td><td><strong>2.94</strong></td><td><strong>0.587</strong></td><td>0.339</td><td>0.378</td></tr>
+  <tr><td>Hindi</td><td>4.99</td><td>8.71</td><td><strong>5.08</strong></td><td><strong>3.56</strong></td><td><strong>3.56</strong></td><td>3.35</td><td><strong>0.839</strong></td><td>0.707</td><td>0.679</td></tr>
+  <tr><td>Italian</td><td>1.32</td><td>0.58</td><td><strong>0.45</strong></td><td><strong>3.43</strong></td><td><strong>3.43</strong></td><td>3.09</td><td><strong>0.739</strong></td><td>0.527</td><td>0.485</td></tr>
+  <tr><td>Dutch</td><td>1.99</td><td>1.52</td><td><strong>0.83</strong></td><td><strong>3.89</strong></td><td>3.53</td><td>3.68</td><td><strong>0.720</strong></td><td>0.397</td><td>0.598</td></tr>
+  <tr><td>Portuguese</td><td>1.02</td><td><strong>0.92</strong></td><td>1.15</td><td><strong>3.66</strong></td><td>3.41</td><td>3.41</td><td><strong>0.785</strong></td><td>0.571</td><td>0.642</td></tr>
+  <tr><td>Seed TTS</td><td>1.23</td><td>1.26</td><td><strong>0.86</strong></td><td><strong>4.11</strong></td><td>3.92</td><td>4.09</td><td><strong>0.628</strong></td><td>0.392</td><td>0.413</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##Voxtral TTS가 Speaker Similarity에서 모든 언어, 모든 경쟁 모델을 압도## (0.587-0.839 vs EL v3 0.339-0.707). Voice cloning 능력이 핵심 차별점.</li>
+  <li>WER에서는 ElevenLabs Flash가 영어·이탈리아어·독일어 등에서 우세하지만, Voxtral도 대부분 언어에서 경쟁적.</li>
+  <li>UTMOS에서 Voxtral이 대부분 언어에서 최고이지만, 저자는 UTMOS가 human preference와 약하게만 correlation된다고 주의를 환기.</li>
+</ol>
+
+<h3>4.3 Human Evaluations</h3>
+
+<h4>4.3.1 Flagship Voices (Table 4)</h4>
+<p>77개 prompt (11 neutral + 66 emotional), 3명의 원어민 평가자가 blind pairwise comparison. 두 가지 evaluation:</p>
+<ul>
+  <li><strong>Explicit steering</strong>: Emotion label/instruction 제공 → Voxtral 51.0% vs ElevenLabs v3, 35.4% vs Gemini 2.5 Flash TTS</li>
+  <li><strong>Implicit steering</strong>: Emotion label 없이 텍스트에서 감정 추론 → ##Voxtral 58.3% vs ElevenLabs Flash v2.5##, 55.4% vs ElevenLabs v3, 37.1% vs Gemini 2.5 Flash TTS</li>
+</ul>
+<p>Implicit steering에서 더 높은 win rate: Voxtral TTS가 텍스트에서 감정을 자연스럽게 추론하는 능력이 우수.</p>
+
+<h4>4.3.2 Zero-Shot Voice Cloning (Table 5)</h4>
+<p>각 언어 2명의 인정된 화자, zero-shot setting에서 (a) voice prompt 유사도 + (b) naturalness/expressivity 평가.</p>
+
+<table>
+  <tr><th>Language</th><th>Voxtral Win Rate (%)</th></tr>
+  <tr><td>Arabic</td><td>72.9</td></tr>
+  <tr><td>Dutch</td><td>49.4</td></tr>
+  <tr><td>English</td><td>60.8</td></tr>
+  <tr><td>French</td><td>54.4</td></tr>
+  <tr><td>German</td><td>72.0</td></tr>
+  <tr><td>Hindi</td><td>79.8</td></tr>
+  <tr><td>Italian</td><td>57.1</td></tr>
+  <tr><td>Portuguese</td><td>74.4</td></tr>
+  <tr><td>Spanish</td><td>87.8</td></tr>
+  <tr><td><strong>Overall</strong></td><td><strong>68.4</strong></td></tr>
+</table>
+
+<p>##전체 68.4% win rate##로 ElevenLabs Flash v2.5를 모든 언어(Dutch 제외)에서 상회. Low-resource 언어(Arabic 72.9%, Hindi 79.8%)에서 특히 큰 격차. Voice cloning(68.4%)이 flagship(58.3%)보다 win rate이 더 높아, Voxtral TTS가 다양한 user voice에 대한 일반화 능력이 특히 강함.</p>
+
+<h2>5. Analysis</h2>
+
+<h3>5.1 DPO Improvements (Table 6)</h3>
+
+<p><strong>실험 의도</strong>: DPO가 pretrained checkpoint 대비 어떤 구체적 개선을 가져오는지 분석.</p>
+
+<table>
+  <tr><th rowspan="2">Task</th><th colspan="2">WER (%) ↓</th><th colspan="2">UTMOS ↑</th></tr>
+  <tr><th>Pretrain</th><th>DPO</th><th>Pretrain</th><th>DPO</th></tr>
+  <tr><td>Arabic</td><td>2.80</td><td><strong>2.68</strong> (-0.12)</td><td>3.01</td><td><strong>3.07</strong> (+0.06)</td></tr>
+  <tr><td>German</td><td>4.08</td><td><strong>0.83</strong> (-3.25)</td><td>3.05</td><td><strong>3.12</strong> (+0.07)</td></tr>
+  <tr><td>English</td><td>0.84</td><td><strong>0.63</strong> (-0.21)</td><td>4.25</td><td><strong>4.30</strong> (+0.05)</td></tr>
+  <tr><td>Hindi</td><td><strong>3.39</strong></td><td>4.99 (+1.61)</td><td>3.43</td><td><strong>3.56</strong> (+0.13)</td></tr>
+  <tr><td>Seed TTS</td><td>1.58</td><td><strong>1.23</strong> (-0.35)</td><td>4.07</td><td><strong>4.11</strong> (+0.04)</td></tr>
+</table>
+
+<p>DPO가 대부분의 언어에서 WER과 UTMOS를 동시 개선. 특히 German에서 WER 4.08→0.83 (-3.25pp)로 대폭 개선. Hindi만 WER 소폭 regression (+1.61). 정성적으로 DPO model은 hallucination 감소, 단어 skip 감소, audio volume tapering 문제 완화. Speaker similarity는 ±0.01 이내로 거의 영향 없음.</p>
+
+<h3>5.2 Inference Parameters (Figure 4)</h3>
+
+<p><strong>NFE (Number of Function Evaluations)</strong>: 2→4→8→16에서 WER, UTMOS, Speaker Similarity 모두 개선. 8 이후 marginal improvement. 따라서 ##NFE=8##을 기본값으로 채택.</p>
+
+<p><strong>CFG scale $\alpha$</strong>: 1.0→1.4에서 WER, UTMOS, Speaker Similarity가 거의 단조 증가하지만, human evaluation에서 높은 $\alpha$는 voice prompt에 과도하게 adherence하고 텍스트에 내재된 감정을 반영하지 못하는 문제 발생. ##$\alpha = 1.2$##을 기본값으로 채택 (고품질 reference에는 낮은 값, in-the-wild recording에는 높은 값이 유리).</p>
+
+<h2>6. Inference and Serving in vLLM-Omni</h2>
+
+<p>Voxtral TTS는 vLLM-Omni (multi-stage multimodal model을 위한 vLLM 확장)으로 서빙된다. Two-stage pipeline:</p>
+<ol>
+  <li><strong>Generation stage</strong>: Audio token (semantic + acoustic) 예측</li>
+  <li><strong>Codec decoding stage</strong>: Token → waveform 변환</li>
+</ol>
+<p>두 stage는 asynchronous chunked streaming protocol로 통신: generation step마다 per-request buffer에 token 저장 → buffer가 pre-defined length에 도달하면 codec decoding stage에 emit. 각 chunk에 이전 프레임의 slice를 포함하여 codec decoder의 causal sliding-window attention이 temporal coherence를 유지.</p>
+
+<h3>6.1 CUDA Graph Acceleration for Flow-Matching Transformer</h3>
+<p>FM transformer가 computational bottleneck: 각 decoding step에 $2 \times N$ forward passes (CFG 포함). Python-level overhead와 kernel-launch latency를 제거하기 위해 ##전체 ODE solver를 CUDA graph로 캡처##. Bucket size별로 warmup에서 eager pass + graph capture → inference 시 bucket 크기로 pad/slice.</p>
+
+<table>
+  <tr><th>Configuration</th><th>Latency</th><th>RTF</th></tr>
+  <tr><td>Eager mode</td><td>133 ms</td><td>0.258</td></tr>
+  <tr><td>CUDA graph</td><td><strong>70 ms</strong></td><td><strong>0.103</strong></td></tr>
+</table>
+<p>##47% latency 감소, RTF 2.5배 개선##. 500-char text, 10-sec reference, concurrency 1, single H200 기준.</p>
+
+<h3>6.3 Inference Throughput (Table 8)</h3>
+<table>
+  <tr><th>Concurrency</th><th>Latency</th><th>RTF</th><th>Throughput (char/s/GPU)</th><th>Wait Rate</th></tr>
+  <tr><td>1</td><td>70 ms</td><td>0.103</td><td>119.14</td><td>0%</td></tr>
+  <tr><td>16</td><td>331 ms</td><td>0.237</td><td>879.11</td><td>0%</td></tr>
+  <tr><td>32</td><td>552 ms</td><td>0.302</td><td><strong>1430.78</strong></td><td>0%</td></tr>
+</table>
+<p>Concurrency 32에서도 RTF 0.302 (실시간 경계 이내), wait rate 0%. ##단일 H200에서 30+ concurrent users에게 uninterrupted streaming##이 가능한 production-ready 수준.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>아키텍처 설계의 우아함</strong>: Semantic (AR) + Acoustic (FM) 분리가 직관적이고 효과적. 36-depth AR을 8 NFE FM으로 대체한 것은 quality-efficiency trade-off에서 최적점을 찾은 설계.</li>
+  <li><strong>ASR distillation의 novelty</strong>: Self-supervised representation 대신 supervised ASR에서 distill하여 더 semantically rich한 토큰을 생성하고, Whisper의 cross-attention으로 soft alignment를 자동 추출하는 방식이 우아.</li>
+  <li><strong>DPO for hybrid discrete-continuous systems</strong>: Flow-matching objective를 DPO로 확장한 것은 TTS 분야에서 새로운 기여이며, WER/UTMOS 동시 개선을 실증.</li>
+  <li><strong>Production 수준의 serving 분석</strong>: CUDA graph acceleration, async chunked streaming, concurrency scaling까지 포함하여 학술 논문보다 산업적 가치가 높다.</li>
+  <li><strong>오픈 공개</strong>: CC BY-NC 라이센스로 weights 공개. TTS 분야에서 이 수준의 오픈 모델은 드물다.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>학습 데이터 비공개</strong>: "Paired audio and transcripts pseudo-labelled with Voxtral Mini Transcribe"로만 기술되어, 데이터 규모, 도메인, 언어별 비율 등이 완전히 비공개. 재현 불가.</li>
+  <li><strong>Hindi에서 DPO regression</strong>: WER 3.39→4.99로 악화. Low-resource 언어에서의 DPO 안정성이 보장되지 않으며, 원인 분석이 부족.</li>
+  <li><strong>Human evaluation의 제한된 규모</strong>: 77 prompts, 3 annotators per language pair. 통계적 유의성 검정(p-value 등)이 보고되지 않음.</li>
+  <li><strong>Emotion steering 방식의 한계</strong>: Voxtral TTS는 explicit emotion tags/instructions를 지원하지 않고, voice prompt의 감정으로만 steering. Explicit control이 필요한 시나리오에서 제한적.</li>
+  <li><strong>Codec 학습 데이터 미기술</strong>: Voxtral Codec의 학습 데이터 규모와 도메인이 전혀 기술되지 않음.</li>
+  <li><strong>Competitive baseline 선정</strong>: ElevenLabs와만 주로 비교하고, Gemini 2.5 Flash TTS는 flagship evaluation에서만 포함. OpenAI TTS, XTTS, MetaVoice 등 다른 오픈/상업 모델과의 비교 부족.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Semantic/Acoustic 분리 + AR/FM 하이브리드가 TTS의 새 패러다임</strong>: Semantic token을 AR로, acoustic token을 flow-matching으로 생성하는 설계가 depth-wise AR (Moshi) 대비 quality와 efficiency를 동시에 개선한다. ##핵심 insight: 음성의 "무엇을 말하는가"(semantic)는 AR로, "어떻게 말하는가"(acoustic)는 continuous modeling으로 분리 처리해야 한다##.</li>
+  <li><strong>ASR distillation이 self-supervised distillation보다 effective</strong>: Whisper hidden states에서 distill한 semantic token이 HuBERT/wav2vec2 기반보다 text-aligned하여 intelligibility가 높다. Cross-attention soft alignment가 forced aligner를 대체한다.</li>
+  <li><strong>VQ-FSQ hybrid quantization이 RVQ보다 efficient</strong>: 1 VQ (semantic) + 36 FSQ (acoustic) = 2.14 kbps로 Mimi 16-codebook RVQ (2.2 kbps)를 모든 메트릭에서 상회. FSQ의 단순성(learned codebook 없음)이 학습 안정성과 품질 모두에 기여.</li>
+  <li><strong>DPO가 TTS에서도 효과적</strong>: Flow-matching objective를 preference objective로 변환하는 방법이 실용적이며, hallucination 감소와 UTMOS 개선을 동시에 달성. 다만 low-resource 언어에서의 안정성이 과제.</li>
+  <li><strong>CUDA graph acceleration이 FM transformer의 병목을 해결</strong>: 47% latency 감소, 2.5× RTF 개선. Multi-step ODE solver의 Python overhead를 graph capture로 제거하는 패턴은 다른 diffusion/flow 기반 모델에도 적용 가능.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
