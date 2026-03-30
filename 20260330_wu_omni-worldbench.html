@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Omni-WorldBench: Towards a Comprehensive Interaction-Centric Evaluation for World Models</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Omni-WorldBench: Towards a Comprehensive Interaction-Centric Evaluation for World Models</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Meiqi Wu‡, Zhixin Cai‡, Fufangchen Zhao‡, Xiaokun Feng, Rujing Dang, Bingze Song, Ruitian Tian, Jiashu Zhu, Jiachen Lei, Hao Dou, Jing Tang, Lei Sun, Jiahong Wu*, Xiangxiang Chu, Zeming Liu, Kaiqi Huang*</li>
+  <li><strong>소속</strong>: UCAS, CASIA, Beihang University, BUPT, AMAP (Alibaba Group)</li>
+  <li><strong>학회/저널</strong>: Preprint (under review, 2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.22212">arXiv:2603.22212</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Video-based world model의 평가는 visual fidelity (FID, FVD) 또는 static 3D reconstruction 중심이어서, world model의 핵심 능력인 "interactive response" — 상호작용 동작이 시공간에 걸쳐 상태 전이를 어떻게 유발하는지 — 를 체계적으로 평가하는 벤치마크가 부재하다.</li>
+  <li><strong>해결</strong>: Omni-WorldBench — (1) Omni-WorldSuite: 3단계 interaction hierarchy (Object-only → Local interaction → Global cascade) × 다양한 scene type (indoor/outdoor/driving/robotics/gaming)의 1,068개 evaluation prompts, (2) Omni-Metric: Interaction Effect Fidelity + Generated Video Quality + Camera-Object Controllability 3개 축 × 15개 세부 메트릭 + MLLM 기반 AgenticScore로 통합.</li>
+  <li><strong>왜 작동하는가</strong>: Interaction level을 체계적으로 분류하고, 각 level에 맞는 물리법칙·인과관계·시공간 일관성 메트릭을 설계하여, 기존 벤치마크가 놓치는 "동작 → 상태 변화"의 인과적 충실도를 정량화한다.</li>
+  <li><strong>비유</strong>: 기존 벤치마크가 영화의 "화질"과 "자막 일치도"만 평가했다면, Omni-WorldBench는 "줄거리(인과관계)가 물리적으로 말이 되는가", "등장인물이 행동에 따라 일관되게 변하는가"까지 평가하는 것과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Omni-WorldBench — 최초의 interaction-centric world model 벤치마크</strong>: ##3단계 interaction hierarchy × general/task-oriented scene을 커버하는 1,068개 prompt##로, 기존 벤치마크(VBench, WorldScore, WorldModelBench) 대비 가장 포괄적인 modality·시나리오·능력 축 커버리지.</li>
+  <li><strong>Omni-Metric — 3차원 평가 프레임워크</strong>: (1) Interaction Effect Fidelity (InterStab-L, InterStab-N, InterCov, InterOrder), (2) Generated Video Quality (imaging quality, temporal flickering, motion smoothness, content alignment, dynamic degree), (3) Camera-Object Controllability (camera control, object control, transitions detect). ##Agent-based AgenticScore##로 prompt semantics에 따라 adaptive weight 결합.</li>
+  <li><strong>18개 모델의 체계적 평가</strong>: T2V (4), IT2V (8), Camera-conditioned (6) 모델을 3개 paradigm에 걸쳐 평가. ##현재 모델들이 visual quality에서는 강하지만 causal interaction consistency에서 critical gap##이 있음을 정량적으로 규명.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>World Model이란?</h3>
+<p>World model은 주어진 interaction condition 하에서 환경 상태의 시간적 진화를 모사하는 모델이다. 반사실적 추론, 계획, 의사결정의 기반이 되며, 최근 video generation 기술의 발전으로 video-based world model이 주류로 부상했다. 자율주행 (GAIA, DriveDreamer, Vista), embodied AI (IRASim, Cosmos, RoboScape), 게임 (Genie, Matrix-Game, WorldPlay, Hunyuan-GameCraft) 등에서 활발히 연구되고 있다.</p>
+
+<h3>기존 평가의 한계</h3>
+<p>기존 벤치마크의 두 가지 근본 한계:</p>
+<ol>
+  <li><strong>Visual fidelity/text-video alignment 중심</strong>: FID, IS, FVD, VBench 등은 생성된 비디오의 시각적 품질을 측정하지만, ##"interaction 조건에 따라 일관되고 물리적으로 타당한 반응을 생성하는가"라는 world model의 핵심 능력을 평가하지 않는다##.</li>
+  <li><strong>Interaction type의 부재</strong>: WorldScore는 camera motion에 국한, WorldModelBench는 일부 시나리오만 커버. Interaction type을 체계적으로 분류하고 평가하는 벤치마크가 없다.</li>
+</ol>
+
+<blockquote>
+<strong>[Figure 1 설명]</strong>: 왼쪽 — Omni-WorldSuite의 3-level interaction hierarchy. Level 1: 동작 주체에만 효과 (예: 정지된 사과, 수정구를 통해 보는 풍경). Level 2: 한 객체가 다른 객체에 영향 (예: 야구 선수가 공을 던지면 공의 위치/속도 변화). Level 3: 여러 객체가 환경 전체에 영향 (예: 로봇 팔이 여러 물건을 집어 재배치). 오른쪽 — Omni-Metric의 3개 평가 축: Interaction Effect Fidelity ($w_1$), Generated Video Quality ($w_2$), Camera-Object Controllability ($w_3$)를 MLLM이 adaptive weight로 결합하여 AgenticScore 산출.
+</blockquote>
+
+<h2>2. Related Work</h2>
+
+<h3>2.1 World Models Design</h3>
+<p>Application domain별 주요 연구:</p>
+<ul>
+  <li><strong>자율주행</strong>: GAIA, DriveDreamer, DrivingWorld, Vista — action-conditioned future frame prediction</li>
+  <li><strong>Embodied AI/Robotics</strong>: IRASim, Cosmos, RoboScape, LVP — perception, action, physical reasoning 통합</li>
+  <li><strong>게임</strong>: Genie, Genie 2, Matrix-Game 2.0, WorldPlay, Hunyuan-GameCraft — 인터랙티브하고 playable한 가상 세계</li>
+</ul>
+<p>모든 도메인의 공통 목표: 환경이 다양한 interaction instruction에 대해 일관되게 반응하는 것 → ##interaction을 world model 평가의 중심 축##으로 삼아야 한다.</p>
+
+<h3>2.2 World Models Evaluation</h3>
+<p>기존 평가 방법의 한계:</p>
+<ul>
+  <li><strong>FID, IS, FVD</strong>: Human perceptual judgment과의 괴리가 큼</li>
+  <li><strong>VBench, VBench++</strong>: Visual quality와 text-video alignment 평가이지만, interactive generation의 핵심 능력 미평가</li>
+  <li><strong>WorldScore</strong>: Camera motion에 국한된 viewpoint consistency 평가. 다양한 interaction type 미커버</li>
+  <li><strong>WorldModelBench</strong>: 일부 시나리오 커버하지만 interaction level 체계 없음</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 2(d) 비교표]</strong>: Omni-WorldBench가 유일하게 Text + Image + Trajectory 3가지 prompt modality를 모두 지원하고, AD/EAI/Game task-oriented scene과 PP/LCC/Cau/CS general scene 능력을 모두 커버하며, Interaction을 평가 축으로 포함하는 유일한 벤치마크이다.
+</blockquote>
+
+<h2>3. Omni-WorldSuite — Prompt Suite</h2>
+
+<h3>3.1 Construction Pipeline</h3>
+
+<p>두 가지 prompt 생성 전략:</p>
+
+<h4>(a) Dataset-grounded Prompt Generation</h4>
+<p>Open-source 데이터셋에서 첫 프레임 + camera trajectory를 추출하고, Qwen-VL로 caption 생성 후 human verification:</p>
+<ul>
+  <li><strong>Autonomous Driving</strong>: DriveLM — ego-view image + camera trajectory</li>
+  <li><strong>Embodied Robotics</strong>: InternData-A1 — manipulation task의 물리적 인과관계</li>
+  <li><strong>Gaming/Simulation</strong>: Sekai — dynamic/non-photorealistic 환경에서의 일관된 motion pattern</li>
+</ul>
+
+<h4>(b) Concept-driven Prompt Generation</h4>
+<p>Prototype concepts (object, scene, action × interaction level)을 샘플링하고, generate-verify-refine 파이프라인으로 text prompt + first frame + camera trajectory를 합성:</p>
+<ol>
+  <li>Interaction level, scene type, target entity, action을 taxonomy에서 random sample</li>
+  <li>ChatGPT-5.2가 textual prompt + camera trajectory를 생성</li>
+  <li>Gemini, DeepSeek-R1으로 cross-check → human verification/refinement</li>
+  <li>FLUX.1-dev로 first frame image 생성 (3 candidates, CFG 3.5, 50 steps) → human screening → ChatGPT-5.2/Qwen-Image으로 artifact correction</li>
+  <li>최소 1024×1024 해상도, prompt 일관성, target object 가시성 보장</li>
+</ol>
+
+<h3>3-Level Interaction Hierarchy</h3>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: 3-level 상호작용 예시. <strong>Level 1</strong> (Self-state): 동작 주체에만 효과. General Scene에서는 물리 광학(수정구로 보는 풍경), Task-Oriented에서는 게임 카메라 이동, 공원 산책. <strong>Level 2</strong> (Local target): 한 객체가 다른 객체에 영향. 열역학(모닥불에서 금속봉 가열), 자율주행(ego-vehicle의 사각형 경로 운전). <strong>Level 3</strong> (Global cascade): 여러 객체 + 환경 변화. 역학(용수철에서 물체 발사), 공간 제약(유리 건물 반사), 로봇 manipulation(병 집어서 사람에게 전달).
+</blockquote>
+
+<h3>3.2 Statistics and Analysis</h3>
+<p>##총 1,068개 evaluation prompts##:</p>
+<ul>
+  <li>6가지 annotation 차원: Physics Principles (PP, 26%), Commonsense (CS, 23%), Causality (Cau, 25%), Camera Motion (CM), Loop-Closure Consistency (LCC), Spatial Constraints (SC)</li>
+  <li>PP 내 최다: Newtonian Mechanics (NM), Fluid Mechanics (FM)</li>
+  <li>Causality 내 최다: Condition-to-Behavior (C2B)</li>
+  <li>Camera Motion 내 최다: Pan, Tilt</li>
+  <li>LCC 내 최다: Axial Round-Trip (ART), Optical/Dynamic Consistency (ODC)</li>
+  <li>Interaction level 분포: Level 2 > Level 3 > Level 1</li>
+  <li>Scene type: Indoor (Diffusion, Sliding, Building), Outdoor (Natural, Projectile, Urban) + Task-oriented (Robotics, Driving, Gaming)</li>
+</ul>
+
+<p>각 prompt에 auxiliary metadata를 부여:</p>
+<ol>
+  <li>Entity objects를 affected/unaffected set으로 분류, 영향받는 entity의 coarse motion direction/magnitude 표기</li>
+  <li>Key events 리스트를 시간순으로 추출</li>
+  <li>Camera motion이 있는 subset에 expected camera motion direction/magnitude 표기. Return-to-origin (closed-loop) 설정도 포함</li>
+</ol>
+
+<h2>4. Omni-Metric — 평가 프레임워크</h2>
+
+<h3>4.1 Structured Information Extraction (전처리)</h3>
+<p>모든 메트릭 계산 전, 생성된 비디오 $V \in \mathbb{R}^{T \times H \times W}$에서 구조화된 정보를 추출:</p>
+<ul>
+  <li><strong>Entity Trajectories</strong>: GroundingDINO + SAM으로 각 entity의 temporally consistent segmentation mask 시퀀스 $\{\text{traj}_k\}_{k=1}^N$ 추출</li>
+  <li><strong>Optical Flow</strong>: RAFT로 optical flow field $F$ 추정 — regional motion intensity, dynamic variation 측정</li>
+  <li><strong>Relative Camera Motion</strong>: Optical flow variation으로 프레임 간 상대 카메라 이동 추정</li>
+</ul>
+
+<h3>4.2 Generated Video Quality</h3>
+<p>Static + dynamic visual fidelity를 평가하는 5개 기존 메트릭 활용:</p>
+<ul>
+  <li><strong>Imaging Quality</strong>: VBench 기반 정적 화질 점수</li>
+  <li><strong>Temporal Flickering</strong>: 프레임 간 깜빡임/불안정성</li>
+  <li><strong>Motion Smoothness</strong>: 움직임의 부드러움</li>
+  <li><strong>Content Alignment</strong>: WorldScore 기반, 프롬프트와 생성 콘텐츠의 정렬도</li>
+  <li><strong>Dynamic Degree</strong>: 생성된 영상의 동적 정도. ViewCrafter와 WonderWorld가 100.0% perfect score를 달성하는 반면 다른 모델은 큰 편차 → ##동적 표현력이 모델 간 핵심 차별화 지점##</li>
+</ul>
+
+<h3>4.3 Camera-Object Controllability</h3>
+<p>카메라 지시와 객체 유지 능력을 평가하는 3개 메트릭:</p>
+
+<h4>Camera Control</h4>
+<p>WorldScore의 카메라 제어 메트릭: rotational + translational component의 오차를 분리 평가하여 정규화한 점수.</p>
+
+<h4>Object Control (개선된 방법)</h4>
+<p>기존 방법(GroundingDino + rule-based matching)은 detection 오류와 synonymy에 취약. Omni-Metric에서는 ##VQA (Visual Question Answering)로 재정의##: uniformly sampled 프레임에서 multimodal model에 "target object $o_i$가 이 비디오에 있는가?"를 binary로 질의. 최종 점수 = $\frac{1}{K} \sum_{i=1}^K \hat{y}_i$로, 프롬프트에 지정된 객체의 비율을 측정. VLM의 semantic robustness를 활용하여 synonymy와 compositional cue에 강건.</p>
+
+<h4>Transitions Detect</h4>
+<p>PySceneDetect의 ContentDetector로 scene transition 유무를 감지. Scene cut 없이 연속적인 비디오만 full score:</p>
+
+$$s_{\text{trans}} = \begin{cases} 1, & N = 1 \\ 0, & N > 1 \end{cases} \quad (1)$$
+
+<p>$N$은 감지된 scene 수. 비디오에 scene transition이 있으면 temporal continuity에 penalty를 부여한다.</p>
+
+<h3>4.4 Interaction Effect Fidelity — 핵심 신규 메트릭</h3>
+
+<p>Omni-Metric의 핵심 기여. 상호작용의 인과적 충실도를 4개 메트릭으로 평가:</p>
+
+<h4>InterStab-L (Long-horizon temporal coherence)</h4>
+<p>Prompt에서 지정한 temporal revisit pairs $\mathcal{R} = \{(t_a, t_b)\}$ (예: "같은 위치로 돌아올 때")에서, 해당 프레임 쌍의 시각적 일관성을 측정:</p>
+
+$$s(i,j) = \frac{1}{2}(\text{SSIM}_{\text{gray}}(I_i, I_j) + \cos(\phi(I_i), \phi(I_j))) \quad (2)$$
+
+<p>SSIM으로 low-level structural fidelity, CLIP cosine으로 high-level semantic consistency를 결합. 정적 비디오(움직임 부재)의 허위 고점수를 방지하기 위해 dynamics gating 메커니즘 적용: 4개 canonical anchor에서의 평균 유사도가 $\tau_{\text{static}}$ 이상이면 점수를 0으로 패널티.</p>
+
+$$\text{InterStab-L} = \frac{1}{|\mathcal{R}|} \sum_{(t_a,t_b) \in \mathcal{R}} s(i(t_a), i(t_b)) \cdot \mathbb{I}_{\text{dynamic}} \quad (3)$$
+
+<h4>InterStab-N (Non-target region stability)</h4>
+<p>상호작용의 영향을 받지 않는 영역(non-target region $\mathcal{N}$)이 안정적으로 유지되는지 측정. Entity mask를 제거한 영역의 optical flow magnitude를 motion energy로 집계:</p>
+
+$$E_{\text{non}}(s) = \frac{1}{T} \sum_{t=1}^T \frac{1}{|\mathcal{N}|} \sum_{x \in \mathcal{N}} \|\text{Flow}_t(x)\| \quad (4)$$
+
+$$\text{InterStab-N}(s) = \exp\left(-\frac{E_{\text{non}}(s)}{\beta \times \min(H,W)}\right) \quad (5)$$
+
+<p>직관적으로, 타겟이 아닌 영역에서 불필요한 움직임이 적을수록 높은 점수. 상호작용이 정확히 의도된 객체에만 영향을 미치고 배경은 안정적인지를 측정.</p>
+
+<h4>InterCov (Object-level causal faithfulness)</h4>
+<p>상호작용 영향을 받는 entity가 semantically consistent한 반응을 보이고, 영향받지 않는 entity는 안정적인지 VLM으로 검증:</p>
+
+$$\text{InterCov} = \frac{1}{|\mathcal{O}|} \sum_{o \in \mathcal{O}} \mathbb{I}(v_o = 1) \quad (6)$$
+
+<p>$\mathcal{O}$는 causal constraint 하의 target entity set, $v_o \in \{0,1\}$은 VLM-based semantic verifier의 판정. 직관적으로, "공이 던져지면 공은 날아가야 하고, 배경의 나무는 움직이지 않아야 한다"를 검증.</p>
+
+<h4>InterOrder (Temporal event ordering)</h4>
+<p>생성된 비디오에서 이벤트 시퀀스 $\mathcal{E} = \{e_i\}_{i=1}^K$의 시간 순서가 ground-truth와 일치하는지 측정. VLM을 automated verifier로 사용하여 event pair의 발생 여부 + 상대적 선후관계를 판정:</p>
+
+$$\text{InterOrder} = \frac{2K_s}{K(K-1)} \quad (7)$$
+
+<p>$K_s$는 temporally consistent event pair 수. 높을수록 시간적 인과 일관성이 우수.</p>
+
+<h3>4.5 AgenticScore — Adaptive 통합</h3>
+<p>세 평가 축의 점수를 prompt semantics에 따라 adaptive하게 결합:</p>
+<ul>
+  <li>$A_I$ = (InterStab-L + InterStab-N + InterCov + InterOrder) / 4</li>
+  <li>$A_G$ = Generated Video Quality의 sub-metric 평균</li>
+  <li>$A_C$ = Camera-Object Controllability의 sub-metric 평균</li>
+</ul>
+<p>MLLM aggregation agent가 evaluation prompt의 semantic content를 분석하여 세 축의 상대적 중요도를 판단하고, predefined ranking → weight coefficient $w_1, w_2, w_3$으로 매핑:</p>
+
+$$\text{AgenticScore} = w_1 A_I + w_2 A_G + w_3 A_C \quad (8)$$
+
+<p>단순 평균이 아니라, 예를 들어 camera trajectory prompt에서는 $w_3$ (controllability)가 높고, 물리 상호작용 prompt에서는 $w_1$ (interaction fidelity)가 높도록 adaptive하게 조정.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>5.1 Models and Evaluation Protocol</h3>
+
+<p>##18개 대표 모델##을 3가지 generation paradigm으로 평가:</p>
+
+<h4>Text-to-Video (T2V) — 4개 모델</h4>
+<ul>
+  <li><strong>Director3D</strong>: Self-predicted camera trajectory로 novel view rendering, 960×960</li>
+  <li><strong>OpenSoraPlan</strong> (v1.0.0): T5-v1.1-XXL text encoder, 65 frames, 512×512, 250 steps, CFG 7.5</li>
+  <li><strong>T2V-Turbo</strong> (v2-no-MG V): 40 frames at 8 FPS, 32 inference steps, CFG 7.5</li>
+  <li><strong>HunyuanVideo</strong>: 91 frames, 1280×720, 50 inference steps, 16 FPS</li>
+</ul>
+
+<h4>Image-to-Video (IT2V) — 8개 모델</h4>
+<ul>
+  <li><strong>Matrix Game2.0</strong>: Universal mode, 650×352, 16 FPS, random camera trajectories</li>
+  <li><strong>Wan2.1</strong> (14B-720P): 81 frames, 1280×720, 50 steps, CFG 5.0, 16 FPS</li>
+  <li><strong>Wan2.2</strong> (A14B): 81 frames, 1280×720, 40 steps, CFG 3.5, 16 FPS</li>
+  <li><strong>CogVideo</strong> (CogVideoX-5b-I2V): 49 frames, 720×480, 50 steps, CFG 6, 8 FPS</li>
+  <li><strong>OpenSora</strong> (v2): 256px (16:9), 129 frames, 50 steps, CFG 7.5, 24 FPS</li>
+  <li><strong>Cosmos</strong> (Cosmos-predict-14B): 77 frames, 1280×720, 35 steps, CFG 7, 16 FPS</li>
+  <li><strong>LargeVideoPlanner</strong>: 832×480, 81 frames, 40 steps, 16 FPS</li>
+</ul>
+
+<h4>Camera-Conditioned — 6개 모델</h4>
+<ul>
+  <li><strong>HunyuanWorld</strong> (v1.5, Autoregressive-480P-I2V): 800×496, 16 FPS</li>
+  <li><strong>Hunyuan-GameCraft</strong>: 704×1216 (complete pose), 132 frames, 24 FPS</li>
+  <li><strong>ViewCrafter</strong>: Equidistant camera pose sampling, 576×1024, 25 frames, 8 FPS</li>
+  <li><strong>Gen3C</strong>, <strong>Lingbot</strong>: 720×1280, 121 frames (truncated)</li>
+  <li><strong>FantasyWorld</strong> (832×480), <strong>WonderWorld</strong> (512×512): Frame-subsampling, 132→81 frames</li>
+</ul>
+
+<p><strong>Evaluation protocol</strong>: T2V/IT2V는 410 prompts, Camera-conditioned는 120 camera trajectory prompts로 평가. 15개 메트릭 × 3개 차원. NVIDIA H20 GPU에서 inference.</p>
+
+<h3>5.3 Quantitative Results (Table 1)</h3>
+
+<p><strong>실험 의도</strong>: 18개 모델의 interaction fidelity, video quality, controllability trade-off를 종합 분석.</p>
+
+<h4>Overall Performance — AgenticScore 상위 모델</h4>
+<table>
+  <tr><th>Model</th><th>Paradigm</th><th>AgenticScore (%)</th><th>Inter. Effect Avg</th><th>Video Quality Avg</th><th>Cam-Obj Ctrl Avg</th></tr>
+  <tr><td><strong>Wan2.2</strong></td><td>IT2V</td><td><strong>75.92</strong></td><td><strong>67.34</strong></td><td>82.77</td><td>86.94</td></tr>
+  <tr><td>Cosmos</td><td>IT2V</td><td>75.42</td><td>64.39</td><td>75.01</td><td><strong>94.90</strong></td></tr>
+  <tr><td>LargeVideoPlanner</td><td>IT2V</td><td>73.42</td><td>64.39</td><td>75.01</td><td>93.58</td></tr>
+  <tr><td>WonderWorld</td><td>Camera</td><td>74.02</td><td>51.24</td><td><strong>85.18</strong></td><td><strong>85.80</strong></td></tr>
+  <tr><td>HunyuanWorld</td><td>Camera</td><td>74.36</td><td>62.22</td><td>80.90</td><td>79.67</td></tr>
+  <tr><td>HunyuanVideo</td><td>T2V</td><td><strong>73.96</strong></td><td><strong>64.88</strong></td><td><strong>79.54</strong></td><td>85.30</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li><strong>IT2V paradigm이 전반적으로 가장 강함</strong>: Wan2.2가 전체 최고 AgenticScore 75.92%. 이미지 조건이 richer context를 제공하여 interaction response 품질을 높인다.</li>
+  <li><strong>Interaction Effect Fidelity가 핵심 병목</strong>: 모든 모델에서 ##Interaction Effect Fidelity (40-67%)가 Video Quality (75-85%)와 Controllability (79-95%)보다 현저히 낮다##. 시각적 품질은 성숙했지만 인과적 상호작용 표현은 미성숙.</li>
+  <li><strong>Camera 모델 내 InterStab-L vs InterStab-N trade-off</strong>: WonderWorld는 InterStab-L 84.96 (long-horizon consistency 최고)이지만 InterStab-N 24.89 (non-target stability 최저). 카메라 제어를 도입하면서 배경 안정성이 크게 저하됨.</li>
+  <li><strong>Dynamic Degree의 큰 편차</strong>: Temporal Flickering과 Motion Smoothness는 대부분 95%+ (성숙)이지만, Dynamic Degree는 ViewCrafter/WonderWorld 100% vs 다른 모델 30-70%로 편차가 크다. ##동적 표현력이 모델 간 핵심 차별화 요인##.</li>
+  <li><strong>T2V에서 HunyuanVideo가 가장 강함</strong>: AgenticScore 73.96%, Interaction Effect 64.88로 T2V 그룹 최고. Director3D (71.00)와 T2V-Turbo (69.85)도 경쟁적.</li>
+</ol>
+
+<h4>Detailed Interaction Effect Fidelity 분석</h4>
+<table>
+  <tr><th>Model</th><th>InterStab-L</th><th>InterStab-N</th><th>InterCov</th><th>InterOrder</th><th>IEF Avg</th></tr>
+  <tr><td>Wan2.2 (IT2V)</td><td>79.68</td><td>79.98</td><td><strong>64.52</strong></td><td><strong>54.19</strong></td><td><strong>67.34</strong></td></tr>
+  <tr><td>Matrix Game2.0 (IT2V)</td><td>47.38</td><td>19.96</td><td>55.27</td><td>48.41</td><td>42.76</td></tr>
+  <tr><td>HunyuanVideo (T2V)</td><td>82.37</td><td>77.35</td><td><strong>53.02</strong></td><td><strong>46.78</strong></td><td><strong>64.88</strong></td></tr>
+  <tr><td>WonderWorld (Camera)</td><td><strong>84.96</strong></td><td>24.89</td><td>51.26</td><td>43.84</td><td>51.24</td></tr>
+  <tr><td>HunyuanWorld (Camera)</td><td>77.49</td><td>64.78</td><td>55.31</td><td>48.15</td><td>62.22</td></tr>
+</table>
+
+<p><strong>패턴</strong>:</p>
+<ul>
+  <li>InterCov (인과적 객체 반응 충실도)와 InterOrder (이벤트 순서 일관성)가 전반적으로 가장 낮은 점수 → ##인과적 reasoning과 temporal ordering이 현재 world model의 가장 큰 약점##</li>
+  <li>InterStab-L (long-horizon consistency)은 camera-conditioned 모델에서 높지만, InterStab-N (non-target stability)과 trade-off</li>
+  <li>Matrix Game2.0은 InterStab-N 19.96으로 최저 → 배경이 심하게 흔들리거나 변형</li>
+</ul>
+
+<h3>5.4 Qualitative Evaluation</h3>
+
+<blockquote>
+<strong>[Figure 5 설명]</strong>: Level-2 interaction — "야구 선수가 공을 세게 던진다". Wan2.2가 해부학적으로 정확한 pitching motion + 공의 궤적 + scene coherence를 완벽하게 재현. Matrix-Game2.0은 물리적 상호작용에 실패하고, 후반 프레임에서 인물이 사라지는 catastrophic collapse 발생. T2V-Turbo, OpenSoraPlan도 동작이 불완전하거나 불연속적.
+</blockquote>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: Camera-controlled Level-1 — "기차 창문을 통해 왼쪽으로 이동하며 밖의 풍경". HunyuanWorld가 가장 안정적. ViewCrafter는 존재하지 않는 건물이 갑자기 나타나 visual consistency 저하. WonderWorld는 높은 InterStab-L이지만 배경 변형이 관찰.
+</blockquote>
+
+<h2>6. Conclusion</h2>
+<p>Omni-WorldBench는 interaction-centric 평가를 통해, 현재 world model들이 visual realism은 높지만 ##action-conditioned world evolution, causal interaction consistency, joint camera-object control에서 critical gap##이 있음을 정량적으로 규명한다. 18개 모델의 체계적 평가에서 이 gap을 명확히 드러내며, Omni-Metric이 human preference와 잘 align됨을 추가 human alignment study에서 확인.</p>
+
+<h3>Limitations</h3>
+<ul>
+  <li>Open-world interactive 환경, 특히 long-horizon 및 highly dynamic 설정의 복잡성을 완전히 포착하지 못할 수 있다</li>
+  <li>Omni-Metric이 unified protocol을 제공하지만, human-aligned evaluation 결과를 추가 공개하여 보완 계획</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>명확한 gap 식별과 체계적 taxonomy</strong>: 3-level interaction hierarchy가 직관적이고 포괄적이며, 기존 벤치마크의 부재를 정확히 짚는다.</li>
+  <li><strong>포괄적 coverage</strong>: 1,068 prompts × text/image/trajectory 3가지 modality × general/task-oriented scene × 6개 capability axis. 기존 벤치마크 대비 가장 넓은 커버리지.</li>
+  <li><strong>InterStab-L/N, InterCov, InterOrder의 설계가 체계적</strong>: 각 메트릭이 interaction fidelity의 다른 측면(long-horizon consistency, non-target stability, causal object response, event ordering)을 정확히 타겟.</li>
+  <li><strong>AgenticScore의 adaptive weighting</strong>: 단순 평균이 아닌 prompt semantics 기반 adaptive weighting이 평가의 공정성을 높인다.</li>
+  <li><strong>18개 모델의 대규모 비교</strong>: T2V, IT2V, Camera-conditioned 3개 paradigm의 대표 모델을 균형 있게 포함.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>생성 모델의 controllability 차이가 평가에 영향</strong>: T2V는 text만, IT2V는 image+text, Camera는 trajectory까지 입력이 다르므로, 같은 AgenticScore로 비교하기 어렵다. Paradigm 간 비교의 공정성 문제.</li>
+  <li><strong>InterCov와 InterOrder의 VLM 의존성</strong>: VLM (Vision-Language Model)을 automated verifier로 사용하므로, VLM 자체의 한계(물리법칙 이해 부족, hallucination)가 메트릭에 반영될 수 있다.</li>
+  <li><strong>Human alignment study가 본문에 간략</strong>: "Further human alignment studies demonstrate that Omni-Metric aligns well with human preferences"라고 주장하나, 구체적 통계(Pearson/Spearman 상관, inter-annotator agreement)가 본문에 충분히 제시되지 않음.</li>
+  <li><strong>Dynamic Degree 메트릭의 한계</strong>: 100%가 반드시 좋은 것은 아님 — 과도한 동적 변화가 오히려 비물리적일 수 있으나, 이를 구분하지 않는다.</li>
+  <li><strong>First frame 합성의 bias</strong>: Concept-driven prompts의 first frame이 FLUX.1-dev로 합성되므로, 합성 이미지의 quality/diversity가 평가 결과에 영향. 실제 사진 기반 first frame만의 결과가 없다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>World model의 핵심 능력은 "Interactive Response"</strong>: Visual quality가 성숙한 반면, 상호작용 동작이 물리적으로 타당하고 인과적으로 일관된 상태 전이를 유발하는 능력은 아직 크게 부족하다. ##Interaction Effect Fidelity가 Video Quality 대비 20-40pp 낮다##는 것이 이를 정량적으로 입증.</li>
+  <li><strong>IT2V가 World Model의 가장 유망한 paradigm</strong>: Image conditioning이 richer initial state를 제공하여, T2V보다 일관된 interaction response를 생성. Wan2.2가 전체 최고 AgenticScore 75.92% 달성.</li>
+  <li><strong>Camera control과 interaction consistency의 trade-off</strong>: Camera-conditioned 모델이 카메라 제어는 우수하지만, 그 과정에서 non-target region stability가 크게 저하된다 (WonderWorld: InterStab-L 84.96 vs InterStab-N 24.89). 이 둘을 동시에 달성하는 것이 4D world modeling의 핵심 과제.</li>
+  <li><strong>Agent-based evaluation framework의 효용</strong>: Prompt semantics에 따라 평가 축의 가중치를 adaptive하게 조정하는 AgenticScore가, 단순 평균보다 human preference와 더 잘 align된다.</li>
+  <li><strong>InterCov와 InterOrder가 가장 어려운 축</strong>: 모든 모델에서 인과적 객체 반응 충실도(InterCov 40-65%)와 이벤트 순서 일관성(InterOrder 35-54%)이 가장 낮다. 이는 현재 video generation 모델이 ##물리적 인과 추론과 temporal reasoning에서 근본적 한계##를 가지고 있음을 시사한다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
