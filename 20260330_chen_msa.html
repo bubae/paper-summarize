@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSA: Memory Sparse Attention for Efficient End-to-End Memory Model Scaling to 100M Tokens</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MSA: Memory Sparse Attention for Efficient End-to-End Memory Model Scaling to 100M Tokens</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yu Chen*, Runkai Chen*, Sheng Yi, Xinda Zhao, Xiaohong Li, Jianjin Zhang, Jun Sun, Chuanrui Hu, Yunyun Han, Lidong Bing, Yafeng Deng†, Tianqiao Chen†</li>
+  <li><strong>소속</strong>: Evermind, Shanda Group, Peking University</li>
+  <li><strong>학회/저널</strong>: NeurIPS 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.23516">arXiv:2603.23516</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM의 long-term memory를 수억 토큰 규모로 확장하는 것이 인간 수준의 평생 기억을 위해 필요하지만, full attention은 $O(L^2)$로 불가능하고, linear attention(RWKV, DeltaNet)은 fixed-size state에 의한 catastrophic forgetting, RAG는 end-to-end 학습 불가와 shallow semantic matching, KV-centric 방법(DSA, MemGen)은 100M 규모에서 비용 폭발이 문제이다.</li>
+  <li><strong>해결</strong>: MSA (Memory Sparse Attention) — 문서별 독립 KV cache를 chunk-wise mean pooling으로 압축하고, Router Projector로 top-k 문서를 선별하여 sparse attention을 수행하는 end-to-end trainable latent memory framework. Document-wise RoPE로 문서 수에 대한 position 독립성을 확보하여 학습 시 소수 문서에서 inference 시 수백만 문서로 외삽 가능하다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Sparse routing이 retrieval과 generation을 하나의 differentiable pipeline으로 통합하여 end-to-end 학습이 가능하고, (2) document-wise RoPE가 문서 수로부터 positional semantics를 분리하여 length extrapolation을 보장하며, (3) KV cache compression이 memory footprint를 대폭 줄여 100M 토큰을 2×A800 GPU에서 처리 가능하게 한다.</li>
+  <li><strong>비유</strong>: 도서관에서 책을 찾을 때, RAG는 사서(retriever)에게 부탁하여 책을 가져오지만 사서가 이해하지 못하는 맥락이 있을 수 있다. MSA는 직접 모든 책의 목차(압축된 routing key)를 훑어보고 관련 책을 골라 펼쳐 읽는(sparse attention) 것과 같다. 목차를 보는 것은 빠르고($O(L)$), 실제로 읽는 분량은 일정하므로 도서관 크기에 관계없이 일정 시간이 걸린다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Scalable sparse attention architecture with document-wise RoPE</strong>: ##End-to-end trainable하면서 16K에서 100M 토큰까지 9% 미만의 성능 저하##로 확장 가능한 memory model. 64K context에서 학습하고 100M에서 inference할 수 있는 length extrapolation 능력.</li>
+  <li><strong>KV cache compression + Memory Parallel</strong>: Chunk-wise mean pooling으로 KV cache를 압축하고, routing key만 GPU에, content KV는 CPU에 저장하는 tiered storage + distributed scoring으로 ##2×A800 GPU 단일 노드에서 100M 토큰 inference 실현##.</li>
+  <li><strong>Memory Interleave</strong>: Multi-hop reasoning을 위한 adaptive iterative retrieval-generation 메커니즘. 모델이 document ID를 생성 → 해당 문서를 context에 추가 → 다시 ID 생성을 반복하여, 분산된 증거를 점진적으로 통합한다.</li>
+  <li><strong>SOTA 결과</strong>: 9개 QA 벤치마크에서 same-backbone RAG 대비 평균 16.0% 향상, SOTA RAG 대비 7.2% 향상. RULER NIAH에서 1M 토큰에서 94.84% accuracy, frontier LLM과 external memory system 모두를 상회.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>인간 수준의 평생 기억이 필요한 이유</h3>
+<p>인지과학 연구에 따르면 인간의 기능적 정보 용량은 $10^9$ bits 수준이며, 토큰당 3-5 bits의 semantic density를 가정하면 이는 ##약 200-300M 토큰##에 해당한다. 그러나 현재 LLM의 effective context length는 128K-1M 토큰에 불과하며, 명시적으로 long context를 위해 설계된 아키텍처(Qwen2.5-14B-1M, Qwen3-30B/80B-A3B)도 1M 토큰을 거의 넘지 못한다. Digital Twins, 대규모 소설 이해, multi-agent 장기 히스토리 관리 등의 시나리오에서 이 격차가 치명적이다.</p>
+
+<h3>기존 접근의 3가지 패러다임과 한계</h3>
+
+<p><strong>Table 1: LLM Long-Term Memory 방법 비교</strong></p>
+<table>
+  <tr><th>Method</th><th>Lifetime Memory</th><th>Precision</th><th>Compatible w/ Mainstream LLMs</th><th>Computational Complexity</th><th>Memory Management</th><th>Catastrophic Forgetting</th></tr>
+  <tr><td colspan="7"><em>Parameter-Based Memory</em></td></tr>
+  <tr><td>Model-Based (LoRA/CPT)</td><td>No</td><td>High</td><td>High</td><td>Train: High / Infer: Low</td><td>Hard</td><td>Yes</td></tr>
+  <tr><td>Test-Time Training (Titans)</td><td>No</td><td>Medium</td><td>Low</td><td>Medium</td><td>Medium</td><td>Yes</td></tr>
+  <tr><td colspan="7"><em>External Storage-Based Memory</em></td></tr>
+  <tr><td>RAG</td><td>Yes</td><td>Medium</td><td>Medium</td><td>$\mathcal{O}(L)$</td><td>Easy</td><td>Low</td></tr>
+  <tr><td>MemAgent</td><td>Yes</td><td>Medium</td><td>Medium</td><td>Medium</td><td>Easy</td><td>Medium</td></tr>
+  <tr><td colspan="7"><em>Latent State-Based Memory</em></td></tr>
+  <tr><td>Sparse Attention (DSA)</td><td>No</td><td>High</td><td>High</td><td>Medium</td><td>Easy</td><td>No</td></tr>
+  <tr><td>Linear Attention (DeltaNet/RWKV)</td><td>No</td><td>Low</td><td>Low</td><td>$\mathcal{O}(L)$</td><td>Easy</td><td>Yes</td></tr>
+  <tr><td>MemGen</td><td>No</td><td>Medium</td><td>High</td><td>Medium</td><td>Medium</td><td>No</td></tr>
+  <tr><td><strong>MSA (Ours)</strong></td><td><strong>Yes</strong></td><td><strong>High</strong></td><td><strong>High</strong></td><td><strong>$\mathcal{O}(L)$</strong></td><td><strong>Easy</strong></td><td><strong>No</strong></td></tr>
+</table>
+
+<p>기존 방법의 두 가지 근본 한계:</p>
+<ol>
+  <li><strong>Limited scalability of high-fidelity memory</strong>: 높은 정밀도를 제공하는 방법(parameter-based, KV-centric sparse attention)은 고정된 context/state 크기에 의해 제한되고, 확장 가능한 방법(RAG)은 정밀도가 중간 수준에 머무른다.</li>
+  <li><strong>Lack of end-to-end trainability</strong>: RAG의 retrieval pipeline은 generation objective와 분리되어 있어, retrieval metric과 downstream task 간 optimization gap이 존재한다.</li>
+</ol>
+
+<h2>2. Related Work</h2>
+
+<h3>Parameter-Based Memory</h3>
+<p>LoRA/CPT로 knowledge를 parameter에 직접 주입하는 방법. MLP-Memory (parametric retriever → differentiable memory store), FLEXOLMO (MoE로 targeted knowledge integration), Engram (N-gram embedding으로 sparse memory), Titans/Nested Learning (test-time training으로 inference 중 weight 업데이트). 그러나 catastrophic forgetting, 복잡한 memory management, 용량 제한이 근본 한계.</p>
+
+<h3>External Storage-Based Memory</h3>
+<p>RAG (vector similarity 기반 retrieval)가 대표적. 한계: discrete semantic representation(raw text/embeddings)에 의존하여 end-to-end 학습 불가, shallow semantic matching. 개선: Memory³ (KV pairs를 attention layer에 직접 주입하지만 model-agnostic embedding에 의존), MemAgent (RL로 memory read/write/overwrite policy 학습), MemGAS (hierarchical multi-granularity retrieval). 그러나 모두 retrieval과 generation 사이의 optimization gap을 해결하지 못한다.</p>
+
+<h3>Latent State-Based Memory</h3>
+<p>모델 내부의 latent representation (hidden states, KV cache)으로 memory를 구성. KV-centric 방법(DSA, MemGen)은 높은 정밀도이지만 100M 규모에서 비용 폭발. Linear attention (RWKV, DeltaNet)은 $\mathcal{O}(L)$이지만 fixed-size state에 정보를 압축하므로 extreme-length에서 catastrophic forgetting 발생. ParallelComp (KV eviction policy)도 유한 cache 내에서의 trade-off. ##MSA는 latent state-based이면서 sparse attention + KV compression으로 $\mathcal{O}(L)$ complexity와 high precision을 동시에 달성##.</p>
+
+<h2>3. Memory Sparse Attention</h2>
+
+<h3>3.1 Overall Design</h3>
+<p>MSA는 end-to-end trainable한 unified latent memory framework으로, memory sparse retrieval과 answer generation을 하나의 jointly-optimized differentiable pipeline에 통합한다. "Retrieve-then-read" 같은 decoupled 파이프라인의 한계를 넘어, retrieval과 generation이 동일한 loss로 동시에 최적화된다.</p>
+
+<h3>3.2 Architecture</h3>
+
+<h4>3.2.1 Sparse Attention Mechanism</h4>
+
+<p>Memory bank: 문서 집합 $\mathcal{D} = \{d_1, d_2, \ldots, d_N\}$. 각 문서 $d_i$의 hidden state $H_i$에서 backbone의 projection weights를 사용하여 standard Key/Value 행렬을 생성하고, 별도의 <strong>Router K Projector</strong> ($W_{K^R}^h$)로 routing용 key 행렬을 생성:</p>
+
+$$K_{i,h} = H_i W_K^h, \quad V_{i,h} = H_i W_V^h, \quad K_{i,h}^R = H_i W_{K^R}^h \quad (1)$$
+
+<p>이 세 행렬을 고정 길이 chunk로 분할하고 chunk-wise mean pooling $\phi(\cdot)$으로 압축:</p>
+<p>$\bar{K}_{i,h} = \phi(K_{i,h})$, $\bar{V}_{i,h} = \phi(V_{i,h})$, $\bar{K}_{i,h}^R = \phi(K_{i,h}^R)$</p>
+
+<p><strong>Inference 시 routing</strong>: Query $H_q$에서 backbone의 projection으로 $Q_{q,h}$를 생성하고, <strong>Router Q Projector</strong> ($W_{Q^R}^h$)로 routing query $Q_{q,h}^R = H_q W_{Q^R}^h$를 생성한다. Chunk $j$의 문서 $i$에 대한 relevance score:</p>
+
+$$S_{ij} = \max_{\text{token } t} (\text{mean}_{\text{head } h} (\cos((Q_{q,h}^R)_t, \bar{K}_{ij,h}^R))) \quad (2)$$
+
+<p>직관적으로, query의 각 token과 각 memory chunk의 routing key 간 cosine similarity를 head 평균 → token max → chunk max 순서로 집계하여 document-level relevance score $s_i = \max_j S_{ij}$를 얻는다. Top-$k$ 문서를 선택하여 해당 문서의 압축된 KV만 로드:</p>
+
+$$K_{\text{ctx}} = [\{\bar{K}_i\}_{i \in \mathcal{I}}; K_q], \quad V_{\text{ctx}} = [\{\bar{V}_i\}_{i \in \mathcal{I}}; V_q] \quad (3)$$
+$$\text{Output} = \text{Attention}(Q_q, K_{\text{ctx}}, V_{\text{ctx}}) \quad (4)$$
+
+<p><strong>Layer-selective MSA routing</strong>: 실험적으로 초기 layer의 hidden state는 high-level semantic abstraction이 부족하여 routing이 비효율적임을 발견. 따라서 ##MSA routing은 모델의 후반 절반(latter half) layer에만 적용##하고, 전반 layer에서는 Independent Document Processing (문서별 독립 self-attention, MSA routing 없음)을 유지한다. 전반 layer는 문서 상태를 업데이트하면서 hierarchical representation을 구축하고, 후반 layer에서 sparse retrieval + memory integration이 수행된다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: MSA layer 구조. 왼쪽: 전체 MSA block — RMSNorm → MSA (Attention + Attention) → RMSNorm → FFN. MSA 내부에서 Document에 대해 doc-wise RoPE를 적용하고, token-wise mean pooling으로 KV와 $K^R$을 압축. Query에 대해 Global RoPE를 적용. 중앙: Documents 측 — $Q, K, V, K^R$을 생성하고 mean pooling. Positive/Negative document에 대한 contrastive $\mathcal{L}_{\text{aux}}$ 계산. 오른쪽: Query 측 — $Q^R$로 routing하여 top-k 문서의 $\bar{K}, \bar{V}$를 선택, query의 local $K, V$와 concat하여 attention.
+</blockquote>
+
+<h4>3.2.2 Parallel and Global RoPE</h4>
+
+<p>MSA의 핵심 확장 전략: ##문서별 독립 RoPE (Document-wise RoPE)##와 Global RoPE의 병행 사용.</p>
+
+<p><strong>Document-wise RoPE (Memory documents)</strong>: 각 문서에 독립적으로 position ID를 0부터 할당한다. 이를 통해 positional semantics가 memory bank 내 총 문서 수로부터 완전히 분리된다. 모델이 소수 문서(예: 학습 시 수십 개)로 학습해도, inference 시 수백만 문서로 외삽할 수 있는 이유: 각 문서 내부의 position encoding이 동일하므로, 문서 수 증가가 position semantics에 영향을 주지 않는다.</p>
+
+<p><strong>Global RoPE (Active context)</strong>: User query와 autoregressive generation에는 global RoPE를 적용하되, position ID가 retrieved 문서 수 $k$만큼 offset되어 시작한다. 즉 query의 position ID는 $k$부터 시작하여, 모델이 active context를 retrieved background information의 논리적 continuation으로 인식하게 한다. 이 전략적 offset이 causal dependency를 보존하여 coherent generation을 가능하게 한다.</p>
+
+<h3>3.3 Training</h3>
+
+<h4>3.3.1 Continuous Pre-training</h4>
+<p>##158.95B 토큰##의 deduplicated corpus에서 continuous pre-training 수행. 목표: Generative Retrieval — 모델이 관련 문서의 고유 document ID를 autoregressively 생성하도록 학습.</p>
+
+<p><strong>Auxiliary contrastive loss ($\mathcal{L}_{\text{aux}}$)</strong>: Standard generation loss $\mathcal{L}_{\text{LLM}}$에 더해, Router Projector의 routing 결정을 지도하는 contrastive loss를 도입. Query $q$에 대해 positive documents $\mathcal{P}$와 negative documents $\mathcal{N} = \mathcal{D} \setminus \mathcal{P}$를 정의하고:</p>
+
+$$\mathcal{L}_{\text{aux}} = -\frac{1}{|\mathcal{P}|} \sum_{i=1}^{|\mathcal{P}|} \log \frac{\exp(s_i^+ / \tau)}{\exp(s_i^+ / \tau) + \sum_{j=1}^{|\mathcal{N}|} \exp(s_{i,j}^- / \tau)} \quad (5)$$
+
+<p>$\tau$는 temperature. 이 supervised contrastive objective가 latent routing space에서 relevant/irrelevant document chunk를 명시적으로 분리한다.</p>
+
+<p><strong>Two-phase optimization schedule</strong>:</p>
+<ul>
+  <li><strong>Warmup phase</strong>: $\mathcal{L} = 0.1\mathcal{L}_{\text{LLM}} + \mathcal{L}_{\text{aux}}$, LR $1 \times 10^{-4}$. Router head가 빠르게 effective selection policy를 학습하도록 auxiliary loss에 집중</li>
+  <li><strong>Main pre-training phase</strong>: $\mathcal{L} = \mathcal{L}_{\text{LLM}} + 0.1\mathcal{L}_{\text{aux}}$, LR $6 \times 10^{-6}$. Generation task를 우선하면서 routing의 discriminative power를 유지</li>
+</ul>
+
+<h4>3.3.2 Post-Training (SFT)</h4>
+<p>2-stage curriculum learning:</p>
+<ul>
+  <li><strong>Stage 1 (MSA-S1)</strong>: 8K context에서 대규모 SFT. Instruction-following과 reasoning 기초 확립</li>
+  <li><strong>Stage 2 (MSA-S2)</strong>: 데이터 품질 강화 + memory context를 8K→64K로 확장. 이 curriculum transition이 massive memory bank으로의 extrapolation robustness를 크게 향상시킴</li>
+</ul>
+
+<h3>3.4 Inference</h3>
+
+<h4>3.4.1 Three-Stage Inference Process</h4>
+
+<div class="flow-diagram">Stage 1: Global Memory Encoding (Offline, one-time)
+  Corpus → 각 문서별 forward pass → K, V, K^R 생성 → chunk-wise mean pooling
+  → 압축된 (K̄, V̄, K̄^R)을 Memory Bank에 cache
+
+Stage 2: Routing and Context Assembly (Online)
+  User Query → Router Q Projector → Q^R 생성
+  Q^R × K̄^R → relevance scoring → Top-k 문서 선택
+  선택된 문서의 (K̄, V̄)만 GPU로 로드
+  → query의 local K, V와 concat → sparse context 구성
+
+Stage 3: Sparse Generation (Online)
+  Assembled sparse context에서 autoregressive generation
+  Attention(Q_q, [{K̄_topk}; K_q], [{V̄_topk}; V_q]) → Answer</div>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: Memory Interleave를 포함한 3-stage inference. 첫 iteration에서 query로 document ID를 생성하고, 해당 문서의 원문을 context에 추가. 두 번째 iteration에서 추가된 context를 기반으로 새 document ID를 생성하고 해당 원문을 추가. 모델이 충분한 증거를 수집했다고 판단하면 "End-of-Retrieve" 토큰을 생성하고 최종 답변을 생성. Multi-hop reasoning에서 각 hop이 이전 hop의 결과를 기반으로 다음 검색을 수행하는 iterative 과정.
+</blockquote>
+
+<h4>3.4.2 Memory Parallel — 100M 토큰 inference를 2×A800에서</h4>
+
+<p>100M 토큰의 압축된 KV 및 $K^R$ cache는 pooling kernel $P=64$, 8 heads, head dim 128, 18 layers 기준으로 약 169GB를 요구하며, 2×A800 (총 160GB VRAM)으로는 monolithic 저장이 불가능하다. 이를 해결하는 tiered storage + distributed scoring:</p>
+
+<ul>
+  <li><strong>GPU-Resident Routing Keys</strong>: Routing key $\bar{K}^R$만 다중 GPU VRAM에 분산 저장. 100M context에서 $\bar{K}^R$만으로도 ~56GB이므로 분산 필수</li>
+  <li><strong>CPU-Offloaded Content KVs</strong>: Content KV ($\bar{K}, \bar{V}$)는 host DRAM (CPU memory)에 저장. Top-$k$ routing 완료 후 선택된 문서의 content KV만 GPU로 async 전송</li>
+</ul>
+
+<p><strong>Memory-Parallel Retrieval and Distributed Scoring</strong>: 4B backbone의 compact size를 활용하여 full model weights를 각 GPU에 복제. Query hidden state를 모든 GPU에 broadcast → 각 GPU가 local shard의 routing key에 대해 독립적으로 similarity scoring → global reduce로 top-$k$ 선택. Tiling mechanism으로 대규모 scoring matrix의 peak memory 관리.</p>
+
+<h3>3.5 Memory Interleave</h3>
+
+<p>Complex multi-hop queries를 위한 adaptive iterative retrieval-generation 메커니즘. Stage 2 (routing) + Stage 3 (generation)을 반복적으로 교대:</p>
+<ol>
+  <li>Memory bank의 KV cache 로드 후, 모델이 주어진 query에 대해 document ID 시퀀스를 autoregressive로 생성 (special delimiter로 종료)</li>
+  <li>생성된 document ID에 해당하는 원문 텍스트를 시스템이 검색하여 query context에 추가</li>
+  <li>확장된 context로 다시 Generative Retrieval → Context Expansion 반복</li>
+  <li>모델이 충분한 증거를 수집했다고 판단하면 "End-of-Retrieve" 토큰을 생성하고 최종 답변으로 전환</li>
+</ol>
+
+<p>##각 round에서 생성되는 document ID 수는 고정이 아니라 모델이 adaptive하게 결정##. 학습 시 multi-hop 데이터의 각 retrieval chain을 개별 학습 샘플로 분할하여, 각 샘플이 single-query 또는 기존 document context 기반의 single retrieval step을 담당.</p>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Experimental Setup</h3>
+
+<p><strong>Implementation</strong>:</p>
+<ul>
+  <li><strong>Backbone</strong>: Qwen3-4B-Instruct-2507</li>
+  <li><strong>Router Projectors</strong>: Backbone weights로 초기화, randomly initialized</li>
+  <li><strong>Continuous pre-training</strong>: 158.95B tokens</li>
+  <li><strong>Compression chunk size</strong>: $P = 64$ tokens</li>
+  <li><strong>Top-$k$ documents for attention</strong>: $k = 16$</li>
+  <li><strong>Model variants</strong>: MSA-S1 (8K context SFT only), MSA-S2 (+ 64K context curriculum)</li>
+</ul>
+
+<p><strong>Datasets & Metrics</strong>: 9개 QA 벤치마크 (memory bank 277K-10M tokens):</p>
+<ul>
+  <li><strong>Single-hop</strong>: MS MARCO v1 (7.34M), Natural Questions (1.47M), DuReader (277K), TriviaQA 10M (10M)</li>
+  <li><strong>Multi-hop</strong>: NarrativeQA (538K), PopQA (1.18M), 2WikiMultiHopQA (722K), HotpotQA (1.35M), MuSiQue (1.41M)</li>
+  <li>LLM judge (Qwen3-4B) 평가, 0-5 scale</li>
+  <li><strong>NIAH</strong>: RULER benchmark (SA1-3, MK1-3, MV, MQ 8가지 sub-task), 32K-1M tokens</li>
+  <li>MSA는 @adaptive (모델이 자율적으로 retrieval 수를 결정), RAG는 @1, @5, @10 (고정 retrieval 수)</li>
+</ul>
+
+<p><strong>Baselines</strong>:</p>
+<ul>
+  <li><strong>Same-backbone RAG (Qwen3-4B)</strong>: Standard RAG (Qwen3-4B-Embedding + Qwen3-4B), RAG with reranking (+ Qwen3-4B-Rerank), HippoRAG2 (knowledge graph-augmented)</li>
+  <li><strong>Best-of-breed RAG</strong>: KaLMv2-Embedding-Gemma3-12B-2511 retriever + Qwen3-235B/Llama-3.3-70B generator ± Qwen3-8B-Rerank. UltraRAG v2.0 pipeline</li>
+  <li><strong>NIAH baselines</strong>: MemoryAgent-14B, Qwen3-Next-80B-A3B, Qwen3-30B-A3B, Qwen2.5-14B-1M, Qwen3-4B-Instruct backbone</li>
+</ul>
+
+<h3>4.2 Main Results</h3>
+
+<h4>4.2.1 QA Task — Same-backbone RAG 비교 (Table 2)</h4>
+
+<p><strong>실험 의도</strong>: 동일 Qwen3-4B backbone에서 MSA가 RAG 대비 일관적으로 우수한지 검증.</p>
+
+<table>
+  <tr><th>Dataset</th><th>Tokens</th><th>Qwen3-4B R@10</th><th>Qwen3-4B (RR) R@10</th><th>HippoRAG2 R@10</th><th>MSA (Ours) @adaptive</th></tr>
+  <tr><td>MS MARCO v1</td><td>7.34M</td><td>3.005</td><td>3.017</td><td>3.019</td><td><strong>4.141</strong></td></tr>
+  <tr><td>Natural Questions</td><td>1.47M</td><td>3.297</td><td>3.385</td><td>3.374</td><td><strong>3.545</strong></td></tr>
+  <tr><td>DuReader</td><td>277K</td><td>3.594</td><td>3.618</td><td>3.415</td><td><strong>4.155</strong></td></tr>
+  <tr><td>TriviaQA (10M)</td><td>10M</td><td>4.273</td><td>4.375</td><td>4.430</td><td><strong>4.621</strong></td></tr>
+  <tr><td>NarrativeQA</td><td>538K</td><td>2.860</td><td>3.492</td><td>2.628</td><td><strong>3.395</strong></td></tr>
+  <tr><td>PopQA</td><td>1.18M</td><td>3.299</td><td>3.264</td><td>3.249</td><td><strong>3.433</strong></td></tr>
+  <tr><td>2WikiMultiHopQA</td><td>722K</td><td>3.136</td><td>3.159</td><td>3.330</td><td><strong>4.280</strong></td></tr>
+  <tr><td>HotpotQA</td><td>1.35M</td><td>3.787</td><td>3.990</td><td>3.770</td><td><strong>4.061</strong></td></tr>
+  <tr><td>MuSiQue</td><td>1.41M</td><td>1.928</td><td>1.960</td><td>1.907</td><td><strong>2.211</strong></td></tr>
+  <tr><td><strong>Average</strong></td><td></td><td>3.242</td><td>3.372</td><td>3.275</td><td><strong>3.760</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##MSA가 9개 벤치마크 중 8개에서 최고 성능## (NarrativeQA에서만 RAG+RR R@10이 근소하게 우위).</li>
+  <li>Same-backbone RAG 대비 평균 ##16.0% (standard), 11.5% (reranking), 14.8% (HippoRAG2)## 향상.</li>
+  <li>Multi-hop 데이터셋(2WikiMultiHopQA, MuSiQue)에서 특히 큰 개선 — Memory Interleave의 효과.</li>
+</ol>
+
+<h4>4.2.1 QA Task — Best-of-breed RAG 비교 (Table 3 발췌)</h4>
+
+<p><strong>실험 의도</strong>: SOTA RAG (frontier-scale generator + advanced retriever)와도 MSA 4B가 경쟁력이 있는지 검증.</p>
+
+<table>
+  <tr><th>Dataset</th><th>KaLMv2+Qwen3-235B R@10</th><th>KaLMv2+Qwen3-235B (RR) R@10</th><th>MSA 4B @adaptive</th></tr>
+  <tr><td>MS MARCO v1</td><td>2.995</td><td>3.580</td><td><strong>4.141</strong></td></tr>
+  <tr><td>Natural Questions</td><td>3.645</td><td><strong>3.580</strong></td><td>3.545</td></tr>
+  <tr><td>TriviaQA (10M)</td><td>4.555</td><td><strong>4.695</strong></td><td>4.621</td></tr>
+  <tr><td>2WikiMultiHopQA</td><td>3.583</td><td>3.541</td><td><strong>4.280</strong></td></tr>
+  <tr><td>HotpotQA</td><td>4.194</td><td><strong>4.203</strong></td><td>4.061</td></tr>
+  <tr><td>MuSiQue</td><td>2.605</td><td><strong>2.613</strong></td><td>2.211</td></tr>
+  <tr><td><strong>Average</strong></td><td>3.506</td><td>3.580</td><td><strong>3.760</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>MSA 4B가 KaLMv2+Qwen3-235B (RR) 대비 ##평균 5.0% 향상##. 4B 모델이 235B generator를 가진 SOTA RAG를 상회하는 것은 end-to-end optimization의 위력을 보여준다.</li>
+  <li>MS MARCO v1에서 특히 큰 격차 (4.141 vs 3.580). 대규모 corpus (7.34M tokens)에서 MSA의 sparse routing이 external retriever보다 정밀.</li>
+  <li>MuSiQue에서 여전히 열세 (2.211 vs 2.613). Multi-hop reasoning에서 235B generator의 intrinsic reasoning 능력이 MSA 4B를 상회하며, 이는 model capacity의 한계.</li>
+</ol>
+
+<h4>4.2.2 NIAH Task (Figure 4)</h4>
+
+<p><strong>실험 의도</strong>: Context length 확장 시 retrieval fidelity가 어떻게 변화하는지 평가. RULER benchmark (8가지 sub-task) 사용.</p>
+
+<table>
+  <tr><th>Model</th><th>32K</th><th>64K</th><th>128K</th><th>256K</th><th>512K</th><th>1M</th></tr>
+  <tr><td>Qwen3-4B-Instruct</td><td>0.95</td><td>1.00</td><td>0.99</td><td>0.48</td><td>0.42</td><td>0.25</td></tr>
+  <tr><td>Qwen2.5-14B-1M</td><td>1.00</td><td>0.99</td><td>0.97</td><td>0.90</td><td>0.68</td><td>0.53</td></tr>
+  <tr><td>Qwen3-30B-A3B</td><td>0.99</td><td>0.99</td><td>0.79</td><td>0.81</td><td>0.78</td><td>0.80</td></tr>
+  <tr><td>Qwen3-Next-80B-A3B</td><td>1.00</td><td>1.00</td><td>1.00</td><td>0.97</td><td>0.88</td><td>0.81</td></tr>
+  <tr><td>RL-MemoryAgent-14B</td><td>0.98</td><td>0.98</td><td>0.97</td><td>0.95</td><td>0.95</td><td>0.93</td></tr>
+  <tr><td><strong>MSA-4B (Ours)</strong></td><td><strong>0.99</strong></td><td><strong>0.98</strong></td><td><strong>0.98</strong></td><td><strong>0.98</strong></td><td><strong>0.97</strong></td><td><strong>0.95</strong></td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>:</p>
+<ol>
+  <li>##MSA-4B가 32K→1M에서 3.93pp만 하락 (0.99→0.95)##, 32배 확장에서 가장 안정적. Backbone Qwen3-4B는 128K에서 이미 0.48로 붕괴.</li>
+  <li>Qwen3-Next-80B-A3B (20배 큰 모델)도 256K 이후 하락하여 1M에서 0.81. MSA가 14pp 상회.</li>
+  <li>RL-MemoryAgent-14B는 비교적 안정적이지만, MSA보다 절대 성능이 일관되게 낮고 decay rate도 더 크다 (5.76pp vs 3.93pp).</li>
+</ol>
+
+<h4>Context Degradation — 100M 토큰까지 (Figure 1)</h4>
+<p>MS MARCO QA score를 memory context 16K→100M까지 측정. ##MSA는 4.023 (16K) → 3.669 (100M)으로 8.8%만 하락##. GPT-4.1과 DeepSeek-V3.2는 competitive한 초기 점수 (~3.6-3.7)이지만 context 증가 시 하락. Qwen3-4B backbone은 128K에서 붕괴하여 512K에서 점수 1.5 이하. ##4차 orders of magnitude 메모리 확장에서 9% 미만 하락은 인간의 평생 기억 용량에 근접##하는 수준이다.</p>
+
+<h3>4.3 Ablation Study (Table 4)</h3>
+
+<p><strong>실험 의도</strong>: MSA의 각 구성 요소의 기여를 분리.</p>
+
+<table>
+  <tr><th>Model Variant</th><th>Average</th><th>MS MARCO v1</th><th>Natural Questions</th><th>DuReader</th><th>HotpotQA</th></tr>
+  <tr><td><strong>MSA-S2 (Full)</strong></td><td><strong>3.976</strong></td><td><strong>4.141</strong></td><td><strong>3.545</strong></td><td><strong>4.155</strong></td><td><strong>4.061</strong></td></tr>
+  <tr><td>MSA-S1 (Full)</td><td>3.694</td><td>3.197</td><td>3.493</td><td>4.064</td><td>4.020</td></tr>
+  <tr><td>w/o memory interleave</td><td>3.497</td><td>3.175</td><td>3.485</td><td>4.076</td><td>3.250</td></tr>
+  <tr><td>w/o continual pre-training</td><td>2.537</td><td>2.267</td><td>2.448</td><td>3.144</td><td>2.289</td></tr>
+  <tr><td>w/o original text</td><td>2.325</td><td>2.625</td><td>2.190</td><td>2.186</td><td>2.297</td></tr>
+</table>
+
+<p><strong>각 구성 요소의 기여</strong>:</p>
+<ol>
+  <li><strong>Curriculum Learning (MSA-S2 vs MSA-S1)</strong>: 8K→64K 확장 curriculum이 ##평균 7.6% 향상##. MS MARCO (7.34M tokens)에서 특히 29.5% 향상으로, 대규모 memory bank으로의 extrapolation에 결정적.</li>
+  <li><strong>Memory Interleave (w/o multi-round)</strong>: 제거 시 ##5.3% 평균 하락##. HotpotQA에서 19.2% 하락으로, multi-hop 데이터셋에서 이전 retrieval 결과를 기반으로 query를 정교화하는 것이 핵심.</li>
+  <li><strong>Continual Pre-training (w/o pretrain)</strong>: 제거 시 ##31.3% 평균 하락##. Router head의 정밀한 selection policy 학습에 warmup + large-scale CPT가 필수적. HotpotQA에서 43.1% 하락 (multi-hop에서는 초기 retrieval 오류가 후속 단계로 전파).</li>
+  <li><strong>Original Text (w/o original text)</strong>: Document ID 생성 후 원문을 context에 추가하지 않으면 ##37.1% 평균 하락##, 가장 큰 성능 저하. DuReader에서 46.2% 하락. Document ID로 evidence를 localize하지만, 답변 합성에는 원문의 세밀한 정보가 필수적.</li>
+</ol>
+
+<h2>5. Analysis</h2>
+
+<h3>5.1 Efficiency Analysis</h3>
+
+<p>$M$: query length, $G$: average document length, $k$: top-$k$ selected, $P$: pooling chunk size (64), $L$: total memory size.</p>
+
+<h4>5.1.1 Training Complexity</h4>
+<ol>
+  <li><strong>Independent Document Processing</strong>: 각 문서 intra-document self-attention $\mathcal{O}(G^2)$ × $L/G$ 문서 = $\mathcal{O}(LG)$</li>
+  <li><strong>Sparse Routing</strong>: Query와 $L/P$ pooled chunks 간 scoring = $\mathcal{O}(ML/P)$</li>
+  <li><strong>Sparse Generation</strong>: Query + $k$개 selected 문서 ($kG/P$ chunks)에 대한 attention = $\mathcal{O}((M + kG/P)^2)$, $L$에 독립</li>
+</ol>
+
+$$\mathcal{O}_{\text{train}} = \mathcal{O}(LG) + \mathcal{O}(ML/P) + \mathcal{O}((M + kG/P)^2) = \mathcal{O}(LG) \quad (6)$$
+
+<p>$L \gg G$일 때 첫째 항이 지배적. ##Training은 $\mathcal{O}(LG)$로 memory size에 선형##.</p>
+
+<h4>5.1.2 Inference Complexity</h4>
+<ol>
+  <li><strong>Offline Pre-processing</strong>: 전체 corpus의 KV cache 생성 = $\mathcal{O}(LG)$. One-time cost, 모든 query에 대해 재사용</li>
+  <li><strong>Online Routing</strong>: Query를 $L/P$ entries에 대해 scoring = $\mathcal{O}(ML/P)$</li>
+  <li><strong>Online Generation</strong>: $M + kG/P$ 크기의 sparse context에서 autoregressive = $\mathcal{O}(T \cdot (M + kG/P)^2)$, $L$에 독립</li>
+</ol>
+
+$$\mathcal{O}_{\text{inference}} = \mathcal{O}(ML/P) + \mathcal{O}(T \cdot (M + kG/P)^2) = \mathcal{O}(L) \quad (7)$$
+
+<p>Routing이 $\mathcal{O}(L)$로 지배적이며, 비싼 offline pre-processing $\mathcal{O}(LG)$는 query 간 amortize된다. ##Per-query inference는 memory size에 선형## — conventional full attention의 $\mathcal{O}(L^2)$ per-query와 대비된다.</p>
+
+<h3>5.2 Context Degradation</h3>
+<p>MS MARCO에서 16K→100M 확장 시 MSA는 4.023→3.669 (##8.8% 하락##). GPT-4.1, DeepSeek-V3.2 같은 frontier 모델도 competitive 초기 점수에서 context 증가 시 하락. Qwen3-4B backbone은 128K에서 catastrophic collapse (score < 1.5 at 512K). Document-wise RoPE와 sparse routing이 ##memory capacity를 reasoning capability로부터 효과적으로 분리##하여, massive-scale knowledge base에서도 안정적으로 작동.</p>
+
+<h2>6-7. Conclusion & Limitations</h2>
+<p>MSA는 sparse attention + document-wise RoPE + KV compression + Memory Parallel + Memory Interleave를 결합하여 100M 토큰까지 end-to-end 확장 가능한 memory model을 제시한다. Long-context QA와 NIAH에서 frontier LLM, SOTA RAG, external memory system을 모두 상회한다.</p>
+
+<p><strong>Limitations</strong>:</p>
+<ul>
+  <li>다수 문서 간 강한 structural dependency가 있는 경우(tightly coupled cross-document relationships), intrinsic memory만으로 정확한 structural alignment을 유지하기 어렵다.</li>
+  <li>Memory Interleave가 이를 부분적으로 완화하지만, inter-document relationship을 더 체계적으로 보존하는 설계가 필요하다.</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>명확한 포지셔닝</strong>: Table 1의 체계적 비교가 기존 방법의 한계를 정확히 짚고, MSA가 모든 desiderata를 동시에 충족하는 유일한 방법임을 설득력 있게 보여준다.</li>
+  <li><strong>100M 토큰에서 9% 미만 하락은 매우 인상적</strong>: 4차 orders of magnitude 확장에서의 안정성은 기존 어떤 방법으로도 달성하지 못한 수준이다. 이는 document-wise RoPE의 설계가 핵심적으로 기여한다.</li>
+  <li><strong>End-to-end trainability의 실증적 가치</strong>: 4B 모델이 235B generator + SOTA retriever를 가진 RAG를 평균적으로 상회하는 것은 joint optimization의 위력을 강력히 입증한다.</li>
+  <li><strong>Memory Parallel의 실용성</strong>: 2×A800에서 100M 토큰 inference는 즉시 적용 가능한 실용적 기여.</li>
+  <li><strong>체계적 ablation</strong>: 4개 구성 요소(curriculum, interleave, CPT, original text)의 기여를 명확히 분리.</li>
+</ul>
+
+<h3>약점</h3>
+<ul>
+  <li><strong>4B 모델만 검증</strong>: Qwen3-4B backbone 하나에서만 실험. 더 큰 backbone (14B, 70B)에서의 효과 미검증. Model scale에 따른 MSA의 이점 변화가 불확실.</li>
+  <li><strong>QA task에 제한된 평가</strong>: Question Answering과 NIAH만 평가. Summarization, 소설 이해, agent long-term history 등 논문에서 언급한 motivation 시나리오에서의 검증이 없음.</li>
+  <li><strong>Top-$k$ document selection의 hard selection</strong>: Top-$k$ routing은 미분 가능하지 않은 hard selection이므로, 엄밀히 말하면 routing 결정 자체는 $\mathcal{L}_{\text{aux}}$로 간접 학습될 뿐 generation loss에서 직접 backprop되지 않는다. "End-to-end trainable"의 정확한 범위에 대한 명확화가 필요.</li>
+  <li><strong>Offline encoding의 비용</strong>: 100M 토큰의 offline encoding ($\mathcal{O}(LG)$)은 one-time이라 해도 상당한 비용. Memory bank이 자주 업데이트되는 시나리오에서의 비용 분석이 없다.</li>
+  <li><strong>Chunk-wise mean pooling의 정보 손실</strong>: 64 token chunk를 단일 벡터로 압축하므로, 세밀한 토큰 수준 정보가 손실된다. 압축 비율과 정확도의 trade-off 분석(chunk size ablation)이 없다.</li>
+  <li><strong>표준편차/반복 실험 미보고</strong>: 모든 결과가 단일 점추정치로 보고.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Memory capacity를 reasoning으로부터 분리하는 것이 핵심</strong>: Document-wise RoPE로 position semantics를 문서 수에서 독립시키면, 학습 시 소수 문서에서도 inference 시 수백만 문서로 외삽할 수 있다. ##이는 train-on-short, infer-on-long 패러다임의 가장 효과적인 구현##이다.</li>
+  <li><strong>End-to-end joint optimization이 decoupled pipeline을 이긴다</strong>: 4B 모델이 235B generator를 가진 SOTA RAG를 상회하는 것은, retrieval과 generation 사이의 optimization gap이 model scale보다 더 큰 bottleneck임을 시사한다. 이는 RAG 시스템 설계에 중요한 시사점을 제공한다.</li>
+  <li><strong>KV cache compression + tiered storage로 extreme-scale inference 실현</strong>: Routing key만 GPU에, content KV는 CPU에 저장하는 분리 전략이 메모리 제약을 극복한다. 이 패턴은 다른 long-context 시스템에도 적용 가능하다.</li>
+  <li><strong>Memory Interleave가 multi-hop reasoning의 핵심</strong>: Single-shot retrieval로는 불충분한 complex query에서, 모델이 adaptive하게 retrieval 횟수를 결정하면서 점진적으로 증거를 수집하는 전략이 효과적이다.</li>
+  <li><strong>Contrastive auxiliary loss가 sparse routing의 정밀도를 보장</strong>: Generation loss만으로는 Router Projector가 정확한 selection을 학습하기 어렵고, 별도의 supervised contrastive signal이 latent routing space에서의 분리를 보장한다. 2-phase schedule (warmup에서 routing 집중 → main에서 generation 집중)도 실용적 가이드라인.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
