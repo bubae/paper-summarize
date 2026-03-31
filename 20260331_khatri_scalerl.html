@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Art of Scaling Reinforcement Learning Compute for LLMs</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>The Art of Scaling Reinforcement Learning Compute for LLMs</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260331_khatri_scalerl_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e3f2fd; color:#1565c0; border:1px solid #90caf9;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Devvrit Khatri*, Lovish Madaan*, Rishabh Tiwari, Rachit Bansal, Sai Surya Duvvuri, Manzil Zaheer, Inderjit S. Dhillon, David Brandfonbrener, Rishabh Agarwal</li>
+  <li><strong>소속</strong>: Meta, UT Austin, UCL, UC Berkeley, Harvard University, Periodic Labs</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2025)</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2510.13786">arXiv:2510.13786</a> · <a href="http://www.devvrit.com/scalerl_curve_fitting">Curve Fitting Code</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: RL(Reinforcement Learning)이 LLM 학습의 핵심이 되었으나, pre-training과 달리 RL compute를 예측 가능하게 scaling하는 방법론이 부재하다. 어떤 design choice가 대규모에서 실제로 유효한지 판단할 과학적 프레임워크가 없어, 연구 진전이 비용이 큰 대규모 실험에 의존한다.</li>
+  <li><strong>해결</strong>: (1) RL 성능을 sigmoidal 함수로 모델링하여 asymptotic performance ($A$)와 compute efficiency ($B$)로 분리하는 predictive framework 제안. (2) 이 프레임워크로 400,000+ GPU-hours 규모의 체계적 ablation 수행. (3) 최적 design choice를 결합한 ScaleRL 레시피를 개발하여 100,000 GPU-hours까지 predictable scaling 달성.</li>
+  <li><strong>왜 작동하는가</strong>: Sigmoidal curve가 bounded metric(pass rate)의 saturating behavior를 정확히 포착하여 작은 규모에서 fitting한 후 큰 규모로 extrapolation이 가능하다. ScaleRL은 각 design axis에서 $A$를 높이는 선택을 우선하고, $B$를 개선하는 선택을 결합하여 asymptotic performance와 efficiency를 동시에 최적화한다.</li>
+  <li><strong>비유</strong>: Pre-training의 scaling law가 "항로를 보여주는 해도"라면, 이 논문은 RL에 대한 최초의 "항해 해도"를 그린 것이다. 소규모 실험으로 대규모 목적지의 성능을 예측하고, 어떤 배(recipe)가 가장 효율적으로 항해하는지 비교할 수 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>RL Scaling의 Predictive Framework</strong>: ##Pass rate vs. log(compute)를 sigmoidal 함수로 fitting##하여 asymptotic performance $A$와 compute efficiency $B$로 분해. Power-law보다 robust하며, 50% compute에서 fitting 후 나머지를 정확히 예측 가능.</li>
+  <li><strong>400,000+ GPU-hours 규모의 체계적 Ablation Study</strong>: Off-policy algorithm, loss function, FP32 precision, loss aggregation, advantage normalization, zero-variance filtering, data curriculum 등 ##주요 design axis별로 $A$와 $B$에 미치는 영향을 분리하여 분석##. Pre-training scaling law 연구에 준하는 체계적 방법론.</li>
+  <li><strong>ScaleRL — Best-Practice Recipe</strong>: PipelineRL-8 + CISPO loss + FP32 precision fix + prompt-level loss averaging + batch-level advantage normalization + zero-variance filtering + No-Positive-Resampling을 결합. ##기존 레시피(GRPO, DAPO, Magistral, MiniMax) 대비 가장 높은 $A=0.61$과 $B=1.97$##을 달성.</li>
+  <li><strong>100,000 GPU-hours 단일 Run에서 Predictable Scaling 검증</strong>: 8B dense model에서 100k GPU-hours, 17B×16 MoE에서 50k GPU-hours 학습. ##초기 fitting에서 extrapolate한 curve가 최종 성능과 정확히 일치##하여 framework의 예측력을 대규모에서 검증.</li>
+  <li><strong>다양한 Scaling Axis에서의 일반화</strong>: Batch size (512→2048), generation length (14k→32k), model scale (8B→17B×16 MoE), multi-task (math+code) 등 모든 축에서 predictable scaling을 유지.</li>
+</ol>
+
+<h2>1. Introduction — 문제 인식과 동기</h2>
+
+<h3>RL Compute의 급격한 증가</h3>
+<p>LLM의 post-training에서 RL의 비중이 폭발적으로 증가하고 있다. DeepSeek-R1-Zero는 RL에 100,000 H800 GPU-hours를 사용했으며 이는 pre-training의 3.75%에 달한다. OpenAI의 o1→o3 세대 전환에서 RL compute가 10배 이상 증가했고, xAI의 Grok-3→Grok-4에서도 유사한 도약이 있었다.</p>
+
+<p>그러나 RL compute를 어떻게 효율적으로 scaling하는지에 대한 이해는 크게 부족하다. 현재 RL 연구는 개별 알고리즘(DAPO, GSPO 등)이나 모델별 training report(Magistral, MiniMax)를 통해 ad-hoc한 개선을 제시하지만, ##어떤 방법이 compute와 함께 predictably scale하는지## 판단하는 과학적 프레임워크가 없다.</p>
+
+<h3>세 가지 핵심 원칙의 발견</h3>
+<p>400,000+ GPU-hours에 걸친 실험에서 다음 세 가지 원칙을 도출했다:</p>
+<ol>
+  <li><strong>RL Performance Ceilings are Not Universal</strong>: 서로 다른 method는 compute를 scaling해도 다른 성능 상한($A$)에 도달한다. Loss type, batch size 등의 choice가 이 상한을 shift할 수 있다.</li>
+  <li><strong>Embracing the Bitter Lesson</strong>: 소규모에서 우수해 보이는 method가 대규모에서는 열등할 수 있다. 초기 training dynamics의 $A$, $B$ 추정으로 scalable method를 조기 식별할 수 있다.</li>
+  <li><strong>Re-evaluating Common Wisdom</strong>: 성능 향상이라 여겨진 흔한 intervention(loss aggregation, advantage normalization, data curriculum, length penalty)은 주로 $B$(efficiency)를 조절할 뿐 $A$를 변화시키지 않는 경우가 많다.</li>
+</ol>
+
+<h2>2. Preliminaries & Setup</h2>
+
+<h3>2.1 Predictive Compute-Scaling Framework — Sigmoidal Fitting</h3>
+
+<p>Pre-training에서는 loss vs. compute를 power-law로 fitting하지만, RL에서는 pass rate(bounded metric, $0 \leq R \leq 1$)를 사용하므로 sigmoidal 함수가 더 적합하다:</p>
+
+$$R_C - R_0 = \underbrace{(A - R_0)}_{\text{Asymptotic Reward Gain}} \times \underbrace{\frac{1}{1 + (C_{\text{mid}}/C)^B}}_{\text{Compute Efficiency}} \quad (1)$$
+
+<p>각 파라미터의 의미:</p>
+<ul>
+  <li>$A$ ($0 \leq A \leq 1$): <strong>Asymptotic pass rate</strong> — compute를 무한히 늘렸을 때 도달하는 성능 상한. ##Design choice가 $A$를 shift하면 그 선택은 "성능 천장"을 바꾸는 근본적 변화##</li>
+  <li>$B > 0$: <strong>Scaling exponent</strong> — curve의 기울기(steepness). 높을수록 효율적으로 scaling하며, 같은 compute에서 더 빨리 $A$에 수렴</li>
+  <li>$C_{\text{mid}}$: 전체 성능 향상의 50%를 달성하는 compute 지점. 낮을수록 적은 compute로 빠르게 성능을 확보</li>
+  <li>$R_0$: 초기(SFT 후) pass rate</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: Sigmoidal curve의 파라미터 해석. 수평 점선이 $A$(asymptote), curve의 inflection point가 $C_{\text{mid}}$, 곡선의 급격함이 $B$. $A$는 "어디까지 갈 수 있는가", $B$와 $C_{\text{mid}}$는 "얼마나 효율적으로 가는가"를 결정한다.
+</blockquote>
+
+<p><strong>왜 sigmoidal인가?</strong></p>
+<ul>
+  <li>Bounded metric(pass rate, accuracy)에 대해 power-law보다 더 정확한 예측. 100k GPU-hour run에서 power-law는 $A=1.0$ (비현실적)을 예측하지만, sigmoidal은 $A=0.645$로 정확</li>
+  <li>Fitting 범위에 robust: (1.5k, 50k), (0, 100k), (0, 50k), (5k, 50k) 모두 $A=0.645$ 부근으로 수렴</li>
+  <li>High compute에서 sigmoidal ≈ power-law로 근사 가능 (Appendix A.4)</li>
+</ul>
+
+<p><strong>Fitting 방법</strong>: Grid search over $A \in \{0.450, 0.455, \ldots, 0.800\}$, $C_{\text{mid}} \in [100, 40000]$ (100 linearly separated values). 각 $(A, C_{\text{mid}})$ 조합에서 $B$를 SciPy <code>curve_fit</code>으로 fitting. Sum of squared residuals가 최소인 조합 선택. 1.5k GPU-hours 이후의 데이터만 사용 (초기 unstable regime 제외).</p>
+
+<h3>2.2 Base RL Algorithm</h3>
+
+<p>GRPO(Group Relative Policy Optimization) 변형을 baseline으로 사용. KL regularization 없이 asymmetric DAPO clipping을 포함:</p>
+
+<p>Group-normalized advantage:</p>
+$$\hat{A}_i = r_i - \text{mean}(\{r_j\}_{j=1}^G), \quad \hat{A}_i^G = \hat{A}_i / (\text{std}(\{r_j\}_{j=1}^G) + \epsilon)$$
+
+<p>Token-level IS ratio with asymmetric clipping:</p>
+$$\rho_{i,t}(\theta) := \frac{\pi_{\text{train}}^\theta(y_{i,t})}{\pi_{\text{gen}}^{\theta_{\text{old}}}(y_{i,t})}; \quad \text{clip}_{\text{asym}}(\rho, \epsilon^-, \epsilon^+) := \text{clip}(\rho, 1 - \epsilon^-, 1 + \epsilon^+) \quad (2)$$
+
+<p>Sample-level loss aggregation (per-sample token loss를 평균한 후 sample 간 평균):</p>
+$$\mathcal{J}(\theta) = \mathbb{E}_{x \sim D} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|y_i|} \sum_{t=1}^{|y_i|} \min\left(\rho_{i,t}(\theta) \hat{A}_i^G, \; \text{clip}_{\text{asym}}(\rho_{i,t}(\theta), \epsilon^-, \epsilon^+) \hat{A}_i^G \right) \right] \quad (3)$$
+
+<h3>Training Regimen</h3>
+
+<p><strong>SFT (Supervised Fine-Tuning)</strong>:</p>
+<ul>
+  <li>Curated data mix of reasoning traces (trivial prompts 제거, 12k token 초과 traces 제거)</li>
+  <li>AIME 2024/2025, MATH-500 benchmark 오염 제거(decontamination)</li>
+  <li>Batch size: 2M tokens, max sequence length: 12,288, learning rate: $3 \times 10^{-5}$</li>
+  <li>Optimizer: AdamW, 32 H100 GPU nodes, ~4 epochs, 총 32B tokens</li>
+</ul>
+
+<p><strong>RL Training</strong>:</p>
+<ul>
+  <li><strong>Domain</strong>: Math reasoning (verifiable rewards)</li>
+  <li><strong>Sequence length</strong>: 16,384 tokens (12,288 thinking + 2,048 solution + 2,048 prompt)</li>
+  <li><strong>Dataset</strong>: Polaris-53K (An et al., 2025), 1,000 prompts held out for validation (매 100 training steps마다 평가, prompt당 16 generations, mean@16 pass rate)</li>
+  <li><strong>Batch</strong>: 48 prompts × 16 generations = 768 completions per gradient update</li>
+  <li><strong>Reward</strong>: Binary ($\pm 1$) via Sympy/Math-Verify (math), code execution (code)</li>
+  <li><strong>Optimizer</strong>: AdamW, learning rate $5 \times 10^{-7}$ (constant), $\epsilon = 10^{-15}$ (gradient underflow 방지), weight decay 0.01, linear warmup 100 steps</li>
+  <li><strong>Hardware</strong>: 80 Nvidia GB200 GPUs (64 generators + 16 trainers)</li>
+  <li><strong>Compute budget</strong>: 개별 ablation 3.5k–4k GPU-hours, LOO 실험 16k GPU-hours, 대규모 run 30k–100k GPU-hours</li>
+</ul>
+
+<p><strong>Generation length 제어</strong>: <strong>Interruptions</strong>를 사용 — 과도하게 긴 reasoning을 forcibly 종료. <code>&lt;/think&gt;</code> token과 함께 "Okay, time is up. Let me stop thinking and formulate a final answer now."를 [10k, 12k] token 위치에 무작위 삽입. Length penalty 대비 ScaleRL 내에서 성능이 우수.</p>
+
+<h2>3. An Empirical Study of RL Scaling</h2>
+
+<p>8B dense model에서 다양한 design axis를 ablation하여 각각이 sigmoidal curve의 $A$와 $B$에 미치는 영향을 체계적으로 분석한다. 실험은 3단계로 구성된다:</p>
+<ol>
+  <li><strong>Forward ablations</strong> (3.5k–4k GPU-hours): Baseline에서 한 축씩 변경하여 최적 선택 식별</li>
+  <li><strong>ScaleRL 결합</strong> (16k GPU-hours): 최적 선택들을 결합, Leave-One-Out(LOO)으로 각 component의 기여도 검증</li>
+  <li><strong>Large-scale validation</strong> (30k–100k GPU-hours): Batch size, generation length, model scale, multi-task에서 predictability 확인</li>
+</ol>
+
+<h3>3.1 Asynchronous RL Setup — PipelineRL vs PPO-off-policy</h3>
+
+<p>Off-policy RL setup은 다른 모든 design choice에 독립적이므로 가장 먼저 결정한다.</p>
+
+<p><strong>PPO-off-policy-$k$</strong>: Old policy $\pi_{\text{gen}}^{\theta_{\text{old}}}$가 batch of $B$ prompts에 대해 rollout을 생성. Mini-batch $\hat{B}=48$ prompts 단위로 $k = B/\hat{B}$ gradient updates를 수행. Qwen3, ProRL 등에서 사용.</p>
+
+<p><strong>PipelineRL-$k$</strong>: Generator가 streaming 방식으로 연속 생성. Trainer가 policy update를 완료하면 즉시 generator에 push. 새 weights + stale KV cache로 생성 계속. Trainer는 generator보다 최대 $k$ steps ahead. Magistral에서 사용.</p>
+
+<blockquote>
+<strong>[Figure 4a 설명]</strong>: PipelineRL과 PPO-off-policy 비교. 두 방법은 비슷한 asymptotic performance $A=0.520$을 보이지만, PipelineRL은 $B=4.55$로 PPO-off-policy-8의 $B=2.68$보다 ##compute efficiency가 현저히 높다##. PipelineRL은 idle time을 줄여 fewer tokens으로 reliable gains를 확보.
+</blockquote>
+
+<p>PipelineRL의 off-policyness $k=8$이 최적 (Figure 4b). $k=4$는 $A$는 동일하지만 $B$가 약간 낮고, $k=12$는 $A$가 0.49로 하락. ##PipelineRL-8을 ScaleRL의 기본 off-policy setup으로 채택##.</p>
+
+<h3>3.2 Algorithmic Choices</h3>
+
+<p>PipelineRL-8 baseline 위에서 6개 algorithmic axis를 ablation:</p>
+
+<h4>(a) Loss Type — DAPO vs GSPO vs CISPO</h4>
+
+<p><strong>GSPO</strong> (Group Sequence Policy Optimization): Importance sampling을 token level이 아닌 ##sequence level##로 전환: $\rho_i(\theta) = \pi_{\text{train}}(y_i|x,\theta) / \pi_{\text{gen}}(y_i|x,\theta_{\text{old}})$.</p>
+
+<p><strong>CISPO</strong> (Clipped Importance Sampling Policy Optimization): Truncated IS + vanilla policy gradient. Stop-gradient function으로 단순화:</p>
+$$\mathcal{J}_{\text{CISPO}}(\theta) = \mathbb{E} \left[ \frac{1}{T} \sum_{i=1}^{G} \sum_{t=1}^{|y_i|} \text{sg}(\min(\rho_{i,t}, \epsilon_{\text{max}})) \hat{A}_i \log(\pi_{\text{train}}^\theta(y_{i,t} | x, y_{i,<t}, \theta)) \right] \quad (4)$$
+
+<blockquote>
+<strong>[Figure 5a 설명]</strong>: CISPO($A=0.595$, $B=2.18$)와 GSPO($A=0.590$, $B=1.80$) 모두 DAPO($A=0.520$, $B=4.55$)를 ##asymptotic performance에서 큰 차이로 상회##. CISPO가 GSPO보다 후반부에 marginally 우수하고 학습 후반까지 near-linear reward 증가를 유지.
+</blockquote>
+
+<p>##CISPO를 채택##한 이유: GSPO와 유사한 성능이지만, CISPO는 clipping ratio에 대해 훨씬 robust (Appendix A.17.2 — $\epsilon_{\text{max}} \in \{4, 5, 8\}$ 모두 유사 성능). 반면 DAPO-style loss는 $\epsilon_{\text{max}}$에 매우 민감하여 대규모 학습에서 hyperparameter tuning 부담이 크다. 또한 GSPO는 larger model(Scout MoE)에서 mid-training divergence 문제 발생.</p>
+
+<h4>(b) FP32 Precision Fix at LM Head</h4>
+
+<p>Generator(inference kernel)와 trainer(training kernel)의 수치 비정합이 IS ratio를 왜곡. LM head에서 FP32 computation을 적용하면:</p>
+
+<blockquote>
+<strong>[Figure 5b 설명]</strong>: ##$A$가 0.52에서 0.61로 극적 상승## ($B=1.79$). FP32 precision fix는 $A$를 shift하는 드문 intervention 중 하나. GRPO/DAPO-style loss에서 특히 효과적이며, CISPO/GSPO에서도 stability 향상.
+</blockquote>
+
+<h4>(c) Loss Aggregation — Sample vs Prompt vs Token Average</h4>
+<ul>
+  <li><strong>Sample average</strong> (GRPO): 각 rollout가 동등하게 기여</li>
+  <li><strong>Prompt average</strong> (DAPO): 각 prompt가 동등하게 기여 (rollout 수/길이와 무관)</li>
+  <li><strong>Token average</strong>: 모든 token을 직접 평균</li>
+</ul>
+<p>Prompt average($A=0.535$, $B=2.98$)와 token average($A=0.535$, $B=2.04$)가 sample average($A=0.520$, $B=4.55$)보다 높은 asymptotic performance 달성 (Figure 14a). Prompt average가 $B$도 우수하므로 ##Prompt-level averaging을 채택##.</p>
+
+<h4>(d) Advantage Normalization</h4>
+<ul>
+  <li><strong>Prompt level</strong> (GRPO): 같은 prompt의 rollout reward의 std로 정규화</li>
+  <li><strong>Batch level</strong>: Batch 내 전체 generation의 std로 정규화 (Reinforce++, Magistral)</li>
+  <li><strong>No normalization</strong> (Dr. GRPO): Raw reward centered by mean, variance scaling 없음</li>
+</ul>
+<p>세 방법이 유사한 $A$(prompt-level: $A=0.520$, batch-level: $A=0.530$, no-norm: $A=0.525$)를 보이지만, batch-level이 가장 높은 $A$와 이론적 soundness를 겸비. ##Batch-level advantage normalization 채택##.</p>
+
+<h4>(e) Zero-Variance Filtering</h4>
+<p>Batch 내 일부 prompt는 모든 generation이 같은 reward(accuracy 0 or 1)를 받아 advantage = 0이 된다. 이 "zero-variance" samples를 제거하고 남은 prompt만으로 effective batch를 구성하면:</p>
+
+<blockquote>
+<strong>[Figure 6a 설명]</strong>: Effective batch 사용 시 $A$가 0.52에서 0.54로, $B$가 4.55에서 2.68로 개선. Zero policy gradient를 기여하는 sample을 제거함으로써 gradient signal의 품질이 향상.
+</blockquote>
+
+<h4>(f) Adaptive Prompt Filtering — No-Positive-Resampling</h4>
+<p>History-based pass rate가 $\geq 0.9$인 prompt를 이후 epoch에서 영구 제거. 이미 mastered된 prompt가 compute를 소비하면서도 유용한 gradient signal을 제공하지 못하는 문제를 해결:</p>
+
+<blockquote>
+<strong>[Figure 6b 설명]</strong>: $A$가 0.52에서 0.535로, $B$가 4.55에서 3.85로 개선. 쉬운 문제를 걸러내어 어려운 문제에 compute를 집중시키는 효과.
+</blockquote>
+
+<h2>4. ScaleRL: Scaling RL Compute Effectively & Predictably</h2>
+
+<h3>ScaleRL Recipe 구성</h3>
+
+<p>위 ablation에서 최적 선택들을 결합한 레시피:</p>
+
+<div class="flow-diagram">ScaleRL = PipelineRL-8 (off-policy)
+       + Interruptions (generation length control)
+       + FP32 at LM Head (precision fix)
+       + CISPO Loss (truncated IS + REINFORCE)
+       + Prompt-level Loss Averaging
+       + Batch-level Advantage Normalization
+       + Zero-Variance Filtering (effective batch)
+       + No-Positive-Resampling (adaptive curriculum)</div>
+
+<p>ScaleRL의 최종 objective:</p>
+
+$$\mathcal{J}_{\text{ScaleRL}}(\theta) = \mathbb{E}_{x \sim D} \left[ \frac{1}{\sum_{g=1}^G |y_g|} \sum_{i=1}^{G} \sum_{t=1}^{|y_i|} \text{sg}(\min(\rho_{i,t}, \epsilon)) \hat{A}_i^{\text{norm}} \log \pi_{\text{train}}^\theta(y_{i,t}) \right]$$
+
+<p>여기서 $\hat{A}_i^{\text{norm}} = \hat{A}_i / \hat{A}_{\text{std}}$, 조건: $0 < \text{mean}(\{r_j\}_{j=1}^G) < 1$ (zero-variance filtering), $\text{pass\_rate}(x) < 0.9$ (No-Positive-Resampling).</p>
+
+<h3>Leave-One-Out (LOO) Ablations</h3>
+
+<p>ScaleRL에서 각 component를 하나씩 baseline으로 되돌리는 LOO 실험 (각 16k GPU-hours):</p>
+
+<blockquote>
+<strong>[Figure 7 설명]</strong>: 대부분 LOO 변형이 ScaleRL과 유사한 $A$를 보이나 efficiency($B$)에서 차이. $A$를 고정하고 power-law로 변환하면 $B$ 차이가 명확히 드러남. ScaleRL이 모든 LOO 대비 가장 높은 $B=2.01$. 특히 LOO-uniform-sampling($B=1.62$)과 LOO-batch($B=1.69$)에서 큰 efficiency 손실.
+</blockquote>
+
+<table>
+<tr><th>Method</th><th>$C_{\text{mid}}$</th><th>$B$</th><th>$A$</th></tr>
+<tr style="font-weight:bold;"><td>ScaleRL</td><td>2542</td><td>1.92</td><td>0.610</td></tr>
+<tr><td>LOO-prompt-lvl-adv-norm</td><td>2463</td><td>2.09</td><td>0.590</td></tr>
+<tr><td>LOO-length-penalty</td><td>2660</td><td>1.68</td><td>0.610</td></tr>
+<tr><td>LOO-batch</td><td>2583</td><td>1.84</td><td>0.595</td></tr>
+<tr><td>LOO-PPO-off-policy-8</td><td>3489</td><td>1.89</td><td>0.605</td></tr>
+<tr><td>LOO-no-fp32-precision-fix</td><td>2857</td><td>1.88</td><td>0.610</td></tr>
+<tr><td>LOO-sample-avg</td><td>2621</td><td>1.93</td><td>0.600</td></tr>
+<tr><td>LOO-uniform-sampling</td><td>2621</td><td>1.62</td><td>0.605</td></tr>
+<tr><td>LOO-dapo</td><td>3693</td><td>1.77</td><td>0.610</td></tr>
+</table>
+
+<p><strong>핵심 관찰</strong>: 개별 design choice가 LOO에서 큰 차이를 보이지 않더라도, 조합했을 때 ##cumulative effect로 stability, robustness, efficiency를 모두 개선##한다. 예: FP32 fix는 ScaleRL 내에서 LOO 영향이 작지만, GRPO/DAPO-style loss에서는 큰 gain을 제공하며 Scout MoE에서도 scalability 개선 (Figure 8b).</p>
+
+<h3>기존 레시피와의 비교</h3>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: ScaleRL($B=1.97$, $A=0.610$)이 MiniMax($B=1.77$, $A=0.610$), Magistral($B=1.44$, $A=0.535$), Qwen-2.5 DAPO($B=1.85$, $A=0.515$), DeepSeek GRPO($B=1.17$, $A=0.490$) 대비 ##가장 높은 $A$와 $B$를 동시 달성##. Extended training points(×)가 extrapolated curve(---)와 정확히 일치하여 predictability 검증.
+</blockquote>
+
+<p>직관적으로 말하면, ScaleRL은 "가장 높은 천장에, 가장 효율적으로" 도달하는 유일한 레시피이다. GRPO와 DAPO는 6k GPU-hours 이후 truncation으로 인해 불안정해지며, Magistral은 $A$가 상대적으로 낮다.</p>
+
+<h3>Truncation과 Training Stability</h3>
+<p>학습 중 reasoning output이 과도하게 길어지면 truncation이 발생하며, 이는 training instability의 주요 원인이다. Baseline GRPO 등은 truncation이 10~15%에 도달하면 성능이 악화되고 회복되지 않는 반면:</p>
+<ul>
+  <li><strong>8B dense</strong>: ScaleRL에서 truncation이 90% 이상의 학습 기간 동안 5% 미만 유지</li>
+  <li><strong>Batch size 2048</strong>: Truncation이 약간 높아 ~7%에 근접하나, effective batch size가 충분히 커서 stability 유지</li>
+  <li><strong>34k generation length</strong>: 초기 ~4% spike 후 빠르게 2% 이하로 감소</li>
+  <li><strong>Scout (17B×16 MoE)</strong>: ##90% 이상의 학습 기간 동안 truncation이 2% 미만##으로, 더 큰 모델의 instruction-following 능력이 interruption signal을 효과적으로 수용</li>
+</ul>
+
+<h3>Error Margin 분석</h3>
+<p>3회 독립 ScaleRL run에서 $A$의 변동 범위는 $\pm 0.015$ (Figure 8a). 즉, $A$의 차이가 0.02 이내이면 통계적으로 유의미하지 않다. $B$는 $A$에 따라 다른 error margin을 가지므로, 두 method의 $A$가 유사할 때 $B$로 efficiency를 비교하는 것이 적절.</p>
+
+<h2>5. Predictable Scaling Returns Across RL Compute Axes</h2>
+
+<p>ScaleRL의 predictable scaling이 다양한 training axis에서 유지되는지 검증한다. 방법: (i) 각 설정에서 절반 compute로 sigmoidal fit, (ii) target compute까지 extrapolate, (iii) extended training으로 예측 검증.</p>
+
+<h3>Model Scale — MoE (17B×16 Llama-4 Scout)</h3>
+<p>ScaleRL로 학습한 17B×16 MoE는:</p>
+<ul>
+  <li>8B dense와 동일한 predictable scaling behavior (low truncation rates, no instability)</li>
+  <li>$A=0.710$ (8B의 $A=0.610$ 대비 대폭 상승), $B=1.65$</li>
+  <li>##8B의 1/6 RL compute로 8B를 초월하는 성능## 달성</li>
+  <li>Extended points가 fitted curve와 정확히 일치 → model-scale invariance 확인</li>
+</ul>
+
+<h3>Generation Length (14k → 32k tokens)</h3>
+
+<blockquote>
+<strong>[Figure 9 설명]</strong>: 32k generation length는 초기에 효율이 낮지만(lower $B=1.86$ vs 14k의 $B=1.92$), ##$A$가 0.610에서 0.650으로 상승##. 충분한 compute 이후에는 14k를 초월. Long-context RL은 efficiency trade-off가 아닌 ceiling-raising knob.
+</blockquote>
+
+<p>Downstream(AIME-24)에서도 동일 패턴: 32k가 초기에 느리지만 최종적으로 14k를 상회.</p>
+
+<h3>Global Batch Size (512, 768, 2048 prompts)</h3>
+
+<blockquote>
+<strong>[Figure 10 설명]</strong>: Larger batch(2048 prompts)는 학습이 느리지만 ##$A=0.645$로 가장 높은 asymptote##에 수렴. Smaller batch(512)는 $A=0.605$. 100k GPU-hour run(bs2048)에서 extrapolated fit이 50k부터 100k까지의 trajectory를 정확히 예측.
+</blockquote>
+
+<p>Small batch의 함정: Downstream benchmark에서 early stagnation이 나타남. In-distribution validation이 개선되어도 generalization은 정체. Larger batch가 both iid와 downstream에서 안정적으로 개선.</p>
+
+<h3>Generations per Prompt (8, 16, 24, 32)</h3>
+<p>Total batch를 고정하고 generation 수를 변경하면, scaling curve는 ##거의 변하지 않음## (Appendix A.13). 이는 moderate batch에서 prompt 수와 generation 수의 allocation이 second-order effect임을 시사.</p>
+
+<h3>Multi-task RL (Math + Code)</h3>
+
+<blockquote>
+<strong>[Figure 11 설명]</strong>: Math+code 공동 학습에서 math curve($B=2.05$, $A=0.595$)와 code curve($B=1.09$, $A=0.615$) 모두 clean power-law trend를 보이며 extended run과 align. ##ScaleRL의 scalability가 single-domain을 넘어 multi-task에서도 일반화됨##을 확인.
+</blockquote>
+
+<h3>Scaling Parameters Summary (Table 1)</h3>
+
+<table>
+<tr><th>Experiment</th><th>$C_{\text{mid}}$</th><th>$B$</th><th>$A$</th></tr>
+<tr><td><strong>ScaleRL</strong> (8B, bs768, 14k)</td><td>2542</td><td>1.92</td><td>0.610</td></tr>
+<tr><td>ScaleRL-32k</td><td>11272</td><td>1.89</td><td>0.645</td></tr>
+<tr><td>ScaleRL-8gen</td><td>2542</td><td>2.44</td><td>0.585</td></tr>
+<tr><td>ScaleRL-24gen</td><td>3054</td><td>2.22</td><td>0.590</td></tr>
+<tr><td>ScaleRL-32gen</td><td>2936</td><td>2.07</td><td>0.595</td></tr>
+<tr><td><strong>ScaleRL-Scout</strong> (17B×16 MoE)</td><td>4242</td><td>1.65</td><td>0.710</td></tr>
+<tr><td>ScaleRL-bs512</td><td>2818</td><td>1.77</td><td>0.605</td></tr>
+<tr><td>ScaleRL-bs2048</td><td>10909</td><td>1.70</td><td>0.645</td></tr>
+<tr><td>ScaleRL-math+code, math</td><td>2896</td><td>2.05</td><td>0.595</td></tr>
+<tr><td>ScaleRL-math+code, code</td><td>1675</td><td>1.09</td><td>0.615</td></tr>
+</table>
+
+<h2>6. Related Work</h2>
+
+<p><strong>ProRL</strong> (Liu et al., 2025a): 1.5B model에서 16K GPU-hours의 prolonged RL. KL-regularization, policy resetting, entropy controls 등 stability heuristics에 집중. ScaleRL은 6× 더 큰 compute budget과 model scale에서 동작하며, predictive framework를 제공한다는 점에서 차별화.</p>
+
+<p><strong>Liu et al. (2025c)</strong>: Qwen-3 4B/8B에서 다양한 design choice를 ablation하여 LitePPO를 제안. ScaleRL과 상보적이지만, in-distribution iid validation에서의 scaling behavior가 아닌 downstream evaluation에 초점. Scaling 자체를 연구하지는 않음.</p>
+
+<h2>7. Discussion & Conclusion</h2>
+
+<h3>핵심 관찰</h3>
+<ul>
+  <li><strong>Compute scaling extrapolation</strong>: Smaller-scale ablation으로 larger-scale 성능을 체계적으로 예측 가능. RL 레시피 개발의 비용을 ##6배 이상 절감## (16k GPU-hours에서 ablation → 100k GPU-hours 결과 예측).</li>
+  <li><strong>Most important decisions</strong>: Off-policy algorithm, loss function, model precision이 가장 큰 영향. 나머지는 개별 효과는 작지만 combined efficiency 기여.</li>
+  <li><strong>Asymptotic performance vs. efficiency</strong>: 대부분의 ablation에서 더 나은 옵션은 $A$와 $B$ 모두를 개선하지만, FP32 fix처럼 $A$만 올리고 $B$에는 영향이 적은 경우도 있다. Forward ablation에서는 $A$ 우선, backward LOO에서는 $B$ 차이가 두드러짐.</li>
+  <li><strong>Generalization</strong>: Larger batch size, reduced truncations, longer generation length, larger model scale이 downstream generalization에 도움.</li>
+  <li><strong>Multi-task RL</strong>: Math+code 공동 학습에서도 clean parallel power-law trends 관찰. 다만 다양한 data mixture에 대한 thorough study는 향후 과제.</li>
+</ul>
+
+<h3>Future Work</h3>
+<ul>
+  <li>Pre-training compute, model size, RL training data를 아우르는 통합 "RL scaling laws" 도출</li>
+  <li>Structured/dense rewards, generative verifiers 등 다른 RL compute axis 포함</li>
+  <li>Multi-turn RL, agentic interaction, long-form reasoning에 framework 적용</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>체계성과 규모</strong>: 400,000+ GPU-hours의 체계적 실험은 RL 분야에서 전례가 없다. Pre-training scaling law 연구(Chinchilla 등)에 준하는 방법론적 엄밀성.</li>
+  <li><strong>Predictive framework의 실용성</strong>: Sigmoidal fitting으로 소규모 실험에서 대규모 결과를 예측하는 것은 연구비 효율을 크게 높인다. Curve fitting 코드도 공개.</li>
+  <li><strong>재현 가능한 레시피</strong>: ScaleRL의 모든 component가 명확히 정의되어 있고, LOO로 각 기여도를 검증.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>단일 base model 의존</strong>: 모든 ablation이 하나의 8B dense model(+ 하나의 MoE)에서 수행됨. 다른 architecture, pre-training recipe, model scale에서의 일반화는 미검증. 특히 70B+ 모델에서 동일한 design choice가 유효한지 불확실.</li>
+  <li><strong>Math-only 도메인 편향</strong>: 주요 실험이 math reasoning에 국한. Code는 multi-task 실험에서만 포함. Open-ended generation, instruction following 등 다른 RL 도메인에서의 적용성은 unknown.</li>
+  <li><strong>Binary reward 제한</strong>: $\pm 1$ verifiable reward만 사용. Dense reward, process reward, human preference 기반 RL에서 sigmoidal framework가 유효한지 불확실.</li>
+  <li><strong>Downstream generalization gap</strong>: In-distribution validation(Polaris-53K)에서의 predictable scaling이 downstream(AIME-24)으로 완전히 전이되지는 않음 (특히 small batch에서 downstream stagnation). Framework 자체가 generalization을 보장하지는 않는다.</li>
+  <li><strong>Compute 접근성</strong>: 실험에 80 GB200 GPU, 400,000+ GPU-hours가 필요하여 대부분의 학계에서 재현 불가. 논문의 세부 결과를 독립적으로 검증하기 어렵다.</li>
+  <li><strong>SFT→RL 의존성 미탐구</strong>: SFT checkpoint 품질이 RL scaling에 미치는 영향을 분석하지 않음. $R_0$의 변화가 $A$, $B$에 어떤 영향을 주는지는 중요한 open question.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>RL scaling에도 predictable law가 존재한다</strong>: Sigmoidal curve fitting으로 소규모(~8k GPU-hours)에서 대규모(100k GPU-hours) 성능을 정확히 예측 가능. 이는 RL 레시피 개발 비용을 6배 이상 절감하는 실용적 도구.</li>
+  <li><strong>$A$ (asymptote)를 올리는 design choice가 가장 중요하다</strong>: Loss type(CISPO > DAPO), FP32 precision fix, batch size 등이 $A$를 shift. Efficiency($B$)만 조절하는 intervention은 long-run에서 한계가 있다.</li>
+  <li><strong>CISPO가 DAPO/GRPO보다 scalable하다</strong>: Hyperparameter sensitivity가 낮고, large model에서 stability가 우수. RL scaling을 고려하면 ##loss function 선택이 가장 consequential한 decision 중 하나##.</li>
+  <li><strong>PipelineRL이 PPO-off-policy보다 효율적이다</strong>: Asymptote는 유사하지만 compute efficiency가 ~2배 차이. On-policy에 가까운 streaming update가 핵심.</li>
+  <li><strong>개별 intervention보다 조합의 cumulative effect가 크다</strong>: LOO에서 개별 선택의 marginal effect는 작아 보이지만, 모두 결합하면 stability, robustness, efficiency가 동시에 개선되어 100k GPU-hours 규모에서도 안정적으로 scaling.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

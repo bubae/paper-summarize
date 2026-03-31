@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ScaleRL — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #0d47a1, #1976d2, #42a5f5); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #0d47a1; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #1976d2, #42a5f5); border-radius: 3px; }
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #1976d2; }
+  .card-green { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .one-liner { background: linear-gradient(135deg, #1976d2, #42a5f5); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #1976d2, #42a5f5); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #0d47a1; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #e3f2fd; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #1976d2; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #1976d2; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #1976d2; padding: 0 0.4rem; }
+  .version-toggle { text-align: center; margin: 1.5rem 0; }
+  .version-toggle a { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #e3f2fd; color: #1976d2; border: 1px solid #90caf9; transition: all 0.2s; }
+  .version-toggle a:hover { background: #1976d2; color: #fff; }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.7rem; } .stat-row { flex-direction: column; } .step-flow { flex-direction: column; } .step-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Meta &middot; 2025</div>
+  <h1>ScaleRL</h1>
+  <p class="subtitle">AI를 더 똑똑하게 만드는 훈련에<br>"과학적 설명서"가 처음 생겼다</p>
+</div>
+
+<div class="container">
+
+<div class="version-toggle">
+  <a href="20260331_khatri_scalerl.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<div class="one-liner">
+  "GPU를 2배 더 쓰면 성능이 얼마나 오를까?"<br>
+  <span style="font-size:0.9rem; opacity:0.85;">— 이 질문에 처음으로 과학적으로 답할 수 있게 되었다</span>
+</div>
+
+<!-- ===== 배경 ===== -->
+<section>
+  <h2>먼저 알아야 할 것: AI는 어떻게 "더 똑똑해"지나?</h2>
+
+  <div class="card card-accent">
+    <p>ChatGPT 같은 AI는 두 단계를 거쳐 학습됩니다. 이 논문을 이해하려면 이 두 단계의 차이를 먼저 알아야 합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#0d47a1" text-anchor="middle">AI 학습의 두 단계</text>
+
+      <!-- Stage 1: Pre-training -->
+      <rect x="30" y="50" width="290" height="200" rx="16" fill="#f8fafc" stroke="#1976d2" stroke-width="2"/>
+      <rect x="30" y="50" width="290" height="40" rx="16" fill="#1976d2"/>
+      <rect x="30" y="78" width="290" height="12" fill="#1976d2"/>
+      <text x="175" y="76" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">1단계: Pre-training</text>
+      <text x="175" y="115" font-size="12" fill="#334155" text-anchor="middle" font-weight="600">"인터넷의 모든 글을 읽고 배우기"</text>
+      <text x="50" y="145" font-size="11" fill="#475569">수조 개의 단어를 학습</text>
+      <text x="50" y="168" font-size="11" fill="#475569">언어 이해, 문법, 일반 지식 습득</text>
+      <text x="50" y="191" font-size="11" fill="#475569">수백만 GPU-hours 소요</text>
+      <rect x="50" y="210" width="250" height="25" rx="6" fill="#e3f2fd"/>
+      <text x="175" y="227" font-size="10" fill="#1976d2" text-anchor="middle" font-weight="600">Scaling law가 이미 확립됨 (2020~)</text>
+
+      <!-- 화살표 -->
+      <text x="350" y="155" font-size="24" fill="#64748b" text-anchor="middle">&rarr;</text>
+
+      <!-- Stage 2: RL -->
+      <rect x="380" y="50" width="290" height="200" rx="16" fill="#f8fafc" stroke="#059669" stroke-width="2.5"/>
+      <rect x="380" y="50" width="290" height="40" rx="16" fill="#059669"/>
+      <rect x="380" y="78" width="290" height="12" fill="#059669"/>
+      <text x="525" y="76" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">2단계: RL (강화학습)</text>
+      <text x="525" y="115" font-size="12" fill="#334155" text-anchor="middle" font-weight="600">"문제를 풀어보고, 맞히면 보상"</text>
+      <text x="400" y="145" font-size="11" fill="#475569">수학 문제, 코딩 등 실전 연습</text>
+      <text x="400" y="168" font-size="11" fill="#475569">추론 능력, 문제해결력 향상</text>
+      <text x="400" y="191" font-size="11" fill="#475569">수만~수십만 GPU-hours</text>
+      <rect x="400" y="210" width="250" height="25" rx="6" fill="#fef2f2"/>
+      <text x="525" y="227" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">Scaling law가 없었다! (이 논문이 최초)</text>
+    </svg>
+    <div class="diagram-caption">Pre-training은 scaling law가 확립되었지만, RL은 "감"에 의존해왔다. 이 논문이 RL의 scaling law를 처음 제시</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">학교 교육의 비유</div>
+    <p><strong>Pre-training</strong>은 <strong>교과서로 공부</strong>하는 것입니다 — 지식을 쌓지만 실전 문제는 못 풀 수 있습니다.</p>
+    <br>
+    <p><strong>RL(강화학습)</strong>은 <strong>시험을 보고 채점</strong>받는 것입니다 — 맞으면 보상, 틀리면 다시 풀면서 실력이 향상됩니다.</p>
+    <br>
+    <p>Pre-training에서는 "공부 시간을 2배로 하면 성적이 얼마나 오르는지" 예측하는 공식이 있었습니다. 하지만 RL에서는 그런 공식이 없어서, "시험 연습을 얼마나 시켜야 하는지" 감으로 결정해야 했습니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#dc2626;">왜 이것이 문제인가?</h3>
+
+  <div class="card" style="border-left:5px solid #dc2626;">
+    <p>RL에 쓰이는 GPU 비용이 급격히 증가하고 있습니다:</p>
+    <ul style="margin:0.8rem 0; padding-left:1.2rem;">
+      <li>DeepSeek R1: RL에 <strong>100,000 GPU-hours</strong> 사용 (pre-training의 3.75%)</li>
+      <li>OpenAI o1 → o3: RL compute <strong>10배 이상 증가</strong></li>
+      <li>xAI Grok-3 → Grok-4: 유사한 대규모 증가</li>
+    </ul>
+    <p>이렇게 비용이 큰데, "어떤 방법이 실제로 효과가 있는지" 과학적으로 판단할 기준이 없었습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 발견 ===== -->
+<section>
+  <h2>이 논문의 핵심 발견: "RL 성능 예측 공식"</h2>
+
+  <div class="card card-accent">
+    <p>연구팀은 <strong>400,000 GPU-hours</strong>(약 수십억 원 규모) 이상의 실험을 통해, RL 성능이 compute(GPU 사용량)에 따라 <strong>S자 곡선(sigmoid)</strong>을 그린다는 것을 발견했습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#0d47a1" text-anchor="middle">RL 성능은 S자 곡선을 따른다</text>
+
+      <!-- 축 -->
+      <line x1="80" y1="300" x2="650" y2="300" stroke="#334155" stroke-width="2"/>
+      <line x1="80" y1="300" x2="80" y2="50" stroke="#334155" stroke-width="2"/>
+      <text x="365" y="340" font-size="12" fill="#475569" text-anchor="middle">GPU 사용량 (compute) →</text>
+      <text x="35" y="175" font-size="12" fill="#475569" text-anchor="middle" transform="rotate(-90, 35, 175)">AI 성능 →</text>
+
+      <!-- S자 곡선 -->
+      <path d="M100,280 Q150,275 200,270 Q280,250 350,180 Q420,110 480,85 Q540,72 600,70" stroke="#1976d2" stroke-width="3.5" fill="none"/>
+
+      <!-- Asymptote A -->
+      <line x1="80" y1="70" x2="650" y2="70" stroke="#059669" stroke-width="2" stroke-dasharray="8,4"/>
+      <text x="660" y="74" font-size="11" fill="#059669" font-weight="700">A (성능 상한)</text>
+
+      <!-- 구간 표시 -->
+      <!-- 느린 시작 -->
+      <rect x="90" y="255" width="120" height="35" rx="8" fill="#fef2f2" opacity="0.8"/>
+      <text x="150" y="275" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">느린 시작</text>
+      <text x="150" y="288" font-size="9" fill="#64748b" text-anchor="middle">학습이 잡히는 중</text>
+
+      <!-- 급격한 성장 -->
+      <rect x="260" y="140" width="140" height="35" rx="8" fill="#e3f2fd" opacity="0.9"/>
+      <text x="330" y="158" font-size="10" fill="#1976d2" text-anchor="middle" font-weight="600">급격한 성장</text>
+      <text x="330" y="171" font-size="9" fill="#64748b" text-anchor="middle">가장 효율적인 구간</text>
+
+      <!-- 포화 -->
+      <rect x="480" y="42" width="130" height="35" rx="8" fill="#f0fdf4" opacity="0.9"/>
+      <text x="545" y="60" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">포화 (saturation)</text>
+      <text x="545" y="73" font-size="9" fill="#64748b" text-anchor="middle">더 투자해도 개선 미미</text>
+
+      <!-- 핵심 메시지 -->
+      <rect x="120" y="95" width="250" height="55" rx="10" fill="#fff" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="245" y="115" font-size="11" fill="#1976d2" text-anchor="middle" font-weight="700">이 곡선의 핵심 파라미터</text>
+      <text x="245" y="133" font-size="10" fill="#334155" text-anchor="middle">A = 성능 상한 (얼마나 똑똑해질 수 있나)</text>
+      <text x="245" y="146" font-size="10" fill="#334155" text-anchor="middle">B = 효율 (얼마나 빨리 똑똑해지나)</text>
+    </svg>
+    <div class="diagram-caption">RL 성능은 처음에 천천히 오르다가, 급격히 성장하고, 결국 상한(A)에 수렴하는 S자 곡선을 따른다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">운동 실력의 비유</div>
+    <p>마라톤 훈련을 생각해 보세요. 처음에는 별로 빨라지지 않고(느린 시작), 중간에 급격히 기록이 줄고(급격한 성장), 결국 자신의 체력적 한계(A)에 수렴합니다.</p>
+    <br>
+    <p>이 논문의 공식은 <strong>"훈련 시간에 따른 마라톤 기록 변화"를 예측하는 것</strong>과 같습니다. 소규모 훈련 데이터만으로 대규모 훈련의 결과를 미리 알 수 있습니다.</p>
+  </div>
+
+  <p style="margin-top:1.5rem;"><strong>이것이 왜 혁신인가?</strong></p>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">6x</div>
+      <div class="label">비용 절감<br>소규모로 대규모 예측</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">50%</div>
+      <div class="label">compute로 fitting<br>나머지 정확히 예측</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">400K+</div>
+      <div class="label">GPU-hours<br>검증 실험 규모</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== ScaleRL ===== -->
+<section>
+  <h2>ScaleRL: 최적의 "AI 훈련 레시피"</h2>
+
+  <div class="card card-accent">
+    <p>S자 곡선 프레임워크를 사용해 다양한 훈련 방법을 체계적으로 비교한 후, 가장 좋은 선택들만 모아 만든 <strong>최적의 RL 레시피</strong>가 ScaleRL입니다.</p>
+  </div>
+
+  <h3 style="margin-top:1.5rem; font-size:1.1rem;">연구팀이 테스트한 선택지들</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#0d47a1" text-anchor="middle">ScaleRL을 찾기까지: 6가지 설계 선택 최적화</text>
+
+      <!-- 6개 설계 축 -->
+      <rect x="20" y="45" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="120" y="68" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">훈련 방식</text>
+      <text x="120" y="87" font-size="10" fill="#dc2626" text-anchor="middle">PPO-off-policy ✗</text>
+      <text x="120" y="103" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">PipelineRL ✓</text>
+      <text x="120" y="118" font-size="9" fill="#64748b" text-anchor="middle">효율 2배 차이!</text>
+
+      <rect x="250" y="45" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="350" y="68" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">손실 함수</text>
+      <text x="350" y="87" font-size="10" fill="#dc2626" text-anchor="middle">DAPO/GRPO ✗</text>
+      <text x="350" y="103" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">CISPO ✓</text>
+      <text x="350" y="118" font-size="9" fill="#64748b" text-anchor="middle">성능 상한 17% 상승</text>
+
+      <rect x="480" y="45" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="580" y="68" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">숫자 정밀도</text>
+      <text x="580" y="87" font-size="10" fill="#dc2626" text-anchor="middle">기본 설정 ✗</text>
+      <text x="580" y="103" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">FP32 정밀도 ✓</text>
+      <text x="580" y="118" font-size="9" fill="#64748b" text-anchor="middle">성능 상한 0.52→0.61</text>
+
+      <rect x="20" y="145" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="120" y="168" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">손실 계산 방식</text>
+      <text x="120" y="187" font-size="10" fill="#dc2626" text-anchor="middle">Sample average ✗</text>
+      <text x="120" y="203" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">Prompt average ✓</text>
+
+      <rect x="250" y="145" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="350" y="168" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">데이터 필터링</text>
+      <text x="350" y="187" font-size="10" fill="#dc2626" text-anchor="middle">전체 사용 ✗</text>
+      <text x="350" y="203" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">쉬운 문제 제거 ✓</text>
+      <text x="350" y="218" font-size="9" fill="#64748b" text-anchor="middle">어려운 문제에 집중</text>
+
+      <rect x="480" y="145" width="200" height="80" rx="12" fill="#f8fafc" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="580" y="168" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">무효 데이터 처리</text>
+      <text x="580" y="187" font-size="10" fill="#dc2626" text-anchor="middle">그대로 포함 ✗</text>
+      <text x="580" y="203" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">제거 (Zero-Var) ✓</text>
+
+      <!-- 결합 화살표 -->
+      <text x="350" y="260" font-size="20" fill="#1976d2" text-anchor="middle">↓ 최적 선택들을 결합</text>
+
+      <rect x="200" y="275" width="300" height="40" rx="12" fill="#1976d2"/>
+      <text x="350" y="300" font-size="16" fill="#fff" text-anchor="middle" font-weight="900">ScaleRL</text>
+    </svg>
+    <div class="diagram-caption">6가지 설계 축에서 각각 최적의 선택을 체계적으로 식별한 후 결합</div>
+  </div>
+</section>
+
+<!-- ===== 성과 ===== -->
+<section>
+  <h2>핵심 성과: 숫자로 보기</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">100K</div>
+      <div class="label">GPU-hours<br>단일 학습에서 안정 동작</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">A=0.61</div>
+      <div class="label">최고 성능 상한<br>기존 대비 +24%</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">B=1.97</div>
+      <div class="label">최고 효율<br>기존 대비 +12%</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">5종</div>
+      <div class="label">기존 레시피<br>모두 상회</div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">기존 유명 AI 회사들의 훈련 방법과 비교</h3>
+  </div>
+
+  <table class="comp-table">
+    <tr>
+      <th>훈련 레시피</th>
+      <th>성능 상한 (A)</th>
+      <th>효율 (B)</th>
+      <th>안정성</th>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>ScaleRL (이 논문)</strong></td>
+      <td style="color:#059669; font-weight:900;">0.610</td>
+      <td style="color:#059669; font-weight:900;">1.97</td>
+      <td style="color:#059669;">100K GPU-hr 안정</td>
+    </tr>
+    <tr>
+      <td>MiniMax-M1</td>
+      <td>0.610</td>
+      <td>1.77</td>
+      <td>보통</td>
+    </tr>
+    <tr>
+      <td>Magistral</td>
+      <td>0.535</td>
+      <td>1.44</td>
+      <td>보통</td>
+    </tr>
+    <tr>
+      <td>Qwen-2.5 (DAPO)</td>
+      <td>0.515</td>
+      <td>1.85</td>
+      <td>6K GPU-hr 이후 불안정</td>
+    </tr>
+    <tr>
+      <td>DeepSeek (GRPO)</td>
+      <td>0.490</td>
+      <td>1.17</td>
+      <td>6K GPU-hr 이후 불안정</td>
+    </tr>
+  </table>
+
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">예측이 실제와 일치한다!</h3>
+    <p>ScaleRL의 가장 인상적인 성과: <strong>초기 학습(~50K GPU-hours)에서 맞춘 예측 곡선이, 나머지 50K~100K GPU-hours의 실제 결과와 정확히 일치</strong>합니다. 이는 불확실성 가득한 RL 분야에서 이전에는 불가능했던 예측력입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 3가지 핵심 교훈 ===== -->
+<section>
+  <h2>이 연구에서 배우는 세 가지 교훈</h2>
+
+  <div class="card" style="border-left:5px solid #7c3aed;">
+    <h3 style="color:#7c3aed; margin-bottom:0.5rem;">교훈 1: "성능 천장"은 방법마다 다르다</h3>
+    <p>GPU를 아무리 많이 써도, 잘못된 훈련 방법을 쓰면 특정 성능 이상으로 올라갈 수 없습니다. 방법을 바꿔야 천장이 올라갑니다.</p>
+  </div>
+
+  <div class="card" style="border-left:5px solid #d97706;">
+    <h3 style="color:#d97706; margin-bottom:0.5rem;">교훈 2: "초반에 잘하는 방법"이 최종 승자가 아닐 수 있다</h3>
+    <p>적은 GPU에서 좋아 보이는 방법이 많은 GPU에서는 오히려 뒤처질 수 있습니다. 작은 실험만으로 판단하면 잘못된 선택을 할 수 있지만, S자 곡선 분석으로 이를 조기에 구별할 수 있습니다.</p>
+  </div>
+
+  <div class="card" style="border-left:5px solid #059669;">
+    <h3 style="color:#059669; margin-bottom:0.5rem;">교훈 3: "흔한 개선법"은 대부분 "효율"만 바꾼다</h3>
+    <p>일반적으로 알려진 많은 최적화 트릭은 성능 천장(A)을 올리지 않고, 그 천장에 빨리 도달하는 속도(B)만 조절합니다. 진짜 중요한 것은 천장 자체를 올리는 선택(손실 함수, 정밀도 등)입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 확장성 ===== -->
+<section>
+  <h2>더 큰 모델, 더 어려운 문제에도 적용 가능</h2>
+
+  <div class="card card-green">
+    <p>ScaleRL의 예측 가능한 scaling은 다양한 조건에서 유지됩니다:</p>
+  </div>
+
+  <table class="comp-table">
+    <tr>
+      <th>조건 변화</th>
+      <th>결과</th>
+    </tr>
+    <tr>
+      <td><strong>모델 크기: 8B → 17B×16 MoE</strong></td>
+      <td>성능 상한 A: 0.61 → 0.71, 예측 정확</td>
+    </tr>
+    <tr>
+      <td><strong>사고 시간: 14K → 32K 토큰</strong></td>
+      <td>A: 0.61 → 0.65 (더 오래 생각 = 더 똑똑)</td>
+    </tr>
+    <tr>
+      <td><strong>배치 크기: 512 → 2048</strong></td>
+      <td>A: 0.605 → 0.645, 안정성 크게 향상</td>
+    </tr>
+    <tr>
+      <td><strong>과목: 수학 → 수학+코딩</strong></td>
+      <td>두 과목 모두 예측 가능한 S자 곡선 유지</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<div class="one-liner" style="margin-bottom:2rem;">
+  ScaleRL = <strong>과학적 예측</strong> + <strong>최적 레시피</strong> + <strong>100K GPU-hr 검증</strong><br>
+  <span style="font-size:0.9rem; opacity:0.8;">Meta가 RL 학습의 "scaling law"를 처음 확립하다</span>
+</div>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>참고: 한계점과 현실적 고려사항</h2>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem;">수학 문제에 치우친 실험</h3>
+    <p>대부분의 실험이 <strong>수학 문제 풀기</strong>에서만 수행되었습니다. 글쓰기, 대화, 번역 등 다른 종류의 AI 과제에서 동일한 결론이 적용되는지는 확인되지 않았습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem;">재현하기 어려운 규모</h3>
+    <p>실험에 <strong>80대의 최신 GPU(GB200)</strong>와 40만+ GPU-hours가 필요합니다. 대부분의 대학이나 기업이 독립적으로 검증하기 어려운 규모입니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem;">"맞다/틀리다" 보상에만 적용</h3>
+    <p>수학과 코딩은 정답이 명확하여 ±1 보상을 줄 수 있지만, 현실의 많은 AI 과제(대화 품질, 창의성 등)에서는 보상 정의가 모호합니다. 이런 환경에서 S자 곡선이 유효한지는 미검증입니다.</p>
+  </div>
+
+  <div class="card" style="border-left:5px solid #1976d2; background:linear-gradient(135deg, #f8fafc, #e3f2fd);">
+    <h3 style="color:#0d47a1; margin-bottom:0.5rem;">균형 잡힌 시각</h3>
+    <p>이 논문은 <strong>RL 학습에 과학적 방법론을 도입</strong>한 최초의 대규모 시도로서 명확한 가치가 있습니다. Pre-training scaling law가 GPT-4, Claude 등의 발전을 이끌었듯, RL scaling law는 향후 AI의 추론 능력 향상의 로드맵이 될 수 있습니다. 다만, 현재는 수학/코딩이라는 좁은 영역에서의 발견이므로 일반화에는 추가 연구가 필요합니다.</p>
+  </div>
+</section>
+
+<div class="version-toggle" style="margin-bottom:2rem;">
+  <a href="20260331_khatri_scalerl.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+</div>
+
+<div class="footer">
+  The Art of Scaling Reinforcement Learning Compute for LLMs (Khatri et al., 2025) &middot; Meta, UT Austin, UCL, UC Berkeley, Harvard, Periodic Labs &middot; 개요 브리핑 자료
+</div>
+
+</body>
+</html>

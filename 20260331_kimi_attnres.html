@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention Residuals</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Attention Residuals</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260331_kimi_attnres_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Kimi Team</li>
+  <li><strong>소속</strong>: Moonshot AI (Kimi)</li>
+  <li><strong>학회/저널</strong>: Technical Report (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.15031">arXiv:2603.15031</a> · <a href="https://github.com/MoonshotAI/Attention-Residuals">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Standard residual connection은 모든 이전 layer 출력을 fixed unit weight로 균등하게 합산하여 hidden state를 누적한다. 이는 PreNorm과 결합될 때 hidden-state magnitude가 $O(L)$로 증가하는 "PreNorm dilution" 문제를 초래하여, 각 layer의 상대적 기여가 깊은 layer일수록 희석되고, 초기 layer 정보가 irreversibly 매몰된다.</li>
+  <li><strong>해결</strong>: Attention Residuals (AttnRes) — fixed unit coefficient 대신 learned softmax attention을 depth 방향으로 적용. 각 layer가 단일 pseudo-query vector $\mathbf{w}_l$를 사용하여 이전 모든 layer 출력에 selective, input-dependent attention을 수행. Scalability를 위해 Block AttnRes를 제안: $L$개 layer를 $N$개 block으로 그룹화하여 memory/communication을 $O(Ld) \to O(Nd)$로 감축.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Sequence dimension에서 RNN→Attention 전환이 성공했듯, depth dimension에서도 고정 recurrence→attention 전환이 효과적 (sequence-depth duality). (2) Softmax attention의 competitive normalization이 각 layer의 상대적 기여를 dynamic하게 조절하여 PreNorm dilution을 완화. (3) Block-level compression이 implicit regularization 역할을 하면서도 essential information pathway를 보존.</li>
+  <li><strong>비유</strong>: Standard residual이 "모든 직원의 보고서를 한 더미에 쌓아두는 것"이라면, AttnRes는 "매니저가 필요한 보고서만 골라 읽는 것"이다. Block AttnRes는 "부서별 요약보고서를 만들어두고, 매니저가 부서 요약 중 필요한 것만 선택적으로 참조하는 것"이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Attention Residuals (AttnRes)</strong>: ##Fixed residual accumulation을 learned softmax attention over depth로 대체##. Layer당 단일 pseudo-query $\mathbf{w}_l \in \mathbb{R}^d$만 추가하여 parameter overhead 최소화. Structured-matrix 분석을 통해 standard residual은 depth-wise linear attention, AttnRes는 depth-wise softmax attention임을 형식화.</li>
+  <li><strong>Block AttnRes — Scalable 변형</strong>: $L$ layer를 $N$ block으로 partition하여 intra-block은 standard sum, inter-block은 attention. Memory/communication overhead를 ##$O(Ld)$에서 $O(Nd)$로 감축##. $N \approx 8$이면 Full AttnRes gain의 대부분 회수.</li>
+  <li><strong>Infrastructure for Scale</strong>: Cross-stage caching (pipeline parallelism에서 redundant block transmission 제거), two-phase inference (Phase 1: batched inter-block attention, Phase 2: sequential intra-block + online softmax merge). Training overhead < 4%, ##inference latency overhead < 2%##.</li>
+  <li><strong>Kimi Linear 48B 통합 및 1.4T 토큰 Pre-training</strong>: 48B total / 3B activated MoE에 Block AttnRes 적용. PreNorm dilution 완화로 bounded output magnitude와 uniform gradient distribution 달성. ##모든 downstream benchmark에서 baseline 대비 개선##.</li>
+</ol>
+
+<h2>2. Motivation — Standard Residual의 한계</h2>
+
+<h3>2.1 Residual Connection의 역할과 문제</h3>
+
+<p>Standard residual: $\mathbf{h}_l = \mathbf{h}_{l-1} + f_{l-1}(\mathbf{h}_{l-1})$를 unroll하면:</p>
+$$\mathbf{h}_l = \mathbf{h}_1 + \sum_{i=1}^{l-1} f_i(\mathbf{h}_i)$$
+
+<p>즉, layer $l$에 도달하는 hidden state는 embedding $\mathbf{h}_1$과 모든 이전 layer 출력 $f_i(\mathbf{h}_i)$의 ##동일한 가중치(1)## 합산이다. 이는 gradient highway로서 중요하지만 세 가지 근본적 한계가 있다:</p>
+
+<ol>
+  <li><strong>No selective access</strong>: Attention과 MLP는 서로 다른 정보를 필요로 하지만, 같은 compressed state $\mathbf{h}_{l-1}$만 받는다</li>
+  <li><strong>Irreversible loss</strong>: Aggregation 과정에서 잃어버린 정보를 이후 layer에서 복구할 수 없다</li>
+  <li><strong>Output growth (PreNorm dilution)</strong>: $\|\mathbf{h}_l\|$이 $O(L)$로 증가하여, PreNorm 적용 시 ##각 layer의 normalized input이 점점 작아지고##, deeper layer는 점점 더 큰 출력을 학습해야 영향력을 유지할 수 있다</li>
+</ol>
+
+<h3>Generalizing Residuals: Highway Networks</h3>
+<p>Highway network: $\mathbf{h}_l = (1 - \mathbf{g}_l) \odot \mathbf{h}_{l-1} + \mathbf{g}_l \odot f_{l-1}(\mathbf{h}_{l-1})$. Element-wise gate $\mathbf{g}_l \in [0,1]^d$로 transformation과 identity path 사이를 interpolation. 그러나 여전히 ##immediate predecessor $\mathbf{h}_{l-1}$만 접근 가능## (single-state recurrence).</p>
+
+<h2>3. Attention Residuals: A Unified View of Time and Depth</h2>
+
+<h3>Sequence-Depth Duality</h3>
+<p>핵심 관찰: Residual connection이 depth 방향으로 정보를 전파하는 방식은 RNN이 sequence 방향으로 정보를 전파하는 방식과 구조적으로 동일하다. Transformer가 sequence dimension에서 RNN의 recurrence를 attention으로 대체하여 성공했듯이, ##depth dimension에서도 동일한 전환(recurrence → attention)##을 적용하자는 것이 AttnRes의 핵심 아이디어.</p>
+
+<h3>3.1 Full Attention Residuals</h3>
+
+<p>AttnRes에서 layer $l$의 입력은:</p>
+$$\mathbf{h}_l = \alpha_{0 \to l} \cdot \mathbf{h}_1 + \sum_{i=1}^{l-1} \alpha_{i \to l} \cdot f_i(\mathbf{h}_i) \quad (1)$$
+
+<p>Attention weight는 kernel function $\phi$로 계산:</p>
+$$\alpha_{i \to l} = \frac{\phi(\mathbf{q}_l, \mathbf{k}_i)}{\sum_{j=0}^{l-1} \phi(\mathbf{q}_l, \mathbf{k}_j)} \quad (2)$$
+
+<p>여기서 $\phi(\mathbf{q}, \mathbf{k}) = \exp(\mathbf{q}^\top \text{RMSNorm}(\mathbf{k}))$ (softmax attention over depth). Query와 Key/Value는:</p>
+$$\mathbf{q}_l = \mathbf{w}_l, \quad \mathbf{k}_i = \mathbf{v}_i = \begin{cases} \mathbf{h}_1 & i=0 \\ f_i(\mathbf{h}_i) & 1 \leq i \leq l-1 \end{cases} \quad (3)$$
+
+<p>최종적으로:</p>
+$$\mathbf{h}_l = \sum_{i=0}^{l-1} \alpha_{i \to l} \cdot \mathbf{v}_i \quad (4)$$
+
+<p><strong>설계 선택의 근거</strong>:</p>
+<ul>
+  <li><strong>Pseudo-query $\mathbf{w}_l$</strong>: Layer별 learnable parameter. Input-dependent query($\mathbf{h}_l$를 project)도 가능하지만, inference 시 sequential memory access가 필요하여 기본 설정에서는 learned vector 사용</li>
+  <li><strong>RMSNorm on keys</strong>: Layer 출력의 magnitude 차이가 attention weight를 bias하는 것을 방지. Full AttnRes보다 ##Block AttnRes에서 더 critical## (block sum이 더 큰 magnitude 차이를 초래)</li>
+  <li><strong>$O(L^2 d)$ computation, $O(Ld)$ memory</strong>: Depth $L$이 sequence length보다 훨씬 작으므로(< 1000) 실질적으로 feasible</li>
+</ul>
+
+<p><strong>Overhead 분석</strong>: Vanilla training에서는 backpropagation을 위해 activation이 이미 저장되므로 추가 memory 불필요. 그러나 activation recomputation + pipeline parallelism 사용 시 $O(Ld)$ 추가 memory/communication이 발생 → Block AttnRes 필요성.</p>
+
+<h3>3.2 Block Attention Residuals</h3>
+
+<p>$L$ layer를 $N$ block으로 partition (각 block size $S = L/N$):</p>
+
+<p><strong>Intra-block accumulation</strong>: Block $n$ 내 layer 출력을 단순 합산:</p>
+$$\mathbf{b}_n = \sum_{j \in \mathcal{B}_n} f_j(\mathbf{h}_j) \quad (5)$$
+
+<p>$\mathbf{b}_n^i$는 block $n$ 내 처음 $i$개 layer의 partial sum.</p>
+
+<p><strong>Inter-block attention</strong>: Block $n$의 $i$-th layer에 대한 value matrix:</p>
+$$\mathbf{V} = \begin{cases} [\mathbf{b}_0, \mathbf{b}_1, \ldots, \mathbf{b}_{n-1}]^\top & \text{if } i=1 \text{ (block 첫 layer)} \\ [\mathbf{b}_0, \mathbf{b}_1, \ldots, \mathbf{b}_{n-1}, \mathbf{b}_n^{i-1}]^\top & \text{if } i \geq 2 \text{ (이후 layers)} \end{cases} \quad (6)$$
+
+<p>직관적으로 말하면, ##각 layer는 이전 완료된 block의 "요약"과 현재 block의 partial sum에 대해 attention##을 수행한다. Token embedding $\mathbf{b}_0 = \mathbf{h}_1$도 항상 포함.</p>
+
+<p><strong>Efficiency</strong>:</p>
+<ul>
+  <li>Memory: $O(L) \to O(N)$ (stored representations)</li>
+  <li>Computation: $O(L^2) \to O(N^2)$ (attention computation)</li>
+  <li>$N=L$이면 Full AttnRes, $N=1$이면 standard residual로 환원</li>
+  <li>##$N \approx 8$이면 Full AttnRes 성능의 대부분 회수## (Figure 6)</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: PyTorch pseudo code. <code>block_attn_res</code>는 block representations에 대한 softmax attention을 수행. <code>forward</code>는 single layer pass로, attention → (block boundary 체크) → MLP 순서로 처리. Block boundary에서 새 block을 시작하고 partial_block을 리셋.
+</blockquote>
+
+<h2>4. Infrastructure Design</h2>
+
+<h3>4.1 Training — Pipeline Communication 최적화</h3>
+
+<p><strong>문제</strong>: Standard residual에서는 pipeline stage 간 고정 크기 hidden state만 전송. Block AttnRes에서는 축적된 block representations를 전송해야 하므로 naive하게는 $O(C^2 N_p d)$ communication 발생 ($C$: total chunks).</p>
+
+<p><strong>Cross-stage caching</strong>: 각 physical stage가 이전 virtual stage에서 받은 block을 local memory에 cache. 이후 transition에서는 ##incremental blocks만 전송##:</p>
+
+$$\text{Comm}_{\text{cached}} = \frac{P(P-1)}{2} N_p d + (V-1) P^2 N_p d \quad (8)$$
+
+<p>이전 대비 peak per-transition cost가 $O(C) \to O(P)$로 감소 ($V$배 개선). 실측 training overhead: pipeline parallelism 하에서 < 4%.</p>
+
+<h3>4.2 Inference — Two-Phase Computation</h3>
+
+<p><strong>Algorithm 1</strong>: Block $n$에 대한 two-phase computation:</p>
+
+<p><strong>Phase 1 (Parallel inter-block attention)</strong>: Block 내 모든 $S$ layer의 pseudo-query를 batch하여 cached block representations에 대해 한 번에 attention 수행. Memory access를 $S$회에서 ##1회로 amortize##.</p>
+
+<p><strong>Phase 2 (Sequential intra-block attention + online softmax merge)</strong>: 각 layer에서 evolving partial sum $\mathbf{b}_n^i$에 대한 intra-block attention을 계산하고, Phase 1 결과와 online softmax merge (Milakov & Gimelshein, 2018). Kernel fusion으로 추가 I/O 최소화.</p>
+
+<p><strong>Memory access cost 분석 (Table 1)</strong>:</p>
+<table>
+<tr><th>Scheme</th><th>Total I/O (symbolic)</th><th>Typical ($L=128, N=8, S=16$)</th></tr>
+<tr><td>Standard Residuals</td><td>$3d$</td><td>$3d$</td></tr>
+<tr><td>mHC ($m=4$ streams)</td><td>$(8m+2)d + 2m^2 + 4m$</td><td>$34d$</td></tr>
+<tr><td>Full AttnRes</td><td>$(S+N)d$</td><td>$24d$</td></tr>
+<tr><td><strong>Block AttnRes</strong></td><td>$(\frac{N}{S}+5)d$</td><td><strong>$5.5d$</strong></td></tr>
+</table>
+
+<p>##Block AttnRes의 inference I/O는 standard residual의 약 1.8배##에 불과하며, mHC의 1/6 수준. End-to-end inference latency overhead < 2%.</p>
+
+<h3>Memory-efficient prefilling</h3>
+<p>128K-token 시퀀스에서 block representations 저장에 15GB 필요. Sequence sharding으로 $P$ tensor-parallel devices에 분산: per-device memory $N \cdot (T/P) \cdot d$. 128K context 예시에서 15GB → 1.9GB/device. Chunked prefill(16K chunk)과 결합하면 0.3GB/device 이하.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>Architecture</h3>
+<p>Kimi Linear 아키텍처 (Moonlight/DeepSeek-V3 기반 MoE Transformer): KDA (Kimi Delta Attention)와 MLA (Multi-head Latent Attention) 3:1 interleave, 각 뒤에 MoE feed-forward layer. ##유일한 수정: residual connection에 AttnRes 추가## (model depth, hidden dim, expert routing, MLP 구조 모두 동일). Layer당 RMSNorm 1개 + pseudo-query $\mathbf{w}_l \in \mathbb{R}^d$ 1개 추가 (전체 parameter 대비 negligible). 초기화: 모든 $\mathbf{w}_l = \mathbf{0}$ → 초기 attention weight 균등, training volatility 방지.</p>
+
+<h3>5.1 Scaling Laws</h3>
+
+<p>5개 model size (194M~528M activated params)에서 PreNorm baseline, Full AttnRes, Block AttnRes($N \approx 8$) 비교. 8192 context, cosine lr schedule.</p>
+
+<p><strong>Scaling curves</strong> (Figure 4): Power-law fitting $\mathcal{L} = A \times C^{-\alpha}$:</p>
+<ul>
+  <li>Baseline: $\mathcal{L} = 1.891 \times C^{-0.057}$</li>
+  <li>Block AttnRes: $\mathcal{L} = 1.870 \times C^{-0.058}$</li>
+  <li>Full AttnRes: $\mathcal{L} = 1.865 \times C^{-0.057}$</li>
+</ul>
+
+<p>세 variant 모두 유사한 slope(exponent)이지만 ##AttnRes가 전 compute 범위에서 consistently lower loss##. 5.6 PFLOP/s-days에서 Block AttnRes loss 1.692 vs Baseline 1.714 → ##$1.25\times$ compute advantage##. Full과 Block의 gap은 scale이 커질수록 축소 (최대 size에서 0.001 차이).</p>
+
+<h4>Scaling Law 상세 결과 (Table 2)</h4>
+<table>
+<tr><th># Act. Params</th><th>Tokens</th><th>Baseline</th><th>Block AttnRes</th><th>Full AttnRes</th></tr>
+<tr><td>194M</td><td>38.7B</td><td>1.931</td><td>1.909</td><td><strong>1.899</strong></td></tr>
+<tr><td>241M</td><td>45.4B</td><td>1.895</td><td>1.875</td><td><strong>1.874</strong></td></tr>
+<tr><td>296M</td><td>62.1B</td><td>1.829</td><td>1.809</td><td><strong>1.804</strong></td></tr>
+<tr><td>436M</td><td>87.9B</td><td>1.766</td><td>1.746</td><td><strong>1.737</strong></td></tr>
+<tr><td>528M</td><td>119.0B</td><td>1.719</td><td>1.693</td><td><strong>1.692</strong></td></tr>
+</table>
+
+<p>모든 scale에서 AttnRes가 baseline을 상회하며, model size가 커질수록 Block과 Full의 gap이 축소되어 528M에서 0.001 차이로 수렴. 이는 $N \approx 8$ blocks가 실질적으로 충분함을 시사한다.</p>
+
+<h3>5.2 Main Results — Kimi Linear 48B (3B activated)</h3>
+
+<p><strong>Model</strong>: 27 Transformer blocks (54 layers), 8 out of 256 routed experts + 1 shared expert. Block AttnRes with 6 layers/block → 9 blocks + token embedding = 10 depth-wise sources.</p>
+
+<p><strong>Training</strong>: Kimi Linear 1.4T-token recipe를 동일하게 따른다. 4096 context window, Muon optimizer, WSD (Warmup–Stable–Decay) lr schedule, global batch size 8M tokens. (i) WSD pre-training on 1T tokens, (ii) mid-training on ~400B high-quality tokens (Moonlight annealing recipe), (iii) long-context extension to 32K tokens. MLA는 NoPE (No Positional Encoding)를 사용하므로 YaRN이나 attention temperature rescaling 없이 context extension 가능.</p>
+
+<h4>Training Dynamics (Figure 5)</h4>
+<ul>
+  <li><strong>Validation loss</strong>: AttnRes가 전 학습 과정에서 consistently lower. Decay phase에서 gap 확대, 최종 loss 개선.</li>
+  <li><strong>Output magnitude</strong>: Baseline은 depth에 따라 monotonically 증가 (PreNorm dilution). ##Block AttnRes는 block boundary에서 reset되어 bounded periodic pattern## 유지.</li>
+  <li><strong>Gradient magnitude</strong>: Baseline은 earliest layers에 disproportionately large gradient. AttnRes는 learnable softmax weight가 source 간 competition을 도입하여 ##substantially more uniform gradient distribution##.</li>
+</ul>
+
+<h4>Downstream Performance (Table 3)</h4>
+
+<table>
+<tr><th>Category</th><th>Benchmark</th><th>Baseline</th><th>AttnRes</th></tr>
+<tr><td rowspan="7">General</td><td>MMLU</td><td>73.5</td><td><strong>74.6</strong></td></tr>
+<tr><td>MMLU-Pro</td><td><strong>52.2</strong></td><td><strong>52.2</strong></td></tr>
+<tr><td>GPQA-Diamond</td><td>36.9</td><td><strong>44.4</strong></td></tr>
+<tr><td>BBH</td><td>76.3</td><td><strong>78.0</strong></td></tr>
+<tr><td>ARC-Challenge</td><td>64.6</td><td><strong>65.7</strong></td></tr>
+<tr><td>HellaSwag</td><td>83.2</td><td><strong>83.4</strong></td></tr>
+<tr><td>TriviaQA</td><td>69.9</td><td><strong>71.8</strong></td></tr>
+<tr><td rowspan="6">Math & Code</td><td>GSM8K</td><td>81.7</td><td><strong>82.4</strong></td></tr>
+<tr><td>MGSM</td><td>64.9</td><td><strong>66.1</strong></td></tr>
+<tr><td>Math</td><td>53.5</td><td><strong>57.1</strong></td></tr>
+<tr><td>CMath</td><td>84.7</td><td><strong>85.1</strong></td></tr>
+<tr><td>HumanEval</td><td>59.1</td><td><strong>62.2</strong></td></tr>
+<tr><td>MBPP</td><td>72.0</td><td><strong>73.9</strong></td></tr>
+<tr><td rowspan="2">Chinese</td><td>CMMLU</td><td>82.0</td><td><strong>82.9</strong></td></tr>
+<tr><td>C-Eval</td><td>79.6</td><td><strong>82.5</strong></td></tr>
+</table>
+
+<p>##모든 benchmark에서 match 또는 outperform##. Multi-step reasoning에서 특히 큰 개선: GPQA-Diamond +7.5, Math +3.6, HumanEval +3.1. "Improved depth-wise information flow가 compositional tasks에서 later layers가 earlier representations를 selective하게 retrieve하는 데 유리"하다는 가설과 일치.</p>
+
+<h3>5.3 Ablation Study (16-layer model)</h3>
+
+<h4>기존 방법과의 비교 (Table 4)</h4>
+<table>
+<tr><th>Variant</th><th>Loss</th></tr>
+<tr><td>Baseline (PreNorm)</td><td>1.766</td></tr>
+<tr><td>DenseFormer</td><td>1.767 (gain 없음)</td></tr>
+<tr><td>mHC</td><td>1.747</td></tr>
+<tr><td><strong>Full AttnRes</strong></td><td><strong>1.737</strong></td></tr>
+<tr><td><strong>Block AttnRes ($S=4$)</strong></td><td><strong>1.746</strong></td></tr>
+</table>
+
+<p>DenseFormer는 cross-layer access를 제공하지만 fixed scalar coefficients → gain 없음 (1.767, baseline과 동일). mHC는 learned mixing matrices로 1.747. AttnRes는 ##explicit content-dependent softmax attention##으로 두 방법 모두 상회. 단일 query vector만으로 이 성능을 달성한 것이 주목할 점.</p>
+
+<h4>Cross-layer Access 비교</h4>
+<p>SWA (Sliding Window Aggregation, $W = 1 + 8$): 최근 8개 layer + embedding만 참조. Loss 1.764로 baseline(1.766) 대비 소폭 개선이지만 Full(1.737)/Block(1.746) AttnRes에는 크게 미치지 못한다. 이는 ##"가까운 많은 layer를 참조하는 것"보다 "먼 layer도 선택적으로 접근하는 것"이 더 중요##함을 보여준다.</p>
+
+<h4>Component Ablation</h4>
+<ul>
+  <li><strong>Input-dependent query</strong> ($\mathbf{h}_l$에서 projection): 1.731 (최적이나 inference 시 sequential memory access 필요 → 기본값은 learned query)</li>
+  <li><strong>Input-independent mixing</strong> (learned scalar, no query/key): 1.749 (input-dependence가 중요)</li>
+  <li><strong>Sigmoid vs Softmax</strong>: Sigmoid = 1.741, Softmax = 1.737. Softmax의 competitive normalization이 sharper selection에 유리</li>
+  <li><strong>Multihead ($H=16$)</strong>: 1.752. Per-head depth aggregation은 성능 저하 → ##최적 depth-wise mixture는 channel 간 largely uniform## (layer가 relevant하면 전체가 relevant)</li>
+  <li><strong>w/o RMSNorm</strong>: Full 1.743, Block 1.750. RMSNorm이 magnitude 차이를 방지하여 attention weight bias 방지. Block에서 더 critical (block sum의 magnitude 차이가 더 큼)</li>
+  <li><strong>Block size $S$ sweep</strong> (Figure 6): $S \in \{2, 4, 8\}$ 모두 ~1.746. $S \geq 16$부터 baseline 수렴. ##$N \approx 8$ blocks가 sweet spot##</li>
+</ul>
+
+<h3>5.4 Analysis</h3>
+
+<h4>5.4.1 Optimal Architecture</h4>
+
+<p>Fixed compute ($\approx 6.5 \times 10^{19}$ FLOPs)와 active params ($\approx 2.3 \times 10^8$)에서 $5 \times 5$ grid search: $d_{\text{model}}/L_b \in \{15, 30, 45, 60, 75\}$, $H/L_b \in \{0.3, 0.4, 0.5, 0.6, 0.7\}$.</p>
+
+<blockquote>
+<strong>[Figure 7 설명]</strong>: Baseline 최적점은 $d_{\text{model}}/L_b \approx 60$ (1.847). AttnRes 최적점은 $d_{\text{model}}/L_b \approx 45$ (1.802). ##AttnRes가 더 깊고 좁은 네트워크를 선호##, 즉 추가 depth를 더 효과적으로 활용할 수 있다. 모든 25개 configuration에서 AttnRes가 baseline 대비 0.019~0.063 loss 개선.
+</blockquote>
+
+<h4>5.4.2 Learned AttnRes Patterns (Figure 8)</h4>
+
+<p>16-head model의 attention weight heatmap에서 3가지 핵심 관찰:</p>
+<ul>
+  <li><strong>Preserved locality</strong>: 각 layer는 immediate predecessor에 가장 강하게 attend. 그러나 selective off-diagonal concentrations 존재 (e.g., layer 4가 early source에 attend, layers 15–16이 block 설정에서 early source로 reach back)</li>
+  <li><strong>Layer specialization</strong>: Token embedding $\mathbf{h}_1$이 전 layer에서 non-trivial weight 유지. Pre-MLP은 recent representations에 sharper diagonal, pre-attention은 broader receptive field</li>
+  <li><strong>Block AttnRes preserves structure</strong>: Full에서의 diagonal dominance, embedding persistence, layer specialization이 block variant에도 그대로 전이 → block-wise compression이 ##implicit regularization으로 작용##</li>
+</ul>
+
+<h2>6. Discussions</h2>
+
+<h3>6.1 Sequence-Depth Duality</h3>
+
+<p>Standard residual: $\mathbf{h}_l = \mathbf{h}_{l-1} + f_{l-1}(\mathbf{h}_{l-1})$은 sequence에서 vanilla linear attention $\mathbf{S}_t = \mathbf{S}_{t-1} + \mathbf{k}_t \mathbf{v}_t^\top$과 동일한 additive recurrence. Test-Time Training(TTT)의 gradient descent로의 해석도 연결: $f_l$이 각 "gradient step" 역할.</p>
+
+<p>Data-dependent gates(Highway) ↔ sequence 방향의 gated recurrence(Mamba, GLA). mHC의 matrix-valued state ↔ DDL, DeltaNet. ##AttnRes는 이 duality의 최종 단계: depth-wise recurrence를 full softmax attention으로 대체##.</p>
+
+<h3>6.2 Residual Connections as Structured Matrices</h3>
+
+<p>Depth mixing matrix $\mathbf{M} \in \mathbb{R}^{L \times L}$: $\mathbf{M}_{i \to l}$은 layer $l$이 layer $i$ 출력에 부여하는 가중치.</p>
+
+<ul>
+  <li><strong>Standard residual</strong>: $\mathbf{M}$ = all-ones lower triangular (semiseparable rank 1)</li>
+  <li><strong>Highway</strong>: Cumulative gate products → softmax-free, 1-semiseparable. 합이 1 (stick-breaking attention)</li>
+  <li><strong>(m)HC</strong>: $m \times m$ transition matrices → $m$-semiseparable. mHC는 depth-wise ##linear attention with matrix-valued states##</li>
+  <li><strong>Full AttnRes</strong>: Dense, rank-$L$ input-dependent $\mathbf{M}$. Depth-wise ##softmax attention##</li>
+  <li><strong>Block AttnRes</strong>: Effective rank between $N$ and $N+S$. Standard residual($N=1$)과 Full AttnRes($N=L$) 사이 interpolation</li>
+</ul>
+
+<h2>7. Related Work</h2>
+
+<p><strong>Normalization & Depth Stability</strong>: PostNorm은 bounded magnitude지만 gradient vanishing. PreNorm은 identity path 복원하지만 $\|\mathbf{h}_l\| = O(L)$ (unbounded growth). Scaled residual paths, hybrid normalization, KEEL 등이 시도되었으나 모두 additive recurrence에 한정. AttnRes는 additive recurrence 자체를 대체.</p>
+
+<p><strong>Multi-State Recurrence</strong>: Hyper-Connections, mHC, DDL, SiameseNorm 등은 $m$ parallel streams으로 information compression을 완화. 그러나 여전히 immediate predecessor에만 condition. AttnRes는 개별 earlier-layer output에 직접 접근 (orthogonal approach).</p>
+
+<p><strong>Cross-Layer Connectivity</strong>: DenseNet(concatenation), ELMo(softmax-weighted sum), DenseFormer(learned scalar), MRLA(element-wise sigmoid gating). AttnRes는 ##softmax-normalized, input-dependent, single pseudo-query로 selective access + block structure로 $O(LN)$ cost##를 달성한 점에서 차별화.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론적 우아함</strong>: Sequence-depth duality를 통한 동기 부여가 자연스러우며, structured-matrix 분석이 기존 residual variants를 통일적 관점에서 정리. Linear attention → softmax attention 전환의 depth dimension 적용이 설득력 있음.</li>
+  <li><strong>실용성</strong>: Block AttnRes가 < 4% training, < 2% inference overhead로 drop-in replacement 가능. Infrastructure 최적화(cross-stage caching, two-phase inference)가 구체적이고 재현 가능.</li>
+  <li><strong>48B-scale 검증</strong>: Small-scale ablation에 그치지 않고 48B MoE에서 1.4T 토큰 pre-training까지 완수. 코드 공개.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Scaling law의 slope 동일</strong>: Exponent가 0.057~0.058로 거의 동일. AttnRes는 intercept(constant factor)만 개선하고 scaling 속도 자체는 변하지 않음. Compute가 극단적으로 커지면 이 constant 이점이 상대적으로 줄어들 수 있다.</li>
+  <li><strong>Dense Transformer에서의 검증 부재</strong>: 모든 실험이 MoE(Kimi Linear) 아키텍처에서 수행됨. Dense Transformer(Llama, Mistral 등)에서의 효과는 미검증.</li>
+  <li><strong>Post-training 효과 미확인</strong>: SFT, RLHF, DPO 등 post-training 후의 성능 변화를 보고하지 않음. Pre-training에서의 이점이 post-training까지 유지되는지 불확실.</li>
+  <li><strong>$1.25\times$ compute advantage의 실질적 의미</strong>: 동일 성능에 25% 적은 compute는 유의미하지만, 이를 위해 추가적인 infrastructure complexity(cross-stage caching, two-phase inference)가 필요. 소규모 팀에서는 overhead가 더 부담일 수 있다.</li>
+  <li><strong>Depth가 큰 모델에서만 유효?</strong>: 논문의 분석은 PreNorm dilution($O(L)$ growth)이 deep network에서 심각하다는 전제. 얕은 모델(e.g., 12-layer)에서의 이점은 불분명.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Depth 방향에도 attention이 필요하다</strong>: Sequence 방향에서 RNN→Attention 전환이 혁명적이었듯이, residual connection에서도 fixed accumulation → learned softmax attention이 consistent하게 유리. Sequence-depth duality는 향후 architecture 설계의 중요한 원칙이 될 수 있다.</li>
+  <li><strong>Block AttnRes는 실용적인 drop-in replacement</strong>: $N \approx 8$ blocks로 Full AttnRes 성능의 대부분을 회수하면서 overhead < 4%(training), < 2%(inference). 기존 모델에 minimal change로 적용 가능.</li>
+  <li><strong>PreNorm dilution의 근본적 해결</strong>: AttnRes는 output magnitude를 bounded periodic pattern으로 유지하고 gradient distribution을 균일화하여, 기존의 증상적 해결(scaled residual, hybrid norm)이 아닌 ##구조적 해결##을 제공한다.</li>
+  <li><strong>Structured-matrix perspective가 architecture 설계를 안내</strong>: Standard residual, Highway, mHC, AttnRes를 $\mathbf{M}$의 semiseparable rank로 통일적으로 비교할 수 있으며, 이 관점에서 향후 설계 방향(depth-wise linear-complexity attention 등)이 자연스럽게 도출된다.</li>
+  <li><strong>$1.25\times$ compute advantage는 48B-scale에서 검증된 "free lunch"</strong>: 동일 compute에서 더 나은 loss, 동일 loss에서 25% 적은 compute. Infrastructure 최적화가 동반되면 실질적 이점이 크다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

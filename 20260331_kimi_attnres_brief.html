@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Attention Residuals — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #1b5e20, #2e7d32, #66bb6a); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #1b5e20; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #2e7d32, #66bb6a); border-radius: 3px; }
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #2e7d32; }
+  .card-green { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .one-liner { background: linear-gradient(135deg, #2e7d32, #66bb6a); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #2e7d32, #66bb6a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #1b5e20; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #e8f5e9; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .version-toggle { text-align: center; margin: 1.5rem 0; }
+  .version-toggle a { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #e8f5e9; color: #2e7d32; border: 1px solid #81c784; transition: all 0.2s; }
+  .version-toggle a:hover { background: #2e7d32; color: #fff; }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.7rem; } .stat-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Kimi (Moonshot AI) &middot; 2026</div>
+  <h1>Attention Residuals</h1>
+  <p class="subtitle">AI의 "기억 전달 시스템"을 50년 만에 업그레이드하다<br>— 같은 비용으로 25% 더 똑똑한 AI</p>
+</div>
+
+<div class="container">
+
+<div class="version-toggle">
+  <a href="20260331_kimi_attnres.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<div class="one-liner">
+  "모든 보고서를 무조건 쌓아두는 대신,<br>필요한 보고서만 골라 읽게 하자"
+</div>
+
+<!-- ===== 배경 ===== -->
+<section>
+  <h2>먼저 알아야 할 것: AI 내부의 "정보 전달" 문제</h2>
+
+  <div class="card card-accent">
+    <p>ChatGPT 같은 AI 모델 내부에는 수십~수백 개의 "레이어"가 쌓여 있습니다. 각 레이어가 정보를 처리한 결과를 다음 레이어에 전달하는 방식이 <strong>Residual Connection(잔여 연결)</strong>입니다. 1950년대 이래 거의 변하지 않은 이 방식에 근본적 문제가 있었습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#1b5e20" text-anchor="middle">기존 방식: 모든 레이어 결과를 균등하게 쌓기</text>
+
+      <!-- 레이어 스택 -->
+      <rect x="50" y="50" width="250" height="230" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="175" y="75" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">기존: Residual Connection</text>
+
+      <!-- 레이어들 -->
+      <rect x="80" y="90" width="190" height="28" rx="6" fill="#2563eb" opacity="0.3"/>
+      <text x="175" y="108" font-size="10" fill="#334155" text-anchor="middle">Layer 1 결과 (가중치 1)</text>
+      <rect x="80" y="125" width="190" height="28" rx="6" fill="#2563eb" opacity="0.4"/>
+      <text x="175" y="143" font-size="10" fill="#334155" text-anchor="middle">Layer 2 결과 (가중치 1)</text>
+      <rect x="80" y="160" width="190" height="28" rx="6" fill="#2563eb" opacity="0.5"/>
+      <text x="175" y="178" font-size="10" fill="#334155" text-anchor="middle">Layer 3 결과 (가중치 1)</text>
+      <text x="175" y="208" font-size="14" fill="#64748b" text-anchor="middle">...</text>
+      <rect x="80" y="220" width="190" height="28" rx="6" fill="#2563eb" opacity="0.8"/>
+      <text x="175" y="238" font-size="10" fill="#334155" text-anchor="middle">Layer 100 결과 (가중치 1)</text>
+
+      <text x="175" y="268" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">모든 결과가 동일한 가중치로 합산!</text>
+
+      <!-- 문제점 -->
+      <rect x="380" y="50" width="290" height="230" rx="14" fill="#f8fafc" stroke="#d97706" stroke-width="1.5"/>
+      <text x="525" y="75" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">이 방식의 문제</text>
+
+      <rect x="400" y="95" width="250" height="50" rx="8" fill="#fef2f2"/>
+      <text x="525" y="115" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">1. 정보 희석 (Dilution)</text>
+      <text x="525" y="133" font-size="10" fill="#475569" text-anchor="middle">100개 결과 중 초기 결과가 묻혀버림</text>
+
+      <rect x="400" y="155" width="250" height="50" rx="8" fill="#fef2f2"/>
+      <text x="525" y="175" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">2. 선택 불가 (No Selection)</text>
+      <text x="525" y="193" font-size="10" fill="#475569" text-anchor="middle">중요한 결과만 골라 쓸 수 없음</text>
+
+      <rect x="400" y="215" width="250" height="50" rx="8" fill="#fef2f2"/>
+      <text x="525" y="235" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">3. 출력 폭증 (Output Growth)</text>
+      <text x="525" y="253" font-size="10" fill="#475569" text-anchor="middle">깊은 레이어일수록 숫자가 점점 커짐</text>
+    </svg>
+    <div class="diagram-caption">기존 Residual Connection은 모든 레이어 결과를 무차별적으로 합산하여 정보가 희석됨</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">회사 보고서의 비유</div>
+    <p><strong>기존 방식</strong>: 100명의 직원이 보고서를 쓸 때마다, 이전 보고서 전부를 한 더미에 쌓습니다. CEO가 최종 결정을 내릴 때는 100개 보고서가 뒤섞인 거대한 더미만 볼 수 있고, 초기 보고서의 내용은 나중 것에 묻혀버립니다.</p>
+    <br>
+    <p><strong>AttnRes</strong>: CEO가 각 보고서의 "제목과 요약"을 확인하고, <strong>지금 필요한 보고서만 골라서</strong> 자세히 읽습니다. 불필요한 정보는 건너뛰고, 핵심 정보만 선택적으로 참조합니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>Attention Residuals: 어떻게 바꾸었나?</h2>
+
+  <div class="card card-accent">
+    <p>핵심 아이디어는 놀랍도록 단순합니다: AI 내부에서 이미 사용하는 <strong>"Attention(주의집중)"</strong> 메커니즘을 레이어 간 정보 전달에도 적용한 것입니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#1b5e20" text-anchor="middle">AttnRes: 필요한 레이어만 선택적으로 참조</text>
+
+      <!-- 왼쪽: 기존 -->
+      <rect x="20" y="45" width="210" height="235" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="125" y="68" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">기존 (균등 합산)</text>
+      <rect x="40" y="82" width="170" height="20" rx="4" fill="#dc2626" opacity="0.2"/><text x="125" y="96" font-size="9" fill="#334155" text-anchor="middle">L1: 가중치 1</text>
+      <rect x="40" y="107" width="170" height="20" rx="4" fill="#dc2626" opacity="0.2"/><text x="125" y="121" font-size="9" fill="#334155" text-anchor="middle">L2: 가중치 1</text>
+      <rect x="40" y="132" width="170" height="20" rx="4" fill="#dc2626" opacity="0.2"/><text x="125" y="146" font-size="9" fill="#334155" text-anchor="middle">L3: 가중치 1</text>
+      <text x="125" y="168" font-size="10" fill="#64748b" text-anchor="middle">...</text>
+      <rect x="40" y="177" width="170" height="20" rx="4" fill="#dc2626" opacity="0.2"/><text x="125" y="191" font-size="9" fill="#334155" text-anchor="middle">L100: 가중치 1</text>
+      <text x="125" y="220" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">→ 모두 동일하게 반영</text>
+      <text x="125" y="240" font-size="10" fill="#dc2626" text-anchor="middle">중요한 것 = 덜 중요한 것</text>
+      <text x="125" y="268" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">정보 희석!</text>
+
+      <!-- 오른쪽: AttnRes -->
+      <rect x="280" y="45" width="400" height="235" rx="14" fill="#f0fdf4" stroke="#2e7d32" stroke-width="2"/>
+      <text x="480" y="68" font-size="11" font-weight="700" fill="#2e7d32" text-anchor="middle">AttnRes (선택적 참조)</text>
+      <rect x="300" y="82" width="170" height="20" rx="4" fill="#2e7d32" opacity="0.7"/><text x="385" y="96" font-size="9" fill="#fff" text-anchor="middle">L1: 가중치 0.35 (중요!)</text>
+      <rect x="300" y="107" width="170" height="20" rx="4" fill="#2e7d32" opacity="0.1"/><text x="385" y="121" font-size="9" fill="#334155" text-anchor="middle">L2: 가중치 0.02</text>
+      <rect x="300" y="132" width="170" height="20" rx="4" fill="#2e7d32" opacity="0.5"/><text x="385" y="146" font-size="9" fill="#334155" text-anchor="middle">L3: 가중치 0.20</text>
+      <text x="385" y="168" font-size="10" fill="#64748b" text-anchor="middle">...</text>
+      <rect x="300" y="177" width="170" height="20" rx="4" fill="#2e7d32" opacity="0.6"/><text x="385" y="191" font-size="9" fill="#fff" text-anchor="middle">L100: 가중치 0.28</text>
+      <text x="385" y="220" font-size="10" fill="#2e7d32" text-anchor="middle" font-weight="600">→ 내용에 따라 가중치 조절</text>
+      <text x="385" y="240" font-size="10" fill="#2e7d32" text-anchor="middle">합계 = 1 (Softmax)</text>
+      <text x="385" y="268" font-size="11" fill="#2e7d32" text-anchor="middle" font-weight="700">핵심 정보 보존!</text>
+
+      <!-- 추가 비용 -->
+      <rect x="500" y="95" width="160" height="80" rx="10" fill="#e8f5e9" stroke="#2e7d32"/>
+      <text x="580" y="118" font-size="10" fill="#2e7d32" text-anchor="middle" font-weight="700">추가 비용</text>
+      <text x="580" y="138" font-size="10" fill="#334155" text-anchor="middle">레이어당 벡터 1개</text>
+      <text x="580" y="155" font-size="10" fill="#334155" text-anchor="middle">+ RMSNorm 1개</text>
+      <text x="580" y="168" font-size="9" fill="#64748b" text-anchor="middle">(전체 대비 무시 가능)</text>
+    </svg>
+    <div class="diagram-caption">AttnRes는 각 레이어가 이전 레이어 결과에 "주의집중"하여 중요한 것만 선택적으로 가져옴</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.15rem; color:#1b5e20;">Block AttnRes: 실용적 버전</h3>
+
+  <div class="card card-green">
+    <p>모든 레이어를 개별적으로 참조하면 메모리가 많이 필요합니다. 그래서 레이어를 <strong>8개 블록으로 묶고, 블록 단위로 참조</strong>하는 Block AttnRes를 제안합니다. 블록 내부는 기존 방식(합산), 블록 사이는 AttnRes(선택적 참조).</p>
+    <br>
+    <p>이렇게 하면 메모리를 크게 줄이면서도 <strong>Full AttnRes 성능의 대부분을 회수</strong>합니다.</p>
+  </div>
+</section>
+
+<!-- ===== 성과 ===== -->
+<section>
+  <h2>핵심 성과: 숫자로 보기</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">1.25x</div>
+      <div class="label">Compute 절약<br>같은 성능에 25% 적은 비용</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">48B</div>
+      <div class="label">모델 규모<br>Kimi Linear에 적용</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">&lt;2%</div>
+      <div class="label">추론 지연 증가<br>거의 무료</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">16/16</div>
+      <div class="label">벤치마크 개선<br>모든 항목에서 향상</div>
+    </div>
+  </div>
+
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">48B 모델에서 모든 벤치마크 개선</h3>
+    <p>특히 복잡한 추론이 필요한 과제에서 큰 개선:</p>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>벤치마크</th><th>기존</th><th>AttnRes</th><th>개선</th></tr>
+    <tr><td>GPQA-Diamond (과학 추론)</td><td>36.9</td><td style="color:#059669; font-weight:700;">44.4</td><td style="color:#059669;">+7.5</td></tr>
+    <tr><td>Math (수학)</td><td>53.5</td><td style="color:#059669; font-weight:700;">57.1</td><td style="color:#059669;">+3.6</td></tr>
+    <tr><td>HumanEval (코딩)</td><td>59.1</td><td style="color:#059669; font-weight:700;">62.2</td><td style="color:#059669;">+3.1</td></tr>
+    <tr><td>C-Eval (중국어 이해)</td><td>79.6</td><td style="color:#059669; font-weight:700;">82.5</td><td style="color:#059669;">+2.9</td></tr>
+    <tr class="highlight-row"><td colspan="4" style="text-align:center;">복잡한 추론 = 깊은 레이어 간 정보 교환이 중요 → AttnRes가 특히 효과적</td></tr>
+  </table>
+</section>
+
+<!-- ===== 영감 ===== -->
+<section>
+  <h2>이 아이디어는 어디서 왔나?</h2>
+
+  <div class="card card-accent">
+    <p>AI 역사에서 가장 중요한 전환 중 하나: <strong>RNN → Transformer</strong>. 이 전환의 핵심은 "순차적 기억"을 "선택적 참조(Attention)"로 바꾼 것입니다.</p>
+    <br>
+    <p>이 논문의 핵심 통찰: <strong>같은 전환을 "레이어 깊이" 방향에도 적용할 수 있다!</strong></p>
+  </div>
+
+  <table class="comp-table">
+    <tr><th></th><th>문장 방향 (시간)</th><th>레이어 방향 (깊이)</th></tr>
+    <tr><td><strong>기존</strong></td><td>RNN (순차 기억)</td><td>Residual (균등 합산)</td></tr>
+    <tr class="highlight-row"><td><strong>개선</strong></td><td>Attention (선택적 참조)</td><td>AttnRes (선택적 참조)</td></tr>
+    <tr><td><strong>결과</strong></td><td>ChatGPT 탄생!</td><td>25% 효율 향상</td></tr>
+  </table>
+</section>
+
+<!-- ===== 결론 ===== -->
+<div class="one-liner" style="margin-bottom:2rem;">
+  AttnRes = <strong>선택적 정보 전달</strong> + <strong>최소 비용</strong> + <strong>48B 검증</strong><br>
+  <span style="font-size:0.9rem; opacity:0.8;">Kimi Team이 AI의 "배선"을 50년 만에 업그레이드하다</span>
+</div>
+
+<!-- ===== 한계 ===== -->
+<section>
+  <h2>참고: 한계점</h2>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem;">Scaling 속도 자체는 변하지 않음</h3>
+    <p>AttnRes는 "같은 비용에서 더 나은 출발점"을 제공하지만, 비용을 늘릴수록 성능이 오르는 "속도"는 기존과 동일합니다. 극단적으로 큰 비용에서는 이점이 상대적으로 줄어들 수 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem;">특정 아키텍처에서만 검증</h3>
+    <p>모든 실험이 Kimi의 MoE(전문가 혼합) 모델에서만 수행되었습니다. Llama, Mistral 같은 일반적인 모델에서의 효과는 아직 확인되지 않았습니다.</p>
+  </div>
+
+  <div class="card" style="border-left:5px solid #2e7d32; background:linear-gradient(135deg, #f8fafc, #e8f5e9);">
+    <h3 style="color:#1b5e20; margin-bottom:0.5rem;">균형 잡힌 시각</h3>
+    <p>AttnRes는 이론적으로 우아하고(sequence-depth duality), 실용적이며(< 2% overhead), 48B 규모에서 검증된 기법입니다. "Residual connection을 바꾸자"는 시도 중 처음으로 대규모 pre-training에서 일관된 개선을 보인 사례로, 향후 AI 아키텍처 설계의 새로운 기본이 될 가능성이 있습니다.</p>
+  </div>
+</section>
+
+<div class="version-toggle" style="margin-bottom:2rem;">
+  <a href="20260331_kimi_attnres.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+</div>
+
+<div class="footer">
+  Attention Residuals (Kimi Team, 2026) &middot; Moonshot AI &middot; arXiv:2603.15031 &middot; 개요 브리핑 자료
+</div>
+
+</body>
+</html>
