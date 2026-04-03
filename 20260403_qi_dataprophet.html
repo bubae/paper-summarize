@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataProphet: Demystifying Supervision Data Generalization in Multimodal LLMs</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DataProphet: Demystifying Supervision Data Generalization in Multimodal LLMs</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260403_qi_dataprophet_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#fff3e0; color:#e65100; border:1px solid #ffcc80;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Xuan Qi, Luxi He, Dan Roth, Xingyu Fu</li>
+  <li><strong>소속</strong>: University of Pennsylvania, Tsinghua University, Princeton University</li>
+  <li><strong>학회/저널</strong>: ICLR 2026</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.19688">arXiv:2603.19688</a> · <a href="https://dataprophet26.github.io/">Website</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: MLLM (Multimodal Large Language Model) 학습 시, 어떤 supervision 데이터가 특정 target benchmark에 도움이 되는지를 학습 전에 예측할 방법이 없다. "직관적으로 유사한 데이터가 도움이 된다"는 통념은 실험적으로 unreliable함이 밝혀졌다 — 예: OCR 데이터가 chart task보다 spatial reasoning task에 더 도움.</li>
+  <li><strong>해결</strong>: DataProphet — ##training-free metric##으로 multimodal perplexity, cross-dataset similarity (question/answer/image), data diversity (silhouette + entropy)를 곱셈 형태로 결합. 학습 없이 source dataset이 target benchmark에 미치는 영향을 예측한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Perplexity가 source 데이터의 난이도와 headroom을 반영하고, (2) cross-modal similarity가 distribution 정렬을 포착하며, (3) diversity가 일반화 가능한 skill coverage를 측정한다. 곱셈 형태는 어느 한 요소가 약해도 전체 점수가 낮아지도록 하여 모든 조건의 동시 충족을 요구.</li>
+  <li><strong>비유</strong>: 시험 준비를 할 때 "이 참고서가 기말고사에 도움이 될까?"를 미리 판단하는 것과 같다. 참고서의 난이도(perplexity), 시험 범위와의 겹침(similarity), 문제 유형의 다양성(diversity)을 종합하면, 실제로 풀어보지 않아도 유용성을 예측할 수 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Data Influence의 반직관적 특성 규명</strong>: 14개 vision-language dataset, 7개 task에 대한 체계적 실험으로 ##data influence가 비대칭적이고, task category가 아닌 individual dataset에 의존##하며, text-rich 데이터가 vision-centric task를 더 잘 도울 수 있음을 실증.</li>
+  <li><strong>DataProphet — Training-Free Data Influence Predictor</strong>: Multimodal perplexity × cross-dataset similarity (Q, A, Image) × data diversity의 product-form metric. ##Kendall's $\tau$ = 86.0%##로 실제 학습 후 influence ranking과 강하게 상관.</li>
+  <li><strong>Data Selection 응용</strong>: Fixed compute budget 하에서 DataProphet 기반 reweighting이 uniform selection 대비 +3.4% (real data), +6.9% (synthetic data) 개선. SoTA training-based selection(ICONS) 대비 +1.4% 우수하며, ##oracle(실제 실험 결과 기반) 대비도 +0.2% 상회##.</li>
+  <li><strong>RL Post-Training에도 적용 가능</strong>: GRPO 학습에서 DataProphet 기반 allocation이 equal allocation 대비 +1.2% (real) / +1.3% (synthetic) 개선.</li>
+</ol>
+
+<h2>2. Data Influence Analysis</h2>
+
+<h3>2.1 실험 설계</h3>
+
+<p><strong>Setup</strong>: Base model InternVL3-2B에 14개 source dataset을 각각 개별적으로 SFT(20K samples, 1 epoch), 14개 target test set에서 evaluation. Relative performance gain $\Delta_{s \to t} = (A_t^s - A_t) / A_t$로 data influence 정량화.</p>
+
+<p><strong>7개 Task Family</strong> (각 2개 dataset):</p>
+<ul>
+  <li><strong>OCR</strong>: OCR-VQA (~1002K), ScreenQA (~86K)</li>
+  <li><strong>Chart understanding</strong>: ChartQA (~33K), Chart2Text (~44K)</li>
+  <li><strong>Document understanding</strong>: DocVQA (~50K), SujetFinance-QA (~107K)</li>
+  <li><strong>General VQA</strong>: A-OKVQA (~24.9K), VC-GVQA (~438K)</li>
+  <li><strong>Spatial reasoning</strong>: Open-Spatial (~8.7M), CLEVR-Relation (~160K)</li>
+  <li><strong>Counting</strong>: CLEVR-Counting (~160K), TallyQA (~287K)</li>
+  <li><strong>Map reasoning</strong>: GeomVerse (~23K), MapQA (~800K)</li>
+</ul>
+
+<h3>2.2 핵심 발견</h3>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: 14×14 data influence heatmap. 각 cell은 source dataset으로 SFT 후 target test set에서의 relative improvement (%). Diagonal(same-dataset)이 가장 크지만, off-diagonal에서 반직관적 패턴이 다수 관찰됨.
+</blockquote>
+
+<p><strong>발견 1: Data influence는 비대칭적</strong>. $\Delta_{s \to t} \neq \Delta_{t \to s}$. 예: Open-Spatial → DocVQA = 15.92%, DocVQA → Open-Spatial = 26.14%.</p>
+
+<p><strong>발견 2: 같은 task category 내에서도 influence가 다르다</strong>. OCR-VQA로 학습 시 ScreenQA(같은 OCR) 개선 17.88%이지만, GeomVerse(map) 개선 21.74%. ##Task category가 아닌 individual dataset 수준에서 influence가 결정됨##.</p>
+
+<p><strong>발견 3: Text-rich 데이터가 vision-centric task를 더 많이 도울 수 있다</strong>. ScreenQA(OCR)로 학습 시 chart task 개선(ChartQA 5.61%, Chart2Text 6.13%)보다 spatial task 개선(Open-Spatial 12.86%, CLEVR-R 7.96%)이 더 큼.</p>
+
+<h2>3. DataProphet: Demystify Data Influence</h2>
+
+<h3>3.1 Evaluation Protocol — Two-Way Kendall's $\tau$</h3>
+
+<p>Target-centric: 주어진 target $t$에 대해 14개 source를 DataProphet 점수로 ranking → 실제 $\Delta_{s \to t}$ ranking과 Kendall's $\tau_t$ 계산. $\bar{\tau}_{\text{Tgt}} = \text{avg}(\tau_t)$.</p>
+
+<p>Source-centric: 주어진 source $s$에 대해 14개 target을 점수로 ranking → 실제 $\Delta_{t \to s}$ ranking과 $\tau_s$ 비교. $\bar{\tau}_{\text{Src}} = \text{avg}(\tau_s)$.</p>
+
+$$\bar{\tau} = \frac{\bar{\tau}_{\text{Tgt}} + \bar{\tau}_{\text{Src}}}{2}$$
+
+<h3>3.2 DataProphet Metric</h3>
+
+<h4>Component 1: Multimodal Perplexity</h4>
+
+$$\text{PPL}(\mathcal{D}) = \exp\left(- \mathbb{E}_{(I,Q,A) \sim \mathcal{D}} \mathbb{E}_{t \sim |T|} \log p_\theta(a_t | I, \tau_Q(Q), a_{<t})\right) \quad (1)$$
+
+<p>Base MLLM $p_\theta$의 answer token에 대한 perplexity. 높은 perplexity = 모델에게 더 어려운 데이터 = 학습 시 더 큰 headroom. 단독으로는 $\bar{\tau}_{\text{Tgt}} = 0.274$로 부족.</p>
+
+<h4>Component 2: Cross-Dataset Similarity</h4>
+
+<p>Base MLLM의 frozen encoder로 question, answer, image 각각의 embedding을 추출하고, source와 target 간 expected cosine similarity를 계산:</p>
+<ul>
+  <li><strong>QSim</strong>: Question embedding 간 cosine similarity</li>
+  <li><strong>ASim</strong>: Answer embedding 간 cosine similarity</li>
+  <li><strong>ISim</strong>: Image embedding 간 cosine similarity</li>
+</ul>
+
+<p>Perplexity × similarity만으로는 $\bar{\tau}_{\text{Tgt}} = 0.658$. Image similarity(0.627)와 diversity가 추가로 필요.</p>
+
+<h4>Component 3: Source Dataset Question Diversity</h4>
+
+<p>Source dataset의 question embedding을 K-means ($K=10$)로 clustering한 뒤, Silhouette coefficient + normalized entropy로 diversity 측정:</p>
+
+$$\text{Sil} = \mathbb{E}_{u \sim \mathcal{U}} \left[ \frac{b(u) - a(u)}{\max\{a(u), b(u)\}} \right] \quad (2)$$
+
+<p>$a(u)$: mean intra-cluster distance, $b(u)$: minimum mean inter-cluster distance. Normalized entropy $\text{H} = -(\log K)^{-1} \sum_k \pi_k \log \pi_k$. Diversity = Sil + H (높을수록 well-separated, balanced clusters).</p>
+
+<h4>최종 Metric</h4>
+
+$$\mathcal{M}(s \to t) = \frac{\text{QSim} \cdot \text{ASim} \cdot \text{ISim} \cdot \text{PPL}(s) \cdot (\text{Sil} + \text{H})}{\text{PPL}(t)} \quad (3)$$
+
+<p>직관적으로 말하면, ##"source가 어렵고(높은 PPL(s)), target이 쉽고(낮은 PPL(t)), 둘이 비슷하고(높은 Sim), source가 다양할수록(높은 Div)" 해당 source의 target에 대한 영향력이 크다##. Product form은 어느 한 요소라도 낮으면 전체가 낮아져 모든 조건의 동시 충족을 강제.</p>
+
+<h3>3.3 결과 및 분석</h3>
+
+<p><strong>DataProphet의 예측력</strong> (Table 1): $\bar{\tau}_{\text{Tgt}} = 0.863$, $\bar{\tau}_{\text{Src}} = 0.857$, ##$\bar{\tau} = 0.860$##. 모든 task category에서 consistently 높은 상관.</p>
+
+<h4>Component Ablation (Table 2)</h4>
+<table>
+<tr><th>Variant</th><th>Kendall's $\tau$ (Avg)</th></tr>
+<tr><td><strong>Full DataProphet</strong></td><td><strong>0.860</strong></td></tr>
+<tr><td>w/o Answer Similarity</td><td>0.810</td></tr>
+<tr><td>w/o Question Similarity</td><td>0.778</td></tr>
+<tr><td>w/o Diversity (Sil & Entropy)</td><td>0.659</td></tr>
+<tr><td>w/o Image Similarity</td><td>0.625</td></tr>
+<tr><td>w/o Perplexity</td><td>0.487</td></tr>
+</table>
+
+<p>##Perplexity가 가장 중요## (제거 시 0.860 → 0.487). Image similarity(제거 시 → 0.625)와 diversity(→ 0.659)도 핵심. Question/Answer similarity는 상대적으로 marginal.</p>
+
+<p><strong>실패한 heuristic들</strong>: Question difficulty, model familiarity (image/question), answer length 등은 모두 $\tau$를 오히려 악화시킴 (최대 -0.15).</p>
+
+<h2>4. DataProphet for Data Selection</h2>
+
+<h3>4.1 Real-Data Reweighting</h3>
+<p>Total budget $N = 14 \times 20\text{K} = 280\text{K}$ samples. DataProphet score에 비례하여 14개 source의 sampling 비율 결정.</p>
+
+<h3>4.2 Synthetic-Data Selection</h3>
+<p>14개 dataset × 10K images × 2 generators (GPT-5, Gemini 2.5 Pro) × 5 QA pairs = ~1.4M synthetic pairs. Instance-level scoring (diversity term 제외):</p>
+
+$$\mathcal{M}(\text{syn\_d} \to \mathcal{T}) = \frac{\text{QSim} \cdot \text{ASim} \cdot \text{ISim} \cdot \text{PPL}(\text{Syn\_D})}{\text{PPL}(\mathcal{T})} \quad (4)$$
+
+<h3>4.3 Results (Table 3)</h3>
+
+<table>
+<tr><th>Method</th><th>Real Data (Avg)</th><th>Synthetic Data (Avg)</th></tr>
+<tr><td>Uniform</td><td>67.6</td><td>55.1</td></tr>
+<tr><td>ICONS (SoTA, training-required)</td><td>69.6</td><td>60.8</td></tr>
+<tr><td>Oracle (real experiment 기반)</td><td>70.8</td><td>-</td></tr>
+<tr style="font-weight:bold;"><td>DataProphet</td><td>71.0 (+3.4)</td><td>62.0 (+6.9)</td></tr>
+</table>
+
+<p>Real data에서 DataProphet가 ##training-free임에도 ICONS(+1.4%)와 Oracle(+0.2%)을 상회##. Synthetic data에서는 +6.9%(uniform 대비)로 더 큰 gain. Gemini 2.5 Pro가 GPT-5보다 더 높은 DataProphet 점수의 데이터를 생성 (선택된 데이터의 62%가 Gemini 출처).</p>
+
+<h3>RL Post-Training (Table 4)</h3>
+<p>Qwen2.5VL-3B-Instruct에 GRPO 적용. Prompt budget $300 \times 14$로 고정. DataProphet 기반 allocation이 equal allocation 대비 real RL +1.2%, synthetic RL +1.3% 개선.</p>
+
+<h2>5. Related Work</h2>
+
+<p><strong>Data Mixtures for LMs</strong>: DoReMi(proxy model로 domain weight 학습), DSIR/LESS(gradient 기반 selection), DataComp(dataset filtering 표준화). DataProphet는 proxy run이나 gradient 없이 ##pre-finetuning, training-free## decision rule을 제공하는 점에서 차별화.</p>
+
+<p><strong>Data Mixtures for Multimodal LMs</strong>: ICONS(gradient-based influence consensus), MoDoMoDo(RL formulation). DataProphet는 real/synthetic data 모두에 직접 적용 가능한 compute-light 접근.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>반직관적 발견의 실증적 가치</strong>: "같은 task data가 가장 도움"이라는 통념을 14×14 실험으로 체계적으로 반증. Data selection 연구의 fundamentals에 기여.</li>
+  <li><strong>극도의 단순성과 효과</strong>: Training 불필요, frozen encoder embedding + perplexity만으로 $\tau=0.86$ 달성. Oracle조차 상회하는 결과는 인상적.</li>
+  <li><strong>ICLR 2026 채택</strong>: Peer review를 통과한 검증된 연구.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>단일 base model 의존</strong>: 모든 실험이 InternVL3-2B 기반. 다른 MLLM(LLaVA, Qwen-VL, GPT-4V 등)에서 동일한 influence pattern과 DataProphet의 예측력이 유지되는지 미검증.</li>
+  <li><strong>소규모 SFT 실험</strong>: 각 source에서 20K samples, 1 epoch만 학습. 대규모 학습(수백K samples, multiple epochs)에서의 influence dynamics는 다를 수 있음.</li>
+  <li><strong>Product form의 이론적 근거 부재</strong>: 왜 additive가 아닌 multiplicative combination이 최적인지에 대한 이론적 justification이 없고, heuristic하게 선택됨.</li>
+  <li><strong>Oracle을 상회하는 결과의 해석</strong>: DataProphet가 Oracle(실제 실험 기반 reweighting)을 +0.2% 상회하는 것은 Oracle의 reweighting 방식이 최적이 아닐 가능성을 시사하지만, 이 차이가 통계적으로 유의미한지 불확실.</li>
+  <li><strong>VQA task에 국한</strong>: 모든 benchmark가 visual QA 형태. Text generation, visual grounding, video understanding 등 다른 multimodal task에서의 적용성 미확인.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>"비슷한 데이터가 도움이 된다"는 직관은 MLLM에서 unreliable</strong>: Data influence는 task category가 아닌 individual dataset 수준에서 결정되며, 비대칭적이고 반직관적이다. Data curation 시 task-level 유사성에만 의존하면 안 된다.</li>
+  <li><strong>Perplexity가 data influence의 가장 강력한 단일 predictor</strong>: 모델에게 "어려운" 데이터가 학습에 더 유용하다는 것은 curriculum learning의 관점과 일치. Image similarity와 diversity가 보완적 역할.</li>
+  <li><strong>Training-free metric으로 training-based method를 능가 가능</strong>: DataProphet의 $\tau=0.86$과 Oracle 초과 결과는 expensive gradient computation 없이도 effective data selection이 가능함을 시사. 특히 synthetic data selection에서 더 큰 이점.</li>
+  <li><strong>Multimodal data selection에서 vision과 text 모두 중요</strong>: Image similarity 제거 시 $\tau$가 0.235 하락으로, vision 정보가 text 못지않게 핵심. 기존 LLM data selection 연구가 text에만 초점을 맞춘 것의 한계를 보여줌.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

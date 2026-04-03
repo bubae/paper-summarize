@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataFlex: A Unified Framework for Data-Centric Dynamic Training of LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) { el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g, '<span style="background-color:#ffeb3b;color:#000">$1</span>'); }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; } h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; } h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; } th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; } th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DataFlex: A Unified Framework for Data-Centric Dynamic Training of LLMs</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260403_liang_dataflex_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e3f2fd; color:#1565c0; border:1px solid #90caf9;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Hao Liang*, Zhengyang Zhao*, Meiyi Qiang*, Mingrui Chen* 외 다수</li>
+  <li><strong>소속</strong>: Peking University, Institute for Advanced Algorithms Research (Shanghai), OriginHub Technology, LLaMA-Factory Team, OpenDataLab, Shanghai Jiao Tong University 등</li>
+  <li><strong>학회/저널</strong>: Technical Report (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.26164">arXiv:2603.26164</a> · <a href="https://github.com/OpenDCAI/DataFlex">GitHub</a> · <a href="https://opendcai.github.io/DataFlex-Doc/">Documentation</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Data-centric training 방법들(data selection, data mixture, data reweighting)이 개별 코드베이스로 파편화되어 있어 재현성, 공정 비교, 실용적 배포가 어렵다. 기존 방법들은 일관된 interface 없이 isolated component로 개발되어 통합이 난해하다.</li>
+  <li><strong>해결</strong>: DataFlex — LLaMA-Factory 위에 구축된 통합 data-centric dynamic training framework. ##Data selection, data mixture, data reweighting 3가지 패러다임을 통일된 Trainer abstraction##(Select Trainer, Mix Trainer, Weight Trainer)과 pluggable component architecture로 통합. YAML config에 <code>dataflex</code> 섹션 추가만으로 기존 LLaMA-Factory workflow에서 즉시 전환 가능.</li>
+  <li><strong>왜 작동하는가</strong>: (1) 기존 LLaMA-Factory의 model management, data processing, optimizer를 그대로 재사용하여 compatibility 유지. (2) Unified trainer-component interaction pattern으로 online/offline method 모두 동일 interface 하에서 동작. (3) Shared model-dependent operations(embedding, inference, gradient) 표준화로 다양한 method의 공통 연산 재사용.</li>
+  <li><strong>비유</strong>: 각 방법론이 "자기만의 주방"에서 요리하던 것을, DataFlex라는 "공용 주방"에서 표준화된 도구와 레시피를 사용하여 요리하게 만든 것이다. 주방 장비(LLaMA-Factory)는 기존 그대로, 요리사(algorithm)만 교체 가능.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Data-Centric Dynamic Training System 개념 정립</strong>: 데이터를 first-class optimization variable로 취급하는 training system의 개념을 정의. ##Online/offline method를 모두 포괄##하는 통합 패러다임.</li>
+  <li><strong>Modular Data-Model Interaction Architecture</strong>: Select Trainer/Mix Trainer/Weight Trainer + pluggable Selectors/Mixers/Weighters. LLaMA-Factory의 training layer를 대체하되 나머지는 보존하는 lightweight 설계.</li>
+  <li><strong>Reproducible & Scalable Implementation</strong>: Embedding extraction, model inference, gradient computation 등 공유 연산 표준화. DeepSpeed ZeRO-3 호환 gradient collection (<code>safe_get_full_grad</code>).</li>
+  <li><strong>포괄적 실험</strong>: 7개 data selection + 2개 data mixture + 1개 reweighting 방법을 통합 평가. ##Dynamic method가 static baseline을 consistently outperform##. Runtime도 기존 구현 대비 개선.</li>
+</ol>
+
+<h2>3. System Design and Core Abstractions</h2>
+
+<h3>3.1 Design Philosophy</h3>
+<p>3가지 원칙: (1) <strong>Unification</strong> — data selection, mixture, reweighting을 하나의 framework으로, (2) <strong>Compatibility</strong> — LLaMA-Factory와 seamless 통합, (3) <strong>Extensibility</strong> — 새 algorithm 추가 시 minimal engineering.</p>
+
+<h3>3.2 Three-Layer Architecture</h3>
+
+<div class="flow-diagram">┌─────────────────────────────────────────────────┐
+│              DataFlex Framework                  │
+├─────────────────────────────────────────────────┤
+│ (a) Base Layer: LLaMA-Factory 상속               │
+│     Model Management · Data Processing · Optim  │
+├─────────────────────────────────────────────────┤
+│ (b) Trainer Layer: Unified Trainer Abstraction   │
+│     Select Trainer │ Mix Trainer │ Weight Trainer│
+│     (↓ replace LLaMA-Factory Trainer)            │
+├─────────────────────────────────────────────────┤
+│ (c) Component Layer: Pluggable Strategies        │
+│     Selectors    │ Mixers      │ Weighters       │
+│     LESS, NICE,  │ DoReMi,     │ Loss-based     │
+│     Loss, ...    │ ODM, ...    │ Weighting       │
+└─────────────────────────────────────────────────┘</div>
+
+<p><strong>Configuration</strong>: LLaMA-Factory YAML에 <code>dataflex</code> 섹션만 추가. 3개 field: (1) <code>train_type</code> (dynamic_select, dynamic_mix 등), (2) <code>component_name</code> (less, doremi 등), (3) scheduling parameters (<code>warmup_step</code>, <code>update_step</code>, <code>update_times</code>).</p>
+
+<h3>3.3 Algorithm Integration</h3>
+<p><strong>Trainer-Component Interaction</strong>: 모든 paradigm이 동일 패턴을 공유 — model state 관찰 → data-centric decision 계산 → 후속 optimization step에 반영. Select/Mix Trainer는 configurable interval로, Weight Trainer는 매 step(warmup 후)에서 component를 invoke.</p>
+
+<p><strong>지원 알고리즘</strong> (Table 1):</p>
+<table>
+<tr><th>Category</th><th>Algorithms</th><th>Online/Offline</th></tr>
+<tr><td>Data Selection (Gradient)</td><td>LESS, NICE</td><td>Online</td></tr>
+<tr><td>Data Selection (Loss)</td><td>Loss, Delta Loss</td><td>Online</td></tr>
+<tr><td>Data Selection (Distribution)</td><td>NEAR, TSDS</td><td>Offline</td></tr>
+<tr><td>Data Mixture</td><td>DoReMi (offline), ODM (online)</td><td>Both</td></tr>
+<tr><td>Data Reweighting</td><td>Loss-based Reweighting</td><td>Online</td></tr>
+</table>
+
+<h3>3.4 Scalability</h3>
+<p>DeepSpeed ZeRO-3 호환 gradient collection (<code>safe_get_full_grad</code>, <code>safe_get_full_optimizer_state</code>). Gradient-based 연산을 configurable interval로 실행하여 overhead 감소. Caching으로 selection/weighting decision 재사용. 모든 component가 distributed training loop 내에서 centralized coordination 없이 병렬 동작.</p>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Data Selection and Reweighting</h3>
+
+<p><strong>Setup</strong>: Open-Hermes-2.5 100K subset, MMLU evaluation. Mistral-7B와 Llama-3.2-3B. LoRA (rank 32, $\alpha=64$), AdamW, cosine lr $5 \times 10^{-7}$, 1 epoch, 8× NVIDIA H20 GPU.</p>
+
+<p><strong>Online selection schedule</strong>: warmup_step=100, update_step=50, update_times=30.</p>
+
+<h4>Results (Figure 3)</h4>
+<p><strong>Mistral-7B</strong>: LESS가 0.452로 최고 final accuracy (static baseline 0.394 대비 +5.8%). Reweight 0.429, TSDS 0.429, NEAR 0.419 순. Loss-only(0.400)와 Random(0.393)은 baseline과 유사.</p>
+
+<p><strong>Llama-3.2-3B</strong>: Reweight 0.453으로 최고, LESS 0.450, Delta Loss 0.434 순. Static baseline 0.319로 gap이 더 크며, ##모든 online method가 0.427+ 달성##. Offline method(NEAR 0.344, TSDS 0.345)는 smaller model에서 상대적으로 약세 → dynamic, model-aware selection이 capacity-limited model에서 더 critical.</p>
+
+<h3>4.2 Data Mixture</h3>
+
+<p><strong>Setup</strong>: SlimPajama (7 domains: CommonCrawl, C4, GitHub, Book, ArXiv, Wikipedia, StackExchange). Qwen2.5-1.5B를 from scratch 학습. 6B 및 30B token scale. DoReMi (offline, 3-step: reference → proxy → target) 및 ODM (online, Exp3 multi-armed bandit).</p>
+
+<h4>Results (Table 2)</h4>
+
+<table>
+<tr><th>Method</th><th>MMLU (6B)</th><th>PPL (6B)</th><th>MMLU (30B)</th><th>PPL (30B)</th></tr>
+<tr><td>Static Baseline</td><td>25.27</td><td>4.217</td><td>25.51</td><td>3.584</td></tr>
+<tr><td>DoReMi</td><td>25.84</td><td><strong>4.134</strong></td><td><strong>25.97</strong></td><td>3.562</td></tr>
+<tr><td>ODM</td><td><strong>26.04</strong></td><td>4.244</td><td>25.63</td><td><strong>3.429</strong></td></tr>
+</table>
+
+<p>##두 dynamic method 모두 static baseline을 consistently 상회##. DoReMi는 high-resource domain(CommonCrawl, C4)에서 perplexity 최적화에 강하고, ODM은 low-resource domain(ArXiv, Book, StackExchange)에서 더 공격적으로 exploration → complementary 특성. 30B scale에서 ODM의 overall perplexity가 DoReMi를 상회(3.429 vs 3.562).</p>
+
+<h3>4.3 Efficiency</h3>
+
+<h4>Online Data Selection (Table 3)</h4>
+<p>LESS 대비 DataFlex: 모든 sampling ratio에서 ##runtime 감소 + accuracy 유지/개선##. 8-GPU 설정에서 28,734s → 12,965s (##57.13% 감소##). Multi-GPU 지원이 LESS 원본에는 없는 DataFlex의 핵심 이점.</p>
+
+<h4>Offline Data Selection (Figure 4)</h4>
+<p>TSDS 원본 대비 DataFlex: Training set 5K~100K, validation set 50~1000에서 consistent 1~3.5% runtime 개선. Moderate하지만 반복 실험에서 누적 효과.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>실용적 가치</strong>: LLaMA-Factory ecosystem에 drop-in 통합 가능한 점은 즉각적 채택 가능성을 높임. pip install + YAML 수정만으로 dynamic training 전환.</li>
+  <li><strong>포괄적 벤치마킹</strong>: 7 selection + 2 mixture + 1 reweighting을 동일 조건에서 비교한 최초의 통합 평가.</li>
+  <li><strong>코드/데이터 공개</strong>: GitHub, HuggingFace dataset, 문서 모두 공개.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Novel method 부재</strong>: DataFlex는 기존 알고리즘을 통합하는 framework이지, 새로운 data-centric 방법론을 제안하지 않음. 연구 기여보다는 engineering 기여에 가까움.</li>
+  <li><strong>Evaluation이 MMLU/Perplexity에 편중</strong>: Data selection은 MMLU만, data mixture는 MMLU + SlimPajama PPL만으로 평가. 다양한 downstream benchmark(MATH, HumanEval, MT-Bench 등)에서의 비교가 없음.</li>
+  <li><strong>Small-scale 실험</strong>: Data selection은 100K sample, data mixture는 최대 30B tokens로 비교적 소규모. 수조 tokens 규모의 pre-training에서의 scalability는 미검증.</li>
+  <li><strong>LLaMA-Factory 의존성</strong>: Framework이 LLaMA-Factory에 강하게 결합되어, Megatron-LM, NeMo 등 다른 training framework 사용자는 혜택을 받기 어려움.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Dynamic data-centric 방법이 static baseline을 consistently outperform</strong>: Data selection, mixture, reweighting 모든 축에서 확인됨. 데이터를 정적 자원이 아닌 optimization variable로 다루는 것이 유효.</li>
+  <li><strong>Online method가 smaller model에서 특히 유리</strong>: Llama-3.2-3B에서 online(LESS, Reweight)과 offline(NEAR, TSDS) gap이 Mistral-7B보다 큼 → capacity-limited model에서 model-aware dynamic selection이 더 critical.</li>
+  <li><strong>통합 framework의 공정 비교가 연구 방향을 명확히 함</strong>: 동일 조건에서 비교하니 method 간 상대적 강약점이 드러남 (LESS의 gradient method 우위, DoReMi vs ODM의 complementary 특성 등). 파편화된 개별 연구에서는 얻기 어려운 insight.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

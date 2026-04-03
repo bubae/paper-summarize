@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataProphet — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #e65100, #ff9800, #ffcc80); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; }
+  .hero h1 { font-size: 2.2rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #e65100; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #e65100, #ff9800); border-radius: 3px; }
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #e65100; }
+  .card-green { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .one-liner { background: linear-gradient(135deg, #e65100, #ff9800); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #e65100, #ff9800); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #e65100; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fff3e0; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .version-toggle { text-align: center; margin: 1.5rem 0; }
+  .version-toggle a { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
+  .version-toggle a:hover { background: #e65100; color: #fff; }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.7rem; } .stat-row { flex-direction: column; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">ICLR 2026 &middot; UPenn / Tsinghua / Princeton</div>
+  <h1>DataProphet</h1>
+  <p class="subtitle">"이 데이터로 훈련하면 성능이 오를까?"를<br>훈련하기 전에 예측하는 방법</p>
+</div>
+
+<div class="container">
+
+<div class="version-toggle">
+  <a href="20260403_qi_dataprophet.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<div class="one-liner">
+  "비슷한 데이터가 도움이 된다"는 직관은 틀렸다.<br>
+  <span style="font-size:0.9rem; opacity:0.85;">— OCR 데이터가 차트보다 공간추론에 더 도움이 되는 이유</span>
+</div>
+
+<section>
+  <h2>핵심 발견: 직관을 뒤집는 실험 결과</h2>
+
+  <div class="card card-accent">
+    <p>AI 모델(특히 이미지+텍스트를 다루는 멀티모달 AI)을 훈련시킬 때, "비슷한 종류의 데이터로 훈련하면 비슷한 종류의 시험에서 잘 할 것"이라고 생각하기 쉽습니다.</p>
+    <br>
+    <p>하지만 이 논문은 14가지 데이터셋과 7가지 과제에 대한 196번의 실험을 통해 <strong>이 직관이 틀렸다</strong>는 것을 증명했습니다.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">놀라운 발견들</div>
+    <p><strong>OCR(문자인식) 데이터</strong>로 훈련하면 차트 읽기보다 <strong>공간추론</strong>이 더 많이 개선됩니다!</p>
+    <br>
+    <p>같은 "OCR" 카테고리의 두 데이터셋(OCR-VQA, ScreenQA)도 다른 시험에 미치는 영향이 <strong>완전히 다릅니다</strong>.</p>
+    <br>
+    <p>데이터 A로 훈련해서 시험 B가 오르는 정도와, 데이터 B로 훈련해서 시험 A가 오르는 정도가 <strong>같지 않습니다</strong>(비대칭적).</p>
+  </div>
+</section>
+
+<section>
+  <h2>DataProphet: 훈련 없이 예측하는 점수</h2>
+
+  <div class="card card-accent">
+    <p>이런 복잡한 관계를 예측하기 위해 연구팀은 <strong>DataProphet</strong>이라는 간단한 점수를 만들었습니다. 세 가지 요소를 곱하면 됩니다:</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num" style="font-size:1.5rem;">난이도</div>
+      <div class="label">모델에게 어려운<br>데이터일수록 유용</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.5rem;">유사도</div>
+      <div class="label">질문·답·이미지가<br>시험과 비슷할수록 유용</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.5rem;">다양성</div>
+      <div class="label">다양한 유형의<br>질문이 있을수록 유용</div>
+    </div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">시험 준비의 비유</div>
+    <p>"이 참고서가 기말고사에 도움될까?"를 판단하는 것과 같습니다:</p>
+    <br>
+    <p>1. <strong>난이도</strong>: 내가 풀기 어려운 문제가 많은 참고서일수록 배울 게 많다</p>
+    <p>2. <strong>유사도</strong>: 시험 범위와 겹치는 내용이 많을수록 도움된다</p>
+    <p>3. <strong>다양성</strong>: 한 유형만 반복하는 것보다 다양한 문제가 있을수록 좋다</p>
+  </div>
+</section>
+
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">86%</div>
+      <div class="label">예측 정확도<br>(Kendall's tau)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+6.9%</div>
+      <div class="label">합성 데이터 선별<br>균등 대비 개선</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+1.4%</div>
+      <div class="label">기존 최고 방법<br>(ICONS) 대비</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">0원</div>
+      <div class="label">추가 훈련 비용<br>(training-free)</div>
+    </div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>방법</th><th>추가 훈련 필요?</th><th>실제 데이터 성능</th><th>합성 데이터 성능</th></tr>
+    <tr><td>균등 선택</td><td>없음</td><td>67.6</td><td>55.1</td></tr>
+    <tr><td>ICONS (기존 최고)</td><td>있음</td><td>69.6</td><td>60.8</td></tr>
+    <tr><td>Oracle (정답지)</td><td>실험 필요</td><td>70.8</td><td>-</td></tr>
+    <tr class="highlight-row"><td>DataProphet</td><td>없음!</td><td>71.0</td><td>62.0</td></tr>
+  </table>
+
+  <div class="card card-green">
+    <p>놀랍게도 DataProphet는 <strong>훈련 비용이 전혀 들지 않으면서</strong>, 비싼 훈련이 필요한 기존 방법(ICONS)보다 우수하고, 실제 실험 결과를 보고 선택한 Oracle보다도 약간 더 좋은 성능을 달성했습니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="card card-orange">
+    <p>모든 실험이 하나의 AI 모델(InternVL3-2B)과 VQA(질의응답) 형태의 과제에서만 수행되었습니다. 다른 모델이나 다른 유형의 과제(영상 이해, 텍스트 생성 등)에서도 같은 결론이 적용되는지는 추가 연구가 필요합니다.</p>
+  </div>
+</section>
+
+<div class="one-liner" style="margin-bottom:2rem;">
+  DataProphet = <strong>훈련 없이</strong> + <strong>86% 정확도</strong> + <strong>Oracle 초과</strong><br>
+  <span style="font-size:0.9rem; opacity:0.8;">ICLR 2026에서 발표된 데이터 선별의 새로운 기준</span>
+</div>
+
+<div class="version-toggle" style="margin-bottom:2rem;">
+  <a href="20260403_qi_dataprophet.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+</div>
+
+<div class="footer">
+  DataProphet (Qi et al., ICLR 2026) &middot; UPenn, Tsinghua, Princeton &middot; 개요 브리핑 자료
+</div>
+</body>
+</html>

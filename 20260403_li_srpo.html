@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Unifying Group-Relative and Self-Distillation Policy Optimization via Sample Routing (SRPO)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) { el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g, '<span style="background-color:#ffeb3b;color:#000">$1</span>'); }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; } h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; } h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; } th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; } th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Unifying Group-Relative and Self-Distillation Policy Optimization via Sample Routing (SRPO)</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260403_li_srpo_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#fce4ec; color:#c62828; border:1px solid #ef9a9a;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Gengsheng Li*, Tianyu Yang*, Junfeng Fang, Mingyang Song, Mao Zheng, Haiyun Guo, Dan Zhang, Jinqiao Wang, Tat-Seng Chua</li>
+  <li><strong>소속</strong>: Foundation Model Research Center (CAS), School of AI (UCAS), National University of Singapore, Tencent, Wuhan AI Research</li>
+  <li><strong>학회/저널</strong>: Working in Progress (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.02288">arXiv:2604.02288</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: RLVR(Reinforcement Learning with Verifiable Rewards)에서 GRPO는 안정적이지만 coarse credit assignment(sequence-level advantage, 모든 토큰에 동일하게 적용)로 sample efficiency가 낮다. SDPO(Self-Distillation PO)는 dense logit-level guidance로 초기 수렴이 빠르지만, (1) correct sample에 대한 distillation이 optimization ambiguity를 초래하고 (2) self-teacher의 signal quality가 학습 후반에 degradation하여 ##late-stage collapse##가 빈발.</li>
+  <li><strong>해결</strong>: SRPO (Sample-Routed Policy Optimization) — ##correct rollout은 GRPO branch로, incorrect rollout(with teacher info)은 SDPO branch로 routing##하는 통합 on-policy framework. SDPO branch에는 entropy-aware dynamic weighting으로 unreliable(high-entropy) distillation target을 suppress.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Correct sample에는 reward-aligned GRPO가 적합 (sequence-level advantage가 already-correct trajectory를 안정적으로 reinforce). (2) Incorrect sample에는 SDPO의 dense logit correction이 token-level deviations를 효과적으로 수정. (3) Routing이 training 진행에 따라 자연스럽게 적응 — 초기에는 failure 많아 SDPO 비중 ↑ (빠른 수렴), 후기에는 success 많아 GRPO 비중 ↑ (안정적 plateau).</li>
+  <li><strong>비유</strong>: 수학 교실에서, 맞은 학생에게는 "잘했어, 이 방식으로 계속해"(GRPO: reward reinforcement)라고 하고, 틀린 학생에게는 "이 부분이 틀렸으니 이렇게 고쳐봐"(SDPO: dense correction)라고 하는 것이다. 둘 다에게 같은 피드백을 주면 비효율적이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SDPO의 Late-Stage Instability 원인 규명</strong>: (1) Correct sample에 대한 self-distillation이 ##optimization ambiguity## 유발 — reward-equivalent한 다른 sibling의 logit distribution을 강제하는 것이 counterproductive. (2) Self-teacher의 token-level entropy가 학습 진행에 따라 증가하여 distillation signal의 reliability가 degradation.</li>
+  <li><strong>SRPO — Sample-Level Routing Framework</strong>: Binary correctness flag + teacher availability로 sample routing. 두 branch가 동일 policy의 on-policy trajectory에서 동작하므로 ##policy-gradient 구조 보존##. 별도 mixing hyperparameter 없이 sample 비율로 자연스러운 adaptive weighting.</li>
+  <li><strong>Entropy-Aware Dynamic Weighting (DW-SDPO)</strong>: SDPO branch에서 token-level self-teacher entropy $H_{i,t}$에 따라 $\tilde{w}_{i,t} = \exp(-\beta H_{i,t})$로 weight. High-confidence(low entropy) correction 강조, uncertain target suppress.</li>
+  <li><strong>5 Benchmark, 2 Model Scale에서 검증</strong>: Qwen3-8B에서 5-benchmark avg 77.4 (GRPO 74.0, SDPO 71.1 대비 ##+3.4, +6.3##). Qwen3-4B에서도 74.2 (GRPO 69.7 대비 +4.5). Per-step compute cost 최대 17.2% 감소.</li>
+</ol>
+
+<h2>2. Preliminaries</h2>
+
+<h3>2.1 GRPO (Group Relative Policy Optimization)</h3>
+<p>Prompt $x$에 대해 $G$개 on-policy rollout $\{y_i\}_{i=1}^G$. Group-normalized advantage:</p>
+$$A_i^{\text{GRPO}} = \frac{r_i - \bar{r}}{\sigma_r + \epsilon}$$
+
+<p>Clipped surrogate objective:</p>
+$$\mathcal{L}_{\text{GRPO}}(\theta) = \mathbb{E}\left[\min\left(\rho_{i,t}(\theta) A_i^{\text{GRPO}}, \; \text{clip}(\rho_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon) A_i^{\text{GRPO}}\right)\right]$$
+
+<p>$A_i^{\text{GRPO}}$는 sequence-level scalar → 모든 token에 동일하게 적용. Correct rollout에는 적절하지만, incorrect rollout에서 ##어떤 개별 토큰이 오류인지## 식별하지 못한다.</p>
+
+<h3>2.2 SDPO (Self-Distillation Policy Optimization)</h3>
+<p>Self-teacher $\pi_\theta(\cdot | x, f)$ (feedback-conditioned)에서 dense logit-level supervision. 학생과 교사 간 KL divergence 최소화:</p>
+$$\mathcal{L}_{\text{SDPO}}(\theta) = \sum_t \text{KL}\left(\pi_\theta(\cdot | x, y_{i,<t}) \| \text{stopgrad}[\pi_\theta(\cdot | x, f, y_{i,<t})]\right)$$
+
+<p>Self-teacher는 successful sibling rollout이나 environment feedback $f$를 conditioning하여, 원래 trajectory를 re-score. Dense하지만, correct sample에 적용하면 ##reward-equivalent한 다른 reasoning path를 임의로 강제##하는 ambiguity 발생.</p>
+
+<h2>3. The SRPO</h2>
+
+<h3>3.1 Sample-Level Routing</h3>
+
+<p>각 rollout $y_i$에 대해:</p>
+<ul>
+  <li>$c_i = \mathbf{1}[y_i \text{ is correct}]$: Correctness flag</li>
+  <li>$m_i = \mathbf{1}[\text{teacher information available for } y_i]$: Teacher availability</li>
+</ul>
+
+<p>Routing mask:</p>
+$$z_i^{\text{SDPO}} = (1 - c_i) \cdot m_i, \quad z_i^{\text{GRPO}} = 1 - z_i^{\text{SDPO}}$$
+
+<p>##Incorrect + teacher available → SDPO branch. 나머지 전부 → GRPO branch##. 두 branch 모두 동일 policy $\pi_\theta$의 on-policy trajectory에서 동작하므로 policy-gradient 구조 보존. Gradient의 형태만 다름:</p>
+
+$$\nabla_\theta \mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\sum_t \nabla_\theta \log \pi_\theta(y_t | x, y_{<t}) \cdot A_i^{\text{GRPO}}\right]$$
+$$-\nabla_\theta \mathcal{L}_{\text{SDPO}} = \mathbb{E}\left[\sum_t \sum_{v \in \mathcal{V}} \nabla_\theta \log \pi_\theta(v | x, y_{<t}) \cdot A_{i,t}^{\text{SDPO}}(v)\right]$$
+
+<p>GRPO의 advantage는 reward-derived + sequence-level, SDPO의 advantage는 teacher-derived + logit-level. ##Sample routing은 각 sample에 가장 적합한 advantage estimator를 선택##하는 것.</p>
+
+<h3>3.2 Dynamic-Weighted SDPO (DW-SDPO)</h3>
+
+<p>Self-teacher의 token-level entropy:</p>
+$$H_{i,t} = -\sum_{v \in \mathcal{V}} q_{i,t}(v) \log q_{i,t}(v)$$
+
+<p>Entropy-aware weight:</p>
+$$\tilde{w}_{i,t} = \exp(-\beta H_{i,t})$$
+
+<p>Normalized weight (total SDPO loss scale 보존):</p>
+$$w_{i,t} = \frac{\tilde{w}_{i,t}}{\frac{1}{|\Omega_{\text{sdpo}}|} \sum_{(j,s) \in \Omega_{\text{sdpo}}} \tilde{w}_{j,s}}$$
+
+<p>$\ell_{i,t}^{\text{DW-SDPO}} = w_{i,t} \cdot \ell_{i,t}^{\text{SDPO}}$. ##Low-entropy(high confidence) token에 더 큰 weight → 교사가 확신하는 correction만 강조##. $\beta=1$ (default).</p>
+
+<h3>3.3 Training Objective</h3>
+
+$$\mathcal{L}_{\text{final}} = \frac{\sum_{i,t} z_i^{\text{GRPO}} \ell_{i,t}^{\text{GRPO}} + \sum_{i,t} z_i^{\text{SDPO}} \ell_{i,t}^{\text{DW-SDPO}}}{\sum_{i,t} z_i^{\text{GRPO}} + \sum_{i,t} z_i^{\text{SDPO}}}$$
+
+<p>Denominator가 routed token 수로 normalize하여 ##각 branch가 cover하는 token 비율에 비례하여 기여##. 별도 mixing $\lambda$ 불필요 — sample 비율이 자연스럽게 결정. 초기(failure 많음): SDPO dominant. 후기(success 많음): GRPO dominant.</p>
+
+<div class="flow-diagram">Algorithm 1: SRPO
+1.  Sample prompt x from D
+2.  Generate rollouts {y_i} ~ π_θ(·|x)
+3.  Evaluate rewards {r_i}
+4.  Construct teacher info {f_i}
+5.  for i = 1 to G:
+6.    if y_i is incorrect AND teacher info available:
+7.      Compute DW-SDPO loss (with entropy weighting)
+8.    else:
+9.      Compute GRPO loss
+10. Aggregate routed losses, update θ</div>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Setup</h3>
+<ul>
+  <li><strong>Models</strong>: Qwen3-4B, Qwen3-8B (instruct-tuned base)</li>
+  <li><strong>Benchmarks</strong>: Chemistry, Physics, Biology, Materials (from SciKnowEval), Tool Use (ToolAlpaca). Train-test split per benchmark.</li>
+  <li><strong>Baselines</strong>: (1) GRPO — strengthened with asymmetric clipping, unbiased advantage normalization, off-policy correction. (2) SDPO — self-distillation from feedback-conditioned self-teacher (successful sibling as $f$).</li>
+  <li><strong>Training</strong>: Batch 32, 8 rollouts/prompt, mini-batch 8. GRPO: lr $1 \times 10^{-6}$. SDPO: lr $1 \times 10^{-5}$. SRPO: lr $5 \times 10^{-6}$, $\beta=1$. 8× NVIDIA H20 GPU. Metric: avg@16 accuracy.</li>
+</ul>
+
+<h3>4.2 Main Results (Table 1)</h3>
+
+<table>
+<tr><th>Method</th><th>Chemistry</th><th>Physics</th><th>Biology</th><th>Materials</th><th>Tool Use</th><th>Avg 5h</th><th>Avg 10h</th></tr>
+<tr><td>Qwen3-8B base</td><td>41.1</td><td>58.7</td><td>30.5</td><td>59.3</td><td>57.9</td><td>-</td><td>49.5</td></tr>
+<tr><td>+GRPO</td><td>78.9</td><td>72.3</td><td>68.1</td><td>77.8</td><td>69.0</td><td>72.5</td><td>74.0</td></tr>
+<tr><td>+SDPO</td><td>80.6</td><td>74.0</td><td>58.5</td><td>76.6</td><td>65.7</td><td>64.8</td><td>71.1</td></tr>
+<tr style="font-weight:bold;"><td>+SRPO</td><td>83.0</td><td>77.1</td><td>68.3</td><td>79.2</td><td>72.6</td><td>75.5</td><td>77.4</td></tr>
+</table>
+
+<p>##10h 시점에서 SRPO가 모든 benchmark에서 GRPO와 SDPO 모두를 상회##. Chemistry에서 가장 큰 개선: GRPO 78.9 → SRPO 83.0 (+4.1). Biology에서는 SDPO가 58.5로 collapse하지만 SRPO는 68.3 유지.</p>
+
+<h4>Training Dynamics Patterns (Figure 3)</h4>
+<p><strong>Pattern 1: Self-distillation이 효과적인 경우 (Chemistry, Biology)</strong>: SDPO가 초기에 빠르게 상승하지만 이후 collapse. SRPO는 초기 상승을 track하면서 collapse를 회피하여 최종 성능 최고.</p>
+
+<p><strong>Pattern 2: Self-distillation이 비효과적인 경우 (Tool Use)</strong>: SDPO가 지속적으로 하락. SRPO는 GRPO와 유사하게 안정적 상승 유지 — GRPO branch가 anchor 역할.</p>
+
+<h3>4.3 Ablation Study (Table 2)</h3>
+
+<h4>Mixing Strategy 비교</h4>
+<table>
+<tr><th>Variant</th><th>1h</th><th>5h</th><th>10h</th></tr>
+<tr><td>SRPO w/o dynamic weighting</td><td>66.5</td><td>74.8</td><td>75.6</td></tr>
+<tr><td>Advantage Mix ($\lambda=0.9$)</td><td><strong>67.2</strong></td><td>72.3</td><td>72.3</td></tr>
+</table>
+
+<p>Advantage Mix(advantage-level에서 GRPO+SDPO 결합, $\lambda=0.9$)는 초기 +0.7이지만 5h 후부터 SRPO에 2.5~3.3점 뒤처짐. ##Sample-level routing이 advantage-level mixing보다 long-horizon에서 robust##한 이유: SDPO signal이 noisy해지면 advantage mixing은 noise를 propagate하지만, sample routing은 noise를 failed sample에 confine.</p>
+
+<h4>Dynamic Weighting 효과</h4>
+<table>
+<tr><th>Variant</th><th>1h</th><th>5h</th><th>10h</th></tr>
+<tr><td>SRPO (full)</td><td>66.9</td><td>75.5</td><td><strong>77.4</strong></td></tr>
+<tr><td>SRPO w/o dynamic weighting</td><td>66.5</td><td>74.8</td><td>75.6</td></tr>
+</table>
+
+<p>DW가 1h에서 +0.4, 5h에서 +0.7, ##10h에서 +1.8##. Self-teacher가 noisier해지는 later training에서 entropy-aware weighting의 효과가 widening → ##DW는 late-stage improvement의 주 동력##.</p>
+
+<h3>4.4 Response Length and Compute Time (Figure 4)</h3>
+<ul>
+  <li><strong>Response length</strong>: GRPO가 가장 길고(~450 tokens), SDPO가 가장 짧고(~200 tokens, excessive brevity linked to degraded epistemic reasoning), SRPO는 moderate(~350 tokens)</li>
+  <li><strong>Per-step compute</strong>: 1h에서 SRPO 83.4s (GRPO 71.0s 대비 17.4% overhead). 그러나 5h에서 역전 (78.3s vs 82.4s), ##10h에서 SRPO가 GRPO 대비 17.2% 빠름## (75.8s vs 91.5s). SDPO 대비도 9.4% 빠름 (83.7s). 학습 후반에 failure 비율 감소 → self-teacher log-prob computation 감소 → cost 절감.</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>SDPO instability의 근본 원인 진단</strong>: Correct-sample ambiguity와 signal degradation이라는 두 가지 독립적 원인을 식별하고, 각각 routing과 DW로 해결한 설계가 논리적으로 명쾌.</li>
+  <li><strong>자연스러운 adaptive behavior</strong>: Mixing hyperparameter 없이 sample 비율로 자동 적응하는 설계가 우아. 초기 SDPO 비중 높음 → 후기 GRPO 비중 높음이 training dynamics와 자연스럽게 align.</li>
+  <li><strong>Later training에서 compute 절감</strong>: 성능 개선과 비용 절감을 동시에 달성하는 드문 사례.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Working in Progress 상태</strong>: 아직 peer review를 거치지 않은 초기 단계 논문.</li>
+  <li><strong>과학 QA + Tool Use에 국한</strong>: Math, code 등 RLVR의 주요 도메인에서의 검증 부재. SDPO의 effectiveness가 domain-dependent이므로 SRPO의 이점도 domain에 따라 다를 수 있음.</li>
+  <li><strong>Teacher information 가용성 가정</strong>: SDPO branch가 동작하려면 successful sibling rollout이 존재해야 함. 모든 rollout이 실패하면(매우 어려운 문제) SDPO branch를 활용할 수 없어 순수 GRPO로 fallback.</li>
+  <li><strong>Qwen3 모델에만 검증</strong>: 다른 model family(Llama, Mistral 등)에서의 일반화 미확인.</li>
+  <li><strong>Hyperparameter $\beta$의 robustness 미분석</strong>: $\beta=1$만 사용했으며 sensitivity analysis 없음.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>GRPO와 SDPO는 complementary하다</strong>: Correct sample에는 coarse reward-aligned reinforcement, incorrect sample에는 dense logit-level correction이 각각 최적. 둘을 ##sample 수준에서 routing##하는 것이 advantage-level mixing보다 robust.</li>
+  <li><strong>SDPO의 late-stage collapse는 해결 가능한 문제다</strong>: Correct-sample ambiguity 제거(routing)와 signal quality modulation(entropy weighting)으로 SDPO의 빠른 초기 수렴을 보존하면서 long-horizon stability 확보 가능.</li>
+  <li><strong>Entropy-aware dynamic weighting이 late-stage를 살린다</strong>: 1h에서 +0.4 → 10h에서 +1.8로 widening. Self-teacher가 noisier해지는 시점에서 high-confidence correction만 남기는 것이 핵심.</li>
+  <li><strong>성능 개선과 compute 절감이 동시에 가능</strong>: SRPO는 10h에서 GRPO 대비 +3.4% 성능 + 17.2% per-step compute 절감. 학습이 진행될수록 SDPO overhead가 자연스럽게 감소하는 구조적 이점.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
