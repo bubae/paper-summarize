@@ -140,20 +140,20 @@ $$\mathcal{L}_{\text{final}} = \frac{\sum_{i,t} z_i^{\text{GRPO}} \ell_{i,t}^{\t
   <li><strong>Models</strong>: Qwen3-4B, Qwen3-8B (instruct-tuned base)</li>
   <li><strong>Benchmarks</strong>: Chemistry, Physics, Biology, Materials (from SciKnowEval), Tool Use (ToolAlpaca). Train-test split per benchmark.</li>
   <li><strong>Baselines</strong>: (1) GRPO — strengthened with asymmetric clipping, unbiased advantage normalization, off-policy correction. (2) SDPO — self-distillation from feedback-conditioned self-teacher (successful sibling as $f$).</li>
-  <li><strong>Training</strong>: Batch 32, 8 rollouts/prompt, mini-batch 8. GRPO: lr $1 \times 10^{-6}$. SDPO: lr $1 \times 10^{-5}$. SRPO: lr $5 \times 10^{-6}$, $\beta=1$. 8× NVIDIA H20 GPU. Metric: avg@16 accuracy.</li>
+  <li><strong>Training</strong>: Batch 32, 8 rollouts/prompt. GRPO: mini-batch 8, lr $1 \times 10^{-6}$. SDPO: mini-batch 32, lr $1 \times 10^{-5}$. SRPO: mini-batch 32, lr $5 \times 10^{-6}$, $\beta=1$. 8× NVIDIA H20 GPU. Metric: avg@16 accuracy.</li>
 </ul>
 
 <h3>4.2 Main Results (Table 1)</h3>
 
 <table>
-<tr><th>Method</th><th>Chemistry</th><th>Physics</th><th>Biology</th><th>Materials</th><th>Tool Use</th><th>Avg 5h</th><th>Avg 10h</th></tr>
+<tr><th>Method</th><th>Chemistry (10h)</th><th>Physics (10h)</th><th>Biology (10h)</th><th>Materials (10h)</th><th>Tool Use (10h)</th><th>Avg 5h</th><th>Avg 10h</th></tr>
 <tr><td>Qwen3-8B base</td><td>41.1</td><td>58.7</td><td>30.5</td><td>59.3</td><td>57.9</td><td>-</td><td>49.5</td></tr>
-<tr><td>+GRPO</td><td>78.9</td><td>72.3</td><td>68.1</td><td>77.8</td><td>69.0</td><td>72.5</td><td>74.0</td></tr>
+<tr><td>+GRPO</td><td>78.9</td><td>73.6</td><td>70.6</td><td>77.8</td><td>69.0</td><td>72.5</td><td>74.0</td></tr>
 <tr><td>+SDPO</td><td>80.6</td><td>74.0</td><td>58.5</td><td>76.6</td><td>65.7</td><td>64.8</td><td>71.1</td></tr>
-<tr style="font-weight:bold;"><td>+SRPO</td><td>83.0</td><td>77.1</td><td>68.3</td><td>79.2</td><td>72.6</td><td>75.5</td><td>77.4</td></tr>
+<tr style="font-weight:bold;"><td>+SRPO</td><td>83.0</td><td>78.4</td><td>72.8</td><td>81.5</td><td>71.2</td><td>75.5</td><td>77.4</td></tr>
 </table>
 
-<p>##10h 시점에서 SRPO가 모든 benchmark에서 GRPO와 SDPO 모두를 상회##. Chemistry에서 가장 큰 개선: GRPO 78.9 → SRPO 83.0 (+4.1). Biology에서는 SDPO가 58.5로 collapse하지만 SRPO는 68.3 유지.</p>
+<p>##10h 시점에서 SRPO가 모든 benchmark에서 GRPO와 SDPO 모두를 상회##. Chemistry에서 가장 큰 개선: GRPO 78.9 → SRPO 83.0 (+4.1). Biology에서는 SDPO가 58.5로 collapse하지만 SRPO는 72.8 유지. Materials에서도 SRPO 81.5로 GRPO(77.8) 대비 +3.7.</p>
 
 <h4>Training Dynamics Patterns (Figure 3)</h4>
 <p><strong>Pattern 1: Self-distillation이 효과적인 경우 (Chemistry, Biology)</strong>: SDPO가 초기에 빠르게 상승하지만 이후 collapse. SRPO는 초기 상승을 track하면서 collapse를 회피하여 최종 성능 최고.</p>
