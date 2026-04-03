@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Towards a Medical AI Scientist</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [{left: '$$', right: '$$', display: true},{left: '$', right: '$', display: false}]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) { el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g, '<span style="background-color:#ffeb3b;color:#000">$1</span>'); }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; } h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; } h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; } th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; } th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Towards a Medical AI Scientist</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260403_wu_medical-ai-scientist_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8eaf6; color:#283593; border:1px solid #9fa8da;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Hongtao Wu, Boyun Zheng, Dingjie Song, Yu Jiang, Jianfeng Gao, Lei Xing, Lichao Sun, Yixuan Yuan</li>
+  <li><strong>소속</strong>: The Chinese University of Hong Kong, Lehigh University, Stanford University, Microsoft</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.28589">arXiv:2603.28589</a> · <a href="https://cuhk-aim-group.github.io/Med-AI-Scientist-Homepage/">Homepage</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 "AI Scientist" 시스템(AI Scientist, AI-Researcher 등)은 수학, 화학, 일반 ML 등 비교적 표준화된 도메인에 최적화되어 있다. 임상 의학은 (1) medical evidence에 기반한 연구 설계 필요, (2) 이종 다차원 의료 데이터(영상, EHR, 생체 신호 등)의 전문 처리 필요, (3) 윤리적 준수 및 임상 글쓰기 표준 준수 필요 등의 고유한 요구사항이 있어 기존 시스템의 직접 적용이 어렵다.</li>
+  <li><strong>해결</strong>: Medical AI Scientist — ##임상 의학에 특화된 최초의 autonomous research framework##. 3개 핵심 component: (1) Idea Proposer (clinician-engineer co-reasoning으로 evidence-grounded hypothesis 생성), (2) Experimental Executor (domain-specific medical toolbox + iterative self-correcting 실험), (3) Manuscript Composer (structured medical writing + ethical review). 3가지 research mode (Reproduction, Innovation, Exploration) 지원.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Clinician-engineer co-reasoning이 hallucination을 줄이고 verifiable medical evidence에 hypothesis를 grounding. (2) 의료 데이터 특화 toolbox(MONAI, SimpleITK 등)를 일반 execution engine과 통합하여 complex clinical data format 처리. (3) Structured medical writing paradigm이 evidence-based narrative를 강제하고 ethical compliance를 embed.</li>
+  <li><strong>비유</strong>: 기존 AI Scientist가 "만능 연구 조교"라면, Medical AI Scientist는 "임상의와 엔지니어의 전문팀"이 연구실에 상주하는 것과 같다. 임상의가 의학적 타당성을 검증하고, 엔지니어가 기술적 실현 가능성을 확인하며, 두 관점이 합의에 이를 때만 연구가 진행된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>임상 의학 특화 Autonomous Research Framework</strong>: ##3개 component (Idea Proposer, Experimental Executor, Manuscript Composer)와 3가지 research mode## (Paper-based Reproduction, Literature-inspired Innovation, Task-driven Exploration)로 full research lifecycle 자동화. GPT-5 기반 multi-agent system.</li>
+  <li><strong>Clinician-Engineer Co-Reasoning Mechanism</strong>: 가설 생성 시 의학적 prior(질병 메커니즘, 임상 패턴)와 공학적 prior(알고리즘 적합성, 구현 가능성)를 교차 검증하여 ##hallucination 감소 및 evidence traceability 확보##. 기존 AI Scientist에서 가장 큰 약점이었던 "그럴듯하지만 실행 불가능한 아이디어" 문제를 완화.</li>
+  <li><strong>Med-AI Bench</strong>: ##171 evaluation cases, 19 research tasks, 6 data modalities## (medical images, videos, EHR, text, physiological signals, multimodal). 57개 ground-truth 논문에서 구축. 각 task에 easy/medium/hard 3단계 difficulty.</li>
+  <li><strong>포괄적 3단계 평가</strong>: (1) Idea Generation — 6차원 LLM+human eval에서 GPT-5, Gemini-2.5-Pro 상회. (2) Execution — 91% success rate (Reproduction), 93% (Innovation), 86% (Exploration). (3) Manuscript — double-blind expert review에서 ##MICCAI 수준 (4.60 ± 0.56)##, ISBI/BIBM 초과.</li>
+</ol>
+
+<h2>2. Results</h2>
+
+<h3>2.1 System Overview — 3 Research Modes</h3>
+
+<p><strong>Mode 1: Paper-based Reproduction</strong>: Target paper의 research instructions를 따라 faithful implementation 수행. Ethical gatekeeping 포함. 초기 연구자(PhD 초기)가 기존 방법론 학습에 활용.</p>
+
+<p><strong>Mode 2: Literature-inspired Innovation</strong>: 고정된 reference paper + dataset에서 research gap을 식별하고 novel hypothesis 생성. Clinician-engineer co-reasoning + multi-dimensional assessment. Originality와 methodological completeness를 평가.</p>
+
+<p><strong>Mode 3: Task-driven Exploration</strong>: User-defined question만으로 시작. 시스템이 자율적으로 literature mining → paradigm selection → solution 생성 → 실험 검증 수행. 가장 높은 수준의 scientific autonomy.</p>
+
+<h3>2.2 Idea Generation Evaluation</h3>
+
+<p><strong>6차원 평가</strong>: Novelty, Maturity, Ethicality, Generalizability, Utility, Interpretability. LLM-as-judge + blinded human expert(3명) 평가.</p>
+
+<p><strong>LLM 평가 결과 (Figure 2a)</strong>: Medical AI Scientist가 모든 6차원에서 baselines(GPT-5, Gemini-2.5-Pro) 대비 우수:</p>
+<ul>
+  <li>Novelty: Innovation mode에서 4.07 vs 3.00/3.12, Exploration mode에서 4.07 vs 3.42/3.05</li>
+  <li>Maturity: 4.61/4.74 vs ≤3.58</li>
+  <li>Ethicality: 3.39/3.64 vs ≤3.05</li>
+</ul>
+
+<p><strong>Human 평가 결과 (Figure 2b)</strong>: Technical innovation $4.40 \pm 0.49$ / $4.32 \pm 0.47$ (Innovation/Exploration), Maturity $4.65 \pm 0.48$ / $4.68 \pm 0.47$. GPT-5와 Gemini-2.5-Pro를 ##consistently 상회하며 lower variance##를 보여 more stable and reliable hypothesis generation.</p>
+
+<p>직관적으로 말하면, Medical AI Scientist는 "더 참신하면서도 더 실현 가능한" 아이디어를 일관되게 생성한다. 이는 co-reasoning mechanism이 novelty와 feasibility를 동시에 최적화하기 때문.</p>
+
+<h3>2.3 Experimental Implementation</h3>
+
+<h4>2.3.1 Implementation Completeness (Figure 4a)</h4>
+<p>Algorithm Fidelity와 Pipeline Integrity를 평가. 3가지 mode 모두에서 ##Medical AI Scientist가 가장 높은 mean score + 가장 낮은 variance##. Open-ended innovation mode: $3.72 \pm 0.52$ (Fidelity), $4.09 \pm 0.47$ (Integrity) vs Gemini-2.5-Pro $2.84 \pm 0.67$ / $3.18 \pm 0.94$.</p>
+
+<h4>2.3.2 Code Execution Success Rate (Figure 4b)</h4>
+<p>57개 medical AI research instance에서 first-run experimental success rate:</p>
+<table>
+<tr><th>Mode</th><th>Medical AI Scientist</th><th>GPT-5</th><th>Gemini-2.5-Pro</th></tr>
+<tr><td>Reproduction</td><td><strong>0.91</strong></td><td>0.72</td><td>0.40</td></tr>
+<tr><td>Literature-based Innovation</td><td><strong>0.93</strong></td><td>0.60</td><td>0.49</td></tr>
+<tr><td>Task-driven Exploration</td><td><strong>0.86</strong></td><td>0.75</td><td>0.53</td></tr>
+</table>
+
+<p>##모든 mode에서 baseline을 크게 상회##. GPT-5 대비 +19~33%p, Gemini-2.5-Pro 대비 +33~51%p. Iterative self-correcting pipeline과 domain-specific medical toolbox의 결합이 핵심.</p>
+
+<h3>2.4 Manuscript Quality Evaluation</h3>
+
+<p>Diabetic retinopathy classification task에서 double-blind user study. 10명의 독립 expert(5년+ first-author 경험). AI 생성 논문 5편 + MICCAI/ISBI/BIBM 인간 논문 15편을 anonymize하여 평가.</p>
+
+<h4>Stanford Agentic Reviewer (Figure 5a)</h4>
+<p>ICLR 기준 자동 리뷰: Medical AI Scientist ##$4.60 \pm 0.56$##로 MICCAI($4.86 \pm 0.47$)에 근접, ISBI($3.74 \pm 1.02$)와 BIBM($4.06 \pm 0.89$)을 상회.</p>
+
+<h4>Human Expert Evaluation (Figure 5b)</h4>
+<p>5차원 (Novelty, Coherence, Coverage, Clarity, Reproducibility): 전 차원에서 MICCAI/ISBI/BIBM과 competitive. Novelty에서 가장 높은 평가. Coverage에서만 modest gap ($3.44 \pm 0.67$ vs $3.68 \pm 0.68$ for MICCAI) — 이는 methodological innovation에 집중하고 dataset coverage가 상대적으로 제한되기 때문.</p>
+
+<p><strong>ICAIS 2025 채택</strong>: System이 생성한 manuscript 1편이 International Conference on AI Scientists (ICAIS 2025, acceptance rate 36.8%)에 실제 채택됨.</p>
+
+<h2>4. Methods</h2>
+
+<h3>4.1 System Architecture</h3>
+
+<div class="flow-diagram">Mode Initializer → Idea Proposer → Experimental Executor → Manuscript Composer
+     ↓                   ↓                      ↓                        ↓
+  [3 Modes]        [Multi-Agent]          [Multi-Agent]           [Multi-Agent]
+  Reproduction     Analyzer               Investigator            Content Generator
+  Innovation       Explorer               Planner                 Stylist
+  Exploration      Preparer/Surveyor      Coder/Executor          Scientific Narrative Enhancer
+                   Generator              Debugger/Judger         Cross-Reference Resolver
+                   Assessor               Analyst                 Ethics Reviewer
+                                                                  LaTeX Compilation Engine</div>
+
+<p>전체 system은 GPT-5를 base LLM으로 사용하는 multi-agent architecture. External infrastructure: Dockerized Sandbox, Medical Toolbox (MONAI, SimpleITK), Knowledge bases (PubMed, IEEE Xplore), GitHub/Websites.</p>
+
+<h3>4.2 Idea Proposer</h3>
+
+<p><strong>Analyzer</strong>: User input(dataset, task description)을 structured task representation으로 변환. Google Scholar 기반 targeted retrieval. Disease context, data characteristics, evaluation constraints, implicit clinical needs를 encoding.</p>
+
+<p><strong>Explorer</strong>: 최적 computational paradigm 식별. Recent literature + open-source repository에서 dynamic retrieval. Methodological novelty, empirical performance, implementation maturity를 jointly 고려. ##Problem structure와 algorithmic capability 간 explicit alignment##.</p>
+
+<p><strong>Preparer & Surveyor</strong>: Structured evidence base 구축. Literature를 code artifact과 함께 retrieve. Surveyor가 structured synthesis — core concept과 methodological skeleton을 추출, domain-specific terminology를 abstracting, canonical mathematical formalism으로 mapping, open-source code와 alignment. ##Prior methods를 verifiable workflows로 재구성##.</p>
+
+<p><strong>Generator</strong>: ##Clinician-engineer co-reasoning##으로 hypothesis 생성. Task-specific challenge를 selected paradigm의 capability와 align. 의학적 고려(relevance, plausibility)와 기술적 refinement(targeted retrieval, adaptation)의 bidirectional interaction. Iterative refinement until clinical validity + methodological soundness + implementation feasibility 동시 달성.</p>
+
+<p><strong>Assessor</strong>: Scientific + ethical criteria로 hypothesis 평가. Quality threshold 미충족 → Generator로 return for refinement. Ethical violation → rejection. 통과 시 detailed research plan으로 formalize.</p>
+
+<h3>4.3 Experimental Executor</h3>
+
+<p>Dockerized environment에서 structured multi-stage pipeline:</p>
+<ul>
+  <li><strong>Investigator</strong>: Codebase 수집 + domain-specific medical toolbox 통합</li>
+  <li><strong>Planner</strong>: Machine-interpretable execution protocol로 분해</li>
+  <li><strong>Coder/Executor</strong>: Controlled environment에서 training/evaluation pipeline 구축 및 실행</li>
+  <li><strong>Judger</strong>: Intended design vs observed behavior 일치성 평가, corrective feedback 생성</li>
+  <li><strong>Analyst</strong>: Validated results를 structured records로 정리</li>
+</ul>
+
+<p>##Iterative feedback loop##으로 self-correcting: dependency conflict resolution, data compatibility enforcement, runtime-stable logic 보장. Domain-specific medical toolbox가 heterogeneous clinical data format 처리를 가능하게 함.</p>
+
+<h3>4.4 Manuscript Composer</h3>
+
+<p>Multi-agent framework으로 research materials → typeset-ready paper 변환:</p>
+<ul>
+  <li><strong>Content Generator</strong>: Reference paper의 organizational pattern을 참고하여 global structure 설정. Evidence-grounded section content 생성. Experimental figure 자동 생성 + architectural diagram 합성.</li>
+  <li><strong>Ethics Reviewer</strong>: Dataset origin, license, ethical approval을 rigorous하게 report. Conference/journal policy를 structured instructions로 요약하여 compliance 보장.</li>
+  <li><strong>Scientific Narrative Enhancer</strong>: AI-generated text의 과도한 procedural detail tendency를 counter. Writing style을 task-specific paradigm에 align.</li>
+  <li><strong>Cross-Reference Resolver</strong>: Equations, figures, sections, citations의 internal reference 검증.</li>
+  <li><strong>LaTeX Compilation Engine</strong>: Self-healing mechanism — compiler feedback을 해석하여 syntactic/structural error를 자율 수정.</li>
+</ul>
+
+<h3>4.5 Med-AI Bench</h3>
+
+<p>6가지 data modality에서 19개 research task:</p>
+<table>
+<tr><th>Modality</th><th>Tasks</th></tr>
+<tr><td>Medical Images</td><td>Classification, Segmentation, Prognosis, Registration, Restoration</td></tr>
+<tr><td>Videos</td><td>Instrument Detection, Restoration, Workflow Recognition, Intraoperative Risk, Postoperative Skill Assessment</td></tr>
+<tr><td>EHR</td><td>Risk Prediction, Clinical Decision Support</td></tr>
+<tr><td>Physiological Signals</td><td>Diagnosis, Prognosis</td></tr>
+<tr><td>Text</td><td>Report Summarization, Diagnosis & Risk Assessment, Biomedical QA</td></tr>
+<tr><td>Multimodal</td><td>Multimodal Diagnosis, Cross-modal Report Generation</td></tr>
+</table>
+
+<p>57개 ground-truth paper에서 3 difficulty tier × 3 input modes = 171 cases. Google Scholar에서 task-specific keyword로 retrieve, Code Availability / Venue Quality / Citations / Year & Complexity / Human Rating으로 scoring 및 ranking.</p>
+
+<h3>2.5 Case Studies</h3>
+
+<p><strong>Case 1: Diabetic Retinopathy Classification (Innovation mode)</strong>: Ophthalmic literature의 clinical insight(microglia의 retinal angiogenesis 역할)을 dual-pathway diffusion architecture로 translate. Imbalance-aware objectives + realizable training protocols. 기존 implementation에 없는 novel hypothesis를 ##의학적 evidence와 공학적 설계를 연결##하여 생성.</p>
+
+<p><strong>Case 2: Medical Video Restoration (Exploration mode)</strong>: Minimal task description에서 시작, temporal inconsistency를 critical unmet need로 identify, continuous-time video restoration paradigm을 자율적으로 선택하여 endoscopic setting에 적용. Structured ablation + quantitative evaluation으로 검증.</p>
+
+<h2>3. Discussion</h2>
+
+<h3>3.1 Key Findings</h3>
+<ol>
+  <li><strong>Superior research idea quality</strong>: 6차원 모두에서 commercial LLM을 상회. Strong novelty, feasibility, interpretability.</li>
+  <li><strong>Robust experimental execution</strong>: Proposed methods와 implementation 간 high alignment. Substantially improved success rates.</li>
+  <li><strong>High-quality manuscripts</strong>: Double-blind expert evaluation에서 top-tier conference(MICCAI)와 competitive. ICAIS 2025 acceptance라는 real-world validation.</li>
+</ol>
+
+<h3>3.2 Limitations</h3>
+<ul>
+  <li>Conceptual design이 overly intricate해질 수 있어 execution instability 유발 가능</li>
+  <li>실험이 predefined dataset에 한정. Cross-domain/OOD 탐색 부족</li>
+  <li>생성된 method가 아직 SoTA에 미치지 못함. Algorithmic design과 experimental validation의 추가 refinement 필요</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>도메인 특화 설계의 가치</strong>: 범용 AI Scientist에서 간과되는 medical evidence grounding, ethical compliance, heterogeneous data handling을 체계적으로 해결. Clinician-engineer co-reasoning은 특히 novel하며 hallucination 감소에 실질적 기여.</li>
+  <li><strong>포괄적 평가 체계</strong>: Idea → Execution → Manuscript의 full lifecycle을 3가지 평가 방법(LLM-judge, human expert, automated reviewer)으로 검증. Med-AI Bench(171 cases, 19 tasks, 6 modalities)는 재사용 가능한 벤치마크.</li>
+  <li><strong>Real-world validation</strong>: ICAIS 2025 채택은 AI-generated manuscript의 실제 과학적 가치를 시사하는 early evidence.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>GPT-5 의존성</strong>: 전체 system이 GPT-5에 의존. 비용, 접근성, reproducibility 문제. GPT-5 API 변경 시 system 전체 영향.</li>
+  <li><strong>Baseline 비교의 공정성</strong>: GPT-5와 Gemini-2.5-Pro를 "vanilla" baseline으로 사용하지만, 이들에 동일한 medical toolbox/evidence retrieval을 제공하지 않음. System 전체 vs 단일 LLM 비교는 apples-to-oranges.</li>
+  <li><strong>"SoTA에 미치지 못함"의 솔직한 인정</strong>: 논문 자체적으로 generated method가 leading methods에 미치지 못한다고 인정. 이는 system의 scientific discovery 능력에 근본적 한계를 시사.</li>
+  <li><strong>Execution success rate의 정의</strong>: "Runtime completion + decreasing loss + valid model weights"를 success로 정의. 이는 최소 기준이며, generated model이 실제로 meaningful한 결과를 produce하는지는 별도 question.</li>
+  <li><strong>제한된 human evaluation 범위</strong>: Manuscript quality의 double-blind evaluation이 diabetic retinopathy 한 task에 한정. 19개 task 중 1개에서의 결과를 일반화하기 어려움.</li>
+  <li><strong>윤리적 우려</strong>: Autonomous medical research의 윤리적 함의(데이터 사용, 연구 결과의 임상 적용 가능성, AI-authored paper의 학술적 integrity)에 대한 논의가 부족.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Domain-specific AI Scientist가 범용 AI Scientist보다 효과적이다</strong>: 임상 의학처럼 domain expertise, data heterogeneity, ethical requirements가 높은 분야에서는 ##도메인 특화 설계##(evidence grounding, medical toolbox, ethical review)가 필수적이다.</li>
+  <li><strong>Clinician-engineer co-reasoning이 hallucination의 실용적 해결책</strong>: 의학적 타당성과 기술적 실현 가능성을 교차 검증하는 구조가 "그럴듯하지만 실행 불가능한" 아이디어를 효과적으로 걸러냄. 다른 domain-specific AI Scientist에도 적용 가능한 패턴.</li>
+  <li><strong>End-to-end 자동화의 현재 수준: "MICCAI 수준 논문 생성 가능, SoTA 달성은 아직 미달"</strong>: AI가 연구의 형식과 구조는 잘 갖추지만, 진정한 과학적 breakthrough는 아직 인간 연구자의 영역. 현시점에서는 "연구 가속기" 역할이 적절.</li>
+  <li><strong>Med-AI Bench는 medical AI 자동 연구 평가의 표준이 될 수 있다</strong>: 171 cases, 19 tasks, 6 modalities의 comprehensive 벤치마크. 향후 medical AI Scientist 시스템 간 공정 비교의 기반.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
