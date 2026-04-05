@@ -299,6 +299,9 @@ document.addEventListener("DOMContentLoaded", function() {
 - **색상 테마**: 논문/분야에 맞게 Hero 그라디언트 색상 변경 (보라, 파랑, 초록 등)
 - **카드 스타일**: `.card-accent` (핵심), `.card-green` (성과), `.card-orange` (한계), `.card-red` (경고)
 - **반응형**: 600px 이하에서 stat-row/step-flow가 세로로 전환
+- **분량 주의**: Brief는 "짧은 요약"이 아님! 비전문가를 위한 **풍부한 설명 문서**이므로, 전문가용과 비슷하거나 더 긴 분량(최소 500줄 이상)이 되어야 함. `examples/turboquant_ceo_brief_white.html` (2,375줄)을 참고 기준으로 삼을 것
+- **배경 지식 충분히**: 각 개념을 비전문가가 이해할 수 있도록 단계별로 설명하고, 각 단계마다 SVG 다이어그램 포함
+- **비유 풍부히**: 최소 3~5개의 .analogy 박스로 일상적 비유 제공
 
 ### 상호 링크
 - **전문가용 파일**: 제목 아래에 `개요 브리핑 버전 보기 →` 링크 추가
