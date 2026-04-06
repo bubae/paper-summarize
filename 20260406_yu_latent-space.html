@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook</h1>
+
+<p><a href="20260406_yu_latent-space_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Xinlei Yu*, Zhangquan Chen*, Yongbo He*, Tianyu Fu*, Cheng Yang*, Chengming Xu*, Yue Ma*, Xiaobin Hu*† 외 30명 이상. Core Supervisors: Cheng Tan†, Jianning Zhang†, Yu-Gang Jiang†, Shuicheng Yan†</li>
+  <li><strong>소속</strong>: National University of Singapore, Fudan University, Tsinghua University, Zhejiang University, Shanghai AI Laboratory, Renmin University, CUHK, HKUST, Nanjing University, Shanghai Jiaotong University, NTU, Tencent Hunyuan, QuantaAlpha, BUPT, Zhejiang Lab, UCAS 등</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2604.02029v1)</li>
+  <li><strong>연도</strong>: 2026 (2 Apr 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.02029">arXiv</a> / <a href="https://github.com/YU-deep/Awesome-Latent-Space">GitHub (Awesome-Latent-Space)</a></li>
+</ul>
+</div>
+
+<!-- ==================== TL;DR ==================== -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM/VLM/VLA에서 latent space 연구가 폭발적으로 증가했으나, application별(latent reasoning, visual thinking, embodied action), mechanism별(architecture, representation, computation, optimization), scenario별(text, vision, multi-agent, embodied)로 문헌이 파편화되어 통합적 관점이 부재했다.</li>
+  <li><strong>해결</strong>: 5가지 순차적 질문 — Foundation(무엇인가?), Evolution(어떻게 발전했는가?), Mechanism(어떻게 작동하는가?), Ability(무엇을 가능하게 하는가?), Outlook(미래는?) — 으로 latent space를 체계적으로 정리한다. 핵심은 2차원 taxonomy: Mechanism 4축(Architecture, Representation, Computation, Optimization) $\times$ Ability 7축(Reasoning, Planning, Modeling, Perception, Memory, Collaboration, Embodiment).</li>
+  <li><strong>왜 중요한가</strong>: Latent space는 단순한 reasoning 기법이 아니라, explicit token space의 구조적 한계(redundancy, discretization bottleneck, sequential inefficiency, semantic loss)를 극복하는 ##machine-native computational substrate##로 부상 중이다. 300+ 논문을 포괄하는 최초의 통합 survey.</li>
+  <li><strong>비유</strong>: Explicit token space가 "말로 설명하는 사고"라면, latent space는 "머릿속에서 직접 일어나는 사고"이다 — 더 빠르고 풍부하고 유연하지만, 관찰하기 어렵다.</li>
+</ul>
+</div>
+
+<!-- ==================== 핵심 기여 ==================== -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Latent space 개념 정립</strong>: Explicit space(verbal/token space $\mathcal{V}$)와 latent space($\mathcal{H}$)의 비교를 representational properties 4축 + functional capabilities 7축으로 체계화하고, generative visual model의 latent space와 구분한다.</li>
+  <li><strong>진화 단계 정리</strong>: Prototype(~2025.3) → Formation(2025.4-7) → Expansion(2025.8-11) → Outbreak(2025.12-현재)의 4단계 timeline을 수립하여 분야의 급속한 성장을 조망한다.</li>
+  <li><strong>2차원 Taxonomy 제안</strong>: Mechanism 4축(Architecture, Representation, Computation, Optimization) $\times$ Ability 7축(Reasoning, Planning, Modeling, Perception, Memory, Collaboration, Embodiment)의 교차 분류 체계를 도입한다.</li>
+  <li><strong>300+ 논문 종합</strong>: 체계적 분류표(Table 2-6), 진화 타임라인(Figure 4), 방법론 맵(Figure 1, 5)을 통해 방대한 문헌을 조직적으로 정리한다.</li>
+  <li><strong>미래 방향 제시</strong>: Evaluability, Controllability, Interpretability 3대 과제와 Theory, Multimodal, Downstream Task, Governable 4가지 미래 방향을 제시한다.</li>
+</ol>
+
+<!-- ==================== Section 1: Introduction ==================== -->
+<h2>1. Introduction: Token-Centric Framing의 한계</h2>
+
+<p>현대 language-based model(LLM (Large Language Model), VLM (Vision-Language Model), VLA (Vision-Language-Action model))은 여전히 explicit token-level generation을 중심으로 구축되어 있다. 입력, 출력, 심지어 중간 reasoning까지 human-readable한 token sequence로 표현된다. 그러나 이 token-centric framing은 구조적 한계를 가진다:</p>
+
+<ul>
+  <li><strong>Linguistic redundancy</strong>: 자연어의 대부분의 token은 문법적 일관성, 주제 연속성을 유지하기 위한 것으로, 실질적 의미 전달과 무관하다.</li>
+  <li><strong>Discretization bottleneck</strong>: 연속적인 내부 활성화를 유한 어휘의 이산 기호로 매핑할 때 fine-grained uncertainty, cross-modal alignment 등의 정보가 손실된다.</li>
+  <li><strong>Sequential decoding overhead</strong>: 각 token이 full model forward pass와 vocabulary-wide probability 계산을 요구하여 계산 비용이 높다.</li>
+  <li><strong>Semantic loss</strong>: 자연어로 표현하기 어려운 구조(intermediate computational traces, cross-modal alignments)가 압축, 왜곡, 폐기된다.</li>
+</ul>
+
+<p>이에 반해 latent space는 continuous, compact, expressive한 medium을 제공하여 higher-fidelity representation과 더 유연한 computation allocation을 가능하게 한다. 초기에는 chain-of-thought을 내부화하는 latent reasoning으로 시작했으나, 현재는 planning, perception, memory, collaboration, embodiment로 빠르게 확장되고 있다.</p>
+
+<p>그러나 문헌은 최소 3가지 방식으로 파편화되어 있다: (1) application object별(latent reasoning, visual understanding, embodied action), (2) mechanism별(architecture design, representation choice, computation pattern, optimization strategy), (3) scenario별(text, vision, multi-agent, embodied). 기존 review는 대부분 latent reasoning이나 implicit reasoning에 국한되어 있으며, latent space를 modality, paradigm, mechanism, capability를 가로지르는 broader computational and systems paradigm으로 다루는 unified perspective가 결여되어 있었다.</p>
+
+<p>이 survey는 5가지 순차적 질문으로 구성된다:</p>
+<div class="flow-diagram">Foundation: What is latent space?
+    → Evolution: How did it develop?
+        → Mechanism: How does it work?
+            → Ability: What does it enable?
+                → Outlook: What is next?</div>
+
+<!-- ==================== Section 2: Foundation ==================== -->
+<h2>2. Foundation: What is Latent Space?</h2>
+
+<h3>2.1 Concept: Explicit Space vs. Latent Space</h3>
+
+<p>Language-based model에서 <strong>explicit space</strong>(또는 <strong>verbal space</strong>)는 입력과 출력이 표현되는 이산 기호 공간이다. 형식적으로 vocabulary $\mathcal{V}$가 정의하는 공간에서, 언어는 subword-level token으로 표현되며 인간이 직접 해석할 수 있다.</p>
+
+<p>그러나 language model은 이산 기호만으로 연산하지 않는다. Token을 내부 continuous representation으로 매핑하고, 여러 층의 비선형 변환을 거친다. 이 과정에서 나타나는 것이 <strong>latent space</strong> $\mathcal{H}$이다 — 모델이 token level에서 명시적으로 표현되지 않는 정보를 encode하고 manipulate하는 연속적, 학습된 representation 공간이다. 더 정밀하게는, language model의 latent space는 hidden-state space의 family로 이해할 수 있으며, 여기서 contextual, semantic, syntactic, relational feature가 jointly represented된다.</p>
+
+<blockquote>
+직관적으로, explicit space의 token sequence는 latent space에서의 trajectory로 매핑되고, 다시 verbal space로 투영되어 확률 분포를 생성한다. Latent space는 이 token space를 넘어 modality-specific input을 continuous internal representation으로 매핑하는 통합 공간으로까지 확장될 수 있다.
+</blockquote>
+
+<h3>2.2 Explicit Space와의 비교</h3>
+
+<h4>2.2.1 Representational Properties</h4>
+
+<table>
+<tr><th>속성</th><th>Explicit Space</th><th>Latent Space</th></tr>
+<tr><td><strong>가독성</strong></td><td>Human-readable: 유한 vocabulary의 token sequence, 직접 해석 가능</td><td>Machine-native: 고차원 실수 벡터, 개별 dimension이 해석 가능한 의미에 대응하지 않음</td></tr>
+<tr><td><strong>표현 형태</strong></td><td>Discrete & Symbolic: 이산 기호 기반, 문법적 convention에 종속</td><td>Continuous & Flexible: 핵심 의미 정보를 연속적으로 캡슐화, linguistic redundancy 배제</td></tr>
+<tr><td><strong>효율성</strong></td><td>Inefficient: (1) linguistic redundancy, (2) representational transformation cost, (3) sequential decoding overhead</td><td>Efficient: mandatory conversion 제거, recurrent/looped computation으로 순차 병목 해소</td></tr>
+<tr><td><strong>정보 보존</strong></td><td>Semantically-lossy: 유한 vocabulary와 자연어 조합 제약이 표현 가능 범위를 한정</td><td>High-fidelity: discretization 없이 rich, continuous 정보를 computational step 간 전달</td></tr>
+</table>
+
+<h4>2.2.2 Functional Capabilities</h4>
+
+<p>Latent space의 기능적 특성:</p>
+<ul>
+  <li><strong>Operability</strong>: 연속적 differentiable manifold에서 직접 연산 가능(concatenation, linear combination, semantic steering, active intervention, iterative interleaving 등)</li>
+  <li><strong>Expressiveness</strong>: 이산 vocabulary에 제약받지 않아 complex, high-dimensional, non-linguistic 정보를 내재화 가능</li>
+  <li><strong>Scalability</strong>: 벡터화된 representation의 compactness와 parallelizability로 longer reasoning trajectory, deeper agent interaction, test-time compute로의 확장 용이</li>
+  <li><strong>Generalization</strong>: 표면적 linguistic pattern이 아닌 abstract semantic structure를 capture하여 cross-domain transfer와 zero-shot 일반화 강화</li>
+</ul>
+
+<p>반면, explicit space가 우위를 점하는 영역도 있다:</p>
+<ul>
+  <li><strong>Evaluability & Controllability & Interpretability</strong>: Explicit generation은 각 intermediate step이 human-readable format이므로 평가, 제어, 해석이 용이하다. Latent space는 본질적으로 이들이 어렵다 — 이는 Section 6.2의 핵심 과제이다.</li>
+</ul>
+
+<h3>2.3 Generative Visual Model의 Latent Space와의 비교</h3>
+
+<p>VAE/VQ-VAE/Latent Diffusion Model 등 generative visual model도 latent space를 사용하지만, language model의 latent space와 근본적으로 다르다:</p>
+
+<table>
+<tr><th>차원</th><th>Visual Generative Models</th><th>Language Models</th></tr>
+<tr><td><strong>학습 목표</strong></td><td>Reconstruction objective — learned geometry가 visual signal의 statistical structure에 anchored. 선형 보간이 perceptually coherent한 smooth manifold</td><td>Next-token prediction — predictive criterion으로 구성, space의 geometry에 대한 명시적 제약 없음</td></tr>
+<tr><td><strong>구조</strong></td><td>Explicit spatiotemporal structure: image = spatial grid of patch-level codes, video = temporal axis 확장</td><td>Linguistic semantics에 집중, spatial topology나 physical dynamics 없음</td></tr>
+<tr><td><strong>제어 가능성</strong></td><td>Dedicated architectural pathway(pose sequence, depth map, segmentation mask)를 통한 fine-grained, spatially localized control</td><td>Language conditioning 중심, spatial control 제한적</td></tr>
+</table>
+
+<!-- ==================== Section 3: Evolution ==================== -->
+<h2>3. Evolution: How Did Latent Space Develop?</h2>
+
+<p>Latent space 연구는 4단계의 급속한 진화를 거쳤다.</p>
+
+<blockquote>
+<strong>[Figure 4 설명]</strong>: 가로축이 시간(Previous ~ Mar 2026), 세로축이 latent-level work 수를 나타내는 timeline. Prototype 단계에서 소수의 작업이 시작되어, Formation → Expansion을 거쳐 Outbreak 단계(2025.12~)에서 폭발적으로 증가하는 양상을 보인다.
+</blockquote>
+
+<h3>3.1 Prototype (~2025.3): 이론 검증과 초기 탐색</h3>
+
+<p><strong>Theory Validation</strong>: 연구자들은 reasoning-like behavior가 이미 language model의 internal representation에 encoded되어 있음을 밝혔다:</p>
+<ul>
+  <li><strong>HCoT</strong>: 전체 CoT trace가 contrastive semantic alignment을 통해 compact special-token representation으로 압축 가능함을 보임 — explicit CoT의 상당 부분이 모델 자체에게는 redundant</li>
+  <li><strong>Latent thinking vectors</strong>: 모델 activation에서 steering vector를 추출하여 inference time에 주입하면, fine-tuning이나 explicit prompting 없이 CoT-like reasoning 유도 가능</li>
+  <li><strong>Latent Space Chain-of-Embedding</strong>: LLM이 explicit verbal output 대신 latent embedding을 통해 self-evaluation 수행 가능</li>
+</ul>
+
+<p><strong>Early Exploration</strong>: 핵심 시스템들이 등장했다:</p>
+<ul>
+  <li><strong>COCONUT (COntinuous Chain-Of-UNinterrupted Thought)</strong>: ##latent space reasoning의 최초 완전한 framework##. 마지막 hidden state를 다음 입력 embedding으로 피드백하여 continuous thought의 loop를 형성, 이산 vocabulary bottleneck을 우회한다. 핵심 발견: continuous thought vector가 multiple potential next step의 superposition을 encode할 수 있어, emergent BFS (Breadth-First Search)가 나타남.</li>
+  <li><strong>CCoT (Compressed CoT)</strong>: explicit reasoning chain을 dense latent form의 contemplation token으로 압축</li>
+  <li><strong>Huginn</strong>: recurrent depth를 사용하여 latent space에서 test-time compute scaling — shared transformer block를 variable number of times 반복, 전문 reasoning data 없이 implicit reasoning 수행</li>
+  <li><strong>SoftCoT</strong>: 최초의 plug-in approach — instance-specific soft thought token을 frozen backbone의 representation space에 주입, catastrophic forgetting 방지</li>
+</ul>
+
+<p>이 단계의 한계: 왜(why) latent reasoning이 작동하는지, 언제(when) explicit CoT를 능가하는지, 어떻게(how) 평가해야 하는지에 대한 체계적 설명 부재.</p>
+
+<h3>3.2 Formation (2025.4-7): 이론 체계화와 기술 형성</h3>
+
+<p><strong>Theoretical Systematization</strong>:</p>
+<ul>
+  <li><strong>Reasoning by Superposition</strong> (Zhu et al.): ##continuous thought vector가 superposition state로 작용하여 multiple search frontier를 동시에 encode할 수 있음을 최초로 형식적으로 증명## — COCONUT의 emergent BFS에 대한 rigorous explanation</li>
+  <li><strong>CoT2</strong>: parallelism과 embedding dimension의 관계를 정량화, continuous thought를 위한 continuous supervision과 RL 도입</li>
+  <li><strong>Looped transformers</strong> (Saunshi et al.): latent iteration을 가진 looped transformer가 standard transformer보다 strictly more complex computation을 express할 수 있음을 증명</li>
+</ul>
+
+<p><strong>Technical Formation</strong>:</p>
+<ul>
+  <li>Representation 쪽: <strong>Assorted</strong> (latent discrete + text token 혼합으로 shorter trace), <strong>CODI</strong> (self-distillation으로 explicit/latent 모두 생성), <strong>BoLT</strong> (웹 텍스트를 compressed thought outcome으로 사용한 pretraining)</li>
+  <li>Optimization 쪽: <strong>HRPO</strong> (latent RL), <strong>System-1.5</strong> (adaptive computation allocation), <strong>CoLaR</strong> (dynamic inference-time controllable compression)</li>
+</ul>
+
+<p><strong>초기 Multimodal 확장</strong>:</p>
+<ul>
+  <li><strong>Mirage</strong>: hidden state를 latent visual token으로 재해석하여 VLM에서 internal visual manipulation 가능 — human mental imagery에 유사</li>
+  <li><strong>UniVLA</strong>: task-centric latent action을 도입하여 cross-embodiment robot policy 학습</li>
+</ul>
+
+<h3>3.3 Expansion (2025.8-11): 기술 성숙과 패러다임 확장</h3>
+
+<p>Text-centric에서 multi-modal, multi-domain ecosystem으로 전환. <strong>Technical Maturation</strong>과 <strong>Paradigm/Scenario Expansion</strong>이 동시에 진행되었다.</p>
+
+<p><strong>LLM 영역 기술 성숙</strong>:</p>
+<ul>
+  <li><strong>MemGen</strong>: agent를 위한 latent memory 개척 — reasoning과 memory를 interweave하여 planning, procedural, working memory가 explicit supervision 없이 emerge</li>
+  <li><strong>LTPO</strong>: latent thought vector를 online policy gradient으로 optimizable parameter로 취급</li>
+  <li><strong>SofT-GRPO</strong>: Gumbel reparameterization으로 RL을 continuous latent reasoning에 적용하는 differentiability 문제 해결</li>
+  <li><strong>SpiralThinker</strong>와 <strong>CLaRa</strong>: text-latent iterative interleaving과 retrieval-augmented generation의 shared continuous space 통합</li>
+</ul>
+
+<p><strong>Visual 영역 확장</strong>:</p>
+<ul>
+  <li><strong>LVR</strong>, <strong>Monet</strong>: visual embedding space에서 autoregressive reasoning, latent state와 text를 interleave</li>
+  <li><strong>3DThinker</strong>: 제한된 2D 뷰에서 3D foundation model과의 latent representation alignment로 3D mental simulation 확장</li>
+  <li><strong>VisMem</strong>: cognitively inspired short/long-term latent vision memory, <strong>CoMEM</strong>: continuous memory for visual agent 확장</li>
+</ul>
+
+<p><strong>Multi-agent 확장</strong>:</p>
+<ul>
+  <li><strong>C2C</strong>: KV-cache projection과 fusion을 통한 LLM 간 direct semantic communication</li>
+  <li><strong>LatentMAS</strong>: shared latent working memory를 통한 agent collaboration — output token을 크게 줄이면서 accuracy 향상</li>
+</ul>
+
+<p><strong>Embodied 확장</strong>:</p>
+<ul>
+  <li><strong>LAPA</strong>, <strong>LAWM</strong>: unlabeled video에서 self-supervised pretraining으로 latent action 학습</li>
+  <li><strong>OccVLA</strong>: implicit 3D occupancy supervision 통합, <strong>ATE</strong>: unified latent guidance로 data-efficient VLA adaptation</li>
+</ul>
+
+<h3>3.4 Outbreak (2025.12-현재): 전방위 폭발</h3>
+
+<p>All-round Outbreak — 4가지 hallmark:</p>
+
+<p><strong>(1) Architectural Specialization</strong>: 기존 transformer를 얕은 수정 수준을 넘어, latent computation을 first-class mechanism으로 지원하는 전용 architecture 등장:</p>
+<ul>
+  <li><strong>Dreamer</strong>, <strong>LoopFormer</strong>: depth-recurrent design + depth-wise computation과 elastic looping 결합 → budget-aware reasoning과 유연한 compute allocation</li>
+  <li><strong>MLRA</strong>: low-rank projection으로 attention mechanism 개선, <strong>DLCM</strong>: token-level에서 concept-level로 latent computation granularity 이동</li>
+</ul>
+
+<p><strong>(2) Optimization Sophistication</strong>:</p>
+<ul>
+  <li><strong>ReLaX</strong>, <strong>Active Latent Planning</strong>: imitation 넘어 RL-based latent-space exploration</li>
+  <li><strong>LED</strong>: entropy variation leverage로 post-training exploration collapse 해결</li>
+  <li><strong>Latent Thinking Optimization (LTO)</strong>: latent thought가 reward-relevant information을 스스로 encode할 수 있음을 입증 — external reward model 없이 latent trajectory 직접 최적화 가능성</li>
+</ul>
+
+<p><strong>(3) Visual Tasks</strong>: ILVR, CrystaL (visual-text interleaved reasoning), LIVR, Mull-Tokens (modality-agnostic latent thinking)</p>
+
+<p><strong>(4) Embodied</strong>: Motus, VLA-JEPA (unified latent action world model), Villa-X, JALA (expressiveness and scalability 향상), CoWVLA (world-model reasoning in latent motion space)</p>
+
+<!-- ==================== Section 4: Mechanism ==================== -->
+<h2>4. Mechanism: How Does Latent Space Work?</h2>
+
+<p>이 섹션은 survey의 기술적 핵심으로, latent space가 모델 내에서 어떻게 instantiate, structure, operationalize되는지를 4개 상호보완적 축으로 분류한다.</p>
+
+<h3>General Notation (Table 1)</h3>
+
+<table>
+<tr><th>기호</th><th>공간</th><th>설명</th></tr>
+<tr><td>$\mathcal{V}$</td><td>token space</td><td>discrete vocabulary/token IDs</td></tr>
+<tr><td>$\mathcal{H}$</td><td>latent space</td><td>continuous hidden space $\mathbb{R}^d$</td></tr>
+<tr><td>$\mathbf{x}, \mathbf{y}$</td><td>$\mathcal{V}$</td><td>input, output</td></tr>
+<tr><td>$\mathbf{h}$</td><td>$\mathcal{H}$</td><td>hidden state of one token</td></tr>
+<tr><td>$\mathbf{z}$</td><td>$\mathcal{H}$</td><td>latent representation</td></tr>
+<tr><td>$\Phi$</td><td>$\mathcal{M}$</td><td>whole framework</td></tr>
+<tr><td>$\Phi^{\text{back}}, \Phi^{\text{comp}}, \Phi^{\text{aux}}$</td><td>$\mathcal{M}$</td><td>backbone, functional component, auxiliary model</td></tr>
+<tr><td>$R, \mathcal{L}$</td><td>-</td><td>reward function, loss function</td></tr>
+</table>
+
+<p><strong>Standard autoregressive generation</strong> (Eq. 1):</p>
+$$\mathbf{y} \sim \Phi_\theta(\cdot \mid \mathbf{x})$$
+<p>모든 generation이 token space에서 수행된다.</p>
+
+<p><strong>Latent-space 확장</strong> (Eq. 2):</p>
+$$\mathbf{y} \sim \Phi_\theta(\cdot \mid \mathbf{x}, \mathbf{z})$$
+<p>latent representation $\mathbf{z} \in \mathcal{H}$가 추가 channel로 도입되어, global semantics, multimodal features, intermediate reasoning states, structural constraints 등 token space에서 직접 표현하기 어려운 정보를 encode한다.</p>
+
+<h3>4.1 Architecture: 어떤 구조가 latent space를 학습하는가?</h3>
+
+<p>핵심 질문: latent space $\mathcal{H}$가 모델 공간 $\Phi = \{\Phi^{\text{back}}, \Phi^{\text{comp}}, \Phi^{\text{aux}}\}$ 어디에 어떻게 통합되는가? 3가지 범주로 분류한다.</p>
+
+<h4>4.1.1 Backbone ($\Phi^{\text{back}}$)</h4>
+
+<p>Latent computation이 backbone 자체에 intrinsically embedded된다:</p>
+$$\mathbf{h}_{t+1} = \Phi^{\text{back}}(\mathbf{h}_{1:t}, \mathbf{x}, \mathbf{y}_{1:t}) \tag{3}$$
+
+<p>3가지 설계 관점:</p>
+
+<p><strong>(a) Parameter-shared Backbone</strong>: 깊은 고유 레이어 스택을 소규모의 재사용 가능 모듈로 대체한다.</p>
+<ul>
+  <li><strong>Huginn</strong>: decoder-only architecture에서 shared recurrent block를 multiple depth step에 걸쳐 재사용. 고유 parameter 수를 크게 줄이면서 inference-time에 추가 recurrent step으로 test-time compute scaling 가능.</li>
+  <li><strong>Looped Transformers</strong>: explicit layer-looping mechanism 강제. Looping-based regularization이 반복 변환 하에서 hidden-state dynamics를 안정화.</li>
+  <li><strong>PHD-Trans.</strong>: sliding-window attention과 cache management로 long-context 하에서 recurrent computation의 실용성 입증.</li>
+</ul>
+
+<p><strong>(b) Iterative Backbone</strong>: variable 또는 learnable depth allocation으로 dynamic updating:</p>
+<ul>
+  <li><strong>Ouro</strong>: recursive inference framework — iteration을 architectural depth 대체 scaling axis로 활용, parameter-shared transformation의 반복 적용이 일관된 gains 산출</li>
+  <li><strong>LoopFormer</strong>: elastic-depth looped transformer — loop iteration 수가 고정되지 않고 input/budget에 따라 가변</li>
+  <li><strong>PonderLM2</strong>: Jacobi-style parallel update로 iterative refinement — 각 forward pass가 한 token씩 진행하면서도 multi-step hidden-state evolution을 병렬 수행</li>
+</ul>
+
+<p><strong>(c) Augmented Backbone</strong>:</p>
+<ul>
+  <li><strong>Heima</strong>, <strong>DLCM</strong>: encoder-decoder architecture 활용, 후자는 token에서 compressed concept space로 computation granularity 이동</li>
+  <li><strong>Dreamer</strong>, <strong>MLRA</strong>: sequence-depth sparse attention mixture와 low-rank attention으로 multi-step latent transition의 계산 tractability 확보</li>
+</ul>
+
+<blockquote>
+<strong>[Table 2 요약]</strong>: Backbone 기반 architecture 11개 비교. Hidden dimension 512~5280, layer 수 8~72, 모델 크기 0.1B~19B. Feature로는 encoder-decoder/progressive/adaptive decoding (Heima), recurrent depth/shared block/test-time scaling (Huginn), looped model/looping-based regularization (Looped Trans.), elastic looped transformer (LoopFormer) 등.
+</blockquote>
+
+<h4>4.1.2 Component ($\Phi^{\text{comp}}$)</h4>
+
+<p>원래 backbone architecture를 보존하면서, latent representation을 construct, transform, store, retrieve하는 functional module로 augment한다:</p>
+$$\mathbf{z} = \Phi^{\text{comp}}(\mathbf{h}, \mathbf{x}) \tag{4}$$
+
+<p>5가지 component family:</p>
+
+<table>
+<tr><th>Family</th><th>기능</th><th>대표 연구</th></tr>
+<tr><td><strong>Generation</strong></td><td>Hidden space에서 intermediate latent state/subgoal/reasoning state를 합성</td><td>ETD (encode-think-decode), iCLP/ATP-Latent (VAE-style), JEPA-Reasoner (latent prediction chain)</td></tr>
+<tr><td><strong>Projection</strong></td><td>기존 internal representation을 다른 target space로 투영하여 reasoning/control 개선</td><td>SoftCoT++/PLaT (lightweight linear layer), SpiralThinker/LiteReason (MLP), Wormhole (encoder-decoder bridge for heterogeneous agents)</td></tr>
+<tr><td><strong>Alignment</strong></td><td>Latent representation과 external grounding signal 간 대응 보장</td><td>AlignVLM (cross-modal fusion layer 재설계), LaDiR/LoLA (diffusion/transformer-compatible space에 hidden state 정렬)</td></tr>
+<tr><td><strong>Control</strong></td><td>모델이 latent mode에 진입/퇴출/위임하는 meta-level switch/router</td><td>FR-Ponder (MLP gating head), TaH (layer-별 MLP-style decider), MemGen (LoRA/entropy signal trigger)</td></tr>
+<tr><td><strong>Storage</strong></td><td>Persistent latent state를 step/turn/episode에 걸쳐 유지</td><td>IMM/L2-VMAS (differentiable vector library), G-MemLLM (gated write-read logic), PolarMem (graph-topology visual memory)</td></tr>
+</table>
+
+<h4>4.1.3 Auxiliary Model ($\Phi^{\text{aux}}$)</h4>
+
+<p>외부 보조 모델이 latent guidance signal을 생성한다:</p>
+$$\mathbf{z} = \Phi^{\text{aux}}(\mathbf{x}) \tag{5}$$
+
+<p><strong>Supervision-oriented</strong>: auxiliary model이 training signal 제공</p>
+<ul>
+  <li><strong>HCoT</strong>, <strong>LaViT</strong>: assistant model이 explicit reasoning chain 생성 → host hidden state로 distill</li>
+  <li><strong>SoftCoT</strong>: lightweight assistant가 speculative reasoning chain을 soft-token embedding으로 projection하여 backbone input에 prepend → gradient-compatible conditioning signal로 zero-shot generalization 대폭 향상</li>
+  <li><strong>CTRLS</strong>: small LLM이 intermediate reasoning state를 합성하여 exploration waypoint로 활용</li>
+</ul>
+
+<p><strong>Feature-oriented</strong>: auxiliary model이 intermediate representation 제공</p>
+<ul>
+  <li><strong>CoVT</strong>: auxiliary vision model이 iteratively visual token을 추출하여 continuous visual thought chain 구성</li>
+  <li><strong>3DThinker</strong>: specialized 3D foundation model이 spatially-grounded geometric prior 공급</li>
+  <li><strong>UniVLA</strong>: dedicated vision encoder가 task-specific feature sequence 생성, <strong>SSM-VLA</strong>: VLM-based auxiliary가 visual perception과 motor action을 state-space framework에서 bridge</li>
+</ul>
+
+<h3>4.2 Representation: Latent Variable는 어떤 형태를 취하는가?</h3>
+
+<p>핵심 질문: latent representation $\mathbf{z} \in \mathcal{H}$가 어떤 정보를 encode하며, 어떻게 generative pipeline에 통합되는가? 2개 축(subject: 어디서 구성되는가 / parameterization: 고정 vs. 학습 가능)의 교차로 4가지 paradigm을 도출한다.</p>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: Representation mechanism의 4 sub-type 다이어그램. Internal은 backbone forward pass에서 직접 추출, External은 외부 frozen auxiliary에서 주입, Learnable은 trainable module이 backbone 내에 embedded, Hybrid는 learnable module로 구성 후 외부 conditioning signal로 주입.
+</blockquote>
+
+<h4>4.2.1 Internal Representation</h4>
+
+<p>Backbone의 standard forward pass에서 생성되는 endogenous activation에서 직접 유도된다. 3가지 주요 형태:</p>
+
+<p><strong>(a) Hidden State</strong>: 가장 보편적 형태. 마지막 hidden state 또는 mean-pooled representation:</p>
+$$\mathbf{z} = \mathbf{h}_L^T \quad \text{or} \quad \frac{1}{T}\sum_{t=1}^{T}\mathbf{h}_l^t \tag{8}$$
+<p>COCONUT이 마지막 hidden state를 다음 input embedding으로 직접 피드백하는 foundational pattern을 확립했다.</p>
+
+<p><strong>(b) Weighted Embedding</strong>: hard token sampling을 soft, probability-weighted combination으로 대체:</p>
+$$\mathbf{z} = \mathbf{E}^\top \boldsymbol{\alpha}, \quad \boldsymbol{\alpha} = \text{softmax}(\mathbf{o}) \tag{9}$$
+<p>$\boldsymbol{\alpha}$가 probability simplex 위에 있으므로 $\mathbf{z}$는 vocabulary embedding vector의 convex hull에 제약된다. 이 differentiable relaxation은 candidate token embedding의 superposition을 형성하여, discrete generation step을 통해 gradient flow를 가능하게 하고 reasoning space의 parallel exploration을 촉진한다.</p>
+
+<p><strong>(c) Cache</strong>: 축적된 key-value pair를 structured latent memory로 활용:</p>
+$$\mathbf{k}_l = \mathbf{H}_l\mathbf{W}_l^k, \quad \mathbf{v}_l = \mathbf{H}_l\mathbf{W}_l^v \tag{10}$$
+<p>SALS: KV cache 위의 sparse attention pattern 활용, LatentMAS: KV cache를 shared working memory로 사용하여 agent 간 explicit text 없이 coordination.</p>
+
+<h4>4.2.2 External Representation</h4>
+
+<p>Structurally independent auxiliary encoder $\Phi^{\text{aux}}$에서 유래:</p>
+$$\mathbf{z} = \Phi^{\text{aux}}(\mathbf{x}_{\text{aux}}) \tag{11}$$
+
+<p>Backbone에 통합되는 2가지 mode: (1) learned projection $\psi$를 통해 backbone의 native latent space로 정렬 후 conditioning input으로 사용, (2) dense, non-verbalized supervision target으로 사용 (backbone의 internal state $\mathbf{h}$가 projected external signal을 match하도록 학습).</p>
+
+<p>기능적 역할에 따라 3가지 방향:</p>
+<ul>
+  <li><strong>Reasoning Priors</strong>: expert reasoning model에서 knowledge distillation (CODI: self-distillation loop, KaVa: compressed KV cache 직접 전달)</li>
+  <li><strong>Perceptual Priors</strong>: pre-trained vision encoder가 spatially/temporally rich feature map 공급 (3DThinker: 3D geometric prior, SkiLa: sketch token, Mull-Tokens: modality-agnostic latent token)</li>
+  <li><strong>Embodied Priors</strong>: world model/3D encoder가 environmental dynamics/geometry의 structured latent representation 생성 (OccVLA: 3D occupancy token, LCDrive: action+scene token)</li>
+</ul>
+
+<h4>4.2.3 Learnable Representation</h4>
+
+<p>Backbone architecture 내에 직접 embedded된 parameterized module $\Phi^{\text{comp}}$이 end-to-end optimized:</p>
+$$\mathbf{z} = \Phi^{\text{comp}}(\mathbf{c}; \theta) \tag{13}$$
+
+<p>3가지 학습 형태:</p>
+<ul>
+  <li><strong>Compression Learning</strong>: information-bottleneck principle로 explicit data를 dense continuous vector로 압축 (CoLaR: variance-preserving scaling으로 reasoning token aggregation, LIVR: visual bottleneck으로 implicit spatial compression 학습)</li>
+  <li><strong>Distribution Learning</strong>: deterministic point mapping 대신 stochastic distribution과 structural manifold를 capture (CTRLS: Dirichlet distribution으로 state transition modeling, MARCOS: conditional hidden Markov model)</li>
+  <li><strong>Alignment Learning</strong>: cross-space projection으로 rigid boundary 연결 (KVCA: cross-attention으로 shared latent manifold 학습, C2C: neural MLP로 heterogeneous 모델 간 KV cache 직접 projection)</li>
+</ul>
+
+<h4>4.2.4 Hybrid Representation</h4>
+
+<p>Learnable module로 구성하되, backbone과 architecturally disjoint하게 유지:</p>
+$$\mathbf{z} = \Phi^{\text{comp}}(\mathbf{c}; \theta) \tag{14}$$
+
+<p>$\Phi^{\text{comp}}$이 External paradigm처럼 exogenous conditioning signal 또는 latent distillation target으로 배치된다. 3가지 기능:</p>
+<ul>
+  <li><strong>Traces</strong>: discrete reasoning trajectory를 compact continuous vector로 distill (HCoT, Assorted, Latent-SFT, ThoughtComm)</li>
+  <li><strong>Grounding</strong>: continuous sensory/control signal을 structured latent token으로 변환 (AURORA: VQ-VAE로 discrete visual latent code 생성, UniVLA: heterogeneous video에서 unified action space로 projection)</li>
+  <li><strong>Augmentation</strong>: large contextual history를 compressed soft prompt/augmented cache state로 압축 (DCA: offline coprocessor로 latent embedding 생성 후 KV cache에 직접 append, VisMem/CoMEM: dedicated visual memory token)</li>
+</ul>
+
+<h3>4.3 Computation: Latent Space에서 어떤 연산이 수행되는가?</h3>
+
+<p>Fixed-depth, token-by-token generation이라는 conventional paradigm에서 벗어나, latent space에서 더 유연하고 효율적이며 확장 가능한 computational mechanism을 구축하는 방법을 4가지로 분류한다.</p>
+
+<blockquote>
+<strong>[Figure 7 설명]</strong>: Computation mechanism의 4 sub-type. Compressed: volume 감소, Expanded: depth/width 확장, Adaptive: dynamic/selective updating, Interleaved: explicit-latent/text-vision/reasoning-memory의 heterogeneous mediums 교차.
+</blockquote>
+
+<h4>4.3.1 Compressed Computation</h4>
+
+<p>Explicit trajectory $\mathbf{r}$이나 high-dimensional hidden state $\mathbf{h}$를 semantically dense latent representation $\mathbf{z}$로 투영:</p>
+$$\mathbf{z} = \Phi(\mathbf{h}), \quad |\mathbf{z}| \ll |\mathbf{h}| \tag{15}$$
+
+<p>3가지 압축 대상:</p>
+<ul>
+  <li><strong>Traces Compression</strong>: explicit reasoning trace 길이를 줄이면서 inferential fidelity 보존 (HCoT: hierarchical compression, SoftCoT: continuous soft-token space로 projection하여 reasoning depth와 discrete trace length 분리, CCoT: variable-length latent allocation)</li>
+  <li><strong>States Compression</strong>: internal cache의 linear 성장 해결 (KaVa: knowledge distillation으로 KV cache 압축, SALS: low-rank principal subspace projection, DeltaKV: successive cache 간 semantically compressed residual 저장)</li>
+  <li><strong>Features Compression</strong>: multimodal/embodied setting의 high-dimensional visual/action representation 압축 (RoT: intermediate reasoning state를 low-resolution image patch로 render, OneLatent: single latent visual token으로 competitive performance, LatentVLA: compact action latent for real-time planning)</li>
+</ul>
+
+<h4>4.3.2 Expanded Computation</h4>
+
+<p>Latent computation을 depth 또는 width 차원으로 확장:</p>
+$$\mathbf{h}_{t+1}^{(k)} = \Phi\left(\left\{\mathbf{h}_t^{(k)}\right\}_{k=1}^K\right), \quad t = 1,\ldots,T, \; k = 1,\ldots,K \tag{16}$$
+
+<ul>
+  <li><strong>Depth Expansion</strong>: 동일하거나 구조적으로 유사한 layer를 multiple recurrent pass에 걸쳐 재사용 (Huginn: recurrent depth, Ouro: recursive inference의 scaling axis, LoopFormer: input-adaptive looping, ETD: encode-think-decode에서 latent thought state를 반복 refine)</li>
+  <li><strong>Width Expansion</strong>: multiple parallel hypothesis/trajectory에 걸쳐 compute 할당 (SoftCoT++: continuous embedding space에서 multiple parallel reasoning path를 instantiate하여 zero-shot performance gain이 path 수에 monotonically scale, LatentTTS: learned value function과 concurrent latent tree search, PCCoT: synchronization point에서 정보 교환하며 parallel latent chain)</li>
+  <li><strong>Structural Expansion</strong>: depth/width를 단순 증가시키는 대신 새로운 topological primitive 도입 (Latent-SFT: superposed latent chain을 supervision하여 token-level realization 없이 reasoning performance 보존, ColaVLA: parallel but interactive high-level semantic reasoning + low-level motor planning stream을 cross-attention으로 연결)</li>
+</ul>
+
+<h4>4.3.3 Adaptive Computation</h4>
+
+<p>Recurrence depth $T$와 trajectory width $K$를 input complexity에 조건부로 결정:</p>
+$$(T, K) = \mathcal{T}(\mathbf{h}_t; \mathbf{x}) \tag{18}$$
+
+<ul>
+  <li><strong>Depth/Width Adaptation</strong>: TaH (think-and-halt, MLP decider가 early exit), LWS (learnable halting policy), PLaT (latent-chain guidance로 termination 학습), Dreamer/SpiralFormer (weight-tied recurrent transformer로 depth adaptivity)</li>
+  <li><strong>Semantic Adaptation</strong>: 개별 token/semantic unit에 different budget 할당 (AL-CoT: token-level adaptation, PonderLM-3/AdaPonderLM: learned depth/halting으로 token-wise heterogeneous computation, DLCM: token에서 semantically coherent concept으로 adaptation 단위 이동)</li>
+  <li><strong>Control Adaptation</strong>: activation vector, routing policy, extraction mechanism 등으로 computation 조절 (System-1.5: intermediate transformer block bypass, FR-Ponder: instance-adaptive activation steering, RISER: activation space의 steering direction으로 composition)</li>
+</ul>
+
+<h4>4.3.4 Interleaved Computation</h4>
+
+<p>Discrete token embedding ($\mathcal{V}$)과 continuous latent ($\mathcal{H}$)를 교차하여 heterogeneous generation sequence 구성:</p>
+$$\mathbf{r} = [r_1, z_1, r_2, z_2, \ldots, r_M, z_N], \quad r_i \in \mathcal{V}, \; z_j \in \mathcal{H} \tag{19}$$
+
+<p>3가지 interleaving 유형:</p>
+<ul>
+  <li><strong>Explicit-latent Interleaving</strong>: natural-language token과 latent internal state를 single trajectory 내에서 교차 (Assorted: selected verbal CoT step을 latent activation으로 교체해도 downstream accuracy 보존, SpiralThinker: spiral curriculum으로 점진적 내재화, SwiReasoning: RL로 step-level switching policy 학습)</li>
+  <li><strong>Modality Interleaving</strong>: continuous perceptual latent과 linguistic token을 교차하여 latent domain에서 intermediate reasoning 수행 (AURORA: explicit perceptual reasoning step 삽입, Mirage/LVR/VisMem/Monet: vision latent과 text를 직접 interleave하여 textual scene description 의존 제거, IVT-LR: cross-attention으로 text와 vision activation coupling)</li>
+  <li><strong>Task Interleaving</strong>: memory store, retrieval component, generative head, agent sub-process 등 heterogeneous functional module을 조율 (LCR-SER: compressed history buffer와 ongoing inference interleave, MemGen/VisMem/FlashMem: persistent working memory와 generation interleave, LatentMem: shared latent memory로 multi-agent implicit communication, L2-VMAS: perceptual + planning stream을 agent 간 교차)</li>
+</ul>
+
+<h3>4.4 Optimization: Latent Space는 언제, 어떻게 최적화되는가?</h3>
+
+<p>3가지 단계(pre-training, post-training, inference)에서 최적화되며, 각 단계는 최적화 대상(무엇이 변하는가)과 supervision/objective가 다르다.</p>
+
+<h4>4.4.1 Pre-training</h4>
+
+$$\theta^* = \arg\min_{\theta \in \Phi} \mathbb{E}_{(\mathbf{x},\mathbf{y})\sim\mathcal{D}} \left[\mathcal{L}(\mathbf{x}, \mathbf{y}, \mathbf{z}; \Phi_\theta)\right] \tag{20}$$
+
+<ul>
+  <li><strong>Autoregressive Supervision</strong>: next-token prediction이나 recurrent looping의 자연스러운 부산물로 reasoning 내재화 (PonderLM-2: Jacobi-iteration 기반 parallel training, Looped Trans.: continuous latent update로 complex reasoning, Ouro: entropy-regularized objective)</li>
+  <li><strong>Auxiliary Supervision</strong>: auxiliary semantics, contrastive learning, reconstruction objective로 latent space geometry 명시적 유도 (CoCoMix: cross-entropy + reconstruction loss, LARES: InfoNCE + cross-entropy, LAPA: VQ-VAE로 latent action pretraining, JALA: inverse dynamics에 정렬된 predictive action embedding)</li>
+  <li><strong>Reinforcement</strong>: pre-training 단계에서 reward signal을 직접 통합 (LoopRPT: noisy latent rollout으로 next-token prediction을 reasoning task로 reframe)</li>
+</ul>
+
+<h4>4.4.2 Post-training</h4>
+
+$$\theta^* = \arg\min_{\theta \in \mathcal{W}} \mathbb{E}_{(\mathbf{x},\mathbf{y})\sim\mathcal{D}} \left[\mathcal{L}(\mathbf{x}, \mathbf{y}, \mathbf{z}; \Phi_\theta)\right] - \beta\,\mathbb{E}_{\mathbf{r}\sim\Phi_\theta(\cdot|\mathbf{x})} \left[R(\mathbf{x}, \mathbf{r}, \mathbf{z})\right] \tag{21}$$
+
+<ul>
+  <li><strong>Explicit Supervision Fine-tuning</strong>: final human-readable output에 loss function 적용 (LATPC: continuous variable fine-tuning으로 safety 강화, GeoSteer: learned latent manifold 위로 hidden state steering)</li>
+  <li><strong>Implicit Supervision Fine-tuning</strong>: knowledge distillation, contrastive alignment, step-wise reconstruction (SPOT: explicit reasoning trajectory를 compact latent token으로 teacher span에 anchoring, Latent-SFT: latent token을 vocabulary-space superposition으로 재정의하여 KL divergence + cross-entropy 학습, LTA-Thinker/EPR-Latent: contrastive objective로 latent thought distribution 최적화)</li>
+  <li><strong>Reinforcement Learning</strong>: policy gradient, reward, preference signal로 latent trajectory 자율 발견 (LaTRO: variational sampling process, I2B-LPO: iterative information bottleneck으로 latent policy exploration, SofT-GRPO: Gumbel reparameterization으로 stable group relative policy optimization, ReLaX: strict reward regularization으로 premature convergence 방지)</li>
+</ul>
+
+<blockquote>
+<strong>[Table 6 요약]</strong>: 70+ 방법의 optimization 분류. Pre-training(14개), Post-training(38개), Inference(20개). 각각의 modality, backbone, supervision 유형(CE, KL, Recon., InfoNCE, reward, self-reward 등), objective, scenario를 정리.
+</blockquote>
+
+<h4>4.4.3 Inference</h4>
+
+<p>모델 가중치 $\theta$는 고정(또는 trained)되고, latent state $\mathbf{z}$ 자체가 최적화 변수:</p>
+$$\mathbf{z}^* = \arg\min_{\omega \in \Omega} \mathcal{J}(\mathbf{z}; \mathbf{x}, \Phi_\theta) \tag{22}$$
+
+<ul>
+  <li><strong>Inference Scaling</strong>: multiple candidate trajectory 생성 + reward-based heuristic으로 최적 path 선택 (LTO: continuous-space classifier를 latent reward model로 활용, LatentSeek: self-reward로 catastrophic forgetting 완화, SR: self-reward로 soft reasoning exploration 정렬)</li>
+  <li><strong>Inference Tuning</strong>: trial-and-error에서 continuous, gradient-based optimization으로 전환 (LTPO: online policy gradient + intrinsic confidence-based reward, $\nabla$-Reasoner: decoding loop 내에서 gradient descent로 continuous sample space 직접 refine, LatentEvolve: self-reward + reconstruction loss 결합, test-time scaling)</li>
+  <li><strong>Inference Guidance</strong>: targeted structural constraint, contrastive logic, sparse intervention으로 latent representation을 동적 유도 (REVIS: pure visual information vector 추출로 object hallucination 완화, STIR: value-modulated trajectory intervention, SoftCoT++: contrastive learning으로 soft representation 다양성 강제, VTI: contrastive learning으로 massive visual hallucination 완화)</li>
+</ul>
+
+<!-- ==================== Section 5: Ability ==================== -->
+<h2>5. Ability: What Does Latent Space Enable?</h2>
+
+<p>Latent space가 explicit token-level processing의 경계를 넘어 가능하게 하는 emergent capability를 7가지 차원으로 분류한다.</p>
+
+<blockquote>
+<strong>[Figure 8 설명]</strong>: 7가지 core ability 다이어그램. 각 ability 내에 3-5개의 sub-ability가 정의되어, Reasoning(implicit inference, compact trace, continuous refinement, branching path, modal generalization)부터 Embodiment(unsupervised grounding, implicit thinking, predictive foresight, spatial cognition, generalized transfer)까지 총 30개 sub-ability를 체계화.
+</blockquote>
+
+<h3>5.1 Reasoning</h3>
+
+<p>Latent space에서의 reasoning: explicit token-by-token verbalization 대신 internal continuous representation을 통한 logical deduction, relational computation, conclusion generation. ##Explicit CoT에서 latent reasoning으로의 전환은 근본적 패러다임 변화## — 모델이 continuous, high-dimensional latent manifold 내에서 "think"하는 것을 학습한다.</p>
+
+<p>5가지 능력:</p>
+<ul>
+  <li><strong>Implicit Inference</strong>: reasoning-like behavior가 이미 pretrained model의 continuous activation space에 substantially encoded되어 있음. COCONUT: continuous thought vector가 multiple reasoning path의 superposition을 encode하여 emergent BFS 가능</li>
+  <li><strong>Compact Trace</strong>: explicit CoT를 orders of magnitude 더 compact한 latent state로 압축 가능. 다양한 supervision/post-training 연구가 long reasoning trace를 compact latent state에 흡수하면서 functional value 대부분 보존 가능함을 입증</li>
+  <li><strong>Continuous Refinement</strong>: thought를 continuous state로 유지하고 iteratively revise하는 능력. Soft token method는 probability-weighted embedding mixture, stochastic refinement는 diffusion/Markov dynamics 활용. Vocabulary-space superposition의 이론적 분석은 coherence 보존과 simultaneous optimization 가능성 입증</li>
+  <li><strong>Branching Path</strong>: 여러 candidate trajectory를 동시 탐색하는 fundamentally new reasoning topology. Soft path sampling, stochastic width, Jacobi iteration으로 wall-clock latency 감소. Hybrid latent-explicit system은 compact internal search와 selective externalization 사이를 유연히 교차</li>
+  <li><strong>Modal Generalization</strong>: text-only를 넘어 linguistic, visual, heterogeneous substrate로 latent reasoning paradigm 확장. MCOUT, Mull-Tokens: modality-agnostic continuous thought 입증</li>
+</ul>
+
+<h3>5.2 Planning</h3>
+
+<p>Latent manifold의 continuous, differentiable 특성이 gradient-based policy optimization과 iterative trajectory refinement를 가능하게 한다. 4가지 능력:</p>
+
+<ul>
+  <li><strong>Controllable Exploration</strong>: internal solution trajectory를 제어. RL-based trajectory optimization (LTPO, SofT-GRPO)이 continuous thought representation을 policy gradient, Gumbel reparameterization, test-time refinement으로 직접 개선 가능함을 입증. 핵심 과제: training stability와 diversity (exploration collapse prevention, systematic design analysis, contrastive reward shaping)</li>
+  <li><strong>Efficient Search</strong>: latent manifold의 geometric smoothness와 continuity를 활용한 효율적 navigation. Exploration restoration, trajectory diversification, geometry-guided search</li>
+  <li><strong>Adaptive Budget</strong>: dynamic, input-dependent resource allocation. Adaptive depth/horizon determination이 instance-level steering, RL-based stopping, dynamic termination으로 problem complexity에 비례하여 computation 투자</li>
+  <li><strong>Sequential Decision</strong>: user behavior의 temporal structure가 latent space trajectory optimization에 자연스럽게 매핑되는 영역. Recommendation, retrieval, cross-domain adaptation에서 sequential prediction, re-ranking, transfer를 internal trajectory 유지/refine으로 개선. Multi-step planning과 tool use에서도 latent action unit으로 effective decision horizon 감소</li>
+</ul>
+
+<h3>5.3 Modeling</h3>
+
+<p>Latent representation 자체의 characterize, inspect, shape 능력. 4가지 측면:</p>
+
+<ul>
+  <li><strong>Rich Expression</strong>: continuous thought vector가 multiple search frontier를 simultaneously encode하여 CoT보다 provably greater expressiveness 달성. 그러나 exploration과 execution을 fixed budget 내에서 동시 optimize는 불가능하며, reasoning depth와 correctness는 약한 상관관계</li>
+  <li><strong>Self Inspection</strong>: latent token이 genuine reasoning을 encode하는지 exploit artifact인지를 probing으로 검사. Transparency/visualization method, representation-level analysis, information flow study</li>
+  <li><strong>Robust Control</strong>: latent space는 model safety의 양날의 검. 공격(latent fusion exploit, feedback-based gradient, backdoor trigger)과 방어(controllable steering, adversarial training, feature activation steering, streaming risk detection) 모두에 활용</li>
+  <li><strong>Scalable Computation</strong>: looped transformer가 feedforward 대비 strictly more complex computation express. Recurrent-block scaling, progressive refinement, adaptive depth allocation으로 explicit token generation의 비례적 확장 없이 effective depth/capacity 확장</li>
+</ul>
+
+<h3>5.4 Perception</h3>
+
+<p>VLM에서 rich visual content를 discrete text token으로 변환할 때의 critical bottleneck(spatial structure, fine-grained detail, relational geometry 폐기)을 극복. 3가지 능력:</p>
+
+<ul>
+  <li><strong>Multimodal Inference</strong>: text-mediated description 대신 internal latent representation으로 visual content에 대해 reasoning. Foundational latent visual reasoning(LVR, Monet)이 text-only reasoning으로 불가능한 fine-grained visual understanding 달성. Follow-up: selective computation, coarse-to-fine processing, joint embedding prediction으로 efficiency와 accuracy 동시 확보</li>
+  <li><strong>Heuristic Imagination</strong>: internal visual representation을 생성/조작하여 reasoning process의 일부로 활용 — human mental imagery에 유사. 3DThinker, Mirage: internal visual imagination, SkiLa, LS, Latent Sketchpad: sketching mechanism으로 dense spatial/geometric information 연속 visual token 캡처</li>
+  <li><strong>Faithful Grounding</strong>: VLM output의 faithfulness 개선, hallucination 문제 해결. Latent steering과 architectural alignment으로 visual-textual misalignment 교정(REVIS, AlignVLM), perceptual grounding token으로 auxiliary signal 제공(AURORA), representation analysis로 perceptual failure 탐지 및 calibrated uncertainty estimation</li>
+</ul>
+
+<h3>5.5 Memory</h3>
+
+<p>LLM의 stateless architecture를 보완하는 필수적 mechanism. Token-based memory의 한계(prompt length inflation, retrieval fidelity 저하, adaptive memory consolidation 불가)를 latent memory가 해결. 3가지 능력:</p>
+
+<ul>
+  <li><strong>Working Retention</strong>: KV cache를 passive record에서 actively managed working memory로 전환. Differentiable cache injection, selective token retention, low-rank/cross-layer compression으로 비례적 memory 성장 없이 long sequence 처리. FlashMem: 모델 자체의 transient reasoning state에서 directly synthesize</li>
+  <li><strong>Persistent Mind</strong>: context reset을 넘어 지속되는 knowledge store. Gated/generative approach(G-MemLLM, MemGen)로 planning, procedural, working memory가 explicit cognitive supervision 없이 emerge. Self-evolving/retrieval-unified method로 external document retrieval을 generation과 동일한 continuous space에 collapse</li>
+  <li><strong>Multimodal Recall</strong>: spatial layout, widget detail, temporal continuity 등 token 변환 시 손실되는 정보의 grounding 유지. Continuous encoding method(CoMEM): fixed-length embedding에 multimodal knowledge 압축, VisMem: complementary perceptual + semantic module로 systematic drift 방지</li>
+</ul>
+
+<h3>5.6 Collaboration</h3>
+
+<p>Agent 간 collective intelligence를 natural language 대신 continuous representation 교환으로 구현. 3가지 능력:</p>
+
+<ul>
+  <li><strong>Semantic Fidelity</strong>: token-based message passing을 direct latent state transfer로 대체하여 full semantic content 보존. KV-cache/hidden-state communication(C2C, LatentMAS)으로 intermediate decoding 없이 internal state 교환 — 이론적으로 strictly higher expressiveness와 lower complexity 확인</li>
+  <li><strong>Shared Cognition</strong>: agent 간 shared/private thought component를 identifiable하고 continuously evolvable하게 만듦. Formal latent variable analysis로 shared thought component를 observable output에서 nonparametrically identify 가능. Strategy evolution method로 stable, disentangled strategic style이 model fine-tuning 없이 emerge</li>
+  <li><strong>Heterogeneous Interoperability</strong>: 서로 다른 architecture, specialization, modality의 agent 간 shared continuous substrate를 통한 coordination. Agent Primitives: recurring interaction pattern을 reusable latent building block으로 추상화. Visual latent framework(L2-VMAS, Wormhole): perceptual + reasoning trajectory를 complementary latent memory로 분리하여 cross-family collaboration</li>
+</ul>
+
+<h3>5.7 Embodiment</h3>
+
+<p>Embodied agent가 직면하는 data bottleneck(physical diversity, platform-specific re-collection)을 latent representation이 해결. 5가지 능력:</p>
+
+<ul>
+  <li><strong>Unsupervised Grounding</strong>: ##internet-scale video에서 teleoperation label 없이 transferable action representation 학습## — robot demonstration의 scarcity를 structural ceiling에서 surmountable bottleneck으로 전환. VQ-VAE/continuous codebook으로 inter-frame visual transition을 latent action token에 압축, 이종 embodiment에 걸쳐 일반화</li>
+  <li><strong>Implicit Thinking</strong>: latency-dominated, linguistically bottlenecked CoT를 compact latent trajectory로 대체. RL-learned visual plan latent과 distilled successor로 action-aligned visual reward에 grounding, few-shot adaptation 달성</li>
+  <li><strong>Predictive Foresight</strong>: 미래 state를 pixel 생성 없이 latent space에서 simulate, training supervision과 real-time decision guidance로 활용. VLA-JEPA: target-encoder latent of future frame을 leakage-free regime에서 예측하여 dynamics abstraction 학습. World-model-derived latent distance로 dense progress reward 생성</li>
+  <li><strong>Spatial Cognition</strong>: 2D observation에서 3D/4D geometric structure를 policy latent space 내에서 재구성. Frozen geometry-aware encoder에서 knowledge distillation, OccVLA: dense 3D occupancy를 latent predictive output + supervisory signal로 활용, geometry-aware encoding과 cross-viewpoint alignment의 상보성 확인</li>
+  <li><strong>Generalized Transfer</strong>: body-agnostic abstraction layer로 cross-hardware deployment 문제 해결. Latent action space에서 semantically equivalent motion이 수렴, zero-shot cross-platform deployment과 data-efficient adaptation 가능</li>
+</ul>
+
+<!-- ==================== Section 6: Outlook ==================== -->
+<h2>6. Outlook: What is Next?</h2>
+
+<h3>6.1 Perspective: 4개 관점의 종합</h3>
+
+<p><strong>Foundation</strong>: Latent space는 단순한 auxiliary hidden representation이 아니라, language-based autoregressive model이 semantic information과 compute하는 위치를 재정의하는 machine-native space이다. 4가지 representational properties(machine-native, continuous, flexible & efficient, high-fidelity)와 4가지 functional capabilities(operable, expressive, scalable, generalized)가 explicit space의 redundancy, discretization bottleneck, inefficiency, semantic loss를 극복한다.</p>
+
+<p><strong>Evolution</strong>: sprout에서 all-round outbreak으로 — 작품 수뿐 아니라 paradigm의 다양성이 급증. Latent space는 이제 textual reasoning의 compression trick이 아니라, visual cognition, memory, collaboration, embodied action을 아우르는 general framework이다. ##Latent space는 autoregressive model의 일시적 최적화가 아니라 next-generation general intelligence의 emerging systems principle이다.##</p>
+
+<p><strong>Mechanism</strong>: progress는 architecture, representation, computation, optimization의 4개 interdependent dimension의 co-design에 의해 driven. 중요한 trend: heuristic usage → systematic principle, externally integrated → internally enabled, static & fixed → dynamic & adaptive. 미래 연구는 기존 모델에 latent space를 "추가"하는 것이 아니라, primary core가 intrinsically latent인 모델을 설계하는 것으로 이동.</p>
+
+<p><strong>Ability</strong>: ##latent space가 explicit-space model의 functional scope를 넓히는 가장 consequential한 기여##. Reasoning뿐 아니라 planning, modeling, perception, memory, communication, embodiment 모두에서, 공통점은 natural language로 externalize하기 어렵거나 비용이 높거나 fundamentally lossy한 구조를 요구한다는 것. Latent space는 modality, timescale, agent를 가로지르는 general substrate로서, 궁극적으로 general-purpose model의 principal medium이 될 수 있다.</p>
+
+<h3>6.2 Challenge: 3대 과제</h3>
+
+<p><strong>(1) Evaluability</strong>: Latent trajectory는 human inspection에 직접 접근 불가. 중간 computation이 correct, complete, relevant한지 판단하기 본질적으로 어렵다. 현재 evaluation은 final-answer accuracy에 주로 의존하며, 이는 genuinely structured intermediate reasoning과 merely correct output을 구분하지 못한다. Benchmark fragmentation과 metric inconsistency가 fair comparison을 저해.</p>
+
+<p><strong>(2) Controllability</strong>: hidden state에 대한 fine-grained intervention이 유용할 수 있지만, 이러한 intervention이 relatively low controllability를 보인다. 핵심 난점: high-level semantic intention을 simultaneously machine-actionable하고, sufficiently precise하며, human-intelligible하게 지정하는 방법. Continuous internal dynamics와 discrete, interpretable objective 사이의 deeper gap.</p>
+
+<p><strong>(3) Interpretability</strong>: high-dimensional, distributed, deeply entangled — individual dimension이 stable semantic concept에 깔끔히 매핑되지 않음. Immense expressive power를 가진 representational space이지만, internal organization이 human understanding에 resistant. ##Inscrutable latent operation으로 추론하는 system은 더 powerful해지면서 동시에 less auditable, less diagnosable, less accountable해진다## — epistemic을 넘어 institutional 문제.</p>
+
+<h3>6.3 Future: 4가지 방향</h3>
+
+<p><strong>(1) Theory</strong>: 경험적 성공을 넘어 원리적 이론적 이해로 이행이 필요.</p>
+<ul>
+  <li><strong>Foundational theory</strong>: latent space가 어떻게, 왜 computation을 지원하는지, 어떤 조건에서 explicit token space를 능가하는지, 어떤 형태의 reasoning이 genuinely latent-native인지를 설명하는 통합 이론</li>
+  <li><strong>Complementary representational regimes</strong>: explicit language와 latent space를 language-based intelligence 내의 두 가지 상보적 표현 체계로 formulate. 어떤 정보와 연산이 각각에 가장 자연스럽게 할당되는지, 어떤 trade-off가 발생하는지</li>
+  <li><strong>Trustworthy latent space</strong>: evaluability, controllability, interpretability를 위한 rigorous framework + standardized benchmark + supervision protocol</li>
+</ul>
+
+<p><strong>(2) Multimodal</strong>:</p>
+<ul>
+  <li><strong>Modality-native latent computation</strong>: text-mediated multimodality에서 modality-native latent computation으로 전환. Non-linguistic input을 textual/tokenized form으로 변환하는 대신, visual, spatial, action-oriented latent space에서 직접 operate</li>
+  <li><strong>Integrated multimodal systems</strong>: isolated multimodal model에서 통합 시스템으로. Perception, world modeling, memory formation, communication, action planning이 common latent substrate를 통해 coordinated</li>
+</ul>
+
+<p><strong>(3) Downstream Task</strong>: Explicit language가 instruction, supervision, verification의 interface로 남고, latent space가 internal workspace로 기능하는 broader shift. 가장 유망한 downstream task는 search-intensive reasoning, sequential planning, visual perception, long-horizon memory, multi-agent coordination, embodied control 등 <strong>intermediate state가 discrete token으로 poorly captured</strong>되는 영역이다.</p>
+
+<p><strong>(4) Governable</strong>: observable하고 governable한 substrate로 발전시키기 위한 4가지 요소:</p>
+<ul>
+  <li><strong>Benchmark suites</strong>: latent trajectory의 faithfulness와 robustness 평가</li>
+  <li><strong>Supervision</strong>: final-answer feedback 외에 process-level signal 제공</li>
+  <li><strong>Controllable latent interfaces</strong>: explicit goal, safety requirement, resource constraint를 internal dynamics에 매핑</li>
+  <li><strong>Explainable frameworks</strong>: semantic structure, causal pathway, failure source를 latent representation에서 식별</li>
+</ul>
+
+<h2>7. Conclusion</h2>
+
+<p>본 survey는 latent space를 language-based model의 foundational principle로 자리매김할 수 있는 통합적 관점을 제시한다. Mechanism 축(Architecture, Representation, Computation, Optimization)과 Ability 축(Reasoning, Planning, Modeling, Perception, Memory, Collaboration, Embodiment)의 2차원 taxonomy를 통해 파편화된 문헌을 체계적으로 조직했다. 핵심 메시지는 latent space가 model mechanism의 근본적 전환을 가져오며, model capability의 경계를 확장한다는 것이다. 동시에, evaluability, controllability, interpretability의 미해결 과제가 실용화의 관건임을 강조한다.</p>
+
+<!-- ==================== 비판적 분석 ==================== -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>Taxonomy의 강점</h3>
+<ul>
+  <li><strong>체계적 2차원 분류</strong>: Mechanism $\times$ Ability의 교차 분류는 기존의 단일 축 분류(application별 또는 method별)를 넘어, 동일한 method가 여러 ability에 기여하고, 동일한 ability가 여러 mechanism으로 달성될 수 있음을 포착한다. 이는 분야의 cross-pollination을 촉진하는 유용한 conceptual tool이다.</li>
+  <li><strong>진화 단계 정리의 가치</strong>: ~1년 내에 4단계의 폭발적 발전을 체계적으로 정리한 것은 이 빠르게 움직이는 분야에 진입하려는 연구자에게 실질적인 orientation을 제공한다.</li>
+  <li><strong>포괄적 분류표</strong>: Table 2-6의 방법론별 분류는 modality, backbone, 핵심 설계 선택을 일목요연하게 정리하여 관련 연구를 빠르게 탐색할 수 있게 한다.</li>
+</ul>
+
+<h3>잠재적 한계와 질문</h3>
+<ul>
+  <li><strong>분류 경계의 모호성</strong>: 일부 method는 여러 category에 동시에 속할 수 있다(논문 자체도 인정). 예를 들어, COCONUT은 Internal Representation이면서 동시에 Expanded Computation이고, Pre-training 방법이면서 Reasoning ability를 가진다. 이런 중복은 taxonomy의 실용적 유용성을 다소 약화시킬 수 있다.</li>
+  <li><strong>정량적 비교 부재</strong>: survey 특성상 불가피하지만, 각 category 내에서 method 간 정량적 성능 비교가 없다. "어떤 approach가 더 효과적인가?"에 대한 체계적 답변이 부족하다. 특히 reasoning 영역에서 latent reasoning vs. explicit CoT의 systematic benchmark 결과가 종합되지 않았다.</li>
+  <li><strong>Evaluation 방법론의 구체성 부족</strong>: Evaluability를 주요 challenge로 제시하면서도, 현존하는 evaluation methodology에 대한 구체적 분석이 제한적이다. 어떤 benchmark가 어느 정도까지 유용하며, 어떤 gap이 가장 urgent한지에 대한 더 깊은 논의가 필요하다.</li>
+  <li><strong>Computational cost 관점 부재</strong>: Latent space method의 주요 selling point 중 하나가 efficiency이지만, FLOPs, memory, wall-clock time에 대한 체계적 비교가 포함되지 않았다. Parameter sharing이나 compression이 실제로 얼마나 efficient한지 정량화가 필요하다.</li>
+  <li><strong>Negative result 논의 제한</strong>: latent reasoning이 실패하거나 explicit CoT보다 열등한 경우에 대한 체계적 분석이 부족하다. Survey는 주로 성공 사례를 열거하며, 어떤 조건에서 latent approach가 적합하지 않은지에 대한 가이드라인이 약하다.</li>
+  <li><strong>저자 편향 가능성</strong>: 30명 이상의 공저자가 참여했으며, 다수가 survey에 포함된 논문의 저자이기도 하다. 이는 특정 연구 라인이 과도하게 대표될 수 있는 잠재적 편향을 내포한다.</li>
+  <li><strong>Scalability 검증 부재</strong>: 대부분의 surveyed method가 상대적으로 작은 모델(0.1B-7B)에서 검증되었으며, 100B+ 규모에서의 latent space dynamics가 어떻게 변화하는지에 대한 논의가 제한적이다.</li>
+</ul>
+
+<h3>코드/데이터 공개</h3>
+<p>GitHub repository(Awesome-Latent-Space)가 제공되어 지속적 업데이트 예정. Survey 자체는 코드나 실험 데이터를 포함하지 않으나, 분류된 논문들의 code availability를 Table 2-6에 표시(Paper/Code 아이콘).</p>
+
+</div>
+
+<!-- ==================== Key Takeaways ==================== -->
+<h2>Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>Latent space는 reasoning trick을 넘어 computational substrate로 부상</strong>: 단순히 CoT를 압축하는 것이 아니라, perception, memory, collaboration, embodiment까지 아우르는 general-purpose computational medium으로의 패러다임 전환이 진행 중이다. 연구자는 자신의 연구 분야에서 "이 task의 어떤 부분이 latent space에서 더 자연스럽게 처리될 수 있는가?"를 질문해볼 가치가 있다.</li>
+  <li><strong>Mechanism의 4축 co-design이 핵심</strong>: Architecture, Representation, Computation, Optimization의 4가지 축은 독립적이지 않다. 예를 들어, iterative backbone(Architecture)은 expanded computation(Computation)과 자연스럽게 결합되고, RL-based optimization(Optimization)은 controllable exploration(Ability: Planning)을 가능하게 한다. 효과적인 latent system 설계는 이 4축의 coherent co-design을 요구한다.</li>
+  <li><strong>Evaluability-Controllability-Interpretability가 실용화의 관건</strong>: Latent space의 power는 곧 opacity를 의미한다. 특히 safety-critical application에서 "모델이 latent space에서 무엇을 하고 있는지 모른 채 배포"하는 것은 institutional risk이다. 이 3대 과제의 해결이 latent space의 실용적 adoption을 결정할 것이다.</li>
+  <li><strong>Multimodal latent computation이 차기 frontier</strong>: text-mediated multimodality(visual content를 text로 describe한 후 reasoning)에서 modality-native latent computation(visual/spatial/action latent space에서 직접 operate)으로의 전환은 VLM/VLA 연구의 핵심 방향이다. AURORA, Mirage, LVR, VisMem 등이 이미 이 방향의 초기 성과를 보이고 있다.</li>
+  <li><strong>Embodied AI에서의 latent action space가 가장 실용적 impact 예상</strong>: unsupervised grounding(internet-scale video에서 label 없이 action representation 학습)과 generalized transfer(body-agnostic latent abstraction layer)는 robot learning의 fundamental bottleneck인 데이터 scarcity와 platform-specific retraining 문제를 직접 공략한다.</li>
+</ol>
+</div>
+
+<!-- ==================== 개인 메모 ==================== -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

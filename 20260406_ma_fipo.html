@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FIPO: Eliciting Deep Reasoning with Future-KL Influenced Policy Optimization</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>FIPO: Eliciting Deep Reasoning with Future-KL Influenced Policy Optimization</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260406_ma_fipo_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e3f2fd; color:#1565c0; border:1px solid #90caf9;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chiyu Ma*, Shuo Yang* (Core Contributors), Kexin Huang, Jinda Lu, Haoming Meng, Shangshang Wang (Contributors). Supervision: Bolin Ding, Soroush Vosoughi, Guoyin Wang, Jingren Zhou</li>
+  <li><strong>소속</strong>: Dartmouth College, Peking University, University of Toronto, University of Southern California, Qwen Pilot Team, Alibaba</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.19835">arXiv:2603.19835v3</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: GRPO(Group Relative Policy Optimization)는 outcome-based reward(정답/오답)를 trajectory의 모든 토큰에 균일하게 배분하는 coarse-grained credit assignment를 사용한다. 이로 인해 핵심적인 reasoning step과 trivial 토큰을 구분하지 못하며, 응답 길이가 약 4,000 토큰에서 정체하는 length stagnation 현상이 발생한다.</li>
+  <li><strong>해결</strong>: Future-KL divergence를 policy update에 통합한다. 각 토큰의 advantage를 해당 토큰 이후 미래 trajectory에서 발생하는 누적 probability shift로 re-weight하여, critic model 없이도 dense, token-level supervision을 달성한다.</li>
+  <li><strong>왜 작동하는가</strong>: 현재 토큰이 이후 reasoning chain에 미치는 인과적 영향(causal influence)을 측정하므로, 핵심 reasoning pivot에 더 큰 가중치가 부여된다. 이를 통해 value model 없이도 PPO 수준의 dense advantage estimation을 GRPO framework 내에서 달성한다.</li>
+  <li><strong>비유</strong>: 시험 채점에서 최종 답만 보고 모든 풀이 단계에 동일한 점수를 매기는 것(GRPO)이 아니라, 각 풀이 단계가 최종 답에 얼마나 기여했는지를 역추적하여 단계별로 차등 점수를 매기는 것(FIPO)에 해당한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Future-KL Divergence</strong>: ##token-level probability shift($\Delta \log p$)를 미래까지 누적한 새로운 credit assignment metric##을 제안. 현재 토큰이 후속 reasoning trajectory에 미치는 인과적 영향을 정량화한다.</li>
+  <li><strong>Dense Advantage Formulation</strong>: critic model(value network) 없이 GRPO framework 내에서 PPO 수준의 token-level 세밀한 advantage 추정을 달성한다. Exponential decay window, masking, influence weight clipping으로 안정적 학습을 보장한다.</li>
+  <li><strong>Length Stagnation 해결</strong>: DAPO 대비 CoT(Chain-of-Thought) 길이를 약 4,000 토큰에서 10,000 토큰 이상으로 확장하며, self-reflection 행동이 자발적으로 emergence한다.</li>
+  <li><strong>AIME 2024에서 SOTA</strong>: Qwen2.5-32B-Base에서 ##Pass@1 Avg@32 56.0% (DAPO 50.0%), Cons@32 73.0%, Pass@32 83.0%##을 달성. Peak accuracy는 58.0%에 도달하며, DeepSeek-R1-Zero-Qwen-32B (~47.0%)와 o1-mini (~56.0%)를 능가한다.</li>
+  <li><strong>오픈소스</strong>: verl framework 기반으로 완전한 학습 코드 및 레시피를 공개하여 재현성을 보장한다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<h3>Test-time Scaling과 RLVR의 부상</h3>
+<p>
+OpenAI o-series, Gemini 2.5, Kimi k1.5, Qwen3, DeepSeek-R1 등의 최신 모델들은 inference time에 더 많은 computational resource를 할당하여 긴 Chain-of-Thought(CoT)를 생성하고, 이를 통해 경쟁 수학이나 코딩 같은 어려운 과제에서 큰 성능 향상을 달성하는 test-time scaling 전략을 채택하고 있다. 이 진보의 핵심은 RLVR(Reinforcement Learning with Verifiable Rewards)로, task-specific verifier(수학 답안 검증기 등)의 피드백으로 모델의 생성 policy를 fine-tuning하는 방법이다.
+</p>
+<p>
+그러나 구체적인 알고리즘과 학습 레시피는 대부분 비공개이며, 강화학습이 어떻게 base model에서 긴 CoT 행동을 이끌어내는지에 대한 이해는 여전히 부족하다.
+</p>
+
+<h3>GRPO의 Coarse-grained Credit Assignment 문제</h3>
+<p>
+오픈소스 진영에서 DAPO(Decoupled Clip and Dynamic Sampling Policy Optimization)는 GRPO 스타일 학습의 대표적인 재현 노력이다. 그러나 GRPO의 본질적 한계가 존재한다: reward가 trajectory 종료 시점에서 binary(정답/오답)로만 평가되므로, 표준 formulation은 이 reward를 trajectory의 모든 토큰에 균일하게 배분한다. 즉, ##핵심적인 reasoning step과 trivial 토큰이 동일한 credit을 받는 coarse-grained credit assignment##가 발생한다.
+</p>
+<p>
+저자들은 이 한계가 length stagnation의 근본 원인이라고 주장한다. Uniform reward는 올바른 논리를 이끄는 특정 토큰을 강조할 수 없으므로, 모델이 어려운 문제를 풀기 위해 필요한 복잡하고 확장된 reasoning path로 수렴하지 못한다. 이로 인해 DAPO의 응답 길이는 약 4,000 토큰에서 plateau에 도달한다.
+</p>
+
+<h3>FIPO의 핵심 아이디어</h3>
+<p>
+FIPO(Future-KL Influenced Policy Optimization)는 Future-KL divergence를 policy update에 통합하여 이 문제를 해결한다. 현재 토큰의 advantage를 후속 trajectory의 누적 probability shift로 re-weight함으로써, 각 토큰이 미래 reasoning chain에 미치는 인과적 영향을 반영한 dense advantage formulation을 달성한다. 이 접근은 critic model의 복잡성 없이도 PPO 수준의 세밀한 credit assignment를 제공한다.
+</p>
+<p>
+Qwen2.5-32B-Base에서 FIPO는 AIME 2024 Pass@1을 50.0%(DAPO)에서 peak 58.0%(수렴 시 약 56.0%)까지 끌어올리며, CoT 길이를 10,000+ 토큰으로 확장하고, self-reflection 행동의 자발적 emergence를 촉진한다.
+</p>
+
+<!-- ============================================================ -->
+<h2>2. Related Work</h2>
+
+<h3>Reinforcement Learning for LLMs</h3>
+<p>
+강화학습은 LLM의 post-training pipeline에서 핵심 단계로 자리잡았다. 초기에는 RLHF(Reinforcement Learning from Human Feedback)가 모델을 인간 선호에 맞추는 데 활용되었으나(Stiennon et al., 2020; Ouyang et al., 2022), 최근에는 RL을 통해 reasoning 능력을 향상시키는 방향으로 초점이 이동했다. OpenAI o-series(Jaech et al., 2024)가 reasoning-centric 접근을 개척했고, DeepSeek-R1(Guo et al., 2025)이 GRPO 알고리즘을 통한 종합적인 RLVR framework를 도입하면서 Kimi k1.5, Qwen3, Gemini 2.5 등 후속 연구들이 이어졌다.
+</p>
+
+<h3>Large-scale Open-source RL Efforts</h3>
+<p>
+오픈소스 커뮤니티에서의 주요 노력들을 두 갈래로 나눌 수 있다:
+</p>
+<ul>
+  <li><strong>이미 Long-CoT 능력을 갖춘 모델에서 출발</strong>: GSPO(Zheng et al., 2025), BAPO(Xi et al., 2025), SAPO(Gao et al., 2025), OR1(He et al., 2025) 등은 이미 장문 reasoning 능력을 갖춘 모델을 기반으로 RL 알고리즘을 개발한다.</li>
+  <li><strong>Clean base model(Qwen2.5-Base)에서 출발</strong>: Open-Reasoner-Zero(Hu et al., 2025), VC-PPO(Yuan et al., 2025), VAPO(Yue et al., 2025), T-PPO(Fan et al., 2025) 등은 PPO framework 위에 구축하며, DAPO(Yu et al., 2025)는 GRPO의 수정판이다.</li>
+</ul>
+<p>
+FIPO의 positioning은 다음과 같다: (1) GRPO framework를 직접 개선하여 value model 불필요, (2) vanilla base model(Qwen2.5-32B-Base)에서 시작하므로 Long-CoT distillation이나 SFT를 통한 사전 지식 주입 없이 순수한 RL의 효과를 평가, (3) VC-PPO, VAPO, T-PPO 등이 Long-CoT SFT된 value model에 의존하여 성능 향상의 출처가 모호한 반면, FIPO는 이런 confounding factor를 제거한다.
+</p>
+
+<!-- ============================================================ -->
+<h2>3. Preliminary</h2>
+
+<p>
+논문 전체에서 $T$는 trajectory의 총 길이, $t$는 현재 step의 index, $q$는 질문 prompt, $o$는 생성된 출력을 의미한다. GRPO setting에서 각 질문 $q$에 대해 $G$개의 trajectory를 sampling한다.
+</p>
+
+<h3>3.1 Proximal Policy Optimization (PPO)</h3>
+<p>
+PPO(Schulman et al., 2017)는 clipped surrogate objective를 통해 policy update를 old policy의 근접 범위 내로 제한하여 안정적 학습을 달성한다:
+</p>
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{(q,o) \sim D, o \sim \pi_{\theta_{\text{old}}}(\cdot|q)} \left[ \min\left( r_t(\theta) \hat{A}_t, \text{clip}(r_t(\theta), 1 - \epsilon, 1 + \epsilon) \hat{A}_t \right) \right]$$
+<p>
+여기서 $r_t(\theta) = \frac{\pi_\theta(o_t | q, o_{&lt;t})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{&lt;t})}$는 token-level probability ratio이고, $\hat{A}_t$는 learned value function을 통해 추정한 advantage이다. 핵심적으로, PPO는 GAE(Generalized Advantage Estimation)(Schulman et al., 2015)를 사용하여 각 토큰마다 고유한 token-specific advantage $\hat{A}_t$를 계산한다. 이것이 PPO가 temporal credit assignment를 수행할 수 있게 하는 핵심이다.
+</p>
+<p>
+직관적으로, PPO는 각 토큰이 최종 결과에 기여한 정도를 개별적으로 평가하여 dense supervision signal을 제공한다.
+</p>
+
+<h3>3.2 Group Relative Policy Optimization (GRPO)</h3>
+<p>
+GRPO(Shao et al., 2024)는 value network의 연산 부담을 group-based sampling으로 회피한다. 주어진 질문 $q$와 ground truth $a$에 대해 old policy $\pi_{\theta_{\text{old}}}$에서 $\{o_i\}_{i=1}^{G}$개의 출력을 샘플링하고, $i$번째 샘플의 <em>sequence-level</em> advantage를 다음과 같이 계산한다:
+</p>
+$$\hat{A}_i = \frac{R_i - \mu}{\sigma}, \quad \text{with } R_i = \mathbb{I}(\text{Verify}(o_i, a)) \tag{1}$$
+<p>
+여기서 $\mu$와 $\sigma$는 샘플링된 group 내 reward의 경험적 평균과 표준편차이다. GRPO의 loss는:
+</p>
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q \sim D, \{o_i\}_{i=1}^{G} \sim \pi_{\theta_{\text{old}}}(\cdot|q)} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \left( \min\left(\rho_{i,t}(\theta) \hat{A}_i, \text{clip}(\rho_{i,t}(\theta), 1 - \epsilon, 1 + \epsilon) \hat{A}_i\right) - \beta D_{\text{KL}}(\pi_\theta || \pi_{\text{ref}}) \right) \right] \tag{2}$$
+<p>
+여기서 $\rho_{i,t}(\theta) = \frac{\pi_\theta(o_{i,t} | q, o_{i,&lt;t})}{\pi_{\theta_{\text{old}}}(o_{i,t} | q, o_{i,&lt;t})}$는 probability ratio이다.
+</p>
+<p>
+<strong>핵심 문제</strong>: 계산된 scalar $\hat{A}_i$는 전체 sequence에 걸쳐 broadcast된다. 즉, 모든 토큰 $t$에 대해 $\hat{A}_{i,t} = \hat{A}_i$이다. PPO의 GAE가 각 토큰에 distinct advantage signal을 제공하는 것과 달리, GRPO는 trajectory 내 모든 step에 균일한 credit을 할당하여 최종 outcome에 대한 개별 토큰의 기여를 무시한다.
+</p>
+
+<h3>3.3 Decoupled Clip and Dynamic Sampling Policy Optimization (DAPO)</h3>
+<p>
+DAPO(Yu et al., 2025)는 GRPO를 여러 방면에서 확장한다:
+</p>
+<ul>
+  <li><strong>Asymmetric Clipping</strong>: $(1 - \epsilon_{\text{low}}, 1 + \epsilon_{\text{high}})$ 범위의 비대칭 clipping을 도입. 유리한 행동에 대한 update를 더 크게 허용하여 entropy collapse를 방지한다.</li>
+  <li><strong>Token-level Policy Gradient Loss</strong>: 장문 CoT 학습 맥락에서 건전한 최적화 dynamics를 유지하기 위한 토큰 단위 loss 계산.</li>
+  <li><strong>Dynamic Sampling</strong>: 각 group $\{o_i\}_{i=1}^{G}$ 내에 positive와 negative 샘플이 혼재하도록 보장하여, non-trivial gradient를 통한 효과적 학습을 유지한다.</li>
+</ul>
+<p>
+FIPO는 DAPO를 primary baseline으로 채택한다.
+</p>
+
+<h3>3.4 Findings on Directions of Policy Update and Fine-grained Token Analysis</h3>
+<p>
+FIPO의 핵심 동기는 두 가지 선행 연구에서 비롯된다:
+</p>
+<ul>
+  <li><strong>Meng et al. (2025)</strong>: RL 학습 중 98% 이상의 토큰에서 출력 분포 변화가 없으며, 소수의 "sparse but critical" 토큰만 분포 변화를 보인다는 것을 발견했다. 즉, RL은 극소수의 핵심 토큰에 집중적으로 개입하여 base model을 수정한다.</li>
+  <li><strong>Huang et al. (2025)</strong>: signed log-probability difference를 "direction of optimization"으로 매핑할 수 있음을 보여주었다. 이를 통해 핵심 토큰을 증폭하는 것만으로도 추가 학습 없이 추론 정확도를 높일 수 있다.</li>
+</ul>
+<p>
+이 두 연구의 결론은 명확하다: 모든 토큰이 reasoning에 동등하게 기여하는 것이 아니며, $\Delta \log p$(log-probability의 변화)가 핵심적인 credit assignment 단위가 된다. 그러나 순간적인 $\Delta \log p$는 local한 신호에 불과하다. FIPO의 핵심 아이디어는 이 raw signal을 미래까지 누적하여, 토큰의 진정한 downstream impact를 측정하는 Future-KL로 확장하는 것이다.
+</p>
+
+<!-- ============================================================ -->
+<h2>4. FIPO (Future-KL Influenced Policy Optimization)</h2>
+
+<h3>알고리즘 흐름도</h3>
+<div class="flow-diagram">질문 q → [Old Policy π_old] G개 trajectory 생성 → Reward R_i (binary) → Group Advantage Â_i = (R_i - μ) / σ
+                                                                          ↓
+각 토큰 t에 대해:
+  (1) Δlog p_t = log π_θ(o_t|q,o_&lt;t) - log π_old(o_t|q,o_&lt;t)         ← Probability Shift
+  (2) M_k = I(IS ratio ≤ c)                                           ← Extreme Value Masking
+  (3) FutureKL_t = Σ_{k=t}^{T} M_k · γ^{k-t} · Δlog p_k             ← Soft Decay Aggregation
+  (4) f_t = clip(exp(FutureKL_t), 1-ε_f_low, 1+ε_f_high)             ← Influence Weight
+  (5) Ã_t = Â_i · f_t                                                 ← Re-weighted Advantage
+      [Safety: if Â_i &lt; 0 and negative adv → f_t = 1]
+                                                                          ↓
+Policy Update: J_FIPO(θ) = Σ min(r_{i,t} · f_{i,t} · Â_{i,t}, clip(r_{i,t}) · f_{i,t} · Â_{i,t})</div>
+
+<h3>4.1 Probability Shift: $\Delta \log p$</h3>
+<p>
+FIPO의 기본 구성 요소는 token-level probability shift이다. 시간 step $t$에서의 probability shift를 현재 policy와 old policy 간의 log-space 차이로 정의한다:
+</p>
+$$\Delta \log p_t = \log \pi_\theta(o_t \mid q, o_{&lt;t}) - \log \pi_{\theta_{\text{old}}}(o_t \mid q, o_{&lt;t}) \tag{3}$$
+<p>
+이 항은 순간적인 policy drift를 포착하는 differential signal 역할을 한다:
+</p>
+<ul>
+  <li><strong>Positive Shift ($\Delta \log p_t > 0$)</strong>: 현재 policy가 old policy 대비 해당 토큰의 생성 확률을 높였음을 의미한다. 학습 목표가 이 specific reasoning step을 강화(reinforce)하고 있다는 것이다.</li>
+  <li><strong>Negative Shift ($\Delta \log p_t < 0$)</strong>: 현재 policy가 해당 토큰 $o_t$의 생성을 억제하고 있음을 의미한다.</li>
+</ul>
+<p>
+전통적 KL penalty가 이 drift를 최소화해야 할 regularization cost로 취급하는 것과 달리, FIPO는 $\Delta \log p_t$를 행동 조정의 방향적 신호(directional signal of behavioral adjustment)로 해석하여 최적화 목표와 명시적으로 결합한다. 그러나 이 순간적 shift만으로는 한 토큰의 결정이 미래에 미치는 장기적 결과(long-term consequence)를 포착할 수 없다. 이것이 Future-KL의 동기이다.
+</p>
+
+<h3>4.2 Future-KL Estimation</h3>
+<p>
+Reasoning은 본질적으로 sequential process이다. 현재 토큰의 진정한 중요성은 그것이 개시하는 후속 trajectory에 의존한다. 이 인과적 영향을 포착하기 위해, 현재 step $t$부터 sequence 끝 $T$까지의 누적 signed probability shift로 <strong>Future-KL</strong>을 정의한다:
+</p>
+$$\text{FutureKL}_t = \sum_{k=t}^{T} \Delta \log p_k \tag{4}$$
+<p>
+이 합은 수학적으로 후속 subsequence $o_{t:T}$에 대한 joint probability distribution의 log-likelihood ratio와 동치이다. 즉, 현재 policy에서의 미래 trajectory 전체의 확률과 old policy에서의 확률 간의 비율을 sample-based로 추정한 KL divergence이다.
+</p>
+<p>
+직관적으로, $\text{FutureKL}_t > 0$이면 토큰 $o_t$ 이후의 전체 subsequent trajectory가 updated policy에 의해 <em>강화</em>되었음을 의미한다. $o_t$가 후속 reasoning chain의 안정적 anchor 역할을 하는 것이다. 반대로 $\text{FutureKL}_t < 0$이면, $o_t$ 이후의 trajectory가 전반적으로 <em>억제</em>되고 있어, 이 지점부터의 reasoning path가 최적화 과정에서 비선호되고 있다는 신호이다.
+</p>
+
+<h4>Stability 문제: Vanilla FutureKL의 불안정성</h4>
+<p>
+그러나 Eq.4의 raw FutureKL은 심각한 안정성 문제를 야기한다. FutureKL이 advantage function의 weighting coefficient로 작용하므로(후술), 미래 logit의 과도한 편차(예: training-inference inconsistency)가 스케일을 비정상적으로 팽창시킬 수 있다. 이는 noisy 토큰에 과도하게 민감한 최적화를 초래한다.
+</p>
+<p>
+실험적으로, safety mechanism 없이 학습하면 약 Step 70 부근에서 catastrophic collapse가 발생한다(Figure 2):
+</p>
+<ol>
+  <li>"low-clip fraction"(Dual-Clip threshold를 초과하는 negative sample의 비율) 지표에 sharp spike가 발생 — 모델이 harmful action에 높은 확률을 부여하는 critical misalignment</li>
+  <li>Policy KL divergence가 급등</li>
+  <li>Gradient norm이 폭발</li>
+  <li>Response length가 즉시 붕괴</li>
+</ol>
+<p>
+이는 FutureKL의 누적 negative signal이 규제 없이 극단값에 도달하여 학습을 불안정화시키기 때문이다.
+</p>
+
+<h4>Masking: Dual-Clip Threshold 기반 Filtering</h4>
+<p>
+이를 해결하기 위해, Dual-Clip threshold $c$를 초과하는 importance ratio를 가진 토큰을 FutureKL 계산에서 명시적으로 마스킹한다:
+</p>
+$$\text{FutureKL}_t = \sum_{k=t}^{T} M_k \cdot \Delta \log p_k, \quad M_k = \mathbb{I}\left(\frac{\pi_\theta(o_k \mid o_{&lt;t})}{\pi_{\text{old}}(o_k \mid o_{&lt;t})} \leq c\right) \tag{5}$$
+<p>
+여기서 $M_k$는 binary filter로, importance ratio가 Dual-Clip threshold $c$ (통상 $c \geq 10$) 이내인 경우에만 1이고, 그렇지 않으면 0이다. 이러한 토큰들은 이미 clipped policy objective에 의해 gradient가 차단된 "harmful" action이므로, 그 과도하게 높은 importance ratio가 recursive sum으로 전파되는 것을 방지하여 gradient 폭발의 주요 원인을 제거한다.
+</p>
+
+<h4>4.2.1 Soft Decay Window</h4>
+<p>
+안정성 제약 외에도, long-horizon generation의 본질적 불확실성을 다뤄야 한다. 현재 토큰 $o_t$와 미래 토큰 $o_k$ 사이의 인과적 의존성(causal dependency)은 시간 간격 $k - t$가 커질수록 자연적으로 감소한다. 가까운 후속 토큰은 현재 선택에 직접적으로 조건화되지만, 먼 토큰은 누적된 확률적 요인에 영향을 받아 예측성이 떨어진다. 이 감소하는 영향력을 모델링하기 위해 discount factor $\gamma \in (0, 1]$를 도입한다:
+</p>
+$$\text{FutureKL}_t = \sum_{k=t}^{T} M_k \cdot \gamma^{k-t} \cdot \Delta \log p_k \tag{6}$$
+<p>
+decay rate를 $\gamma = 2^{-1/\tau}$로 parameterize한다. 여기서 $\tau$는 "half-life" 파라미터로, FutureKL signal의 영향이 절반으로 감쇠하는 token 거리를 제어한다.
+</p>
+<p>
+직관적으로, $\tau$는 이 soft decay window의 aperture(조리개)를 정의한다. Hard truncation이 고정 거리 이후의 정보를 갑자기 버리는 것과 달리, exponential decay는 continuous sliding window를 생성하여 먼 미래의 noise를 boundary artifact 없이 부드럽게 감쇠시킨다. 실험에서 $\tau = 32$ (즉, 32 토큰 거리에서 영향이 절반)가 최적으로 확인되었다.
+</p>
+
+<h4>4.2.2 FutureKL Re-weighted Advantage with Clipping</h4>
+<p>
+최종적으로, soft decay window와 masking mechanism을 policy optimization objective에 통합한다. 표준 advantage estimate $\hat{A}_t$를 future influence weight $f_t$로 변조한다:
+</p>
+$$f_t = \text{clip}\left(\exp(\text{FutureKL}_t),\; 1 - \epsilon_{f_{\text{low}}},\; 1 + \epsilon_{f_{\text{high}}}\right), \quad \tilde{A}_t = \hat{A}_t \cdot f_t \tag{7}$$
+<p>
+이 formulation에는 두 가지 핵심 연산이 있다:
+</p>
+<ol>
+  <li><strong>Exponential Mapping</strong>: 누적된 log-space scalar signal을 multiplicative domain으로 변환한다. 수학적으로 unclipped term은 decay-weighted product of likelihood ratio, 즉 미래에 대한 policy의 effective preference를 반영하는 importance weight이다.</li>
+  <li><strong>Influence Weight Clipping</strong>: $f_t$를 $[1 - \epsilon_{f_{\text{low}}}, 1 + \epsilon_{f_{\text{high}}}]$ 범위로 제한하여 극단적인 log-probability shift에 의한 과도한 variance를 방지한다.</li>
+</ol>
+<p>
+이 modulation의 작동 메커니즘:
+</p>
+<ul>
+  <li><strong>$\text{FutureKL}_t > 0$ (미래 trajectory 강화)</strong>: $f_t > 1$이 되어, positive advantage를 증폭(더 강하게 보상)하고 negative advantage의 penalty를 강화(더 엄격하게 처벌)한다. 미래에 유익한 경로의 anchor 토큰을 적극 지원한다.</li>
+  <li><strong>$\text{FutureKL}_t < 0$ (미래 trajectory 억제)</strong>: $f_t < 1$이 되어, reward signal을 감쇠시킨다. 실패하는 sequence 내에서 국소적으로 해로운 토큰에 대한 과도한 처벌을 완화하여, "나쁜 결과 속의 좋은 토큰"이 부당하게 penalize되는 것을 방지한다.</li>
+</ul>
+<p>
+<strong>Safety mechanism</strong>: $\hat{A}_t < 0$ (negative advantage)이면서 과도하게 큰 negative importance ratio를 가진 토큰에 대해서는 $f_t = 1$로 리셋하여 over-penalization을 방지한다.
+</p>
+
+<h3>4.3 Target Loss</h3>
+<p>
+DAPO의 token-level formulation을 채택하여 최종 FIPO objective를 정의한다:
+</p>
+$$\mathcal{J}_{\text{FIPO}}(\theta) = \mathbb{E}_{(q,a) \sim D, \{o_i\} \sim \pi_{\theta_{\text{old}}}} \left[ \frac{1}{\sum_{i=1}^{G} |o_i|} \sum_{i=1}^{G} \sum_{t=1}^{|o_i|} \min\left(r_{i,t}\, f_{i,t}\, \hat{A}_{i,t},\; \text{clip}(r_{i,t},\, 1 - \epsilon,\, 1 + \epsilon)\, f_{i,t}\, \hat{A}_{i,t}\right) \right] \tag{8}$$
+<p>
+여기서 $G$는 query당 샘플링 수, $r_{i,t} = \frac{\pi_\theta(a_{i,t}|s_{i,t})}{\pi_{\theta_{\text{old}}}(a_{i,t}|s_{i,t})}$는 importance ratio, $\hat{A}_{i,t}$는 group relative advantage, $f_{i,t}$는 앞서 정의한 Future-KL influence weight이다.
+</p>
+<p>
+직관적으로 말하면, FIPO는 DAPO의 clipped policy gradient에 토큰별 "미래 영향력 가중치" $f_{i,t}$를 곱한 것이다. 이를 통해 각 토큰의 학습 신호가 그것이 미래 reasoning chain에 미치는 실제 영향력에 비례하게 조정된다.
+</p>
+
+<!-- ============================================================ -->
+<h2>5. 실험 (Experiment)</h2>
+
+<h3>실험이 답하려는 핵심 질문</h3>
+<ol>
+  <li><strong>Q1</strong>: FIPO가 DAPO baseline 대비 수학 reasoning benchmark에서 일관된 성능 향상을 보이는가?</li>
+  <li><strong>Q2</strong>: FIPO가 length stagnation을 해결하여 CoT를 10,000+ 토큰으로 확장할 수 있는가?</li>
+  <li><strong>Q3</strong>: 성능 향상이 단순 length 증가가 아닌 genuine reasoning depth로 이어지는가?</li>
+  <li><strong>Q4</strong>: FIPO의 학습 dynamics가 DAPO보다 안정적인가?</li>
+</ol>
+
+<h3>5.1 Experiment Settings</h3>
+<p>
+공정한 비교를 위해 DAPO의 학습 설정을 충실히 따르되, FIPO 고유의 요소만 변경한다:
+</p>
+<ul>
+  <li><strong>Framework</strong>: VeRL(Sheng et al., 2025) + DAPO codebase</li>
+  <li><strong>Dataset</strong>: DAPO-17K (공개된 수학 학습 데이터셋)</li>
+  <li><strong>Base Model</strong>: Qwen2.5-32B-Base (Long-CoT synthetic data에 노출 이력 없음)</li>
+</ul>
+
+<p><strong>Shared Optimization Settings (DAPO와 동일)</strong>:</p>
+<table>
+<tr><th>Hyperparameter</th><th>값</th></tr>
+<tr><td>Global Batch Size</td><td>512 prompts</td></tr>
+<tr><td>Group Size ($G$)</td><td>16 responses/prompt</td></tr>
+<tr><td>Total Training Samples</td><td>8,192 (512 x 16)</td></tr>
+<tr><td>Learning Rate</td><td>$1 \times 10^{-6}$</td></tr>
+<tr><td>LR Scheduler</td><td>Constant with 10 Warmup Steps</td></tr>
+<tr><td>Weight Decay</td><td>0.1</td></tr>
+<tr><td>Gradient Clipping</td><td>1.0</td></tr>
+<tr><td>Max Prompt Length</td><td>2,048</td></tr>
+<tr><td>Max Response Length</td><td>20,480</td></tr>
+<tr><td>Overlong Buffer</td><td>4,096 (>16,384 토큰 시 penalty)</td></tr>
+<tr><td>Sampling Temp / Top-p</td><td>1.0 / 1.0</td></tr>
+<tr><td>Dual Clip Ratio</td><td>10.0</td></tr>
+<tr><td>Policy Clip Ratio</td><td>[0.2, 0.28] (Asymmetric)</td></tr>
+<tr><td>KL Penalty Coef</td><td>0.0</td></tr>
+</table>
+
+<p><strong>Method-Specific Settings</strong>:</p>
+<table>
+<tr><th>Hyperparameter</th><th>DAPO (Baseline)</th><th>FIPO (Ours)</th></tr>
+<tr><td>Mini-Batch Size</td><td>512 (32 prompts)</td><td>1,024 (64 prompts)</td></tr>
+<tr><td>Gradient Updates / Iteration</td><td>16</td><td>8</td></tr>
+<tr><td>Loss Function</td><td>DAPO</td><td>Future-KL</td></tr>
+<tr><td>Future-KL Decay Rate ($\tau$)</td><td>-</td><td>32.0</td></tr>
+<tr><td>Future-KL Clip Ratio</td><td>-</td><td>[1.0, 1.2]</td></tr>
+<tr><td>Safety Threshold ($c$)</td><td>-</td><td>10.0</td></tr>
+</table>
+
+<p>
+<strong>Mini-batch size 선택에 대한 참고</strong>: DAPO의 표준 mini-batch size는 512(32 prompts)으로 iteration당 16 gradient update를 수행한다. FIPO는 경험적으로 더 큰 mini-batch size 1,024(64 prompts)가 학습 안정성을 개선함을 발견했다. 이에 대한 상세 논의는 Appendix E에서 다룬다.
+</p>
+
+<p><strong>평가 설정</strong>:</p>
+<ul>
+  <li>Primary benchmark: AIME 2024, Secondary: AIME 2025</li>
+  <li>DAPO protocol: 32회 sampling 후 평균 Pass@1 (Avg@32), majority vote (Cons@32), 최소 1개 정답 확률 (Pass@32)</li>
+  <li>Inference: Temperature 1.0, Top-p 0.7</li>
+  <li>수치 표기 변동성 감소를 위해 정수 단위로 반올림</li>
+</ul>
+
+<h3>5.2 Main Result (Q1에 대한 답)</h3>
+<p>
+<strong>의도</strong>: FIPO가 동일한 base model, 동일한 데이터, 동일한 학습 인프라에서 DAPO를 일관되게 능가하는지 검증한다.
+</p>
+
+<table>
+<tr><th rowspan="2">Method</th><th colspan="3">AIME 2024</th><th colspan="3">AIME 2025</th></tr>
+<tr><th>Avg@32</th><th>Cons@32</th><th>Pass@32</th><th>Avg@32</th><th>Cons@32</th><th>Pass@32</th></tr>
+<tr><td>DAPO (Baseline)</td><td>50.0%</td><td>60.0%</td><td>80.0%</td><td>38.0%</td><td>47.0%</td><td>63.0%</td></tr>
+<tr><td><strong>FIPO (Ours)</strong></td><td><strong>56.0%</strong></td><td><strong>73.0%</strong></td><td><strong>83.0%</strong></td><td><strong>43.0%</strong></td><td><strong>50.0%</strong></td><td><strong>67.0%</strong></td></tr>
+</table>
+
+<p>
+<strong>결과 및 뒷받침하는 주장</strong>:
+</p>
+<ul>
+  <li>FIPO는 AIME 2024와 AIME 2025 모두에서 약 ##6.0%p의 systematic improvement in Avg@32##를 달성한다. 이는 reasoning reliability의 가장 robust한 지표이다.</li>
+  <li>Cons@32 (majority vote)에서의 향상이 특히 크다 (60.0% → 73.0%, +13.0%p). 이는 모델이 더 일관되게 정답에 도달함을 의미한다.</li>
+  <li>Pass@32 (coverage)의 개선은 상대적으로 modest (80.0% → 83.0%)하다. 저자들은 이를 외부 지식 보강이나 tool integration 없이 순수 RL만으로 모델의 절대적 문제 해결 범위를 확장하는 것의 고유한 어려움으로 귀인한다.</li>
+  <li>Figure 1에서, FIPO의 학습 curve는 DeepSeek-R1-Zero-Qwen-32B (~47.0%)와 o1-mini (~56.0%)를 능가하며, peak accuracy 58.0%에 도달한다.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>6. Analysis</h2>
+
+<h3>6.1 Length Scaling과 성능 (Q2, Q3에 대한 답)</h3>
+<p>
+<strong>의도</strong>: FIPO의 성능 향상이 CoT 길이의 지속적 확장과 어떻게 연결되는지, 그리고 이 길이 확장이 genuine reasoning depth인지 superficial padding인지 검증한다.
+</p>
+<p>
+<strong>결과 (Figure 3)</strong>: DAPO는 초기 증가 후 약 4,000 토큰에서 response length가 정체하는 반면, ##FIPO는 10,000+ 토큰으로 response length를 지속적으로 확장##한다. 이 scaling process는 distinct evolutionary phases를 거친다:
+</p>
+<ul>
+  <li><strong>전체 분포 이동</strong>: 모든 length percentile (Min, Q25, Median, Q75)이 동기화되어 상승한다 (Figure 3a-e). 이는 length surge가 isolated outlier에 의한 것이 아니라 comprehensive distributional migration임을 보여준다. Median token count가 학습 전반에 걸쳐 초기 약 200에서 10,000 이상으로 꾸준히 상승한다.</li>
+  <li><strong>Length-Accuracy 양의 상관관계</strong>: Figure 3f는 모든 학습 단계에서 response length와 model accuracy 간에 강한 양의 상관관계가 유지됨을 보여준다. 길이가 증가할수록 정확도도 함께 상승하며, 이는 FIPO가 ##증가된 sequence length를 genuine reasoning depth로 전환##하고 있음을 확인한다.</li>
+  <li><strong>Self-reflection의 자발적 Emergence</strong>: Appendix D의 case study는 이 length expansion이 self-reflection 행동의 점진적 emergence에 의해 driven됨을 보여준다. 모델이 중간 결과를 재평가하고, 대안적 방법론을 탐색하며, 자신의 결론을 검증하는 행동이 자발적으로 나타난다. 이는 OpenAI o-series와 DeepSeek-R1에서 관찰되는 inference-time scaling behavior와 정성적으로 일치한다.</li>
+</ul>
+
+<h3>6.2 Advantage Dynamics와 Sustained Reasoning Growth (Q3 심화)</h3>
+<p>
+<strong>의도</strong>: DAPO의 length stagnation과 FIPO의 sustained growth의 메커니즘적 차이를 학습 dynamics 관점에서 밝힌다.
+</p>
+<p>
+<strong>결과 (Figure 4)</strong>:
+</p>
+<ul>
+  <li><strong>Mean Training Reward (Figure 4a)</strong>: DAPO가 더 높은 mean training reward를 유지한다. 그러나 이는 성능 우위가 아니라, DAPO가 짧은 응답을 생성하여 overlong penalty를 회피한 결과이다. FIPO는 긴 reasoning chain을 구성하므로 overlong penalty가 더 자주 적용되어 raw reward가 억제되지만, 이는 deeper reasoning을 추구하는 바람직한 행동이다.</li>
+  <li><strong>Dynamic Sampling Batch Count (Figure 4b)</strong>: DAPO는 학습이 진행될수록 sampled batch 수가 급증한다. 이는 모델이 training set에 overfitting되어 non-discriminative batch (전부 정답 또는 전부 오답)를 점점 많이 생성하고, 유효한 gradient를 얻기 위해 더 많은 sampling이 필요해지기 때문이다. FIPO는 이 현상이 덜하다.</li>
+  <li><strong>Response Length Weighted Mean Advantage (Figure 4c)</strong>: 이 지표가 FIPO와 DAPO의 핵심 차이를 드러낸다. DAPO는 이 지표가 학습 전반에 걸쳐 하락 추세를 보인다. 이는 positive sample의 길이가 negative sample 대비 점점 더 길어지지 않음을 의미하며, 따라서 길이 증가가 더 큰 positive advantage로 이어지지 않아 reasoning 확장의 incentive가 소멸된다. 반대로, ##FIPO는 이 지표가 지속적으로 상승하여, 긴 valid reasoning chain이 점점 더 큰 positive advantage를 yield하는 선순환을 형성##한다.</li>
+</ul>
+
+<h3>6.3 Smooth Policy Drift, Exploration, and Gradient Update (Q4에 대한 답)</h3>
+<p>
+<strong>의도</strong>: FIPO의 학습 최적화 process가 DAPO보다 수치적으로 안정적인지 검증한다.
+</p>
+<p>
+<strong>결과 (Figure 5)</strong>:
+</p>
+<ul>
+  <li><strong>Policy KL (Figure 5a)</strong>: FIPO는 Policy KL divergence가 꾸준하고 구조적으로 증가한다. 이는 progressive policy shift를 나타내며, 모델이 점진적으로 더 전문화된 reasoning regime으로 이동하고 있음을 보여준다. Self-reflection segment의 길이가 점진적(abrupt하지 않게)으로 증가하는 rollout 관찰과 정성적으로 일치한다.</li>
+  <li><strong>Gradient Norm (Figure 5b)</strong>: FIPO의 gradient norm은 학습 전반에 걸쳐 낮고 일관적이며, fine-grained update에 기반한 smooth evolution을 특징으로 한다. 반면 DAPO는 빈번하고 격렬한 spike를 보여 abrupt shift와 잠재적 불안정성을 나타낸다.</li>
+  <li><strong>Entropy (Figure 5c)</strong>: FIPO는 entropy가 smooth하고 sustained하게 상승하여, 모델이 broader reasoning space를 적극적으로 탐색하고 있으며 longer CoT path가 점점 더 정답과 대응함을 보여준다. DAPO는 entropy가 noisy oscillation을 보인다.</li>
+</ul>
+<p>
+이 세 지표를 종합하면, FIPO는 유의미하고 목적 지향적인 policy evolution을 달성하면서도 최적화 process의 수치적 안정성을 유지하는 모델로 특징지어진다.
+</p>
+
+<!-- ============================================================ -->
+<h2>7. Conclusion</h2>
+<p>
+FIPO는 표준 GRPO에 내재된 coarse-grained credit assignment 문제를 해결하기 위한 강화학습 접근법이다. Discounted Future-KL divergence를 policy update에 통합하여, sparse outcome-based reward를 dense, token-level supervision으로 변환한다. 경험적 분석을 통해 기존 baseline의 critical "length-performance plateau"를 식별하고 해결하였으며, 표준 uniform reward가 long-chain reasoning을 유지하지 못함을 입증했다. Qwen2.5-32B-Base에서 FIPO는 AIME 2024 성능을 50.0%에서 peak 58.0%(수렴 시 약 56.0%)으로 끌어올리고, CoT 길이를 4,000에서 10,000+ 토큰으로 확장했다. 이는 complex critic model 없이도 dense advantage formulation이 GRPO framework 내에서 효과적으로 실현 가능함을 보여준다.
+</p>
+
+<!-- ============================================================ -->
+<h2>8. 한계점 및 향후 연구 (Limitations and Future Work)</h2>
+<ul>
+  <li><strong>Cost & Efficiency</strong>: FIPO가 10,000+ 토큰 CoT를 유도하므로 학습 및 추론 overhead가 크게 증가한다. 저자들은 먼저 long, high-quality reasoning을 이끌어낸 후 이를 효율적인 형태로 압축하는 순차적 개발을 제안한다.</li>
+  <li><strong>Task Generalization</strong>: 평가가 수학 reasoning benchmark (AIME 2024/2025)에만 한정되어 있다. Coding, symbolic logic 등 다른 domain에서의 일반화는 미검증이다.</li>
+  <li><strong>Training Data Scope</strong>: DAPO-17K dataset만 사용하였으며, 더 대규모이거나 고품질 데이터셋에서의 scalability는 탐구하지 않았다. 또한, 수학 데이터에 특화된 학습이므로 o1-mini가 massive-scale, multi-stage RL로 달성하는 non-mathematical domain 성능과의 비교는 domain-specific하다.</li>
+  <li><strong>Limited Model Scope</strong>: Long-CoT synthetic data에 노출되지 않은 clean vanilla base model (Qwen2.5 series)만 사용하였다. 이미 SFT나 distillation으로 Long-CoT 능력이 내재화된 모델에서의 효과는 미검증이다.</li>
+  <li><strong>Performance Gap vs. Distillation</strong>: RL-based self-evolution은 "discovery-based" process로 direct distillation보다 본질적으로 비효율적이다. 대형 teacher model이 제공하는 dense supervisory signal과 superior heuristic(logit)은 작은 모델이 sparse reward만으로 self-derive하기 어려워, self-trained model과 distilled model 간 persistent performance gap이 존재한다.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>Appendix A: Parameter Settings 상세</h2>
+
+<h3>A.1 Qwen2.5-32B-Base (Table 2)</h3>
+<table>
+<tr><th>Hyperparameter</th><th>DAPO (Baseline)</th><th>FIPO (Ours)</th></tr>
+<tr><td colspan="3"><em>Shared Optimization Settings</em></td></tr>
+<tr><td>Base Model</td><td colspan="2">Qwen2.5-32B-Base</td></tr>
+<tr><td>Global Batch Size</td><td colspan="2">512</td></tr>
+<tr><td>Group Size (G)</td><td colspan="2">16</td></tr>
+<tr><td>Learning Rate</td><td colspan="2">1e-6</td></tr>
+<tr><td>LR Scheduler</td><td colspan="2">Constant with 10 Warmup Steps</td></tr>
+<tr><td>Weight Decay</td><td colspan="2">0.1</td></tr>
+<tr><td>Gradient Clipping</td><td colspan="2">1.0</td></tr>
+<tr><td>Max Prompt Length</td><td colspan="2">2,048</td></tr>
+<tr><td>Max Response Length</td><td colspan="2">20,480</td></tr>
+<tr><td>Overlong Buffer</td><td colspan="2">4,096</td></tr>
+<tr><td>Sampling Temp / Top-p</td><td colspan="2">1.0 / 1.0</td></tr>
+<tr><td>Dual Clip Ratio</td><td colspan="2">10.0</td></tr>
+<tr><td>Policy Clip Ratio</td><td colspan="2">[0.2, 0.28] (Asymmetric)</td></tr>
+<tr><td>KL Penalty Coef</td><td colspan="2">0.0</td></tr>
+<tr><td colspan="3"><em>Method-Specific Settings</em></td></tr>
+<tr><td>Mini-Batch Size</td><td>32 (prompts)</td><td>64 (prompts)</td></tr>
+<tr><td>Loss Function</td><td>DAPO</td><td><strong>Future-KL</strong></td></tr>
+<tr><td>Future-KL Decay Rate ($\tau$)</td><td>-</td><td>32.0</td></tr>
+<tr><td>Future-KL Clip Ratio</td><td>-</td><td>[1.0, 1.2]</td></tr>
+<tr><td>Safety Threshold ($c$)</td><td>-</td><td>10.0</td></tr>
+</table>
+
+<h3>A.2 Qwen2.5-7B-Math (Table 3)</h3>
+<p>
+7B 모델에서의 pilot study에서는 training이 불안정하고 재현성이 낮았다. 이를 해결하기 위해 group size를 $G=32$로 증가시키고 advantage clipping threshold를 3.0으로 강화했다. Context window는 DAPO verl scripts 지침에 따라 4,096에서 32,768로 확장했다.
+</p>
+<table>
+<tr><th>Hyperparameter</th><th>DAPO (Baseline)</th><th>FIPO (Ours)</th></tr>
+<tr><td colspan="3"><em>Shared Optimization Settings</em></td></tr>
+<tr><td>Base Model</td><td colspan="2">Qwen2.5-7B-MATH</td></tr>
+<tr><td>Global Batch Size</td><td colspan="2">512</td></tr>
+<tr><td>Learning Rate</td><td colspan="2">1e-6</td></tr>
+<tr><td>LR Scheduler</td><td colspan="2">Constant with 10 Warmup Steps</td></tr>
+<tr><td>Weight Decay</td><td colspan="2">0.1</td></tr>
+<tr><td>Gradient Clipping</td><td colspan="2">1.0</td></tr>
+<tr><td>Max Prompt Length</td><td colspan="2">2,048</td></tr>
+<tr><td>Sampling Temp / Top-p</td><td colspan="2">1.0 / 1.0</td></tr>
+<tr><td>Dual Clip Ratio</td><td colspan="2">10.0</td></tr>
+<tr><td>Policy Clip Ratio</td><td colspan="2">[0.2, 0.28] (Asymmetric)</td></tr>
+<tr><td>KL Penalty Coef</td><td colspan="2">0.0</td></tr>
+<tr><td colspan="3"><em>Method-Specific Settings</em></td></tr>
+<tr><td>Mini-Batch Size</td><td>32</td><td>64</td></tr>
+<tr><td>Loss Function</td><td>DAPO</td><td><strong>Future-KL</strong></td></tr>
+<tr><td>Future-KL Decay Rate ($\tau$)</td><td>-</td><td>32.0</td></tr>
+<tr><td>Future-KL Clip Ratio</td><td>-</td><td>[0.8, 1.2]</td></tr>
+<tr><td>Safety Threshold ($c$)</td><td>-</td><td>3.0</td></tr>
+<tr><td>Group Size (G)</td><td>16</td><td>32</td></tr>
+<tr><td>Max Response Length</td><td>8,192</td><td>10,240</td></tr>
+<tr><td>Overlong Buffer</td><td>4,096</td><td>2,048</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>Appendix B: 7B Model 실험 결과</h2>
+
+<h3>B.1 Performance (Table 4)</h3>
+<p>
+<strong>의도</strong>: FIPO가 더 작은 7B 모델에서도 효과적인지, 그리고 scaling behavior가 32B와 어떻게 다른지 탐구한다.
+</p>
+
+<table>
+<tr><th>Method</th><th>AIME 2024 (Pass@1)</th><th>AIME 2025 (Pass@1)</th></tr>
+<tr><td>GRPO (Guo et al., 2025)</td><td>22.0%</td><td>18.0%</td></tr>
+<tr><td>DAPO</td><td>36.0%</td><td>18.0%</td></tr>
+<tr><td><strong>FIPO (Ours)</strong></td><td><strong>40.0%</strong></td><td><strong>19.0%</strong></td></tr>
+</table>
+
+<p>
+<strong>결과</strong>: FIPO 7B는 AIME 2024에서 40.0%를 달성하여 GRPO (22.0%)와 DAPO (36.0%)를 유의미하게 능가한다. 다만 AIME 2025에서는 세 방법 모두 비슷한 수준(18-19%)으로 수렴하는데, 이는 7B 모델의 intrinsic capacity limit과 AIME 2025의 더 높은 난이도 때문이다.
+</p>
+
+<h3>B.2 Result Analysis: 7B vs. 32B Scaling Behavior</h3>
+<p>
+7B 모델에서는 32B에서 관찰된 length stagnation 대신 ##다른 scaling behavior인 low-entropy convergence##가 나타난다:
+</p>
+<ul>
+  <li><strong>Length 정체 원인</strong>: 7B 모델은 최적화 실패가 아니라 inherent capacity limit으로 인해 length가 약 1,200 토큰에서 안정된다 (Figure 6b). Qwen2.5-7B-Math는 4K context window로 pre-training되어 generation depth에 물리적 상한이 존재하며, code-based reasoning 편향이 verbose 탐색보다 concise, deterministic pathway를 선호하게 만든다.</li>
+  <li><strong>Entropy dynamics (Figure 7c)</strong>: 32B 모델이 sustained entropy growth를 통해 broad exploration을 수행하는 반면, 7B 모델은 markedly lower entropy policy로 수렴하여 성능을 달성한다. 이는 scaling에 근본적 차이를 시사한다: 큰 모델은 broad exploration에서 이점을 얻지만, 작은 모델은 specific, high-confidence reasoning manifold의 refinement를 우선시한다.</li>
+  <li><strong>Influence weight clipping 차이</strong>: 32B에서 최적인 [1.0, 1.2] 범위를 7B에 적용하면 entropy가 과도하게 증가하여 성능이 저하된다. 7B는 [0.8, 1.2] 범위가 최적이며, 이는 양방향 modulation이 lower-entropy state로의 controlled convergence를 촉진하기 때문이다.</li>
+</ul>
+<p>
+이 관찰은 entropy minimization (Agarwal et al., 2025), entropy regulation (Wu et al., 2025a), self-guiding (Zuo et al., 2025), self-certainty optimization (Zhao et al., 2025) 원칙과 일치하며, 작은 모델에서 higher entropy가 useful discovery보다 detrimental noise를 더 많이 유발함을 시사한다.
+</p>
+
+<!-- ============================================================ -->
+<h2>Appendix C: Ablation Studies</h2>
+
+<h3>C.1 Clip-High, Max Length, and Response Length</h3>
+<p>
+<strong>의도</strong>: Response length 확장을 위한 두 가지 naive approach (clip-high 증가, max length 확장)가 FIPO의 balanced approach와 어떻게 다른지 검증한다.
+</p>
+<p>
+<strong>설정</strong>: (1) $\epsilon_{\text{high}} = 1.4$ (기본 0.28 대비 크게 증가), (2) Max response length 25K (기본 20K 대비 확장, overlong buffer 20% 유지)
+</p>
+<p>
+<strong>결과 (Figure 8)</strong>:
+</p>
+<ul>
+  <li>두 방법 모두 response length의 빠른 초기 증가를 유발하지만, training efficiency와 performance gain은 marginal하다.</li>
+  <li>높은 $\epsilon_{\text{high}}$는 policy entropy가 폭발적으로 증가하여 (Figure 8e) 학습 불안정을 초래한다.</li>
+  <li>두 경우 모두 superficial reasoning behavior가 나타난다: 반복적 content, task-irrelevant LaTeX formatting, premature self-reflection.</li>
+  <li>AIME 2024 성능 (Figure 8f)에서 balanced FIPO 대비 marginal한 수준이다.</li>
+</ul>
+<p>
+<strong>뒷받침하는 주장</strong>: ##Self-reflection 같은 higher-order reasoning pattern의 emergence는 "빠를수록 좋은" 것이 아니다##. 먼저 one-step fundamental logic의 stable foundation을 구축한 후, 그 위에 complex strategy가 progressive maturation으로 발전해야 한다. FIPO의 governed growth가 이를 달성한다.
+</p>
+
+<h3>C.2 Extreme Value Filtering (Table 5)</h3>
+<p>
+<strong>의도</strong>: Future-KL 계산에서 extreme importance sampling (IS) ratio를 filtering하는 것의 효과를 검증한다 (7B 모델 기준).
+</p>
+
+<table>
+<tr><th>Method</th><th>AIME 2024 (Pass@1)</th><th>AIME 2025 (Pass@1)</th></tr>
+<tr><td>FIPO ($\epsilon_{f_{\text{low}}} = 1.0$, $\epsilon_{f_{\text{high}}} = 1.2$)</td><td>36.0%</td><td>19.0%</td></tr>
+<tr><td>FIPO (w/o filtering, $\epsilon_{f_{\text{low}}} = 0.8$, $\epsilon_{f_{\text{high}}} = 1.2$)</td><td>38.0%</td><td><strong>21.0%</strong></td></tr>
+<tr><td><strong>FIPO ($\epsilon_{f_{\text{low}}} = 0.8$, $\epsilon_{f_{\text{high}}} = 1.2$)</strong></td><td><strong>40.0%</strong></td><td>19.0%</td></tr>
+</table>
+
+<p>
+<strong>결과</strong>: Filtering 없이는 IS ratio volatility로 인해 AIME 2024에서 40.0%가 아닌 38.0%에 그친다. Filtering은 influence weight의 범위를 크게 축소하고 (Figure 9a), 더 안정적인 advantage 추정을 제공한다. Filtering 없는 경우 dual clip과 policy clip fraction이 모두 증가하여 (Figure 9b-c), 모델이 trust region 밖으로 빈번히 update를 시도함을 보여준다.
+</p>
+<p>
+<strong>뒷받침하는 주장</strong>: Extreme IS ratio의 filtering은 Future-KL mechanism의 안정적 작동을 위한 필수 조건이며, 특히 7B 같은 작은 모델에서 IS ratio fluctuation이 더 빈번하므로 더욱 중요하다.
+</p>
+
+<h3>C.3 Influence Weight Clipping</h3>
+<p>
+<strong>의도</strong>: Influence weight의 clipping 범위가 성능에 미치는 영향을 분석한다.
+</p>
+<p>
+Table 5에서 clipping range [1.0, 1.2] vs. [0.8, 1.2]를 비교한다:
+</p>
+<ul>
+  <li><strong>[1.0, 1.2]</strong> (one-sided): negative sample에 더 많은 penalty, positive sample에 더 많은 reward를 부여. 7B 모델에서 entropy가 지속적으로 증가하여 (Figure 10a) 32B와 유사한 exploration behavior를 유도하지만, response length 증가는 관찰되지 않는다 (Figure 10b).</li>
+  <li><strong>[0.8, 1.2]</strong> (two-sided): 더 balanced한 influence. Positive sample 내에서 subsequent negative behavior를 보이는 토큰의 reward를 감소시키고, negative sample 내에서 subsequent positive behavior를 보이는 토큰의 penalty를 감소시켜 더 controlled exploration을 제공한다. 7B에서 AIME 2024 40.0%로 최적.</li>
+</ul>
+<p>
+<strong>뒷받침하는 주장</strong>: 7B 모델은 높은 entropy에서 오는 excessive exploration을 수용할 capacity가 부족하므로, 양방향 조절이 self-certainty를 최적화하는 lower-entropy convergence를 촉진하여 더 효과적이다. 32B에서는 [1.0, 1.2]가 최적인데, 이는 큰 모델이 broad exploration의 이점을 활용할 수 있기 때문이다.
+</p>
+
+<h3>C.4 Effective Horizon of Decay Rate $\tau$ (Table 6)</h3>
+<p>
+<strong>의도</strong>: FutureKL의 half-life 파라미터 $\tau \in \{8, 32, 128, 256\}$의 sensitivity를 분석한다 (7B 모델 기준).
+</p>
+
+<table>
+<tr><th>Method</th><th>AIME 2024 (Pass@1)</th><th>AIME 2025 (Pass@1)</th></tr>
+<tr><td>FIPO ($\tau = 8$)</td><td>40.0%</td><td>17.0%</td></tr>
+<tr><td><strong>FIPO ($\tau = 32$)</strong></td><td><strong>40.0%</strong></td><td><strong>19.0%</strong></td></tr>
+<tr><td>FIPO ($\tau = 128$)</td><td>39.0%</td><td><strong>21.0%</strong></td></tr>
+<tr><td>FIPO ($\tau = 256$)</td><td><strong>42.0%</strong></td><td>16.0%</td></tr>
+</table>
+
+<p>
+<strong>결과와 분석 (Figure 11)</strong>:
+</p>
+<ul>
+  <li><strong>$\tau = 8$ (매우 짧은 horizon)</strong>: Influence weight가 baseline 1.0에 매우 가까워 (Figure 11a), future KL 정보를 과소활용한다. Entropy가 빠르게 하락하여 (Figure 11c) policy가 조기에 suboptimal, low-entropy state로 수렴한다.</li>
+  <li><strong>$\tau = 32$ (중간 horizon)</strong>: Critical balance를 달성한다. 충분한 local future signal을 제공하면서도 excessive volatility를 회피한다. AIME 2024와 2025 모두에서 안정적 성능.</li>
+  <li><strong>$\tau = 128$</strong>: Influence weight의 변동이 커지고 (Figure 11b) clipping frequency가 증가한다. AIME 2025에서 21.0%로 비교적 좋으나 AIME 2024에서 39.0%.</li>
+  <li><strong>$\tau = 256$ (매우 긴 horizon)</strong>: Weight mean이 1.0에서 가장 크게 이탈하여 (Figure 11a) 불안정을 초래할 수 있다. AIME 2024에서 peak 42.0%를 달성하지만, AIME 2025에서 16.0%로 급락하여 일반화 능력이 부족하다.</li>
+</ul>
+<p>
+<strong>뒷받침하는 주장</strong>: 작은 모델에서는 controlled, moderate exploration이 broad, high-entropy search보다 효과적이며, $\tau = 32$가 self-certainty 최적화와 충분한 미래 정보 활용 사이의 최적 균형점이다.
+</p>
+
+<!-- ============================================================ -->
+<h2>Appendix D: Case Study — Reasoning Evolution의 4단계</h2>
+<p>
+동일한 AIME 2024 문제에 대한 모델의 응답을 학습 단계별로 분석하여, DAPO의 length stagnation에서 FIPO의 sustained scaling으로의 전환이 단순한 토큰 수 변화가 아닌 "thinking" 방식의 질적 변환임을 보여준다:
+</p>
+<ol>
+  <li><strong>Stage 1: Superficial Planning (Initial Step, Figure 13)</strong>: Base model(학습 초기)에서 모델은 "template-like" outline만 생성한다. 풀이 단계를 나열하지만 실제 수학적 유도는 수행하지 않으며, 종종 hallucinated conclusion으로 직행한다. (예: 정답 540인 문제에서 "1176"이라는 잘못된 답을 제시)</li>
+  <li><strong>Stage 2: Linear Execution (DAPO Convergence & Early FIPO, Figure 14)</strong>: DAPO는 전체 학습 기간 동안 이 단계에 머문다. 모델이 표준 CoT를 정확하게 실행하여 정답에 도달할 수 있지만, reasoning이 <em>strictly linear</em>하다. 첫 번째 결과를 찾으면 즉시 종료하며, self-verification mechanism이 없다. 이것이 Figure 3에서 관찰되는 DAPO의 length stagnation을 설명한다.</li>
+  <li><strong>Stage 3: Emergent Self-Reflection (Intermediate Stage FIPO, Figure 15)</strong>: FIPO 학습이 중간 단계에 진입하면 뚜렷한 행동 변화가 나타난다. 모델이 확장된 token budget(growing response length)을 자발적 self-reflection에 활용하기 시작한다. 초기 결과를 도출한 후, 모델이 proactively verification phase를 개시하여 대안적 방법론(예: 대수적 조작에서 기하학적 해석으로 전환)을 통해 결론을 cross-validate한다.</li>
+  <li><strong>Stage 4: Systematic Deep Reasoning (Late Stage FIPO, Figure 16)</strong>: 학습 후기에 모델은 "compute-heavy" strategy로 성숙한다. Reasoning trajectory가 단순 reflection을 넘어 rigorous, ##multi-pass auditing으로 발전 — symbolic re-derivation, granular arithmetic verification(예: 큰 수의 제곱과 제곱근을 수동으로 단계별 전개)##을 수행한다. 이 자발적인 self-verification behavior의 emergence는 OpenAI o-series와 DeepSeek-R1에서 관찰되는 inference-time scaling behavior와 일치한다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>Appendix E: Mini-batch Size와 재현성</h2>
+<p>
+<strong>의도</strong>: FIPO가 mini-batch size 64를 선택한 이유와 32 대비의 장점을 분석한다.
+</p>
+<p>
+<strong>결과 (Figure 12)</strong>: Mini-batch size 32는 때때로 강한 성능을 보이지만 (peak Mean@32 ~60%, Cons@32 ~70%), 심각한 재현성 문제를 겪는다:
+</p>
+<ul>
+  <li>가장 두드러진 failure mode는 length growth의 deceleration으로, 모델이 긴 reasoning trajectory로 효과적으로 확장하는 데 실패한다 (Figure 12a).</li>
+  <li>Overlong penalty 제거만으로는 이 bottleneck을 해결할 수 없어, 문제가 단순한 reward penalization이 아니라 deeper optimization dynamics에서 기인함을 시사한다.</li>
+  <li>Mini-batch 64는 on-policy에 더 가까워 IS weight fluctuation이 적고, 자연적으로 clipped token이 적어 (Figure 12b), response length와 성능의 smooth scaling을 위한 sustained optimization momentum을 제공한다.</li>
+  <li>성공적인 mini-batch 32 run은 더 안정적인 gradient norm (Figure 12c)과 높은 entropy (Figure 12d)를 보여, mini-batch 64 baseline의 안정화 특성을 우연히 달성한 것이다.</li>
+</ul>
+<p>
+<strong>뒷받침하는 주장</strong>: Mini-batch 64 선택은 더 높은 theoretical performance ceiling 때문이 아니라, policy를 high-quality reasoning manifold로 reliably 이끄는 consistency와 stability 때문이다. Future KL mechanism이 의도된 효과를 발휘하려면 stabilized IS weight 기반의 unhindered optimization momentum이 필수적이다.
+</p>
+
+<!-- ============================================================ -->
+<h2>Appendix F: Training Cost</h2>
+<p>
+Naive Future KL 구현은 dense $(L, L)$ temporal decay matrix를 필요로 하여 $\mathcal{O}(L^2)$ memory footprint가 발생하며, long-trajectory reasoning training에서 Out-Of-Memory (OOM) 에러를 쉽게 유발한다.
+</p>
+<p>
+이를 해결하기 위해 chunk-based memory-efficient algorithm을 구현했다:
+</p>
+<ul>
+  <li>Response sequence를 고정 chunk size $K$의 블록으로 분할</li>
+  <li>각 블록에서 distance masking과 decay weight를 점진적으로 계산</li>
+  <li>블록별 기여를 $(B, K) \times (K, L)$ 형태의 parallel matrix multiplication으로 계산</li>
+  <li>Peak memory: $\mathcal{O}(B \cdot L + L \cdot K)$ (naive $\mathcal{O}(L^2)$ 대비 크게 절감)</li>
+  <li>Time complexity는 $\mathcal{O}(B \cdot L^2)$로 유지되나, tensorized block operation이 modern GPU의 dense MatMul에 최적화되어 있어 wall-clock slowdown은 marginal하다.</li>
+</ul>
+<p>
+표준 GRPO가 $\mathcal{O}(B \cdot L)$ element-wise operation이므로, Future KL의 $\mathcal{O}(B \cdot L^2)$ temporal aggregation은 추가 overhead를 유발한다. 그러나 저자들은 이 modest trade-off가 정당화된다고 주장한다: ##standard $\mathcal{O}(B \cdot L)$ GRPO가 본질적으로 극복하기 어려운 dense, long-horizon credit assignment를 제공##하기 때문이다.
+</p>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ol>
+  <li><strong>Elegant simplicity</strong>: Value model을 추가하지 않고 이미 계산 가능한 정보($\Delta \log p$)를 재활용하여 dense advantage를 달성한다. 구현 복잡성이 상대적으로 낮다.</li>
+  <li><strong>철저한 ablation</strong>: Decay rate, clipping range, filtering, mini-batch size 등 핵심 hyperparameter에 대한 체계적인 ablation study를 7B와 32B 양쪽에서 수행했다.</li>
+  <li><strong>Qualitative insight</strong>: 4단계 reasoning evolution case study가 정량적 결과를 넘어 모델 행동의 질적 변화를 설득력 있게 보여준다.</li>
+  <li><strong>공정한 비교</strong>: 동일한 base model, dataset, framework, hyperparameter(FIPO 고유 요소 제외)를 사용하여 confounding factor를 최소화했다.</li>
+  <li><strong>오픈소스</strong>: 완전한 학습 코드와 레시피를 공개하여 재현성을 보장한다.</li>
+</ol>
+
+<h3>약점 및 우려사항</h3>
+<ol>
+  <li><strong>단일 벤치마크 평가</strong>: AIME 2024/2025라는 수학 경시대회 문제에만 평가되어, coding, symbolic reasoning, general reasoning 등 다른 domain으로의 일반화가 전혀 검증되지 않았다. 이는 저자들도 인정하는 가장 큰 한계이다.</li>
+  <li><strong>단일 base model</strong>: Qwen2.5 series만 사용하였으며, Llama, Mistral 등 다른 architecture에서의 효과는 알 수 없다.</li>
+  <li><strong>재현성에 대한 우려</strong>: Mini-batch size 32에서 재현성 문제가 있고 64에서 해결된다고 보고하지만, 64에서의 여러 independent run의 variance는 보고되지 않았다. 단일 run의 결과일 가능성이 높다.</li>
+  <li><strong>FutureKL의 이론적 근거</strong>: $\Delta \log p$의 미래 누적이 token의 "인과적 영향"을 정확히 측정한다는 주장은 직관적이지만, 엄밀한 이론적 정당화(예: causal inference framework과의 연결)가 부재하다. 실제로 이 metric은 policy drift의 proxy이지 true causal effect는 아니다.</li>
+  <li><strong>Computational cost</strong>: $\mathcal{O}(B \cdot L^2)$ complexity와 10,000+ 토큰 CoT의 조합은 학습 비용을 크게 증가시키며, 이에 대한 구체적인 wall-clock 비교(DAPO vs. FIPO의 iteration당 시간)가 제시되지 않았다.</li>
+  <li><strong>Ablation이 7B에 편중</strong>: 대부분의 ablation (Table 5, Table 6)이 7B 모델에서 수행되었는데, 7B와 32B의 scaling behavior가 근본적으로 다르다고 저자 스스로 강조하므로, 7B ablation이 32B에 적용 가능한지 불확실하다.</li>
+  <li><strong>Peak vs. 수렴 성능</strong>: Abstract에서 "peak of 58.0% (converging at approximately 56.0%)"라고 표기하나, Table 1에서는 56.0%만 보고한다. Peak과 수렴의 차이가 학습 불안정의 신호일 수 있다.</li>
+</ol>
+
+<h3>열린 질문</h3>
+<ul>
+  <li>FutureKL 기반 credit assignment와 GAE 기반 PPO credit assignment는 어떤 관계인가? 두 접근의 advantage 추정이 얼마나 상관되는지 경험적 비교가 흥미로울 것이다.</li>
+  <li>이미 Long-CoT SFT/distillation을 거친 모델에 FIPO를 적용하면 추가적인 이득이 있는가?</li>
+  <li>수학이 아닌 domain(coding, planning 등)에서 FutureKL의 credit assignment가 여전히 의미 있는 signal을 제공하는가?</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Dense advantage는 value model 없이도 가능하다</strong>: FIPO는 이미 계산 가능한 $\Delta \log p$를 미래까지 누적하여 PPO의 GAE에 준하는 token-level credit assignment를 달성한다. 이는 GRPO의 효율성과 PPO의 세밀함을 결합하는 promising한 방향이다.</li>
+  <li><strong>Length stagnation의 원인은 credit assignment에 있다</strong>: DAPO의 ~4,000 토큰 정체는 단순한 hyperparameter 문제가 아니라, coarse-grained advantage가 longer reasoning의 incentive를 소멸시키는 구조적 문제이다. Dense advantage가 이를 해결한다.</li>
+  <li><strong>Response length 확장에는 "governed growth"가 중요하다</strong>: clip-high를 높이거나 max length를 늘리는 naive approach는 superficial reasoning을 유발한다. Self-reflection 같은 higher-order behavior는 먼저 solid fundamental logic이 구축된 후에 progressively mature해야 한다.</li>
+  <li><strong>모델 크기에 따라 optimal exploration strategy가 다르다</strong>: 32B는 broad, high-entropy exploration에서 이점을 얻지만, 7B는 controlled, low-entropy convergence가 더 효과적이다. 이는 RL training recipe가 model scale에 따라 조정되어야 함을 시사한다.</li>
+  <li><strong>실무 적용 시 고려사항</strong>: FIPO는 추가 모델이나 데이터 없이 기존 DAPO/GRPO pipeline에 FutureKL computation만 추가하면 되므로 통합이 용이하다. 다만 $\mathcal{O}(B \cdot L^2)$ cost와 longer CoT의 inference overhead를 감안해야 한다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

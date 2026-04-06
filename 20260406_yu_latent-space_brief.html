@@ -1,0 +1,1351 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Latent Space — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0c1445, #1e3a8a, #0ea5e9);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 700px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 860px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #0c1445; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #1e3a8a, #0ea5e9); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; font-weight: 700; color: #1e3a8a; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #1e3a8a; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .card-cyan   { border-left: 5px solid #0ea5e9; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #1e3a8a, #0ea5e9);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #1e3a8a, #0ea5e9); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #0c1445; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #eff6ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #1e3a8a; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #1e3a8a; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #1e3a8a; padding: 0 0.4rem; }
+
+  /* ── Version switch ── */
+  .version-switch { text-align: center; margin: 1.5rem 0; }
+  .version-switch a { display: inline-block; background: #f0f9ff; color: #1e3a8a; padding: 10px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; border: 1px solid #bae6fd; transition: background 0.2s; }
+  .version-switch a:hover { background: #e0f2fe; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">NUS &middot; Fudan &middot; Tsinghua &middot; Survey &middot; 2026</div>
+  <h1>The Latent Space</h1>
+  <p class="subtitle">AI가 단어 대신 "생각의 공간"에서 사고하는 새로운 패러다임에 대한<br>300편 이상의 연구를 집대성한 종합 서베이</p>
+</div>
+
+<div class="container">
+
+<!-- ===== 버전 전환 ===== -->
+<div class="version-switch">
+  <a href="20260406_yu_latent-space.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "AI의 미래는 말(단어)로 생각하는 것이 아니라,<br>머릿속에서 직접 생각하는 것이다"
+</div>
+
+<!-- ========================================================== -->
+<!-- ===== 배경 지식: AI는 어떻게 생각하나? ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>먼저 알아야 할 것: AI는 어떻게 "말"을 만드나?</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면, 현재 AI(ChatGPT 같은 대규모 언어 모델)가 어떻게 작동하는지를 먼저 알아야 합니다. 핵심 개념 4가지를 그림과 함께 차근차근 설명합니다.</p>
+  </div>
+
+  <!-- ── 개념 1: 토큰과 Next-Token Prediction ── -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#0c1445;">개념 1: AI는 "다음 단어 맞추기"를 반복한다</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT 같은 AI는 사실 매우 단순한 원리로 작동합니다. 이전까지 나온 모든 단어를 보고, <strong>다음에 올 단어를 하나 예측</strong>하는 것을 반복하는 것입니다. 이때 문장을 구성하는 조각 하나하나를 <strong>토큰(token)</strong>이라고 부릅니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#0c1445" text-anchor="middle">Next-Token Prediction: AI의 기본 작동 원리</text>
+
+      <!-- 입력 토큰들 -->
+      <rect x="30" y="55" width="80" height="36" rx="8" fill="#1e3a8a" opacity="0.85"/>
+      <text x="70" y="78" font-size="12" fill="#fff" text-anchor="middle" font-weight="500">오늘</text>
+      <rect x="120" y="55" width="80" height="36" rx="8" fill="#1e3a8a" opacity="0.85"/>
+      <text x="160" y="78" font-size="12" fill="#fff" text-anchor="middle" font-weight="500">날씨가</text>
+      <rect x="210" y="55" width="80" height="36" rx="8" fill="#1e3a8a" opacity="0.85"/>
+      <text x="250" y="78" font-size="12" fill="#fff" text-anchor="middle" font-weight="500">정말</text>
+
+      <!-- 화살표 -->
+      <path d="M300,73 L340,73" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#arrow-cyan)"/>
+      <defs>
+        <marker id="arrow-cyan" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#0ea5e9"/></marker>
+      </defs>
+
+      <!-- AI 모델 -->
+      <rect x="345" y="45" width="120" height="56" rx="12" fill="#0ea5e9" opacity="0.15" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="405" y="70" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">AI 모델</text>
+      <text x="405" y="88" font-size="9" fill="#64748b" text-anchor="middle">(Transformer)</text>
+
+      <!-- 출력 화살표 -->
+      <path d="M470,73 L510,73" stroke="#0ea5e9" stroke-width="2" fill="none" marker-end="url(#arrow-cyan)"/>
+
+      <!-- 예측된 토큰 -->
+      <rect x="515" y="55" width="80" height="36" rx="8" fill="#059669" opacity="0.9"/>
+      <text x="555" y="78" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">좋네요</text>
+
+      <!-- 반복 표시 -->
+      <path d="M555,91 Q555,130 405,130 Q255,130 255,91" stroke="#d97706" stroke-width="1.5" fill="none" stroke-dasharray="5" marker-end="url(#arrow-repeat)"/>
+      <defs>
+        <marker id="arrow-repeat" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#d97706"/></marker>
+      </defs>
+      <text x="405" y="148" font-size="10" fill="#d97706" text-anchor="middle" font-weight="600">예측한 단어를 추가하고 다시 반복!</text>
+
+      <!-- 핵심 설명 -->
+      <rect x="30" y="175" width="690" height="70" rx="12" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1"/>
+      <text x="375" y="198" font-size="12" fill="#0c1445" text-anchor="middle" font-weight="700">핵심: 모든 과정이 "토큰"이라는 단어 조각 위에서 일어남</text>
+      <text x="375" y="218" font-size="11" fill="#475569" text-anchor="middle">입력도 토큰, 출력도 토큰, 중간 사고 과정(Chain-of-Thought)도 토큰</text>
+      <text x="375" y="236" font-size="11" fill="#475569" text-anchor="middle">이 "토큰 세상"을 논문에서는 Explicit Space (명시적 공간)이라고 부릅니다</text>
+    </svg>
+    <div class="diagram-caption">AI는 다음 토큰을 예측하는 것을 반복하여 문장을 생성한다</div>
+  </div>
+
+  <!-- ── 개념 2: Explicit Space ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#0c1445;">개념 2: Explicit Space — 우리가 읽을 수 있는 "토큰의 세계"</h3>
+
+  <p style="margin:0.8rem 0;">현재 대부분의 AI는 입력, 출력, 심지어 <strong>사고 과정까지</strong> 모두 사람이 읽을 수 있는 단어(토큰)로 표현합니다. 최근 유행하는 "Chain-of-Thought(사고 사슬)"도 마찬가지입니다. AI가 "생각하는 과정"을 글로 써 내려가는 것입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#0c1445" text-anchor="middle">Explicit Space: 모든 것이 "읽을 수 있는 텍스트"</text>
+
+      <!-- 질문 -->
+      <rect x="30" y="50" width="690" height="40" rx="10" fill="#1e3a8a" opacity="0.1" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="50" y="75" font-size="12" fill="#1e3a8a" font-weight="700">질문:</text>
+      <text x="100" y="75" font-size="12" fill="#334155">"17 x 23은 얼마인가?"</text>
+
+      <!-- Chain-of-Thought -->
+      <rect x="30" y="100" width="690" height="80" rx="10" fill="#d97706" opacity="0.08" stroke="#d97706" stroke-width="1.5"/>
+      <text x="50" y="123" font-size="12" fill="#d97706" font-weight="700">사고 과정 (Chain-of-Thought):</text>
+      <text x="50" y="143" font-size="11" fill="#475569">"17 x 23을 계산하겠습니다. 먼저 17 x 20 = 340이고, 17 x 3 = 51입니다.</text>
+      <text x="50" y="163" font-size="11" fill="#475569">따라서 340 + 51 = 391입니다."</text>
+
+      <!-- 답변 -->
+      <rect x="30" y="190" width="690" height="40" rx="10" fill="#059669" opacity="0.1" stroke="#059669" stroke-width="1.5"/>
+      <text x="50" y="215" font-size="12" fill="#059669" font-weight="700">답변:</text>
+      <text x="100" y="215" font-size="12" fill="#334155">"391"</text>
+
+      <!-- 강조 -->
+      <rect x="30" y="248" width="690" height="42" rx="10" fill="#fffbeb" stroke="#fcd34d" stroke-width="1.5"/>
+      <text x="375" y="268" font-size="12" fill="#92400e" text-anchor="middle" font-weight="700">질문, 사고 과정, 답변 모두가 사람이 읽을 수 있는 토큰으로 표현됨</text>
+      <text x="375" y="284" font-size="11" fill="#92400e" text-anchor="middle">이것이 바로 "Explicit Space (명시적 공간)"</text>
+    </svg>
+    <div class="diagram-caption">Chain-of-Thought도 결국 사람이 읽을 수 있는 텍스트 토큰의 나열이다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"생각을 말로 하기" 비유</div>
+    <p>Explicit Space에서의 AI 사고는 <strong>시험 시간에 풀이 과정을 전부 답안지에 적어야 하는 것</strong>과 같습니다. "17 x 20은 340이고..."처럼 모든 단계를 일일이 글로 써야 합니다. 우리가 머릿속으로 빠르게 계산할 수 있는 것도 전부 글자로 풀어써야 하니, 느리고 번거롭습니다.</p>
+  </div>
+
+  <!-- ── 개념 3: Explicit Space의 한계 ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#dc2626;">개념 3: 토큰의 세계는 왜 한계가 있나?</h3>
+
+  <p style="margin:0.8rem 0;">모든 것을 토큰(읽을 수 있는 텍스트)으로 처리하는 방식에는 <strong>4가지 근본적 한계</strong>가 있습니다. 이 논문은 바로 이 한계를 극복하기 위해 "Latent Space"라는 새로운 공간에 주목합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 440" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#dc2626" text-anchor="middle">Explicit Space의 4가지 근본적 한계</text>
+
+      <!-- 한계 1: 언어적 군더더기 -->
+      <rect x="20" y="48" width="345" height="170" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="35" y="58" width="28" height="28" rx="14" fill="#dc2626"/>
+      <text x="49" y="77" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">1</text>
+      <text x="75" y="77" font-size="13" fill="#dc2626" font-weight="700">언어적 군더더기 (Redundancy)</text>
+      <text x="35" y="100" font-size="11" fill="#475569">문장의 대부분은 문법 맞추기, 자연스러운</text>
+      <text x="35" y="117" font-size="11" fill="#475569">흐름 유지를 위한 것이지, 실제 의미 전달</text>
+      <text x="35" y="134" font-size="11" fill="#475569">과는 무관합니다.</text>
+      <text x="35" y="158" font-size="10" fill="#dc2626" font-weight="600">예: "이것은 매우 흥미로운 결과인데요,"</text>
+      <text x="35" y="175" font-size="10" fill="#dc2626" font-weight="600">→ 핵심은 "결과" 한 단어</text>
+      <text x="35" y="195" font-size="10" fill="#64748b">나머지 토큰들은 사실상 낭비!</text>
+
+      <!-- 한계 2: 이산화 병목 -->
+      <rect x="385" y="48" width="345" height="170" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="400" y="58" width="28" height="28" rx="14" fill="#dc2626"/>
+      <text x="414" y="77" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">2</text>
+      <text x="440" y="77" font-size="13" fill="#dc2626" font-weight="700">이산화 병목 (Discretization)</text>
+      <text x="400" y="100" font-size="11" fill="#475569">AI 내부에서는 연속적인 숫자로 정보를</text>
+      <text x="400" y="117" font-size="11" fill="#475569">처리하지만, 출력할 때 유한한 단어 목록</text>
+      <text x="400" y="134" font-size="11" fill="#475569">중 하나를 골라야 합니다.</text>
+      <text x="400" y="158" font-size="10" fill="#dc2626" font-weight="600">연속적 정보 → 이산적 단어로 변환</text>
+      <text x="400" y="175" font-size="10" fill="#dc2626" font-weight="600">= 미세한 뉘앙스, 불확실성 등이 사라짐</text>
+      <text x="400" y="195" font-size="10" fill="#64748b">정보의 "해상도"가 떨어지는 것과 같음</text>
+
+      <!-- 한계 3: 순차적 생성 비용 -->
+      <rect x="20" y="235" width="345" height="170" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="35" y="245" width="28" height="28" rx="14" fill="#dc2626"/>
+      <text x="49" y="264" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">3</text>
+      <text x="75" y="264" font-size="13" fill="#dc2626" font-weight="700">순차적 생성 비용 (Sequential)</text>
+      <text x="35" y="287" font-size="11" fill="#475569">토큰을 하나 생성할 때마다 전체 모델을</text>
+      <text x="35" y="304" font-size="11" fill="#475569">한 번 돌려야 합니다. 100개 토큰 =</text>
+      <text x="35" y="321" font-size="11" fill="#475569">모델을 100번 실행해야 합니다.</text>
+      <text x="35" y="345" font-size="10" fill="#dc2626" font-weight="600">생각 과정이 길어질수록</text>
+      <text x="35" y="362" font-size="10" fill="#dc2626" font-weight="600">비용이 선형적으로 증가!</text>
+      <text x="35" y="382" font-size="10" fill="#64748b">사고 1,000토큰 = GPU 비용 1,000배</text>
+
+      <!-- 한계 4: 의미 손실 -->
+      <rect x="385" y="235" width="345" height="170" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <rect x="400" y="245" width="28" height="28" rx="14" fill="#dc2626"/>
+      <text x="414" y="264" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">4</text>
+      <text x="440" y="264" font-size="13" fill="#dc2626" font-weight="700">의미 손실 (Semantic Loss)</text>
+      <text x="400" y="287" font-size="11" fill="#475569">이미지의 공간 구조, 3D 기하학,</text>
+      <text x="400" y="304" font-size="11" fill="#475569">시계열 패턴 등 언어로 표현하기 어려운</text>
+      <text x="400" y="321" font-size="11" fill="#475569">정보가 글로 변환되면서 왜곡됩니다.</text>
+      <text x="400" y="345" font-size="10" fill="#dc2626" font-weight="600">"빨간 공이 파란 상자 위에..."</text>
+      <text x="400" y="362" font-size="10" fill="#dc2626" font-weight="600">→ 글로는 공간 관계를 정확히 전달 불가</text>
+      <text x="400" y="382" font-size="10" fill="#64748b">특히 로봇, 비전 분야에서 치명적</text>
+    </svg>
+    <div class="diagram-caption">토큰 기반 AI의 4가지 구조적 한계: 이것이 Latent Space 연구의 출발점이다</div>
+  </div>
+
+  <!-- ── 개념 4: Latent Space란? ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#0c1445;">개념 4: Latent Space — AI의 "숨겨진 생각 공간"</h3>
+
+  <p style="margin:0.8rem 0;">AI 모델 내부에는 사실 또 다른 공간이 있습니다. 토큰이 모델 안으로 들어가면, 수천 차원의 <strong>연속적인 숫자 벡터</strong>로 변환됩니다. 이 숫자들이 살아 있는 공간이 바로 <strong>Latent Space (잠재 공간)</strong>입니다. 사람은 이 공간을 직접 읽을 수 없지만, AI에게는 훨씬 풍부하고 효율적인 "생각의 공간"입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#0c1445" text-anchor="middle">Explicit Space vs. Latent Space</text>
+
+      <!-- 왼쪽: Explicit Space -->
+      <rect x="20" y="50" width="320" height="300" rx="16" fill="#f0f9ff" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="180" y="78" font-size="14" font-weight="700" fill="#1e3a8a" text-anchor="middle">Explicit Space</text>
+      <text x="180" y="96" font-size="11" fill="#64748b" text-anchor="middle">(토큰의 세계)</text>
+
+      <!-- 토큰들 -->
+      <rect x="45" y="115" width="55" height="28" rx="6" fill="#1e3a8a" opacity="0.8"/>
+      <text x="72" y="134" font-size="10" fill="#fff" text-anchor="middle">오늘</text>
+      <rect x="108" y="115" width="55" height="28" rx="6" fill="#1e3a8a" opacity="0.8"/>
+      <text x="135" y="134" font-size="10" fill="#fff" text-anchor="middle">날씨</text>
+      <rect x="171" y="115" width="40" height="28" rx="6" fill="#1e3a8a" opacity="0.8"/>
+      <text x="191" y="134" font-size="10" fill="#fff" text-anchor="middle">가</text>
+      <rect x="219" y="115" width="55" height="28" rx="6" fill="#1e3a8a" opacity="0.8"/>
+      <text x="246" y="134" font-size="10" fill="#fff" text-anchor="middle">좋다</text>
+
+      <text x="180" y="170" font-size="11" fill="#1e3a8a" text-anchor="middle" font-weight="600">사람이 읽을 수 있는 단어 조각들</text>
+
+      <!-- 속성들 -->
+      <rect x="40" y="190" width="270" height="30" rx="6" fill="#1e3a8a" opacity="0.07"/>
+      <text x="175" y="210" font-size="11" fill="#334155" text-anchor="middle">이산적 (discrete) — 딱딱 끊어지는 기호</text>
+      <rect x="40" y="225" width="270" height="30" rx="6" fill="#1e3a8a" opacity="0.07"/>
+      <text x="175" y="245" font-size="11" fill="#334155" text-anchor="middle">사람이 해석 가능 (human-readable)</text>
+      <rect x="40" y="260" width="270" height="30" rx="6" fill="#1e3a8a" opacity="0.07"/>
+      <text x="175" y="280" font-size="11" fill="#334155" text-anchor="middle">군더더기가 많고 비효율적</text>
+      <rect x="40" y="295" width="270" height="30" rx="6" fill="#1e3a8a" opacity="0.07"/>
+      <text x="175" y="315" font-size="11" fill="#334155" text-anchor="middle">미세한 정보가 사라짐 (lossy)</text>
+
+      <!-- 오른쪽: Latent Space -->
+      <rect x="410" y="50" width="320" height="300" rx="16" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="570" y="78" font-size="14" font-weight="700" fill="#059669" text-anchor="middle">Latent Space</text>
+      <text x="570" y="96" font-size="11" fill="#64748b" text-anchor="middle">(숨겨진 생각 공간)</text>
+
+      <!-- 벡터 표시 -->
+      <rect x="435" y="115" width="270" height="28" rx="6" fill="#059669" opacity="0.15" stroke="#059669" stroke-width="1"/>
+      <text x="440" y="134" font-size="9" fill="#059669" font-weight="500">[0.23, -1.47, 0.82, 3.01, -0.56, 2.18, ... (수천 개)]</text>
+
+      <text x="570" y="170" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">고차원 연속 숫자 벡터</text>
+
+      <!-- 속성들 -->
+      <rect x="430" y="190" width="270" height="30" rx="6" fill="#059669" opacity="0.07"/>
+      <text x="565" y="210" font-size="11" fill="#334155" text-anchor="middle">연속적 (continuous) — 부드럽게 흐르는 값</text>
+      <rect x="430" y="225" width="270" height="30" rx="6" fill="#059669" opacity="0.07"/>
+      <text x="565" y="245" font-size="11" fill="#334155" text-anchor="middle">기계가 처리 (machine-native)</text>
+      <rect x="430" y="260" width="270" height="30" rx="6" fill="#059669" opacity="0.07"/>
+      <text x="565" y="280" font-size="11" fill="#334155" text-anchor="middle">간결하고 효율적 (compact)</text>
+      <rect x="430" y="295" width="270" height="30" rx="6" fill="#059669" opacity="0.07"/>
+      <text x="565" y="315" font-size="11" fill="#334155" text-anchor="middle">풍부한 정보 보존 (high-fidelity)</text>
+
+      <!-- 가운데 VS -->
+      <rect x="345" y="180" width="60" height="30" rx="15" fill="#0c1445"/>
+      <text x="375" y="200" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">VS</text>
+    </svg>
+    <div class="diagram-caption">Explicit Space는 사람이 읽을 수 있지만 비효율적, Latent Space는 읽을 수 없지만 강력하고 효율적</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"생각 vs 말" 비유</div>
+    <p><strong>Explicit Space</strong>는 우리가 <strong>소리 내어 말하는 것</strong>과 같습니다. 다른 사람이 알아듣지만, 느리고 표현에 한계가 있습니다. "음... 그러니까... 이 맛은... 약간 달콤하면서도 살짝 신..."</p>
+    <br>
+    <p><strong>Latent Space</strong>는 <strong>머릿속에서 직접 생각하는 것</strong>과 같습니다. 맛을 느끼는 순간, 우리 뇌는 수많은 신경 신호를 동시에 처리합니다. 훨씬 빠르고 풍부하지만, 다른 사람에게 직접 전달할 수는 없습니다.</p>
+  </div>
+
+  <!-- ── 왜 Latent Space가 더 나은가? ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#059669;">왜 Latent Space에서 "생각"하는 것이 더 나을까?</h3>
+
+  <p style="margin:0.8rem 0;">Latent Space는 4가지 핵심 장점을 가지고 있어, 앞서 살펴본 Explicit Space의 한계를 정확히 극복합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#059669" text-anchor="middle">Latent Space의 4가지 장점: 한계를 극복</text>
+
+      <!-- 장점 1 -->
+      <rect x="20" y="50" width="170" height="120" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="105" y="75" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">조작 가능</text>
+      <text x="105" y="90" font-size="10" fill="#059669" text-anchor="middle">(Operable)</text>
+      <line x1="40" y1="100" x2="170" y2="100" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="105" y="118" font-size="10" fill="#475569" text-anchor="middle">연속적 값이라</text>
+      <text x="105" y="133" font-size="10" fill="#475569" text-anchor="middle">더하기, 섞기,</text>
+      <text x="105" y="148" font-size="10" fill="#475569" text-anchor="middle">방향 바꾸기 가능</text>
+
+      <!-- 장점 2 -->
+      <rect x="205" y="50" width="170" height="120" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="290" y="75" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">표현력 풍부</text>
+      <text x="290" y="90" font-size="10" fill="#059669" text-anchor="middle">(Expressive)</text>
+      <line x1="225" y1="100" x2="355" y2="100" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="290" y="118" font-size="10" fill="#475569" text-anchor="middle">단어로 표현 못하는</text>
+      <text x="290" y="133" font-size="10" fill="#475569" text-anchor="middle">복잡한 구조도</text>
+      <text x="290" y="148" font-size="10" fill="#475569" text-anchor="middle">숫자로 담을 수 있음</text>
+
+      <!-- 장점 3 -->
+      <rect x="390" y="50" width="170" height="120" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="475" y="75" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">확장 용이</text>
+      <text x="475" y="90" font-size="10" fill="#059669" text-anchor="middle">(Scalable)</text>
+      <line x1="410" y1="100" x2="540" y2="100" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="475" y="118" font-size="10" fill="#475569" text-anchor="middle">압축된 벡터라서</text>
+      <text x="475" y="133" font-size="10" fill="#475569" text-anchor="middle">병렬 처리와</text>
+      <text x="475" y="148" font-size="10" fill="#475569" text-anchor="middle">대규모 확장 가능</text>
+
+      <!-- 장점 4 -->
+      <rect x="575" y="50" width="155" height="120" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="652" y="75" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">일반화 강함</text>
+      <text x="652" y="90" font-size="10" fill="#059669" text-anchor="middle">(Generalizable)</text>
+      <line x1="590" y1="100" x2="715" y2="100" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="652" y="118" font-size="10" fill="#475569" text-anchor="middle">표면 패턴 아닌</text>
+      <text x="652" y="133" font-size="10" fill="#475569" text-anchor="middle">추상적 의미를 담아</text>
+      <text x="652" y="148" font-size="10" fill="#475569" text-anchor="middle">새 상황에 적용 가능</text>
+
+      <!-- 화살표: 한계 → 해결 -->
+      <text x="375" y="200" font-size="13" fill="#0c1445" text-anchor="middle" font-weight="700">Explicit Space의 한계를 어떻게 해결하는가?</text>
+
+      <rect x="20" y="215" width="170" height="55" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="105" y="237" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">군더더기 문제</text>
+      <text x="105" y="253" font-size="10" fill="#dc2626" text-anchor="middle">&darr; 해결</text>
+      <text x="105" y="265" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">핵심만 간결하게 압축</text>
+
+      <rect x="205" y="215" width="170" height="55" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="290" y="237" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">이산화 병목</text>
+      <text x="290" y="253" font-size="10" fill="#dc2626" text-anchor="middle">&darr; 해결</text>
+      <text x="290" y="265" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">연속 공간에서 직접 처리</text>
+
+      <rect x="390" y="215" width="170" height="55" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="475" y="237" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">순차적 비용</text>
+      <text x="475" y="253" font-size="10" fill="#dc2626" text-anchor="middle">&darr; 해결</text>
+      <text x="475" y="265" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">반복/병렬로 효율적 처리</text>
+
+      <rect x="575" y="215" width="155" height="55" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="652" y="237" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">의미 손실</text>
+      <text x="652" y="253" font-size="10" fill="#dc2626" text-anchor="middle">&darr; 해결</text>
+      <text x="652" y="265" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">고해상도 정보 보존</text>
+
+      <!-- 핵심 메시지 -->
+      <rect x="100" y="290" width="550" height="45" rx="10" fill="#059669" opacity="0.08" stroke="#059669" stroke-width="1.5"/>
+      <text x="375" y="317" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">핵심: Latent Space는 AI가 "기계의 언어"로 직접 생각할 수 있게 하는 공간</text>
+    </svg>
+    <div class="diagram-caption">Latent Space의 4가지 장점이 Explicit Space의 4가지 한계를 정확히 해결한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"빙산" 비유</div>
+    <p>AI의 지식과 사고를 빙산에 비유하면, <strong>토큰(Explicit Space)</strong>은 수면 위로 드러난 빙산의 꼭대기입니다. 우리 눈에 보이지만, 전체의 10%에 불과합니다.</p>
+    <br>
+    <p><strong>Latent Space</strong>는 수면 아래 숨겨진 거대한 몸체입니다. 우리 눈에는 보이지 않지만, 빙산의 진짜 힘(안정성, 방향, 크기)은 바로 이 보이지 않는 부분에서 나옵니다.</p>
+    <br>
+    <p>이 논문이 말하는 것은 바로 <strong>"수면 아래의 거대한 잠재력을 제대로 활용하자"</strong>는 것입니다.</p>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 이 논문이 하는 일: 서베이의 프레임워크 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>이 논문이 하는 일: "지도"를 그리다</h2>
+
+  <div class="card card-accent">
+    <p>Latent Space 연구는 2024년 말부터 폭발적으로 성장하여 300편 이상의 논문이 쏟아졌습니다. 그러나 각 연구가 서로 다른 용어, 다른 분류, 다른 관점을 사용하면서 분야 전체의 "큰 그림"이 보이지 않게 되었습니다. 이 논문은 <strong>5가지 질문</strong>으로 분야 전체를 체계적으로 정리합니다.</p>
+  </div>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">QUESTION 1</div>
+      <div class="step-title">Foundation</div>
+      <div class="step-desc">무엇인가?</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">QUESTION 2</div>
+      <div class="step-title">Evolution</div>
+      <div class="step-desc">어떻게 발전했는가?</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">QUESTION 3</div>
+      <div class="step-title">Mechanism</div>
+      <div class="step-desc">어떻게 작동하는가?</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">QUESTION 4</div>
+      <div class="step-title">Ability</div>
+      <div class="step-desc">무엇을 할 수 있는가?</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">QUESTION 5</div>
+      <div class="step-title">Outlook</div>
+      <div class="step-desc">미래는?</div>
+    </div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"건축 설계도" 비유</div>
+    <p>새로운 도시에 처음 갔을 때, 관광 명소를 하나하나 방문하면 전체 구조를 이해하기 어렵습니다. 하지만 <strong>도시 전체 지도</strong>가 있으면 "강이 여기 있고, 중심가는 저기 있고, 이 동네와 저 동네는 이렇게 연결된다"는 것을 한눈에 파악할 수 있습니다.</p>
+    <br>
+    <p>이 논문은 <strong>Latent Space라는 새 도시의 전체 지도</strong>를 처음으로 그린 것입니다. 개별 건물(논문)을 모두 방문하지 않아도, 도시의 구역(Mechanism)과 기능(Ability)이 어떻게 배치되어 있는지 한눈에 알 수 있게 됩니다.</p>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 핵심 아이디어 1: 진화의 역사 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>핵심 아이디어 1: 진화 — 1년 만에 폭발한 분야</h2>
+
+  <p style="margin:0.8rem 0;">Latent Space 연구의 역사는 놀라울 정도로 짧습니다. 불과 <strong>1년 남짓한 기간</strong> 동안 4단계의 급속한 진화를 거쳤습니다. 아래 타임라인은 각 단계의 핵심 특징을 보여줍니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 420" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="15" font-weight="700" fill="#0c1445" text-anchor="middle">Latent Space 연구의 4단계 진화</text>
+
+      <!-- 타임라인 축 -->
+      <line x1="50" y1="70" x2="700" y2="70" stroke="#cbd5e1" stroke-width="3"/>
+      <circle cx="50" cy="70" r="5" fill="#cbd5e1"/>
+
+      <!-- Phase 1: Prototype -->
+      <circle cx="170" cy="70" r="12" fill="#94a3b8" stroke="#fff" stroke-width="2"/>
+      <text x="170" y="74" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">1</text>
+      <text x="170" y="55" font-size="11" fill="#94a3b8" text-anchor="middle" font-weight="700">~2025.3</text>
+
+      <rect x="95" y="90" width="150" height="105" rx="10" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="170" y="110" font-size="12" fill="#94a3b8" text-anchor="middle" font-weight="700">Prototype</text>
+      <text x="170" y="127" font-size="10" fill="#94a3b8" text-anchor="middle">(원형 실험)</text>
+      <line x1="110" y1="135" x2="230" y2="135" stroke="#94a3b8" stroke-width="0.5" opacity="0.3"/>
+      <text x="170" y="153" font-size="10" fill="#475569" text-anchor="middle">"연속 공간에서 사고가</text>
+      <text x="170" y="168" font-size="10" fill="#475569" text-anchor="middle">가능할까?" 첫 실험</text>
+      <text x="170" y="186" font-size="9" fill="#64748b" text-anchor="middle">COCONUT, Huginn 등장</text>
+
+      <!-- Phase 2: Formation -->
+      <circle cx="330" cy="70" r="12" fill="#0ea5e9" stroke="#fff" stroke-width="2"/>
+      <text x="330" y="74" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">2</text>
+      <text x="330" y="55" font-size="11" fill="#0ea5e9" text-anchor="middle" font-weight="700">2025.4-7</text>
+
+      <rect x="255" y="90" width="150" height="105" rx="10" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="330" y="110" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">Formation</text>
+      <text x="330" y="127" font-size="10" fill="#0ea5e9" text-anchor="middle">(이론 체계화)</text>
+      <line x1="270" y1="135" x2="390" y2="135" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="330" y="153" font-size="10" fill="#475569" text-anchor="middle">"왜, 어떻게 작동하는가"</text>
+      <text x="330" y="168" font-size="10" fill="#475569" text-anchor="middle">수학적 증명과 이론 정립</text>
+      <text x="330" y="186" font-size="9" fill="#64748b" text-anchor="middle">RL 최적화, 멀티모달 확장 시작</text>
+
+      <!-- Phase 3: Expansion -->
+      <circle cx="490" cy="70" r="12" fill="#1e3a8a" stroke="#fff" stroke-width="2"/>
+      <text x="490" y="74" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">3</text>
+      <text x="490" y="55" font-size="11" fill="#1e3a8a" text-anchor="middle" font-weight="700">2025.8-11</text>
+
+      <rect x="415" y="90" width="150" height="105" rx="10" fill="#eff6ff" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="490" y="110" font-size="12" fill="#1e3a8a" text-anchor="middle" font-weight="700">Expansion</text>
+      <text x="490" y="127" font-size="10" fill="#1e3a8a" text-anchor="middle">(영역 확장)</text>
+      <line x1="430" y1="135" x2="550" y2="135" stroke="#1e3a8a" stroke-width="0.5" opacity="0.3"/>
+      <text x="490" y="153" font-size="10" fill="#475569" text-anchor="middle">텍스트를 넘어 비전,</text>
+      <text x="490" y="168" font-size="10" fill="#475569" text-anchor="middle">멀티에이전트, 로봇으로</text>
+      <text x="490" y="186" font-size="9" fill="#64748b" text-anchor="middle">Latent Memory, 3D 사고 등장</text>
+
+      <!-- Phase 4: Outbreak -->
+      <circle cx="650" cy="70" r="12" fill="#059669" stroke="#fff" stroke-width="2"/>
+      <text x="650" y="74" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">4</text>
+      <text x="650" y="55" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">2025.12~</text>
+
+      <rect x="575" y="90" width="150" height="105" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="650" y="110" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Outbreak</text>
+      <text x="650" y="127" font-size="10" fill="#059669" text-anchor="middle">(전방위 폭발)</text>
+      <line x1="590" y1="135" x2="710" y2="135" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="650" y="153" font-size="10" fill="#475569" text-anchor="middle">전용 아키텍처, 고급 RL,</text>
+      <text x="650" y="168" font-size="10" fill="#475569" text-anchor="middle">시각 추론, 로봇 등</text>
+      <text x="650" y="186" font-size="9" fill="#64748b" text-anchor="middle">모든 방향에서 동시 폭발</text>
+
+      <!-- 논문 수 증가 그래프 (하단) -->
+      <text x="375" y="225" font-size="13" font-weight="700" fill="#0c1445" text-anchor="middle">논문 수 증가 추이</text>
+
+      <!-- 배경 격자 -->
+      <line x1="95" y1="250" x2="95" y2="400" stroke="#e2e8f0" stroke-width="0.5"/>
+      <line x1="255" y1="250" x2="255" y2="400" stroke="#e2e8f0" stroke-width="0.5"/>
+      <line x1="415" y1="250" x2="415" y2="400" stroke="#e2e8f0" stroke-width="0.5"/>
+      <line x1="575" y1="250" x2="575" y2="400" stroke="#e2e8f0" stroke-width="0.5"/>
+      <line x1="95" y1="400" x2="700" y2="400" stroke="#94a3b8" stroke-width="1"/>
+
+      <!-- 막대 그래프 -->
+      <rect x="115" y="380" width="80" height="20" rx="4" fill="#94a3b8" opacity="0.6"/>
+      <text x="155" y="395" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">~10편</text>
+
+      <rect x="275" y="355" width="80" height="45" rx="4" fill="#0ea5e9" opacity="0.7"/>
+      <text x="315" y="382" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">~40편</text>
+
+      <rect x="435" y="320" width="80" height="80" rx="4" fill="#1e3a8a" opacity="0.75"/>
+      <text x="475" y="365" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">~80편</text>
+
+      <rect x="595" y="258" width="80" height="142" rx="4" fill="#059669" opacity="0.8"/>
+      <text x="635" y="335" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">200편+</text>
+
+      <!-- 성장 화살표 -->
+      <path d="M155,375 Q315,350 475,315 Q575,290 635,265" stroke="#dc2626" stroke-width="2" fill="none" stroke-dasharray="5" marker-end="url(#arrow-red)"/>
+      <defs><marker id="arrow-red" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#dc2626"/></marker></defs>
+      <text x="555" y="275" font-size="10" fill="#dc2626" font-weight="700">폭발적 성장!</text>
+    </svg>
+    <div class="diagram-caption">1년 만에 소수의 실험에서 200편 이상의 논문이 쏟아지는 분야로 성장</div>
+  </div>
+
+  <div class="card card-green">
+    <p><strong>핵심 인사이트</strong>: Latent Space는 처음에는 "Chain-of-Thought를 압축하는 트릭" 정도로 시작했지만, 1년 만에 시각, 기억, 협업, 로봇 행동까지 아우르는 <strong>범용 컴퓨팅 패러다임</strong>으로 성장했습니다. 이 논문은 이 급속한 진화의 전체 지도를 처음으로 그린 것입니다.</p>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 핵심 아이디어 2: Mechanism — 어떻게 작동하는가 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>핵심 아이디어 2: Mechanism — 어떻게 작동하는가?</h2>
+
+  <p style="margin:0.8rem 0;">이 논문의 핵심 공헌 중 하나는 Latent Space가 실제로 어떻게 구현되는지를 <strong>4개의 축(차원)</strong>으로 체계적으로 분류한 것입니다. 마치 자동차를 이해하기 위해 "엔진, 변속기, 연료, 정비"로 나누어 보는 것과 같습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="15" font-weight="700" fill="#0c1445" text-anchor="middle">Mechanism의 4가지 축</text>
+      <text x="375" y="45" font-size="11" fill="#64748b" text-anchor="middle">"Latent Space는 어떻게 만들어지고 작동하는가?"를 4가지 관점으로 분해</text>
+
+      <!-- 중앙 원 -->
+      <circle cx="375" cy="220" r="55" fill="#0c1445" opacity="0.05" stroke="#0c1445" stroke-width="2"/>
+      <text x="375" y="215" font-size="13" fill="#0c1445" text-anchor="middle" font-weight="900">Latent</text>
+      <text x="375" y="233" font-size="13" fill="#0c1445" text-anchor="middle" font-weight="900">Space</text>
+
+      <!-- 축 1: Architecture (상단) -->
+      <line x1="375" y1="165" x2="375" y2="90" stroke="#1e3a8a" stroke-width="2"/>
+      <rect x="290" y="60" width="170" height="55" rx="12" fill="#1e3a8a" opacity="0.1" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="375" y="82" font-size="13" fill="#1e3a8a" text-anchor="middle" font-weight="700">Architecture</text>
+      <text x="375" y="100" font-size="10" fill="#475569" text-anchor="middle">"어디에 위치하는가?"</text>
+
+      <!-- 축 2: Representation (우측) -->
+      <line x1="430" y1="220" x2="520" y2="220" stroke="#0ea5e9" stroke-width="2"/>
+      <rect x="525" y="193" width="175" height="55" rx="12" fill="#0ea5e9" opacity="0.1" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="612" y="215" font-size="13" fill="#0ea5e9" text-anchor="middle" font-weight="700">Representation</text>
+      <text x="612" y="233" font-size="10" fill="#475569" text-anchor="middle">"어떤 형태를 취하는가?"</text>
+
+      <!-- 축 3: Computation (하단) -->
+      <line x1="375" y1="275" x2="375" y2="340" stroke="#059669" stroke-width="2"/>
+      <rect x="285" y="340" width="180" height="55" rx="12" fill="#059669" opacity="0.1" stroke="#059669" stroke-width="2"/>
+      <text x="375" y="362" font-size="13" fill="#059669" text-anchor="middle" font-weight="700">Computation</text>
+      <text x="375" y="380" font-size="10" fill="#475569" text-anchor="middle">"어떤 연산이 일어나는가?"</text>
+
+      <!-- 축 4: Optimization (좌측) -->
+      <line x1="320" y1="220" x2="230" y2="220" stroke="#d97706" stroke-width="2"/>
+      <rect x="50" y="193" width="175" height="55" rx="12" fill="#d97706" opacity="0.1" stroke="#d97706" stroke-width="2"/>
+      <text x="137" y="215" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">Optimization</text>
+      <text x="137" y="233" font-size="10" fill="#475569" text-anchor="middle">"언제, 어떻게 학습하는가?"</text>
+    </svg>
+    <div class="diagram-caption">4개의 축이 상호보완적으로 Latent Space의 구현 방식을 결정한다</div>
+  </div>
+
+  <!-- 각 축 상세 설명 -->
+  <h3 style="margin-top:2rem;">축 1: Architecture — "Latent Space가 모델 어디에 있는가?"</h3>
+
+  <p style="margin:0.8rem 0;">Latent Space를 모델에 통합하는 방법은 크게 3가지입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="22" font-size="13" font-weight="700" fill="#1e3a8a" text-anchor="middle">Architecture: Latent Space가 모델에 자리 잡는 3가지 방식</text>
+
+      <!-- Backbone -->
+      <rect x="20" y="45" width="220" height="215" rx="14" fill="#f8fafc" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="130" y="72" font-size="13" fill="#1e3a8a" text-anchor="middle" font-weight="700">Backbone</text>
+      <text x="130" y="90" font-size="10" fill="#64748b" text-anchor="middle">(모델 그 자체에 내장)</text>
+      <line x1="35" y1="100" x2="225" y2="100" stroke="#1e3a8a" stroke-width="0.5" opacity="0.3"/>
+      <text x="130" y="120" font-size="10" fill="#475569" text-anchor="middle">모델의 핵심 구조를</text>
+      <text x="130" y="137" font-size="10" fill="#475569" text-anchor="middle">변형하여 Latent Space를</text>
+      <text x="130" y="154" font-size="10" fill="#475569" text-anchor="middle">기본 기능으로 내장</text>
+      <rect x="40" y="170" width="180" height="35" rx="6" fill="#1e3a8a" opacity="0.08"/>
+      <text x="130" y="183" font-size="9" fill="#1e3a8a" text-anchor="middle" font-weight="600">예: 같은 블록을 여러 번 반복</text>
+      <text x="130" y="197" font-size="9" fill="#64748b" text-anchor="middle">(Huginn, LoopFormer)</text>
+      <rect x="40" y="215" width="180" height="30" rx="6" fill="#1e3a8a" opacity="0.05"/>
+      <text x="130" y="234" font-size="9" fill="#475569" text-anchor="middle">가장 근본적인 변화</text>
+
+      <!-- Component -->
+      <rect x="265" y="45" width="220" height="215" rx="14" fill="#f8fafc" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="375" y="72" font-size="13" fill="#0ea5e9" text-anchor="middle" font-weight="700">Component</text>
+      <text x="375" y="90" font-size="10" fill="#64748b" text-anchor="middle">(부품으로 추가)</text>
+      <line x1="280" y1="100" x2="470" y2="100" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="375" y="120" font-size="10" fill="#475569" text-anchor="middle">기존 모델은 그대로 두고,</text>
+      <text x="375" y="137" font-size="10" fill="#475569" text-anchor="middle">Latent Space를 다루는</text>
+      <text x="375" y="154" font-size="10" fill="#475569" text-anchor="middle">전용 모듈을 부착</text>
+      <rect x="285" y="170" width="180" height="35" rx="6" fill="#0ea5e9" opacity="0.08"/>
+      <text x="375" y="183" font-size="9" fill="#0ea5e9" text-anchor="middle" font-weight="600">예: 생성/투영/저장/제어 모듈</text>
+      <text x="375" y="197" font-size="9" fill="#64748b" text-anchor="middle">(SoftCoT, MemGen)</text>
+      <rect x="285" y="215" width="180" height="30" rx="6" fill="#0ea5e9" opacity="0.05"/>
+      <text x="375" y="234" font-size="9" fill="#475569" text-anchor="middle">가장 유연하고 다양한 방식</text>
+
+      <!-- Auxiliary -->
+      <rect x="510" y="45" width="220" height="215" rx="14" fill="#f8fafc" stroke="#059669" stroke-width="2"/>
+      <text x="620" y="72" font-size="13" fill="#059669" text-anchor="middle" font-weight="700">Auxiliary</text>
+      <text x="620" y="90" font-size="10" fill="#64748b" text-anchor="middle">(외부 도우미 모델)</text>
+      <line x1="525" y1="100" x2="715" y2="100" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <text x="620" y="120" font-size="10" fill="#475569" text-anchor="middle">별도의 보조 모델이</text>
+      <text x="620" y="137" font-size="10" fill="#475569" text-anchor="middle">Latent 정보를 생성하여</text>
+      <text x="620" y="154" font-size="10" fill="#475569" text-anchor="middle">메인 모델에 전달</text>
+      <rect x="530" y="170" width="180" height="35" rx="6" fill="#059669" opacity="0.08"/>
+      <text x="620" y="183" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">예: 비전 모델이 이미지 정보 제공</text>
+      <text x="620" y="197" font-size="9" fill="#64748b" text-anchor="middle">(3DThinker, CoVT)</text>
+      <rect x="530" y="215" width="180" height="30" rx="6" fill="#059669" opacity="0.05"/>
+      <text x="620" y="234" font-size="9" fill="#475569" text-anchor="middle">외부 전문가 활용 방식</text>
+    </svg>
+    <div class="diagram-caption">Latent Space를 모델에 통합하는 3가지 건축 방식</div>
+  </div>
+
+  <h3 style="margin-top:2rem;">축 2: Representation — "어떤 형태를 취하는가?"</h3>
+
+  <p style="margin:0.8rem 0;">Latent Space에서 정보가 실제로 어떤 모습으로 표현되는지를 4가지로 분류합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="22" font-size="13" font-weight="700" fill="#0ea5e9" text-anchor="middle">Representation: 4가지 표현 형태</text>
+
+      <!-- Internal -->
+      <rect x="15" y="45" width="170" height="180" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="100" y="68" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">Internal</text>
+      <text x="100" y="83" font-size="9" fill="#64748b" text-anchor="middle">(내부에서 자연 발생)</text>
+      <line x1="30" y1="92" x2="170" y2="92" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="100" y="110" font-size="10" fill="#475569" text-anchor="middle">모델이 처리하면서</text>
+      <text x="100" y="125" font-size="10" fill="#475569" text-anchor="middle">자연스럽게 생기는</text>
+      <text x="100" y="140" font-size="10" fill="#475569" text-anchor="middle">내부 활성화 값</text>
+      <rect x="30" y="155" width="140" height="28" rx="6" fill="#0ea5e9" opacity="0.08"/>
+      <text x="100" y="173" font-size="9" fill="#0ea5e9" text-anchor="middle">Hidden State, Cache</text>
+      <text x="100" y="212" font-size="9" fill="#64748b" text-anchor="middle">COCONUT이 대표적</text>
+
+      <!-- External -->
+      <rect x="200" y="45" width="170" height="180" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="285" y="68" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">External</text>
+      <text x="285" y="83" font-size="9" fill="#64748b" text-anchor="middle">(외부에서 주입)</text>
+      <line x1="215" y1="92" x2="355" y2="92" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="285" y="110" font-size="10" fill="#475569" text-anchor="middle">외부 보조 모델이</text>
+      <text x="285" y="125" font-size="10" fill="#475569" text-anchor="middle">만들어 메인 모델에</text>
+      <text x="285" y="140" font-size="10" fill="#475569" text-anchor="middle">전달하는 표현</text>
+      <rect x="215" y="155" width="140" height="28" rx="6" fill="#0ea5e9" opacity="0.08"/>
+      <text x="285" y="173" font-size="9" fill="#0ea5e9" text-anchor="middle">비전/3D 특징, 추론 결과</text>
+      <text x="285" y="212" font-size="9" fill="#64748b" text-anchor="middle">3DThinker, SoftCoT 등</text>
+
+      <!-- Learnable -->
+      <rect x="385" y="45" width="170" height="180" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="470" y="68" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">Learnable</text>
+      <text x="470" y="83" font-size="9" fill="#64748b" text-anchor="middle">(학습되는 모듈)</text>
+      <line x1="400" y1="92" x2="540" y2="92" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="470" y="110" font-size="10" fill="#475569" text-anchor="middle">모델 안에 내장된</text>
+      <text x="470" y="125" font-size="10" fill="#475569" text-anchor="middle">학습 가능 모듈이</text>
+      <text x="470" y="140" font-size="10" fill="#475569" text-anchor="middle">표현을 직접 최적화</text>
+      <rect x="400" y="155" width="140" height="28" rx="6" fill="#0ea5e9" opacity="0.08"/>
+      <text x="470" y="173" font-size="9" fill="#0ea5e9" text-anchor="middle">압축/분포/정렬 학습</text>
+      <text x="470" y="212" font-size="9" fill="#64748b" text-anchor="middle">CoLaR, KVCA 등</text>
+
+      <!-- Hybrid -->
+      <rect x="570" y="45" width="160" height="180" rx="12" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="650" y="68" font-size="12" fill="#0ea5e9" text-anchor="middle" font-weight="700">Hybrid</text>
+      <text x="650" y="83" font-size="9" fill="#64748b" text-anchor="middle">(결합형)</text>
+      <line x1="585" y1="92" x2="715" y2="92" stroke="#0ea5e9" stroke-width="0.5" opacity="0.3"/>
+      <text x="650" y="110" font-size="10" fill="#475569" text-anchor="middle">학습 모듈로 만들되,</text>
+      <text x="650" y="125" font-size="10" fill="#475569" text-anchor="middle">외부 신호로 조절하는</text>
+      <text x="650" y="140" font-size="10" fill="#475569" text-anchor="middle">혼합 방식</text>
+      <rect x="585" y="155" width="130" height="28" rx="6" fill="#0ea5e9" opacity="0.08"/>
+      <text x="650" y="173" font-size="9" fill="#0ea5e9" text-anchor="middle">추적/기반/증강 역할</text>
+      <text x="650" y="212" font-size="9" fill="#64748b" text-anchor="middle">HCoT, UniVLA 등</text>
+    </svg>
+    <div class="diagram-caption">Latent 표현이 어디서 생기고 어떻게 만들어지는지에 따른 4가지 분류</div>
+  </div>
+
+  <h3 style="margin-top:2rem;">축 3: Computation — "어떤 연산이 일어나는가?"</h3>
+
+  <p style="margin:0.8rem 0;">Latent Space에서 실제로 어떤 종류의 계산이 이루어지는지를 4가지 패턴으로 분류합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 310" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="22" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">Computation: 4가지 연산 패턴</text>
+
+      <!-- Compressed -->
+      <rect x="15" y="45" width="170" height="250" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="100" y="68" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Compressed</text>
+      <text x="100" y="83" font-size="10" fill="#64748b" text-anchor="middle">(압축)</text>
+      <line x1="30" y1="92" x2="170" y2="92" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <!-- 압축 시각화 -->
+      <rect x="35" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <rect x="58" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <rect x="81" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <rect x="104" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <rect x="127" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <rect x="150" y="105" width="20" height="15" rx="2" fill="#059669" opacity="0.4"/>
+      <text x="100" y="140" font-size="14" fill="#059669" text-anchor="middle">&darr;</text>
+      <rect x="60" y="148" width="80" height="15" rx="2" fill="#059669" opacity="0.7"/>
+      <text x="100" y="180" font-size="10" fill="#475569" text-anchor="middle">긴 사고 과정을</text>
+      <text x="100" y="195" font-size="10" fill="#475569" text-anchor="middle">짧고 밀도 높은</text>
+      <text x="100" y="210" font-size="10" fill="#475569" text-anchor="middle">벡터로 압축</text>
+      <rect x="30" y="225" width="140" height="28" rx="6" fill="#059669" opacity="0.08"/>
+      <text x="100" y="243" font-size="9" fill="#059669" text-anchor="middle">HCoT, SoftCoT</text>
+      <text x="100" y="276" font-size="9" fill="#64748b" text-anchor="middle">"요약본 만들기"</text>
+
+      <!-- Expanded -->
+      <rect x="200" y="45" width="170" height="250" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="285" y="68" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Expanded</text>
+      <text x="285" y="83" font-size="10" fill="#64748b" text-anchor="middle">(확장)</text>
+      <line x1="215" y1="92" x2="355" y2="92" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <!-- 확장 시각화 -->
+      <rect x="260" y="105" width="50" height="15" rx="2" fill="#059669" opacity="0.5"/>
+      <text x="285" y="135" font-size="14" fill="#059669" text-anchor="middle">&darr;</text>
+      <rect x="220" y="143" width="50" height="15" rx="2" fill="#059669" opacity="0.5"/>
+      <rect x="275" y="143" width="50" height="15" rx="2" fill="#059669" opacity="0.5"/>
+      <rect x="247" y="162" width="50" height="15" rx="2" fill="#059669" opacity="0.5"/>
+      <text x="285" y="195" font-size="10" fill="#475569" text-anchor="middle">더 깊게 (반복) 또는</text>
+      <text x="285" y="210" font-size="10" fill="#475569" text-anchor="middle">더 넓게 (병렬로)</text>
+      <text x="285" y="225" font-size="10" fill="#475569" text-anchor="middle">사고를 확장</text>
+      <rect x="215" y="240" width="140" height="28" rx="6" fill="#059669" opacity="0.08"/>
+      <text x="285" y="258" font-size="9" fill="#059669" text-anchor="middle">Huginn, SoftCoT++</text>
+      <text x="285" y="280" font-size="9" fill="#64748b" text-anchor="middle">"더 깊이 생각하기"</text>
+
+      <!-- Adaptive -->
+      <rect x="385" y="45" width="170" height="250" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="470" y="68" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Adaptive</text>
+      <text x="470" y="83" font-size="10" fill="#64748b" text-anchor="middle">(적응형)</text>
+      <line x1="400" y1="92" x2="540" y2="92" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <!-- 적응 시각화 -->
+      <rect x="410" y="105" width="50" height="8" rx="2" fill="#059669" opacity="0.3"/>
+      <text x="465" y="113" font-size="8" fill="#64748b">쉬운 문제</text>
+      <rect x="410" y="120" width="120" height="8" rx="2" fill="#059669" opacity="0.7"/>
+      <text x="535" y="128" font-size="8" fill="#64748b">어려운 문제</text>
+      <rect x="410" y="135" width="80" height="8" rx="2" fill="#059669" opacity="0.5"/>
+      <text x="495" y="143" font-size="8" fill="#64748b">중간 문제</text>
+      <text x="470" y="173" font-size="10" fill="#475569" text-anchor="middle">문제 난이도에 따라</text>
+      <text x="470" y="188" font-size="10" fill="#475569" text-anchor="middle">사고 시간(연산량)을</text>
+      <text x="470" y="203" font-size="10" fill="#475569" text-anchor="middle">유동적으로 조절</text>
+      <rect x="400" y="218" width="140" height="28" rx="6" fill="#059669" opacity="0.08"/>
+      <text x="470" y="236" font-size="9" fill="#059669" text-anchor="middle">TaH, System-1.5</text>
+      <text x="470" y="270" font-size="9" fill="#64748b" text-anchor="middle">"필요한 만큼만 생각"</text>
+
+      <!-- Interleaved -->
+      <rect x="570" y="45" width="160" height="250" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="650" y="68" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Interleaved</text>
+      <text x="650" y="83" font-size="10" fill="#64748b" text-anchor="middle">(교차형)</text>
+      <line x1="585" y1="92" x2="715" y2="92" stroke="#059669" stroke-width="0.5" opacity="0.3"/>
+      <!-- 교차 시각화 -->
+      <rect x="592" y="105" width="40" height="12" rx="3" fill="#1e3a8a" opacity="0.6"/>
+      <text x="612" y="115" font-size="7" fill="#fff" text-anchor="middle">텍스트</text>
+      <rect x="638" y="105" width="40" height="12" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="658" y="115" font-size="7" fill="#fff" text-anchor="middle">latent</text>
+      <rect x="592" y="122" width="40" height="12" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="612" y="132" font-size="7" fill="#fff" text-anchor="middle">latent</text>
+      <rect x="638" y="122" width="40" height="12" rx="3" fill="#1e3a8a" opacity="0.6"/>
+      <text x="658" y="132" font-size="7" fill="#fff" text-anchor="middle">텍스트</text>
+      <rect x="592" y="139" width="40" height="12" rx="3" fill="#d97706" opacity="0.6"/>
+      <text x="612" y="149" font-size="7" fill="#fff" text-anchor="middle">비전</text>
+      <rect x="638" y="139" width="40" height="12" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="658" y="149" font-size="7" fill="#fff" text-anchor="middle">latent</text>
+      <text x="650" y="180" font-size="10" fill="#475569" text-anchor="middle">텍스트, 이미지,</text>
+      <text x="650" y="195" font-size="10" fill="#475569" text-anchor="middle">Latent를 번갈아</text>
+      <text x="650" y="210" font-size="10" fill="#475569" text-anchor="middle">교차하며 처리</text>
+      <rect x="585" y="225" width="130" height="28" rx="6" fill="#059669" opacity="0.08"/>
+      <text x="650" y="243" font-size="9" fill="#059669" text-anchor="middle">SpiralThinker, LVR</text>
+      <text x="650" y="276" font-size="9" fill="#64748b" text-anchor="middle">"번갈아 생각하기"</text>
+    </svg>
+    <div class="diagram-caption">Latent Space에서의 연산 패턴: 압축, 확장, 적응, 교차의 4가지</div>
+  </div>
+
+  <h3 style="margin-top:2rem;">축 4: Optimization — "언제, 어떻게 학습하는가?"</h3>
+
+  <p style="margin:0.8rem 0;">Latent Space를 언제 훈련시키는지에 따라 3단계로 나뉩니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="22" font-size="13" font-weight="700" fill="#d97706" text-anchor="middle">Optimization: 3단계의 학습 시점</text>
+
+      <!-- Pre-training -->
+      <rect x="20" y="50" width="220" height="130" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="130" y="75" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">Pre-training</text>
+      <text x="130" y="92" font-size="10" fill="#64748b" text-anchor="middle">(처음부터 함께 학습)</text>
+      <line x1="35" y1="100" x2="225" y2="100" stroke="#d97706" stroke-width="0.5" opacity="0.3"/>
+      <text x="130" y="118" font-size="10" fill="#475569" text-anchor="middle">모델을 처음 만들 때부터</text>
+      <text x="130" y="135" font-size="10" fill="#475569" text-anchor="middle">Latent Space를 포함하여</text>
+      <text x="130" y="152" font-size="10" fill="#475569" text-anchor="middle">대규모 데이터로 학습</text>
+      <text x="130" y="172" font-size="9" fill="#64748b" text-anchor="middle">기초 체력 만들기</text>
+
+      <!-- Post-training -->
+      <rect x="265" y="50" width="220" height="130" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="375" y="75" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">Post-training</text>
+      <text x="375" y="92" font-size="10" fill="#64748b" text-anchor="middle">(나중에 추가 학습)</text>
+      <line x1="280" y1="100" x2="470" y2="100" stroke="#d97706" stroke-width="0.5" opacity="0.3"/>
+      <text x="375" y="118" font-size="10" fill="#475569" text-anchor="middle">이미 학습된 모델에</text>
+      <text x="375" y="135" font-size="10" fill="#475569" text-anchor="middle">Latent 능력을 추가 훈련</text>
+      <text x="375" y="152" font-size="10" fill="#475569" text-anchor="middle">(SFT, RL 등 활용)</text>
+      <text x="375" y="172" font-size="9" fill="#64748b" text-anchor="middle">전문 기술 연마하기</text>
+
+      <!-- Inference -->
+      <rect x="510" y="50" width="220" height="130" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="620" y="75" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">Inference</text>
+      <text x="620" y="92" font-size="10" fill="#64748b" text-anchor="middle">(사용 중에 최적화)</text>
+      <line x1="525" y1="100" x2="715" y2="100" stroke="#d97706" stroke-width="0.5" opacity="0.3"/>
+      <text x="620" y="118" font-size="10" fill="#475569" text-anchor="middle">모델 가중치는 고정한 채</text>
+      <text x="620" y="135" font-size="10" fill="#475569" text-anchor="middle">Latent 상태 자체를</text>
+      <text x="620" y="152" font-size="10" fill="#475569" text-anchor="middle">실시간으로 최적화</text>
+      <text x="620" y="172" font-size="9" fill="#64748b" text-anchor="middle">경기 중 전략 수정하기</text>
+    </svg>
+    <div class="diagram-caption">Pre-training은 기초 체력, Post-training은 전문 기술, Inference는 실전 적용</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"교향악 vs 합창" 비유</div>
+    <p><strong>Explicit Space</strong>는 <strong>합창</strong>과 같습니다. 모든 사람이 가사(토큰)를 부르기 때문에 관객(사람)이 내용을 알아듣습니다. 하지만 가사로 표현할 수 없는 감정이나 분위기는 전달하기 어렵습니다.</p>
+    <br>
+    <p><strong>Latent Space</strong>는 <strong>교향악</strong>과 같습니다. 바이올린, 첼로, 플루트가 연속적인 음높이와 음색으로 풍부한 감정을 표현합니다. 가사는 없지만 전달되는 정보량은 훨씬 많습니다. Mechanism의 4가지 축은 교향악의 악기 구성(Architecture), 악보(Representation), 연주 방식(Computation), 리허설(Optimization)에 해당합니다.</p>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 핵심 아이디어 3: Ability — 무엇을 할 수 있는가 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>핵심 아이디어 3: Ability — 무엇을 할 수 있는가?</h2>
+
+  <p style="margin:0.8rem 0;">Latent Space가 가능하게 하는 능력을 <strong>7가지 차원</strong>으로 분류합니다. 이것이 이 논문의 두 번째 핵심 축입니다. 단순한 "빠른 사고"를 넘어, AI가 할 수 있는 거의 모든 영역에 Latent Space가 기여할 수 있음을 보여줍니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 480" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="15" font-weight="700" fill="#0c1445" text-anchor="middle">Latent Space가 가능하게 하는 7가지 능력</text>
+
+      <!-- 중앙 원 -->
+      <circle cx="375" cy="250" r="65" fill="#0c1445" opacity="0.06" stroke="#0c1445" stroke-width="2"/>
+      <text x="375" y="243" font-size="14" fill="#0c1445" text-anchor="middle" font-weight="900">Latent</text>
+      <text x="375" y="263" font-size="14" fill="#0c1445" text-anchor="middle" font-weight="900">Ability</text>
+
+      <!-- 1. Reasoning (상단) -->
+      <line x1="375" y1="185" x2="375" y2="105" stroke="#1e3a8a" stroke-width="2"/>
+      <rect x="300" y="50" width="150" height="58" rx="12" fill="#1e3a8a" opacity="0.1" stroke="#1e3a8a" stroke-width="2"/>
+      <text x="375" y="74" font-size="13" fill="#1e3a8a" text-anchor="middle" font-weight="700">Reasoning</text>
+      <text x="375" y="94" font-size="9" fill="#475569" text-anchor="middle">추론 / 논리적 사고</text>
+
+      <!-- 2. Planning (우상단) -->
+      <line x1="427" y1="202" x2="530" y2="130" stroke="#0ea5e9" stroke-width="2"/>
+      <rect x="500" y="80" width="150" height="58" rx="12" fill="#0ea5e9" opacity="0.1" stroke="#0ea5e9" stroke-width="2"/>
+      <text x="575" y="104" font-size="13" fill="#0ea5e9" text-anchor="middle" font-weight="700">Planning</text>
+      <text x="575" y="124" font-size="9" fill="#475569" text-anchor="middle">계획 수립 / 탐색</text>
+
+      <!-- 3. Modeling (우측) -->
+      <line x1="440" y1="250" x2="535" y2="250" stroke="#059669" stroke-width="2"/>
+      <rect x="540" y="220" width="150" height="58" rx="12" fill="#059669" opacity="0.1" stroke="#059669" stroke-width="2"/>
+      <text x="615" y="244" font-size="13" fill="#059669" text-anchor="middle" font-weight="700">Modeling</text>
+      <text x="615" y="264" font-size="9" fill="#475569" text-anchor="middle">모델링 / 분석</text>
+
+      <!-- 4. Perception (우하단) -->
+      <line x1="427" y1="298" x2="530" y2="370" stroke="#d97706" stroke-width="2"/>
+      <rect x="500" y="350" width="150" height="58" rx="12" fill="#d97706" opacity="0.1" stroke="#d97706" stroke-width="2"/>
+      <text x="575" y="374" font-size="13" fill="#d97706" text-anchor="middle" font-weight="700">Perception</text>
+      <text x="575" y="394" font-size="9" fill="#475569" text-anchor="middle">지각 / 시각 인식</text>
+
+      <!-- 5. Memory (하단) -->
+      <line x1="375" y1="315" x2="375" y2="385" stroke="#dc2626" stroke-width="2"/>
+      <rect x="300" y="388" width="150" height="58" rx="12" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="2"/>
+      <text x="375" y="412" font-size="13" fill="#dc2626" text-anchor="middle" font-weight="700">Memory</text>
+      <text x="375" y="432" font-size="9" fill="#475569" text-anchor="middle">기억 / 장기 저장</text>
+
+      <!-- 6. Collaboration (좌하단) -->
+      <line x1="323" y1="298" x2="220" y2="370" stroke="#7c3aed" stroke-width="2"/>
+      <rect x="100" y="350" width="155" height="58" rx="12" fill="#7c3aed" opacity="0.1" stroke="#7c3aed" stroke-width="2"/>
+      <text x="177" y="374" font-size="13" fill="#7c3aed" text-anchor="middle" font-weight="700">Collaboration</text>
+      <text x="177" y="394" font-size="9" fill="#475569" text-anchor="middle">AI 간 협업</text>
+
+      <!-- 7. Embodiment (좌상단) -->
+      <line x1="323" y1="202" x2="220" y2="130" stroke="#be185d" stroke-width="2"/>
+      <rect x="95" y="80" width="155" height="58" rx="12" fill="#be185d" opacity="0.1" stroke="#be185d" stroke-width="2"/>
+      <text x="172" y="104" font-size="13" fill="#be185d" text-anchor="middle" font-weight="700">Embodiment</text>
+      <text x="172" y="124" font-size="9" fill="#475569" text-anchor="middle">로봇 / 물리적 행동</text>
+
+      <!-- 좌측: Latent의 공통 장점 -->
+      <rect x="60" y="195" width="160" height="100" rx="10" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="140" y="215" font-size="10" fill="#0c1445" text-anchor="middle" font-weight="700">공통 특성</text>
+      <text x="140" y="235" font-size="9" fill="#475569" text-anchor="middle">언어로 표현하기 어렵거나</text>
+      <text x="140" y="250" font-size="9" fill="#475569" text-anchor="middle">비용이 높거나</text>
+      <text x="140" y="265" font-size="9" fill="#475569" text-anchor="middle">정보 손실이 큰 작업에</text>
+      <text x="140" y="280" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">Latent Space가 유리</text>
+    </svg>
+    <div class="diagram-caption">Latent Space는 추론에서 로봇 행동까지, AI의 7가지 핵심 능력을 강화한다</div>
+  </div>
+
+  <!-- 각 능력 카드 -->
+  <div class="card card-accent">
+    <h3 style="color:#1e3a8a; margin-top:0;">1. Reasoning (추론)</h3>
+    <p>AI가 "머릿속"에서 연속적 공간으로 추론하는 능력. 기존에는 "먼저 17 x 20을 계산하면..."처럼 모든 사고를 글로 써야 했지만, Latent Space에서는 <strong>여러 가능한 답을 동시에 탐색</strong>할 수 있습니다. COCONUT 연구에 의하면, 연속적 사고 벡터가 여러 추론 경로의 "중첩 상태"를 encode하여 폭넓은 탐색(BFS)이 자연스럽게 나타납니다.</p>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #0ea5e9;">
+    <h3 style="color:#0ea5e9; margin-top:0;">2. Planning (계획)</h3>
+    <p>AI가 목표를 향해 경로를 탐색하고 자원을 배분하는 능력. Latent Space의 연속적이고 미분 가능한 특성 덕분에 <strong>경사하강법으로 계획을 직접 최적화</strong>할 수 있습니다. 문제가 쉬우면 적게, 어려우면 많이 생각하는 "적응형 예산 배분"도 가능해집니다.</p>
+  </div>
+
+  <div class="card card-green">
+    <h3 style="color:#059669; margin-top:0;">3. Modeling (모델링)</h3>
+    <p>Latent Space 자체를 분석하고, 검사하고, 조절하는 메타 능력. 연속적 사고 벡터가 정말로 의미 있는 추론을 하고 있는지 검증하거나, 모델의 안전성을 강화하거나 공격하는 데 활용됩니다. 또한 반복 구조(looped transformer)가 기존 구조보다 더 복잡한 계산을 표현할 수 있음이 수학적으로 증명되었습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">4. Perception (지각)</h3>
+    <p>이미지, 3D 공간 등 비언어적 정보를 처리하는 능력. "빨간 공이 파란 상자 위에 있다"고 글로 설명하면 정보가 손실되지만, Latent Space에서는 <strong>시각 정보를 연속적 벡터로 직접 처리</strong>하여 공간 구조, 세밀한 디테일, 관계 정보를 보존합니다. 3DThinker는 2D 이미지에서 3D 구조를 "상상"할 수도 있습니다.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="color:#dc2626; margin-top:0;">5. Memory (기억)</h3>
+    <p>AI가 대화나 작업 전반에 걸쳐 정보를 유지하는 능력. 현재 AI는 기본적으로 "무상태(stateless)"이며, 긴 맥락은 엄청난 메모리를 요구합니다. Latent Memory는 KV cache를 단순 저장소가 아닌 <strong>능동적인 작업 기억으로 전환</strong>하고, 대화가 끝나도 지속되는 장기 기억을 만들 수 있습니다.</p>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #7c3aed;">
+    <h3 style="color:#7c3aed; margin-top:0;">6. Collaboration (협업)</h3>
+    <p>여러 AI 에이전트가 협력하는 능력. 기존에는 AI끼리 "텍스트 메시지"를 주고받아야 했지만, Latent Space에서는 <strong>내부 상태를 직접 교환</strong>합니다. LatentMAS는 공유 Latent 메모리를 통해 출력 토큰을 크게 줄이면서도 정확도를 향상시켰습니다.</p>
+  </div>
+
+  <div class="card" style="border-left: 5px solid #be185d;">
+    <h3 style="color:#be185d; margin-top:0;">7. Embodiment (구현/로봇)</h3>
+    <p>물리 세계에서 행동하는 로봇에 적용되는 능력. 로봇 학습의 가장 큰 병목은 학습 데이터 부족입니다. Latent Space를 통해 <strong>인터넷 영상에서 라벨 없이 행동 표현을 학습</strong>하고, 서로 다른 로봇 몸체 간에 지식을 전이할 수 있습니다. 미래 상태를 픽셀 생성 없이 예측하는 "예측적 선견"도 가능합니다.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">"도시의 지하 인프라" 비유</div>
+    <p>도시의 표면(건물, 도로, 사람)이 <strong>Explicit Space</strong>라면, <strong>Latent Space</strong>는 <strong>지하 인프라</strong>입니다 -- 상수도, 전기, 지하철, 통신망.</p>
+    <br>
+    <p>우리 눈에는 보이지 않지만, 도시의 모든 기능(물 공급 = Memory, 전기 = Computation, 지하철 = Planning, 통신 = Collaboration)이 이 보이지 않는 인프라 위에서 돌아갑니다.</p>
+    <br>
+    <p>이 논문이 하는 것은, 이 거대한 지하 인프라의 <strong>전체 배관도/설계도를 처음으로 그린 것</strong>입니다. 어떤 관이 어디로 연결되고(Mechanism), 어떤 건물에 무슨 서비스를 제공하는지(Ability)를 체계적으로 정리한 것입니다.</p>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 2D Taxonomy: Mechanism x Ability ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>통합 프레임워크: Mechanism x Ability</h2>
+
+  <p style="margin:0.8rem 0;">이 논문의 가장 핵심적인 기여는 Mechanism의 4축과 Ability의 7축을 <strong>교차</strong>시킨 2차원 분류 체계입니다. 이를 통해 "어떤 메커니즘이 어떤 능력에 기여하는가"를 체계적으로 파악할 수 있습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 370" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#0c1445" text-anchor="middle">2D Taxonomy: Mechanism x Ability</text>
+
+      <!-- 행 헤더 (Mechanism) -->
+      <text x="70" y="75" font-size="10" fill="#64748b" text-anchor="middle" font-weight="600">Mechanism</text>
+      <rect x="15" y="90" width="110" height="35" rx="6" fill="#1e3a8a" opacity="0.85"/>
+      <text x="70" y="112" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">Architecture</text>
+      <rect x="15" y="130" width="110" height="35" rx="6" fill="#0ea5e9" opacity="0.85"/>
+      <text x="70" y="152" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">Representation</text>
+      <rect x="15" y="170" width="110" height="35" rx="6" fill="#059669" opacity="0.85"/>
+      <text x="70" y="192" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">Computation</text>
+      <rect x="15" y="210" width="110" height="35" rx="6" fill="#d97706" opacity="0.85"/>
+      <text x="70" y="232" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">Optimization</text>
+
+      <!-- 열 헤더 (Ability) -->
+      <text x="430" y="60" font-size="10" fill="#64748b" text-anchor="middle" font-weight="600">Ability</text>
+      <rect x="140" y="65" width="78" height="22" rx="4" fill="#1e3a8a" opacity="0.15"/>
+      <text x="179" y="80" font-size="8" fill="#1e3a8a" text-anchor="middle" font-weight="600">Reasoning</text>
+      <rect x="223" y="65" width="78" height="22" rx="4" fill="#0ea5e9" opacity="0.15"/>
+      <text x="262" y="80" font-size="8" fill="#0ea5e9" text-anchor="middle" font-weight="600">Planning</text>
+      <rect x="306" y="65" width="78" height="22" rx="4" fill="#059669" opacity="0.15"/>
+      <text x="345" y="80" font-size="8" fill="#059669" text-anchor="middle" font-weight="600">Modeling</text>
+      <rect x="389" y="65" width="78" height="22" rx="4" fill="#d97706" opacity="0.15"/>
+      <text x="428" y="80" font-size="8" fill="#d97706" text-anchor="middle" font-weight="600">Perception</text>
+      <rect x="472" y="65" width="78" height="22" rx="4" fill="#dc2626" opacity="0.15"/>
+      <text x="511" y="80" font-size="8" fill="#dc2626" text-anchor="middle" font-weight="600">Memory</text>
+      <rect x="555" y="65" width="78" height="22" rx="4" fill="#7c3aed" opacity="0.15"/>
+      <text x="594" y="80" font-size="8" fill="#7c3aed" text-anchor="middle" font-weight="600">Collab.</text>
+      <rect x="638" y="65" width="78" height="22" rx="4" fill="#be185d" opacity="0.15"/>
+      <text x="677" y="80" font-size="8" fill="#be185d" text-anchor="middle" font-weight="600">Embod.</text>
+
+      <!-- 격자 셀 (원으로 표현) -->
+      <!-- Architecture row -->
+      <circle cx="179" cy="107" r="10" fill="#1e3a8a" opacity="0.7"/>
+      <circle cx="262" cy="107" r="6" fill="#1e3a8a" opacity="0.4"/>
+      <circle cx="345" cy="107" r="9" fill="#1e3a8a" opacity="0.6"/>
+      <circle cx="428" cy="107" r="5" fill="#1e3a8a" opacity="0.3"/>
+      <circle cx="511" cy="107" r="4" fill="#1e3a8a" opacity="0.2"/>
+      <circle cx="594" cy="107" r="3" fill="#1e3a8a" opacity="0.15"/>
+      <circle cx="677" cy="107" r="7" fill="#1e3a8a" opacity="0.5"/>
+
+      <!-- Representation row -->
+      <circle cx="179" cy="147" r="10" fill="#0ea5e9" opacity="0.7"/>
+      <circle cx="262" cy="147" r="5" fill="#0ea5e9" opacity="0.35"/>
+      <circle cx="345" cy="147" r="7" fill="#0ea5e9" opacity="0.5"/>
+      <circle cx="428" cy="147" r="9" fill="#0ea5e9" opacity="0.65"/>
+      <circle cx="511" cy="147" r="8" fill="#0ea5e9" opacity="0.55"/>
+      <circle cx="594" cy="147" r="7" fill="#0ea5e9" opacity="0.5"/>
+      <circle cx="677" cy="147" r="9" fill="#0ea5e9" opacity="0.65"/>
+
+      <!-- Computation row -->
+      <circle cx="179" cy="187" r="10" fill="#059669" opacity="0.7"/>
+      <circle cx="262" cy="187" r="8" fill="#059669" opacity="0.55"/>
+      <circle cx="345" cy="187" r="8" fill="#059669" opacity="0.55"/>
+      <circle cx="428" cy="187" r="7" fill="#059669" opacity="0.5"/>
+      <circle cx="511" cy="187" r="6" fill="#059669" opacity="0.4"/>
+      <circle cx="594" cy="187" r="5" fill="#059669" opacity="0.3"/>
+      <circle cx="677" cy="187" r="6" fill="#059669" opacity="0.4"/>
+
+      <!-- Optimization row -->
+      <circle cx="179" cy="227" r="10" fill="#d97706" opacity="0.7"/>
+      <circle cx="262" cy="227" r="9" fill="#d97706" opacity="0.65"/>
+      <circle cx="345" cy="227" r="6" fill="#d97706" opacity="0.4"/>
+      <circle cx="428" cy="227" r="5" fill="#d97706" opacity="0.35"/>
+      <circle cx="511" cy="227" r="5" fill="#d97706" opacity="0.3"/>
+      <circle cx="594" cy="227" r="4" fill="#d97706" opacity="0.25"/>
+      <circle cx="677" cy="227" r="8" fill="#d97706" opacity="0.55"/>
+
+      <!-- 범례 -->
+      <text x="375" y="270" font-size="10" fill="#64748b" text-anchor="middle">원의 크기 = 해당 교차 영역의 연구 밀도 (많을수록 크고 진함)</text>
+
+      <!-- 핵심 관찰 -->
+      <rect x="50" y="290" width="650" height="65" rx="12" fill="#f0f9ff" stroke="#bae6fd" stroke-width="1.5"/>
+      <text x="375" y="312" font-size="12" fill="#0c1445" text-anchor="middle" font-weight="700">핵심 관찰</text>
+      <text x="375" y="330" font-size="11" fill="#475569" text-anchor="middle">같은 Mechanism이 여러 Ability에 기여하고, 같은 Ability가 여러 Mechanism으로 달성될 수 있다</text>
+      <text x="375" y="347" font-size="11" fill="#475569" text-anchor="middle">이 교차 분류가 분야 간 상호 영감(cross-pollination)을 촉진하는 핵심 도구</text>
+    </svg>
+    <div class="diagram-caption">4개 Mechanism축과 7개 Ability축의 교차: 300편 이상의 논문이 이 격자 위에 배치된다</div>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 핵심 성과 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>핵심 성과: 숫자로 보는 이 서베이</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">300+</div>
+      <div class="label">분석한 논문 수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4단계</div>
+      <div class="label">진화 타임라인</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4 x 7</div>
+      <div class="label">2D 분류 체계<br>(Mechanism x Ability)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">30+</div>
+      <div class="label">참여 기관 수<br>(NUS, 복단, 칭화 등)</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem;">Explicit Space vs. Latent Space 비교</h3>
+
+  <table class="comp-table">
+    <tr>
+      <th style="width:25%;">비교 항목</th>
+      <th style="width:37%;">Explicit Space (토큰)</th>
+      <th style="width:38%;">Latent Space (연속 벡터)</th>
+    </tr>
+    <tr>
+      <td><strong>해석 가능성</strong></td>
+      <td>사람이 읽을 수 있음</td>
+      <td>기계만 이해 (해석 어려움)</td>
+    </tr>
+    <tr>
+      <td><strong>표현 형태</strong></td>
+      <td>이산적 기호 (단어 조각)</td>
+      <td>연속적 실수 벡터</td>
+    </tr>
+    <tr>
+      <td><strong>효율성</strong></td>
+      <td>낮음 (군더더기, 순차 생성)</td>
+      <td>높음 (압축, 병렬 가능)</td>
+    </tr>
+    <tr>
+      <td><strong>정보 보존</strong></td>
+      <td>손실 있음 (어휘 제약)</td>
+      <td>고해상도 보존</td>
+    </tr>
+    <tr>
+      <td><strong>조작 가능성</strong></td>
+      <td>제한적 (텍스트 편집)</td>
+      <td>풍부 (더하기, 회전, 결합 등)</td>
+    </tr>
+    <tr>
+      <td><strong>평가 용이성</strong></td>
+      <td>쉬움 (중간 과정 확인 가능)</td>
+      <td>어려움 (블랙박스)</td>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>미래 방향</strong></td>
+      <td>인터페이스로 유지</td>
+      <td>내부 연산의 주 공간으로 부상</td>
+    </tr>
+  </table>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 활용 분야 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>활용 분야: Latent Space가 미래 AI에 미치는 영향</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 440" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="25" font-size="14" font-weight="700" fill="#0c1445" text-anchor="middle">Latent Space 활용 분야 마인드맵</text>
+
+      <!-- 중앙 -->
+      <ellipse cx="375" cy="230" rx="75" ry="35" fill="#0c1445" opacity="0.9"/>
+      <text x="375" y="226" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">Latent Space</text>
+      <text x="375" y="242" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">활용 분야</text>
+
+      <!-- 가지 1: 빠른 추론 -->
+      <line x1="300" y1="215" x2="130" y2="100" stroke="#1e3a8a" stroke-width="2"/>
+      <ellipse cx="110" cy="85" rx="90" ry="28" fill="#1e3a8a" opacity="0.12" stroke="#1e3a8a" stroke-width="1.5"/>
+      <text x="110" y="82" font-size="10" fill="#1e3a8a" text-anchor="middle" font-weight="700">빠른 추론</text>
+      <text x="110" y="96" font-size="8" fill="#64748b" text-anchor="middle">CoT 압축, 실시간 사고</text>
+
+      <!-- 가지 2: 시각 AI -->
+      <line x1="450" y1="215" x2="620" y2="100" stroke="#0ea5e9" stroke-width="2"/>
+      <ellipse cx="640" cy="85" rx="90" ry="28" fill="#0ea5e9" opacity="0.12" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="640" y="82" font-size="10" fill="#0ea5e9" text-anchor="middle" font-weight="700">시각 AI</text>
+      <text x="640" y="96" font-size="8" fill="#64748b" text-anchor="middle">이미지/3D 이해, 환각 방지</text>
+
+      <!-- 가지 3: 로봇 -->
+      <line x1="300" y1="245" x2="120" y2="340" stroke="#059669" stroke-width="2"/>
+      <ellipse cx="100" cy="355" rx="85" ry="28" fill="#059669" opacity="0.12" stroke="#059669" stroke-width="1.5"/>
+      <text x="100" y="352" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">로봇</text>
+      <text x="100" y="366" font-size="8" fill="#64748b" text-anchor="middle">비지도 행동 학습, 이기종 전이</text>
+
+      <!-- 가지 4: 멀티에이전트 -->
+      <line x1="450" y1="245" x2="630" y2="340" stroke="#7c3aed" stroke-width="2"/>
+      <ellipse cx="650" cy="355" rx="85" ry="28" fill="#7c3aed" opacity="0.12" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="650" y="352" font-size="10" fill="#7c3aed" text-anchor="middle" font-weight="700">멀티에이전트</text>
+      <text x="650" y="366" font-size="8" fill="#64748b" text-anchor="middle">AI 간 직접 소통, 공유 기억</text>
+
+      <!-- 가지 5: 장기 기억 -->
+      <line x1="375" y1="265" x2="375" y2="380" stroke="#dc2626" stroke-width="2"/>
+      <ellipse cx="375" cy="395" rx="85" ry="28" fill="#dc2626" opacity="0.12" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="375" y="392" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">장기 기억</text>
+      <text x="375" y="406" font-size="8" fill="#64748b" text-anchor="middle">대화 기억, 지식 누적, 검색</text>
+
+      <!-- 가지 6: 효율적 계획 -->
+      <line x1="325" y1="200" x2="240" y2="150" stroke="#d97706" stroke-width="2"/>
+      <ellipse cx="215" cy="140" rx="85" ry="28" fill="#d97706" opacity="0.12" stroke="#d97706" stroke-width="1.5"/>
+      <text x="215" y="137" font-size="10" fill="#d97706" text-anchor="middle" font-weight="700">효율적 계획</text>
+      <text x="215" y="151" font-size="8" fill="#64748b" text-anchor="middle">적응형 예산, 탐색 최적화</text>
+
+      <!-- 가지 7: 안전/보안 -->
+      <line x1="425" y1="200" x2="510" y2="150" stroke="#be185d" stroke-width="2"/>
+      <ellipse cx="535" cy="140" rx="85" ry="28" fill="#be185d" opacity="0.12" stroke="#be185d" stroke-width="1.5"/>
+      <text x="535" y="137" font-size="10" fill="#be185d" text-anchor="middle" font-weight="700">안전/보안</text>
+      <text x="535" y="151" font-size="8" fill="#64748b" text-anchor="middle">환각 감소, 활성화 조절</text>
+    </svg>
+    <div class="diagram-caption">Latent Space는 추론 가속부터 로봇 제어까지 AI의 거의 모든 영역에 영향을 미친다</div>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 한계점 & 과제 ===== -->
+<!-- ========================================================== -->
+<section>
+  <h2>한계점과 미래 과제</h2>
+
+  <p style="margin:0.8rem 0;">Latent Space는 강력하지만, 그 강력함 자체가 새로운 문제를 만들어냅니다. 이 논문은 3가지 핵심 과제를 제시합니다.</p>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">과제 1: Evaluability (평가 가능성)</h3>
+    <p>Latent Space에서의 사고 과정은 사람이 직접 볼 수 없습니다. AI가 올바르게 추론하고 있는지, 단순히 정답만 맞추는 것인지 구분하기 어렵습니다. 현재는 주로 최종 답의 정확도로만 평가하는데, 이는 "진짜 이해"와 "운 좋게 맞춘 것"을 구분하지 못합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">과제 2: Controllability (제어 가능성)</h3>
+    <p>숨겨진 공간에서 일어나는 연산을 원하는 방향으로 정밀하게 제어하기 어렵습니다. "이 부분만 더 신중하게 생각해"라고 지시하고 싶어도, 연속적인 내부 역학에 그런 구체적 의도를 전달하는 방법이 아직 미성숙합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">과제 3: Interpretability (해석 가능성)</h3>
+    <p>고차원이고 얽혀 있는 Latent Space의 각 차원이 무엇을 의미하는지 해석하기 매우 어렵습니다. 더 강력해지면서 동시에 더 불투명해지는 역설 -- 이는 기술적 문제를 넘어 <strong>제도적 신뢰(accountability)</strong>의 문제이기도 합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 750 180" xmlns="http://www.w3.org/2000/svg">
+      <text x="375" y="22" font-size="13" font-weight="700" fill="#d97706" text-anchor="middle">3대 과제: "강력함의 대가"</text>
+
+      <rect x="30" y="45" width="200" height="120" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="130" y="70" font-size="28" text-anchor="middle">&#128269;</text>
+      <text x="130" y="100" font-size="12" fill="#d97706" text-anchor="middle" font-weight="700">Evaluability</text>
+      <text x="130" y="118" font-size="10" fill="#475569" text-anchor="middle">"잘 하고 있는지</text>
+      <text x="130" y="133" font-size="10" fill="#475569" text-anchor="middle">확인이 안 돼요"</text>
+      <text x="130" y="155" font-size="9" fill="#64748b" text-anchor="middle">표준 벤치마크 부재</text>
+
+      <rect x="275" y="45" width="200" height="120" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="375" y="70" font-size="28" text-anchor="middle">&#127918;</text>
+      <text x="375" y="100" font-size="12" fill="#d97706" text-anchor="middle" font-weight="700">Controllability</text>
+      <text x="375" y="118" font-size="10" fill="#475569" text-anchor="middle">"원하는 대로</text>
+      <text x="375" y="133" font-size="10" fill="#475569" text-anchor="middle">조종이 안 돼요"</text>
+      <text x="375" y="155" font-size="9" fill="#64748b" text-anchor="middle">정밀한 개입 방법 미성숙</text>
+
+      <rect x="520" y="45" width="200" height="120" rx="14" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="620" y="70" font-size="28" text-anchor="middle">&#128300;</text>
+      <text x="620" y="100" font-size="12" fill="#d97706" text-anchor="middle" font-weight="700">Interpretability</text>
+      <text x="620" y="118" font-size="10" fill="#475569" text-anchor="middle">"무슨 뜻인지</text>
+      <text x="620" y="133" font-size="10" fill="#475569" text-anchor="middle">이해가 안 돼요"</text>
+      <text x="620" y="155" font-size="9" fill="#64748b" text-anchor="middle">고차원 표현의 불투명성</text>
+    </svg>
+    <div class="diagram-caption">Latent Space가 강력해질수록 평가, 제어, 해석이 어려워지는 역설적 과제</div>
+  </div>
+
+  <h3 style="margin-top:2rem;">미래 연구 방향</h3>
+
+  <p style="margin:0.8rem 0;">논문은 4가지 미래 방향을 제시합니다:</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">Theory</div>
+      <div class="label">"왜 작동하는가"에 대한<br>통합 이론 구축</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">Multimodal</div>
+      <div class="label">텍스트 매개 없이<br>각 모달리티에서 직접 연산</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">Downstream</div>
+      <div class="label">토큰으로 표현하기 어려운<br>작업에 집중 적용</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">Governable</div>
+      <div class="label">관찰/감사/통제 가능한<br>Latent Space 구축</div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ========================================================== -->
+<!-- ===== 한 줄 결론 ===== -->
+<!-- ========================================================== -->
+<div class="one-liner">
+  Latent Space는 AI가 "단어로 생각하는 시대"에서<br>
+  "기계의 언어로 직접 사고하는 시대"로 넘어가는<br>
+  패러다임 전환의 핵심 열쇠이다
+</div>
+
+<!-- ===== 버전 전환 ===== -->
+<div class="version-switch">
+  <a href="20260406_yu_latent-space.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+</div> <!-- /container -->
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  <p>"The Latent Space: Foundation, Evolution, Mechanism, Ability, and Outlook"</p>
+  <p>Xinlei Yu, Zhangquan Chen et al. &middot; NUS, Fudan, Tsinghua 외 &middot; arXiv 2604.02029 &middot; 2026</p>
+</div>
+
+</body>
+</html>
