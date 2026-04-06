@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Group Sequence Policy Optimization (GSPO)</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Group Sequence Policy Optimization (GSPO)</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260406_zheng_gspo_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chujie Zheng*, Shixuan Liu, Mingze Li, Xiong-Hui Chen, Bowen Yu*, Chang Gao, Kai Dang, Yuqiong Liu, Rui Men, An Yang, Jingren Zhou, Junyang Lin (* = corresponding)</li>
+  <li><strong>소속</strong>: Qwen Team, Alibaba Inc.</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint (2025)</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2507.18071">arXiv:2507.18071v2</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: GRPO (Group Relative Policy Optimization)의 token-level importance ratio는 importance sampling의 기본 원칙을 위반한다. 각 토큰 위치에서 단일 샘플만 존재하므로 분포 보정(distribution correction)이 불가능하며, 결과적으로 high-variance noise가 발생한다. 이 noise는 response 길이가 증가할수록 누적되고, clipping mechanism에 의해 오히려 증폭되어, 대형 모델 훈련 시 catastrophic하고 irreversible한 model collapse를 초래한다. 특히 Mixture-of-Experts (MoE) 모델에서는 expert-activation volatility와 결합하여 문제가 더욱 심각해진다.</li>
+  <li><strong>해결</strong>: GSPO (Group Sequence Policy Optimization) -- sequence likelihood 기반 importance ratio를 사용하여 sequence-level clipping, rewarding, optimization을 수행한다. 핵심 수식은 $s_i(\theta) = \left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\text{old}}}(y_i|x)}\right)^{1/|y_i|}$로, length-normalized sequence-level importance weight를 사용한다.</li>
+  <li><strong>왜 작동하는가</strong>: Sequence-level importance weight $\frac{\pi_\theta(y|x)}{\pi_{\theta_{\text{old}}}(y|x)}$는 이론적으로 올바른 의미를 가진다 -- response가 old policy에서 현재 policy로 얼마나 벗어났는지를 측정한다. 모든 토큰에 동일한 가중치를 적용하므로 token-level의 불균등한 noise가 제거되며, MoE에서도 sequence likelihood는 개별 expert activation 변동에 robust하다.</li>
+  <li><strong>비유</strong>: GRPO는 각 단어마다 별도의 "이탈 감지기"를 달아놓는 것과 같다 -- 감지기 하나하나가 노이즈를 내뿜고, 이것이 누적되면 폭발한다. GSPO는 문장 전체에 하나의 "이탈 감지기"를 설치하는 것 -- 안정적이고 의미 있는 신호를 제공한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>GRPO의 근본적 문제 진단</strong>: ##Token-level importance ratio는 importance sampling 원칙의 misapplication## -- 각 토큰 위치에서 단일 샘플만 존재하므로 분포 보정이 원천적으로 불가능하며, high-variance noise를 유발한다. 이 noise가 길이에 비례하여 누적되고 clipping에 의해 증폭되어 model collapse를 초래한다는 것을 이론적으로 규명.</li>
+  <li><strong>GSPO 알고리즘</strong>: Sequence likelihood 기반 importance ratio + length normalization + sequence-level clipping. "optimization의 단위는 reward의 단위와 일치해야 한다"는 원칙에 기반한, 이론적으로 grounded하고 구현이 단순한 알고리즘.</li>
+  <li><strong>GSPO-token variant</strong>: Multi-turn RL 등 token-wise advantage 커스터마이징이 필요한 경우를 위한 변형. stop-gradient(sg) 연산을 활용하여 수치적으로는 GSPO와 동일하면서도 token 단위의 advantage 설정이 가능.</li>
+  <li><strong>MoE 훈련 안정화</strong>: GRPO에서 필수적이었던 Routing Replay 전략이 불필요 -- sequence likelihood가 expert activation volatility에 자연스럽게 robust하여, 메모리/통신 오버헤드와 모델 capacity 제한 없이 안정적 수렴.</li>
+  <li><strong>Qwen3 적용 및 실증</strong>: ##GSPO가 최신 Qwen3 모델의 RL training에 적용되어## AIME'24, LiveCodeBench, CodeForces 벤치마크에서 GRPO 대비 높은 training efficiency를 달성.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>Reinforcement Learning (RL)은 대규모 언어 모델(LLM)의 능력을 확장하는 핵심 패러다임으로 부상했다 (OpenAI, DeepSeek-AI, Qwen). RL을 통해 LLM은 경쟁 수준의 수학 문제와 프로그래밍 과제를 해결하는 능력을 개발하며, 더 깊은 추론과 더 긴 reasoning process를 수행할 수 있게 된다.</p>
+
+<p>RL을 더 큰 compute로 확장하기 위한 가장 중요한 전제 조건은 <strong>안정적이고 robust한 training dynamics를 유지</strong>하는 것이다. 그러나 현재 SOTA RL 알고리즘인 GRPO (Shao et al., 2024)는 대형 모델 훈련 시 심각한 stability 문제를 보인다. 구체적으로, catastrophic하고 irreversible한 model collapse가 발생하며, 이로 인해 RL training을 통한 LLM capability boundary의 지속적 확장이 방해받는다.</p>
+
+<p>본 논문은 GRPO의 불안정성이 importance sampling weights의 <strong>근본적 오적용(fundamental misapplication)</strong>과 <strong>무효화(invalidation)</strong>에서 비롯됨을 규명한다. 이로 인해 high-variance training noise가 발생하고, response 길이 증가에 따라 점진적으로 누적되며, clipping mechanism에 의해 더욱 증폭되어 궁극적으로 model collapse를 유발한다.</p>
+
+<p>이러한 핵심 한계를 해결하기 위해 <strong>Group Sequence Policy Optimization (GSPO)</strong>를 제안한다. GSPO의 핵심 혁신은 importance ratio를 sequence likelihood에 기반하여 이론적으로 grounded되게 정의하는 것으로, importance sampling의 기본 원칙에 부합한다. 추가적으로, group 내 multiple responses의 normalized reward를 advantage로 사용하여 sequence-level rewarding과 optimization의 정합성(alignment)을 보장한다.</p>
+
+<!-- ============================================================ -->
+<h2>2. Preliminaries</h2>
+
+<h3>Notation</h3>
+<p>Autoregressive 언어 모델은 파라미터 $\theta$로 parameterize되는 policy $\pi_\theta$로 정의한다. Query $x$와 query set $\mathcal{D}$에 대해, response $y$의 likelihood는 다음과 같이 decompose된다:</p>
+
+$$\pi_\theta(y|x) = \prod_{t=1}^{|y|} \pi_\theta(y_t | x, y_{<t})$$
+
+<p>여기서 $|y|$는 $y$ 내 토큰 수이다. Query-response pair $(x, y)$에 대해 verifier $r$이 reward $r(x, y) \in [0, 1]$을 부여한다.</p>
+
+<h3>PPO (Proximal Policy Optimization)</h3>
+<p>PPO (Schulman et al., 2017)는 old policy $\pi_{\theta_{\text{old}}}$에서 생성된 샘플을 사용하되, clipping mechanism을 통해 policy update를 old policy의 proximal region 내로 제한한다. PPO의 objective (KL regularization term 생략)는:</p>
+
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D}, y \sim \pi_{\theta_{\text{old}}}(\cdot|x)} \left[ \frac{1}{|y|} \sum_{t=1}^{|y|} \min\left(w_t(\theta)\hat{A}_t, \; \text{clip}(w_t(\theta), 1-\varepsilon, 1+\varepsilon)\hat{A}_t\right) \right] \tag{1}$$
+
+<p>여기서 token $y_t$의 importance ratio는 $w_t(\theta) = \frac{\pi_\theta(y_t|x,y_{<t})}{\pi_{\theta_{\text{old}}}(y_t|x,y_{<t})}$이며, advantage $\hat{A}_t$는 별도의 value model로 추정한다. $\varepsilon$은 clipping range이다.</p>
+
+<p>PPO의 핵심 challenge는 <strong>value model에 대한 높은 의존성</strong>이다. Value model은 policy model과 유사한 크기를 가져 상당한 메모리와 compute 부담을 초래한다. 또한 reliable한 value model의 구축 자체가 어렵고, 특히 longer responses와 complex tasks로 확장될수록 scalability가 제한된다.</p>
+
+<h3>GRPO (Group Relative Policy Optimization)</h3>
+<p>GRPO (Shao et al., 2024)는 value model의 필요성을 우회한다. 동일 query에 대한 group of responses 내에서 상대적 advantage를 계산하는 방식이다. GRPO의 objective는:</p>
+
+$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D}, \{y_i\}_{i=1}^{G} \sim \pi_{\theta_{\text{old}}}(\cdot|x)} \left[ \frac{1}{G}\sum_{i=1}^{G}\frac{1}{|y_i|}\sum_{t=1}^{|y_i|} \min\left(w_{i,t}(\theta)\hat{A}_{i,t}, \; \text{clip}(w_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon)\hat{A}_{i,t}\right) \right] \tag{2}$$
+
+<p>여기서 $G$는 각 query에 대해 생성하는 response 수 (group size)이며, importance ratio $w_{i,t}(\theta)$와 advantage $\hat{A}_{i,t}$는:</p>
+
+$$w_{i,t}(\theta) = \frac{\pi_\theta(y_{i,t}|x, y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x, y_{i,<t})}, \quad \hat{A}_{i,t} = \hat{A}_i = \frac{r(x, y_i) - \text{mean}\left(\{r(x, y_i)\}_{i=1}^G\right)}{\text{std}\left(\{r(x, y_i)\}_{i=1}^G\right)} \tag{3}$$
+
+<p>직관적으로 말하면, GRPO는 같은 질문에 대해 $G$개의 답을 생성하고, 각 답의 reward를 group 평균/표준편차로 정규화하여 상대적 "우수함"을 측정한다. 핵심 특징은 response $y_i$ 내의 <strong>모든 토큰이 동일한 advantage $\hat{A}_i$를 공유</strong>하면서도, <strong>각 토큰마다 서로 다른 importance ratio $w_{i,t}$를 가진다</strong>는 것이다. 이 불일치가 본 논문의 핵심 motivation이 된다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Motivation: GRPO의 근본적 문제</h2>
+
+<h3>Off-policy 설정의 필연성</h3>
+<p>모델 크기, sparsity (MoE), response 길이의 증가로 인해 large rollout batch가 필요하다. Hardware utilization을 극대화하고 sample efficiency를 높이기 위해, rollout data를 multiple mini-batches로 분할하여 gradient update를 수행하는 것이 표준 관행이다. 이 절차는 필연적으로 <strong>off-policy 설정</strong>을 도입한다 -- responses $y$가 현재 optimize 중인 $\pi_\theta$가 아닌 old policy $\pi_{\theta_{\text{old}}}$에서 sampling되기 때문이다. 이것이 PPO와 GRPO에서 clipping이 필요한 이유이기도 하다.</p>
+
+<h3>GRPO의 ill-posed objective</h3>
+<p>Importance sampling의 기본 원칙은 다음과 같다. Target distribution $\pi_{\text{tar}}$ 하에서의 함수 $f$의 기댓값을 behavior distribution $\pi_{\text{beh}}$의 샘플을 사용하여 추정하려면:</p>
+
+$$\mathbb{E}_{z \sim \pi_{\text{tar}}}[f(z)] = \mathbb{E}_{z \sim \pi_{\text{beh}}}\left[\frac{\pi_{\text{tar}}(z)}{\pi_{\text{beh}}(z)} f(z)\right] \tag{4}$$
+
+<p>직관적으로 말하면, importance weight $\frac{\pi_{\text{tar}}(z)}{\pi_{\text{beh}}(z)}$는 behavior distribution에서 뽑은 샘플이 target distribution에서 얼마나 나올 법한지를 보정하는 역할이다. 이 보정이 올바르게 작동하려면, $\pi_{\text{beh}}$에서 <strong>충분히 많은 샘플($N \gg 1$)을 평균</strong>내야 한다.</p>
+
+<h3>핵심 문제: 단일 샘플 기반 token-level weight</h3>
+<p>GRPO는 각 토큰 위치 $t$에서 importance weight $\frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})}$를 적용한다. 그러나 이 weight는 각 next-token distribution $\pi_{\theta_{\text{old}}}(\cdot|x, y_{i,<t})$에서 추출된 <strong>단일 샘플 $y_{i,t}$</strong>에 기반한다. 단일 샘플로는 분포 보정(distribution correction)이라는 본래의 역할을 수행할 수 없다. 결과적으로 의도된 분포 보정 대신 <strong>high-variance noise</strong>가 training gradient에 주입된다.</p>
+
+<p>이 noise는 두 가지 메커니즘으로 증폭된다:</p>
+<ol>
+  <li><strong>길이 누적</strong>: Long sequences에서 token-level noise가 점진적으로 축적된다.</li>
+  <li><strong>Clipping 증폭</strong>: Clipping mechanism이 noise를 억제하는 대신 오히려 증폭시킨다.</li>
+</ol>
+
+<p>이 두 메커니즘의 결합이 궁극적으로 <strong>catastrophic하고 irreversible한 model collapse</strong>를 초래하며, collapse가 발생하면 이전 checkpoint로 되돌리고 hyperparameter를 세밀하게 조정해도 training을 정상적으로 재개할 수 없는 경우가 많다.</p>
+
+<h3>핵심 원칙: optimization 단위 = reward 단위</h3>
+<p>위의 분석은 GRPO 설계의 근본적 문제를 지적한다: ##"optimization objective의 단위는 reward의 단위와 일치해야 한다"## (the unit of optimization objective should match the unit of reward). Reward가 sequence level에서 부여되므로, token level에서 off-policy correction을 적용하는 것은 부적절하다. 이 관찰이 token-level objective를 포기하고 <strong>sequence level에서 직접 importance weights를 활용하고 optimization을 수행</strong>하는 것의 동기를 제공한다.</p>
+
+<!-- ============================================================ -->
+<h2>4. Algorithm</h2>
+
+<h3>4.1 GSPO: Group Sequence Policy Optimization</h3>
+
+<p>GRPO에서 문제가 되는 token-level importance weight $\frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})}$와 달리, <strong>sequence-level importance weight</strong> $\frac{\pi_\theta(y|x)}{\pi_{\theta_{\text{old}}}(y|x)}$는 명확한 이론적 의미를 가진다: response $y$가 old policy $\pi_{\theta_{\text{old}}}(\cdot|x)$에서 현재 policy $\pi_\theta(\cdot|x)$로 얼마나 벗어났는지를 반영한다. 이는 sequence-level reward와 자연스럽게 정합되며, clipping mechanism의 의미 있는 indicator로 기능할 수 있다.</p>
+
+<p>GSPO의 sequence-level optimization objective는 다음과 같다:</p>
+
+$$\mathcal{J}_{\text{GSPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D}, \{y_i\}_{i=1}^{G} \sim \pi_{\theta_{\text{old}}}(\cdot|x)} \left[ \frac{1}{G}\sum_{i=1}^{G} \min\left(s_i(\theta)\hat{A}_i, \; \text{clip}(s_i(\theta), 1-\varepsilon, 1+\varepsilon)\hat{A}_i\right) \right] \tag{5}$$
+
+<p>Group-based advantage estimation은 GRPO와 동일하다:</p>
+
+$$\hat{A}_i = \frac{r(x, y_i) - \text{mean}\left(\{r(x, y_i)\}_{i=1}^G\right)}{\text{std}\left(\{r(x, y_i)\}_{i=1}^G\right)} \tag{6}$$
+
+<p>핵심 차이는 <strong>importance ratio의 정의</strong>에 있다. GSPO는 sequence likelihood에 기반한 importance ratio $s_i(\theta)$를 사용한다 (Zheng et al., 2023):</p>
+
+$$s_i(\theta) = \left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\text{old}}}(y_i|x)}\right)^{1/|y_i|} = \exp\left(\frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\log\frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})}\right) \tag{7}$$
+
+<p>직관적으로 말하면, $s_i(\theta)$는 전체 response에 대한 "평균적인 이탈 정도"를 하나의 숫자로 압축한 것이다. 지수 $\frac{1}{|y_i|}$에 의한 <strong>length normalization</strong>은 두 가지 역할을 한다:</p>
+<ol>
+  <li><strong>Variance 제어</strong>: 소수 토큰의 likelihood 변화가 전체 sequence-level ratio에 극단적 변동을 일으키는 것을 방지</li>
+  <li><strong>길이 간 비교 가능성</strong>: 서로 다른 길이의 responses에 대한 importance ratio를 통일된 numerical range 내에서 비교 가능하게 함. 이것이 없으면 길이가 다른 responses에 대해 서로 다른 clipping range가 필요해진다.</li>
+</ol>
+
+<p>GSPO는 개별 토큰이 아닌 <strong>전체 response 단위로 clipping</strong>을 적용한다. 이는 과도하게 "off-policy"인 샘플을 gradient estimation에서 배제하면서도, GRPO의 token-level noise를 완전히 제거한다.</p>
+
+<blockquote>
+  <strong>GRPO vs GSPO clipping range 참고</strong>: GSPO와 GRPO의 clipping range는 importance ratio의 정의가 근본적으로 다르기 때문에 order of magnitude 차이가 있다. 실험에서 GSPO는 $\varepsilon_{\text{left}} = 3\text{e-4}$, $\varepsilon_{\text{right}} = 4\text{e-4}$를, GRPO는 $\varepsilon_{\text{left}} = 0.2$, $\varepsilon_{\text{right}} = 0.27$을 사용한다.
+</blockquote>
+
+<h3>GSPO 알고리즘 흐름도</h3>
+<div class="flow-diagram">Query x 입력
+  → [Rollout] π_θ_old에서 G개 response {y₁, ..., y_G} 생성
+  → [Reward] 각 (x, yᵢ)에 대해 reward r(x, yᵢ) 계산
+  → [Advantage] Â_i = (r(x,yᵢ) - mean) / std  (group-based normalization)
+  → [Importance Ratio] sᵢ(θ) = (π_θ(yᵢ|x) / π_θ_old(yᵢ|x))^(1/|yᵢ|)
+     = exp( (1/|yᵢ|) Σ_t log(π_θ(y_{i,t}|...) / π_θ_old(y_{i,t}|...)) )
+  → [Sequence-level Clipping] clip(sᵢ(θ), 1-ε, 1+ε)
+  → [Objective] min(sᵢ(θ)·Â_i, clip(sᵢ(θ))·Â_i)
+  → [Gradient Update] θ ← θ + α·∇_θ J_GSPO(θ)
+  → [Mini-batch 반복] rollout batch를 4개 mini-batch로 분할, 순차 update</div>
+
+<h3>4.2 Gradient Analysis: GSPO vs GRPO의 핵심 차이</h3>
+
+<p>GSPO와 GRPO의 근본적 차이를 gradient 수준에서 분석한다. Clipping을 생략하고 분석하면:</p>
+
+<p><strong>GSPO의 gradient</strong> (Eq.8-10 도출):</p>
+
+$$\nabla_\theta \mathcal{J}_{\text{GSPO}}(\theta) = \nabla_\theta \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G} s_i(\theta)\hat{A}_i\right] \tag{8}$$
+
+<p>$\nabla_\theta s_i(\theta) = s_i(\theta) \cdot \nabla_\theta \log s_i(\theta)$를 이용하면:</p>
+
+$$= \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G} s_i(\theta)\hat{A}_i \cdot \nabla_\theta \log s_i(\theta)\right] \tag{9}$$
+
+<p>$s_i(\theta)$의 정의를 대입하여 전개하면:</p>
+
+$$= \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G} \left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\text{old}}}(y_i|x)}\right)^{1/|y_i|} \hat{A}_i \cdot \frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\nabla_\theta\log\pi_\theta(y_{i,t}|x,y_{i,<t})\right] \tag{10}$$
+
+<p><strong>GRPO의 gradient</strong> (Eq.11-12 도출, $\hat{A}_{i,t} = \hat{A}_i$ 이용):</p>
+
+$$\nabla_\theta \mathcal{J}_{\text{GRPO}}(\theta) = \nabla_\theta \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|y_i|}\sum_{t=1}^{|y_i|} w_{i,t}(\theta)\hat{A}_{i,t}\right] \tag{11}$$
+
+$$= \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G} \hat{A}_i \cdot \frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})} \nabla_\theta\log\pi_\theta(y_{i,t}|x,y_{i,<t})\right] \tag{12}$$
+
+<h3>핵심 차이: 토큰별 가중치의 균등성</h3>
+
+<p>두 gradient를 비교하면, 근본적 차이는 <strong>각 토큰의 log-likelihood gradient에 적용되는 가중치(weight)</strong>에 있다:</p>
+
+<table>
+  <tr><th>알고리즘</th><th>토큰 $y_{i,t}$의 gradient에 적용되는 weight</th><th>특성</th></tr>
+  <tr><td>GSPO (Eq.10)</td><td>$\left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\text{old}}}(y_i|x)}\right)^{1/|y_i|}$ (= $s_i(\theta)$)</td><td><strong>모든 토큰에 동일</strong> -- response-level 상수</td></tr>
+  <tr><td>GRPO (Eq.12)</td><td>$\frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})}$ (= $w_{i,t}(\theta)$)</td><td><strong>토큰마다 다름</strong> -- position-dependent</td></tr>
+</table>
+
+<p>GRPO에서 이 불균등한 token-level weight $w_{i,t}(\theta)$는 다음과 같은 범위에서 변동한다:</p>
+<ul>
+  <li>$\hat{A}_i > 0$ (positive advantage)일 때: clipping에 의해 $(0, 1+\varepsilon]$ 범위</li>
+  <li>$\hat{A}_i < 0$ (negative advantage)일 때: clipping에 의해 $[1-\varepsilon, +\infty)$ 범위</li>
+</ul>
+
+<p>직관적으로 말하면, GRPO에서는 같은 response 내의 토큰들이 서로 다른 "중요도"로 gradient에 기여하며, 이 중요도가 training이 진행됨에 따라 예측 불가능하게 변동한다. 특히 negative advantage 경우 weight가 상방으로 unbounded되어 불안정성이 더욱 심화된다. 반면 ##GSPO는 모든 토큰에 동일한 weight를 적용하므로 이러한 token-level noise를 근본적으로 제거##한다.</p>
+
+<h3>4.3 GSPO-token: Token-level Objective Variant</h3>
+
+<p>Multi-turn RL과 같은 시나리오에서는 sequence-level advantage보다 <strong>finer-grained token-wise advantage 조정</strong>이 필요할 수 있다. 이를 위해 GSPO의 token-level variant인 <strong>GSPO-token</strong>을 제안한다:</p>
+
+$$\mathcal{J}_{\text{GSPO-token}}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|y_i|}\sum_{t=1}^{|y_i|} \min\left(s_{i,t}(\theta)\hat{A}_{i,t}, \; \text{clip}(s_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon)\hat{A}_{i,t}\right)\right] \tag{13}$$
+
+<p>여기서 token-level importance ratio $s_{i,t}(\theta)$는 stop gradient (sg) 연산을 활용하여 정의된다:</p>
+
+$$s_{i,t}(\theta) = \text{sg}[s_i(\theta)] \cdot \frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\text{sg}[\pi_\theta(y_{i,t}|x,y_{i,<t})]} \tag{14}$$
+
+<p>여기서 $\text{sg}[\cdot]$은 gradient를 차단하는 연산으로, PyTorch의 <code>detach</code> operation에 해당한다.</p>
+
+<p>핵심 insight는 다음과 같다: <strong>수치적으로</strong> $s_{i,t}(\theta) = s_i(\theta)$이다 -- 왜냐하면 $\frac{\pi_\theta(y_{i,t}|\ldots)}{\text{sg}[\pi_\theta(y_{i,t}|\ldots)]}$의 수치값은 항상 1이기 때문이다. 그러나 <strong>gradient 관점에서</strong>는 다르다. sg 연산에 의해 분모의 gradient가 차단되므로, 분자인 $\pi_\theta(y_{i,t}|\ldots)$에 대해서만 gradient가 흐르면서도 전체적으로는 $s_i(\theta)$의 크기로 scaling된다.</p>
+
+<p>GSPO-token의 gradient를 도출하면 (Eq.16-17):</p>
+
+$$\nabla_\theta \mathcal{J}_{\text{GSPO-token}}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G} s_i(\theta) \cdot \frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\hat{A}_{i,t}\frac{\nabla_\theta \pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_\theta(y_{i,t}|x,y_{i,<t})}\right] \tag{16}$$
+
+$$= \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\left(\frac{\pi_\theta(y_i|x)}{\pi_{\theta_{\text{old}}}(y_i|x)}\right)^{1/|y_i|} \cdot \frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\hat{A}_{i,t}\nabla_\theta\log\pi_\theta(y_{i,t}|x,y_{i,<t})\right] \tag{17}$$
+
+<p>Eq.17과 Eq.10을 비교하면, $\hat{A}_{i,t} = \hat{A}_i$로 설정할 경우 <strong>GSPO-token은 GSPO와 numerically identical</strong>하다. 즉, GSPO-token은 GSPO의 안정성을 유지하면서도 token-wise advantage $\hat{A}_{i,t}$를 자유롭게 커스터마이징할 수 있는 유연성을 제공한다.</p>
+
+<!-- ============================================================ -->
+<h2>5. Experiments and Discussion</h2>
+
+<p>본 논문의 실험은 다음 핵심 질문들에 답하기 위해 설계되었다:</p>
+<ol>
+  <li><strong>RQ1</strong>: GSPO는 GRPO 대비 training efficiency와 benchmark 성능에서 우수한가?</li>
+  <li><strong>RQ2</strong>: Clipping fraction에서 어떤 차이가 관찰되며, 이것이 시사하는 바는?</li>
+  <li><strong>RQ3</strong>: GSPO는 MoE 모델의 RL training stability 문제를 해결하는가?</li>
+  <li><strong>RQ4</strong>: GSPO가 RL infrastructure 설계에 주는 이점은?</li>
+</ol>
+
+<h3>5.1 Empirical Results (RQ1)</h3>
+
+<p><strong>실험 의도</strong>: GSPO가 GRPO 대비 training efficiency (같은 compute에서의 성능)와 지속적 성능 향상 가능성에서 우수한지 검증한다.</p>
+
+<p><strong>설정</strong>:</p>
+<ul>
+  <li><strong>Base model</strong>: Qwen3-30B-A3B-Base (MoE, 30B total / 3B activated)</li>
+  <li><strong>방식</strong>: Cold-start fine-tuning (SFT 없이 바로 RL)</li>
+  <li><strong>Rollout 분할</strong>: 각 rollout batch를 4개 mini-batch로 분할하여 gradient update</li>
+  <li><strong>GSPO clipping</strong>: $\varepsilon_{\text{left}} = 3\text{e-4}$, $\varepsilon_{\text{right}} = 4\text{e-4}$ (Eq.5)</li>
+  <li><strong>GRPO clipping</strong>: $\varepsilon_{\text{left}} = 0.2$, $\varepsilon_{\text{right}} = 0.27$ (Eq.2, carefully tuned)</li>
+  <li><strong>GRPO 추가 전략</strong>: Routing Replay 사용 (MoE 안정화를 위해 필수)</li>
+</ul>
+
+<p><strong>벤치마크</strong>:</p>
+<table>
+  <tr><th>벤치마크</th><th>측정 방법</th><th>평가 방식</th></tr>
+  <tr><td>AIME'24</td><td>Pass@1</td><td>32회 sampling 평균</td></tr>
+  <tr><td>LiveCodeBench (202410-202502)</td><td>Pass@1</td><td>8회 sampling 평균</td></tr>
+  <tr><td>CodeForces</td><td>Elo Rating</td><td>-</td></tr>
+</table>
+
+<p><strong>결과</strong> (Figure 1):</p>
+
+<blockquote>
+<strong>[Figure 1 설명]</strong>: Qwen3-30B-A3B-Base에서의 training curves. 4개 패널: (1) Training Reward, (2) AIME'24 Pass@1, (3) LiveCodeBench Pass@1, (4) CodeForces Elo Rating. 빨간색(GSPO)이 파란색(GRPO w/ Routing Replay) 대비 모든 지표에서 더 높은 값을 달성하며, 특히 training compute 증가에 따라 지속적이고 안정적인 성능 향상을 보인다.
+</blockquote>
+
+<ul>
+  <li>GSPO는 training reward, AIME'24, LiveCodeBench, CodeForces <strong>모든 지표에서</strong> GRPO 대비 더 높은 training efficiency를 보인다.</li>
+  <li>##GSPO는 training compute 증가, query update, generation length extension을 통해 지속적인 성능 향상(continuous performance improvement)을 달성##한다. 이는 GRPO에서 관찰되는 불안정한 수렴/발산 패턴과 대조적이다.</li>
+  <li>같은 training compute와 consumed queries 조건에서, GSPO가 더 높은 training accuracy와 benchmark performance를 기록한다.</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: GSPO의 sequence-level importance ratio가 token-level noise를 제거함으로써, 더 효율적이고 안정적인 학습 신호를 제공한다. GSPO는 RL scaling의 prerequisite인 "stable and robust training dynamics"를 충족한다.</p>
+
+<h3>5.2 Clipping Fractions에 대한 Counter-intuitive 관찰 (RQ2)</h3>
+
+<p><strong>실험 의도</strong>: GSPO와 GRPO의 clipping fraction (전체 토큰 중 clipping이 적용되는 비율) 차이를 분석하여, 두 알고리즘의 gradient estimation 특성을 이해한다.</p>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: RL training 전체에 걸친 average clipping fraction. GSPO는 0.15 (15%), GRPO는 0.0013 (0.13%)으로, ##약 2 orders of magnitude (115배) 차이##가 난다. GSPO가 GRPO보다 훨씬 더 많은 토큰을 clip한다.
+</blockquote>
+
+<p><strong>결과</strong>:</p>
+<table>
+  <tr><th>알고리즘</th><th>Average Clipping Fraction</th><th>배율</th></tr>
+  <tr><td>GSPO</td><td>0.15 (15%)</td><td>약 115x</td></tr>
+  <tr><td>GRPO</td><td>0.0013 (0.13%)</td><td>1x (baseline)</td></tr>
+</table>
+
+<p><strong>Counter-intuitive finding</strong>: 직관적으로는 더 많은 토큰을 clip하면 training에 사용되는 유효 gradient가 줄어들어 효율이 떨어질 것으로 예상한다. 그러나 GSPO는 115배 더 많은 토큰을 clip하면서도 오히려 <strong>더 높은 training efficiency</strong>를 달성한다.</p>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: GRPO의 token-level gradient estimate가 <strong>inherently noisy하고 sample exploitation에 비효율적</strong>임을 시사한다. GRPO에서 0.13%만 clip되는 것은, token-level importance ratio가 clipping에 거의 걸리지 않을 만큼 1에 가깝다는 의미이지만, 그 미세한 변동 자체가 축적되면 noise가 된다. 반면 GSPO의 sequence-level approach는 더 많은 off-policy 토큰을 명시적으로 배제하면서도 남은 토큰에서 더 reliable하고 effective한 learning signal을 추출한다.</p>
+
+<h3>5.3 MoE Training의 안정화 (RQ3)</h3>
+
+<p><strong>실험 의도</strong>: MoE 모델에서 GRPO가 겪는 expert-activation volatility 문제와, GSPO가 이를 어떻게 근본적으로 해결하는지 검증한다.</p>
+
+<h4>배경: MoE의 Expert-Activation Volatility</h4>
+<p>Dense model과 달리, MoE 모델은 sparse activation 특성으로 인해 RL training에서 고유한 stability challenge가 존재한다. 구체적으로, gradient update 이후 동일한 response에 대해 <strong>활성화되는 experts가 크게 달라진다</strong>. 예를 들어, 48-layer Qwen3-30B-A3B-Base 모델에서 각 RL gradient update마다, 같은 rollout sample에 대해 $\pi_\theta$ 하에서 활성화되는 experts의 약 <strong>10%가 $\pi_{\theta_{\text{old}}}$ 때와 다르다</strong>.</p>
+
+<p>이 현상은 GRPO의 token-level importance ratio $w_{i,t}(\theta) = \frac{\pi_\theta(y_{i,t}|x,y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})}$에 치명적이다. 각 토큰에서 활성화된 experts가 달라지면 토큰 확률이 급변하여, importance ratio가 극단적으로 변동하고, 이는 deeper MoE model일수록 더 심해진다.</p>
+
+<h4>GRPO의 기존 해결책: Routing Replay</h4>
+<p><strong>Routing Replay</strong> 전략은 $\pi_{\theta_{\text{old}}}$에서의 activated experts를 cache하고, $\pi_\theta$ 계산 시 해당 routing mode를 "replay"하는 방식이다. 이를 통해 각 토큰에서 $\pi_\theta(y_{i,t}|x,y_{i,<t})$와 $\pi_{\theta_{\text{old}}}(y_{i,t}|x,y_{i,<t})$가 동일한 activated experts를 공유하도록 보장한다.</p>
+
+<p>그러나 Routing Replay에는 다음과 같은 단점이 있다:</p>
+<ul>
+  <li><strong>추가 메모리</strong>: Activated experts의 routing mode를 캐시해야 함</li>
+  <li><strong>통신 오버헤드</strong>: 분산 환경에서 routing 정보 전달 필요</li>
+  <li><strong>모델 capacity 제한</strong>: 학습 중에도 old policy의 routing을 강제함으로써, MoE의 실질적 capacity가 제약됨</li>
+</ul>
+
+<h4>GSPO의 접근: 근본적 해결</h4>
+<p>GSPO는 sequence likelihood $\pi_\theta(y_i|x)$에 기반하므로, 개별 토큰의 expert activation 변동에 <strong>자연스럽게 robust</strong>하다. 핵심 insight는: MoE 모델은 항상 language modeling capability를 유지하므로, sequence-level likelihood는 individual token의 expert activation이 바뀌더라도 크게 변동하지 않는다는 것이다. 따라서 ##GSPO는 Routing Replay 없이도 MoE RL training을 안정적으로 수행##할 수 있다.</p>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: MoE 모델의 GRPO training curves. GRPO w/ Routing Replay (파란색)는 training reward ~0.55로 수렴하지만, GRPO w/o Routing Replay (보라색)는 ~0.25-0.30 수준에서 정체하며 정상적으로 수렴하지 못한다. Routing Replay가 GRPO에서 MoE RL training의 필수 기법임을 보여준다. 반면 GSPO는 Figure 1에서 보듯이 Routing Replay 없이도 안정적으로 수렴하며 GRPO w/ Routing Replay보다도 우수한 성능을 달성한다.
+</blockquote>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: GSPO는 MoE RL training의 stability challenge를 근본적으로 해결한다. Token-level importance ratio가 아닌 sequence-level importance ratio를 사용함으로써, expert activation volatility가 문제가 되지 않으며, 복잡한 workaround (Routing Replay) 없이도 안정적 수렴과 모델의 full capacity 활용이 가능하다.</p>
+
+<h3>5.4 RL Infrastructure 단순화 (RQ4)</h3>
+
+<p><strong>실험 의도</strong>: GSPO가 RL infrastructure 설계에 주는 실용적 이점을 분석한다.</p>
+
+<p><strong>배경: Precision 불일치 문제</strong></p>
+<p>실무에서 training engine (Megatron 등)과 inference engine (SGLang, vLLM 등)은 서로 다른 numerical precision을 사용한다. GRPO에서는 old policy $\pi_{\theta_{\text{old}}}$의 token-level likelihood를 정확하게 재계산해야 하는데, inference engine에서 계산한 값과 training engine의 값이 precision 차이로 인해 불일치한다. 따라서 training engine에서 likelihood를 <strong>재계산(recomputation)</strong>해야 한다.</p>
+
+<p><strong>GSPO의 이점</strong>: GSPO는 sequence-level likelihood만 사용하므로 precision 차이에 <strong>훨씬 더 tolerant</strong>하다. 직관적으로, 수백 개 토큰의 확률을 곱한 sequence probability는 개별 토큰의 미세한 precision 차이가 평균화(averaging)되어 상쇄된다. 따라서 ##inference engine이 반환한 likelihood를 직접 사용할 수 있어 recomputation이 불필요##하다.</p>
+
+<p>이러한 특성은 다음 시나리오에서 특히 유리하다:</p>
+<ul>
+  <li><strong>Partial rollout</strong>: 일부 토큰만 새로 생성하는 경우</li>
+  <li><strong>Multi-turn RL</strong>: 여러 턴에 걸친 대화 기반 RL</li>
+  <li><strong>Training-inference disaggregated framework</strong>: Training과 inference를 분리된 시스템에서 수행하는 설계</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>6. Conclusion</h2>
+
+<p>GSPO는 importance sampling의 기본 원칙에 부합하는 sequence-level RL 알고리즘이다. Sequence likelihood 기반 importance ratio를 정의하여 sequence-level clipping, rewarding, optimization을 수행한다. 이를 통해:</p>
+<ol>
+  <li>GRPO 대비 <strong>training stability, efficiency, performance</strong>에서 유의미한 우위를 보인다.</li>
+  <li>MoE 모델의 RL training stability challenge를 <strong>근본적으로 해결</strong>하여, Routing Replay 같은 복잡한 workaround를 불필요하게 만든다.</li>
+  <li>RL infrastructure를 <strong>단순화</strong>할 수 있는 잠재력을 제공한다 (likelihood recomputation 불필요 등).</li>
+  <li>최신 <strong>Qwen3 모델의 RL training</strong>에 적용되어 성능 향상에 기여했다.</li>
+</ol>
+
+<p>저자들은 GSPO를 대규모 RL training의 지속적 발전을 위한 <strong>scalable algorithmic cornerstone</strong>으로 제시한다.</p>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ol>
+  <li><strong>이론적 명확성</strong>: GRPO의 문제를 importance sampling 원칙에 기반하여 명확하게 진단한다. Token-level importance ratio가 왜 무의미한 noise인지에 대한 설명이 설득력 있다.</li>
+  <li><strong>구현의 단순성</strong>: GSPO는 기존 GRPO 코드에서 importance ratio 계산 부분만 변경하면 되는 수준의 변경이다. Length-normalized sequence-level ratio는 추가적인 hyperparameter나 복잡한 메커니즘 없이도 적용 가능하다.</li>
+  <li><strong>실용적 파급효과</strong>: MoE에서 Routing Replay 불필요, inference engine likelihood 직접 사용 가능 등, 알고리즘 개선이 시스템 설계의 단순화로 직결된다.</li>
+  <li><strong>실전 검증</strong>: Qwen3라는 production-level 모델에 실제 적용되어 효과가 입증되었다. 이는 academic toy experiment를 넘어선 실질적 기여이다.</li>
+</ol>
+
+<h3>약점 및 의문점</h3>
+<ol>
+  <li><strong>실험 규모의 제한</strong>: 실험이 Qwen3-30B-A3B-Base 단일 모델에서만 수행되었다. Dense 모델, 다른 크기의 모델, 다른 베이스라인(REINFORCE, RLOO, Dr. GRPO 등)과의 비교가 없다. 논문의 주장이 MoE 특화인지 범용적인지 구분하기 어렵다.</li>
+  <li><strong>정량적 결과의 부재</strong>: Figure 1의 training curves는 추세를 보여주지만, 최종 성능의 정확한 수치가 테이블로 제시되지 않는다. 예를 들어 AIME'24 최종 Pass@1이 정확히 몇인지, GSPO가 GRPO 대비 몇 % 개선인지 명확하지 않다.</li>
+  <li><strong>Ablation의 부재</strong>: Length normalization의 기여, clipping range sensitivity, group size의 영향 등에 대한 ablation이 없다. 특히 length normalization 없이 raw sequence-level ratio를 사용하면 어떤 결과가 나오는지 궁금하다.</li>
+  <li><strong>표준편차/반복 실험 미보고</strong>: Training curves가 single run인지, 여러 seed의 평균인지 명시되어 있지 않다. 대규모 RL training의 stochasticity를 감안하면 재현성에 대한 정보가 부족하다.</li>
+  <li><strong>On-policy 설정에서의 분석 부재</strong>: Mini-batch 분할 없이 single gradient update를 수행하는 on-policy 설정에서는 GSPO와 GRPO의 차이가 줄어드는지에 대한 논의가 없다.</li>
+  <li><strong>GSPO-token의 실험적 검증 부재</strong>: GSPO-token이 이론적으로 제안되었지만, multi-turn RL 등에서의 실험 결과가 제시되지 않았다.</li>
+</ol>
+
+<h3>공정성 평가</h3>
+<ul>
+  <li>GRPO의 clipping range를 "carefully tuned"했다고 명시하여 공정한 비교를 시도한 점은 긍정적이다.</li>
+  <li>다만, GRPO에 Routing Replay를 적용한 최적 설정과 비교하므로, GRPO 측에 유리한 비교이기도 하다.</li>
+  <li>코드/데이터 공개 여부는 언급되지 않았다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Importance sampling의 단위를 맞추는 것이 핵심</strong>: Reward가 sequence-level이면 importance ratio도 sequence-level이어야 한다는 원칙은 GRPO를 넘어 다양한 RL 알고리즘 설계에 적용 가능한 general principle이다.</li>
+  <li><strong>Token-level noise는 real problem</strong>: 대규모 모델의 장문 생성 training에서 token-level importance ratio의 noise 누적이 실제로 catastrophic collapse를 유발한다는 것은 실무적으로 중요한 발견이다.</li>
+  <li><strong>MoE RL training의 game changer</strong>: Routing Replay라는 복잡한 engineering workaround를 알고리즘 수준에서 근본적으로 제거한 것은 MoE 모델 훈련의 실용성을 크게 높인다.</li>
+  <li><strong>Infrastructure 단순화 가능</strong>: Token-level likelihood recomputation이 불필요해지므로, training-inference disaggregated architecture 등 차세대 RL infrastructure 설계에서 GSPO가 더 자연스럽게 적합하다.</li>
+  <li><strong>논문이 짧고 핵심적</strong>: 7페이지에 깔끔하게 핵심 진단 → 해결 → 검증을 담았다. 구현이 단순하여 기존 GRPO 기반 시스템에 빠르게 도입 가능하다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<!-- 추후 Q&A 및 메모 추가 공간 -->
+</div>
+
+</div>
+</body>
+</html>
