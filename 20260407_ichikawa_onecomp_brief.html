@@ -1,0 +1,1304 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneComp — 비전문가 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #5c0a0a, #991b1b, #dc2626);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #7f1d1d; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #dc2626, #991b1b); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #dc2626; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #991b1b; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #991b1b, #dc2626);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #dc2626, #991b1b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #7f1d1d; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fef2f2; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #dc2626; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #dc2626; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #dc2626; padding: 0 0.4rem; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  /* ── Version link ── */
+  .version-link { display: inline-block; margin: 0.5rem 0; padding: 6px 16px; border-radius: 8px; background: rgba(255,255,255,0.2); color: #fff; text-decoration: none; font-size: 0.9rem; transition: background 0.2s; }
+  .version-link:hover { background: rgba(255,255,255,0.35); }
+  .version-link-bottom { display: inline-block; margin: 1rem 0; padding: 8px 20px; border-radius: 8px; background: #7f1d1d; color: #fff; text-decoration: none; font-size: 0.95rem; transition: background 0.2s; }
+  .version-link-bottom:hover { background: #991b1b; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <a href="20260407_ichikawa_onecomp.html" class="version-link">전문가용 상세 요약 보기 &rarr;</a>
+  <div class="hero-badge">Fujitsu Research &middot; RIKEN &middot; 2026</div>
+  <h1>OneComp</h1>
+  <p class="subtitle">AI 모델을 "한 줄 명령"으로 자동 압축하는<br>올인원 오픈소스 프레임워크</p>
+</div>
+
+<div class="container">
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "수십 억 개의 AI 뇌세포를 자동으로 다이어트 시켜서<br>절반의 메모리로도 거의 같은 지능을 유지하게 한다"
+</div>
+
+<!-- ============================================================== -->
+<!--  배경지식: 왜 AI 모델 압축이 필요한가                            -->
+<!-- ============================================================== -->
+<section>
+  <h2>먼저 알아야 할 것: AI 모델은 왜 이렇게 큰가?</h2>
+
+  <div class="card card-accent">
+    <p>OneComp를 이해하려면, AI 모델이 왜 거대하고 그것이 왜 문제인지를 먼저 알아야 합니다. 세 가지 핵심 개념을 그림과 함께 설명합니다.</p>
+  </div>
+
+  <!-- ── 개념 1: AI 모델의 크기 ── -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#7f1d1d;">개념 1: AI 모델 = 수십억 개의 "숫자 뭉치"</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT 같은 대형 AI 모델(LLM)은 내부에 수십억~수천억 개의 숫자(parameter)를 가지고 있습니다. 이 숫자들이 곧 AI의 "지식"이며, 모두 GPU 메모리에 올라가야 AI가 작동합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">AI 모델의 크기: 숫자가 이렇게 많다</text>
+
+      <!-- 모델 크기 비교 바 -->
+      <rect x="40" y="50" width="620" height="230" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+
+      <!-- GPT-2 -->
+      <text x="60" y="85" font-size="11" fill="#334155" font-weight="600">GPT-2 (2019)</text>
+      <rect x="200" y="70" width="15" height="22" rx="4" fill="#dc2626" opacity="0.4"/>
+      <text x="222" y="86" font-size="10" fill="#64748b">1.5억 개 = 약 0.3 GB</text>
+
+      <!-- LLaMA-8B -->
+      <text x="60" y="125" font-size="11" fill="#334155" font-weight="600">LLaMA-3 8B (2024)</text>
+      <rect x="200" y="110" width="80" height="22" rx="4" fill="#dc2626" opacity="0.6"/>
+      <text x="288" y="126" font-size="10" fill="#64748b">80억 개 = 약 16 GB</text>
+
+      <!-- LLaMA-70B -->
+      <text x="60" y="165" font-size="11" fill="#334155" font-weight="600">LLaMA-3 70B</text>
+      <rect x="200" y="150" width="350" height="22" rx="4" fill="#dc2626" opacity="0.75"/>
+      <text x="558" y="166" font-size="10" fill="#64748b">700억 개 = 약 140 GB</text>
+
+      <!-- GPT-4 추정 -->
+      <text x="60" y="205" font-size="11" fill="#334155" font-weight="600">GPT-4 (추정)</text>
+      <rect x="200" y="190" width="580" height="22" rx="4" fill="#991b1b" opacity="0.85"/>
+      <text x="400" y="206" font-size="10" fill="#fff" font-weight="600">1조 8000억 개 = 수 TB 규모!</text>
+
+      <!-- GPU 한계선 -->
+      <line x1="280" y1="230" x2="280" y2="260" stroke="#059669" stroke-width="2" stroke-dasharray="4"/>
+      <text x="285" y="250" font-size="10" fill="#059669" font-weight="600">A100 GPU 메모리 80GB</text>
+      <text x="285" y="265" font-size="9" fill="#64748b">= 가장 비싼 GPU 1장의 한계</text>
+    </svg>
+    <div class="diagram-caption">최신 AI 모델은 GPU 한 장의 메모리를 크게 초과하며, 여러 장을 묶어야 작동한다</div>
+  </div>
+
+  <!-- ── 개념 2: 메모리 병목 ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#7f1d1d;">개념 2: 메모리가 부족하면 AI를 쓸 수 없다</h3>
+
+  <p style="margin:0.8rem 0;">AI 모델의 모든 숫자는 GPU 메모리에 올라가야 합니다. 메모리가 부족하면 모델을 실행할 수 없습니다. GPU는 매우 비싸기 때문에 (A100 한 장에 약 2,000만 원), 메모리를 절약하는 것이 곧 비용을 절약하는 것입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">메모리 병목: GPU가 비싸다</text>
+
+      <!-- 시나리오 1: 원본 모델 -->
+      <rect x="30" y="45" width="300" height="100" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="180" y="68" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">원본 8B 모델 (16-bit)</text>
+      <rect x="50" y="80" width="200" height="20" rx="4" fill="#991b1b" opacity="0.7"/>
+      <text x="150" y="94" font-size="10" fill="#fff" text-anchor="middle">16 GB 필요</text>
+      <text x="180" y="130" font-size="10" fill="#475569" text-anchor="middle">GPU 1장 필요 (약 2,000만 원)</text>
+
+      <!-- 화살표 -->
+      <text x="365" y="95" font-size="24" fill="#dc2626" text-anchor="middle">&rarr;</text>
+      <text x="365" y="115" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">압축!</text>
+
+      <!-- 시나리오 2: 압축 모델 -->
+      <rect x="400" y="45" width="280" height="100" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="540" y="68" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">4-bit 압축 모델</text>
+      <rect x="420" y="80" width="50" height="20" rx="4" fill="#059669" opacity="0.7"/>
+      <text x="445" y="94" font-size="10" fill="#fff" text-anchor="middle">4 GB</text>
+      <text x="540" y="130" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">훨씬 저렴한 GPU로도 실행 가능!</text>
+
+      <!-- 하단: 비용 영향 -->
+      <rect x="80" y="170" width="540" height="95" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="350" y="195" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">왜 이것이 중요한가?</text>
+      <text x="350" y="220" font-size="11" fill="#334155" text-anchor="middle">70B 모델을 원본으로 서비스: GPU 4장 = 약 8,000만 원</text>
+      <text x="350" y="240" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">4-bit 압축으로 서비스: GPU 1장 = 약 2,000만 원 (75% 절감)</text>
+      <text x="350" y="258" font-size="10" fill="#64748b" text-anchor="middle">+ 전기료, 냉각비, 유지비까지 절감 = 대규모 AI 서비스의 핵심 기술</text>
+    </svg>
+    <div class="diagram-caption">모델 압축은 AI 서비스 비용을 직접적으로 절감하는 핵심 기술</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">이삿짐의 비유</div>
+    <p>AI 모델은 거대한 이삿짐 트럭 가득한 짐과 같습니다. 원래는 대형 트럭(비싼 GPU) 여러 대가 필요합니다.</p>
+    <br>
+    <p><strong>모델 압축</strong>은 짐을 진공 압축팩으로 줄이는 것과 같습니다. 옷의 질감은 그대로인데 부피만 1/4로 줄어들어, 소형 트럭 하나로도 충분히 옮길 수 있습니다.</p>
+  </div>
+
+  <!-- ── 개념 3: 양자화(Quantization) ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#7f1d1d;">개념 3: 양자화(Quantization) — 숫자의 정밀도를 낮추기</h3>
+
+  <p style="margin:0.8rem 0;">모델 압축에서 가장 많이 쓰이는 방법이 <strong>양자화(Quantization)</strong>입니다. AI 모델의 각 숫자는 보통 16비트(소수점 이하 매우 정밀)로 저장되어 있는데, 이를 4비트나 3비트 같은 낮은 정밀도로 "반올림"하여 메모리를 절약합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 310" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">양자화: 높은 정밀도 → 낮은 정밀도</text>
+
+      <!-- 왼쪽: 원본 (16-bit) -->
+      <rect x="30" y="45" width="280" height="240" rx="12" fill="#f8fafc" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="170" y="72" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">원본: 16-bit</text>
+      <text x="170" y="92" font-size="10" fill="#64748b" text-anchor="middle">65,536가지 값 표현 가능</text>
+
+      <!-- 수직선 (연속) -->
+      <line x1="170" y1="110" x2="170" y2="260" stroke="#991b1b" stroke-width="2"/>
+      <!-- 많은 눈금 -->
+      <line x1="160" y1="115" x2="180" y2="115" stroke="#991b1b" stroke-width="1"/>
+      <text x="195" y="119" font-size="9" fill="#991b1b">0.00000</text>
+      <line x1="163" y1="125" x2="177" y2="125" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="163" y1="135" x2="177" y2="135" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="160" y1="145" x2="180" y2="145" stroke="#991b1b" stroke-width="1"/>
+      <text x="195" y="149" font-size="9" fill="#991b1b">0.03125</text>
+      <line x1="163" y1="155" x2="177" y2="155" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="163" y1="165" x2="177" y2="165" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="160" y1="175" x2="180" y2="175" stroke="#991b1b" stroke-width="1"/>
+      <text x="195" y="179" font-size="9" fill="#991b1b">0.06250</text>
+      <line x1="163" y1="185" x2="177" y2="185" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="163" y1="195" x2="177" y2="195" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="160" y1="205" x2="180" y2="205" stroke="#991b1b" stroke-width="1"/>
+      <text x="195" y="209" font-size="9" fill="#991b1b">0.09375</text>
+      <line x1="163" y1="215" x2="177" y2="215" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="163" y1="225" x2="177" y2="225" stroke="#991b1b" stroke-width="0.5" opacity="0.5"/>
+      <line x1="160" y1="235" x2="180" y2="235" stroke="#991b1b" stroke-width="1"/>
+      <text x="195" y="239" font-size="9" fill="#991b1b">0.12500</text>
+
+      <!-- 값 표시 -->
+      <circle cx="170" cy="158" r="5" fill="#dc2626"/>
+      <text x="80" y="162" font-size="10" fill="#dc2626" font-weight="600">값: 0.04217</text>
+      <text x="80" y="175" font-size="9" fill="#64748b">정확히 저장 가능</text>
+
+      <!-- 화살표 -->
+      <text x="345" y="175" font-size="28" fill="#dc2626" text-anchor="middle">&rarr;</text>
+      <text x="345" y="200" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">양자화!</text>
+
+      <!-- 오른쪽: 양자화 (4-bit) -->
+      <rect x="390" y="45" width="280" height="240" rx="12" fill="#f8fafc" stroke="#059669" stroke-width="1.5"/>
+      <text x="530" y="72" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">양자화: 4-bit</text>
+      <text x="530" y="92" font-size="10" fill="#64748b" text-anchor="middle">16가지 값만 사용</text>
+
+      <!-- 수직선 (이산) -->
+      <line x1="500" y1="110" x2="500" y2="260" stroke="#059669" stroke-width="2"/>
+      <line x1="488" y1="120" x2="512" y2="120" stroke="#059669" stroke-width="3"/>
+      <text x="525" y="124" font-size="10" fill="#059669" font-weight="600">0.00</text>
+      <line x1="488" y1="155" x2="512" y2="155" stroke="#059669" stroke-width="3"/>
+      <text x="525" y="159" font-size="10" fill="#059669" font-weight="600">0.04</text>
+      <line x1="488" y1="190" x2="512" y2="190" stroke="#059669" stroke-width="3"/>
+      <text x="525" y="194" font-size="10" fill="#059669" font-weight="600">0.08</text>
+      <line x1="488" y1="225" x2="512" y2="225" stroke="#059669" stroke-width="3"/>
+      <text x="525" y="229" font-size="10" fill="#059669" font-weight="600">0.12</text>
+
+      <!-- 값 표시 -->
+      <circle cx="500" cy="155" r="5" fill="#dc2626"/>
+      <text x="415" y="150" font-size="10" fill="#dc2626" font-weight="600">0.04217</text>
+      <text x="415" y="163" font-size="9" fill="#dc2626">&rarr; 0.04로 반올림</text>
+      <text x="415" y="176" font-size="9" fill="#64748b">약간의 오차 발생</text>
+    </svg>
+    <div class="diagram-caption">16-bit를 4-bit로 줄이면 메모리 1/4, 대신 약간의 정밀도 손실이 발생</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">가격표 반올림의 비유</div>
+    <p><strong>16-bit</strong>는 모든 상품 가격을 "12,847원"처럼 원 단위까지 정확히 기록하는 것입니다.</p>
+    <br>
+    <p><strong>4-bit 양자화</strong>는 "약 13,000원"으로 천 원 단위로 반올림하는 것과 같습니다. 장부가 1/4로 얇아지지만, 대부분의 거래에서 큰 문제가 없습니다. 다만 "12,847원과 12,851원"처럼 미세한 차이가 중요한 경우에는 정보가 손실됩니다.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">16-bit</div>
+      <div class="label">원본 정밀도<br>65,536가지 값</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">4-bit</div>
+      <div class="label">일반 양자화<br>16가지 값 (1/4 크기)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="font-size:1.4rem;">1-bit</div>
+      <div class="label">극한 양자화<br>2가지 값 (1/16 크기)</div>
+    </div>
+  </div>
+
+  <!-- ── Transformer 구조 이해 ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#7f1d1d;">개념 4: AI 모델 내부 = 층(Layer)이 반복된 구조</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT 같은 AI 모델(Transformer)은 같은 구조의 "블록"이 수십 개 겹겹이 쌓인 형태입니다. 각 블록 안에는 7개의 큰 숫자 행렬(weight matrix)이 들어있고, 이것들이 메모리의 대부분을 차지합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">Transformer 모델의 내부 구조</text>
+
+      <!-- 전체 모델 -->
+      <rect x="30" y="45" width="640" height="215" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="350" y="68" font-size="12" fill="#7f1d1d" text-anchor="middle" font-weight="700">Llama-3-8B: 32개의 블록이 반복</text>
+
+      <!-- Block 1 (확대) -->
+      <rect x="50" y="80" width="250" height="165" rx="10" fill="#fef2f2" stroke="#991b1b" stroke-width="2"/>
+      <text x="175" y="100" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="700">Block 1 (확대)</text>
+
+      <!-- Attention weights -->
+      <rect x="65" y="110" width="50" height="20" rx="4" fill="#dc2626" opacity="0.5"/>
+      <text x="90" y="124" font-size="7" fill="#fff" text-anchor="middle">Wq</text>
+      <rect x="120" y="110" width="50" height="20" rx="4" fill="#dc2626" opacity="0.5"/>
+      <text x="145" y="124" font-size="7" fill="#fff" text-anchor="middle">Wk</text>
+      <rect x="175" y="110" width="50" height="20" rx="4" fill="#dc2626" opacity="0.5"/>
+      <text x="200" y="124" font-size="7" fill="#fff" text-anchor="middle">Wv</text>
+      <rect x="230" y="110" width="50" height="20" rx="4" fill="#dc2626" opacity="0.5"/>
+      <text x="255" y="124" font-size="7" fill="#fff" text-anchor="middle">Wo</text>
+      <text x="175" y="148" font-size="9" fill="#991b1b" text-anchor="middle">Attention (4개 행렬)</text>
+
+      <!-- FFN weights -->
+      <rect x="75" y="158" width="60" height="20" rx="4" fill="#991b1b" opacity="0.5"/>
+      <text x="105" y="172" font-size="7" fill="#fff" text-anchor="middle">W_gate</text>
+      <rect x="145" y="158" width="50" height="20" rx="4" fill="#991b1b" opacity="0.5"/>
+      <text x="170" y="172" font-size="7" fill="#fff" text-anchor="middle">W_up</text>
+      <rect x="205" y="158" width="60" height="20" rx="4" fill="#991b1b" opacity="0.5"/>
+      <text x="235" y="172" font-size="7" fill="#fff" text-anchor="middle">W_down</text>
+      <text x="175" y="198" font-size="9" fill="#991b1b" text-anchor="middle">FFN (3개 행렬)</text>
+
+      <text x="175" y="218" font-size="9" fill="#64748b" text-anchor="middle">= 총 7개 weight matrix / 블록</text>
+      <text x="175" y="233" font-size="9" fill="#991b1b" text-anchor="middle" font-weight="600">양자화 대상!</text>
+
+      <!-- Block 2~31 (축약) -->
+      <rect x="320" y="80" width="60" height="165" rx="8" fill="#fef2f2" stroke="#991b1b" opacity="0.5"/>
+      <text x="350" y="165" font-size="10" fill="#991b1b" text-anchor="middle">B2</text>
+      <rect x="390" y="80" width="60" height="165" rx="8" fill="#fef2f2" stroke="#991b1b" opacity="0.4"/>
+      <text x="420" y="165" font-size="10" fill="#991b1b" text-anchor="middle">B3</text>
+      <text x="475" y="165" font-size="14" fill="#64748b">...</text>
+      <rect x="505" y="80" width="60" height="165" rx="8" fill="#fef2f2" stroke="#991b1b" opacity="0.4"/>
+      <text x="535" y="165" font-size="10" fill="#991b1b" text-anchor="middle">B31</text>
+      <rect x="575" y="80" width="80" height="165" rx="8" fill="#fef2f2" stroke="#991b1b" opacity="0.5"/>
+      <text x="615" y="165" font-size="10" fill="#991b1b" text-anchor="middle">B32</text>
+    </svg>
+    <div class="diagram-caption">Llama-3-8B은 32개 Transformer 블록으로 구성되며, 각 블록에 7개의 weight matrix가 있다. 양자화는 이 행렬들의 숫자 정밀도를 낮추는 것</div>
+  </div>
+
+  <!-- ── 양자화가 어려운 이유 ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#991b1b;">그런데, 양자화는 왜 어려운가?</h3>
+
+  <p style="margin:0.8rem 0;">양자화의 핵심 난관은 크게 두 가지입니다: (1) AI 모델의 각 층(layer)마다 숫자의 분포가 달라서 "하나의 반올림 규칙"이 모두에게 맞지 않고, (2) 한 층에서 생긴 반올림 오차가 다음 층으로 전파되어 점점 커집니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">양자화의 두 가지 핵심 난관</text>
+
+      <!-- 난관 1: 층마다 다른 민감도 -->
+      <rect x="20" y="45" width="320" height="280" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="180" y="70" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">난관 1: 층마다 민감도가 다르다</text>
+
+      <!-- 민감한 층 -->
+      <rect x="40" y="90" width="120" height="80" rx="8" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+      <text x="100" y="110" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">초기 층 (Layer 1)</text>
+      <text x="100" y="128" font-size="9" fill="#dc2626" text-anchor="middle">매우 민감!</text>
+      <text x="100" y="145" font-size="9" fill="#64748b" text-anchor="middle">4-bit으로 줄이면</text>
+      <text x="100" y="158" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="600">성능 폭락</text>
+
+      <!-- 덜 민감한 층 -->
+      <rect x="190" y="90" width="120" height="80" rx="8" fill="#fff" stroke="#059669" stroke-width="2"/>
+      <text x="250" y="110" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">중간 층 (Layer 15)</text>
+      <text x="250" y="128" font-size="9" fill="#059669" text-anchor="middle">덜 민감</text>
+      <text x="250" y="145" font-size="9" fill="#64748b" text-anchor="middle">3-bit으로 줄여도</text>
+      <text x="250" y="158" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">성능 유지</text>
+
+      <!-- 문제 설명 -->
+      <rect x="40" y="185" width="270" height="55" rx="8" fill="#fef2f2"/>
+      <text x="175" y="205" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">모든 층에 같은 bit를 적용하면?</text>
+      <text x="175" y="222" font-size="10" fill="#991b1b" text-anchor="middle">민감한 층에서 대참사 발생!</text>
+      <text x="175" y="236" font-size="9" fill="#64748b" text-anchor="middle">(Llama-3-8B에서 PPL 6 → 383!)</text>
+
+      <!-- 해결 -->
+      <rect x="40" y="255" width="270" height="55" rx="8" fill="#f0fdf4" stroke="#059669"/>
+      <text x="175" y="275" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">해결: 층마다 다른 bit 할당 (Mixed-Precision)</text>
+      <text x="175" y="295" font-size="9" fill="#475569" text-anchor="middle">민감한 층 = 8bit, 둔감한 층 = 3bit</text>
+
+      <!-- 난관 2: 오차 전파 -->
+      <rect x="360" y="45" width="320" height="280" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="520" y="70" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">난관 2: 오차가 눈덩이처럼 불어난다</text>
+
+      <!-- 오차 전파 시각화 -->
+      <rect x="380" y="90" width="80" height="35" rx="6" fill="#dc2626" opacity="0.3"/>
+      <text x="420" y="112" font-size="9" fill="#991b1b" text-anchor="middle">Layer 1</text>
+      <text x="420" y="125" font-size="8" fill="#64748b" text-anchor="middle">오차: 작음</text>
+      <line x1="460" y1="107" x2="480" y2="107" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="473" y="103" font-size="12" fill="#991b1b">&rarr;</text>
+
+      <rect x="490" y="85" width="80" height="45" rx="6" fill="#dc2626" opacity="0.5"/>
+      <text x="530" y="107" font-size="9" fill="#991b1b" text-anchor="middle">Layer 2</text>
+      <text x="530" y="122" font-size="8" fill="#64748b" text-anchor="middle">오차: 커짐</text>
+      <line x1="570" y1="107" x2="590" y2="107" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="583" y="103" font-size="12" fill="#991b1b">&rarr;</text>
+
+      <rect x="595" y="78" width="70" height="60" rx="6" fill="#dc2626" opacity="0.8"/>
+      <text x="630" y="102" font-size="9" fill="#fff" text-anchor="middle" font-weight="600">Layer 3</text>
+      <text x="630" y="118" font-size="8" fill="#fff" text-anchor="middle">오차: 폭발!</text>
+
+      <!-- 눈덩이 비유 -->
+      <circle cx="420" cy="175" r="8" fill="#dc2626" opacity="0.3"/>
+      <line x1="428" y1="175" x2="475" y2="175" stroke="#991b1b" stroke-width="1" stroke-dasharray="3"/>
+      <circle cx="500" cy="175" r="15" fill="#dc2626" opacity="0.5"/>
+      <line x1="515" y1="175" x2="555" y2="175" stroke="#991b1b" stroke-width="1" stroke-dasharray="3"/>
+      <circle cx="590" cy="175" r="28" fill="#dc2626" opacity="0.7"/>
+      <text x="520" y="218" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">눈덩이 효과 (Error Propagation)</text>
+
+      <!-- 해결 -->
+      <rect x="380" y="255" width="280" height="55" rx="8" fill="#f0fdf4" stroke="#059669"/>
+      <text x="520" y="275" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">해결: 오차 전파를 수학적으로 보정 (QEP)</text>
+      <text x="520" y="295" font-size="9" fill="#475569" text-anchor="middle">"틀어진 만큼 역으로 수정하기"</text>
+    </svg>
+    <div class="diagram-caption">양자화의 두 핵심 문제: 층간 민감도 차이와 오차 전파. OneComp는 둘 다 자동으로 해결한다</div>
+  </div>
+
+</section>
+
+<!-- ============================================================== -->
+<!--  왜 기존 양자화 도구가 어려운가                                   -->
+<!-- ============================================================== -->
+<section>
+  <h2>기존 양자화 도구의 문제점</h2>
+
+  <div class="card card-accent">
+    <p>양자화 기술 자체는 오래 전부터 있었습니다. 문제는 <strong>도구가 너무 파편화</strong>되어 있다는 것입니다. 마치 수십 가지 조리 도구를 일일이 골라서 써야 하는데, 어떤 도구를 어떤 순서로 쓸지 전문가만 안다는 상황입니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">기존: 파편화된 양자화 도구 생태계</text>
+
+      <!-- 혼란스러운 도구들 -->
+      <rect x="30" y="50" width="300" height="230" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="180" y="73" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">기존 방식: 전문가가 일일이 선택</text>
+
+      <rect x="50" y="88" width="80" height="28" rx="6" fill="#dc2626" opacity="0.6"/>
+      <text x="90" y="107" font-size="9" fill="#fff" text-anchor="middle">GPTQ</text>
+      <rect x="140" y="88" width="80" height="28" rx="6" fill="#d97706" opacity="0.6"/>
+      <text x="180" y="107" font-size="9" fill="#fff" text-anchor="middle">AWQ</text>
+      <rect x="230" y="88" width="80" height="28" rx="6" fill="#7c3aed" opacity="0.6"/>
+      <text x="270" y="107" font-size="9" fill="#fff" text-anchor="middle">SpinQuant</text>
+
+      <rect x="50" y="125" width="80" height="28" rx="6" fill="#059669" opacity="0.6"/>
+      <text x="90" y="144" font-size="9" fill="#fff" text-anchor="middle">SmoothQuant</text>
+      <rect x="140" y="125" width="80" height="28" rx="6" fill="#2563eb" opacity="0.6"/>
+      <text x="180" y="144" font-size="9" fill="#fff" text-anchor="middle">BRECQ</text>
+      <rect x="230" y="125" width="80" height="28" rx="6" fill="#dc2626" opacity="0.5"/>
+      <text x="270" y="144" font-size="9" fill="#fff" text-anchor="middle">DBF</text>
+
+      <!-- 물음표 -->
+      <text x="180" y="185" font-size="30" fill="#991b1b" text-anchor="middle" font-weight="900">???</text>
+      <text x="180" y="210" font-size="10" fill="#991b1b" text-anchor="middle">어떤 도구를 골라야 하나?</text>
+      <text x="180" y="225" font-size="10" fill="#991b1b" text-anchor="middle">어떤 순서로 적용해야 하나?</text>
+      <text x="180" y="240" font-size="10" fill="#991b1b" text-anchor="middle">각 도구의 설정값은?</text>
+      <text x="180" y="260" font-size="10" fill="#64748b" text-anchor="middle">→ 전문가만 가능, 시행착오 반복</text>
+
+      <!-- 화살표 -->
+      <text x="365" y="170" font-size="28" fill="#dc2626" text-anchor="middle">&rarr;</text>
+
+      <!-- OneComp -->
+      <rect x="400" y="50" width="280" height="230" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="540" y="73" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">OneComp: 한 줄이면 끝</text>
+
+      <rect x="420" y="95" width="240" height="50" rx="12" fill="#059669" opacity="0.15" stroke="#059669"/>
+      <text x="540" y="117" font-size="13" fill="#059669" text-anchor="middle" font-weight="700" font-family="monospace">uv run onecomp model_name</text>
+      <text x="540" y="138" font-size="10" fill="#059669" text-anchor="middle">이 한 줄이면 모든 것이 자동 실행!</text>
+
+      <text x="540" y="170" font-size="11" fill="#334155" text-anchor="middle">자동으로 최적 알고리즘 선택</text>
+      <text x="540" y="190" font-size="11" fill="#334155" text-anchor="middle">자동으로 층별 bit 할당</text>
+      <text x="540" y="210" font-size="11" fill="#334155" text-anchor="middle">자동으로 오차 전파 보정</text>
+      <text x="540" y="230" font-size="11" fill="#334155" text-anchor="middle">자동으로 단계별 품질 개선</text>
+      <text x="540" y="255" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">비전문가도 SOTA 양자화 달성!</text>
+    </svg>
+    <div class="diagram-caption">OneComp는 파편화된 양자화 도구 생태계를 하나의 자동화 파이프라인으로 통합</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">세탁기의 비유</div>
+    <p><strong>기존 양자화</strong>는 빨래를 할 때 비누 종류, 물 온도, 세탁 시간, 탈수 강도를 매번 직접 선택해야 하는 것과 같습니다. 섬유 종류에 따라 최적의 조합이 다르고, 잘못 선택하면 옷이 망가집니다.</p>
+    <br>
+    <p><strong>OneComp</strong>는 "의류 자동인식 세탁기"와 같습니다. 옷을 넣고 버튼 하나만 누르면, 기계가 자동으로 섬유를 분석해서 최적의 세탁 코스를 적용합니다. 결과물은 전문 세탁사와 비슷하거나 더 좋습니다.</p>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  OneComp의 핵심 아이디어                                        -->
+<!-- ============================================================== -->
+<section>
+  <h2>OneComp의 핵심 아이디어</h2>
+
+  <p style="margin-bottom:1rem;">OneComp의 핵심은 <strong>"점진적 다듬기"(Progressive Refinement)</strong>입니다. 한 번에 완벽한 압축을 하려는 게 아니라, 3단계에 걸쳐 조금씩 품질을 개선합니다. GPU가 충분하면 더 깊은 단계까지, 부족하면 중간에 멈춰도 괜찮습니다.</p>
+
+  <div class="step-flow">
+    <div class="step-box" style="border-color:#991b1b;">
+      <div class="step-num" style="color:#991b1b;">STAGE 1</div>
+      <div class="step-title">층별 압축</div>
+      <div class="step-desc">각 층을 하나씩<br>순서대로 양자화</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box" style="border-color:#dc2626;">
+      <div class="step-num" style="color:#dc2626;">STAGE 2</div>
+      <div class="step-title">블록별 보정</div>
+      <div class="step-desc">Transformer 블록 단위로<br>오차를 교차 수정</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box" style="border-color:#059669;">
+      <div class="step-num" style="color:#059669;">STAGE 3</div>
+      <div class="step-title">전체 최적화</div>
+      <div class="step-desc">모델 전체를 보고<br>글로벌 미세 조정</div>
+    </div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">원고 다듬기의 비유</div>
+    <p>OneComp의 3단계는 글쓰기 과정과 똑같습니다:</p>
+    <br>
+    <p><strong>1단계 (층별)</strong>: 초고 작성 - 각 문단을 개별적으로 다듬습니다. 빠르고 적은 자원으로 가능하지만, 문단 간 연결이 매끄럽지 않을 수 있습니다.</p>
+    <p><strong>2단계 (블록별)</strong>: 챕터 교정 - 인접한 2-3개 문단을 묶어서 흐름을 조정합니다. 1단계보다 더 좋은 결과물이 나옵니다.</p>
+    <p><strong>3단계 (전체)</strong>: 최종 편집 - 책 전체를 통독하며 전체 흐름과 일관성을 다듬습니다. 가장 좋은 품질이지만 시간이 더 걸립니다.</p>
+    <br>
+    <p>핵심은? <strong>1단계만으로도 출판 가능한 수준</strong>이고, 시간이 있으면 2-3단계로 더 완벽하게 만들 수 있다는 것입니다.</p>
+  </div>
+
+  <!-- ═══ 전체 파이프라인 SVG ═══ -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 420" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">OneComp 전체 파이프라인</text>
+
+      <!-- 입력 -->
+      <rect x="250" y="45" width="200" height="40" rx="20" fill="#7f1d1d"/>
+      <text x="350" y="70" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">모델 이름 + GPU 예산</text>
+
+      <line x1="350" y1="85" x2="350" y2="105" stroke="#991b1b" stroke-width="2"/>
+      <polygon points="344,105 356,105 350,115" fill="#991b1b"/>
+
+      <!-- 자동 분석 -->
+      <rect x="200" y="115" width="300" height="40" rx="10" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="350" y="133" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="600">자동 분석: 모델 구조 파악 + AutoBit (층별 bit 할당)</text>
+      <text x="350" y="148" font-size="9" fill="#64748b" text-anchor="middle">민감한 층 = 높은 bit, 둔감한 층 = 낮은 bit</text>
+
+      <line x1="350" y1="155" x2="350" y2="170" stroke="#991b1b" stroke-width="2"/>
+      <polygon points="344,170 356,170 350,180" fill="#991b1b"/>
+
+      <!-- 전처리 -->
+      <rect x="200" y="180" width="300" height="35" rx="10" fill="#fef2f2" stroke="#991b1b"/>
+      <text x="350" y="202" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="600">전처리: SmoothQuant + Rotation (outlier 제거)</text>
+
+      <line x1="350" y1="215" x2="350" y2="230" stroke="#991b1b" stroke-width="2"/>
+      <polygon points="344,230 356,230 350,240" fill="#991b1b"/>
+
+      <!-- Stage 1 -->
+      <rect x="150" y="240" width="400" height="45" rx="10" fill="#991b1b" opacity="0.1" stroke="#991b1b" stroke-width="2"/>
+      <text x="350" y="260" font-size="12" fill="#991b1b" text-anchor="middle" font-weight="700">STAGE 1: 층별 PTQ (QEP + LPCD + JointQ/MDBF)</text>
+      <text x="350" y="276" font-size="9" fill="#64748b" text-anchor="middle">GPU 1장으로 실행 가능 | 오차 전파 자동 보정</text>
+
+      <!-- 중간 체크포인트 -->
+      <line x1="350" y1="285" x2="350" y2="300" stroke="#059669" stroke-width="2"/>
+      <rect x="245" y="300" width="210" height="25" rx="12" fill="#059669" opacity="0.2" stroke="#059669"/>
+      <text x="350" y="317" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">배포 가능한 모델 (Pivot)</text>
+
+      <line x1="350" y1="325" x2="350" y2="335" stroke="#dc2626" stroke-width="2"/>
+      <polygon points="344,335 356,335 350,345" fill="#dc2626"/>
+
+      <!-- Stage 2 -->
+      <rect x="150" y="345" width="190" height="35" rx="10" fill="#dc2626" opacity="0.1" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="245" y="362" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">STAGE 2: 블록별 보정</text>
+      <text x="245" y="375" font-size="8" fill="#64748b" text-anchor="middle">인접 블록 간 오차 교정</text>
+
+      <text x="355" y="365" font-size="14" fill="#dc2626">&rarr;</text>
+
+      <!-- Stage 3 -->
+      <rect x="380" y="345" width="190" height="35" rx="10" fill="#059669" opacity="0.1" stroke="#059669" stroke-width="1.5"/>
+      <text x="475" y="362" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">STAGE 3: 전체 최적화</text>
+      <text x="475" y="375" font-size="8" fill="#64748b" text-anchor="middle">KL distillation + QLoRA</text>
+
+      <!-- 결과 -->
+      <line x1="475" y1="380" x2="475" y2="398" stroke="#059669" stroke-width="2"/>
+      <rect x="375" y="398" width="200" height="22" rx="11" fill="#059669"/>
+      <text x="475" y="414" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">최적 압축 모델 완성</text>
+    </svg>
+    <div class="diagram-caption">OneComp는 모델 이름 하나만 입력하면 전체 파이프라인이 자동 실행된다. Stage 1 완료만으로도 배포 가능</div>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  핵심 기술 1: AutoBit                                           -->
+<!-- ============================================================== -->
+<section>
+  <h2>핵심 기술 1: AutoBit — 자동 맞춤형 bit 할당</h2>
+
+  <div class="card card-accent">
+    <p>AI 모델의 32개 층이 모두 같은 중요도를 갖진 않습니다. 어떤 층은 1비트만 줄여도 성능이 폭락하고, 어떤 층은 절반으로 줄여도 괜찮습니다. <strong>AutoBit</strong>는 각 층의 "민감도"를 자동 측정하여, 주어진 메모리 예산 안에서 최적의 bit를 배분합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">AutoBit의 작동 원리: 민감도 측정 → 최적 할당</text>
+
+      <!-- Step 1 -->
+      <rect x="20" y="45" width="195" height="140" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="117" y="68" font-size="11" font-weight="700" fill="#991b1b" text-anchor="middle">STEP 1: 민감도 측정</text>
+      <text x="117" y="88" font-size="9" fill="#475569" text-anchor="middle">각 층을 양자화했을 때</text>
+      <text x="117" y="103" font-size="9" fill="#475569" text-anchor="middle">출력이 얼마나 변하는지 계산</text>
+      <rect x="40" y="115" width="40" height="50" rx="4" fill="#dc2626" opacity="0.3"/>
+      <text x="60" y="170" font-size="8" fill="#64748b" text-anchor="middle">L1: 작음</text>
+      <rect x="90" y="95" width="40" height="70" rx="4" fill="#dc2626" opacity="0.6"/>
+      <text x="110" y="170" font-size="8" fill="#dc2626" text-anchor="middle" font-weight="600">L2: 큼!</text>
+      <rect x="140" y="110" width="40" height="55" rx="4" fill="#dc2626" opacity="0.4"/>
+      <text x="160" y="170" font-size="8" fill="#64748b" text-anchor="middle">L3: 중간</text>
+
+      <!-- Arrow -->
+      <text x="235" y="115" font-size="20" fill="#991b1b">&rarr;</text>
+
+      <!-- Step 2 -->
+      <rect x="260" y="45" width="195" height="140" rx="12" fill="#f8fafc" stroke="#d97706" stroke-width="1.5"/>
+      <text x="357" y="68" font-size="11" font-weight="700" fill="#d97706" text-anchor="middle">STEP 2: 최적화 문제 풀기</text>
+      <text x="357" y="88" font-size="9" fill="#475569" text-anchor="middle">메모리 예산 내에서</text>
+      <text x="357" y="103" font-size="9" fill="#475569" text-anchor="middle">총 오차를 최소화하는 할당 탐색</text>
+      <rect x="290" y="115" width="130" height="45" rx="8" fill="#d97706" opacity="0.1" stroke="#d97706"/>
+      <text x="355" y="135" font-size="10" fill="#d97706" text-anchor="middle" font-weight="600">ILP 솔버</text>
+      <text x="355" y="150" font-size="9" fill="#64748b" text-anchor="middle">(수학적 최적해 보장)</text>
+
+      <!-- Arrow -->
+      <text x="475" y="115" font-size="20" fill="#059669">&rarr;</text>
+
+      <!-- Step 3 -->
+      <rect x="500" y="45" width="185" height="140" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="592" y="68" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">STEP 3: 최적 할당 적용</text>
+      <rect x="520" y="85" width="30" height="70" rx="4" fill="#059669" opacity="0.8"/>
+      <text x="535" y="160" font-size="8" fill="#059669" text-anchor="middle">L1: 4b</text>
+      <rect x="560" y="85" width="30" height="80" rx="4" fill="#059669" opacity="0.5"/>
+      <text x="575" y="170" font-size="8" fill="#059669" text-anchor="middle" font-weight="600">L2: 8b</text>
+      <rect x="600" y="95" width="30" height="60" rx="4" fill="#059669" opacity="0.6"/>
+      <text x="615" y="160" font-size="8" fill="#059669" text-anchor="middle">L3: 5b</text>
+      <text x="592" y="180" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">민감한 층에 더 많은 bit!</text>
+    </svg>
+    <div class="diagram-caption">AutoBit는 각 층의 민감도를 빠르게 측정한 뒤, ILP 솔버로 수학적 최적 할당을 자동 계산</div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">AutoBit: 층마다 다른 bit를 자동 할당</text>
+
+      <!-- 균등 할당 (나쁜 예) -->
+      <rect x="20" y="45" width="310" height="250" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="175" y="70" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">균등 할당 (기존 방식)</text>
+      <text x="175" y="88" font-size="10" fill="#64748b" text-anchor="middle">모든 층에 똑같이 4-bit</text>
+
+      <!-- 바 차트 -->
+      <rect x="50" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="65" y="178" font-size="8" fill="#64748b" text-anchor="middle">L1</text>
+      <text x="65" y="100" font-size="8" fill="#dc2626" text-anchor="middle">4b</text>
+
+      <rect x="90" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="105" y="178" font-size="8" fill="#64748b" text-anchor="middle">L2</text>
+
+      <rect x="130" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="145" y="178" font-size="8" fill="#64748b" text-anchor="middle">L3</text>
+
+      <text x="175" y="140" font-size="12" fill="#64748b">...</text>
+
+      <rect x="200" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="215" y="178" font-size="8" fill="#64748b" text-anchor="middle">L30</text>
+
+      <rect x="240" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="255" y="178" font-size="8" fill="#64748b" text-anchor="middle">L31</text>
+
+      <rect x="280" y="105" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="295" y="178" font-size="8" fill="#64748b" text-anchor="middle">L32</text>
+
+      <!-- 문제 지적 -->
+      <rect x="40" y="195" width="270" height="40" rx="8" fill="#fef2f2" stroke="#dc2626"/>
+      <text x="175" y="212" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">PPL: 383 (성능 폭락!)</text>
+      <text x="175" y="228" font-size="9" fill="#991b1b" text-anchor="middle">민감한 층(L1)이 4-bit를 견디지 못함</text>
+
+      <!-- 최적 할당 (OneComp) -->
+      <rect x="370" y="45" width="310" height="250" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="525" y="70" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">AutoBit (OneComp)</text>
+      <text x="525" y="88" font-size="10" fill="#64748b" text-anchor="middle">층마다 최적 bit 자동 할당</text>
+
+      <!-- 바 차트 (다양한 높이) -->
+      <rect x="400" y="95" width="30" height="70" rx="3" fill="#059669" opacity="0.8"/>
+      <text x="415" y="178" font-size="8" fill="#64748b" text-anchor="middle">L1</text>
+      <text x="415" y="90" font-size="8" fill="#059669" text-anchor="middle" font-weight="700">8b</text>
+
+      <rect x="440" y="108" width="30" height="57" rx="3" fill="#059669" opacity="0.7"/>
+      <text x="455" y="178" font-size="8" fill="#64748b" text-anchor="middle">L2</text>
+      <text x="455" y="103" font-size="8" fill="#059669" text-anchor="middle">6b</text>
+
+      <rect x="480" y="125" width="30" height="40" rx="3" fill="#059669" opacity="0.5"/>
+      <text x="495" y="178" font-size="8" fill="#64748b" text-anchor="middle">L3</text>
+      <text x="495" y="120" font-size="8" fill="#059669" text-anchor="middle">4b</text>
+
+      <text x="525" y="145" font-size="12" fill="#64748b">...</text>
+
+      <rect x="555" y="130" width="30" height="35" rx="3" fill="#059669" opacity="0.4"/>
+      <text x="570" y="178" font-size="8" fill="#64748b" text-anchor="middle">L30</text>
+      <text x="570" y="125" font-size="8" fill="#059669" text-anchor="middle">3b</text>
+
+      <rect x="595" y="130" width="30" height="35" rx="3" fill="#059669" opacity="0.4"/>
+      <text x="610" y="178" font-size="8" fill="#64748b" text-anchor="middle">L31</text>
+      <text x="610" y="125" font-size="8" fill="#059669" text-anchor="middle">3b</text>
+
+      <rect x="635" y="108" width="30" height="57" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="650" y="178" font-size="8" fill="#64748b" text-anchor="middle">L32</text>
+      <text x="650" y="103" font-size="8" fill="#059669" text-anchor="middle">6b</text>
+
+      <!-- 결과 -->
+      <rect x="390" y="195" width="270" height="40" rx="8" fill="#f0fdf4" stroke="#059669"/>
+      <text x="525" y="212" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">PPL: 7.04 (거의 원본 수준!)</text>
+      <text x="525" y="228" font-size="9" fill="#059669" text-anchor="middle">같은 메모리 예산으로 54배 나은 성능</text>
+
+      <!-- 하단 설명 -->
+      <rect x="100" y="260" width="500" height="30" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="350" y="280" font-size="10" fill="#334155" text-anchor="middle">AutoBit은 ILP(정수 선형 프로그래밍)로 메모리 예산 내 최적 할당을 수학적으로 풀어낸다</text>
+    </svg>
+    <div class="diagram-caption">Llama-3-8B에서 평균 4.0 bit: 균등 할당은 PPL 383으로 실패하지만, AutoBit은 PPL 7.04로 원본에 근접</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">시험 공부 시간 배분의 비유</div>
+    <p>시험 5과목을 준비하는데 총 10시간이 있다고 합시다.</p>
+    <br>
+    <p><strong>균등 할당</strong>: 각 과목에 2시간씩. 하지만 이미 잘하는 수학에 2시간을 쓰고, 약한 역사에도 2시간만 쓰면 전체 점수가 나빠집니다.</p>
+    <br>
+    <p><strong>AutoBit</strong>: 수학(쉬운 과목)은 1시간만, 역사(약한 과목)에 4시간을 배분합니다. 총 공부 시간은 같지만, 전체 점수는 훨씬 높아집니다. AutoBit은 이 "최적 배분"을 수학적으로 자동 계산합니다.</p>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  핵심 기술 2: QEP (오차 전파 보정)                              -->
+<!-- ============================================================== -->
+<section>
+  <h2>핵심 기술 2: QEP — 오차 전파를 자동 보정</h2>
+
+  <div class="card card-accent">
+    <p>기존 양자화 도구(GPTQ)는 각 층을 압축할 때 "원래 숫자에 최대한 가깝게" 반올림합니다. 하지만 이전 층에서 이미 오차가 생겼다면, "원래 숫자"를 목표로 삼는 것 자체가 잘못된 전략입니다. <strong>QEP</strong>는 이전 층의 오차를 고려하여 목표 자체를 수정합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">QEP: "맞추려는 목표 자체를 수정한다"</text>
+
+      <!-- 기존 방식: 원래 값을 목표 -->
+      <rect x="20" y="50" width="320" height="130" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="180" y="75" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">기존 GPTQ: "원래 값을 맞추자"</text>
+
+      <!-- 입력(이미 틀림) -> Layer -> 원래 목표 맞추기 -->
+      <rect x="40" y="95" width="80" height="30" rx="6" fill="#dc2626" opacity="0.4"/>
+      <text x="80" y="114" font-size="9" fill="#991b1b" text-anchor="middle">틀린 입력</text>
+      <text x="130" y="112" font-size="14" fill="#991b1b">&rarr;</text>
+      <rect x="140" y="92" width="80" height="35" rx="6" fill="#fef2f2" stroke="#991b1b"/>
+      <text x="180" y="114" font-size="9" fill="#991b1b" text-anchor="middle">Layer N 양자화</text>
+      <text x="232" y="112" font-size="14" fill="#991b1b">&rarr;</text>
+      <rect x="242" y="95" width="80" height="30" rx="6" fill="#dc2626" opacity="0.6"/>
+      <text x="282" y="114" font-size="9" fill="#fff" text-anchor="middle">더 큰 오차!</text>
+
+      <text x="180" y="162" font-size="10" fill="#991b1b" text-anchor="middle">입력이 이미 틀어져 있는데 원래 목표를 맞추면</text>
+      <text x="180" y="176" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">오차가 더 커진다 (PPL 665 → 사용 불가)</text>
+
+      <!-- QEP 방식 -->
+      <rect x="360" y="50" width="320" height="130" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="520" y="75" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">QEP: "보정된 목표를 맞추자"</text>
+
+      <rect x="380" y="95" width="80" height="30" rx="6" fill="#dc2626" opacity="0.4"/>
+      <text x="420" y="114" font-size="9" fill="#991b1b" text-anchor="middle">틀린 입력</text>
+      <text x="470" y="112" font-size="14" fill="#059669">&rarr;</text>
+      <rect x="480" y="92" width="80" height="35" rx="6" fill="#f0fdf4" stroke="#059669"/>
+      <text x="520" y="108" font-size="9" fill="#059669" text-anchor="middle">Layer N</text>
+      <text x="520" y="122" font-size="8" fill="#059669" text-anchor="middle">+보정된 목표</text>
+      <text x="572" y="112" font-size="14" fill="#059669">&rarr;</text>
+      <rect x="582" y="95" width="80" height="30" rx="6" fill="#059669" opacity="0.5"/>
+      <text x="622" y="114" font-size="9" fill="#fff" text-anchor="middle">오차 감소!</text>
+
+      <text x="520" y="162" font-size="10" fill="#059669" text-anchor="middle">입력의 오차를 역산하여 목표를 조정하면</text>
+      <text x="520" y="176" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">오차가 보정된다 (PPL 7.67 → 사용 가능!)</text>
+
+      <!-- 결과 비교 -->
+      <rect x="80" y="210" width="540" height="120" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="350" y="235" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">실제 성능 비교: 4-bit per-channel 양자화</text>
+
+      <!-- GPTQ 바 -->
+      <text x="100" y="265" font-size="10" fill="#991b1b" font-weight="600">GPTQ</text>
+      <rect x="170" y="252" width="400" height="20" rx="4" fill="#dc2626" opacity="0.7"/>
+      <text x="370" y="266" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">PPL: 665.94 (완전히 망가짐)</text>
+
+      <!-- QEP 바 -->
+      <text x="100" y="300" font-size="10" fill="#059669" font-weight="600">+QEP</text>
+      <rect x="170" y="287" width="5" height="20" rx="2" fill="#059669" opacity="0.8"/>
+      <text x="185" y="301" font-size="10" fill="#059669" font-weight="700">PPL: 7.67 (원본 6.14에 근접!)</text>
+
+      <text x="350" y="325" font-size="10" fill="#64748b" text-anchor="middle">QEP만으로 성능이 87배 개선 (665 → 7.67)</text>
+    </svg>
+    <div class="diagram-caption">QEP는 단순히 "원래 값을 맞추는" 대신 "올바른 출력을 내는 값"을 목표로 설정하여 오차 전파를 차단</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">내비게이션의 비유</div>
+    <p><strong>기존 GPTQ</strong>: 경로를 이탈했을 때 "원래 목적지 방향"으로만 갑니다. 하지만 이미 엉뚱한 도로에 있으면, 원래 방향으로 가는 것이 오히려 더 멀리 돌아가게 만들 수 있습니다.</p>
+    <br>
+    <p><strong>QEP</strong>: 경로를 이탈했을 때 "현재 위치에서 목적지에 가장 빨리 도착하는 새 경로"를 계산합니다. 이전의 실수를 인정하고, 현재 상태에서 최선을 찾습니다.</p>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  핵심 기술 3: JointQ 및 MDBF                                   -->
+<!-- ============================================================== -->
+<section>
+  <h2>핵심 기술 3: JointQ와 MDBF</h2>
+
+  <h3 style="margin-top:1.5rem; font-size:1.1rem; color:#7f1d1d;">JointQ: Scale과 Weight를 함께 최적화</h3>
+
+  <div class="card" style="border-left: 5px solid #991b1b;">
+    <p>기존 GPTQ는 "반올림 규칙(scale)"을 먼저 정하고, 그 규칙에 따라 숫자를 반올림합니다. 하지만 <strong>JointQ</strong>는 반올림 규칙과 반올림된 숫자를 동시에 최적화합니다. 마치 자물쇠와 열쇠를 함께 맞추는 것처럼, 둘이 서로에게 최적인 조합을 찾습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">JointQ vs GPTQ: 반올림 방식의 차이</text>
+
+      <!-- GPTQ -->
+      <rect x="20" y="40" width="310" height="145" rx="12" fill="#fef2f2" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="175" y="65" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">GPTQ (순차적)</text>
+      <rect x="40" y="80" width="120" height="35" rx="8" fill="#dc2626" opacity="0.3"/>
+      <text x="100" y="102" font-size="10" fill="#991b1b" text-anchor="middle">1. Scale 먼저 결정</text>
+      <text x="175" y="102" font-size="14" fill="#991b1b">&rarr;</text>
+      <rect x="190" y="80" width="120" height="35" rx="8" fill="#dc2626" opacity="0.5"/>
+      <text x="250" y="102" font-size="10" fill="#991b1b" text-anchor="middle">2. 그에 맞춰 반올림</text>
+      <text x="175" y="145" font-size="10" fill="#991b1b" text-anchor="middle">Scale이 최적이 아니면</text>
+      <text x="175" y="162" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">반올림 결과도 최적이 아님</text>
+
+      <!-- JointQ -->
+      <rect x="370" y="40" width="310" height="145" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+      <text x="525" y="65" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">JointQ (동시 최적화)</text>
+      <rect x="405" y="78" width="230" height="40" rx="8" fill="#059669" opacity="0.15" stroke="#059669"/>
+      <text x="520" y="95" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">Scale + 반올림된 값을 함께 조정</text>
+      <text x="520" y="108" font-size="9" fill="#64748b" text-anchor="middle">서로에게 최적인 조합 탐색</text>
+      <text x="525" y="145" font-size="10" fill="#059669" text-anchor="middle">전체 오차를 직접 최소화</text>
+      <text x="525" y="162" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">기존 형식과 100% 호환!</text>
+    </svg>
+    <div class="diagram-caption">JointQ는 GPTQ와 동일한 파일 형식을 출력하므로, 기존 시스템에 바로 적용 가능</div>
+  </div>
+
+  <h3 style="margin-top:2.5rem; font-size:1.1rem; color:#7f1d1d;">MDBF: 1-bit 극한 압축의 혁신</h3>
+
+  <div class="card" style="border-left: 5px solid #991b1b;">
+    <p>보통의 양자화는 3-4 bit까지가 한계입니다. <strong>MDBF (Multi-envelope Double Binary Factorization)</strong>는 완전히 다른 접근법으로 <strong>1-bit 양자화</strong>를 가능하게 합니다. 숫자를 반올림하는 대신, 행렬 전체를 "+1과 -1로만 구성된 두 행렬의 곱"으로 분해합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">MDBF: 행렬을 이진(+1/-1) 요소로 분해</text>
+
+      <!-- 원본 행렬 -->
+      <rect x="30" y="50" width="140" height="100" rx="8" fill="#991b1b" opacity="0.15" stroke="#991b1b"/>
+      <text x="100" y="75" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="700">원본 Weight</text>
+      <text x="60" y="100" font-size="9" fill="#64748b">0.247</text>
+      <text x="110" y="100" font-size="9" fill="#64748b">-0.531</text>
+      <text x="60" y="118" font-size="9" fill="#64748b">-0.182</text>
+      <text x="110" y="118" font-size="9" fill="#64748b">0.093</text>
+      <text x="100" y="140" font-size="9" fill="#64748b" text-anchor="middle">16-bit/원소</text>
+
+      <!-- = -->
+      <text x="190" y="105" font-size="20" fill="#7f1d1d" text-anchor="middle">=</text>
+
+      <!-- Scale -->
+      <rect x="210" y="70" width="60" height="60" rx="6" fill="#d97706" opacity="0.2" stroke="#d97706"/>
+      <text x="240" y="90" font-size="9" fill="#d97706" text-anchor="middle" font-weight="700">Scale</text>
+      <text x="240" y="108" font-size="9" fill="#64748b" text-anchor="middle">크기 조절</text>
+
+      <text x="282" y="105" font-size="14" fill="#7f1d1d" text-anchor="middle">x</text>
+
+      <!-- Binary A -->
+      <rect x="295" y="60" width="80" height="80" rx="6" fill="#dc2626" opacity="0.15" stroke="#dc2626"/>
+      <text x="335" y="82" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="700">Binary A</text>
+      <text x="318" y="105" font-size="11" fill="#dc2626">+1</text>
+      <text x="352" y="105" font-size="11" fill="#dc2626">-1</text>
+      <text x="318" y="125" font-size="11" fill="#dc2626">-1</text>
+      <text x="352" y="125" font-size="11" fill="#dc2626">+1</text>
+
+      <text x="390" y="105" font-size="14" fill="#7f1d1d" text-anchor="middle">x</text>
+
+      <!-- Binary B -->
+      <rect x="405" y="60" width="80" height="80" rx="6" fill="#059669" opacity="0.15" stroke="#059669"/>
+      <text x="445" y="82" font-size="9" fill="#059669" text-anchor="middle" font-weight="700">Binary B</text>
+      <text x="428" y="105" font-size="11" fill="#059669">+1</text>
+      <text x="462" y="105" font-size="11" fill="#059669">+1</text>
+      <text x="428" y="125" font-size="11" fill="#059669">-1</text>
+      <text x="462" y="125" font-size="11" fill="#059669">+1</text>
+
+      <!-- 결과 -->
+      <rect x="510" y="55" width="170" height="90" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="595" y="78" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">1-bit/원소!</text>
+      <text x="595" y="98" font-size="9" fill="#334155" text-anchor="middle">저장 공간: 1/16</text>
+      <text x="595" y="115" font-size="9" fill="#334155" text-anchor="middle">연산: 곱셈 → 부호 반전</text>
+      <text x="595" y="132" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">(초고속 연산 가능)</text>
+
+      <!-- 하단 설명 -->
+      <rect x="50" y="170" width="600" height="65" rx="10" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="350" y="190" font-size="11" fill="#334155" text-anchor="middle" font-weight="600">MDBF의 혁신: Multi-Envelope로 표현력 향상</text>
+      <text x="350" y="210" font-size="10" fill="#475569" text-anchor="middle">기존 DBF는 하나의 scale만 사용하지만, MDBF는 여러 개의 scale을 계층적으로 사용하여</text>
+      <text x="350" y="227" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">1-bit에서도 의미 있는 성능을 유지하는 최초의 방법</text>
+    </svg>
+    <div class="diagram-caption">MDBF는 가중치 행렬을 이진 행렬로 분해하여 1-bit 압축을 가능하게 함. 메모리 16배 절감</div>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  핵심 성과                                                      -->
+<!-- ============================================================== -->
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">87x</div>
+      <div class="label">QEP의 성능 개선<br>(PPL 665 → 7.67)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">54x</div>
+      <div class="label">AutoBit의 효과<br>(PPL 383 → 7.04)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1-bit</div>
+      <div class="label">MDBF 극한 압축<br>메모리 16배 절감</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1줄</div>
+      <div class="label">사용법<br>uv run onecomp</div>
+    </div>
+  </div>
+
+  <!-- 성과 1: AutoBit -->
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">성과 1: AutoBit으로 catastrophic failure 방지</h3>
+    <p>Llama-3-8B에서 평균 4-bit 양자화 시, <strong>균등 할당은 PPL 383으로 완전히 망가지지만</strong>, AutoBit의 activation-aware 할당은 <strong>PPL 7.04로 원본(6.14)에 근접</strong>합니다. 소수의 매우 민감한 모듈에 높은 bit를 자동 배정하여 전체 모델의 붕괴를 방지합니다.</p>
+  </div>
+
+  <!-- 성과 비교 차트 -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">Llama-3-8B 4-bit 양자화: 방법별 Perplexity 비교</text>
+      <text x="350" y="42" font-size="10" fill="#64748b" text-anchor="middle">(PPL: 낮을수록 좋음. 원본 FP16 = 6.14)</text>
+
+      <!-- Y축 -->
+      <line x1="100" y1="60" x2="100" y2="240" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="90" y="80" font-size="9" fill="#64748b" text-anchor="end">400</text>
+      <line x1="95" y1="76" x2="640" y2="76" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3"/>
+      <text x="90" y="120" font-size="9" fill="#64748b" text-anchor="end">200</text>
+      <line x1="95" y1="116" x2="640" y2="116" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3"/>
+      <text x="90" y="160" font-size="9" fill="#64748b" text-anchor="end">50</text>
+      <line x1="95" y1="156" x2="640" y2="156" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3"/>
+      <text x="90" y="200" font-size="9" fill="#64748b" text-anchor="end">10</text>
+      <line x1="95" y1="196" x2="640" y2="196" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="3"/>
+      <text x="90" y="240" font-size="9" fill="#64748b" text-anchor="end">0</text>
+      <line x1="95" y1="236" x2="640" y2="236" stroke="#cbd5e1" stroke-width="1"/>
+
+      <!-- 원본 기준선 -->
+      <line x1="100" y1="230" x2="640" y2="230" stroke="#059669" stroke-width="1.5" stroke-dasharray="6"/>
+      <text x="650" y="234" font-size="9" fill="#059669">FP16: 6.14</text>
+
+      <!-- 바: Uniform 4bit -->
+      <rect x="150" y="76" width="90" height="160" rx="4" fill="#991b1b" opacity="0.8"/>
+      <text x="195" y="70" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="700">383</text>
+      <text x="195" y="250" font-size="10" fill="#475569" text-anchor="middle">Uniform</text>
+      <text x="195" y="264" font-size="9" fill="#64748b" text-anchor="middle">4-bit 균등</text>
+
+      <!-- 바: GPTQ per-ch -->
+      <rect x="280" y="76" width="90" height="160" rx="4" fill="#dc2626" opacity="0.7"/>
+      <text x="325" y="70" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">666</text>
+      <text x="325" y="250" font-size="10" fill="#475569" text-anchor="middle">GPTQ</text>
+      <text x="325" y="264" font-size="9" fill="#64748b" text-anchor="middle">4b per-channel</text>
+
+      <!-- 바: QEP -->
+      <rect x="410" y="221" width="90" height="15" rx="4" fill="#2563eb" opacity="0.8"/>
+      <text x="455" y="215" font-size="11" fill="#2563eb" text-anchor="middle" font-weight="700">7.67</text>
+      <text x="455" y="250" font-size="10" fill="#475569" text-anchor="middle">+QEP</text>
+      <text x="455" y="264" font-size="9" fill="#64748b" text-anchor="middle">오차 보정</text>
+
+      <!-- 바: AutoBit -->
+      <rect x="540" y="222" width="90" height="14" rx="4" fill="#059669" opacity="0.9"/>
+      <text x="585" y="216" font-size="11" fill="#059669" text-anchor="middle" font-weight="900">7.04</text>
+      <text x="585" y="250" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">AutoBit</text>
+      <text x="585" y="264" font-size="9" fill="#059669" text-anchor="middle">최적 할당</text>
+    </svg>
+    <div class="diagram-caption">OneComp의 핵심 기술(QEP, AutoBit)은 기존 GPTQ 대비 극적인 성능 개선을 달성</div>
+  </div>
+
+  <!-- 성과 2: JointQ -->
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">성과 2: JointQ로 GPTQ를 모든 설정에서 능가</h3>
+    <p>Llama-3-8B에서 JointQ는 4-bit/128그룹 설정에서 <strong>PPL 12.66 → 6.67</strong>, 3-bit per-channel에서 <strong>PPL 1721 → 21.15</strong>로 개선했습니다. 특히 aggressive한 압축 설정일수록 개선 폭이 더 큽니다.</p>
+  </div>
+
+  <table class="comp-table">
+    <tr>
+      <th>설정</th>
+      <th>GPTQ (PPL)</th>
+      <th>JointQ (PPL)</th>
+      <th>개선 폭</th>
+    </tr>
+    <tr>
+      <td>4-bit, 128 그룹</td>
+      <td>12.66</td>
+      <td style="color:#059669; font-weight:700;">6.67</td>
+      <td>1.9배 개선</td>
+    </tr>
+    <tr>
+      <td>4-bit, per-channel</td>
+      <td>665.94</td>
+      <td style="color:#059669; font-weight:700;">8.46</td>
+      <td>79배 개선</td>
+    </tr>
+    <tr>
+      <td>3-bit, 128 그룹</td>
+      <td>45.22</td>
+      <td style="color:#059669; font-weight:700;">9.26</td>
+      <td>4.9배 개선</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>3-bit, per-channel</td>
+      <td>1,721</td>
+      <td style="color:#059669; font-weight:700;">21.15</td>
+      <td>81배 개선</td>
+    </tr>
+  </table>
+
+  <!-- 성과 3: MDBF -->
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">성과 3: MDBF로 1-bit 극한 압축 가능</h3>
+    <p>MDBF는 모든 모델과 bit 수준에서 기존 DBF를 일관되게 능가합니다. Llama-3-8B에서 <strong>1-bit: PPL 14.76 → 13.25</strong>, <strong>1.5-bit: PPL 10.61 → 10.03</strong>. 모델이 클수록 개선 효과가 더 큽니다.</p>
+  </div>
+
+  <!-- 성과 4: Progressive Improvement -->
+  <div class="card card-green">
+    <h3 style="font-size:1.1rem; margin-bottom:0.8rem;">성과 4: 단계를 더할수록 성능이 단조 향상</h3>
+    <p>Layer-wise → Block-wise → Global 각 추가 단계가 <strong>항상 성능을 개선</strong>합니다. GPU 자원이 허용하는 만큼 더 깊은 단계를 적용하면 더 좋은 결과를 보장합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">점진적 품질 개선: 단계를 추가할수록 항상 좋아진다</text>
+
+      <!-- X축 -->
+      <line x1="100" y1="210" x2="620" y2="210" stroke="#cbd5e1" stroke-width="1"/>
+
+      <!-- Y축 -->
+      <line x1="100" y1="50" x2="100" y2="210" stroke="#cbd5e1" stroke-width="1"/>
+      <text x="50" y="130" font-size="11" fill="#7f1d1d" text-anchor="middle" transform="rotate(-90 50 130)">정확도 (ACC)</text>
+
+      <!-- 1.0 BPW line -->
+      <circle cx="200" cy="185" r="6" fill="#991b1b" stroke="#fff" stroke-width="2"/>
+      <line x1="200" y1="185" x2="370" y2="170" stroke="#991b1b" stroke-width="2"/>
+      <circle cx="370" cy="170" r="6" fill="#991b1b" stroke="#fff" stroke-width="2"/>
+      <line x1="370" y1="170" x2="540" y2="155" stroke="#991b1b" stroke-width="2"/>
+      <circle cx="540" cy="155" r="6" fill="#991b1b" stroke="#fff" stroke-width="2"/>
+      <text x="560" y="155" font-size="10" fill="#991b1b" font-weight="600">1.0 bit</text>
+
+      <!-- 1.5 BPW line -->
+      <circle cx="200" cy="150" r="6" fill="#dc2626" stroke="#fff" stroke-width="2"/>
+      <line x1="200" y1="150" x2="370" y2="125" stroke="#dc2626" stroke-width="2"/>
+      <circle cx="370" cy="125" r="6" fill="#dc2626" stroke="#fff" stroke-width="2"/>
+      <line x1="370" y1="125" x2="540" y2="105" stroke="#dc2626" stroke-width="2"/>
+      <circle cx="540" cy="105" r="6" fill="#dc2626" stroke="#fff" stroke-width="2"/>
+      <text x="560" y="105" font-size="10" fill="#dc2626" font-weight="600">1.5 bit</text>
+
+      <!-- 2.0 BPW line -->
+      <circle cx="200" cy="120" r="6" fill="#059669" stroke="#fff" stroke-width="2"/>
+      <line x1="200" y1="120" x2="370" y2="90" stroke="#059669" stroke-width="2"/>
+      <circle cx="370" cy="90" r="6" fill="#059669" stroke="#fff" stroke-width="2"/>
+      <line x1="370" y1="90" x2="540" y2="68" stroke="#059669" stroke-width="2"/>
+      <circle cx="540" cy="68" r="6" fill="#059669" stroke="#fff" stroke-width="2"/>
+      <text x="560" y="68" font-size="10" fill="#059669" font-weight="600">2.0 bit</text>
+
+      <!-- X축 레이블 -->
+      <text x="200" y="230" font-size="10" fill="#475569" text-anchor="middle">Layer-wise</text>
+      <text x="200" y="244" font-size="9" fill="#64748b" text-anchor="middle">(GPU 1장)</text>
+      <text x="370" y="230" font-size="10" fill="#475569" text-anchor="middle">+ Block-wise</text>
+      <text x="370" y="244" font-size="9" fill="#64748b" text-anchor="middle">(GPU 1장+)</text>
+      <text x="540" y="230" font-size="10" fill="#475569" text-anchor="middle">+ Global</text>
+      <text x="540" y="244" font-size="9" fill="#64748b" text-anchor="middle">(GPU 다중)</text>
+
+      <!-- 핵심 메시지 -->
+      <rect x="130" y="48" width="250" height="22" rx="6" fill="#059669" opacity="0.12"/>
+      <text x="255" y="63" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">모든 bit에서 단계 추가 = 항상 개선</text>
+    </svg>
+    <div class="diagram-caption">Llama-3.2-1B에서 DBF 양자화: 모든 bit-width에서 각 추가 단계가 성능을 단조 개선</div>
+  </div>
+</section>
+
+<!-- ============================================================== -->
+<!--  기존 방법 대비 장점                                            -->
+<!-- ============================================================== -->
+<section>
+  <h2>기존 방법 대비 장점</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th></th>
+      <th>기존 (GPTQ 등)</th>
+      <th>OneComp</th>
+    </tr>
+    <tr>
+      <td><strong>사용 난이도</strong></td>
+      <td>전문가 필요 (도구 선택, 설정)</td>
+      <td>한 줄 명령으로 완전 자동</td>
+    </tr>
+    <tr>
+      <td><strong>오차 전파 처리</strong></td>
+      <td>무시 (오차 누적)</td>
+      <td>QEP로 자동 보정</td>
+    </tr>
+    <tr>
+      <td><strong>bit 할당</strong></td>
+      <td>전체 균등 또는 수동</td>
+      <td>AutoBit 자동 최적 할당</td>
+    </tr>
+    <tr>
+      <td><strong>극한 저비트 (1-2 bit)</strong></td>
+      <td>지원 불가 또는 성능 폭락</td>
+      <td>MDBF로 의미 있는 성능 유지</td>
+    </tr>
+    <tr>
+      <td><strong>GPU 자원 적응</strong></td>
+      <td>고정된 파이프라인</td>
+      <td>GPU 예산에 따라 자동 조절</td>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>확장성</strong></td>
+      <td>새 기법 통합 어려움</td>
+      <td>Refiner 플러그인으로 확장</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ============================================================== -->
+<!--  활용 분야                                                      -->
+<!-- ============================================================== -->
+<section>
+  <h2>어디에 쓸 수 있나?</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <!-- 중앙: OneComp -->
+      <circle cx="350" cy="120" r="55" fill="#991b1b"/>
+      <text x="350" y="112" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">One</text>
+      <text x="350" y="132" font-size="14" fill="#fff" text-anchor="middle" font-weight="900">Comp</text>
+
+      <!-- 왼쪽 위: 엣지 배포 -->
+      <rect x="20" y="15" width="170" height="65" rx="12" fill="#f8fafc" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="105" y="40" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">엣지 디바이스 배포</text>
+      <text x="105" y="58" font-size="10" fill="#64748b" text-anchor="middle">1-2 bit 압축으로 모바일/IoT에서</text>
+      <text x="105" y="72" font-size="10" fill="#64748b" text-anchor="middle">소형 LLM 온디바이스 실행</text>
+      <line x1="190" y1="55" x2="300" y2="100" stroke="#991b1b" stroke-width="1.5"/>
+
+      <!-- 오른쪽 위: 서버 비용 절감 -->
+      <rect x="510" y="15" width="170" height="65" rx="12" fill="#f8fafc" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="595" y="40" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">서버 비용 절감</text>
+      <text x="595" y="58" font-size="10" fill="#64748b" text-anchor="middle">4-bit 압축으로 GPU 비용 75% 절감</text>
+      <text x="595" y="72" font-size="10" fill="#64748b" text-anchor="middle">대규모 LLM 서빙 최적화</text>
+      <line x1="510" y1="55" x2="400" y2="100" stroke="#991b1b" stroke-width="1.5"/>
+
+      <!-- 왼쪽 아래: 연구 실험 -->
+      <rect x="20" y="160" width="170" height="65" rx="12" fill="#f8fafc" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="105" y="185" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">양자화 연구 플랫폼</text>
+      <text x="105" y="203" font-size="10" fill="#64748b" text-anchor="middle">새 알고리즘을 refiner로 통합</text>
+      <text x="105" y="217" font-size="10" fill="#64748b" text-anchor="middle">공정한 비교 실험 가능</text>
+      <line x1="190" y1="190" x2="300" y2="140" stroke="#991b1b" stroke-width="1.5"/>
+
+      <!-- 오른쪽 아래: 도메인 적응 -->
+      <rect x="510" y="160" width="170" height="65" rx="12" fill="#f8fafc" stroke="#991b1b" stroke-width="1.5"/>
+      <text x="595" y="185" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">도메인 특화 배포</text>
+      <text x="595" y="203" font-size="10" fill="#64748b" text-anchor="middle">QLoRA로 양자화 + 도메인 적응</text>
+      <text x="595" y="217" font-size="10" fill="#64748b" text-anchor="middle">의료/법률 AI 경량화</text>
+      <line x1="510" y1="190" x2="400" y2="140" stroke="#991b1b" stroke-width="1.5"/>
+    </svg>
+    <div class="diagram-caption">OneComp는 엣지부터 클라우드까지, 연구부터 프로덕션까지 다양한 시나리오에 적용 가능</div>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<div class="one-liner" style="margin-bottom:2rem;">
+  OneComp = <strong>한 줄 명령</strong> + <strong>자동 최적 압축</strong> + <strong>극한 1-bit까지</strong><br>
+  <span style="font-size:0.9rem; opacity:0.8;">Fujitsu Research가 개발한, AI 모델 압축을 민주화하는 오픈소스 프레임워크</span>
+</div>
+
+<!-- ============================================================== -->
+<!--  한계점                                                         -->
+<!-- ============================================================== -->
+<section>
+  <h2>참고: 한계점과 현실적 고려사항</h2>
+
+  <!-- 1. 실험 규모 -->
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem; font-size:1.2rem;">실험 규모가 아직 제한적</h3>
+    <p>현재 실험은 8B, 14B 모델에서만 진행되었습니다. 실제 프로덕션 환경에서 흔히 사용되는 <strong>70B 이상 모델</strong>이나 <strong>MoE(Mixture-of-Experts) 모델</strong>에서의 효과는 아직 검증되지 않았습니다. 모델이 커질수록 양자화의 특성이 달라질 수 있으므로, 대규모 모델에서의 추가 검증이 필요합니다.</p>
+  </div>
+
+  <!-- 2. 벤치마크 한계 -->
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem; font-size:1.2rem;">평가 벤치마크가 제한적</h3>
+    <p>성능 평가가 WikiText-2 Perplexity와 4개 zero-shot 태스크(ARC, PIQA, WinoGrande)에 한정됩니다. <strong>MMLU(지식 이해), HumanEval(코드 생성), MT-Bench(대화 품질)</strong> 등 현대적 벤치마크에서의 평가가 없어, 실제 서비스 품질에 미치는 영향을 판단하기 어렵습니다.</p>
+  </div>
+
+  <!-- 3. 미완성 기능 -->
+  <div class="card card-red">
+    <h3 style="color:#991b1b; margin-bottom:0.8rem; font-size:1.2rem;">일부 핵심 기능이 아직 미완성</h3>
+    <p>논문에서 가장 혁신적인 두 기능이 "현재 개발 중"입니다:</p>
+    <ul style="padding-left:1.2rem; line-height:2;">
+      <li><strong>Global PTQ (Stage 3)</strong>: 전체 모델 최적화 단계가 향후 릴리스 예정</li>
+      <li><strong>MDBF</strong>: 극한 1-bit 압축 기능도 향후 릴리스 예정</li>
+    </ul>
+    <p style="margin-top:0.5rem;">즉, 현재 공개된 오픈소스 코드에서는 논문에 설명된 전체 파이프라인을 아직 사용할 수 없습니다.</p>
+  </div>
+
+  <!-- 4. 실행 시간 미보고 -->
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem; font-size:1.2rem;">실행 시간과 GPU 사용량 미보고</h3>
+    <p>"Resource-adaptive"를 강조하지만, <strong>각 단계의 실제 실행 시간과 GPU 메모리 사용량</strong>에 대한 구체적인 데이터가 없습니다. 따라서 "한 줄 명령"이 실제로 얼마나 빠른지, GPU 한 장으로 어디까지 가능한지 정량적으로 판단하기 어렵습니다.</p>
+  </div>
+
+  <!-- 5. 경쟁 프레임워크 비교 부재 -->
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-bottom:0.8rem; font-size:1.2rem;">기존 통합 프레임워크와의 비교 없음</h3>
+    <p>AutoGPTQ, llama.cpp, vLLM 등 <strong>이미 널리 사용되는 양자화 도구</strong>와의 직접 비교가 없습니다. 개별 알고리즘(GPTQ vs JointQ)의 비교만 있으므로, "OneComp를 써야 하는 이유"가 기존 도구 대비 얼마나 강한지 판단하기 어렵습니다.</p>
+  </div>
+
+  <!-- 종합 -->
+  <div class="card" style="border-left:5px solid #991b1b; background:linear-gradient(135deg, #f8fafc, #fef2f2);">
+    <h3 style="color:#7f1d1d; margin-bottom:0.8rem; font-size:1.2rem;">균형 잡힌 시각</h3>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+        <!-- 저울 -->
+        <line x1="350" y1="15" x2="350" y2="55" stroke="#991b1b" stroke-width="3"/>
+        <polygon points="340,15 360,15 350,5" fill="#991b1b"/>
+        <line x1="130" y1="55" x2="570" y2="55" stroke="#991b1b" stroke-width="2.5"/>
+
+        <!-- 왼쪽: 가치 -->
+        <line x1="130" y1="55" x2="130" y2="75" stroke="#059669" stroke-width="2"/>
+        <rect x="30" y="75" width="200" height="50" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+        <text x="130" y="96" text-anchor="middle" font-size="11" font-weight="bold" fill="#059669">확실한 가치</text>
+        <text x="130" y="114" text-anchor="middle" font-size="9" fill="#475569">통합 파이프라인 / 자동화 / 오픈소스</text>
+
+        <!-- 오른쪽: 불확실성 -->
+        <line x1="570" y1="55" x2="570" y2="75" stroke="#d97706" stroke-width="2"/>
+        <rect x="470" y="75" width="200" height="50" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+        <text x="570" y="96" text-anchor="middle" font-size="11" font-weight="bold" fill="#d97706">남은 불확실성</text>
+        <text x="570" y="114" text-anchor="middle" font-size="9" fill="#475569">핵심 기능 미완성 / 대규모 미검증</text>
+      </svg>
+    </div>
+
+    <p style="margin-bottom:0.5rem;">OneComp는 <strong>파편화된 양자화 생태계를 통합하는 의미 있는 시도</strong>이며, QEP의 오차 보정 효과(PPL 87배 개선)는 인상적입니다. 하지만:</p>
+    <ol style="padding-left:1.2rem; line-height:2;">
+      <li>Global PTQ와 MDBF가 공개되기 전까지는 <strong>논문의 full pipeline을 재현할 수 없습니다</strong></li>
+      <li>70B+ 모델과 실제 서비스 환경에서의 <strong>안정성은 아직 미지수</strong>입니다</li>
+      <li>도입 검토 시 <strong>기존 도구(AutoGPTQ 등)와의 실용적 비교</strong>를 먼저 확인해야 합니다</li>
+    </ol>
+  </div>
+</section>
+
+</div>
+
+<!-- ===== 버전 전환 링크 ===== -->
+<div style="text-align:center; padding:2rem;">
+  <a href="20260407_ichikawa_onecomp.html" class="version-link-bottom">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<div class="footer">
+  OneComp (Ichikawa et al., 2026) &middot; Fujitsu Research, RIKEN Center for AIP &middot; 비전문가 브리핑 자료
+</div>
+
+</body>
+</html>

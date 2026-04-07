@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TriAttention: Efficient Long Reasoning with Trigonometric KV Compression</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>TriAttention: Efficient Long Reasoning with Trigonometric KV Compression</h1>
+
+<p><a href="20260407_mao_triattention_brief.html">📋 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Weian Mao* (MIT), Xi Lin* (ZJU), Wei Huang* (NVIDIA), Bohan Zhuang (ZJU), Yuxin Xie (MIT), Tianfu Fu (MIT), Yukang Chen (NVIDIA), Song Han (MIT/NVIDIA)</li>
+  <li><strong>소속</strong>: MIT, NVIDIA, ZJU (*Equal contribution)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2604.04921)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.04921">arXiv</a> | <a href="https://github.com/WeianMao/triattention">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM의 long reasoning에서 KV cache가 수만 token으로 팽창하여 메모리 병목이 발생한다. 기존 KV cache compression 방법들은 post-RoPE representation에서 attention score를 관찰하여 token importance를 추정하지만, RoPE rotation 때문에 query가 position에 따라 회전하여 소수의 최근 query만으로는 정확한 importance 추정이 불가능하다</li>
+  <li><strong>해결</strong>: TriAttention은 pre-RoPE space에서 Q/K vector가 고정된 non-zero center 주위로 강하게 집중(concentrate)되는 현상을 발견하고, 이 center로부터 trigonometric series를 구성하여 거리 기반 attention preference를 예측한 뒤, norm-based score와 결합하여 key importance를 추정한다</li>
+  <li><strong>왜 작동하는가</strong>: Pre-RoPE Q/K concentration은 position과 context에 무관하게 안정적인 model-intrinsic property이다. Center가 고정이면 attention logit이 Q-K distance $\Delta$의 trigonometric series로 근사되어, 미래 query의 attention을 직접 관찰하지 않고도 예측 가능하다</li>
+  <li><strong>비유</strong>: 기존 방법이 "지금 창문으로 보이는 풍경"만으로 건물의 가치를 판단한다면, TriAttention은 "건물의 구조적 특성(위치, 높이)"을 파악하여 어느 방향에서 보더라도 가치를 예측할 수 있는 것과 같다</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Q/K Concentration 현상 발견</strong>: Pre-RoPE space에서 Q/K vector가 dominant frequency band의 2D subspace에서 고정 non-zero center에 강하게 집중하며, 이것이 모든 attention head의 ~90%에서 $R > 0.95$로 관측되는 model-intrinsic property임을 발견</li>
+  <li><strong>Trigonometric series 기반 attention 예측</strong>: ##Q/K concentration 하에서 attention logit이 Q-K distance의 trigonometric series로 정확히 근사됨을 이론적으로 유도하고 (Pearson $\bar{r} = 0.72$로 실험적 검증), 이를 key importance scoring에 활용##</li>
+  <li><strong>TriAttention 방법 제안</strong>: Trigonometric series score $S_{\text{trig}}$와 norm-based score $S_{\text{norm}}$을 Mean Resultant Length $R_f$로 adaptive하게 결합하는 KV cache compression 방법 설계</li>
+  <li><strong>SOTA 성능</strong>: AIME25에서 동일 accuracy에서 Full Attention 대비 2.5× throughput, 10.7× KV memory 감소를 달성하며, 모든 KV compression baseline을 일관되게 능가</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<p>LLM의 extended reasoning은 수만 token의 chain-of-thought sequence를 생성하며, KV cache가 sequence length에 비례하여 선형 증가한다. KV cache compression은 importance가 높은 token만 선택적으로 유지하여 이 문제를 해결하지만, 핵심 challenge는 importance estimation이다: 어떤 token이 미래 query에서 높은 attention을 받을 것인가?</p>
+
+<p>기존 방법들은 post-RoPE representation에서 최근 query의 attention score를 관찰하여 importance를 추정한다. 그러나 이 접근의 근본적 한계는 query가 RoPE에 의해 position마다 회전하므로, 최근 소수의 query만으로는 미래 attention 패턴을 대표하기 어렵다는 것이다. 특히 retrieval head에서, 오래 전에 저장된 중요 key가 최근 query에서는 낮은 attention을 받아 영구 eviction될 수 있다.</p>
+
+<p>본 논문은 pre-RoPE space로 전환하여 이 문제를 해결한다. 핵심 관찰: 대부분의 attention head에서, Q/K vector는 pre-RoPE space의 dominant frequency band에서 고정 non-zero center 주위에 강하게 집중된다. 이 concentration은 position과 input context에 걸쳐 안정적이다. Center가 고정이면 attention logit은 Q-K distance의 trigonometric series로 근사되며, 이로부터 key의 미래 importance를 직접 관찰 없이 예측할 수 있다.</p>
+
+<h2>2. Background and Related Work</h2>
+
+<h3>2.1 Rotary Position Embedding (RoPE)</h3>
+
+<p>RoPE는 $d$-dimensional vector를 $d/2$개의 2D subspace로 나누어, frequency band $f$에서 frequency $\omega_f = \theta^{-2f/d}$ ($\theta = 10000$)로 position-dependent rotation을 적용한다:</p>
+
+$$\begin{pmatrix} x'_{2f} \\ x'_{2f+1} \end{pmatrix} = \begin{pmatrix} \cos(\omega_f p) & -\sin(\omega_f p) \\ \sin(\omega_f p) & \cos(\omega_f p) \end{pmatrix} \begin{pmatrix} x_{2f} \\ x_{2f+1} \end{pmatrix} \tag{1}$$
+
+<p>RoPE rotation 전의 Q/K vector를 "pre-RoPE", rotation 후를 "post-RoPE"라 한다.</p>
+
+<h3>2.2 Post-RoPE Compression Methods</h3>
+
+<p><strong>Heuristic methods</strong>: StreamingLLM (initial "sink" tokens + recent window), 단순하지만 content-dependent importance를 반영하지 못함.</p>
+
+<p><strong>Attention-based methods</strong>: H2O (heavy-hitter oracle), SnapKV (local window attention 기반), R-KV (redundancy-aware scoring), LazyEviction (delayed eviction). 모두 최근 post-RoPE query의 attention score에 의존하며, observation window가 좁다.</p>
+
+<p><strong>Norm-based methods</strong>: VATP (value vector norm + attention score 결합). Norm 정보는 유용하나 방향 정보를 무시한다.</p>
+
+<h3>2.3 Limitations of Post-RoPE Methods</h3>
+
+<p>Attention-based 방법의 핵심 제약: query가 position에 따라 회전하여 관찰 가능한 query가 소수의 최근 방향으로 한정된다. Norm-based 방법의 제약: vector magnitude만 활용하고 방향 정보를 무시한다. Post-RoPE space에서는 방향이 position과 entangle되어 있어 방향 정보 활용이 어렵다. ##TriAttention은 pre-RoPE space로 전환하여 position-independent한 안정적 Q/K center를 활용함으로써 이 한계를 극복한다.##</p>
+
+<h2>3. Pre-RoPE and Trigonometric Series</h2>
+
+<h3>3.1 The Pre-RoPE Concentration Phenomenon</h3>
+
+<p><strong>Observation 3.1 (Prevalent Q/K Concentration)</strong>: Pre-RoPE space의 dominant frequency band에서 Q/K vector가 고정 non-zero center 주위에 강하게 집중되며, 이는 다양한 token position과 input context에 걸쳐 안정적이다 (Figure 2A).</p>
+
+<p>집중도를 정량화하기 위해 Mean Resultant Length (MRL)를 사용한다:</p>
+
+$$R = \frac{\|\mathbb{E}[q]\|}{\mathbb{E}[\|q\|]} \tag{Eq. in text}$$
+
+<p>$R \to 1$이면 완벽한 집중 (모든 vector가 같은 방향), $R \to 0$이면 uniform dispersion. Qwen3-8B의 거의 모든 head에서 $R$ 값이 1.0에 근접하며, ~90% 이상의 head가 $R > 0.95$를 보인다 (Figure 2C). 이 concentration은 model-intrinsic property로, domain (Math, Coding, Chat)에 무관하게 0.977–0.980의 MRL을 보인다.</p>
+
+<h3>3.2 Predictable Distance Preferences</h3>
+
+<p>Q/K가 강하게 집중되면, attention logit이 Q-K distance의 함수로 예측 가능해진다. Position $p_q$의 query $q$와 position $p_k$의 key $k$에 대해, RoPE attention logit:</p>
+
+$$\text{logit}(q, k) = \sum_f \|q_f\| \|k_f\| \cos(\omega_f \Delta + \phi_f) \tag{2}$$
+
+<p>여기서 $\Delta = p_q - p_k$, $q_f, k_f \in \mathbb{C}$는 frequency band $f$의 pre-RoPE component, $\phi_f = \arg(q_f) - \arg(k_f)$이다.</p>
+
+<p>Q/K가 집중되어 $q_f \approx \bar{q}_f$, $k_f \approx \bar{k}_f$ (center)로 근사하면:</p>
+
+$$\text{logit}(\Delta) \approx \sum_f \|\bar{q}_f\| \|\bar{k}_f\| \cos(\omega_f \Delta + \bar{\phi}_f) = \sum_f [a_f \cos(\omega_f \Delta) + b_f \sin(\omega_f \Delta)] \tag{3}$$
+
+<p>이것은 ##Q-K distance $\Delta$에 대한 trigonometric series이다. RoPE frequency가 geometric progression $\omega_f = \theta^{-2f/d}$를 따르므로, classical Fourier series의 harmonic progression과는 다르지만 원리는 유사하다: Q/K center가 coefficient를 결정하고, 이 coefficient가 distance-dependent attention 곡선을 형성한다.##</p>
+
+<h3>3.3 Experimental Validation</h3>
+
+<p><strong>Reconstruction Correlation $\bar{r}$</strong>: Trigonometric series 예측과 실제 attention logit 간의 mean Pearson correlation:</p>
+
+$$\bar{r} = \frac{1}{N}\sum_{i=1}^{N} \rho(\mathbf{a}_i, \hat{\mathbf{s}}) \tag{5}$$
+
+<p>Logarithmically-spaced distances $\Delta \in \{1, 2, 4, 8, \ldots\}$에서 평가. Qwen3-8B의 전체 1152 attention head에서 $\bar{r}$는 0.6–0.9 범위에 분포하며, mean values 0.5 이상 (Figure 3). 세 architecture (Qwen3, Qwen2.5, Llama3) 모두에서 일관된 패턴이 관찰된다. 이는 Q/K center에서 계산된 trigonometric series가 실제 attention 패턴을 정확히 예측함을 확인한다.</p>
+
+<h2>4. TriAttention</h2>
+
+<p>Section 3의 분석을 기반으로, key importance를 scoring하고 top-scoring key만 retain하는 KV cache compression 방법을 설계한다 (Figure 4). Scoring function은 두 가지 signal을 결합한다: trigonometric series (distance preference 포착) + norm-based (token salience 보완). 두 component의 weight는 Q/K concentration에 따라 adaptive하게 조정된다.</p>
+
+<h3>4.1 Key Importance Scoring</h3>
+
+<p><strong>Trigonometric Series Score</strong>: Key $k$가 cache에 저장되어 있으므로, pre-RoPE representation $k_f \in \mathbb{C}$를 직접 사용한다. Calibration data에서 계산한 Q center $\mathbb{E}[q_f]$와 함께, distance $\Delta$에서의 expected attention:</p>
+
+$$S_{\text{trig}}(k, \Delta) = \sum_f \|\mathbb{E}[q_f]\| \cdot \|k_f\| \cdot \cos(\omega_f \Delta + \phi_f) \tag{6}$$
+
+<p>여기서 $\phi_f = \arg(\mathbb{E}[q_f]) - \arg(k_f)$.</p>
+
+<p><strong>Norm-Based Score</strong>: Trigonometric series는 Q/K가 정확히 center에 있다고 가정하지만, 실제로는 center 주위에 variation이 존재한다. 이를 보완하기 위한 norm-based term:</p>
+
+$$S_{\text{norm}}^{(0)}(k) = \sum_f \mathbb{E}[\|q_f\|] \cdot \|k_f\| \tag{7}$$
+
+<h3>4.2 Adaptive Weighting via Concentration</h3>
+
+<p>Q/K concentration이 높으면 ($R_f$ 높음) trigonometric series가 정확하고, 낮으면 norm-based score가 더 중요하다. Frequency band별 $R_f$를 사용하여 adaptive weighting:</p>
+
+$$S_{\text{norm}}(k) = \sum_f (1 - R_f) \cdot \mathbb{E}[\|q_f\|] \cdot \|k_f\| \tag{8}$$
+
+<p>직관적으로, $R_f$가 높으면 $(1 - R_f)$가 작아 $S_{\text{norm}}$의 기여가 줄고 $S_{\text{trig}}$가 지배적이 된다. $R_f$가 낮으면 norm 기여가 보존된다. Eq. 9는 이를 다시 쓴 것: $S_{\text{norm}}(k) = \sum_f (\mathbb{E}[\|q_f\|] - \|\mathbb{E}[q_f]\|) \cdot \|k_f\|$.</p>
+
+<p><strong>Final combined score</strong>:</p>
+
+$$S(k, \Delta) = S_{\text{trig}}(k, \Delta) + S_{\text{norm}}(k) \tag{10}$$
+
+<p>Key는 미래의 모든 query position에서 중요할 수 있으므로, multiple future offsets에서 score를 평균:</p>
+
+$$\tilde{S}(k) = \frac{1}{|\mathcal{D}|}\sum_{\delta \in \mathcal{D}} S(k, \Delta + \delta) \tag{11}$$
+
+<p>여기서 $\mathcal{D} = \{1, 2, 4, \ldots, 2^{16}\}$ (geometric spacing). 이 geometric spacing이 linear spacing ($45.8\%$ vs $28.7\%$)을 크게 능가한다.</p>
+
+<h3>4.3 KV Cache Pruning</h3>
+
+<p><strong>Window-based pruning</strong>: 매 decoding step이 아닌 $\beta = 128$ token 간격으로 pruning을 trigger하여 computational overhead를 감소시킨다.</p>
+
+<p><strong>Grouped-Query Attention (GQA) handling</strong>: GQA에서 하나의 KV head가 $G$개의 query head에 공유되므로, 각 query head의 score를 z-score normalize 후 max-aggregation:</p>
+
+$$\hat{S}^{(g)}(k) = \frac{\tilde{S}^{(g)}(k) - \mu_g}{\sigma_g} \tag{12}$$
+
+$$S_{\text{final}}(k) = \max_{g \in \{0, \ldots, G-1\}} \left(\hat{S}^{(g)}(k)\right) \tag{13}$$
+
+<p>어떤 query head라도 해당 key를 중요하다고 판단하면 retain한다.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>5.1 Experimental Setup</h3>
+
+<p><strong>Models</strong>: Qwen3-8B, DeepSeek-R1-Distill-Llama-8B (DS-Llama), DeepSeek-R1-Distill-Qwen-7B (DS-Qwen), GPT-OSS-20B. Strong chain-of-thought reasoning 능력과 diverse architectural foundation을 기준으로 선택.</p>
+
+<p><strong>Baselines</strong>: Full Attention (upper bound), SnapKV (historical attention 기반), R-KV (redundancy-aware, attention + norm 결합).</p>
+
+<p><strong>Datasets</strong>: AIME 2024 (30 problems), AIME 2025 (30 problems), MATH 500 (500 problems). 추가로 LongBench, RULER (Appendix).</p>
+
+<p><strong>Implementation</strong>: A100 80GB GPUs, bfloat16, max 32,768 tokens, temperature 0.6, top-p 0.95. AIME: 8 samples/problem. KV compression: 128-token window, default budget 2048. DS-Llama와 MATH 500은 budget 512.</p>
+
+<h3>5.2 Results</h3>
+
+<h4>5.2.1 Reasoning Task Performance</h4>
+
+<p><strong>AIME24 and AIME25 (Table 1)</strong>:</p>
+
+<table>
+<tr><th>Method</th><th colspan="4">AIME24</th><th colspan="4">AIME25</th></tr>
+<tr><th></th><th>Qwen3-8B</th><th>DS-Llama</th><th>DS-Qwen</th><th>GPT-OSS</th><th>Qwen3-8B</th><th>DS-Llama</th><th>DS-Qwen</th><th>GPT-OSS</th></tr>
+<tr><td>Full Attention</td><td>57.1</td><td>50.4</td><td>43.8</td><td>69.2</td><td>40.8</td><td>31.4</td><td>34.2</td><td>60.0</td></tr>
+<tr><td>SnapKV</td><td><u>34.6</u></td><td>5.0</td><td><u>34.6</u></td><td>48.3</td><td>20.0</td><td>6.7</td><td><u>25.0</u></td><td>36.7</td></tr>
+<tr><td>R-KV</td><td>25.4</td><td><u>25.8</u></td><td>34.6</td><td><u>49.6</u></td><td>17.5</td><td><u>11.2</u></td><td>23.3</td><td><u>39.2</u></td></tr>
+<tr><td><strong>TriAttention</strong></td><td><strong>42.1</strong></td><td><strong>33.8</strong></td><td><strong>42.5</strong></td><td><strong>59.2</strong></td><td><strong>32.9</strong></td><td><strong>19.6</strong></td><td><strong>30.0</strong></td><td><strong>49.2</strong></td></tr>
+</table>
+
+<p>##TriAttention은 모든 모델과 데이터셋에서 KV compression 방법 중 일관되게 최고 성능을 달성하며, Full Attention에 근접한다.## 특히 AIME25에서 Qwen3-8B 기준 TriAttention 32.9% vs R-KV 17.5%로, 15.4pp의 압도적 차이를 보인다.</p>
+
+<p><strong>MATH 500 (Table 2, KV budget 512)</strong>:</p>
+
+<table>
+<tr><th>Method</th><th>Qwen3-8B</th><th>DS-Llama</th><th>DS-Qwen</th><th>GPT-OSS</th></tr>
+<tr><td>Full Attention</td><td>69.6</td><td>82.4</td><td>87.0</td><td>91.4</td></tr>
+<tr><td>SnapKV</td><td>49.2</td><td>65.5</td><td>66.4</td><td>68.2</td></tr>
+<tr><td>R-KV</td><td>46.4</td><td><u>76.9</u></td><td><u>71.6</u></td><td><u>77.4</u></td></tr>
+<tr><td><strong>TriAttention</strong></td><td><strong>56.0</strong></td><td><strong>80.6</strong></td><td><strong>79.6</strong></td><td><strong>81.2</strong></td></tr>
+</table>
+
+<p>MATH 500에서 KV budget 1024 기준으로 TriAttention은 68.4%를 달성하여 Full Attention의 69.6%와 거의 동등하다.</p>
+
+<h4>5.2.2 Memory Retention Benchmark</h4>
+
+<p>KV cache pruning이 intermediate state를 잊게 할 수 있는지 테스트하기 위해, recursive simulation 기반 벤치마크를 설계했다. DFS (Depth-First Search)를 사용하여 recursion depth를 6에서 20까지 변화시키며, 더 깊은 recursion은 더 많은 intermediate state 보존을 요구한다.</p>
+
+<p>결과 (Figure 5D): Depth 16까지 TriAttention은 Full Attention과 유사하게 수행하며, depth 8과 12에서는 오히려 약간 우수하다. Depth 18 이상에서만 TriAttention이 뒤처지기 시작하는데, 이는 Full Attention의 KV cache에도 redundancy가 있으며, TriAttention이 typical workload에서 essential information을 효과적으로 보존함을 시사한다. ##반면 R-KV는 depth 16에서 catastrophic accuracy degradation을 보이며 (약 61% → 31%), post-RoPE 기반 pruning이 intermediate state 보존에 취약함을 드러낸다.##</p>
+
+<h4>5.2.3 Ablation Study</h4>
+
+<p><strong>Effect of scoring components (Table 3A)</strong>: $S_{\text{trig}}$를 제거하면 AIME24 42.1→18.8, AIME25 32.9→21.2로 급락. ##Trigonometric series score가 TriAttention 성능의 핵심 driver임을 확인한다.## $S_{\text{norm}}$만으로도 기존 방법들(SnapKV 34.6, R-KV 25.4)보다 우수하지만, $S_{\text{trig}}$ 없이는 TriAttention의 full performance에 크게 미치지 못한다.</p>
+
+<p><strong>Effect of adaptive weighting R (Table 3B)</strong>: $R$을 제거하면 AIME24 42.1→41.3, AIME25 32.9→28.7. Concentration-based weighting이 일관된 개선을 제공한다.</p>
+
+<p><strong>Cross-domain calibration (Table 3C)</strong>: Coding 데이터로 calibrate하고 reasoning에서 평가해도 AIME24 44.2 vs 42.1 (reasoning calibration)로 유사하거나 더 우수한 성능. ##Q/K statistics가 model-intrinsic property이므로, calibration 도메인에 robust하다.##</p>
+
+<h4>5.2.4 Throughput and Efficiency</h4>
+
+<p><strong>vs Full Attention (Table 4)</strong>:</p>
+
+<table>
+<tr><th>Metric</th><th colspan="2">MATH 500</th><th colspan="2">AIME24</th><th colspan="2">AIME25</th></tr>
+<tr><th></th><th>Full Attn.</th><th>TriAttn.</th><th>Full Attn.</th><th>TriAttn.</th><th>Full Attn.</th><th>TriAttn.</th></tr>
+<tr><td>KV Budget</td><td>–</td><td>1024</td><td>–</td><td>4096</td><td>–</td><td>3072</td></tr>
+<tr><td>Accuracy</td><td>69.6</td><td>68.4</td><td>57.1</td><td>54.6</td><td>40.8</td><td>40.8</td></tr>
+<tr><td>Throughput</td><td>222.8</td><td><strong>1405.2</strong></td><td>222.8</td><td><strong>413.9</strong></td><td>222.8</td><td><strong>563.5</strong></td></tr>
+<tr><td>Speedup</td><td colspan="2"><strong>6.3×</strong></td><td colspan="2"><strong>1.9×</strong></td><td colspan="2"><strong>2.5×</strong></td></tr>
+</table>
+
+<p>AIME25에서 동일 accuracy (40.8%)를 유지하면서 ##2.5× throughput 향상 또는 10.7× KV memory 감소##를 달성한다. MATH 500에서는 6.3× speedup.</p>
+
+<p><strong>vs R-KV (Table 5)</strong>: Comparable accuracy에서 TriAttention은 R-KV의 절반 KV budget만 필요 (1024 vs 2048)하면서 85% 더 높은 throughput (1405.2 vs 760.4)을 달성한다.</p>
+
+<h4>Additional Benchmarks (Appendix)</h4>
+
+<p><strong>LongBench (Table B, Qwen3-8B, 50% KV)</strong>: TriAttention 48.1 avg (16개 subtask 중 11개에서 최고) vs Ada-KV+SnapKV 45.6, SnapKV 45.2.</p>
+
+<p><strong>RULER (Table C, Qwen3-8B, 50% KV, 4K context)</strong>: TriAttention 66.1 vs StreamingLLM 61.1, SnapKV 55.6.</p>
+
+<p><strong>Additional baselines (Table A, DS-Qwen-7B, AIME24)</strong>: TriAttention이 모든 KV budget (10%, 20%, 30%)에서 H2O, TOVA, RaaS, R-KV, LazyEviction을 능가하며, 30% budget에서 Full Attention (46.7)과 동일한 46.7 달성.</p>
+
+<p><strong>MLA architecture (Table G)</strong>: GLM-4.7-Flash (MLA with 940 heads)에서 96.6%의 MLA head가 $R > 0.95$ (vs GQA 84.7%), Q/K concentration이 architecture-general 현상임을 확인.</p>
+
+<h4>Future Offset Design (Table E)</h4>
+<p>Maximum distance를 128에서 4096으로 늘리면 accuracy 41.7% → 48.8% (+7.1%). Geometric spacing ($\{1,2,4,\ldots\}$)이 linear spacing (45.8% vs 28.7%, $-17.1\%$)을 대폭 능가. Near-distance positions에서의 denser sampling이 중요하다.</p>
+
+<h4>Calibration Sensitivity (Table F)</h4>
+<p>Calibration size 50k–960k tokens에서 성능 안정 (45.4–45.8%). 데이터 quality도 무관: Google homepage HTML (46.2%) ≈ ShareGPT chat (46.7%). Q/K statistics가 model-intrinsic property이므로 calibration에 robust.</p>
+
+<h2>6. Conclusion</h2>
+
+<p>TriAttention은 pre-RoPE space에서의 Q/K concentration이라는 model-intrinsic property를 발견하고, 이를 trigonometric series 기반 importance estimation에 활용한 KV cache compression 방법이다. Mathematical reasoning (AIME, MATH 500)과 general tasks (LongBench, RULER) 모두에서 모든 baseline을 일관되게 능가하며, Full Attention과 동등한 accuracy에서 2.5× throughput, 10.7× memory 감소를 달성한다.</p>
+
+<h2>A. Limitations and Future Work</h2>
+<p>현재 implementation은 software-level efficiency gain만 제공하며, dedicated hardware-aware inference kernel 개발로 추가 latency 감소가 가능하다. 향후 coding, agentic task 등 broader domain 평가와, head-specific budget 전략 연구가 계획되어 있다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>실험 모델 범위</strong>: 8B–20B scale의 모델만 평가. 70B+ 또는 MoE 대규모 모델에서의 검증이 필요하다</li>
+  <li><strong>Offline calibration 요구</strong>: Q/K center 계산에 offline calibration이 필요하며, 모델 update 시 재계산해야 한다. 그러나 calibration data sensitivity가 낮다는 점은 긍정적이다</li>
+  <li><strong>Non-concentrated head 처리</strong>: ~10% head에서 $R < 0.95$로 concentration이 낮을 수 있으며, 이 head에서는 $S_{\text{norm}}$에 의존한다. 이러한 head가 critical information을 담당할 경우의 영향 분석이 부족하다</li>
+  <li><strong>Prefill 단계 미적용</strong>: Decoding 단계의 KV cache pruning에만 초점. Prefill 단계의 KV cache compression은 다루지 않는다</li>
+  <li><strong>표준편차 미보고</strong>: AIME 벤치마크 결과에 variance가 보고되지 않아, 8 samples/problem의 통계적 신뢰도가 불명확하다</li>
+  <li><strong>Practical deployment</strong>: 코드 공개 (GitHub)되어 재현 가능. OpenClaw + Qwen3-32B + RTX 4090의 실용적 deployment 시나리오도 시연 (Figure C)</li>
+  <li><strong>Theoretical soundness</strong>: Q/K concentration → trigonometric series → importance scoring의 이론적 chain이 깔끔하고, 각 단계가 실험적으로 검증되었다</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Pre-RoPE space의 힘</strong>: Post-RoPE representation의 position entanglement 문제를 pre-RoPE 전환으로 해결한 것은 elegant하고 일반적인 insight이다. 향후 KV cache compression 외의 다른 attention analysis에도 적용 가능할 수 있다</li>
+  <li><strong>Q/K concentration은 model-intrinsic</strong>: Domain, context, position에 무관한 안정적 property이므로, 이를 활용하는 방법은 매우 robust하다. MLA architecture에서도 관찰된다는 점은 일반성을 강화한다</li>
+  <li><strong>Distance preference의 예측 가능성</strong>: Attention이 단순히 content similarity가 아니라 distance-dependent preference를 가진다는 발견은, LLM의 attention mechanism 이해에 기여한다</li>
+  <li><strong>실용적 영향력</strong>: Single consumer GPU (RTX 4090)에서 32B 모델의 long-context 추론을 가능하게 하는 것은, LLM 접근성을 크게 개선할 수 있다</li>
+  <li><strong>Reasoning에서의 KV compression 중요성</strong>: Long reasoning은 수만 token을 생성하므로 KV cache가 weight만큼 커질 수 있으며, TriAttention 같은 compression은 weight quantization (OneComp 등)과 상보적인 필수 기술이 될 것이다</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

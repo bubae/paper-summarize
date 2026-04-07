@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Distilled RLVR (RLSD)</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Self-Distilled RLVR (RLSD)</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260407_yang_rlsd_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chenxu Yang*, Chuanyu Qin*, Qingyi Si*, Minghui Chen, Naibin Gu, Dingyu Yao, Zheng Lin&dagger;, Weiping Wang, Jiaqi Wang, Nan Duan (* = equal contribution, &dagger; = corresponding)</li>
+  <li><strong>소속</strong>: Institute of Information Engineering, Chinese Academy of Sciences (CAS); School of Cyber Security, University of CAS; JD.COM</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.03128">arXiv:2604.03128</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-Policy Self-Distillation (OPSD)은 하나의 모델이 teacher와 student를 겸하며, teacher가 privileged information (예: 검증된 reasoning trace)에 조건화하여 dense, token-level 학습 신호를 제공한다. 그러나 teacher와 student 간 정보 비대칭(information asymmetry)으로 인해 distribution matching 목적 함수가 구조적으로 ill-posed해지며, 이로 인해 불가피한 privileged information leakage와 장기적 성능 저하가 발생한다.</li>
+  <li><strong>해결</strong>: RLSD (RLVR with Self-Distillation) -- self-distillation의 teacher를 "생성 대상(generative target)"이 아닌 "크기 평가기(magnitude evaluator)"로 재목적화한다. 환경 보상(environment reward)이 각 토큰 업데이트의 방향(direction)을 결정하고, teacher의 evidence ratio $P_T(y_t)/P_S(y_t)$가 업데이트의 크기(magnitude)를 조절하여 token-level credit assignment를 수행한다.</li>
+  <li><strong>왜 작동하는가</strong>: 방향 신호(directional signal)와 크기 신호(magnitude signal)의 요구 사항이 비대칭적이다. 방향 신호는 sparse하지만 신뢰할 수 있어야 하고(환경 보상), 크기 신호는 가능한 한 dense해야 토큰 간 세밀한 구별이 가능하다(self-distillation). RLSD는 이 비대칭성을 활용하여 privileged information이 gradient 방향이 아닌 크기에만 영향을 미치도록 설계함으로써 leakage를 구조적으로 차단한다.</li>
+  <li><strong>비유</strong>: GRPO는 시험의 "맞다/틀렸다"만 알려주는 채점관이다 -- 모든 답안 글자에 동일한 점수를 준다. OPSD는 정답지를 보면서 "이 글자는 이렇게 써야 한다"고 일일이 알려주는 과외 선생이지만, 학생이 시험장에서 정답지 없이 스스로 그 패턴을 따라하려다 오히려 문제를 일으킨다. RLSD는 정답지를 보고 "이 풀이 단계가 얼마나 핵심적인지"만 평가하되, 맞다/틀렸다의 방향은 시험 채점관에게 맡기는 전략 -- 정답지의 유용한 정보(어떤 단계가 중요한지)는 활용하면서도 leakage 없이 안정적으로 학습한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>OPSD 실패의 근본 원인 규명</strong>: Information asymmetry 하에서 distribution matching이 irreducible mutual information gap $I(Y_t; R \mid X, Y_{&lt;t})$을 포함하며, 이것이 privileged information leakage를 유발하고 장기적 성능 저하를 초래함을 이론적으로 증명 (Theorem 1 KL Decomposition, Proposition 1 Per-Sample Gradient Decomposition).</li>
+  <li><strong>RLSD 알고리즘 설계</strong>: ##Self-distillation을 distribution matching이 아닌 token-level credit assignment 신호로 재목적화## -- 환경 보상은 업데이트 방향을, teacher의 evidence ratio는 업데이트 크기를 제어하여, 추가 auxiliary loss나 외부 모델 없이 GRPO의 uniform advantage를 대체하는 drop-in replacement.</li>
+  <li><strong>Bayesian 해석</strong>: Evidence ratio $w_t = P_T(y_t)/P_S(y_t)$가 sequential Bayesian belief update $P(r \mid x, y_{\leq t}) / P(r \mid x, y_{&lt;t})$에 해당하며, token-level weight의 sequence-level 곱이 전체 trajectory의 Bayesian evidence로 telescope됨을 증명 (Theorem 4).</li>
+  <li><strong>Impossibility Trilemma</strong>: 어떤 distribution matching 기반 self-distillation 전략도 objective stability, sustained improvement, leakage-free training 세 가지를 동시에 만족할 수 없음을 증명 (Theorem 3).</li>
+  <li><strong>5개 multimodal reasoning benchmark에서 SOTA</strong>: ##RLSD가 Qwen3-VL-8B-Instruct 기반으로 평균 56.18% 정확도를 달성##, Base LLM 대비 +4.69%, GRPO 대비 +2.32% 개선. 특히 MathVista (+1.9%), MathVision (+3.91%) 등 세밀한 reasoning 판별이 중요한 벤치마크에서 큰 폭의 향상.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<h3>배경: RLVR vs. On-Policy Distillation</h3>
+
+<p>Reinforcement Learning with Verifiable Rewards (RLVR)는 GRPO (Group Relative Policy Optimization)를 대표로 하여 대형 reasoning 모델 학습의 핵심 패러다임으로 자리잡았다. 각 trajectory에 대해 verifier가 binary reward $R(x, y) \in \{0, 1\}$를 제공하며, 이를 기반으로 policy를 최적화한다. RLVR의 핵심 한계는 reward 신호가 sequence level에서만 주어진다는 것 -- 한 trajectory 내 모든 token이 동일한 advantage를 공유하므로 세밀한 credit assignment가 불가능하다.</p>
+
+<p>On-Policy Distillation (OPD)은 이 sparse reward 문제를 보완한다. Student $\pi_\theta$가 자체 trajectory를 sampling하면서, 별도의 (전형적으로 더 큰) teacher model $\pi_{\hat{\theta}}$가 dense, token-level 학습 신호를 제공한다. 최근 연구는 OPD가 advanced teacher를 활용할 경우 RLVR에 필적하거나 능가할 수 있음을 보여주었다 (Table 1 참조). 그러나 OPD는 별도의 대형 teacher 모델을 유지해야 하며, teacher와 student가 동일한 vocabulary를 공유해야 한다는 실용적 제약이 있어 scalability가 제한된다.</p>
+
+<h3>OPSD의 등장과 한계</h3>
+
+<p>On-Policy Self-Distillation (OPSD)은 매력적인 대안으로 등장했다. 하나의 모델 $\pi_\theta$가 teacher와 student를 겸하며, teacher는 privileged information $r$ (예: 검증된 reasoning trace, 환경 피드백)에 조건화하여 정보적 우위를 확보한다. OPSD는 GRPO 대비 token efficiency를 수배 개선하지만, 이 효율성 이득은 취약하다. Figure 1(a)에서 볼 수 있듯이, OPSD의 성능은 초반에 정점에 도달한 후 점진적으로 저하되며, Figure 2에서는 OPSD로 학습된 모델이 inference 시 접근 불가능한 "보이지 않는 reference solution"을 명시적으로 참조하는 privileged information leakage 현상이 관찰된다.</p>
+
+<blockquote>
+<p><strong>[Figure 1 설명]</strong>: (a) Qwen3-VL-8B-Instruct 기반 학습에서 GRPO (파란색), OPSD (빨간색), RLSD (초록색)의 validation reward dynamics. OPSD는 초반에 빠르게 정점에 도달 후 성능이 저하되는 반면, RLSD는 GRPO의 학습 안정성을 유지하면서 더 높은 수렴 ceiling을 달성한다. (b) 5개 reasoning benchmark에서의 성능 비교. RLSD (200 step)가 GRPO (2x steps, 400 step)를 이미 능가하여 더 빠른 수렴을 입증한다.</p>
+</blockquote>
+
+<blockquote>
+<p><strong>[Figure 2 설명]</strong>: OPSD로 학습된 모델의 privileged information leakage 사례. 모델이 생성 중 "Given that the reference solution uses 9 values", "the reference solution says 'No'"와 같이 inference 시 접근할 수 없는 reference solution을 명시적으로 참조하는 출력을 생성한다.</p>
+</blockquote>
+
+<h3>핵심 질문: OPD는 왜 성공하는데 OPSD는 왜 실패하는가?</h3>
+
+<p>OPD에서는 teacher와 student가 동일한 입력(information-symmetric)을 관찰하므로, teacher의 dense signal은 동일 조건 하에서의 우월한 추론을 반영한다. 반면 OPSD에서는 teacher가 student가 관찰할 수 없는 privileged information에 조건화(information-asymmetric)하므로, 근본적인 mismatch가 발생한다. 본 논문은 이 비대칭이 OPSD의 목적 함수를 ill-posed하게 만듦을 증명한다: student가 절대로 제거할 수 없는 irreducible mutual information gap $I(Y_t; R \mid X, Y_{&lt;t}) > 0$이 존재한다 (Theorem 1). Gradient level에서는 expected gradient가 benign하지만 per-sample gradient에 $r$-specific deviation이 포함되어 그 분산이 이 mutual information에 비례하며 (Proposition 1), 이 deviation의 path-dependent 축적이 $x \to r$ correlation을 parameter에 인코딩하도록 모델을 유도한다.</p>
+
+<h3>핵심 통찰: 방향과 크기의 비대칭적 요구</h3>
+
+<p>분석 결과, 모든 distribution-matching formulation에서 teacher의 privileged 평가 $P_T(y_t \mid r)$이 gradient 방향에 들어가므로, distillation target을 어떻게 압축하든 leakage는 구조적으로 불가피하다. 그러나 evidence ratio $P_T(y_t) / P_S(y_t)$는 유용한 신호를 담고 있다 -- privileged information이 각 token에 대한 모델의 belief를 얼마나 수정하는지를 측정한다. 도전 과제는 이 신호를 버리는 것이 아니라 사용 방식을 바꾸는 것이다. ##핵심 설계 원칙: 방향 신호(directional signal)는 sparse하지만 신뢰할 수 있어야 하고, 크기 신호(magnitude signal)는 가능한 한 dense해야 token 간 세밀한 구별이 가능하다.##</p>
+
+<h3>Table 1: LLM post-training 패러다임 비교</h3>
+
+<table>
+<tr><th>Method</th><th>Trajectory</th><th>Efficiency</th><th>Leakage Risk</th><th>Signal</th><th>Direction Anchoring</th></tr>
+<tr><td>SFT</td><td>Off-policy</td><td>High</td><td>N/A</td><td>Rich</td><td>Teacher</td></tr>
+<tr><td>RLVR (GRPO)</td><td>On-policy</td><td>High</td><td>N/A</td><td>Weak</td><td>Environment</td></tr>
+<tr><td>OPD</td><td>On-policy</td><td>Low</td><td>N/A</td><td>Rich</td><td>Teacher</td></tr>
+<tr><td>OPSD</td><td>On-policy</td><td>High</td><td><strong>Severe</strong></td><td>Rich</td><td>Teacher</td></tr>
+<tr><td><strong>RLSD (Ours)</strong></td><td>On-policy</td><td>High</td><td>N/A</td><td>Rich</td><td><strong>Environment</strong></td></tr>
+</table>
+
+<p>RLSD는 on-policy training, high token efficiency, rich (dense, token-level) update signal, environment-anchored optimization direction을 동시에 달성하는 유일한 패러다임이다. 추가 auxiliary loss나 외부 모델 없이, GRPO의 uniform advantage에 대한 drop-in replacement로 기능하며, 단일 추가 forward pass만을 요구한다.</p>
+
+<!-- ============================================================ -->
+<h2>2. Preliminaries</h2>
+
+<h3>2.1 GRPO (Group Relative Policy Optimization)</h3>
+
+<p>Language model $\pi_\theta$가 질문 $x$에 대해 response $y = (y_1, \ldots, y_T)$를 autoregressive하게 생성한다. RLVR 설정에서 verifier는 binary reward $R(x, y) \in \{0, 1\}$를 제공한다. GRPO는 각 질문에 대해 $G$개의 response $\{y^{(1)}, \ldots, y^{(G)}\}$를 현재 policy에서 sampling하고, 각 response에 대해 group-relative advantage를 계산한다:</p>
+
+$$A^{(i)} = \frac{R(x, y^{(i)}) - \mu_G}{\sigma_G} \tag{1}$$
+
+<p>여기서 $\mu_G$와 $\sigma_G$는 group 내 reward의 평균과 표준편차이다. 직관적으로, 동일 질문에 대한 $G$개 response의 reward를 정규화하여 상대적 "우수함"을 측정한다. Policy는 clipped surrogate objective를 통해 업데이트된다:</p>
+
+$$\mathcal{L}_{\text{GRPO}}(\theta) = \mathbb{E} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|y^{(i)}|} \sum_{t=1}^{|y^{(i)}|} \min\left(\rho_t^{(i)} A^{(i)}, \; \text{clip}\left(\rho_t^{(i)}, 1-\epsilon, 1+\epsilon\right) A^{(i)}\right) \right] \tag{2}$$
+
+<p>여기서 $\rho_t^{(i)} = \pi_\theta(y_t^{(i)} \mid x, y_{&lt;t}^{(i)}) / \pi_{\theta_{\text{old}}}(y_t^{(i)} \mid x, y_{&lt;t}^{(i)})$는 current policy와 old policy 간 importance sampling ratio이다.</p>
+
+<p>GRPO의 핵심 한계: response $y^{(i)}$ 내의 <strong>모든 token이 동일한 advantage $A^{(i)}$를 공유</strong>한다. 정답에 이르는 결정적 추론 단계든, 단순한 서술("Looking at the image, I see...")이든, 동일한 credit을 받아 fine-grained credit assignment가 불가능하다. 이것이 long-horizon reasoning에서 GRPO의 본질적 비효율성이다.</p>
+
+<h3>2.2 OPD와 OPSD</h3>
+
+<p>OPD와 OPSD는 모두 student가 on-policy rollout $\hat{y} \sim P_S(\cdot \mid x)$를 생성하고, 이 trajectory를 따라 teacher와 student 간 per-token divergence를 최소화하는 공통 패러다임을 공유한다. 두 프레임워크의 차이는 teacher의 정의에 있다.</p>
+
+<p><strong>Student</strong> (두 방법 모두 동일):</p>
+$$P_S(\cdot \mid y_{&lt;t}) \triangleq \pi_\theta(\cdot \mid x, y_{&lt;t}) \tag{3}$$
+
+<p><strong>OPD Teacher</strong> (외부의 더 큰 모델 $\pi_{\hat{\theta}}$):</p>
+$$P_T(\cdot \mid y_{&lt;t}) \triangleq \pi_{\hat{\theta}}(\cdot \mid x, y_{&lt;t}) \tag{4}$$
+
+<p><strong>OPSD Teacher</strong> (동일 모델 $\pi_\theta$, 단 privileged information $r$에 조건화):</p>
+$$P_T(\cdot \mid y_{&lt;t}) \triangleq \pi_\theta(\cdot \mid x, r, y_{&lt;t}) \tag{5}$$
+
+<p>직관적으로, OPD의 teacher는 학생보다 더 큰/뛰어난 외부 모델로, teacher와 student가 같은 정보(입력 $x$만)를 관찰하되 teacher의 추론 능력이 더 우수하다 (information-symmetric). 반면 OPSD의 teacher는 학생과 동일한 모델이되, 추가적인 privileged information $r$을 관찰하여 정보적 우위를 확보한다 (information-asymmetric). 이 정보 비대칭이 이후 분석의 핵심이다.</p>
+
+<p>공유되는 학습 목적 함수:</p>
+
+$$\mathcal{L}_{\text{OP(S)D}}(\theta) = \mathbb{E}_{(x,r) \sim \mathcal{S}} \; \mathbb{E}_{\hat{y} \sim P_S(\cdot|x)} \left[ \frac{1}{|\hat{y}|} \sum_{t=1}^{|\hat{y}|} D(P_T \| P_S) \right] \tag{6}$$
+
+<p>여기서 $D$는 generalized Jensen-Shannon divergence 등의 divergence measure이다. Gradient는 $P_S$를 통해서만 역전파되고, $P_T$는 고정된 target으로 취급된다. 즉, student distribution만 학습 가능하고 teacher distribution은 참조 목표로만 사용된다. OPSD는 외부 teacher model 없이 dense, per-token supervision을 제공하여 높은 token efficiency를 달성한다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Why Does OPD Work While OPSD Fails?</h2>
+
+<h3>3.1 경험적 관찰: Leakage와 성능 저하</h3>
+
+<h4>Privileged Information Leakage</h4>
+
+<p>OPSD로 학습된 모델은 inference 시 접근할 수 없는 privileged information을 체계적으로 참조한다. Figure 2는 모델이 생성 중 보이지 않는 "reference solution"을 명시적으로 언급하는 대표적 사례를 보여준다 -- "Given that the reference solution uses 9 values", "the reference solution says 'No'"와 같은 표현이 출력에 등장한다. 이는 고립된 실패 사례가 아니라, 학습이 진행됨에 따라 점진적으로 심화되는 체계적 현상이다.</p>
+
+<h4>성능 저하 (Performance Degradation)</h4>
+
+<p>Figure 3(a)는 100 training step에 걸쳐 privileged information leakage의 빈도를 추적한 결과, 단조롭게 증가하는 추세를 보여준다. 모델은 점진적으로 inference 시 접근 불가능한 정보에 더 의존하게 된다. Figure 3(b)는 이에 대응하는 validation accuracy가 처음 10-20 step 내에 정점에 도달한 후 점진적으로 하락하며, 이는 escalating leakage와 일관된다.</p>
+
+<blockquote>
+<p><strong>[Figure 3 설명]</strong>: (a) Training step에 따른 leakage 발생 빈도 -- teacher_top1, student_top1, opsd 세 variant 모두에서 단조 증가. (b) Validation set에서의 성능 -- OPSD (빨간색)가 초반 정점 후 하락, teacher/student top-1 variant도 유사 패턴. (c) On-policy KL divergence 비교 -- OPD (파란색)는 꾸준히 감소하는 반면, OPSD (빨간색)는 초반 소폭 감소 후 정체. OPSD step-1 KL (점선)이 사실상 loss floor에 해당.</p>
+</blockquote>
+
+<h4>KL Divergence의 정체(Stagnation)</h4>
+
+<p>Figure 3(c)는 OPD와 OPSD에 대해 teacher-student 간 on-policy KL divergence를 비교한다. OPD에서는 KL divergence가 학습 전반에 걸쳐 꾸준히 감소하여 genuine convergence를 반영한다. 반면 OPSD에서는 처음 몇 step에서 약간 감소한 후 초기 수준에 비견되는 수준에서 정체(plateau)된다. 이는 OPSD 목적 함수에 meaningful convergence를 방해하는 irreducible gap이 존재함을 시사하며, 다음 하위 절에서 형식화하는 가설이다.</p>
+
+<p>이 관찰들은 두 가지 핵심 질문을 제기한다: OPSD는 <strong>왜</strong> leakage를 유발하는가? 그리고 <strong>왜</strong> KL divergence를 줄이지 못하는가?</p>
+
+<h3>3.2 OPSD의 실패: Ill-Posed 목적 함수</h3>
+
+<p>분석은 두 수준에서 진행된다: 목적 함수(objective function) 수준 (Section 3.2.1)과 gradient dynamics 수준 (Section 3.2.2).</p>
+
+<h4>3.2.1 Irreducible Mutual Information Gap</h4>
+
+<p>$r$을 conditional distribution $P(r \mid x)$에서 추출된 privileged information이라 하자. 주어진 질문 $x$는 의미적으로 유효한 다수의 reasoning path를 허용하므로, $P(r \mid x)$는 non-degenerate distribution (non-zero entropy)이다. 학습 인스턴스 $x_i$에 단일 reference trace $r_i$가 쌍을 이루더라도, student의 인식론적 관점에서 privileged information은 불확실한 잠재 변수(uncertain latent variable)로 남아 있다 -- student는 $r$을 관찰하거나 $x$에서 deterministic하게 도출할 수 없다.</p>
+
+<p>$r$에 조건화할 수 없는 optimal student policy는 total probability의 법칙을 통해 teacher의 <strong>marginal</strong> distribution을 복원해야 한다:</p>
+
+$$P_S^*(y_t \mid x, y_{&lt;t}) = \mathbb{E}_{r \sim P(r|x, y_{&lt;t})} [P_T(y_t \mid x, r, y_{&lt;t})] \tag{7}$$
+
+<p>$\bar{P}_T(y_t) \triangleq \mathbb{E}_r[P_T(y_t \mid x, r, y_{&lt;t})]$로 이 marginal을 표기하면, 이상적 distillation objective (student가 달성할 수 있는 최선)는:</p>
+
+$$\mathcal{L}^*(\theta) = \mathbb{E}_x \left[ D_{\text{KL}}\left(\bar{P}_T(\cdot) \;\|\; P_S(\cdot \mid x)\right) \right] \tag{8}$$
+
+<p>그러나 OPSD의 실제 목적 함수는 각 구체적 쌍 $(x, r)$에 대해 per-sample matching $P_S(\cdot \mid x) \to P_T(\cdot \mid x, r)$을 강제한다:</p>
+
+$$\mathcal{L}_{\text{OPSD}}(\theta) = \mathbb{E}_x \; \mathbb{E}_{r \sim P(r|x)} [D_{\text{KL}}(P_T(\cdot \mid x, r) \| P_S(\cdot \mid x))] \tag{9}$$
+
+<p>이는 <strong>conditionally independent parameterization</strong> ($P_S$는 $r$을 입력으로 받지 않음)으로 <strong>conditionally dependent target</strong> ($P_T$는 $r$에 의존)을 매칭하도록 강제하는, 근본적으로 ill-posed한 요구이다.</p>
+
+<p><strong>Theorem 1 (KL Decomposition)</strong>. OPSD objective와 ideal objective는 다음 항등식을 만족한다:</p>
+
+$$\boxed{\mathcal{L}_{\text{OPSD}} = \mathcal{L}^* + I(Y_t; R \mid X, Y_{&lt;t})} \tag{10}$$
+
+<p>여기서 $I(Y_t; R \mid X, Y_{&lt;t})$는 teacher distribution 하에서 현재 token $Y_t$와 privileged information $R$ 간의 <strong>conditional mutual information</strong>이다.</p>
+
+<p>직관적으로 말하면, OPSD의 loss는 이상적 distillation loss $\mathcal{L}^*$보다 항상 mutual information만큼 크다. 이 mutual information term은 teacher의 token-level 예측이 privileged information에 얼마나 의존하는지를 정량화한다. 결정적으로, ##$I(Y_t; R \mid X, Y_{&lt;t})$는 $\theta$와 독립적## -- teacher의 conditional distribution과 $P(r \mid x)$에 의해서만 결정된다. Student의 어떤 최적화도 이 gap을 제거할 수 없다.</p>
+
+<p>Feasible set $\mathcal{F} = \{Q : Q(\cdot \mid x, y_{&lt;t})\}$ (즉 $r$에 조건화하지 않는 분포들) 내에서 global optimum은 $P_S^* = \bar{P}_T$이며, 이 지점에서의 residual loss는 $I(Y_t; R \mid X, Y_{&lt;t}) > 0$ -- privileged signal의 정보량에 비례하여 증가하는 strictly positive, irreducible lower bound이다.</p>
+
+<p><strong>증명 스케치</strong> (Appendix A.1): $\mathcal{L}_{\text{OPSD}}$를 전개하면 $\mathbb{E}_r[\sum_v P_T(v \mid r) \log \frac{P_T(v|r)}{P_S(v)}]$이 된다. $\bar{P}_T(v)/\bar{P}_T(v)$를 log 안에 삽입하여 분리하면:</p>
+
+$$\mathcal{L}_{\text{OPSD}} = \underbrace{\mathbb{E}_r\left[\sum_v P_T(v \mid r) \log \frac{P_T(v \mid r)}{\bar{P}_T(v)}\right]}_{= I(Y_t; R \mid X, Y_{&lt;t})} + \underbrace{\sum_v \bar{P}_T(v) \log \frac{\bar{P}_T(v)}{P_S(v)}}_{= D_{\text{KL}}(\bar{P}_T \| P_S) = \mathcal{L}^*}$$
+
+<p>이 결과는 Figure 3(c)의 KL divergence 정체에 대한 형식적 설명을 제공한다: student가 $\bar{P}_T$ 근방에 빠르게 도달한 후, residual $I(Y_t; R \mid X, Y_{&lt;t}) > 0$은 합법적 최적화로는 줄일 수 없다. 더 심각하게는, biased objective 하에서 optimizer가 non-vanishing loss signal을 계속 수신하여 해로운 noise를 모델 파라미터에 흡수하도록 구동된다. Student의 아키텍처가 $r$에 대한 직접적 조건화를 배제하므로, $x$와 $r$ 간 통계적 상관을 $\theta$에 인코딩하는 것이 유일한 경로 -- 사실상 $x \to r$ mapping을 학습하게 된다. 이것이 privileged information leakage의 수학적 기원이다.</p>
+
+<p>OPD와의 대조: OPD는 외부 teacher를 사용하며, teacher의 prediction이 student가 접근 불가능한 privileged information에 조건화하지 않으므로 mutual information gap이 발생하지 않고 KL divergence가 꾸준히 감소한다.</p>
+
+<h4>3.2.2 Gradient Structure: Leakage의 메커니즘</h4>
+
+<p>Theorem 1은 $I(Y_t; R \mid X)$가 $\theta$-independent이므로 gradient에 영향을 미치지 않을 수 있다고 시사할 수 있다. 실제로 <strong>expected</strong> gradient는 이상적 gradient와 동일하다 (benign). 그러나 실제 최적화가 작동하는 <strong>per-sample</strong> gradient는 다른 이야기를 한다.</p>
+
+<p><strong>Benign expected gradient</strong>: $I(Y_t; R \mid X)$가 $\theta$에 의존하지 않으므로:</p>
+
+$$\nabla_\theta \mathcal{L}_{\text{OPSD}} = \nabla_\theta \mathcal{L}^* = -\sum_v \bar{P}_T(v) \nabla_\theta \log P_S(v)$$
+
+<p>Population level에서 OPSD gradient는 ideal marginal matching의 gradient와 동일하다.</p>
+
+<p><strong>Pathological per-sample gradients</strong>: 실제 최적화는 구체적 샘플 $(x, r)$에 대해 작동한다:</p>
+
+$$g(\theta; r) = -\sum_{v \in \mathcal{V}} P_T(v \mid r) \cdot \nabla_\theta \log P_S(v) \tag{11}$$
+
+<p><strong>Proposition 1 (Per-Sample Gradient Decomposition)</strong>. 임의의 특정 realization $r$에 대해, per-sample gradient는 다음과 같이 분해된다:</p>
+
+$$g(\theta; r) = \underbrace{-\sum_v \bar{P}_T(v) \nabla_\theta \log P_S(v)}_{g^*(\theta): \text{ marginal matching}} + \underbrace{-\sum_v [P_T(v \mid r) - \bar{P}_T(v)] \nabla_\theta \log P_S(v)}_{\delta(\theta; r): \text{ r-specific deviation}} \tag{12}$$
+
+<p>이 분해는 두 가지 핵심 성질을 만족한다:</p>
+<ol>
+  <li><strong>(i) Zero mean</strong>: $\mathbb{E}_r[\delta(\theta; r)] = 0$ -- deviation의 기댓값은 0이다.</li>
+  <li><strong>(ii) Monotone variance</strong>: $\mathbb{E}_r[\|\delta(\theta; r)\|^2] = \sum_v \text{Var}_r[P_T(v \mid r)] \cdot \|\nabla_\theta \log P_S(v)\|^2$ -- deviation의 분산은 mutual information과 단조적으로 증가하며, $I(Y_t; R \mid X) = 0$일 때에만 항등적으로 소멸한다.</li>
+</ol>
+
+<p>직관적으로 말하면, per-sample gradient는 유익한 성분 $g^*$ (marginal matching 방향)과 유해한 성분 $\delta$ ($r$-specific noise)로 구성된다. 성질 (i)은 $\delta$가 평균적으로 무해하다고 시사하지만, SGD나 Adam 같은 실제 optimizer는 개별 샘플/미니배치의 gradient를 사용하며, 비선형 최적화에서 zero-mean perturbation의 path-dependent 축적은 반드시 상쇄되지 않는다.</p>
+
+<h4>Two-Phase Training Dynamics</h4>
+
+<p>Proposition 1의 분해는 두 성분의 상대적 크기가 학습 과정에서 진화하면서 두 가지 뚜렷한 regime을 형성함을 설명한다:</p>
+
+<p><strong>Phase 1 (초반: 유익한 성분 지배)</strong>: Student $P_S$가 teacher의 marginal $\bar{P}_T$에서 멀리 떨어져 있으므로 $\|g^*(\theta)\| \gg \|\delta(\theta; r)\|$. Gradient가 주로 marginal matching을 구동하여 일반적인 reasoning 능력이 급속히 향상된다. Figure 3(b)의 처음 10-20 step에서의 가파른 성능 상승에 해당한다.</p>
+
+<p><strong>Phase 2 (후반: 유해한 성분 지배)</strong>: $P_S$가 $\bar{P}_T$에 접근하면서 $\|g^*(\theta)\|$는 0을 향해 감소한다. 그러나 $\|\delta(\theta; r)\|$는 $I(Y_t; R \mid X)$에 의해 bound되어 있으므로($\theta$와 독립), 최적화 진행과 함께 감소하지 않는다. Parameter update가 점점 $\delta$에 의해 지배되면서, path-dependent 축적이 $x \to r$ correlation을 인코딩하는 parameter space 영역으로 모델을 이끈다. 이 전환이 ##성능 저하의 시작과 단조 증가하는 leakage count##의 원인이다. 더 강한 leakage는 Phase 1에서 Phase 2로의 전환을 가속화하여 더 빠른 성능 하락을 초래한다.</p>
+
+<h4>Leakage Bandwidth: 통제 실험</h4>
+
+<p>Gradient decomposition은 standard OPSD의 실패뿐 아니라 정확한 예측을 도출한다: teacher의 privileged evaluation $P_T(\cdot \mid r)$이 gradient 방향에 들어가는 <strong>어떤</strong> variant도 leakage로부터 자유로울 수 없다. 이를 검증하기 위해 두 가지 ablation variant를 설계했다:</p>
+
+<ol>
+  <li><strong>Teacher's Top-1</strong>: Teacher의 most probable token $\arg\max_v P_T(v \mid r)$만을 target으로 유지. 가장 좁은 bandwidth로 가장 집중적인 privileged information injection을 생성하지만, gradient direction에 대한 $r$의 영향이 단일 토큰에 집중.</li>
+  <li><strong>Student's Top-1</strong>: Target support를 student의 most probable token $\arg\max_v P_S(v)$로 제한. Bandwidth가 가장 좁지만, 해당 토큰에서의 gradient weight $P_T(v_S^* \mid r)/P_S(v_S^*)$가 여전히 $r$의 함수.</li>
+</ol>
+
+<p>세 variant 모두 100 training step에 걸쳐 leakage가 증가하고 성능이 저하되어 예측을 확인한다 (Figure 3(a,b)). Leakage bandwidth 개념으로 심각도 순서가 설명된다: Full OPSD (전체 vocabulary, 가장 넓은 bandwidth) &gt; Teacher's Top-1 (단일 토큰, 가장 집중적) &gt; Student's Top-1 (가장 좁은 bandwidth, 그러나 $r$-dependence 지속). 세 경우 모두에서 gradient direction의 $r$에 대한 의존성은 irreducible하다 (Appendix A.3에서 증명).</p>
+
+<h4>Impossibility Trilemma (Appendix A.4)</h4>
+
+<p>Shared-parameter coupling의 함의를 분석하여, distribution matching 기반 self-distillation에서 다음 세 성질이 동시에 성립할 수 없음을 증명한다:</p>
+
+<p><strong>Theorem 3 (Impossibility Trilemma)</strong>. Teacher와 student가 동일한 $\theta$로 parameterize된 distribution matching framework에서, 다음 세 성질은 동시에 성립할 수 없다:</p>
+<ol type="a">
+  <li><strong>Objective stability</strong>: 최적화 target이 연속 step 간 이동하지 않음 ($\Delta_T = 0$).</li>
+  <li><strong>Sustained improvement</strong>: Distillation signal이 사라지지 않음 ($\|\nabla_\theta \mathcal{L}\| \not\to 0$).</li>
+  <li><strong>Leakage-free training</strong>: Deviation component가 parameter drift를 유발하지 않음.</li>
+</ol>
+
+<p>Strategy A (frozen teacher, $P_T^{\theta_0}$ 고정)는 (a)를 만족하지만, Proposition 2 (Capacity Ceiling)에 의해 $P_S \to \bar{P}_T^{\theta_0}$에서 distillation signal이 사라져 (b)를 위반한다. Strategy B (online teacher, 매 step 갱신)는 (b)를 만족하지만, Theorem 2 (Training Instability)에 의해 teacher drift $\Delta_T$가 통제 불가능하여 (a)를 위반한다. 두 전략 모두 $I(Y_t; R \mid X) > 0$일 때 Proposition 1(ii)에 의해 per-sample deviation variance가 strictly positive이므로 (c)를 위반한다.</p>
+
+<!-- ============================================================ -->
+<h2>4. RLSD: Self-Distillation as RLVR's Wingman</h2>
+
+<p>앞선 분석은 distribution matching이 실패하는 정확한 근본 원인을 식별한다: privileged information이 gradient <strong>방향</strong>에 들어가 optimization trajectory를 오염시킨다. 그러나 이 실패의 핵심에 있는 동일한 양 -- evidence ratio $P_T(y_t)/P_S(y_t)$ -- 또한 유용한 신호를 담고 있다: privileged information이 각 token에 대한 모델의 belief를 얼마나 수정하는지를 측정한다. 도전 과제는 이 신호를 버리는 것이 아니라 사용 방식을 바꾸는 것이다.</p>
+
+<p>RLSD는 teacher의 역할을 완전히 재정의한다: distribution matching의 generative target이 아닌, policy gradient framework 내의 token-level credit assignment signal로 사용한다. ##Privileged information은 각 token이 받는 credit의 크기(magnitude)에만 영향을 미치고, 어떤 token이 강화/벌칙되는지의 방향(direction)에는 영향을 미치지 않는다.##</p>
+
+<h3>4.1 From Distribution Matching to Credit Assignment</h3>
+
+<h4>Step 1: Privileged Information Gain ($\Delta_t$)</h4>
+
+<p>Student-sampled trajectory $y = (y_1, \ldots, y_T)$가 주어지면, 각 token의 log-probability를 student context ($x$만)와 teacher context ($x$와 $r$) 모두에서 계산하고, 각 position에서 <strong>privileged information gain</strong>을 정의한다:</p>
+
+$$\Delta_t = \text{sg}(\log P_T(y_t) - \log P_S(y_t)) \tag{13}$$
+
+<p>여기서 $\text{sg}$는 stop-gradient operator이다. Teacher와 student가 동일 모델을 공유하므로, $\Delta_t$는 token $y_t$의 예측에 대한 privileged information $r$의 <strong>marginal contribution</strong>을 분리한다.</p>
+
+<p>직관적으로:</p>
+<ul>
+  <li><strong>큰 양의 $\Delta_t$</strong>: $r$이 이 token을 강하게 지지한다 -- privileged information이 이 token의 생성 확률을 크게 높임. 예를 들어, 수학 문제에서 "2x + 3 = 7"을 풀 때 "$2x = 4$"를 쓰는 것은 정답 $x=2$를 아는 teacher에게 매우 지지받는 단계이다.</li>
+  <li><strong>음의 $\Delta_t$</strong>: $r$이 이 token을 비선호한다 -- privileged information이 이 token의 생성을 억제. 예를 들어, 잘못된 중간 단계 "$5x = 7$"은 teacher에게 비선호된다.</li>
+  <li><strong>$\Delta_t \approx 0$</strong>: 이 token은 privileged information에 대해 informational하게 중립 -- formatting connective ("therefore", "we have") 등 reasoning content를 담지 않는 token.</li>
+</ul>
+
+<p>Stop-gradient는 $\Delta_t$가 순수한 weighting signal로만 작용하고 보조적 gradient pathway를 도입하지 않음을 보장한다. 이는 RLSD가 distribution matching과 달리 teacher의 evaluation을 gradient 방향에 주입하지 않는 핵심 메커니즘이다.</p>
+
+<h4>Step 2: Direction-Aware Evidence Reweighting ($w_t$)</h4>
+
+<p>Privileged information gain으로부터 per-token weight를 구성하되, sequence-level advantage의 부호(sign)로 modulation한다:</p>
+
+$$w_t = \exp(\text{sign}(A) \cdot \Delta_t) = \left(\frac{P_T(y_t)}{P_S(y_t)}\right)^{\text{sign}(A)} \tag{14}$$
+
+<p>이 formulation은 자연스러운 <strong>Bayesian 해석</strong>을 허용한다:</p>
+<ul>
+  <li>$P_S(y_t)$: 질문 $x$만 기반한 token $y_t$에 대한 모델의 <strong>prior</strong> assessment</li>
+  <li>$P_T(y_t)$: Privileged information $r$을 관찰한 후의 <strong>posterior</strong> assessment</li>
+  <li>$P_T(y_t)/P_S(y_t)$: <strong>Evidence ratio</strong> -- privileged information이 각 token에 대한 모델의 belief를 수정하는 factor</li>
+</ul>
+
+<p>Mild modeling assumptions (Assumption 1: Consistent Conditional Approximation) 하에서, 이 ratio는 sequential Bayesian belief update에 해당함을 증명할 수 있다:</p>
+
+<p><strong>Theorem 4 (RLSD Weights as Belief Update Ratios)</strong>:</p>
+$$w_t = \frac{P_T(y_t \mid x, r, y_{&lt;t})}{P_S(y_t \mid x, y_{&lt;t})} = \frac{P(r \mid x, y_{\leq t})}{P(r \mid x, y_{&lt;t})} \tag{34}$$
+
+<p>즉, $w_t$는 token $y_t$를 관찰한 <strong>후</strong>의 privileged information $r$에 대한 posterior belief와 관찰 <strong>전</strong>의 belief의 비율이다. Token $y_t$가 정답 방향의 evidence를 제공할수록 $w_t > 1$이 되어 더 큰 credit을 받는다.</p>
+
+<p><strong>$\text{sign}(A)$ exponent의 역할 -- Direction-aware credit assignment</strong>:</p>
+<ul>
+  <li><strong>$A > 0$ (정답 trajectory)</strong>: $w_t = P_T/P_S$ -- privileged information이 지지하는 token이 더 큰 weight를 받아, 정답과 가장 aligned된 token에 positive credit이 집중.</li>
+  <li><strong>$A < 0$ (오답 trajectory)</strong>: $w_t = P_S/P_T$ -- ratio가 반전되어, privileged information이 <strong>비선호</strong>하는 token이 더 큰 blame을 받음. 오답을 유도한 잘못된 추론 단계에 더 큰 벌점이 집중.</li>
+</ul>
+
+<p>$\exp(\cdot) > 0$이므로, weight는 항상 양수이며 token-level advantage의 부호가 reweighting에 의해 뒤집히지 않음이 보장된다. ##환경 보상이 trajectory의 강화/벌칙 여부에 대한 배타적 권한(exclusive authority)을 유지하고, teacher는 trajectory 내 token 간 credit의 상대적 크기만을 조절한다.##</p>
+
+<p><strong>GRPO와의 구조적 유사성</strong>: 이 설계는 GRPO의 importance sampling ratio $\pi_\theta / \pi_{\text{old}}$와 구조적으로 병행한다. GRPO는 current/old policy 간 ratio로 policy update의 <strong>step size</strong>를 제어하고, RLSD는 posterior/prior 간 ratio로 token 간 <strong>credit distribution</strong>을 제어한다. 둘 다 동일한 policy gradient framework 내의 importance ratio이다.</p>
+
+<h4>Step 3: Clipped Credit Assignment ($\hat{A}_t$)</h4>
+
+<p>PPO/GRPO의 clipped surrogate objective의 설계 철학을 따라, evidence weight를 clip하여 단일 token의 최대 영향을 bound한다:</p>
+
+$$\hat{A}_t = A \cdot \text{clip}(w_t, \; 1 - \epsilon_w, \; 1 + \epsilon_w) \tag{15}$$
+
+<p>여기서 $\epsilon_w$는 per-token credit deviation의 bound이다. 직관적으로, GRPO가 policy update step size를 clip하여 trust region을 유지하듯, RLSD는 credit redistribution magnitude를 clip하여 teacher의 개별 token에 대한 영향력을 제한한다.</p>
+
+<p>학습 초반의 급격한 전환을 피하기 위해, uniform advantage와 reweighted advantage 사이를 mixing coefficient $\lambda \in [0, 1]$로 linear interpolation하며, training step에 걸쳐 점진적으로 $\lambda$를 전환한다. 최종 목적 함수:</p>
+
+$$\mathcal{L}_{\text{RLSD}}(\theta) = \mathbb{E} \left\{ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|y^{(i)}|} \sum_{t=1}^{|y^{(i)}|} \min\left[w_t A^{(i)}, \; \text{clip}(w_t, 1-\epsilon_w, 1+\epsilon_w) \, A^{(i)}\right] \right\} \tag{16}$$
+
+<h3>4.2 Integration with GRPO (Algorithm 1)</h3>
+
+<p>Modified advantage $\hat{A}_t$는 standard GRPO objective에서 uniform advantage에 대한 <strong>drop-in replacement</strong>이다. 완전한 학습 절차는 Algorithm 1에 요약된다:</p>
+
+<div class="flow-diagram">Algorithm 1: RLSD (Reinforcement Learning with Self-Distillation)
+
+Input: Policy π_θ, Dataset S = {(x_i, r_i)}, Verifier R(·,·), Group size G,
+       Mixing coefficient λ, Clip bounds ε_w
+
+for each training iteration do
+  Sample batch {x} from S
+  for each question x with privileged information r do
+    // Step 1: On-policy rollout
+    Sample G responses {y^(1), ..., y^(G)} ~ π_θ(· | x)
+
+    // Step 2: Sequence-level advantage from environment
+    for i = 1, ..., G do
+      Obtain reward R(x, y^(i)) ∈ {0, 1} from verifier
+    end for
+    Compute A^(i) = (R(x,y^(i)) - μ_G) / σ_G    ▷ Group-relative advantage
+
+    // Step 3: Token-level credit via self-distillation
+    for i = 1, ..., G do
+      Compute teacher logits via forward pass with (x, r, y^(i))  ▷ Single extra forward pass
+      for t = 1, ..., |y^(i)| do
+        Δ_t ← sg(log π_θ(y_t | x, r, y_{&lt;t}) - log π_θ(y_t | x, y_{&lt;t}))
+        w_t ← exp(sign(A^(i)) · Δ_t)
+        Â_t^(i) ← A^(i) · ((1-λ) + λ · clip(w_t, 1-ε_w, 1+ε_w))
+      end for
+    end for
+
+    // Step 4: Policy update
+    Update θ by maximizing L_RLSD(θ) = 1/G Σ_i 1/|y^(i)| Σ_t Â_t^(i)
+  end for
+end for</div>
+
+<p>핵심 특징:</p>
+<ul>
+  <li><strong>No auxiliary distillation loss</strong>: 별도의 distillation 손실 함수가 추가되지 않는다. 유일한 수정은 각 trajectory 내 credit의 internal redistribution이다.</li>
+  <li><strong>Minimal computational overhead</strong>: 추가 계산 비용은 response당 하나의 forward pass로 teacher logit을 얻는 것뿐이며, rollout generation이 지배적인 wall-clock time에 비하면 무시할 만하다.</li>
+  <li><strong>최소한의 privileged information</strong>: ##RLSD는 최종 ground-truth answer만을 privileged information으로 요구## -- OPSD가 필요로 하는 전체 reasoning trace와 달리, 가장 경제적인 privileged context이다.</li>
+</ul>
+
+<blockquote>
+<p><strong>[Figure 4 설명]</strong>: RLSD의 전체 개요. 왼쪽: Policy $\pi_\theta$가 질문 $x$에 대해 $G$개의 response를 on-policy로 생성. 가운데 (RLSD's Practice): Student mode $\pi_\theta(\cdot|x,y)$와 Teacher mode $\pi_\theta(\cdot|x,r,y)$에서 각각 log-probability를 계산하여 $\Delta_t$를 구하고, $w_t = (P_T/P_S)^{\text{sign}(A)}$로 token-level dense signal을 생성. 아래 (GRPO's Core Practice): Verifier $R(x,y)$에서 correctness를 판단하여 sequence-level advantage $A$를 계산. 오른쪽: Token-level weight $w_t$와 sequence-level advantage $A$를 결합하여 token-level advantage $\hat{A}_t$를 생성 -- teacher가 지지하는 token에 더 큰 magnitude, teacher가 비선호하는 token에 더 작은 magnitude.</p>
+</blockquote>
+
+<h3>4.3 A Unified Token-Level Advantage Perspective</h3>
+
+<p>GRPO, on-policy self-distillation, RLSD 모두를 단일 policy gradient template의 instance로 표현할 수 있다:</p>
+
+$$\Delta\theta \propto \mathbb{E}_{y \sim P_S(\cdot|x)} \left[ \sum_{t=1}^{|y|} \hat{A}_t \, \nabla_\theta \log P_S(y_t \mid x, y_{&lt;t}) \right] \tag{17}$$
+
+<p>세 방법은 token-level advantage $\hat{A}_t$의 정의에서만 차이난다:</p>
+
+<table>
+<tr><th>Method</th><th>Token-Level Advantage $\hat{A}_t$</th><th>Direction (부호)</th><th>Magnitude (크기)</th></tr>
+<tr><td><strong>GRPO</strong></td><td>$\hat{A}_t = A$ (uniform)</td><td>Environment (verifier)</td><td>Uniform across tokens</td></tr>
+<tr><td><strong>Self-distillation</strong></td><td>$\hat{A}_t = \Delta_t$</td><td>Teacher (privileged)</td><td>Dense, token-level</td></tr>
+<tr><td><strong>RLSD</strong></td><td>$\hat{A}_t = A \cdot w_t$</td><td><strong>Environment (verifier)</strong></td><td><strong>Dense, token-level (teacher)</strong></td></tr>
+</table>
+
+<p>Self-distillation 방법의 핵심 문제가 이 표에서 명확해진다: $\hat{A}_t = \Delta_t = \log P_T(y_t) - \log P_S(y_t)$에서 환경 보상 $R(x,y)$가 완전히 배제된다. 틀린 답($A < 0$)을 생성한 trajectory에서도 teacher가 선호하는 token ($\Delta_t > 0$)은 여전히 positive advantage를 받아, 최적화 방향이 verifiable correctness signal에서 분리된다.</p>
+
+<p>RLSD는 이 tension을 해결한다: 환경 보상으로 업데이트의 <strong>direction</strong> (sign)을 결정하고, teacher의 privileged assessment로 <strong>magnitude</strong> (relative credit)를 결정한다. Appendix A.6에서 RLSD가 privileged information leakage에 대해 구조적으로 면역(structurally immune)임을 형식적으로 증명하고, Appendix A.4의 impossibility trilemma의 세 가지 desiderata를 모두 만족함을 검증한다.</p>
+
+<h4>Bayesian Evidence의 Telescoping (Appendix A.5.4)</h4>
+
+<p>모든 token position에 걸쳐 weight를 곱하면 telescoping identity가 성립한다:</p>
+
+$$\prod_{t=1}^{T} w_t = \prod_{t=1}^{T} \frac{P(r \mid x, y_{\leq t})}{P(r \mid x, y_{&lt;t})} = \frac{P(r \mid x, y)}{P(r \mid x)} \tag{37}$$
+
+<p>오른쪽은 전체 trajectory $y$를 관찰한 후의 sequence-level Bayesian evidence ratio이다. Per-token weight $\{w_t\}_{t=1}^T$는 이 sequence-level evidence를 개별 token contribution으로 fine-grained 분해한 것으로, credit assignment의 granularity를 GRPO의 sequence level에서 token level로 승격시킨다.</p>
+
+<h4>OPSD와의 대비: Behavioral Cloning vs. Logical Credit Attribution (Appendix A.5.5)</h4>
+
+<p>OPSD는 <strong>behavioral cloning</strong>을 수행한다: 모든 token position에서 teacher의 출력 분포 $P_T(\cdot \mid x, r)$를 복제하도록 요구한다. Teacher가 reference solution을 관찰한 후 특정 phrasing을 선호하면, 그것이 reasoning value가 없더라도 student에게 동일 phrasing을 강제한다.</p>
+
+<p>RLSD는 <strong>logical credit attribution</strong>을 수행한다: teacher의 특정 token choice를 모방하도록 요구하지 않는다. Weight $w_t$는 단일 property만 측정한다 -- student가 생성한 token이 correct answer $r$에 대한 positive Bayesian evidence를 구성하는지 여부. $w_t > 1$이면 elevated credit, $w_t < 1$이면 elevated blame, $w_t = 1$이면 baseline advantage. 모방(imitation)이 아니라 정보적 기여(informational contribution)에 기반한 credit allocation이다.</p>
+
+<!-- ============================================================ -->
+<h2>5. Experiments</h2>
+
+<p>실험은 다음 핵심 질문들에 답하기 위해 설계되었다:</p>
+<ol>
+  <li><strong>Q1 (Main Results)</strong>: RLSD가 RLVR (GRPO)과 self-distillation (OPSD, SDPO) 베이스라인을 모두 능가하는가?</li>
+  <li><strong>Q2 (Training Dynamics)</strong>: RLSD의 training dynamics가 GRPO보다 안정적이고 높은 수렴 ceiling을 달성하는가?</li>
+  <li><strong>Q3 (Case Study)</strong>: Token-level credit assignment가 실제로 의미 있는 reasoning step에 credit을 할당하는가?</li>
+</ol>
+
+<h3>5.1 Experimental Setup</h3>
+
+<h4>학습 데이터 및 벤치마크</h4>
+
+<p><strong>학습 데이터</strong>: MMFineReason-123K -- MMFineReason-1.8M corpus에서 difficulty-based filtering으로 추출한 challenging subset. 구체적으로 Qwen3-VL-4B-Thinking으로 4회 독립적 rollout을 수행하여, <strong>모든 시도에서 실패한 샘플만</strong> 유지하는 보수적 기준을 적용. Trivial example을 배제하고 challenging problem에 training signal을 집중시켜, 더 빠른 수렴과 compute 효율적 사용을 도모한다.</p>
+
+<p><strong>평가 벤치마크</strong> (5개 multimodal reasoning benchmark):</p>
+<table>
+<tr><th>Benchmark</th><th>특성</th></tr>
+<tr><td><strong>MMMU</strong></td><td>College-level multi-discipline subjects (과학, 공학, 인문학). Perception + domain knowledge 요구</td></tr>
+<tr><td><strong>MathVista</strong></td><td>Visual context 기반 수학적 추론 평가</td></tr>
+<tr><td><strong>MathVision</strong></td><td>더 복잡한 competition-level visual 수학 문제</td></tr>
+<tr><td><strong>ZeroBench</strong></td><td>현재 frontier 모델이 풀 수 없도록 의도적으로 설계된 challenging benchmark -- reasoning robustness의 stress test</td></tr>
+<tr><td><strong>WeMath</strong></td><td>Structured difficulty level의 fine-grained 수학적 문제 해결 능력 평가</td></tr>
+</table>
+
+<h4>모델 및 베이스라인</h4>
+
+<p><strong>Base model</strong>: <code>Qwen3-VL-8B-Instruct</code></p>
+
+<p><strong>베이스라인</strong>:</p>
+<ul>
+  <li><strong>GRPO</strong>: Standard RLVR -- sparse scalar outcome reward에서 token-level advantage를 추정하며, sequence level에서 uniform advantage를 적용. Primary RL baseline.</li>
+  <li><strong>OPSD</strong>: On-policy self-distillation -- 동일 모델이 teacher/student를 겸함. Teacher는 Qwen3-VL-235B-A22B-Thinking에서 distill하여 verified reasoning trace에 조건화.</li>
+  <li><strong>SDPO</strong>: Self-distillation을 reinforcement learning의 rich feedback setting으로 확장. 환경 피드백에 조건화된 self-teacher. 원래 구현을 따라 이전의 성공적 rollout을 privileged context로 사용.</li>
+  <li><strong>GRPO+OPSD</strong>: GRPO와 OPSD objective를 tuned weighting coefficient로 linearly interpolate하는 직접적 조합 -- sparse environment reward와 dense self-distillation signal의 동시 활용 시도.</li>
+  <li><strong>Base LLM</strong>: Post-training 없는 Qwen3-VL-8B-Instruct (어떤 post-training 방법도 미적용) -- post-training의 전체 이득 정량화 기준.</li>
+</ul>
+
+<h4>Implementation Details</h4>
+
+<table>
+<tr><th>항목</th><th>설정</th></tr>
+<tr><td>Framework</td><td>VERL + EasyR1</td></tr>
+<tr><td>Max context length</td><td>8192 (prompt max 4096 + response max 4096)</td></tr>
+<tr><td>Learning rate</td><td>GRPO / GRPO+OPSD / RLSD: $1 \times 10^{-6}$; OPSD / SDPO: $1 \times 10^{-5}$ (원래 구현 따름)</td></tr>
+<tr><td>Training batch size</td><td>256</td></tr>
+<tr><td>Rollouts per prompt</td><td>8 (group size $G = 8$)</td></tr>
+<tr><td>Sampling temperature</td><td>1.0</td></tr>
+<tr><td>GRPO importance ratio clipping</td><td>$\epsilon_{\text{low}} = 0.2$, $\epsilon_{\text{high}} = 0.28$</td></tr>
+<tr><td>RLSD credit clip $\epsilon_w$</td><td>0.2</td></tr>
+<tr><td>Mixing coefficient $\lambda$</td><td>0.5에서 시작, 50 step에 걸쳐 0으로 linearly decay</td></tr>
+<tr><td>Teacher model sync</td><td>매 10 training step마다 student model과 동기화, 중간에는 frozen</td></tr>
+<tr><td>KL penalty / entropy regularization</td><td>미사용 (objective에서 제외)</td></tr>
+<tr><td>Training steps</td><td>200 (GRPO 2x: 400)</td></tr>
+<tr><td>Hardware</td><td>4 compute nodes x 8 NVIDIA H200 140GB GPUs</td></tr>
+<tr><td>Privileged info (RLSD)</td><td><strong>최종 ground-truth answer만</strong> (reasoning trace 불필요)</td></tr>
+<tr><td>Privileged info (OPSD)</td><td>Qwen3-VL-235B-A22B-Thinking에서 distill한 verified reasoning traces</td></tr>
+<tr><td>Privileged info (SDPO)</td><td>이전의 성공적 rollout (원래 설정 따름)</td></tr>
+</table>
+
+<h3>5.2 Experimental Results</h3>
+
+<h4>5.2.1 Main Results (Q1 -- Table 2)</h4>
+
+<p>Table 2는 5개 multimodal reasoning benchmark에서의 평가 결과를 제시한다:</p>
+
+<table>
+<tr><th>Method</th><th>MMMU</th><th>MathVista</th><th>MathVision</th><th>ZeroBench</th><th>WeMath</th><th>Avg.</th></tr>
+<tr><td>Base LLM</td><td>62.44</td><td>73.80</td><td>47.37</td><td>19.76</td><td>54.10</td><td>51.49</td></tr>
+<tr><td>GRPO</td><td>65.11</td><td>76.20</td><td>48.82</td><td>22.60</td><td>56.57</td><td>53.86</td></tr>
+<tr><td>OPSD</td><td>63.82</td><td>75.10</td><td>47.53</td><td>21.06</td><td>54.95</td><td>52.49</td></tr>
+<tr><td>SDPO</td><td>65.11</td><td>74.00</td><td>47.27</td><td><strong>25.15</strong></td><td>52.19</td><td>52.74</td></tr>
+<tr><td>GRPO+OPSD</td><td>63.22</td><td>75.90</td><td>48.52</td><td>22.16</td><td>54.76</td><td>52.91</td></tr>
+<tr><td><strong>RLSD (Ours)</strong></td><td><strong>67.22</strong></td><td><strong>78.10</strong></td><td><strong>52.73</strong></td><td>24.85</td><td><strong>58.00</strong></td><td><strong>56.18</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석 및 인사이트:</strong></p>
+
+<ul>
+  <li>##RLSD는 5개 benchmark 평균 56.18%로 최고 성능을 달성## (4K max length 기준). Base LLM 대비 +4.69%, GRPO 대비 +2.32% 개선. 2K max length에서도 52.78%로 최고.</li>
+  <li><strong>GRPO 대비 개선이 가장 큰 benchmark</strong>: <strong>MathVision (+3.91%)</strong>과 <strong>MathVista (+1.9%)</strong> -- fine-grained reasoning step 판별이 가장 중요한 challenging mathematical reasoning 벤치마크에서 가장 큰 이득. Token-level credit assignment가 reasoning step의 질적 차이를 효과적으로 포착함을 시사.</li>
+  <li><strong>MMMU (+2.11%)</strong>: Multi-discipline 지식 + perception이 필요한 broad reasoning에서도 유의미한 개선. Credit assignment가 수학에 한정되지 않고 일반적 reasoning에도 유효.</li>
+  <li><strong>Self-distillation 베이스라인 대비</strong>: RLSD는 OPSD (52.49%, -3.69%), SDPO (52.74%, -3.44%), GRPO+OPSD (52.91%, -3.27%)를 <strong>일관되게</strong> 그리고 <strong>큰 폭으로</strong> 능가. 이 경험적 gap은 Section 3의 이론적 진단과 정확히 일치한다: OPSD/SDPO는 distribution matching 하의 privileged information leakage로 고통받고, GRPO+OPSD의 단순 linear combination도 근본 문제를 해결하지 못한다.</li>
+  <li><strong>ZeroBench에서의 패턴</strong>: SDPO가 25.15%로 최고이고 RLSD가 24.85%로 근소하게 뒤진다. 이 benchmark는 현 frontier 모델도 풀 수 없도록 설계된 극한 난이도로 절대 수치가 낮다. SDPO의 높은 성능은 이전의 성공적 rollout을 privileged context로 사용하는 설계가 이 극한 난이도 설정에서 특이적으로 유리할 수 있음을 시사하나, 다른 4개 benchmark에서의 열등한 성능을 감안하면 전반적 우위로 보기 어렵다.</li>
+  <li><strong>GRPO+OPSD의 실패</strong>: GRPO와 OPSD를 단순히 결합해도 평균 52.91%로 GRPO (53.86%)보다 오히려 낮다. 이는 OPSD의 leakage 문제가 combination에서도 해소되지 않고, GRPO의 clean signal을 오히려 오염시킴을 보여준다.</li>
+</ul>
+
+<h4>5.2.2 Training Dynamics (Q2 -- Figure 5)</h4>
+
+<p>Figure 5는 200 optimization step에 걸친 training dynamics를 세 측면에서 분석한다:</p>
+
+<blockquote>
+<p><strong>[Figure 5 설명]</strong>: (a) Training reward dynamics -- RLSD (초록)가 GRPO (파랑)보다 가파른 상승과 높은 ceiling. (b) Training entropy -- GRPO는 빠르게 하락하는 반면 RLSD는 일관되게 높은 수준 유지. (c) Clip ratios on credit assignment -- low clip과 high clip이 약 3-6%에서 안정화.</p>
+</blockquote>
+
+<p><strong>Figure 5(a) -- Training Reward Dynamics</strong>:</p>
+<ul>
+  <li>RLSD는 GRPO 대비 더 <strong>가파른 초기 상승</strong>을 보이며, 더 <strong>높은 accuracy reward ceiling</strong>으로 수렴한다.</li>
+  <li>OPSD에서 관찰되는 late-stage performance collapse를 회피한다.</li>
+  <li>이는 RLSD가 GRPO의 학습 안정성(environment-anchored direction)을 유지하면서 self-distillation의 빠른 수렴(dense token-level signal)을 동시에 달성함을 보여준다.</li>
+</ul>
+
+<p><strong>Figure 5(b) -- Entropy Dynamics</strong>:</p>
+<ul>
+  <li>##GRPO는 uniform sequence-level reward로 인해 빠른 entropy collapse를 겪는 반면, RLSD는 일관되게 더 높은 entropy 수준을 유지##한다.</li>
+  <li>GRPO에서 모든 token에 동일한 advantage를 적용하면 정답 trajectory의 모든 position에서 확률 질량이 선택된 token에 집중되어 대안이 균일하게 억제된다.</li>
+  <li>반면 RLSD는 핵심 reasoning token만을 선택적으로 강화하고 informationally neutral한 token에는 baseline advantage를 유지하므로, exploration diversity가 보존된다.</li>
+  <li>높은 entropy는 일반적으로 model collapse 위험 감소와 exploration 능력 유지에 유리하다.</li>
+</ul>
+
+<p><strong>Figure 5(c) -- Clip Ratios on Credit Assignment</strong>:</p>
+<ul>
+  <li>Clipped credit assignment mechanism (Eq. 15)이 활발히 작동하고 있음을 확인.</li>
+  <li>Clip ratio가 약 3%-6%에서 안정화되어, teacher의 per-token 영향을 성공적으로 bound한다.</li>
+  <li>PPO/GRPO의 importance ratio clipping과 유사한 trust-region constraint 역할을 수행하며, 학습 안정성에 기여한다.</li>
+</ul>
+
+<h4>5.2.3 Case Study (Q3 -- Figure 6)</h4>
+
+<blockquote>
+<p><strong>[Figure 6 설명]</strong>: 두 multimodal reasoning 예제에서 RLSD의 token-level credit heatmap. 녹색이 더 큰 token-level credit magnitude, 빨간색이 더 작은 magnitude. 위: 정답 trajectory (큐브 세기) -- 결정적 counting/subtraction step에 큰 credit. 아래: 오답 trajectory (막대 그래프 해석) -- 잘못 읽은 bar-model 관계와 도출된 오답에 큰 blame.</p>
+</blockquote>
+
+<p>Figure 6은 RLSD가 sequence-level reward를 token level로 어떻게 재분배하는지에 대한 정성적 시각화를 제공한다:</p>
+
+<p><strong>정답 trajectory (큐브 세기 문제)</strong>: RLSD는 정답을 결정하는 핵심 토큰에 더 큰 credit을 할당한다 -- 관련 노란 큐브 식별("There is one yellow cube visible"), 최종 빼기 계산("5 total cubes minus 1 yellow cube = 4 cubes left"). 반면 일반적 서술("Looking at the image, I see")에는 낮은 credit을 부여.</p>
+
+<p><strong>오답 trajectory (막대 그래프 문제)</strong>: RLSD는 잘못된 핵심 단계에 가장 큰 blame을 집중한다 -- 잘못 읽은 bar-model 관계("3x = 28.5")와 잘못 도출된 답("x = 9.5")에 강한 빨간색(큰 blame). 중립적 setup token에는 비교적 작은 벌점.</p>
+
+<p>이 behavior는 RLSD의 설계 목표와 정확히 일치한다: 환경 보상이 trajectory의 강화/벌칙 여부를 결정하고, privileged teacher가 각 token의 최종 결과에 대한 기여도에 따라 token-level credit의 상대적 크기를 조절한다. 결과적인 update pattern은 GRPO처럼 uniform하지도, OPSD처럼 distribution matching하지도 않으며, verifier-grounded correctness에 anchored된 targeted token-level credit assignment이다.</p>
+
+<!-- ============================================================ -->
+<h2>6. Related Work</h2>
+
+<h3>6.1 Credit Assignment in RLVR</h3>
+
+<p>GRPO를 대표로 하는 RLVR 방법의 핵심 한계는 verifier가 sequence-level 신호만 제공하여 long-horizon reasoning이 근본적으로 <strong>credit assignment 문제</strong>가 된다는 것이다. 일반적 접근법:</p>
+
+<p><strong>Process Reward Models (PRMs) / Step-level Value Estimators</strong>: Intermediate reasoning step을 채점한다. Let's Verify Step by Step, Math-Shepherd, automated process supervision 등이 대표적이다. 이들은 costly human annotation이나 automated/implicit supervision에 의존하며, 어느 경우든 base policy 이상의 auxiliary reward modeling과 추가 computation을 요구한다.</p>
+
+<p><strong>Model-internal Proxy 기반 방법</strong>: 더 최근의 연구는 verifier-only RLVR pipeline 내에서 fine-grained credit assignment를 추구한다. Entropy, uncertainty, key-token statistics, attention dynamics, outcome sensitivity 등 model-internal proxy를 사용하여 token-level update를 reshape한다. 이들은 uniform sequence-level advantage가 불필요하게 coarse함을 보여주지만, 전적으로 intrinsic heuristics에서 token importance를 추정한다.</p>
+
+<p>RLSD는 동기(motivation)는 이 연구들과 유사하지만 <strong>메커니즘이 근본적으로 다르다</strong>: heuristic proxy 대신 self-distillation을 통한 rigorous token-level assessment를 추출하되, update direction은 verifier reward에 고정한다. Privileged context에서의 정보를 직접 활용하므로 heuristic에 의존하지 않으면서도, distribution matching의 leakage 문제를 회피한다.</p>
+
+<h3>6.2 On-Policy Distillation</h3>
+
+<p>Distillation은 reasoning 모델을 위한 dense token-level supervision의 대안적 소스로 탐구되어 왔다. Standard OPD는 stronger teacher가 student의 on-policy rollout을 평가하여 token-level target을 제공하지만, 외부 대형 teacher model의 지속적 유지가 필요하다. 최근 self-distillation variant는 teacher와 student가 동일 모델이되, teacher가 reference solution이나 verifier feedback 같은 privileged information에 조건화한다. 관련 연구로는 continual learning, context internalization, reasoning compression 등에서도 유사한 구조가 탐구되고 있다.</p>
+
+<p>이 방법들의 공유된 설계 선택은 <strong>distribution-matching objective</strong>를 유지한다는 것이다. RLSD는 유사한 설정에서 출발하되 이 패러다임을 벗어난다: teacher의 prediction이 latent information에 의존할 때, teacher distribution을 matching하는 것은 구조적으로 ill-posed하며 privileged information leakage를 유발할 수 있음을 보인다. RLSD는 teacher를 generative target이 아닌 <strong>scalar multiplier</strong>로만 사용하여, dense token-level magnitude를 optimization direction에서 분리(decoupling)한다.</p>
+
+<!-- ============================================================ -->
+<h2>7. Conclusion</h2>
+
+<p>본 연구는 OPSD의 근본적 한계를 식별했다: teacher와 student 간 information asymmetry가 distribution-matching objective를 구조적으로 ill-posed하게 만들어, irreducible mutual information gap을 유발하고, 이것이 privileged information leakage와 점진적 성능 저하를 초래한다. 이를 objective level (Theorem 1 -- KL Decomposition)과 gradient level (Proposition 1 -- Per-Sample Gradient Decomposition) 모두에서 형식화하여, 경험적으로 관찰되는 초반 이득 후 체계적 붕괴의 two-phase pattern을 설명했다.</p>
+
+<p>이 분석을 기반으로 RLSD를 제안했다: prior와 posterior 간 distribution matching을 넘어서, 그 discrepancy를 per-token update magnitude에 대한 fine-grained control로 재목적화하면서, update direction은 환경 보상에 고정하는 새로운 학습 패러다임. 이 설계는 OPSD의 rich, token-level supervision과 RLVR의 reliable environmental grounding을 단일 framework 내에서 동시에 계승하며, 5개 multimodal reasoning benchmark에서 SOTA 성능을 달성한다.</p>
+
+<!-- ============================================================ -->
+<h2>8. Limitations and Future Work</h2>
+
+<p>본 논문은 주로 OPSD의 구조적 한계에 대한 이론적 분석과 RLSD 패러다임의 동기 부여 및 검증에 초점을 맞추고 있다. 빠른 공개를 위해 제한된 실험 범위를 제공한다:</p>
+
+<ul>
+  <li><strong>모델 다양성</strong>: 단일 base model (Qwen3-VL-8B-Instruct)에서만 검증. 다른 모델 family (LLaMA 계열, Mistral 등) 및 다른 크기 (70B+)에서의 효과는 예비적으로만 확인.</li>
+  <li><strong>도메인 범위</strong>: Multimodal reasoning 시나리오에 한정. Pure text reasoning, video understanding 등에서의 검증은 후속 버전에서 포함 예정.</li>
+  <li><strong>학습 규모</strong>: 200 training step으로 한정. 장기 학습(수천 step)에서의 RLSD 효과는 추가 검증 필요.</li>
+  <li>저자들은 pure text reasoning, video understanding, Qwen 시리즈 이외의 추가 모델에서 RLSD를 예비적으로 검증하여 일관된 이득을 관찰했다고 밝히며, 후속 버전에 포함할 예정이다.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론적 기여의 깊이와 일관성</strong>: OPSD 실패의 근본 원인을 objective level (Theorem 1)과 gradient level (Proposition 1)에서 엄밀하게 분석하고, impossibility trilemma (Theorem 3)를 통해 distribution matching 기반 self-distillation의 구조적 한계를 완결적으로 증명한 것은 매우 설득력 있다. Two-phase training dynamics 설명이 Figure 3의 경험적 관찰과 정확히 부합하며, 이론과 실험의 일관성이 뛰어나다.</li>
+  <li><strong>설계 원칙의 우아함</strong>: "방향은 환경 보상에서, 크기는 self-distillation에서"라는 direction-magnitude decoupling 원칙이 명확하고 직관적이다. Evidence ratio의 Bayesian 해석 (Theorem 4)과 telescoping property (Eq. 37)이 이론적 근거를 풍부하게 하며, 단순한 heuristic이 아닌 원칙적 설계임을 보여준다.</li>
+  <li><strong>최소한의 privileged information 요구</strong>: OPSD가 전체 reasoning trace (235B 모델에서 distill)를 필요로 하는 반면, RLSD는 최종 ground-truth answer만으로 충분하여 실용적 확장성이 크게 높다.</li>
+  <li><strong>실용적 구현의 단순성</strong>: Drop-in replacement로 GRPO에 통합되며, auxiliary loss 없이 단일 추가 forward pass만으로 구현 가능. 기존 RLVR 파이프라인에 최소한의 수정으로 적용 가능하다.</li>
+  <li><strong>Unified perspective (Eq. 17)</strong>: GRPO, OPSD, RLSD를 단일 token-level advantage template 하에서 통일적으로 분석한 것은 방법론적 기여로서 해당 분야의 이해를 명확히 한다.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>실험 규모의 제한</strong>: 단일 base model (8B), 단일 학습 데이터셋, 200 training step, 단일 modality (multimodal)로 한정된 실험은 결론의 일반성을 제한한다. 특히 이론적 기여의 깊이에 비해 실험적 검증의 폭이 좁다.</li>
+  <li><strong>표준편차 미보고</strong>: Table 2에서 multiple seed/run에 대한 표준편차가 보고되지 않아, 성능 차이의 통계적 유의성을 판단하기 어렵다. RLSD와 GRPO 간 2.32% 차이, 특히 ZeroBench에서 SDPO와의 0.3% 차이가 noise 범위 내인지 확인 불가.</li>
+  <li><strong>Hyperparameter sensitivity 분석 부재</strong>: $\lambda$ schedule (0.5 &rarr; 0 over 50 steps), $\epsilon_w$ (0.2), teacher sync period (매 10 step) 등 핵심 hyperparameter의 선택 근거와 sensitivity 분석이 부족하다. 이들이 성능에 미치는 영향이 불명확.</li>
+  <li><strong>Privileged information 비교의 공정성</strong>: RLSD는 ground-truth answer만, OPSD는 235B 모델의 verified reasoning trace를 사용. Privileged information의 정보량이 크게 다르므로, OPSD의 열등한 성능이 ill-posedness 때문인지 privileged information의 질 때문인지 분리하기 어렵다. RLSD에 reasoning trace를 privileged information으로 사용한 ablation이 있었다면 더 설득력 있었을 것.</li>
+  <li><strong>Computational cost 비교 부재</strong>: RLSD는 teacher forward pass라는 추가 비용이 있다. Figure 1(b)에서 step 수 기반 비교만 있고 wall-clock time이나 총 FLOP 기반 비교가 없어, 실제 효율성 이점의 정확한 크기가 불명확.</li>
+  <li><strong>Ablation study 부재</strong>: $\text{sign}(A)$ exponent의 기여, clipping의 효과, $\lambda$ schedule의 필요성 등 각 design choice의 개별적 기여를 분리하는 ablation이 없다.</li>
+  <li><strong>Text-only 도메인 미검증</strong>: 실험이 전적으로 multimodal (vision-language) reasoning에 한정. Pure text reasoning (수학, 코드)에서의 효과는 예비적으로만 언급되어 검증이 불완전.</li>
+</ul>
+
+<h3>공정한 비교인가?</h3>
+<ul>
+  <li>GRPO와 RLSD는 동일한 learning rate ($1 \times 10^{-6}$)를 사용하지만, OPSD/SDPO는 $1 \times 10^{-5}$ (원래 구현 따름). 이 10배 차이가 OPSD/SDPO의 성능에 영향을 미쳤을 가능성이 있다.</li>
+  <li>OPSD의 privileged information (Qwen3-VL-235B에서 distill한 reasoning trace)은 RLSD의 ground-truth answer보다 준비 비용이 훨씬 높으므로, RLSD의 실용적 이점이 크다. 그러나 동시에 정보량 차이로 인한 비교의 불공정성도 존재한다.</li>
+  <li>GRPO (2x steps, 400)와 RLSD (200 step)의 비교는 RLSD의 빠른 수렴을 보여주지만, 추가 teacher forward pass의 비용을 감안한 동일 compute budget 비교는 아니다.</li>
+</ul>
+
+<h3>코드/데이터 공개</h3>
+<p>논문 시점에서 코드 및 데이터 공개 여부가 명시적으로 기술되지 않았다.</p>
+
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>Self-distillation의 올바른 활용법</strong>: Information-asymmetric 설정에서 self-distillation을 distribution matching (generative target)이 아닌 credit assignment (magnitude evaluator)로 사용하면, leakage 없이 dense token-level 신호를 활용할 수 있다. 이는 다른 RL 학습 파이프라인에도 적용 가능한 범용적 설계 원칙이다.</li>
+  <li><strong>Direction-Magnitude Decoupling</strong>: 학습 신호를 "어떤 방향으로 업데이트할까" (sparse but reliable)와 "얼마나 크게 업데이트할까" (dense and fine-grained)로 분리하는 원칙은 RLVR을 넘어 다양한 학습 패러다임에 적용 가능한 범용적 통찰이다. Reward signal의 강도와 밀도 사이의 trade-off를 새로운 방식으로 해결한다.</li>
+  <li><strong>OPSD 사용 시 주의</strong>: On-policy self-distillation은 초반 빠른 성능 향상을 보이지만, information asymmetry 하에서 구조적으로 ill-posed하며 장기적으로 leakage와 성능 저하를 겪는다. OPSD를 사용하는 경우 two-phase dynamics를 인지하고 적절한 early stopping이 필수적이다.</li>
+  <li><strong>실무 적용의 낮은 진입 장벽</strong>: RLSD는 GRPO의 drop-in replacement로 기능하며, auxiliary loss 없이 단일 추가 forward pass만으로 구현 가능. Ground-truth answer만 필요 (reasoning trace 불필요)하므로 기존 RLVR 파이프라인에 최소한의 수정으로 통합할 수 있다.</li>
+  <li><strong>Evidence Ratio의 Bayesian 해석</strong>: $P_T/P_S$가 sequential Bayesian belief update에 해당한다는 관점은 token-level credit assignment의 이론적 기초를 제공하며, 향후 다른 credit assignment 방법 설계에도 영감을 줄 수 있다. Token-level weight가 sequence-level로 telescope되는 성질은 credit granularity 선택의 유연성을 부여한다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+
+<div class="personal-notes">
+<!-- 추후 Q&A 및 메모 추가 -->
+</div>
+
+</div>
+</body>
+</html>

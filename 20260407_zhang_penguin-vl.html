@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Penguin-VL: Exploring the Efficiency Limits of VLM with LLM-based Vision Encoders</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Penguin-VL: Exploring the Efficiency Limits of VLM with LLM-based Vision Encoders</h1>
+
+<p><a href="20260407_zhang_penguin-vl_brief.html">📋 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Boqiang Zhang*, Lei Ke*†, Ruihan Yang*, Qi Gao*, Tianyuan Qu*§, Rossell Chen, Dong Yu†, Leoweiliang‡ (Penguin-VL team)</li>
+  <li><strong>소속</strong>: Tencent AI Lab</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2603.06569, v2)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.06569">arXiv</a> | <a href="https://github.com/tencent-ailab/Penguin-VL">GitHub</a> | <a href="https://huggingface.co/tencent/Penguin-VL-2B">2B Model</a> | <a href="https://huggingface.co/tencent/Penguin-VL-8B">8B Model</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 현재 VLM은 massive contrastive pretraining (CLIP/SigLIP) 기반 vision encoder에 의존하지만, contrastive learning의 discriminative objective는 dense captioning과 complex reasoning에 필요한 fine-grained visual cue를 억제한다</li>
+  <li><strong>해결</strong>: Penguin-VL은 text-only LLM (Qwen3-0.6B)을 직접 vision encoder로 초기화하고 (Penguin-Encoder), bidirectional attention + 2D-RoPE로 전환한 뒤, mixed supervision (amplitude + direction + relation loss)으로 pretraining하여 generative objective에 최적화된 vision representation을 학습한다</li>
+  <li><strong>왜 작동하는가</strong>: LLM-initialized encoder는 (1) downstream LLM decoder와 native하게 aligned된 representation space에서 시작하고, (2) rich semantic prior를 상속하며, (3) LLM의 advanced architecture (QK normalization 등)를 활용한다. Relation loss가 inter-patch relationship을 보존하여 attention-based visual reasoning에 핵심적이다</li>
+  <li><strong>비유</strong>: 기존 방법이 "외국어(contrastive representation)를 배운 뒤 번역"하는 것이라면, Penguin-VL은 "모국어(LLM representation)로 처음부터 시각 세계를 이해"하는 것이다</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Penguin-Encoder</strong>: ##Text-only LLM에서 직접 vision encoder를 초기화하는 novel approach. Contrastive pretraining 없이, ~400M 파라미터로 SigLIP2를 능가하는 vision representation 학습 (~240M data vs >40B contrastive data)##</li>
+  <li><strong>Mixed supervision pretraining</strong>: Amplitude loss $L_A$, direction loss $L_D$, relation loss $L_R$의 3-component reconstruction objective로, LLM-initialized encoder를 visual feature space에 효과적으로 align</li>
+  <li><strong>TRA (Temporal Redundancy-Aware) token compression</strong>: Key frame과 intermediate frame을 구별하고, 3-stage cascade로 spatial resolution을 content-adaptive하게 압축하여 long video를 효율적으로 처리</li>
+  <li><strong>Comprehensive training recipe</strong>: Encoder training (low-res + high-res) → VLM pretraining (121M) → two-stage SFT (image 39M + video 3.7M)의 체계적 pipeline과 대규모 data curation (Penguin-Recap-I 57.2M, Penguin-Recap-V 3.7M)</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<p>현재 VLM의 지배적 패러다임은 CLIP/SigLIP으로 contrastive pretrained된 ViT를 vision encoder로 사용하는 것이다. 그러나 이 approach에는 근본적인 objective mismatch가 존재한다: contrastive learning은 global [CLS] token 또는 attention pooling에만 supervision을 적용하는 discriminative paradigm으로, LLM의 sequence token prediction과 근본적으로 misaligned되어 있다. 이로 인해 fine-grained visual cue가 억제되고, category-level invariance가 enforce된다.</p>
+
+<p>본 논문은 vision encoder bottleneck에 대한 holistic framework를 제안한다:</p>
+<ol>
+  <li><strong>Novel vision encoder</strong>: LLM architecture 원칙을 활용한 VLM 전용 encoder</li>
+  <li><strong>Tailored training recipe</strong>: Fine-grained perception과 cross-modal reasoning을 progressive하게 harmonize</li>
+  <li><strong>Comprehensive data curation pipeline</strong>: 고품질 training data 구축</li>
+</ol>
+
+<h2>2. Methodology</h2>
+
+<h3>2.1 Model Architecture</h3>
+
+<p>Penguin series는 Qwen3 LLM backbone 위에 구축되며, 2B와 8B variant가 있다. Three-module design: (i) Penguin-Encoder (vision), (ii) MLP-based vision-language projector, (iii) LLM.</p>
+
+<h4>2.1.1 Penguin-Encoder: From Text-only LLM to Vision Encoder</h4>
+
+<p>Text-only LLM (Qwen3-0.6B)에서 직접 vision encoder를 초기화한다. 핵심 수정 두 가지:</p>
+<ol>
+  <li><strong>Causal → bidirectional full attention</strong>: LLM의 causal self-attention mask를 제거하여 symmetric token interaction을 가능하게 함</li>
+  <li><strong>1D RoPE → 2D RoPE</strong>: Variable-resolution image 입력을 위한 2D rotary positional embedding 적용</li>
+</ol>
+
+<p>이 text-to-vision 초기화의 4가지 장점:</p>
+<ul>
+  <li><strong>Architectural expressivity</strong>: QK normalization 등 LLM의 advanced design elements 활용</li>
+  <li><strong>Native alignment</strong>: LLM decoder와 호환되는 representation space에서 시작하여 modality gap 최소화</li>
+  <li><strong>Semantic priors</strong>: Rich linguistic knowledge를 상속하여 visual concept의 semantic grounding 제공</li>
+  <li><strong>Scalability</strong>: LLM scaling 원칙을 활용한 predictable scaling</li>
+</ul>
+
+<p><strong>Mixed supervision pretraining</strong>: LLM cross-entropy supervision과 reconstruction-based objectives를 jointly 사용. Teacher encoder의 feature $F_t$에 대해, student의 feature $F_s$로:</p>
+
+<p><strong>(1) Amplitude Loss</strong>: Feature 절대값의 직접적 supervision</p>
+$$L_A = \frac{1}{N}\sum_N (|F_s - F_t|)$$
+
+<p><strong>(2) Direction Loss</strong>: Feature 방향의 cosine similarity (representation collapse 방지)</p>
+$$L_D = \frac{1}{N}\sum_N \text{tr}\left(\frac{F_s F_t^\top}{\|F_s\|_2 \|F_t\|_2}\right)$$
+
+<p><strong>(3) Relation Loss</strong>: Inter-patch self-correlation similarity (attention mechanism에 특화)</p>
+$$L_R = \frac{1}{N}\sum_N \left(\left|\frac{F_s F_s^\top}{\|F_s\|_2^2} - \frac{F_t F_t^\top}{\|F_t\|_2^2}\right|\right)$$
+
+<p>직관적으로, amplitude loss는 "각 패치의 특성 강도"를, direction loss는 "특성의 방향"을, relation loss는 "패치 간의 관계 구조"를 보존한다. ##Relation loss가 특히 중요한데, vision model에서 attention mechanism은 개별 token의 absolute attribute보다 inter-patch relationship에 초점을 맞추기 때문이다 (ablation에서 +1.3 avg score 기여 확인).##</p>
+
+<h4>2.1.2 Video Encoding and Projector</h4>
+
+<p><strong>TRA (Temporal Redundancy-Aware) token compression</strong>: Temporal similarity 기반으로 frame을 key frame (rapid temporal changes)과 intermediate frame (stable context)으로 분류하고, 3-stage cascade로 압축:</p>
+
+<ul>
+  <li><strong>Stage 1 (Resolution Preservation)</strong>: 전체 token count가 $T_{\max}$ 이하이면 full resolution 유지:
+$$\sum_{k \in \mathcal{K}} T_k + \sum_{i \in \mathcal{I}} T_i \leq T_{\max} \tag{1}$$</li>
+  <li><strong>Stage 2 (Synchronous Downscaling)</strong>: Budget 초과 시, key/intermediate frame을 고정 비율 ($T_k \approx 16T_i$)로 동시 downscale:
+$$T_k \leftarrow \alpha T_k, \quad T_i \leftarrow \alpha T_i \tag{2}$$</li>
+  <li><strong>Stage 3 (Saturation-Aware Scaling)</strong>: Intermediate frame이 하한 $T_{\min}$에 도달하면, key frame만 추가 압축</li>
+</ul>
+
+<p><strong>MLP-based projector</strong>: Spatial token merge 없이 simple feed-forward transformation으로 visual feature dimension을 LLM hidden size에 맞춤. Simplicity와 efficiency를 우선시하는 design choice.</p>
+
+<h3>2.2 Data Construction</h3>
+
+<h4>2.2.1 Image Data Curation (Penguin-Recap-I)</h4>
+<p>57.2M image-text pairs from COYO-700M + DataComp-1B. Two-stage pipeline: (1) quality filtering (resolution, aspect ratio, corruption), (2) semantic diversity via hierarchical k-means clustering + greedy selection. Detailed long captioning: 9개 visual aspect (Global Semantics, Subjects, Actions, Spatial Relationships, Scene Context, Objects, OCR, Image Quality, Knowledge-intensive descriptions)에 대한 structured annotation 후 comprehensive long-form caption으로 synthesis.</p>
+
+<h4>2.2.2 Video Data Curation (Penguin-Recap-V)</h4>
+<p>3.7M video-text pairs from 29 public datasets. Multi-granularity annotation: (1) Event-level atomic descriptions (timestamped), (2) Chapter-level narrative syntheses, (3) Holistic video summaries. Temporal reasoning QA (ordering + grounding)도 생성.</p>
+
+<h3>3. Training</h3>
+
+<p>3-stage training pipeline:</p>
+
+<div class="flow-diagram">Stage 1: Penguin-Encoder Training
+  ├─ Phase 1 (Low-res): ~100M samples, 2048 tokens, ~600×600
+  │   caption loss + reconstruction loss (L_A + L_D + L_R)
+  │   teacher: VL3-SigLIP-NaViT
+  └─ Phase 2 (High-res): ~47M samples, 10240 tokens
+      caption loss only (reconstruction branch removed)
+
+Stage 2: VLM Pre-training
+  └─ 121M samples, all components trainable
+      64% general caption + document/grounding/OCR/math/code/science
+      7.7M grounding + 1.5M region caption QA pairs
+
+Stage 3: Supervised Fine-Tuning
+  ├─ Image SFT: 39M samples
+  │   32.6% General & Caption, 20.9% Document/Chart, 16.6% OCR
+  │   10.1% Grounding & Counting, 8.9% Math, 3.71% Others
+  └─ Video SFT: 3.7M samples
+      77.6% General Video, 12.7% Action, 6.9% Temporal, 2.8% Ego</div>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Implementation Details</h3>
+<p>Cosine LR decay, 3% warmup. Max sequence 16,384 tokens (up to 10,240 visual). Vision encoder: Qwen3-0.6B init. LLM backbone: Qwen3-1.7B (2B), Qwen3-8B (8B). Projector: 2-layer MLP with GELU. Video: 1 FPS, max 180 frames, 2× spatial downsampling after encoder. <code>lmms-eval</code> toolkit for evaluation.</p>
+
+<h3>4.2 Baselines</h3>
+<p><strong>2B</strong>: Qwen3-VL-2B, InternVL3.5-2B, Gemma3n-E2B-it, SmolVLM2-2.2B. <strong>8B</strong>: Qwen3-VL-8B, InternVL-3.5-8B, OpenAI GPT-5-nano.</p>
+
+<h3>4.3 Image Benchmarks</h3>
+
+<h4>2B Model (Table 1)</h4>
+
+<table>
+<tr><th>Category</th><th>Benchmark</th><th>Penguin-2B</th><th>Qwen3-VL-2B</th><th>InternVL3.5-2B</th><th>Gemma3n-E2B</th><th>SmolVLM2-2.2B</th></tr>
+<tr><td rowspan="5">Chart/OCR/Doc</td><td>InfoVQA</td><td><strong>77.8</strong></td><td><u>72.4</u></td><td>70.8</td><td>51.9</td><td>43.0</td></tr>
+<tr><td>ChartQA</td><td><strong>86.6</strong></td><td>76.9</td><td><u>80.7</u></td><td>65.8</td><td>68.7</td></tr>
+<tr><td>DocVQA</td><td><strong>94.1</strong></td><td><u>93.3</u></td><td>89.4</td><td>78.4</td><td>80.0</td></tr>
+<tr><td>CharXiv<sub>DQ/RQ</sub></td><td><strong>66.4</strong>/35.8</td><td>62.3/26.8</td><td><u>65.0</u>/31.6</td><td>60.1/27.0</td><td>36.9/15.5</td></tr>
+<tr><td>OCRBench</td><td>810</td><td><strong>858</strong></td><td><u>836</u></td><td>700</td><td>729</td></tr>
+<tr><td rowspan="5">Knowledge/Multi-Image</td><td>AI2D</td><td><strong>80.7</strong></td><td>76.9</td><td><u>78.8</u></td><td>74.6</td><td>70.0</td></tr>
+<tr><td>RealWorldQA</td><td><strong>70.2</strong></td><td><u>63.9</u></td><td>62.0</td><td>59.9</td><td>58.3</td></tr>
+<tr><td>V-star</td><td><strong>83.8</strong></td><td><u>74.9</u></td><td>69.1</td><td>46.0</td><td>51.8</td></tr>
+<tr><td>MMMU-Pro</td><td>31.4</td><td><strong>36.5</strong></td><td><u>31.6</u></td><td>28.0</td><td>20.1</td></tr>
+<tr><td>BLINK</td><td>51.7</td><td><strong>53.8</strong></td><td>36.6</td><td>44.1</td><td>44.0</td></tr>
+<tr><td rowspan="3">Math</td><td>MathVista</td><td><strong>67.3</strong></td><td><u>61.3</u></td><td>60.8</td><td>50.4</td><td>51.5</td></tr>
+<tr><td>MathVerse</td><td>35.9</td><td><strong>52.1</strong></td><td><u>39.6</u></td><td>22.5</td><td>21.5</td></tr>
+<tr><td>LogicVista</td><td><u>41.3</u></td><td>35.8</td><td><strong>47.7</strong></td><td>33.9</td><td>24.8</td></tr>
+<tr><td rowspan="9">Video</td><td>MVBench</td><td><u>65.5</u></td><td>61.7</td><td><strong>65.9</strong></td><td>46.8</td><td>46.3</td></tr>
+<tr><td>LongVideoBench</td><td><strong>59.5</strong></td><td>52.1</td><td><u>57.4</u></td><td>43.0</td><td>49.7</td></tr>
+<tr><td>VideoMME</td><td>57.4</td><td><strong>61.9</strong></td><td><u>58.4</u></td><td>47.0</td><td>52.1</td></tr>
+<tr><td>EgoSchema</td><td><strong>57.6</strong></td><td><u>55.7</u></td><td>50.5</td><td>48.0</td><td>34</td></tr>
+<tr><td>MMVU</td><td><strong>42.7</strong></td><td><u>41.7</u></td><td><u>42.7</u></td><td>34.5</td><td>33.5</td></tr>
+<tr><td>CharadesSTA</td><td><strong>56.2</strong></td><td><u>54.5</u></td><td>21.9</td><td>5.5</td><td>9.5</td></tr>
+<tr><td>NextQA</td><td><strong>79.9</strong></td><td><u>76.9</u></td><td>76.1</td><td>65.4</td><td>62.4</td></tr>
+<tr><td>ActivityNetQA</td><td><strong>61.5</strong></td><td><u>59.7</u></td><td>58.3</td><td>51.5</td><td>52.6</td></tr>
+<tr><td>Perception Test</td><td><strong>70.4</strong></td><td>64.5</td><td><u>64.7</u></td><td>48.6</td><td>51.6</td></tr>
+</table>
+
+<p>##Penguin-VL-2B는 Chart/OCR (InfoVQA 77.8, ChartQA 86.6, DocVQA 94.1), Math (MathVista 67.3), Knowledge (V-star 83.8, RealWorldQA 70.2), Video (LongVideoBench 59.5, CharadesSTA 56.2, NextQA 79.9, ActivityNetQA 61.5) 등 대부분의 벤치마크에서 2B급 모델 중 최고 성능을 달성한다.## OCRBench (810 vs Qwen3-VL 858), MathVerse (35.9 vs Qwen3-VL 52.1), LogicVista (41.3 vs InternVL3.5 47.7), BLINK (51.7 vs Qwen3-VL 53.8)에서는 열위인데, OCR 특화 데이터, math-focused SFT 데이터, 그리고 multi-image reasoning 능력의 차이에 기인할 수 있다. VideoMME (57.4 vs Qwen3-VL 61.9)에서도 Qwen3-VL이 우위를 보인다.</p>
+
+<h4>8B Model (Table 2)</h4>
+
+<table>
+<tr><th>Category</th><th>Benchmark</th><th>Penguin-8B</th><th>Qwen3-VL-8B</th><th>InternVL-3.5-8B</th><th>GPT-5-nano</th></tr>
+<tr><td rowspan="5">Chart/OCR/Doc</td><td>InfoVQA</td><td><strong>86.8</strong></td><td><u>83.1</u></td><td>79.1</td><td>49.2</td></tr>
+<tr><td>ChartQA</td><td><strong>90.5</strong></td><td><u>89.6</u></td><td>86.7</td><td>48.6</td></tr>
+<tr><td>DocVQA</td><td><strong>96.2</strong></td><td><u>96.1</u></td><td>92.3</td><td>78.3</td></tr>
+<tr><td>CharXiv<sub>DQ/RQ</sub></td><td>75.7/40.0</td><td><strong>83.0</strong>/<strong>46.4</strong></td><td><u>72.2</u>/44.4</td><td>64.4/31.7</td></tr>
+<tr><td>OCRBench</td><td>852</td><td><strong>896</strong></td><td><u>840</u></td><td>701</td></tr>
+<tr><td rowspan="5">Knowledge/Multi-Image</td><td>AI2D</td><td><strong>86.1</strong></td><td><u>85.7</u></td><td>84.0</td><td>65.7</td></tr>
+<tr><td>RealWorldQA</td><td><strong>75.8</strong></td><td><u>71.5</u></td><td>67.5</td><td>60.7</td></tr>
+<tr><td>V-star</td><td><strong>90.2</strong></td><td><u>90.1</u></td><td>70.7</td><td>63.4</td></tr>
+<tr><td>MMMU-Pro</td><td><u>40.2</u></td><td><strong>55.9</strong></td><td>39.7</td><td>36.5</td></tr>
+<tr><td>BLINK</td><td>58.2</td><td><strong>69.1</strong></td><td><u>59.5</u></td><td>42.2</td></tr>
+<tr><td rowspan="3">Math</td><td>MathVista</td><td><strong>77.4</strong></td><td><u>77.2</u></td><td>74.2</td><td>40.9</td></tr>
+<tr><td>MathVerse</td><td>50.8</td><td><strong>62.1</strong></td><td><u>55.8</u></td><td>27.0</td></tr>
+<tr><td>LogicVista</td><td>53.8</td><td><u>55.3</u></td><td><strong>57.3</strong></td><td>40.5</td></tr>
+<tr><td rowspan="9">Video</td><td>MVBench</td><td><u>71.7</u></td><td>68.7</td><td><strong>72.1</strong></td><td>52.9</td></tr>
+<tr><td>LongVideoBench</td><td><strong>67.0</strong></td><td><u>62.6</u></td><td>62.1</td><td>38.1</td></tr>
+<tr><td>VideoMME</td><td>66.2</td><td><strong>71.4</strong></td><td><u>66.0</u></td><td>49.4</td></tr>
+<tr><td>EgoSchema</td><td><u>67.0</u></td><td><strong>70.2</strong></td><td>61</td><td>34.8</td></tr>
+<tr><td>MMVU</td><td><u>53.9</u></td><td><strong>58.7</strong></td><td>51.5</td><td>51.0</td></tr>
+<tr><td>CharadesSTA</td><td><strong>61.4</strong></td><td><u>56.0</u></td><td>32.8</td><td>5.0</td></tr>
+<tr><td>NextQA</td><td><strong>85.4</strong></td><td>82.3</td><td><u>81.3</u></td><td>59.3</td></tr>
+<tr><td>ActivityNetQA</td><td><strong>65.2</strong></td><td><u>63.7</u></td><td>60.1</td><td>-</td></tr>
+<tr><td>Perception Test</td><td><strong>78.0</strong></td><td>72.7</td><td>72.7</td><td>-</td></tr>
+</table>
+
+<p>Penguin-VL-8B는 document/chart understanding (DocVQA 96.2, ChartQA 90.5, InfoVQA 86.8), general knowledge (AI2D 86.1, V-star 90.2, RealWorldQA 75.8), 그리고 temporal reasoning이 요구되는 video 벤치마크 (LongVideoBench 67.0, CharadesSTA 61.4, NextQA 85.4, ActivityNetQA 65.2, Perception Test 78.0)에서 frontrunner를 확립한다. ##특히 temporal grounding/reasoning 관련 video 벤치마크에서 Qwen3-VL-8B를 일관되게 능가하는데, TRA token compression과 multi-granularity video annotation의 효과로 판단된다.## 반면, MMMU-Pro (40.2 vs 55.9), BLINK (58.2 vs 69.1), MathVerse (50.8 vs 62.1), VideoMME (66.2 vs 71.4), EgoSchema (67.0 vs 70.2) 등에서 Qwen3-VL-8B가 우위를 보이며, OCRBench (852 vs 896)과 CharXiv에서도 Qwen3-VL이 앞선다.</p>
+
+<h3>4.5 Ablation Study</h3>
+
+<h4>Initialization and Reconstruction-Loss Ablation (Table 3)</h4>
+
+<table>
+<tr><th>Configuration</th><th>Avg</th><th>AI2D</th><th>MathVista</th><th>ChartQA</th><th>MMMU-Pro</th><th>RealWorldQA</th></tr>
+<tr><td>Random init</td><td>31.3</td><td>57.2</td><td>22.0</td><td>12.4</td><td>18.8</td><td>46.0</td></tr>
+<tr><td>LLM init (w/o reconstruction)</td><td>32.6</td><td>55.6</td><td>29.9</td><td>11.6</td><td>18.9</td><td>46.9</td></tr>
+<tr><td>LLM init (w/o relation loss)</td><td>33.3</td><td>56.3</td><td>29.5</td><td>17.4</td><td>18.2</td><td>45.0</td></tr>
+<tr><td><strong>Penguin-Encoder (full)</strong></td><td><strong>34.6</strong></td><td><strong>56.4</strong></td><td><strong>29.0</strong></td><td><strong>17.4</strong></td><td><strong>19.3</strong></td><td><strong>51.0</strong></td></tr>
+</table>
+
+<p>##LLM weight 초기화가 +3.3 (31.3→34.6) average score 개선을 제공하며, 이는 pretrained LLM weight가 well-conditioned starting point을 제공하여 modality alignment과 training stability를 크게 향상시킴을 보여준다.## 기본 reconstruction objective는 +1.3 (31.3→32.6) 기여하고, relation loss는 추가 +1.3 (33.3→34.6) 기여로, inter-patch relationship supervision이 downstream multimodal reasoning에 특히 중요하다.</p>
+
+<h4>Encoder Comparison (Table 3 하단 — LMM Integration Comparison)</h4>
+
+<p>모든 encoder를 Qwen3-1.7B backbone에 연결하고, DenseFusion-1M pretraining + LLaVA-665k SFT로 통일하여 공정 비교:</p>
+
+<table>
+<tr><th>Vision Encoder</th><th>Stage 0 (Contrastive)</th><th>Total Data</th><th>Avg</th><th>AI2D</th><th>MathVista</th><th>ChartQA</th><th>MMMU-Pro</th><th>RealWorldQA</th></tr>
+<tr><td>SigLIP2 (original resolution)</td><td rowspan="3">&gt;40B</td><td rowspan="3">&gt;40B</td><td>32.4</td><td>55.9</td><td>28.5</td><td>12.5</td><td>19.0</td><td>45.9</td></tr>
+<tr><td>SigLIP2 (any res, 1024 tokens)</td><td>45.3</td><td>65.3</td><td>33.6</td><td>46.7</td><td>22.3</td><td>58.6</td></tr>
+<tr><td>SigLIP2 (any res, 10240 tokens)</td><td>45.9</td><td>64.3</td><td>33.5</td><td>48.8</td><td>21.4</td><td>61.6</td></tr>
+<tr><td>VL3-SigLIP-NaViT</td><td>-</td><td>~240M</td><td>43.0</td><td>60.9</td><td>32.2</td><td>40.4</td><td>21.1</td><td>60.3</td></tr>
+<tr><td>Qwen3VL-32B ViT</td><td>&gt;1B*</td><td>-</td><td>47.3</td><td>64.6</td><td>34.2</td><td>53.6</td><td>22.3</td><td>62.0</td></tr>
+<tr><td><strong>Penguin-Encoder</strong></td><td><strong>-</strong></td><td><strong>~240M</strong></td><td><strong>49.3</strong></td><td><strong>65.5</strong></td><td><strong>36.3</strong></td><td><strong>55.0</strong></td><td><strong>24.9</strong></td><td><strong>65.0</strong></td></tr>
+</table>
+
+<p><small>*Qwen3-VL report에서 total token 수만 제공하므로 추정치</small></p>
+
+<p>##Penguin-Encoder는 contrastive pretraining 없이 ~240M 데이터만으로 avg 65.0을 달성하여, >40B 데이터로 pretraining된 SigLIP2 (61.6)와 Qwen3VL-32B ViT (62.0)를 능가한다.## 이는 generation-aligned encoder initialization이 contrastive pretraining보다 data-efficient하고 본질적으로 우수함을 시사한다.</p>
+
+<p>원문은 encoder comparison에서 3가지 핵심 관찰을 제시한다:</p>
+<ul>
+  <li><strong>Overall performance advantage</strong>: Contrastive encoder는 discriminative alignment에 최적화되어 있어 reasoning-centric generation에는 본질적으로 불리한 반면, Penguin-Encoder의 generation-aligned design은 LLM의 high-level semantic space에 직접 mapping하여 autoregressive decoding에 본질적으로 적합하다</li>
+  <li><strong>Scalability</strong>: 데이터/task complexity가 증가할수록 contrastive encoder보다 Penguin-Encoder의 성능 향상 폭이 더 크며, 더 높은 performance ceiling을 시사한다</li>
+  <li><strong>Comparison under Matched Data</strong>: Pre-trained SigLIP2를 Penguin-Encoder와 동일한 데이터 및 training recipe (Stage 1)로 추가 학습시킨 통제 실험에서도 Penguin-Encoder가 우위를 유지하여, domain overlap이 아닌 architecture 자체의 이점을 확인했다</li>
+</ul>
+
+<h2>5. Related Work</h2>
+<p>Vision-centric Multimodal-LLM: GPT-4o, Gemini, LLaVA-OneVision, Qwen3-VL, InternVL 3.5, Molmo, Gemma 3 등의 발전. Encoder design: CLIP/SigLIP 기반 ViT가 지배적이나, SAM-based encoder, EAGLE Mix-of-Encoder, DeepSeekOCR2의 LLM-based encoder 등 대안이 탐색되고 있다. Video understanding: Fixed frame budget + pooling에서 temporal convolution, dual-branch (SlowFast-LLaVA), dynamic key/motion frame selection (Keye-VL 1.5)으로 발전.</p>
+
+<h2>6. Conclusion and Future Work</h2>
+
+<p>Penguin-VL은 contrastive pretraining에 대한 대안으로, text-only LLM에서 직접 vision encoder를 초기화하는 approach를 제안했다. 2B와 8B scale에서 document OCR부터 long-context temporal reasoning까지 다양한 image/video 벤치마크에서 competitive 또는 SOTA 성능을 달성했다. 이는 generation-aligned encoder initialization이 massive contrastive pretraining보다 data-efficient하고 우수한 경로임을 입증한다.</p>
+
+<p><strong>Future Work</strong>: (1) Real-time inference optimization (adaptive computation, token sparsity), (2) RL-based post-training for VLMs, (3) Agentic visual-language systems (GUI agents, computer-use scenarios).</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Ablation의 제한된 규모</strong>: Table 3의 ablation은 10% Stage 1 data + DenseFusion-1M + LLaVA-665k의 경량 설정에서만 수행되었다. Full-scale training에서의 component 기여도가 달라질 수 있다</li>
+  <li><strong>OCRBench와 MathVerse 열위</strong>: Qwen3-VL 대비 OCRBench (810 vs 858)과 MathVerse (35.9 vs 52.1)에서의 gap은 상당하며, 특정 도메인에서 contrastive encoder의 이점이 남아있을 수 있음을 시사한다</li>
+  <li><strong>MMMU-Pro 8B gap</strong>: 40.2 vs Qwen3-VL 55.9는 매우 큰 차이로, expert-level multi-image reasoning에서의 한계를 보여준다</li>
+  <li><strong>Encoder scaling 미검증</strong>: Penguin-Encoder는 ~400M params (Qwen3-0.6B 기반)만 사용. Larger encoder (1.5B+)의 효과는 "future scenarios"로만 언급되고 실험이 없다</li>
+  <li><strong>Teacher 의존성</strong>: Stage 1에서 VL3-SigLIP-NaViT를 teacher로 사용하므로, 완전히 contrastive pretraining에서 independent하지는 않다 (teacher의 quality가 encoder 성능에 영향)</li>
+  <li><strong>Inference speed 미보고</strong>: TRA의 실제 inference throughput이나 latency 비교가 없어, "efficiency" 주장을 정량적으로 검증하기 어렵다</li>
+  <li><strong>코드/모델 공개</strong>: GitHub + HuggingFace에 2B/8B 모두 공개되어 재현 가능</li>
+  <li><strong>Data curation의 독립적 기여 불명확</strong>: Penguin-Recap-I/V 데이터셋의 quality가 encoder architecture의 기여와 confound될 수 있으며, 동일 데이터로 SigLIP2를 학습한 비교 실험이 제한적이다</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Contrastive pretraining은 필수가 아니다</strong>: LLM-initialized encoder가 ~240M 데이터로 >40B contrastive data를 능가한다는 결과는 VLM encoder 학습의 패러다임 전환 가능성을 시사한다</li>
+  <li><strong>Native alignment의 힘</strong>: Encoder와 decoder가 동일한 representation space에서 시작하면, modality alignment이 근본적으로 수월해진다. 이는 "bridge the gap" 대신 "start aligned"라는 설계 철학이다</li>
+  <li><strong>Relation loss의 중요성</strong>: Inter-patch relationship supervision이 individual token representation보다 downstream reasoning에 더 중요하다는 발견은, vision encoder 학습의 objective design에 시사점을 제공한다</li>
+  <li><strong>Data curation의 가치</strong>: 9-aspect structured annotation + hierarchical clustering diversity selection은 raw quality와 data-efficiency를 모두 높이는 체계적 approach이다</li>
+  <li><strong>Compact model의 경쟁력</strong>: 2B model이 대부분의 벤치마크에서 Qwen3-VL-2B를 능가한다는 것은, mobile/edge deployment에서 Penguin-VL의 실용적 가치가 높음을 보여준다</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OneComp: One-Line Revolution for Generative AI Model Compression</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>OneComp: One-Line Revolution for Generative AI Model Compression</h1>
+
+<p><a href="20260407_ichikawa_onecomp_brief.html">📋 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuma Ichikawa, Keiji Kimura, Akihiro Yoshida, Yudai Fujimoto, Hiroki Tokura, Yamato Arai, Yoshiyuki Ishii, Yusei Kawakami, Genki Shikada, Achille Jacquemond, Yoshihiko Fujisawa, Katsuki Fujisawa, Takumi Honda, Akira Sakai</li>
+  <li><strong>소속</strong>: Fujitsu Limited, RIKEN Center for AIP, Institute of Science Tokyo, Tokai University, The University of Tokyo</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2603.28845)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.28845">arXiv</a> | <a href="https://github.com/FujitsuResearch/OneCompression">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Post-Training Quantization (PTQ)의 실무 적용이 어렵다 — 알고리즘 선택, bit-width 계획, calibration 전략, hardware 의존적 실행 등 파편화된 도구들을 조합해야 한다</li>
+  <li><strong>해결</strong>: OneComp는 모델 식별자와 GPU 예산만 주면 자동으로 mixed-precision 할당, preprocessing, layer-wise → block-wise → global PTQ의 progressive refinement pipeline을 실행하는 오픈소스 프레임워크</li>
+  <li><strong>왜 작동하는가</strong>: Layer-wise PTQ의 첫 양자화 모델을 pivot으로 삼아, 이후 모든 refinement stage가 동일 모델을 점진적으로 개선하는 구조를 채택. QEP가 error propagation을 보정하고, JointQ가 scale과 integer weight를 공동 최적화하며, MDBF가 1-2 bit 극한 압축을 지원</li>
+  <li><strong>비유</strong>: 전문 요리사가 하나의 요리를 여러 단계(밑간 → 조리 → 소스 → 플레이팅)로 점점 완성해가는 것처럼, OneComp는 양자화를 layer-wise 초벌 → block-wise 중간조리 → global 마무리의 progressive refinement으로 수행하되, 사용자에게는 "한 줄 명령"만 요구한다</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>End-to-end automated PTQ pipeline</strong>: 모델 식별자만으로 investigation → preprocessing → layer-wise → block-wise → global PTQ → fine-tuning을 자동 실행하는 resource-adaptive 워크플로우</li>
+  <li><strong>AutoBit</strong>: ILP 기반 mixed-precision planning으로, activation-aware Hessian error proxy를 사용하여 layer/module별 최적 bit-width를 자동 할당</li>
+  <li><strong>QEP + LPCD</strong>: ##Layer-wise PTQ에서 error propagation을 closed-form으로 보정(QEP)하고, 기능적으로 결합된 submodule 단위로 coordinate descent 최적화(LPCD)하여, single-GPU에서도 block-wise PTQ에 근접하는 품질 달성##</li>
+  <li><strong>JointQ</strong>: Scale과 integer weight를 local search로 공동 최적화하여 GPTQ 포맷 호환성을 유지하면서 정확도 개선</li>
+  <li><strong>DBF/MDBF</strong>: 1-2 bit 극한 양자화를 위한 structured binary-factor 표현으로, MDBF는 rank-$l$ multi-envelope로 DBF의 magnitude 표현력 한계를 극복</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<p>Foundation model은 수십~수백 billion parameter를 가지며, full precision 배포 시 메모리와 연산 비용이 과도하다. PTQ는 학습 후 weight precision을 줄여 메모리 footprint과 inference latency를 직접 개선하는 핵심 전략이지만, 실무 적용은 fragmented ecosystem이 큰 장벽이다: Hessian-aware rounding (GPTQ), activation-aware scaling (AWQ), rotation-based outlier suppression (SpinQuant), block-wise optimization (BRECQ), binary factorization (DBF) 등이 각기 다른 전제, hyperparameter, failure mode를 가지며, 최적 조합은 모델, task, hardware에 따라 달라진다.</p>
+
+<p>OneComp는 이 expert workflow를 자동화된 reproducible pipeline으로 변환한다. 핵심 설계 원칙 세 가지:</p>
+<ol>
+  <li><strong>Path-to-plan API</strong>: 모델 architecture와 GPU budget에서 workflow를 자동 도출</li>
+  <li><strong>Resource-adaptive engine</strong>: Layer-wise → block-wise → global PTQ로 품질이 단조 증가하며, 사용자는 hardware 예산에 맞는 지점에서 중단 가능</li>
+  <li><strong>Extensible refiner architecture</strong>: 새 알고리즘이 pipeline 재설계 없이 refiner로 통합 가능</li>
+</ol>
+
+<h2>2. Background</h2>
+
+<h3>2.1-2.3 Quantization Fundamentals</h3>
+
+<p><strong>Uniform quantization</strong>: 실수 값 $w$를 bit-width $b$, scale $s > 0$, zero-point $z$로 정의되는 유한 격자에 매핑:</p>
+
+$$q = \text{clamp}\left(\left\lfloor \frac{w}{s} \right\rceil + z,\; q_{\min},\; q_{\max}\right), \qquad \widehat{w} = s \cdot (q - z) \tag{1}$$
+
+<p>Asymmetric min-max calibration:</p>
+
+$$s = \frac{w_{\max} - w_{\min}}{q_{\max} - q_{\min}}, \qquad z = \text{clamp}\left(\text{round}\left(q_{\min} - \frac{w_{\min}}{s}\right),\; q_{\min},\; q_{\max}\right) \tag{2}$$
+
+<p>Symmetric quantization ($z = 0$):</p>
+
+$$s = \frac{\max(|w_{\min}|, |w_{\max}|)}{2^{b-1} - 1}, \qquad \widehat{w} = s \cdot q \tag{3}$$
+
+<p><strong>Quantization granularity</strong>: Per-tensor (전체 행렬에 하나의 scale), per-channel (행마다), per-group (group size $G$의 연속 원소마다). Per-group quantized matrix의 memory footprint:</p>
+
+$$M_{\text{group}} \approx \frac{NM \cdot b}{8} + \frac{NM}{G}(m_s + m_z) \tag{5}$$
+
+<h3>2.4 Quantization Targets in Transformer Models</h3>
+
+<p>LLaMA-style Transformer block의 구조: RMSNorm → attention ($W_q, W_k, W_v, W_o$) → RMSNorm → SwiGLU FFN ($W_{\text{gate}}, W_{\text{up}}, W_{\text{down}}$). $L$-block 모델은 $7L$개의 large projection matrix + embedding + output head를 가지며, 이들이 parameter 대부분을 차지한다.</p>
+
+<h3>2.5 PTQ vs QAT</h3>
+
+<p>PTQ는 학습 파이프라인 접근 없이 소규모 calibration set으로 수분~수시간 내에 적용 가능하다. QAT는 STE (Straight-Through Estimator)로 quantization noise 하에서 학습하여 very low bit에서 우수한 정확도를 달성하지만, 수백 GPU-hour의 비용이 필요하고 100B+ 모델로의 scaling이 어렵다.</p>
+
+<h3>2.6 PTQ Regimes: Layer-wise, Block-wise, Global</h3>
+
+<p><strong>Layer-wise PTQ</strong>: 한 번에 하나의 linear layer를 양자화. Peak GPU memory = weight matrix 하나 + Hessian approximation. Single consumer GPU에서 가능하지만, error propagation 문제 (upstream 양자화 오류가 downstream에 누적)가 있다.</p>
+
+<p><strong>Block-wise PTQ</strong>: Transformer block 단위로 모든 linear layer를 공동 최적화. Intra-block dependency를 포착하지만 더 많은 GPU memory가 필요하다.</p>
+
+<p><strong>Global PTQ</strong>: 전체 모델을 GPU에 올려 KL divergence 등 end-to-end objective로 공동 최적화. 가장 정확하지만 teacher+student 모두 올려야 하므로 매우 비싸다.</p>
+
+<p>##OneComp의 핵심 아이디어: 이 세 regime을 isolated alternative가 아닌 coherent refinement pipeline으로 조직한다. Layer-wise PTQ가 초기 양자화 모델(pivot)을 생성하고, 이후 stage가 동일 모델을 점진적으로 개선한다.##</p>
+
+<h2>3. OneComp Overview</h2>
+
+<div class="flow-diagram">Foundation Model
+  → [Investigation + AutoBit] → [Preprocessing (Smooth/Rotation)]
+  → [Layer-wise PTQ (QEP, LPCD, JointQ/MDBF)]
+  → Quantized Model (deployable pivot)
+  → [Block-wise PTQ (Comp + Block-Q)] → improved model
+  → [Global PTQ + Fine-tune (KL distill + QLoRA)] → best model</div>
+
+<h3>3.1 End-to-End Workflow</h3>
+<p>Pipeline은 자동으로 모델 architecture를 inspecting하고 모든 quantizable linear layer를 감지하여 sequential processing order를 결정한다. Calibration data 구성도 자동화 (<code>concat_chunk</code> strategy 등).</p>
+
+<h3>3.2 Quantized Model as Pivot</h3>
+<p>Layer-wise PTQ의 결과를 deployable pivot으로 처리하는 것이 핵심 architectural choice이다. 모든 후속 stage (block-wise, global, fine-tuning)는 이 pivot을 입력으로 받아 개선된 모델을 출력하는 post-processing step으로 구현된다. 장점: (1) 단순한 진입점, (2) 점진적 품질 향상, (3) 자연스러운 extensibility.</p>
+
+<h3>3.3 User Interface</h3>
+<p>최소한의 인터페이스: <code>uv run onecomp &lt;model_path&gt;</code> 한 줄로 전체 파이프라인 실행. Advanced user를 위한 optional argument로 개별 단계 제어 가능.</p>
+
+<h2>4. Quantization Engines</h2>
+
+<h3>4.1 AutoBit: Automatic Mixed-Precision Planning</h3>
+
+<p>Transformer layer는 양자화 sensitivity가 현저히 다르다: 초기 layer와 attention output projection은 fragile하고, 중간 MLP layer는 aggressive compression에 내성이 있다. ##AutoBit은 ILP (Integer Linear Programming)로 global memory budget 하에서 layer/module별 bit-width를 자동 할당한다:##</p>
+
+$$\min_{\{c_l \in \mathcal{C}_l\}} \sum_{l=1}^{L} \text{err}(l, c_l) \quad \text{s.t.} \quad \sum_{l=1}^{L} \text{cost}(l, c_l) \leq C^* \tag{16}$$
+
+<p>SCIP solver로 ILP를 풀며, module 수준에서도 서로 다른 bit-width를 허용한다. Error metric은 activation-aware second-order Taylor expansion:</p>
+
+$$\text{err}(l, c_l) \approx \frac{1}{2}\text{tr}\left(B^{(l)}\Delta W^{(l,c)} A^{(l)} \Delta W^{(l,c)\top}\right) \tag{17}$$
+
+<p>여기서 $A^{(l)}$, $B^{(l)}$는 input Gram matrix와 output curvature이다. Fast RTN proxy로 $\Delta W^{(l,c)}$를 계산하여 효율적으로 error를 추정한다.</p>
+
+<h3>4.2 Preprocessing via Equivalent Transformations</h3>
+
+<p><strong>SmoothQuant</strong>: Per-channel scaling vector $\boldsymbol{s} \in \mathbb{R}^N$으로 activation outlier를 weight로 전이:</p>
+
+$$Y = XW = \underbrace{(X\text{diag}(\boldsymbol{s}))}_{\widetilde{X}} \cdot \underbrace{(\text{diag}(\boldsymbol{s})^{-1}W)}_{\widetilde{W}} \tag{18}$$
+
+<p><strong>Rotation-based transforms</strong>: Orthogonal transformation $R \in \mathbb{R}^{N \times N}$으로 에너지를 재분배:</p>
+
+$$Y = XW = \underbrace{(XR)}_{\widetilde{X}} \cdot \underbrace{(R^\top W)}_{\widetilde{W}} \tag{19}$$
+
+<p>OneComp는 SpinQuant의 Cayley SGD로 task-adaptive orthogonal rotation을 학습하고, Sinkhorn weight balancing으로 행/열 magnitude를 균일화한다.</p>
+
+<h3>4.3 Layer-wise PTQ</h3>
+
+<h4>4.3.1 Optimization: QEP and LPCD</h4>
+
+<p>Standard activation-aware layer-wise PTQ objective:</p>
+
+$$\widehat{W}_l = \underset{\widehat{W} \in \mathcal{Q}}{\text{argmin}} \left\|\widehat{X}_l(\widehat{W} - W_l)\right\|_F^2 \tag{22}$$
+
+<p>여기서 $\widehat{X}_l$은 이전 양자화된 layer들을 거친 perturbed activation이다. 문제: 표준 objective는 원본 weight $W_l$을 target으로 사용하지만, upstream 양자화로 인해 activation이 변했으므로 이는 suboptimal이다.</p>
+
+<p><strong>QEP (Quantization Error Propagation)</strong>: Error propagation을 명시적으로 보정한 target weight를 사용:</p>
+
+$$\widehat{W}^{\text{QEP}} = \underset{\widehat{W}}{\text{argmin}} \left\|\widehat{X}_l\widehat{W} - X_l W_l\right\|_F^2 \tag{23}$$
+
+<p>Error $\boldsymbol{\delta}_l = X_l - \widehat{X}_l$로부터 error-propagation matrix $\boldsymbol{C}_l = \widehat{X}_l^\top \boldsymbol{\delta}_l$를 계산하고, corrected target:</p>
+
+$$W_l^*(\alpha_l) = \left(I_N + \alpha_l(\widehat{H}_l + \lambda I_N)^{-1}\boldsymbol{C}_l\right)W_l \tag{24}$$
+
+<p>여기서 $\alpha_l \in [0, 1]$이 propagation strength를 interpolate한다. 직관적으로, QEP는 "원래 weight를 맞추는 것"이 아니라 "perturbed input에서도 원래 output을 최대한 재현하는 weight"를 찾는다.</p>
+
+<p><strong>LPCD (Submodule-Aware Coordinate Descent)</strong>: Transformer 내의 기능적으로 결합된 layer 그룹 (QK module: $\{W_q, W_k\}$, VO module: $\{W_v, W_o\}$, gate-up-down module: $\{W_{\text{gate}}, W_{\text{up}}, W_{\text{down}}\}$)을 cyclic block coordinate descent로 공동 최적화:</p>
+
+$$\min_{\widehat{M}_1 \in \mathcal{Q}, \ldots, \widehat{M}_R \in \mathcal{Q}} \mathcal{J}(\widehat{M}_1, \ldots, \widehat{M}_R) \tag{25}$$
+
+<p>각 iteration에서 하나의 block $M_r$의 양자화 제약을 일시 해제하여 continuous optimal을 구한 뒤, 다시 양자화 domain으로 projection:</p>
+
+$$\widehat{M}_r^{(t)} \leftarrow \Pi_\mathcal{Q}(\overline{M}_r^{(t)}) \tag{27}$$
+
+<p>수렴은 보통 2-4 outer iteration에서 달성되며, 추가 비용은 base layer-wise PTQ 대비 modest하다.</p>
+
+<h4>4.3.2 Representation: JointQ and DBF/MDBF</h4>
+
+<p><strong>JointQ</strong>: GPTQ와 동일한 packed-weight format을 사용하되, scale $s_t$, zero-point $z_t$, integer weight $q_{ij}$를 joint local search로 공동 최적화:</p>
+
+$$\min \|XW - X\widehat{W}\|_F^2 \quad \text{s.t.} \quad \widehat{W}_{ij} = s_{g(i,j)}(q_{ij} - z_{g(i,j)}) \tag{28}$$
+
+<p>각 행에서 integer weight 하나를 변경 제안 → 해당 group의 scale 업데이트 → objective 개선 시 accept. 출력은 standard GPTQ-format checkpoint으로 기존 inference kernel과 호환된다.</p>
+
+<p><strong>DBF (Double Binary Factorization)</strong>: 1-2 bit 극한 양자화를 위해 weight matrix를 두 binary sign matrix와 diagonal scaling의 곱으로 factorize:</p>
+
+$$\widehat{W}_l = D_{\boldsymbol{a}^{(l)}} S_a^{(l)} D_{\boldsymbol{m}^{(l)}} (S_b^{(l)})^\top D_{\boldsymbol{b}^{(l)}} \tag{30}$$
+
+<p>Inference 시 single high-precision GEMM → two binary GEMMs + diagonal rescaling으로 대체된다.</p>
+
+<p><strong>MDBF (Multi-envelope DBF)</strong>: DBF의 rank-one magnitude envelope을 rank-$l$ multi-envelope로 확장하여 magnitude 다양성을 표현:</p>
+
+$$\widehat{W}_l = \widehat{U}^{(l)}(\widehat{V}^{(l)})^\top, \quad \widehat{U}^{(l)} = S_a^{(l)} \odot (A^{(l)}(Q^{(l)})^\top), \quad \widehat{V}^{(l)} = S_b^{(l)} \odot (B^{(l)}(G^{(l)})^\top) \tag{31}$$
+
+<p>MDBF는 Multi-Envelope SVID initialization + ADMM-based refinement의 two-stage optimization을 사용한다.</p>
+
+<h3>4.4 Block-wise PTQ</h3>
+
+<h4>4.4.1 Block-wise Compensation</h4>
+<p>Layer-wise PTQ loop 중 interleaved로 실행되는 optional step. Transformer block 내에서 이미 양자화된 sublayer의 오류를 남은 FP16 parameter가 흡수하도록 최적화:</p>
+
+$$\mathcal{L}_{b,r}^{\text{comp}} = \frac{1}{n}\left\|F_{b,r}^{(\text{mix})}(X_b; \boldsymbol{\phi}_{b,r}) - F_b^{(\text{fp})}(X_b)\right\|_F^2 \tag{32}$$
+
+<p>Adam optimizer, LR $10^{-4}$, 5 epochs. Single-GPU workflow 내에서 자연스럽게 통합된다.</p>
+
+<h4>4.4.2 Block-wise Quantization</h4>
+<p>Layer-wise PTQ 완료 후의 dedicated refinement stage. Full-precision teacher block과 양자화된 student block 사이의 distillation:</p>
+
+$$\mathcal{L}_b = \frac{1}{n}\sum_{j=1}^{n}\left\|Y_{b,j}^{(\text{fp})} - Y_{b,j}^{(\text{q})}(\boldsymbol{\theta}_b)\right\|_F^2 + \lambda_{\cos}\frac{1}{n}\sum_{j=1}^{n}\left(1 - \text{CosSim}(Y_{b,j}^{(\text{fp})}, Y_{b,j}^{(\text{q})})\right) \tag{35}$$
+
+<p><strong>Cross-block quantization</strong>: Sliding window ($K=2$)로 인접 block pair를 공동 최적화하여 inter-block error propagation을 감소시킨다.</p>
+
+<p><strong>Smooth Straight-Through Estimator (STE)</strong>: Discrete rounding의 미분 불가능성을 sigmoid surrogate로 우회:</p>
+
+$$\bar{q}(x) = \lfloor x \rfloor + \sigma(k(\{x\} - 0.5)) \tag{37}$$
+
+<p><strong>Progressive STE Temperature Annealing (PSTA)</strong>: 학습 중 temperature $k$를 선형 증가시켜 smooth rounding → hard rounding으로 점진적 전환:</p>
+
+$$k_e = k_{\min} + (k_{\max} - k_{\min}) \cdot \frac{e}{E-1} \tag{38}$$
+
+<h3>4.5 Global PTQ</h3>
+
+<p>전체 모델을 GPU에 올려 end-to-end로 최적화. Loss function:</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{KL}} + \lambda_{\text{inter}}\mathcal{L}_{\text{inter}} + \lambda_{\text{ent}}\mathcal{L}_{\text{ent}} \tag{39}$$
+
+<p><strong>Token-level KL distillation</strong>:</p>
+
+$$\mathcal{L}_{\text{KL}} = \frac{1}{n}\sum_{j=1}^{n}\sum_{v \in \mathcal{V}} p_{v,j}(\log p_{v,j} - \log q_{v,j}), \quad p_{v,j} = \text{softmax}(z_j^{(\text{fp})}/\tau), \quad q_{v,j} = \text{softmax}(z_j^{(\text{q})}/\tau) \tag{40}$$
+
+<p><strong>Intermediate hidden-state alignment</strong> (cosine distance):</p>
+
+$$\mathcal{L}_{\text{inter}} = \frac{1}{L}\sum_{l=1}^{L}\left(1 - \frac{\boldsymbol{h}_l^{(\text{fp})\top}\boldsymbol{h}_l^{(\text{q})}}{\|\boldsymbol{h}_l^{(\text{fp})}\|_2 \cdot \|\boldsymbol{h}_l^{(\text{q})}\|_2}\right) \tag{41}$$
+
+<p><strong>Entropy regularization</strong>:</p>
+
+$$\mathcal{L}_{\text{ent}} = \frac{1}{n}\sum_{j=1}^{n}\sum_{v \in \mathcal{V}} q_{v,j} \log q_{v,j} \tag{42}$$
+
+<p>Optimization techniques: <strong>SAM (Sharpness-Aware Minimization)</strong>으로 flat minima 유도, <strong>Progressive layer unfreezing</strong>으로 출력 가까운 layer부터 점진적으로 학습 범위 확대.</p>
+
+<h3>4.6 Quantization-Aware Fine-tuning via QLoRA</h3>
+<p>최종 optional stage. Quantized backbone을 freeze하고 low-rank adapter ($B \in \mathbb{R}^{N \times r}$, $A \in \mathbb{R}^{r \times M}$)만 학습:</p>
+
+$$W_{\text{eff}} = \widehat{W} + BA \tag{44}$$
+
+<p>Domain adaptation과 양자화 잔여 오류 회복의 이중 목적을 수행한다.</p>
+
+<h2>5. Experimental Evaluation</h2>
+
+<p>5가지 핵심 질문에 답하도록 설계된 실험:</p>
+<ol>
+  <li>AutoBit이 uniform 할당보다 나은가? (§5.2)</li>
+  <li>QEP/LPCD가 layer-wise PTQ를 개선하는가? (§5.3)</li>
+  <li>JointQ가 GPTQ를 개선하는가? (§5.4)</li>
+  <li>Structured binary factors가 극한 low-bit에서 의미있는 품질을 유지하는가? (§5.5)</li>
+  <li>성능이 computational resource 증가에 따라 단조 개선되는가? (§5.6)</li>
+</ol>
+
+<h3>5.1 Setup</h3>
+<p>Models: Llama3-8B, Qwen3-8B, Qwen3-14B. Metrics: WikiText-2 perplexity (PPL↓) + lm-eval-harness zero-shot accuracy (ACC↑, ARC-Challenge/Easy, PIQA, WinoGrande average). Calibration: C4 corpus, 2048 tokens.</p>
+
+<h3>5.2 Mixed-Precision Allocation (AutoBit)</h3>
+
+<table>
+<tr><th>Model</th><th>FP PPL/ACC</th><th>Method</th><th>4.16 bpw PPL</th><th>4.16 bpw ACC</th><th>4.00 bpw PPL</th><th>4.00 bpw ACC</th></tr>
+<tr><td rowspan="3">Llama-3-8B</td><td rowspan="3">6.14 / 0.715</td><td>Uniform</td><td>9.53</td><td>0.697</td><td>383.26</td><td>0.595</td></tr>
+<tr><td>Naive</td><td>10.28</td><td>0.691</td><td>10.95</td><td>0.682</td></tr>
+<tr><td>Act.-aware</td><td><strong>6.85</strong></td><td><strong>0.702</strong></td><td><strong>7.04</strong></td><td><strong>0.701</strong></td></tr>
+<tr><td rowspan="3">Qwen3-8B</td><td rowspan="3">9.72 / 0.707</td><td>Uniform</td><td>10.92</td><td><strong>0.706</strong></td><td>10.65</td><td>0.679</td></tr>
+<tr><td>Naive</td><td>10.95</td><td>0.705</td><td>11.11</td><td><strong>0.702</strong></td></tr>
+<tr><td>Act.-aware</td><td><strong>10.25</strong></td><td>0.700</td><td><strong>10.56</strong></td><td>0.693</td></tr>
+</table>
+
+<p>Llama-3-8B에서 4.00 bpw (channel-wise) uniform 양자화는 PPL 383.26으로 catastrophically 실패하는 반면, activation-aware mixed-precision은 PPL 7.04로 FP baseline에 근접한다. ##Llama-3-8B의 inter-module sensitivity heterogeneity가 매우 크며, 소수의 highly sensitive module이 전체 오류를 지배한다. AutoBit은 이 module들에 higher precision을 자동 할당하여 failure mode를 회피한다.##</p>
+
+<h3>5.3 Layer-wise PTQ with Error-Propagation Correction</h3>
+
+<table>
+<tr><th>Method</th><th>4b/128 PPL</th><th>4b/128 ACC</th><th>4b/ch PPL</th><th>4b/ch ACC</th><th>3b/128 PPL</th><th>3b/128 ACC</th><th>3b/ch PPL</th><th>3b/ch ACC</th></tr>
+<tr><td>Base GPTQ</td><td>12.66</td><td>0.697</td><td>665.94</td><td>0.533</td><td>45.22</td><td>0.521</td><td>1721.06</td><td>0.386</td></tr>
+<tr><td>QEP</td><td>6.66</td><td><strong>0.710</strong></td><td>7.67</td><td>0.688</td><td>8.95</td><td>0.634</td><td>17.93</td><td><strong>0.496</strong></td></tr>
+<tr><td>Submodule (LPCD)</td><td><strong>6.59</strong></td><td>0.709</td><td><strong>7.33</strong></td><td><strong>0.703</strong></td><td><strong>8.54</strong></td><td><strong>0.640</strong></td><td>22.40</td><td>0.482</td></tr>
+</table>
+
+<p>Base GPTQ는 per-channel grouping 하에서 심각하게 열화되나 (4b/ch PPL 665.94), ##QEP 적용만으로 PPL이 7.67로 회복되며, Submodule (LPCD)는 추가적인 개선을 제공한다.## Error propagation correction이 aggressive 양자화 설정에서 필수적임을 보여준다.</p>
+
+<h3>5.4 JointQ vs Standard GPTQ</h3>
+
+<table>
+<tr><th>Model</th><th>Method</th><th>4b/128 PPL/ACC</th><th>4b/ch PPL/ACC</th><th>3b/128 PPL/ACC</th><th>3b/ch PPL/ACC</th></tr>
+<tr><td rowspan="2">Llama-3-8B</td><td>GPTQ</td><td>12.66/0.697</td><td>665.94/0.533</td><td>45.22/0.521</td><td>1721.06/0.386</td></tr>
+<tr><td>JointQ</td><td><strong>6.67/0.705</strong></td><td><strong>8.46/0.676</strong></td><td><strong>9.26/0.650</strong></td><td><strong>21.15/0.583</strong></td></tr>
+<tr><td rowspan="2">Qwen3-8B</td><td>GPTQ</td><td>10.29/0.697</td><td>10.97/0.672</td><td>11.71/0.654</td><td>20.21/0.496</td></tr>
+<tr><td>JointQ</td><td>10.29/0.695</td><td>11.33/0.660</td><td>12.38/<strong>0.668</strong></td><td>42.10/<strong>0.506</strong></td></tr>
+<tr><td rowspan="2">Qwen3-14B</td><td>GPTQ</td><td>8.85/0.736</td><td>9.15/0.720</td><td>10.10/0.698</td><td>13.72/0.581</td></tr>
+<tr><td>JointQ</td><td>8.88/<strong>0.739</strong></td><td>9.96/<strong>0.723</strong></td><td>9.99/<strong>0.701</strong></td><td>23.55/<strong>0.651</strong></td></tr>
+</table>
+
+<p>Llama-3-8B에서 JointQ가 모든 설정에서 GPTQ를 대폭 능가하며, 특히 per-channel 설정에서 개선이 크다. Qwen3 모델에서는 perplexity와 accuracy 사이에 nuanced trade-off이 존재한다.</p>
+
+<h3>5.5 Extreme Low-Bit Quantization (DBF vs MDBF)</h3>
+
+<table>
+<tr><th>Model</th><th colspan="2">1.00 BPW</th><th colspan="2">1.50 BPW</th></tr>
+<tr><th></th><th>DBF PPL/ACC</th><th>MDBF PPL/ACC</th><th>DBF PPL/ACC</th><th>MDBF PPL/ACC</th></tr>
+<tr><td>Qwen3-0.6B</td><td>43.07/0.412</td><td><strong>34.45/0.426</strong></td><td>30.80/0.435</td><td><strong>26.56/0.446</strong></td></tr>
+<tr><td>Llama-3.2-1B</td><td>21.48/0.465</td><td><strong>18.29/0.473</strong></td><td>16.58/0.491</td><td><strong>15.00/0.492</strong></td></tr>
+<tr><td>TinyLlama-1.1B</td><td>13.57/0.449</td><td><strong>12.29/0.449</strong></td><td>10.38/0.491</td><td><strong>9.84/0.490</strong></td></tr>
+<tr><td>Llama-2-7B</td><td>9.95/0.480</td><td><strong>9.36/0.489</strong></td><td>7.34/0.548</td><td><strong>7.17/0.564</strong></td></tr>
+<tr><td>Llama-3-8B</td><td>14.76/0.505</td><td><strong>13.25/0.518</strong></td><td>10.61/0.560</td><td><strong>10.03/0.572</strong></td></tr>
+</table>
+
+<p>##MDBF는 모든 모델과 bit budget에서 일관되게 DBF보다 낮은 PPL을 달성한다.## Rank-$l$ multi-envelope가 rank-one diagonal scaling보다 더 풍부한 magnitude pattern을 표현할 수 있기 때문이다. 개선 폭은 larger model과 1.00 BPW에서 더 크다.</p>
+
+<h3>5.6 Progressive Quality Improvement Across Execution Regimes</h3>
+
+<p>Llama-3.2-1B에서 DBF 양자화를 적용하고 layer-wise → block-wise → global PTQ의 각 stage별 품질 변화를 측정 (Figure 6):</p>
+
+<ul>
+  <li>##모든 bit-width (1.0, 1.5, 2.0)에서 각 추가 stage가 단조적으로 accuracy를 개선한다.## 이는 OneComp의 핵심 premise인 "more compute = better quality"를 실증한다</li>
+  <li>Higher bit-width에서 개선 폭이 크다 (scaling parameter에 더 많은 flexibility)</li>
+  <li>1 bit에서도 global PTQ가 여전히 beneficial하며, end-to-end KL objective가 block-level MSE로 포착하기 어려운 cross-layer dependencies를 교정한다</li>
+</ul>
+
+<h2>6. Related Work</h2>
+<p>Post-training quantization은 효율적 deep learning의 가장 활발한 연구 분야 중 하나이다. Surveys (Gong et al. 2024, Gholami et al. 2022, Zhao et al. 2025), mixed-precision (APTQ, SqueezeLLM), preprocessing (SmoothQuant, QuIP, QuIP#, QuaRot, SpinQuant, OmniQuant), layer-wise PTQ (GPTQ, AWQ, ZeroQuant, QEP, LPCD, LoaQ), block-wise PTQ (BRECQ, CBQ), global PTQ (LLM-QAT, PV-Tuning, AQLM), extreme low-bit (OneBit, DBF, LittleBit, MDBF, VPTQ, BitNet), fine-tuning (QLoRA) 등 방대한 관련 연구가 있다. OneComp는 이들을 통합된 pipeline으로 조직한다는 점에서 차별화된다.</p>
+
+<h2>7. Conclusions</h2>
+
+<p>OneComp는 모델 식별자만으로 완전 자동화된 resource-adaptive PTQ toolkit을 제공한다. JointQ는 3-4 bit에서 GPTQ를 일관되게 능가하고, DBF/MDBF는 1-2 bit 극한에서 의미있는 정확도를 보존하며, AutoBit은 memory budget 하의 heterogeneous bit-width 할당을 자동화한다. QEP는 layer-wise와 global PTQ 사이의 품질 gap을 significant하게 축소한다. 향후 activation quantization, KV-cache compression, knowledge distillation, structured pruning을 통합한 comprehensive compression platform으로 확장할 계획이다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>실험 규모</strong>: 8B/14B 모델에서만 평가. 70B+ 모델이나 MoE 모델에서의 검증이 필요하다</li>
+  <li><strong>Benchmark 한계</strong>: WikiText-2 PPL + 4개 zero-shot task만 사용. MMLU, HumanEval 등 현대적 벤치마크에서의 평가가 부재하다</li>
+  <li><strong>Global PTQ 미완성</strong>: Global PTQ stage가 "현재 개발 중이며 향후 릴리스 예정"이라고 명시. 핵심 stage의 실제 통합 검증이 아직 완료되지 않았다</li>
+  <li><strong>MDBF 미지원</strong>: MDBF도 "향후 릴리스 예정"으로, 가장 혁신적인 extreme low-bit 기능이 아직 사용 불가하다</li>
+  <li><strong>Wall-clock time 미보고</strong>: 각 stage의 실행 시간과 GPU memory 사용량에 대한 정보가 없어, "resource-adaptive"의 실질적 의미를 평가하기 어렵다</li>
+  <li><strong>Downstream task 부재</strong>: Generation quality (perplexity)와 분류 정확도만 측정하며, 실제 사용 시나리오 (chatbot, code generation 등)에서의 평가가 없다</li>
+  <li><strong>코드 공개</strong>: GitHub에 공개 (https://github.com/FujitsuResearch/OneCompression)되어 재현 가능성이 높다</li>
+  <li><strong>경쟁 프레임워크 비교 부재</strong>: AutoGPTQ, llama.cpp, vLLM 등 기존 양자화 도구와의 직접 비교가 없다</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Progressive refinement이 핵심 원칙</strong>: Layer-wise PTQ의 pivot checkpoint을 기반으로 block-wise → global로 단조 개선하는 구조는, 양자화를 "one-shot" 작업이 아닌 "progressive polishing"으로 재정의한다. 이는 특히 resource-constrained 환경에서 anytime algorithm으로서 가치가 있다</li>
+  <li><strong>Error propagation correction의 중요성</strong>: QEP가 base GPTQ 대비 보여주는 드라마틱한 개선 (PPL 665.94 → 7.67)은, layer-wise PTQ의 핵심 bottleneck이 알고리즘 자체가 아니라 error propagation임을 보여준다</li>
+  <li><strong>Mixed-precision의 실용성</strong>: AutoBit의 결과는 uniform bit-width가 특히 sensitive module이 있는 모델에서 매우 비효율적이며, module-aware allocation이 필수적임을 시사한다</li>
+  <li><strong>Extreme low-bit의 가능성</strong>: MDBF가 1 BPW에서도 의미있는 accuracy를 유지함은, edge deployment를 위한 극한 압축의 실현 가능성을 보여준다</li>
+  <li><strong>오픈소스 통합 프레임워크의 가치</strong>: Fragmented PTQ 생태계를 하나의 cohesive pipeline으로 통합하는 것 자체가 실무적으로 큰 기여이며, 연구자가 개별 component를 개선하고 비교하기 쉬운 실험 플랫폼을 제공한다</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

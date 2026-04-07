@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Embarrassingly Simple Self-Distillation Improves Code Generation</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Embarrassingly Simple Self-Distillation Improves Code Generation</h1>
+
+<p><a href="20260407_zhang_ssd_brief.html">📋 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Ruixiang Zhang*, Richard He Bai*, Huangjie Zheng*, Navdeep Jaitly, Ronan Collobert, Yizhe Zhang*</li>
+  <li><strong>소속</strong>: Apple</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2604.01193)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.01193">arXiv</a> | <a href="https://github.com/apple/ml-ssd">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM의 code generation 품질을 개선하려면 teacher model, verifier, execution environment, RL 등 복잡한 infrastructure가 필요하다</li>
+  <li><strong>해결</strong>: SSD (Simple Self-Distillation)는 base model에서 training-time temperature $T_{\text{train}}$와 truncation $\rho_{\text{train}}$으로 자체 solution을 sample하고, 이 raw unverified output으로 SFT한 뒤, evaluation-time temperature $T_{\text{eval}}$로 decode하는 embarrassingly simple 방법이다. No RL, no verifier, no teacher, no execution, no correctness filtering</li>
+  <li><strong>왜 작동하는가</strong>: Code generation에는 precision-exploration conflict가 존재한다 — lock positions (확정적 구문)에서는 precision이, fork positions (알고리즘 선택)에서는 exploration이 필요하지만, 단일 decoding temperature는 양쪽을 동시에 만족할 수 없다. SSD는 lock에서 distractor tail을 제거하고 fork에서 viable head를 보존하는 context-dependent distribution reshaping을 수행한다</li>
+  <li><strong>비유</strong>: 기존 방법이 "교정 본 시험지를 활용하여 학습"하는 것이라면, SSD는 "채점하지 않은 연습 시험지만으로도 모델의 출력 분포 자체를 다듬어 실력을 향상"시키는 것이다</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SSD 방법 제안</strong>: ##Teacher, verifier, reward model, execution environment, RL 없이, 자기 자신의 raw unverified output만으로 code generation을 대폭 개선하는 embarrassingly simple recipe. Qwen3-30B-Instruct에서 LCB v6 pass@1 42.4% → 55.3% (+12.9pp, +30.4% relative)##</li>
+  <li><strong>Precision-exploration conflict 규명</strong>: Code generation에서 lock (precision-bound) 위치와 fork (exploration-bound) 위치의 decoding 요구가 근본적으로 상충하며, 단일 global temperature로는 해결할 수 없음을 식별</li>
+  <li><strong>Three-term theoretical decomposition</strong>: SSD 학습 목표를 support compression + within-support reshaping (Rényi entropy) + base model alignment으로 분해하여, SSD가 단순한 imitation이 아닌 structured distribution reshaping임을 증명</li>
+  <li><strong>일반성 검증</strong>: 5개 모델 (Llama 8B, Qwen 4B/30B × instruct/thinking), 2개 model family, 3개 scale에서 일관된 개선을 확인</li>
+</ol>
+
+<h2>2. Embarrassingly Simple Self-Distillation (SSD)</h2>
+
+<p>SSD의 전체 프로세스는 세 줄로 요약된다:</p>
+
+<p><strong>Data synthesis</strong>: Frozen base model $p_\theta$에서, 주어진 prompts 집합 $\mathcal{X}$에 대해 training-time decoding configuration $(T_{\text{train}}, \rho_{\text{train}})$으로 sample:</p>
+
+$$y \sim \text{Decode}_{T_{\text{train}}, \rho_{\text{train}}}[p_\theta(\cdot \mid x)] \tag{1}$$
+
+<p>Solution은 어떤 방식으로도 검증되지 않는다: no execution, no test case, no filtering by correctness. 실제로 $N = 1$ (prompt당 단일 sample)이면 충분하다.</p>
+
+<p><strong>Training</strong>: 이 raw output $\mathcal{D}_{\text{SSD}}$로 standard SFT:</p>
+
+$$\mathcal{L}(\theta) = -\mathbb{E}_{(x,y)\sim\mathcal{D}_{\text{SSD}}} \sum_{t=1}^{|y|} \log p_\theta(y_t \mid x, y_{<t}) \tag{2}$$
+
+<p><strong>Inference</strong>: Fine-tuned model $p_{\theta^*}$를 evaluation-time configuration $(T_{\text{eval}}, \rho_{\text{eval}})$로 decode:</p>
+
+$$\hat{y} \sim \text{Decode}_{T_{\text{eval}}, \rho_{\text{eval}}}[p_{\theta^*}(\cdot \mid x)] \tag{3}$$
+
+<div class="flow-diagram">SSD Pipeline:
+━━━━━━━━━━━━━━
+Base Model p_θ
+  │
+  ├─ Sample at T_train with ρ_train  ──→  Raw outputs D_SSD
+  │   (N=1 per prompt, ~10K prompts)       (no verification!)
+  │
+  ├─ Standard SFT on D_SSD            ──→  Fine-tuned p_θ*
+  │
+  └─ Decode at T_eval with ρ_eval     ──→  Improved code
+━━━━━━━━━━━━━━
+✗ No RL  ✗ No Verifier  ✗ No Teacher  ✗ No Execution</div>
+
+<h2>3. Experiments</h2>
+
+<h3>3.1 Experimental Setup</h3>
+
+<p><strong>Models</strong>: 5개 모델, 2 family (Llama, Qwen), 3 scale (4B, 8B, 30B), 2 reasoning style (instruct, thinking):</p>
+<ul>
+  <li>Llama-3.1-8B-Instruct (dense, 8B)</li>
+  <li>Qwen3-4B-Instruct-2507 (dense, 4B)</li>
+  <li>Qwen3-4B-Thinking-2507 (dense, 4B)</li>
+  <li>Qwen3-30B-A3B-Instruct-2507 (MoE, 30B/3B active)</li>
+  <li>Qwen3-30B-A3B-Thinking-2507 (MoE, 30B/3B active)</li>
+</ul>
+
+<p><strong>Data synthesis</strong>: rSTARcoder dataset의 seed subset (~10K unique competitive programming problems), de-duplicated. Prompt당 1개 solution, no correctness signal, minimal syntactic filtering (empty response + single line stub 제거만). vLLM으로 128K max sequence length 생성.</p>
+
+<p><strong>Training</strong>: 8×B200 GPUs, Megatron-LM, AdamW with cosine decay (peak LR $5 \times 10^{-6}$), global batch 32, sequence length 65,536. Instruct: 2,500 iterations, Thinking: 300 iterations.</p>
+
+<p><strong>Evaluation</strong>: LiveCodeBench v6 (LCB v6, Feb–May 2025) as primary, LCB v5 (Aug 2024–Feb 2025) as secondary. pass@1 primary metric + pass@5 and per-difficulty (easy/medium/hard) breakdowns.</p>
+
+<h3>3.2 SSD Improves Code Generation Across the Board</h3>
+
+<p><strong>Table 2 (주요 결과)</strong>:</p>
+
+<table>
+<tr><th>Model</th><th colspan="4">LCB v6 pass@1</th><th colspan="4">LCB v6 pass@5</th></tr>
+<tr><th></th><th>ALL</th><th>EASY</th><th>MED</th><th>HARD</th><th>ALL</th><th>EASY</th><th>MED</th><th>HARD</th></tr>
+<tr><td>Qwen3-4B-Thinking</td><td>54.5</td><td>97.4</td><td>59.2</td><td>29.7</td><td>67.5</td><td>100.0</td><td>77.3</td><td>45.8</td></tr>
+<tr><td>+ SSD</td><td><strong>57.8</strong> <span style="color:green">+3.3</span></td><td>98.7</td><td>62.8</td><td>33.8</td><td>71.4</td><td>100.0</td><td>81.9</td><td>53.1</td></tr>
+<tr><td>Qwen3-30B-Thinking</td><td>66.1</td><td>99.8</td><td>76.4</td><td>41.5</td><td>80.2</td><td>100.0</td><td>87.1</td><td>65.8</td></tr>
+<tr><td>+ SSD</td><td><strong>68.2</strong> <span style="color:green">+2.1</span></td><td>100.0</td><td>76.4</td><td>46.7</td><td>88.2</td><td>100.0</td><td>100.0</td><td>68.8</td></tr>
+<tr><td>Llama-3.1-8B-Instruct</td><td>12.7</td><td>46.8</td><td>5.4</td><td>0.0</td><td>23.0</td><td>76.7</td><td>15.1</td><td>0.8</td></tr>
+<tr><td>+ SSD</td><td><strong>16.2</strong> <span style="color:green">+3.5</span></td><td>52.6</td><td>10.0</td><td>1.6</td><td>24.0</td><td>73.3</td><td>17.1</td><td>3.3</td></tr>
+<tr><td>Qwen3-4B-Instruct</td><td>34.0</td><td>79.7</td><td>34.4</td><td>10.5</td><td>41.0</td><td>90.0</td><td>40.5</td><td>16.6</td></tr>
+<tr><td>+ SSD</td><td><strong>41.5</strong> <span style="color:green">+7.5</span></td><td>86.5</td><td>45.1</td><td>16.2</td><td>56.8</td><td>98.1</td><td>59.7</td><td>34.1</td></tr>
+<tr><td>Qwen3-30B-Instruct</td><td>42.4</td><td>84.5</td><td>46.8</td><td>18.3</td><td>53.5</td><td>93.3</td><td>56.8</td><td>31.1</td></tr>
+<tr><td><strong>+ SSD</strong></td><td><strong>55.3</strong> <span style="color:green">+12.9</span></td><td>91.0</td><td>61.0</td><td>33.6</td><td>71.6</td><td>99.9</td><td>76.4</td><td>54.1</td></tr>
+</table>
+
+<p>##Qwen3-30B-Instruct에서 SSD는 pass@1을 42.4% → 55.3%로 +12.9pp (+30.4% relative) 개선한다.## 모든 5개 모델에서 일관된 개선이 관찰된다.</p>
+
+<p><strong>SSD helps most on harder problems</strong>: Qwen3-30B-Instruct에서 easy +6.5pp, medium +14.2pp, ##hard +15.3pp##로, 난이도가 높을수록 개선 폭이 크다. 동일 패턴이 모든 모델에서 반복된다.</p>
+
+<p><strong>SSD does not collapse diversity</strong>: pass@5 개선이 pass@1보다 더 큰 경우가 빈번하다 (Qwen3-30B-Instruct: pass@1 +12.9 vs pass@5 +18.1). 이는 SSD가 단일 dominant mode로 수렴하지 않고 다양한 solution branch를 보존함을 시사한다.</p>
+
+<h3>3.3 Global Decoding Policies Cannot Match SSD</h3>
+
+<p>SSD의 gain이 단순히 decoding temperature 조정으로 회복 가능한지 테스트한다. Base model에서 evaluation-time decoding 설정을 광범위하게 sweep한 결과 (Figure 2):</p>
+
+<ul>
+  <li>Qwen3-30B-Instruct의 base model sweep: pass@1이 41.3%–43.5% 범위로, spread가 고작 2.2pp</li>
+  <li>##SSD는 best decode-only base model을 +11.8pp (Qwen3-30B-Instruct), +5.8pp (Qwen3-4B-Instruct), +2.2pp (Qwen3-4B-Thinking), +1.1pp (Qwen3-30B-Thinking) 능가## → decode-only tuning으로는 도달 불가능한 improvement</li>
+  <li>Hard problem에서 gap이 더 크다: 30B-Instruct hard pass@1에서 +13.3pp, hard pass@5에서 +19.4pp</li>
+</ul>
+
+<h3>3.4 How SSD Hyperparameters Interact</h3>
+
+<p>$T_{\text{train}}$과 $T_{\text{eval}}$의 interaction을 grid search로 분석 (Qwen3-30B-Instruct on LCB v6).</p>
+
+<p><strong>Effective temperature</strong>: $T_{\text{eff}} = T_{\text{train}} \cdot T_{\text{eval}}$이 성능을 잘 설명한다. No-truncation regime에서 $R^2 = 0.75$이며, ##최적 $T_{\text{eff}} \approx 1.2##로 quadratic peak를 보인다. 높은 $T_{\text{train}}$이 유리한 이유: 더 strong한 training-time reshaping이 evaluation-time decoding에 더 많은 room을 제공한다.</p>
+
+<p><strong>Truncation의 역할</strong>: Training-time truncation ($\rho_{\text{train}}$)은 추가 improvement channel을 제공한다. Best truncated setting: $T_{\text{train}} = 2.0$, $T_{\text{eval}} = 1.1$, top-$k = 10$으로 49.7% pass@1 달성 (+7.3pp over best no-truncation). Truncation은 support compression을 강화하여 성능 ceiling을 높인다.</p>
+
+<h2>4. Why SSD Works</h2>
+
+<h3>4.1 The Precision-Exploration Conflict Hypothesis</h3>
+
+<p>Code generation에서 token position은 두 유형으로 나뉜다:</p>
+
+<ul>
+  <li><strong>Lock positions</strong>: Syntax와 context가 거의 유일한 continuation을 결정하는 위치 (예: <code>if n ==</code> 뒤의 특정 값). Distribution이 sharply peaked이고 long distractor tail을 가진다. Precision이 필요: dominant token을 commit하고 tail을 suppress해야 한다</li>
+  <li><strong>Fork positions</strong>: 여러 viable continuation이 근본적으로 다른 solution approach로 이어지는 위치 (예: 함수 body 시작에서 <code>for</code> loop vs recursive call vs data structure initialization). Distribution이 multiple plausible token에 spread되어 있다. Exploration이 필요: viable branch에 mass를 spread해야 한다</li>
+</ul>
+
+<p>Low $T_{\text{eval}}$은 lock을 보호하지만 fork의 head를 collapse시킨다. High $T_{\text{eval}}$은 fork의 exploration을 가능하게 하지만 lock의 distractor tail을 되살린다. ##단일 global temperature는 이 precision-exploration conflict를 해결할 수 없다. 이것이 decode-only tuning의 근본적 한계이다.##</p>
+
+<h3>4.2 How SSD Reshapes a Model: Toy Simulation and Real-Model Analysis</h3>
+
+<p><strong>Controlled simulation</strong>: 1 fork state + 3 lock states로 구성된 minimal environment에서, SSD가 fork에서는 diffuse tail을 제거하면서 여러 plausible option을 보존하고 (plateau 형성), lock에서는 dominant token에 mass를 집중시킨다 (spike 형성) — Figure 5.</p>
+
+<p><strong>Real-model evidence</strong> (Qwen3-30B-Instruct, LCB v6, Figure 6):</p>
+<ul>
+  <li><strong>Cleaner head, weaker tail (Figure 6a)</strong>: Token을 probability 순으로 정렬하면, SSD 모델의 cumulative mass가 더 빠르게 상승한다 → lock에서 distractor tail이 제거됨</li>
+  <li><strong>More surviving tokens (Figure 6b)</strong>: $T_{\text{eval}}$ 증가 시 SSD 모델이 더 많은 token이 truncation을 survive → fork에서 viable options이 보존됨</li>
+  <li><strong>Higher entropy after truncation (Figure 6c)</strong>: Truncation 후 SSD 모델의 entropy가 더 빠르게 증가 → fork에서 더 다양한 exploration이 가능</li>
+  <li><strong>Similar probability mass in top 20 (Figure 6d)</strong>: Two models place similar mass in top 20 tokens 하에서도 SSD가 3–5× 더 많은 useful diversity를 제공</li>
+</ul>
+
+<p><strong>Training과 decoding은 complementary</strong>: Training만으로는 fork를 해결하지 못하고 lock의 fragility를 줄이지 못한다. Decode-only tuning만으로는 lock을 steepen하거나 fork head를 clean up하지 못한다. 두 단계가 함께 작용할 때만 synergy가 발생한다.</p>
+
+<h3>4.3 A Theoretical View of SSD</h3>
+
+<p>SSD가 fitting하는 target distribution:</p>
+
+$$q_s(v) = \frac{p_0(v \mid s)^{1/T_{\text{train}}} \mathbf{1}\{v \in S_s\}}{\sum_{u \in S_s} p_0(u \mid s)^{1/T_{\text{train}}}} \tag{7}$$
+
+<p>여기서 $S_s$는 context $s$에서 temperature scaling + truncation 후 survive하는 retained support set이다.</p>
+
+<p>SSD loss의 three-term decomposition:</p>
+
+$$\mathcal{L}(\theta) = \underbrace{-\log \text{KeptMass}_\theta}_{\text{support compression}} + \underbrace{(1-T) H_{1/T}(p_\theta(\cdot \mid S))}_{\text{within-support reshaping}} + \underbrace{T \cdot \text{KL}(q \| p_{\theta,T}(\cdot \mid S))}_{\text{alignment to base model}} + \text{const} \tag{4}$$
+
+<p>여기서 $H_{1/T}(\pi) = \frac{1}{1-\alpha}\log\sum_v \pi(v)^\alpha$ ($\alpha = 1/T$)는 Rényi entropy이다. 세 항의 역할:</p>
+
+<ol>
+  <li><strong>Support compression</strong> ($-\log \text{KeptMass}$): Diffuse tail mass를 retained support로 밀어넣어, outside-support token의 probability를 직접적으로 suppress한다</li>
+  <li><strong>Within-support reshaping</strong> ($(1-T)H_{1/T}$): $T > 1$일 때 $(1-T) < 0$이므로 Rényi entropy를 maximize하여, retained support 내에서 distribution을 smoothing한다. 이 reshaping은 base model의 within-support preference에 aligned된 채로 진행된다</li>
+  <li><strong>Base model alignment</strong> ($T \cdot \text{KL}$): Student가 base model의 tempered distribution으로부터 크게 벗어나지 않도록 anchor</li>
+</ol>
+
+<p>##이 decomposition은 SSD가 단순한 imitation이 아님을 밝힌다: truncation이 지킬 가치가 있는 support를 결정하고, temperature가 그 support 내에서 mass를 재분배하며, KL anchor가 base model의 preference를 보존한다.##</p>
+
+<p><strong>Lock에서는 support compression이 지배적</strong>: $S_s$가 작으므로 (1-2 tokens), Rényi-shaping term의 room이 제한되고, tail suppression이 주 효과. Lock은 evaluate-time temperature에 insensitive해진다.</p>
+
+<p><strong>Fork에서는 within-support reshaping이 활성</strong>: $S_s$가 크므로 (여러 viable tokens), Rényi entropy maximization이 surviving alternatives를 flatten하여 exploration을 보존. 이 smoothing은 base model이 이미 judged worth keeping한 token set 내에서만 작용한다.</p>
+
+<h3>4.4 A Surprising Case: Bad Data, Good Results</h3>
+
+<p>$T_{\text{train}} = 2.0$에서 truncation 없이 sampling하면, ##생성물의 ~62%가 extractable code를 포함하지 않는 gibberish (multilingual 혼합 등)##이다 (Figure 7a). 그러나 이 gibberish 데이터로 SFT해도 모델이 개선된다: pass@1 48.1%, pass@5 64.0% (base 42.4%/53.5% 대비 +5.7pp/+10.5pp).</p>
+
+<p>이는 SSD의 benefit이 주로 correct code 학습이 아닌, ##temperature-shifted sampling에 의한 distribution reshaping (support compression + within-support reshaping)에서 온다##는 것을 시사한다. 높은 temperature에서의 sampling이 유용한 signal을 추출하고, decoding-time truncation이 precision을 회복하는 synergy가 핵심이다.</p>
+
+<h2>5. Related Work</h2>
+
+<p><strong>Self-training and self-distillation</strong>: Classical self-training, knowledge distillation, on-policy distillation 등의 extended line에서, recent work은 privileged information, verbal feedback, additional context 등으로 self-generated sequences를 supplement한다. SSD는 temperature-shifted, truncated self-samples만 사용하며 어떤 privileged context도 없다.</p>
+
+<p><strong>Code generation and synthetic data</strong>: STaR, ReST$^{EM}$ 등은 correctness-based filtering이나 external feedback에 의존하지만, SSD는 raw unverified output에 직접 학습한다.</p>
+
+<p><strong>Reasoning and RL for math and coding</strong>: Chain-of-thought, self-consistent sampling, RL-based post-training 등의 line과 구분된다: SSD는 어떤 RL algorithm이나 reward도 사용하지 않는다.</p>
+
+<p><strong>Decoding and truncation</strong>: Top-$k$, nucleus sampling, truncation-as-desmoothing 등의 분석과 관련되지만, SSD는 새로운 decoding rule이 아닌, shifted decoding에서 생성된 samples로의 학습이 모델 자체를 변화시켜 fixed decoding이 더 효과적이 되도록 한다.</p>
+
+<h2>6. Conclusion</h2>
+
+<p>SSD는 모델이 자신의 raw output으로만 code generation을 개선할 수 있음을 보여준다. 5개 모델에서 일관된 LiveCodeBench 개선이 관찰되며, Qwen3-30B-Instruct에서 42.4% → 55.3%를 달성한다. Code generation은 precision-bound lock과 exploration-bound fork가 혼재하며, SSD는 lock의 distractor tail을 제거하면서 fork의 useful branch를 보존하는 context-dependent distribution reshaping을 수행한다. 이는 strong code model이 verifier, teacher, RL 없이도 unlock할 수 있는 latent capability를 내포하고 있음을 시사한다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Code domain 한정</strong>: SSD의 효과가 code generation에서만 검증되었다. Reasoning, math, general NLP에서의 효과는 추가 연구가 필요하다. 저자들은 code의 lock/fork 구조가 mechanism을 visible하게 만든다고 주장하지만, 다른 domain에서도 유사한 구조가 존재하는지는 open question이다</li>
+  <li><strong>Benchmark 한정</strong>: LiveCodeBench v5/v6만 primary evaluation. HumanEval, MBPP 등 다른 code benchmark에서의 결과가 없다. Out-of-domain (math reasoning, code understanding) 결과는 부록에서 "broadly stable"하다고만 언급</li>
+  <li><strong>Compute cost</strong>: 8×B200 GPU로 학습하지만, base model로부터의 data synthesis 비용 (128K max sequence × 10K prompts)이 상당할 수 있다. Total compute budget의 breakdown이 부족하다</li>
+  <li><strong>Scaling behavior</strong>: 30B에서의 gain (+12.9pp)이 4B (+7.5pp)이나 8B (+3.5pp)보다 크다. 이 trend가 더 큰 모델 (70B+)에서도 지속되는지 불확실하다</li>
+  <li><strong>Iteration 가능성</strong>: SSD를 반복 적용하면 (SSD output → 다시 SSD) 추가 개선이 가능한지 탐색되지 않았다</li>
+  <li><strong>Fork/lock 분류의 operational 정의 부재</strong>: Fork과 lock의 구분이 직관적으로는 명확하나, 자동으로 분류하는 알고리즘이나 정량적 threshold가 제시되지 않는다</li>
+  <li><strong>코드 공개</strong>: GitHub (https://github.com/apple/ml-ssd)에 공개되어 재현 가능</li>
+  <li><strong>이론의 강도</strong>: Three-term decomposition (Eq. 4)은 elegant하지만, 실질적인 predictive power (예: 어떤 $(T_{\text{train}}, \rho_{\text{train}})$가 최적인지 사전 예측)는 제한적이다</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>모델은 자기 자신으로부터 배울 수 있다</strong>: SSD는 verifier나 teacher 없이도 substantial improvement가 가능함을 보여준다. 이는 현재 모델이 standard decoding에서 발현하지 못하는 latent capability를 가지고 있음을 시사한다</li>
+  <li><strong>Precision-exploration conflict는 fundamental</strong>: 이 framework은 code generation을 넘어, discrete generation에서 lock/fork 구조가 나타나는 모든 도메인 (math reasoning, creative writing 등)에 일반화될 가능성이 있다</li>
+  <li><strong>Training과 decoding은 complementary</strong>: Distribution reshaping (training)과 temperature tuning (decoding)은 서로 대체재가 아닌 보완재이다. 이 insight은 향후 post-training recipe 설계에 영향을 줄 수 있다</li>
+  <li><strong>Data quality는 과대평가되었을 수 있다</strong>: 62% gibberish 데이터로도 모델이 개선된다는 결과는, self-training에서 "clean data"에 대한 집착이 불필요할 수 있음을 시사한다. 핵심은 data quality가 아닌 distribution reshaping의 direction이다</li>
+  <li><strong>Simplicity의 가치</strong>: SSD는 RLHF, GRPO, execution feedback 등 복잡한 infrastructure 없이도 상당한 개선을 달성한다. 이는 특히 execution environment가 어려운 도메인 (GUI, robotics)에서의 적용 가능성을 열어준다</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
