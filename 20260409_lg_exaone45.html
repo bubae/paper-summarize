@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXAONE 4.5: LG's First Open-Weight Vision-Language Model for Industrial Intelligence</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>EXAONE 4.5: LG's First Open-Weight Vision-Language Model for Industrial Intelligence</h1>
+
+<p><a href="20260409_lg_exaone45_brief.html">📋 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: LG AI Research (Core contributors: Eunbi Choi, Kibong Choi, Sehyun Chun, Seokhee Hong, Junwon Hwang, Hyojin Jeon, Ahra Jo, Hyunjik Jo, Yeonsik Jo, Joonkee Kim, Seonghwan Kim, Soyeon Kim, Sunkyoung Kim, Yireun Kim, Yongil Kim, Changhun Lee, Haeju Lee, Jinsik Lee, Kyungmin Lee, Sangha Park, Kwangrok Ryoo, Minju Seo, Sejong Yang, Heuiyeen Yeen 외 다수)</li>
+  <li><strong>소속</strong>: LG AI Research</li>
+  <li><strong>학회/저널</strong>: LG AI Research Technical Report (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://github.com/LG-AI-EXAONE/EXAONE-4.5">GitHub</a> | <a href="https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B">Hugging Face (EXAONE-4.5-33B)</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 산업 현장의 실제 use case (제조 품질 관리, 엔터프라이즈 엔지니어링, 문서 이해)에는 텍스트뿐 아니라 시각 정보 처리 능력과 한국어 맥락 추론이 모두 필요하지만, 기존 오픈 웨이트 모델은 도메인 특화 document understanding과 한국어 성능에서 한계가 있다</li>
+  <li><strong>해결</strong>: EXAONE 4.5는 기존 EXAONE 4.0 32B 언어 모델에 from-scratch로 학습한 1.2B vision encoder를 통합하여 native multimodal pretraining을 수행한 LG의 첫 오픈 웨이트 VLM. Document 중심 corpus 큐레이션과 Korean-specific 데이터로 특화하며, 256K context length를 SFT 단계에 직접 통합하여 달성한다</li>
+  <li><strong>왜 작동하는가</strong>: (1) 1.2B 대형 vision encoder로 aggressive token truncation 없이 rich visual representation 유지, (2) GQA + 2D RoPE + MTP로 효율성 확보, (3) LG 전략 도메인(산업/문서)에 특화된 data curation, (4) Context extension을 SFT에 통합하여 instruction following과 long-context coherence를 동시에 강화</li>
+  <li><strong>비유</strong>: 범용 VLM이 "여러 과목을 고루 잘하는 학생"이라면, EXAONE 4.5는 "수학/과학/공학 문서 해석과 한국어 독해에 특화되어 산업 현장에 바로 투입 가능한 전문 엔지니어"이다</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>LG의 첫 오픈 웨이트 VLM</strong>: 33B dense 파라미터 (32B language + 1.2B vision encoder) 규모로, EXAONE 4.0 framework에 native multimodal 확장을 달성</li>
+  <li><strong>1.2B 대형 vision encoder를 from-scratch로 학습</strong>: ##기존 VLM이 주로 600M 급 encoder에 의존하는 것과 달리, 1.2B billion-scale encoder를 사용하여 aggressive token truncation 없이 fine-grained visual representation 유지##. GQA를 encoder에도 적용하여 end-to-end 효율성 확보</li>
+  <li><strong>Document-centric 산업 특화 data curation</strong>: OCR, 차트, 다이어그램, 파싱 데이터에 집중한 curriculum으로 ##CharXiv_RQ 71.7, OmniDocBench v1.5 81.2 등 document understanding에서 Qwen3-VL-235B (236B MoE) 대비 우위##</li>
+  <li><strong>256K 컨텍스트 SFT 통합</strong>: Context extension을 standalone phase가 아닌 SFT 단계에 직접 통합하여 instruction following과 long-range coherence를 동시에 refine. 128K-capable base LLM에서 시작하여 최적화 불안정성 완화</li>
+  <li><strong>Multi-stage post-training</strong>: DPO + Grouper + multimodal GRPO (IcePop 설정 + zero-variance filtering)의 3단계 pipeline으로 reasoning 능력 강화. LiveCodeBench v6 81.4로 all baselines 능가, AIME 2026 92.6 (Qwen3.5-27B 제외 최고)</li>
+  <li><strong>Korean 전문성</strong>: 한국관광공사 데이터 등 큐레이션된 한국 multimodal corpus로 ##KRETA 91.9, K-Viscuit 80.1##등 한국어 벤치마크에서 일관된 강세</li>
+</ol>
+
+<h2>1. Introduction</h2>
+
+<p>EXAONE foundation model series는 real-world 산업 환경의 복잡한 문제 해결에 꾸준히 초점을 맞춰왔다. EXAONE 3.0/3.5는 generative AI의 실무 use case 통합에, EXAONE Deep는 수학/과학/코딩의 reasoning 특화에 집중했다. EXAONE 4.0은 Non-Reasoning mode와 Reasoning mode를 모두 지원하는 hybrid LLM으로 설계되었다. ##EXAONE 4.5는 EXAONE 4.0 framework에 1.2B vision encoder를 통합하여, LG의 첫 오픈 웨이트 Vision-Language Model (VLM)로서 multimodal understanding 영역으로 확장한 것이다.##</p>
+
+<p>산업 use case의 예시:</p>
+<ul>
+  <li><strong>제조 품질 관리</strong>: 조립 라인의 실시간 visual feed로부터 결함/이상 탐지</li>
+  <li><strong>엔터프라이즈 엔지니어링/유지보수</strong>: 복잡한 visual blueprint, 파이프라인 다이어그램, 기술 매뉴얼 cross-reference로 compliance check 자동화 및 operational diagnostics 생성</li>
+</ul>
+
+<p>궁극적으로 EXAONE 4.5는 vision-language 기반을 통해 ##Vision-Language-Action (VLA) 모델##의 실현을 위한 essential stepping stone 역할을 목표로 한다.</p>
+
+<h2>2. Modeling</h2>
+
+<h3>2.1 Model Configurations</h3>
+
+<p>VLM은 언어 모델과 달리, vision encoder에서 나오는 수많은 visual token을 처리해야 하며, token 개수는 이미지 resolution에 비례한다. Naive token reduction은 중요한 spatial/semantic 정보를 버려 성능을 크게 저하시킨다. EXAONE 4.5는 이 문제를 다음과 같이 해결한다:</p>
+
+<p><strong>Billion-scale vision encoder</strong>: 기존 연구가 주로 600M 급의 상대적으로 작은 encoder에 의존하는 것과 달리, ##EXAONE 4.5는 1.2B 파라미터 vision encoder를 from-scratch로 학습하여 aggressive token truncation 없이 rich visual representation을 유지한다##. 이 설계 선택은 high-resolution document, chart, 다이어그램 처리에 특히 중요하다.</p>
+
+<p><strong>Hybrid attention + GQA (Grouped Query Attention)</strong>: 증가된 model capacity에도 불구하고 계산 효율성을 유지하기 위해 vision encoder에도 GQA를 적용. GQA는 일반적으로 autoregressive decoder의 KV cache reduction을 위해 사용되지만, encoder에서도 reduced attention complexity와 better hardware utilization 효과가 있으며, 현대 inference framework에서 광범위한 지원을 받는다.</p>
+
+<p><strong>Language backbone</strong>: EXAONE 4.0 32B 모델의 architecture를 채택하고, K-EXAONE에서 도입된 Multi-Token Prediction (MTP) 모듈 (0.5B, SWA)을 통합하여 decoding throughput을 개선.</p>
+
+<p><strong>Positional encoding</strong>: Vision encoder는 이미지의 2D 구조를 효과적으로 포착하기 위해 ##2D Rotary Positional Embedding (2D RoPE)##을 사용하고, language model은 text-pretrained positional representation과의 호환성을 위해 standard 1D RoPE를 유지한다. Modality별로 다른 positional encoding을 사용함으로써 각각의 구조적 특성을 보존한다.</p>
+
+<p><strong>Native resolution</strong>: Input은 token budget이 허용하는 한 original resolution으로 처리되고, 초과 시 적절히 resize된다. 최대 resolution은 ultra-high-resolution의 이론적 coverage와 실제 computational overhead 사이의 trade-off를 고려하여 real-world 요구에 맞춰 신중히 선택되었다.</p>
+
+<p><strong>Tokenizer</strong>: K-EXAONE에서 개발한 tokenizer를 재사용하여, EXAONE 4.0 대비 multilingual 지원과 한국어 처리가 강화되었다.</p>
+
+<div class="flow-diagram">EXAONE 4.5 Architecture Overview
+━━━━━━━━━━━━━━━━━━━━
+Image (Native resolution, 예: 800×600)
+  ↓
+[Vision Encoder: 1.2B, from scratch, Hybrid Attention + GQA, 2D RoPE]
+  ↓
+[MLP Projector]
+  ↓
+Visual tokens (예: 612 tokens per image)
+  ↓
+[Language Decoder: 32B, EXAONE 4.0, Hybrid Attention / GQA, 1D RoPE]
+  ↓
+[MTP Module: 0.5B, SWA (Sliding Window Attention)]
+  ↓
+Output tokens</div>
+
+<h3>2.2 Pre-training</h3>
+
+<h4>2.2.1 Overall Pipeline</h4>
+
+<p>학습 파이프라인은 OpenVision2 [27]에서 영감을 받은 autoregressive objective로 1.2B vision encoder를 from-scratch로 학습하는 것부터 시작한다. 이는 target architecture와의 alignment을 보장한 뒤 multimodal pre-training으로 이어진다. Pre-training은 두 sequential stage로 구성된다:</p>
+
+<table>
+<tr><th>Stage</th><th>Stage 1</th><th>Stage 2</th></tr>
+<tr><td>Training Modules</td><td>All</td><td>All</td></tr>
+<tr><td>Image Tokens</td><td>420B</td><td>225B</td></tr>
+<tr><td>Text Tokens</td><td>400B</td><td>110B</td></tr>
+<tr><td>Sequence Length</td><td>8K</td><td>8K</td></tr>
+<tr><td>Amount of computation (FLOPs)</td><td>$1.57 \times 10^{23}$</td><td>$6.43 \times 10^{22}$</td></tr>
+</table>
+
+<p><strong>Stage 1 (Foundational Modality Alignment)</strong>: Vision encoder, merger, LLM을 end-to-end로 공동 학습. Data mixture는 general domain image-text pairs, interleaved image-text documents, document understanding samples, OCR-centric samples를 포함하여 robust visual-text alignment 구축. Language modeling 능력 저하를 막기 위해 K-EXAONE pipeline의 pre- 및 post-training dataset에서 text-only data를 학습 objective에 통합.</p>
+
+<p><strong>Stage 2 (Perceptual and Knowledge Refinement)</strong>: Data mixture를 refine하여 high-density, structured information에 우선순위를 둔다. General domain 샘플을 줄이고 grounding, document, OCR-centric data를 늘리며, knowledge, mathematics, STEM 도메인의 diverse dataset도 포함하여 복잡한 multimodal task에 필요한 foundational exposure 제공.</p>
+
+<h4>2.2.2 Pre-Training Data</h4>
+
+<p><strong>Image Caption Data</strong>: Korean-English bilingual pairs를 주로 구성. Raw web-crawled caption의 brevity/noise를 해결하기 위해 synthetic captioning pipeline을 사용하여 semantic richness를 강화. General pre-training과 downstream benchmark 요구 사이의 gap은 수학, 차트, 다이어그램, 문서 파싱 등 task-oriented image를 incorporate하여 bridge한다. Hallucination 완화를 위해 existing metadata를 synthetic generator의 reference로 활용.</p>
+
+<p><strong>Interleaved Image-Text Data</strong>: Established LLM data filtering methods를 활용하여 interleaved open-source [5, 26] 및 in-house resource로부터 high-quality multimodal web content를 추출. Lightweight text-based classifier가 educational quality score와 STEM relevance로 텍스트 component를 평가. 이 과정은 low-value web noise를 걸러내고 high information density document의 strategic upsampling을 가능하게 한다.</p>
+
+<p><strong>OCR and Documents</strong>: 영어와 한국어 데이터셋을 character, word, document 수준에서 open-source + in-house resource 통합으로 구축. Diverse background와 visually confusable word의 contrastive pairs를 가진 synthetic OCR 이미지 생성. 차트, 테이블, 문서를 HTML, Markdown, JSON 등의 structured format으로 변환하는 parsing task도 포함.</p>
+
+<p><strong>Grounding and Counting</strong>: Bounding box $[x_1, y_1, x_2, y_2]$ 좌표를 image width/height로 normalize하여 $[0, 1000]$ 범위로 scale. Counting의 경우, low count/simple category bias를 완화하기 위해 synthetic generation을 우선시하고, count range와 object type에 걸쳐 explicit balancing 수행.</p>
+
+<p><strong>STEM and Reasoning</strong>: Integrated search-based synthesis pipeline으로 complex mathematical graph, engineering, science diagram 등 high-level academic content의 부족 문제 해결. 추출된 metadata가 Long Chain-of-Thought (CoT) data 생성을 informing하여 ##visual perception과 deep knowledge-based reasoning을 결합##.</p>
+
+<p><strong>Korean Specific</strong>: Under-representation of Korean 문화/언어 뉘앙스를 해결하기 위한 specialized 한국어 multimodal corpus. 한국관광공사 (KTO)의 과거부터 현재까지 한국 문화 이미지/설명, IT Donga, Game Donga 등의 실사용 데이터셋을 활용. STEM 파이프라인을 한국어에 맞춰 조정하고, text-based problem을 high-resolution 이미지로 rendering하는 text-to-vision augmentation 전략을 사용하여 formatted Korean academic content를 robust하게 parse/solve할 수 있게 함.</p>
+
+<h3>2.3 Context Length Extension</h3>
+
+<p>EXAONE 4.5는 최대 ##256K token의 context length##를 지원하며, 이는 context extension을 SFT 단계에 직접 통합함으로써 달성되었다. 기존 pipeline이 context expansion을 standalone phase로 처리하는 것과 달리, 이 접근은 high-quality fine-tuning data를 활용하여 instruction-following capability와 long-range coherence를 동시에 refine한다.</p>
+
+<p>이 방법의 핵심 장점은 128K-capable base LLM이 제공하는 stabilization이다. High baseline context length에서 initialize하는 것은 robust long-context prior를 보장하여, shorter sequence에서 scaling 시 흔히 관찰되는 optimization instability와 performance degradation을 방지한다. Multimodal pretraining으로 LLM과 이미 well aligned된 vision encoder는 multimodal setting에서의 stable extension에도 기여한다.</p>
+
+<p>256K sequence의 증가된 computational complexity를 해결하기 위해 Context Parallelism [20]을 사용하여 memory distribution을 최적화하고 높은 training throughput을 유지.</p>
+
+<h3>2.4 Post-training</h3>
+
+<h4>2.4.1 Supervised Fine-Tuning</h4>
+
+<p>SFT 단계에서는 여러 도메인과 modality에 걸친 high-quality instruction-tuning corpus를 구축. 단일 unified data construction pipeline에 의존하는 대신, ##도메인별로 data를 조직하고 각각에 tailored curation strategy를 적용##. 생성된 corpus는 visual understanding, 언어 사용, 추론, instruction following 등 real-world multimodal application에 필요한 broad range of capability를 지원.</p>
+
+<p>Multimodal instruction following을 강화하기 위해, text-only 데이터와 vision-language 데이터를 unified SFT framework 내에서 공동 학습하며, Non-Reasoning과 Reasoning supervision 모두를 통합한다. Training corpus는 document-centric 및 general multimodal input 등 다양한 visual/textual scenario를 커버하여, 모델이 좁은 input type을 넘어선 broad multimodal generalization을 개발할 수 있게 한다.</p>
+
+<p>Multi-stage training curriculum with stage-wise data organization을 coordinated training recipe의 일부로 채택. SFT corpus는 한국어, 영어, 스페인어, 독일어, 일본어, 베트남어를 포함한 multilingual instruction following도 지원.</p>
+
+<h4>2.4.2 Offline Preference Optimization</h4>
+
+<p>DPO를 multi-stage framework로 적용하며, 각 stage는 specific objective에 맞춰져 training pipeline의 서로 다른 시점 (예: RLVR 이전 또는 최종 preference learning 단계)에 적용된다. Vision task에는 $\mathcal{L}_{\text{DPO}}$를 사용하고 (reference model을 통한 stable optimization), text task에는 $\mathcal{L}_{\text{GROUPER}}$를 사용하여 multiple rejection data를 더 잘 활용. $\beta = 0.1$ for DPO, $G = 4$ for Grouper.</p>
+
+<p><strong>DPO loss</strong>:</p>
+$$\mathcal{L}_{\text{DPO}}(\theta) = -\mathbb{E}_{(x, y^+, y^-) \sim \mathcal{D}}\left[\log\sigma\left(\beta\left(\log\frac{\pi_\theta(y^+ \mid x)}{\pi_{\text{ref}}(y^+ \mid x)} - \log\frac{\pi_\theta(y^- \mid x)}{\pi_{\text{ref}}(y^- \mid x)}\right)\right)\right] \tag{1}$$
+
+<p>직관적으로, DPO는 preferred response $y^+$의 확률을 늘리고 rejected response $y^-$의 확률을 줄이되, reference model 대비 상대적 log-likelihood 차이에 sigmoid를 적용하여 stable하게 학습한다.</p>
+
+<p><strong>Grouper loss</strong>: Group 단위로 advantage를 계산하여 multiple rejection을 활용:</p>
+
+$$\mathcal{L}_{\text{GROUPER}}(\theta) = -\mathbb{E}_{(x, y_1, \ldots, y_G) \sim \mathcal{D}}\left[\frac{1}{G}\sum_{i=1}^{G}\left(A_i \cdot \exp\left(\frac{1}{|y_i|}\log \pi_\theta(y_i \mid x)\right)\right)\right] \tag{2}$$
+
+<p>여기서 advantage $A_i$와 z-score $z_i$는:</p>
+$$z_i = \frac{r_i - \text{mean}(\{r_j\}_{j=1}^G)}{\text{std}(\{r_j\}_{j=1}^G)}, \quad A_i = 2 \cdot \frac{z_i - \min(\{z_j\}_{j=1}^G)}{\max(\{z_j\}_{j=1}^G) - \min(\{z_j\}_{j=1}^G)} - 1$$
+
+<p>직관적으로, Grouper는 group 내의 multiple response rank를 활용하여 normalized advantage를 계산하므로, single preference pair보다 풍부한 signal을 제공한다.</p>
+
+<h4>Reinforcement Learning (multimodal)</h4>
+
+<p>Reasoning 능력을 더 강화하기 위해 text와 vision 양쪽에 걸친 joint multimodal RL을 수행. Text data는 mathematics, coding, knowledge, instruction-following task를 포함하고, vision data는 general visual understanding, STEM reasoning, chart, OCR, document understanding, multi-image setting을 포함. Reward design은 text task에는 이전 모델 [13]의 reward system을, vision task에는 task-specific reward function을 사용. Policy optimization은 GRPO with IcePop setting [38, 43]과 ##zero-variance filtering##(advantage가 모두 0인 group 제거)을 적용. Advantage는 group mean reward를 각 샘플 reward에서 빼서 계산하며, training stability를 위해 standard deviation normalization을 적용하지 않는다.</p>
+
+<h2>3. Evaluation</h2>
+
+<h3>3.1 Benchmarks and Setup</h3>
+
+<p><strong>Vision 벤치마크 (4 카테고리)</strong>:</p>
+<ul>
+  <li><strong>STEM / Puzzle</strong>: MMMU, MMMU-Pro, MedXpertQA-MM, MATH-Vision, MathVista (mini), We-Math, LogicVista, BabyVision</li>
+  <li><strong>Document Understanding</strong>: AI2D, ChartQAPro, CharXiv (RQ), OCRBench v2, OmniDocBench v1.5</li>
+  <li><strong>General</strong>: MMStar, BLINK, HallusionBench</li>
+  <li><strong>Korean</strong>: KMMMU, K-Viscuit, KRETA</li>
+</ul>
+
+<p><strong>Language 벤치마크 (5 카테고리)</strong>:</p>
+<ul>
+  <li><strong>Reasoning</strong>: AIME 2026, GPQA-Diamond, LiveCodeBench v6, MMLU-Pro</li>
+  <li><strong>Agentic Tool Use</strong>: $\tau^2$-Bench (retail/airline/telecom)</li>
+  <li><strong>Instruction Following</strong>: IFBench, IFEval</li>
+  <li><strong>Long Context Understanding</strong>: AA-LCR</li>
+  <li><strong>Korean</strong>: KMMLU-Pro, KoBALT</li>
+</ul>
+
+<p><strong>Decoding settings</strong>: Vision은 기본 temperature 1.0 (Document Understanding/Korean은 0.6), top-$p$ 0.95, presence penalty 1.5. Language는 temperature 1.0, top-$p$ 0.95. Max generation length 32K (vision), 128K (language). Inference 시 MTP는 disable.</p>
+
+<h3>3.2 Vision Benchmarks Results</h3>
+
+<p>Table 2는 EXAONE 4.5 Reasoning mode와 baseline들 (GPT-5 mini, Qwen3-VL-32B Thinking, Qwen3-VL-235B-A22B Thinking, Qwen3.5-27B Reasoning)의 vision benchmark 결과를 보여준다:</p>
+
+<table>
+<tr><th>Category</th><th>Benchmark</th><th>EXAONE 4.5 33B</th><th>GPT-5 mini</th><th>Qwen3-VL-32B</th><th>Qwen3-VL-235B</th><th>Qwen3.5-27B</th></tr>
+<tr><td rowspan="8">STEM / Puzzle</td><td>MMMU</td><td>78.7</td><td>79.0</td><td>78.1</td><td>80.6</td><td><strong>82.3</strong></td></tr>
+<tr><td>MMMU-Pro</td><td><strong>68.6</strong></td><td>67.3</td><td>68.1</td><td>69.3</td><td>75.0</td></tr>
+<tr><td>MedXpertQA-MM</td><td>42.1</td><td>34.4</td><td>41.6</td><td>47.6</td><td><strong>62.4</strong></td></tr>
+<tr><td>MATH-Vision</td><td><strong>75.2</strong></td><td>71.9</td><td>70.2</td><td>74.6</td><td>86.0</td></tr>
+<tr><td>MathVista (mini)</td><td>85.0</td><td>79.1</td><td><strong>85.9</strong></td><td>85.8</td><td>87.8</td></tr>
+<tr><td>We-Math</td><td><strong>79.1</strong></td><td>70.3</td><td>71.6</td><td>74.8</td><td>84.0</td></tr>
+<tr><td>LogicVista</td><td><strong>73.8</strong></td><td>70.3</td><td>70.9</td><td>72.2</td><td>77.0</td></tr>
+<tr><td>BabyVision</td><td>18.8</td><td>20.9</td><td>17.4</td><td>22.2</td><td><strong>44.6</strong></td></tr>
+<tr><td rowspan="5">Document</td><td>AI2D</td><td><strong>89.0</strong></td><td>88.2</td><td>88.9</td><td>89.2</td><td>92.9</td></tr>
+<tr><td>ChartQAPro</td><td><strong>62.2</strong></td><td>60.9</td><td>61.4</td><td>61.2</td><td>66.8</td></tr>
+<tr><td>CharXiv (RQ)</td><td><strong>71.7</strong></td><td>68.6</td><td>65.2</td><td>66.1</td><td>79.5</td></tr>
+<tr><td>OCRBench v2</td><td>63.2</td><td>55.8</td><td><strong>68.4</strong></td><td>66.8</td><td>67.3</td></tr>
+<tr><td>OmniDocBench v1.5</td><td><strong>81.2</strong></td><td>77.0</td><td>83.1</td><td>84.5</td><td>88.9</td></tr>
+<tr><td rowspan="3">General</td><td>MMStar</td><td>74.9</td><td>74.1</td><td><strong>79.4</strong></td><td>78.7</td><td>81.0</td></tr>
+<tr><td>BLINK</td><td><strong>68.8</strong></td><td>67.7</td><td>68.5</td><td>67.1</td><td>71.6</td></tr>
+<tr><td>HallusionBench</td><td>63.7</td><td>63.2</td><td><strong>67.4</strong></td><td>66.7</td><td>70.0</td></tr>
+<tr><td rowspan="3">Korean</td><td>KMMMU</td><td>42.7</td><td>42.6</td><td>37.8</td><td>42.1</td><td><strong>51.7</strong></td></tr>
+<tr><td>K-Viscuit</td><td>80.1</td><td>78.5</td><td>78.5</td><td><strong>83.9</strong></td><td>84.0</td></tr>
+<tr><td>KRETA</td><td>91.9</td><td>94.8</td><td>90.3</td><td>92.8</td><td><strong>96.5</strong></td></tr>
+</table>
+
+<p><strong>STEM / Puzzle 결과 분석</strong>: EXAONE 4.5는 mathematical 및 logical reasoning에서 강점을 보인다. ##MATH-Vision (75.2 vs Qwen3-VL-235B의 74.6)과 We-Math (79.1 vs 74.8)에서 훨씬 큰 Qwen3-VL-235B (236B MoE, 22B active)를 능가##하며, MMMU-Pro (68.6 vs 67.3)와 LogicVista (73.8)에서도 GPT-5 mini와 같은 closed model을 제친다. Qwen3.5-27B Reasoning (dense 27B)에는 대부분 열위이나, EXAONE 4.5는 native multimodal 훈련 VLM 중 최상급이다.</p>
+
+<p><strong>Document Understanding 분석</strong>: ##이 영역이 EXAONE 4.5의 가장 강력한 영역이다##. CharXiv (RQ) 71.7, AI2D 89.0, ChartQAPro 62.2에서 Qwen3-VL-235B를 능가. OmniDocBench v1.5 81.2로 GPT-5 mini (77.0)을 크게 능가. Document-centric data curation 전략의 효과를 실증한다.</p>
+
+<p><strong>General 벤치마크 분석</strong>: 경쟁력 있는 안정적 성능. BLINK 68.8 vs 67.1 (Qwen3-VL-235B)에서 우세.</p>
+
+<p><strong>Korean 벤치마크 분석</strong>: KRETA 91.9로 Qwen3-VL-32B/235B 모두 능가. KMMMU는 상대적으로 낮으나 Qwen3-VL-32B (37.8)보다 우수.</p>
+
+<h3>3.3 Language Benchmarks Results</h3>
+
+<p>Table 3: EXAONE 4.5 Reasoning mode의 language benchmark 결과 vs K-EXAONE-236B-A23B, GPT-5 mini, Qwen3-VL-235B-A22B Thinking, Qwen3.5-27B Reasoning:</p>
+
+<table>
+<tr><th>Category</th><th>Benchmark</th><th>EXAONE 4.5 33B</th><th>K-EXAONE-236B</th><th>GPT-5 mini</th><th>Qwen3-VL-235B</th><th>Qwen3.5-27B</th></tr>
+<tr><td rowspan="4">Reasoning</td><td>AIME 2026</td><td>92.6</td><td>92.2</td><td>92.4</td><td>89.4</td><td><strong>93.2</strong></td></tr>
+<tr><td>GPQA-Diamond</td><td>80.5</td><td>79.1</td><td>82.3</td><td>77.1</td><td><strong>85.5</strong></td></tr>
+<tr><td>LiveCodeBench v6</td><td><strong>81.4</strong></td><td>80.7</td><td>78.1</td><td>70.1</td><td>80.7</td></tr>
+<tr><td>MMLU-Pro</td><td>83.3</td><td>83.8</td><td>83.3</td><td>83.8</td><td><strong>86.1</strong></td></tr>
+<tr><td rowspan="3">Agentic Tool Use ($\tau^2$-Bench)</td><td>Retail</td><td>77.9</td><td>78.6</td><td>78.3</td><td>67.0</td><td><strong>84.7</strong></td></tr>
+<tr><td>Airline</td><td>56.5</td><td>60.4</td><td>60.0</td><td>62.0</td><td><strong>67.5</strong></td></tr>
+<tr><td>Telecom</td><td>73.0</td><td>73.5</td><td>74.1</td><td>44.7</td><td><strong>99.3</strong></td></tr>
+<tr><td rowspan="2">Instruction Following</td><td>IFBench</td><td>62.6</td><td>67.3</td><td>74.0</td><td>59.2</td><td><strong>76.5</strong></td></tr>
+<tr><td>IFEval</td><td>89.6</td><td>89.7</td><td>92.8</td><td>88.2</td><td><strong>95.0</strong></td></tr>
+<tr><td>Long Context</td><td>AA-LCR</td><td>50.6</td><td>53.5</td><td><strong>68.0</strong></td><td>58.7</td><td>67.3</td></tr>
+<tr><td rowspan="2">Korean</td><td>KMMLU-Pro</td><td>67.6</td><td>67.3</td><td>72.5</td><td>71.1</td><td><strong>73.0</strong></td></tr>
+<tr><td>KoBALT</td><td>52.1</td><td>61.8</td><td>63.6</td><td>51.7</td><td>54.9</td></tr>
+</table>
+
+<p><strong>Reasoning 분석</strong>: ##LiveCodeBench v6 81.4로 모든 baseline (Qwen3.5-27B 포함) 능가##. AIME 2026에서 92.6으로 Qwen3.5-27B 다음 2위이나 Qwen3-VL-235B-A22B를 능가. Code reasoning과 mathematical reasoning에서 특히 강점.</p>
+
+<p><strong>Agentic Tool Use 분석</strong>: $\tau^2$-Bench 가중 평균 72.0으로 Qwen3-VL-235B-A22B (57.0)를 크게 능가. 산업 agentic workflow에서 실용적 우위.</p>
+
+<p><strong>Instruction Following 분석</strong>: IFBench 62.6 vs 59.2, IFEval 89.6 vs 88.2로 Qwen3-VL-235B-A22B를 전반적으로 능가. 그러나 IFBench에서 Qwen3.5-27B (76.5)와 GPT-5 mini (74.0)에는 열위.</p>
+
+<p><strong>Long Context 분석</strong>: AA-LCR 50.6으로 K-EXAONE (53.5), GPT-5 mini (68.0), Qwen3.5-27B (67.3) 대비 낮음. 256K 지원에도 불구하고 long context reasoning 품질은 개선 여지가 있다.</p>
+
+<p><strong>Korean 분석</strong>: KMMLU-Pro 67.6으로 경쟁력, K-EXAONE (67.3)과 유사. KoBALT 52.1은 상대적으로 낮아 Korean advanced linguistic task에서 한계.</p>
+
+<h2>4. Limitations</h2>
+
+<p>EXAONE 4.5 모델은 기존 multimodal 모델과 마찬가지로 다음 한계를 가질 수 있다:</p>
+<ul>
+  <li>Inappropriate answer (개인/유해/부적절 정보) 생성 가능성</li>
+  <li>Age, gender, race 등에 연관된 biased response 생성 가능성</li>
+  <li>Training data 통계에 크게 의존하여 semantically/syntactically 부정확한 문장 생성 가능성</li>
+  <li>최신 정보 미반영으로 인한 false/contradictory response 가능성</li>
+</ul>
+
+<p>LG AI Research는 illegal 활동에 대한 사용을 금지하며, EXAONE 4.5 output은 LG AI Research의 views를 반영하지 않음을 명시.</p>
+
+<h2>5. Deployment</h2>
+
+<p>본문 Section 5는 간결하게 Appendix B가 EXAONE 4.5 모델 사용을 위한 license 정보를 제공하며, 해당 license를 이해하는 것이 모델의 합법적 사용에 필수적임을 명시한다. Appendix B의 <strong>EXAONE AI Model License Agreement 1.2 - NC</strong>에 따르면, 이 license는 research/educational 목적의 비상업적 (non-commercial) 사용만을 허용하는 limited, non-exclusive, non-transferable, revocable license이다.</p>
+
+<h2>6. Conclusion</h2>
+
+<p>EXAONE 4.5는 LG의 첫 오픈 웨이트 VLM이자 EXAONE foundation model series의 significant leap을 나타낸다. Custom-built 1.2B vision encoder를 EXAONE 4.0 32B language model에 통합하여 advanced reasoning과 visual comprehension 사이의 gap을 성공적으로 bridge한다.</p>
+
+<p>주요 architectural/training 혁신: GQA (vision encoder), 2D RoPE, MTP 모듈로 computational efficiency와 model capacity의 최적 balance. Multi-stage pretraining pipeline으로 복잡한 multimodal data (general image-text pairs, structured OCR, STEM diagram, specialized Korean cultural/academic content) 처리 능력 확보. Context extension을 SFT에 embedding하여 ##cross-modal alignment 손상 없이 256K context length 달성##. Tailored DPO와 multimodal RL로 exceptional reasoning과 instruction-following 능력.</p>
+
+<p>평가 결과 EXAONE 4.5는 vision과 language task에서 highly competitive, SOTA 성능을 보이며, 특히 mathematical reasoning, document parsing, agentic tool use 등 복잡한 도메인에서 훨씬 큰 proprietary model을 능가한다. EXAONE 4.5는 demanding industrial environment를 위한 강력한 problem-solving engine이며, 향후 VLA (Vision-Language-Action) 모델 개발의 critical foundation 역할을 한다. Open-weight release로 community-driven research 가속을 목표로 한다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Non-Commercial License</strong>: EXAONE AI Model License 1.2 - NC는 commercial use를 엄격히 금지한다. "Open-weight"로 홍보되지만, 실무 산업 deployment에는 별도 계약이 필요하여 true open-source (Apache 2.0, MIT 등) 모델과는 구분된다</li>
+  <li><strong>Non-Reasoning mode 결과 부재</strong>: Table 2, 3 모두 Reasoning mode 결과만 보고. Non-Reasoning mode의 성능이 어떤지 알 수 없어 latency-sensitive use case에서의 trade-off 평가가 어렵다</li>
+  <li><strong>Qwen3.5-27B와의 gap</strong>: MMMU (78.7 vs 82.3), GPQA-Diamond (80.5 vs 85.5), MMLU-Pro (83.3 vs 86.1), KMMLU-Pro (67.6 vs 73.0) 등 전반적 reasoning 벤치마크에서 Qwen3.5-27B Reasoning에 열위. Document 특화 강점 외에는 최신 오픈 모델 대비 전반적 우위를 보이지 못한다</li>
+  <li><strong>BabyVision 18.8</strong>: 의외로 낮은 결과로, basic visual reasoning (BabyVision)에서 Qwen3.5-27B의 44.6 대비 큰 gap. Document/STEM 특화로 인한 general visual perception 약화 가능성</li>
+  <li><strong>Long-context 품질 한계</strong>: 256K 지원에도 AA-LCR 50.6은 GPT-5 mini 68.0, Qwen3.5-27B 67.3 대비 상당히 낮다. Context length 확장과 long-context reasoning quality는 별개 문제임을 시사</li>
+  <li><strong>Ablation 부재</strong>: 1.2B vision encoder 선택의 타당성 (vs 600M), 2D RoPE 효과, MTP 기여도, document-centric curation의 정량적 효과 등에 대한 ablation 실험이 전혀 없다</li>
+  <li><strong>Training data 규모 불투명성</strong>: Stage 1 image token 420B, text token 400B 등 전체 규모는 주어지나, 구체적 데이터 출처 비율, filtering 통계, Korean 데이터 규모 등은 불명확</li>
+  <li><strong>Baseline 선택 편향</strong>: GPT-5 mini를 closed baseline으로, Qwen3-VL 32B/235B-A22B Thinking을 open baseline으로 선택. 그러나 InternVL 3.5, LLaVA-OneVision 등 주요 open VLM은 비교에서 빠져있다</li>
+  <li><strong>산업 특화 주장의 검증 부재</strong>: "제조 품질 관리, 엔터프라이즈 엔지니어링" 등 산업 use case가 반복 언급되나, 실제 산업 벤치마크나 case study가 전혀 제시되지 않는다. Document understanding 벤치마크가 간접 증거로만 기능</li>
+  <li><strong>Multimodal RL 세부사항 부족</strong>: GRPO with IcePop + zero-variance filtering 설정만 언급되고, reward function 설계, training stability, 실제 개선 폭 등은 기술되지 않음</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Document understanding 특화 모델의 가치</strong>: EXAONE 4.5는 document-centric 데이터 curation과 1.2B vision encoder로 Qwen3-VL-235B (236B MoE)를 document/chart/diagram 벤치마크에서 능가한다. 도메인 특화 data curation이 모델 scale을 대체할 수 있음을 보여준다</li>
+  <li><strong>Billion-scale vision encoder의 필요성</strong>: 600M 급 encoder의 한계를 인식하고 1.2B encoder를 채택한 것은, high-resolution document와 complex visual reasoning을 위해 중요하다. 단, ablation 부재로 정량적 기여는 불명확</li>
+  <li><strong>Context extension을 SFT에 통합하는 설계 철학</strong>: Standalone phase로 context extension을 다루지 않고 SFT에 통합하는 접근은, instruction following과 long-range coherence를 동시에 개선하는 elegant한 방법이다. 단, AA-LCR 결과를 보면 품질 측면의 한계 존재</li>
+  <li><strong>한국어 multimodal의 중요성</strong>: 한국관광공사, IT Donga 등 curated Korean multimodal corpus가 KRETA 91.9 등 강한 한국어 benchmark 성능의 배경. 언어/문화 특화 데이터의 체계적 수집이 필수</li>
+  <li><strong>Industrial VLM의 실용적 방향성</strong>: Mathematical reasoning (We-Math 79.1, MATH-Vision 75.2), code (LCB v6 81.4), agentic tool use ($\tau^2$-Bench 72.0)의 균형 있는 강화는 real-world industrial workflow에서 실질적 가치를 제공할 수 있다</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

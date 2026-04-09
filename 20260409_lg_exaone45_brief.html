@@ -1,0 +1,1341 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EXAONE 4.5 — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero (LG crimson theme) ── */
+  .hero {
+    background: linear-gradient(135deg, #5a0a1f, #8b1538, #c8102e, #e8125c);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 680px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #5a0a1f; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #c8102e, #8b1538); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #fdf7f8; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #f1d4db; }
+  .card-accent { border-left: 5px solid #c8102e; }
+  .card-green  { border-left: 5px solid #059669; background: #f0fdf6; border-color: #bbf7d0; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; border-color: #fde68a; }
+  .card-red    { border-left: 5px solid #dc2626; background: #fef2f2; border-color: #fecaca; }
+
+  .card h3 { color: #5a0a1f; margin-bottom: 0.6rem; }
+  .card p { margin: 0.6rem 0; }
+  .card ul { padding-left: 1.4rem; margin: 0.6rem 0; }
+  .card li { margin: 0.3rem 0; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #8b1538, #c8102e, #e8125c);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.7;
+    box-shadow: 0 6px 20px rgba(200, 16, 46, 0.25);
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #fdf7f8; border-radius: 12px; border: 1px solid #f1d4db; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; font-style: italic; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #fdf7f8; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #f1d4db; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #c8102e, #8b1538); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #f1d4db; }
+  .comp-table th { background: #5a0a1f; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; text-align: left; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #f1d4db; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fdf0f3; font-weight: 700; color: #8b1538; }
+  .comp-table .win { color: #059669; font-weight: 700; }
+  .comp-table .lose { color: #94a3b8; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.75;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.6rem; color: #92400e; }
+  .analogy p { margin: 0.5rem 0; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #c8102e; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 140px; margin: 0.3rem; }
+  .step-box .step-num { font-size: 0.75rem; color: #c8102e; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; color: #1e293b; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #c8102e; padding: 0 0.4rem; font-weight: 700; }
+
+  /* ── Link banner ── */
+  .link-banner {
+    display: block;
+    background: #fdf0f3;
+    border: 1px solid #f1d4db;
+    border-left: 4px solid #c8102e;
+    padding: 0.9rem 1.2rem;
+    border-radius: 8px;
+    margin: 1.2rem 0;
+    color: #8b1538;
+    text-decoration: none;
+    font-weight: 500;
+  }
+  .link-banner:hover { background: #fce4ea; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #f1d4db; margin-top: 2rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">LG AI Research &middot; 2026 &middot; Open-Weight VLM</div>
+  <h1>EXAONE 4.5</h1>
+  <p class="subtitle">LG가 공개한 첫 번째 "눈으로 보고 이해하는 AI" —<br>공장, 사무실, 한국어 산업 현장을 위해 특별히 제작된 33B 파운데이션 모델</p>
+</div>
+
+<div class="container">
+
+<!-- 상단 링크 -->
+<a href="20260409_lg_exaone45.html" class="link-banner">전문가용 상세 요약 보기 (수식·벤치마크·세부 아키텍처 포함) →</a>
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "문서를 읽고, 차트를 이해하고, 한국어로 대답하는 AI —<br>글로벌 빅테크의 1/7 크기로 공장에 바로 투입할 수 있다"
+</div>
+
+<!-- ===== 배경지식 1: VLM이란? ===== -->
+<section>
+  <h2>먼저 알아야 할 것: VLM(Vision-Language Model)이란?</h2>
+
+  <div class="card card-accent">
+    <p>EXAONE 4.5를 이해하려면 "Vision-Language Model(시각-언어 모델, 이하 VLM)"이 무엇인지부터 알아야 합니다. 간단히 말해 <strong>이미지를 보고, 이미지에 대해 말로 답할 수 있는 AI</strong>입니다.</p>
+    <p>ChatGPT나 Claude처럼 텍스트만 다루는 AI를 "언어 모델(LLM)"이라고 부르는 반면, 사진/그림/표/차트/문서 페이지 같은 시각 정보까지 이해하는 AI를 VLM이라고 부릅니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">LLM과 VLM의 차이</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">LLM vs VLM: 무엇이 다른가?</text>
+
+      <!-- LLM 박스 -->
+      <rect x="40" y="60" width="300" height="240" rx="14" fill="#f1f5f9" stroke="#64748b" stroke-width="2"/>
+      <text x="190" y="90" font-size="14" font-weight="700" fill="#334155" text-anchor="middle">LLM (기존 언어 AI)</text>
+
+      <rect x="70" y="110" width="240" height="40" rx="8" fill="#fff" stroke="#94a3b8"/>
+      <text x="190" y="135" font-size="12" fill="#475569" text-anchor="middle">입력: "오늘 매출이 어때?"</text>
+
+      <text x="190" y="170" font-size="16" fill="#64748b" text-anchor="middle">↓</text>
+
+      <rect x="110" y="180" width="160" height="40" rx="8" fill="#64748b"/>
+      <text x="190" y="205" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">텍스트만 이해</text>
+
+      <text x="190" y="240" font-size="16" fill="#64748b" text-anchor="middle">↓</text>
+
+      <rect x="70" y="250" width="240" height="40" rx="8" fill="#fff" stroke="#94a3b8"/>
+      <text x="190" y="275" font-size="12" fill="#475569" text-anchor="middle">"매출 데이터를 알려주세요"</text>
+
+      <!-- VLM 박스 -->
+      <rect x="380" y="60" width="300" height="240" rx="14" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="530" y="90" font-size="14" font-weight="700" fill="#5a0a1f" text-anchor="middle">VLM (시각-언어 AI)</text>
+
+      <rect x="410" y="105" width="100" height="50" rx="6" fill="#fff" stroke="#c8102e"/>
+      <text x="460" y="125" font-size="10" fill="#5a0a1f" text-anchor="middle">[차트 이미지]</text>
+      <rect x="415" y="130" width="20" height="20" fill="#c8102e"/>
+      <rect x="440" y="125" width="20" height="25" fill="#e8125c"/>
+      <rect x="465" y="115" width="20" height="35" fill="#8b1538"/>
+      <rect x="490" y="110" width="20" height="40" fill="#c8102e"/>
+
+      <rect x="520" y="115" width="140" height="30" rx="6" fill="#fff" stroke="#c8102e"/>
+      <text x="590" y="135" font-size="11" fill="#475569" text-anchor="middle">+ "이 차트 요약해줘"</text>
+
+      <text x="530" y="175" font-size="16" fill="#c8102e" text-anchor="middle">↓</text>
+
+      <rect x="430" y="185" width="200" height="40" rx="8" fill="#c8102e"/>
+      <text x="530" y="210" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">이미지 + 텍스트 함께 이해</text>
+
+      <text x="530" y="240" font-size="16" fill="#c8102e" text-anchor="middle">↓</text>
+
+      <rect x="400" y="250" width="260" height="40" rx="8" fill="#fff" stroke="#c8102e"/>
+      <text x="530" y="275" font-size="11" fill="#475569" text-anchor="middle">"Q1→Q4에 매출 30% 성장,</text>
+      <text x="530" y="288" font-size="11" fill="#475569" text-anchor="middle">특히 Q4에 급등"</text>
+    </svg>
+    <div class="diagram-caption">LLM은 텍스트만 이해하지만, VLM은 이미지와 텍스트를 함께 이해하고 대답할 수 있다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 1: 번역가 vs 원어민 이중언어 구사자</div>
+    <p>기존에 LLM에 이미지를 붙이는 방식은 마치 <strong>번역가를 고용하는 것</strong>과 비슷합니다. 먼저 그림을 말로 풀어 설명한 다음, 언어 모델이 그 설명을 읽고 답하는 방식이죠. 두 단계를 거치기 때문에 뉘앙스가 잘리거나 왜곡됩니다.</p>
+    <p>EXAONE 4.5 같은 native VLM은 처음부터 이미지와 텍스트를 함께 학습한 <strong>진짜 이중언어 구사자</strong>입니다. "번역" 단계 없이 그림을 보면서 동시에 말의 맥락을 떠올립니다. 그래서 차트의 미세한 수치 차이나, 도면의 구조적 의미를 더 정확하게 읽어냅니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">VLM이 왜 산업 현장에 중요한가?</h3>
+
+  <p>현대 산업 현장에서 가장 큰 병목은 <strong>문서와 도면</strong>입니다. 품질검사 보고서, 장비 매뉴얼, 설계 도면, 안전 규정집, 각종 차트와 표. 이 모든 것이 이미지 형태로 존재하고, 인간 엔지니어가 읽고 해석해야 합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">산업 현장의 "이미지형 지식"</text>
+
+      <!-- 6 icons of industrial docs -->
+      <g>
+        <rect x="50" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <line x1="65" y1="85" x2="125" y2="85" stroke="#c8102e"/>
+        <line x1="65" y1="100" x2="125" y2="100" stroke="#c8102e"/>
+        <line x1="65" y1="115" x2="110" y2="115" stroke="#c8102e"/>
+        <line x1="65" y1="130" x2="120" y2="130" stroke="#c8102e"/>
+        <line x1="65" y1="145" x2="100" y2="145" stroke="#c8102e"/>
+        <text x="95" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">품질 보고서</text>
+      </g>
+      <g>
+        <rect x="160" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <line x1="180" y1="150" x2="235" y2="150" stroke="#5a0a1f" stroke-width="1.5"/>
+        <line x1="180" y1="150" x2="180" y2="90" stroke="#5a0a1f" stroke-width="1.5"/>
+        <rect x="185" y="130" width="10" height="20" fill="#c8102e"/>
+        <rect x="200" y="110" width="10" height="40" fill="#e8125c"/>
+        <rect x="215" y="95" width="10" height="55" fill="#8b1538"/>
+        <text x="205" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">매출 차트</text>
+      </g>
+      <g>
+        <rect x="270" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <circle cx="315" cy="115" r="30" fill="none" stroke="#c8102e" stroke-width="1.5"/>
+        <line x1="315" y1="85" x2="315" y2="115" stroke="#c8102e" stroke-width="1.5"/>
+        <line x1="315" y1="115" x2="338" y2="100" stroke="#c8102e" stroke-width="1.5"/>
+        <text x="315" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">장비 도면</text>
+      </g>
+      <g>
+        <rect x="380" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <rect x="395" y="85" width="60" height="12" fill="#c8102e" opacity="0.6"/>
+        <rect x="395" y="100" width="60" height="12" fill="#c8102e" opacity="0.4"/>
+        <rect x="395" y="115" width="60" height="12" fill="#c8102e" opacity="0.6"/>
+        <rect x="395" y="130" width="60" height="12" fill="#c8102e" opacity="0.4"/>
+        <text x="425" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">규정표</text>
+      </g>
+      <g>
+        <rect x="490" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <circle cx="520" cy="100" r="8" fill="#c8102e"/>
+        <circle cx="550" cy="130" r="8" fill="#e8125c"/>
+        <circle cx="540" cy="90" r="8" fill="#8b1538"/>
+        <line x1="520" y1="100" x2="540" y2="90" stroke="#64748b"/>
+        <line x1="540" y1="90" x2="550" y2="130" stroke="#64748b"/>
+        <text x="535" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">파이프라인</text>
+      </g>
+      <g>
+        <rect x="600" y="60" width="90" height="110" rx="8" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+        <rect x="615" y="85" width="60" height="18" fill="none" stroke="#c8102e"/>
+        <rect x="615" y="108" width="60" height="18" fill="none" stroke="#c8102e"/>
+        <rect x="615" y="131" width="60" height="18" fill="none" stroke="#c8102e"/>
+        <text x="645" y="190" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">테이블</text>
+      </g>
+
+      <text x="360" y="230" font-size="14" fill="#475569" text-anchor="middle">이 모두가 "시각 정보"이고, VLM 없이는 자동화가 어렵다</text>
+      <text x="360" y="255" font-size="13" fill="#c8102e" text-anchor="middle" font-weight="700">EXAONE 4.5는 바로 이 영역을 목표로 설계되었다</text>
+    </svg>
+    <div class="diagram-caption">산업 현장의 지식은 대부분 이미지 형태로 존재한다 — 품질 보고서, 차트, 도면, 규정표, 파이프라인, 테이블</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>왜 LG가 직접 VLM을 만들었을까?</h3>
+    <p>LG는 전자, 디스플레이, 화학, 에너지, 바이오 등 광범위한 산업 분야를 포괄하는 제조 중심 기업입니다. 이들 산업에는 각자 특수한 문서 양식과 기술 용어가 있고, 많은 자료가 <strong>한국어</strong>로 작성되어 있습니다.</p>
+    <p>범용 해외 VLM(GPT-5, Qwen3-VL 등)은 영어 중심으로 학습되어 한국어 산업 문서나 복잡한 기술 차트 해석에서 종종 실수합니다. 또한 클라우드 API를 써야 해서 <strong>내부 공장 데이터를 외부로 전송해야 하는 보안 이슈</strong>가 있습니다.</p>
+    <p>이 두 가지 문제를 해결하기 위해 LG AI Research는 "한국 산업 문서를 잘 이해하고, 공장 내부에 직접 배포 가능한" 자체 VLM을 제작했습니다. 그것이 EXAONE 4.5입니다.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 2: 전문의 vs 일반의</div>
+    <p>GPT-5나 Qwen3-VL 같은 범용 VLM은 <strong>일반의(GP)</strong>와 같습니다. 감기부터 피부 트러블까지 다 볼 수 있지만, 특정 분야에 깊이는 부족하죠.</p>
+    <p>반면 EXAONE 4.5는 <strong>"산업 문서 전문의"</strong>입니다. 제조 품질 관리, 공학 도면, 한국어 기술 매뉴얼이라는 좁은 영역에서 빅테크 모델보다 더 정밀하게 해석합니다. 대신 감성 대화나 일반 상식에서는 전문의가 일반의에게 밀릴 수 있듯, 범용 벤치마크에서는 Qwen3.5-27B에 밀리는 부분도 있습니다.</p>
+    <p>중요한 건 <strong>"어떤 환자(작업)를 위한 모델인가?"</strong>입니다. 공장에 배치할 모델이라면 일반의보다 전문의가 필요합니다.</p>
+  </div>
+</section>
+
+<!-- ===== 배경지식 2: Vision Encoder ===== -->
+<section>
+  <h2>VLM은 어떻게 이미지를 "이해"하는가?</h2>
+
+  <div class="card">
+    <p>사람은 눈으로 본 장면을 바로 말로 표현할 수 있지만, AI에게는 이미지가 단지 숫자의 집합(픽셀)일 뿐입니다. 그래서 VLM은 이미지를 "AI가 이해할 수 있는 언어"로 번역하는 <strong>Vision Encoder(시각 인코더)</strong>라는 모듈을 먼저 거칩니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">이미지 → 언어 AI가 이해하는 형태로 변환하는 과정</text>
+
+      <!-- raw image -->
+      <rect x="30" y="70" width="130" height="130" rx="8" fill="#fff" stroke="#64748b" stroke-width="1.5"/>
+      <text x="95" y="58" font-size="11" fill="#475569" text-anchor="middle">원본 이미지</text>
+      <rect x="45" y="85" width="30" height="30" fill="#c8102e" opacity="0.6"/>
+      <rect x="80" y="85" width="30" height="30" fill="#e8125c" opacity="0.6"/>
+      <rect x="115" y="85" width="30" height="30" fill="#8b1538" opacity="0.6"/>
+      <rect x="45" y="120" width="30" height="30" fill="#c8102e" opacity="0.4"/>
+      <rect x="80" y="120" width="30" height="30" fill="#e8125c" opacity="0.4"/>
+      <rect x="115" y="120" width="30" height="30" fill="#8b1538" opacity="0.4"/>
+      <rect x="45" y="155" width="30" height="30" fill="#c8102e" opacity="0.8"/>
+      <rect x="80" y="155" width="30" height="30" fill="#e8125c" opacity="0.8"/>
+      <rect x="115" y="155" width="30" height="30" fill="#8b1538" opacity="0.8"/>
+
+      <text x="180" y="145" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- vision encoder -->
+      <rect x="210" y="90" width="150" height="110" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="285" y="115" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">Vision Encoder</text>
+      <text x="285" y="135" font-size="11" fill="#5a0a1f" text-anchor="middle">(시각 인코더)</text>
+      <text x="285" y="160" font-size="10" fill="#475569" text-anchor="middle">이미지 패턴을</text>
+      <text x="285" y="175" font-size="10" fill="#475569" text-anchor="middle">의미 벡터로 추출</text>
+      <text x="285" y="195" font-size="9" fill="#94a3b8" text-anchor="middle">EXAONE 4.5: 1.2B 파라미터</text>
+
+      <text x="380" y="145" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- visual tokens -->
+      <rect x="410" y="80" width="120" height="130" rx="8" fill="#fff" stroke="#c8102e"/>
+      <text x="470" y="68" font-size="11" fill="#475569" text-anchor="middle">Visual Tokens</text>
+      <rect x="420" y="90" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="432" y="107" font-size="9" fill="#fff" text-anchor="middle">v1</text>
+      <rect x="450" y="90" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="462" y="107" font-size="9" fill="#fff" text-anchor="middle">v2</text>
+      <rect x="480" y="90" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="492" y="107" font-size="9" fill="#fff" text-anchor="middle">v3</text>
+      <rect x="420" y="120" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="432" y="137" font-size="9" fill="#fff" text-anchor="middle">v4</text>
+      <rect x="450" y="120" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="462" y="137" font-size="9" fill="#fff" text-anchor="middle">v5</text>
+      <rect x="480" y="120" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="492" y="137" font-size="9" fill="#fff" text-anchor="middle">v6</text>
+      <rect x="420" y="150" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <rect x="450" y="150" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <rect x="480" y="150" width="25" height="25" rx="4" fill="#c8102e" opacity="0.8"/>
+      <text x="470" y="197" font-size="9" fill="#94a3b8" text-anchor="middle">...수백 개의 토큰</text>
+
+      <text x="550" y="145" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- language model -->
+      <rect x="580" y="90" width="115" height="110" rx="12" fill="#8b1538"/>
+      <text x="637" y="130" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">언어 모델</text>
+      <text x="637" y="148" font-size="11" fill="#fff" text-anchor="middle">(32B)</text>
+      <text x="637" y="170" font-size="9" fill="#fff" text-anchor="middle" opacity="0.8">토큰을 읽고</text>
+      <text x="637" y="183" font-size="9" fill="#fff" text-anchor="middle" opacity="0.8">답변 생성</text>
+
+      <!-- bottom explanation -->
+      <text x="360" y="260" font-size="12" fill="#475569" text-anchor="middle">Vision Encoder가 <tspan fill="#c8102e" font-weight="700">이미지를 잘게 쪼개 "의미 덩어리(토큰)"로 바꾸면</tspan>,</text>
+      <text x="360" y="282" font-size="12" fill="#475569" text-anchor="middle">언어 모델은 그것을 <tspan fill="#c8102e" font-weight="700">마치 단어처럼 읽으면서</tspan> 답변을 생성한다.</text>
+    </svg>
+    <div class="diagram-caption">이미지는 Vision Encoder를 통해 "시각 토큰"으로 변환되고, 언어 모델은 이 토큰을 단어처럼 처리한다</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">왜 "큰" Vision Encoder가 필요한가?</h3>
+
+  <p>여기서 EXAONE 4.5의 첫 번째 핵심 결정이 나옵니다. 기존 VLM들은 보통 <strong>600M(6억)</strong> 파라미터 정도의 작은 Vision Encoder를 씁니다. 그런데 EXAONE 4.5는 <strong>1.2B(12억)</strong>, 즉 두 배 크기의 인코더를 처음부터 새로 학습했습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 290" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">작은 인코더 vs 큰 인코더 — 고해상도 문서에서 차이가 난다</text>
+
+      <!-- small encoder branch -->
+      <rect x="40" y="60" width="300" height="200" rx="12" fill="#f1f5f9" stroke="#94a3b8"/>
+      <text x="190" y="85" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">작은 인코더 (600M, 기존 방식)</text>
+
+      <rect x="70" y="100" width="120" height="75" rx="6" fill="#fff" stroke="#64748b"/>
+      <text x="130" y="115" font-size="9" fill="#475569" text-anchor="middle">고해상도 문서</text>
+      <line x1="80" y1="125" x2="180" y2="125" stroke="#334155" stroke-width="0.5"/>
+      <line x1="80" y1="135" x2="180" y2="135" stroke="#334155" stroke-width="0.5"/>
+      <line x1="80" y1="145" x2="180" y2="145" stroke="#334155" stroke-width="0.5"/>
+      <line x1="80" y1="155" x2="160" y2="155" stroke="#334155" stroke-width="0.5"/>
+      <line x1="80" y1="165" x2="180" y2="165" stroke="#334155" stroke-width="0.5"/>
+
+      <text x="215" y="140" font-size="20" fill="#94a3b8" text-anchor="middle">→</text>
+
+      <rect x="240" y="100" width="90" height="75" rx="6" fill="#fff" stroke="#64748b"/>
+      <text x="285" y="115" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="700">토큰 강제 축소</text>
+      <line x1="250" y1="130" x2="320" y2="130" stroke="#334155" stroke-width="0.5"/>
+      <line x1="250" y1="145" x2="310" y2="145" stroke="#334155" stroke-width="0.5"/>
+      <text x="285" y="170" font-size="8" fill="#dc2626" text-anchor="middle">세부 정보 손실</text>
+
+      <text x="190" y="205" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">문서의 작은 글자, 세부 숫자가 잘린다</text>
+      <text x="190" y="222" font-size="10" fill="#64748b" text-anchor="middle">→ 차트 값을 잘못 읽거나,</text>
+      <text x="190" y="236" font-size="10" fill="#64748b" text-anchor="middle">문서의 fine print를 놓침</text>
+
+      <!-- large encoder branch -->
+      <rect x="380" y="60" width="300" height="200" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="530" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">EXAONE 4.5의 큰 인코더 (1.2B)</text>
+
+      <rect x="410" y="100" width="120" height="75" rx="6" fill="#fff" stroke="#c8102e"/>
+      <text x="470" y="115" font-size="9" fill="#475569" text-anchor="middle">고해상도 문서</text>
+      <line x1="420" y1="125" x2="520" y2="125" stroke="#334155" stroke-width="0.5"/>
+      <line x1="420" y1="135" x2="520" y2="135" stroke="#334155" stroke-width="0.5"/>
+      <line x1="420" y1="145" x2="520" y2="145" stroke="#334155" stroke-width="0.5"/>
+      <line x1="420" y1="155" x2="500" y2="155" stroke="#334155" stroke-width="0.5"/>
+      <line x1="420" y1="165" x2="520" y2="165" stroke="#334155" stroke-width="0.5"/>
+
+      <text x="555" y="140" font-size="20" fill="#c8102e" text-anchor="middle">→</text>
+
+      <rect x="580" y="100" width="90" height="75" rx="6" fill="#fff" stroke="#c8102e"/>
+      <text x="625" y="115" font-size="9" fill="#059669" text-anchor="middle" font-weight="700">풍부한 토큰 유지</text>
+      <line x1="590" y1="125" x2="660" y2="125" stroke="#334155" stroke-width="0.5"/>
+      <line x1="590" y1="135" x2="660" y2="135" stroke="#334155" stroke-width="0.5"/>
+      <line x1="590" y1="145" x2="660" y2="145" stroke="#334155" stroke-width="0.5"/>
+      <line x1="590" y1="155" x2="650" y2="155" stroke="#334155" stroke-width="0.5"/>
+      <line x1="590" y1="165" x2="660" y2="165" stroke="#334155" stroke-width="0.5"/>
+
+      <text x="530" y="205" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">미세한 글자/숫자/선까지 보존</text>
+      <text x="530" y="222" font-size="10" fill="#64748b" text-anchor="middle">→ 차트 값, 도면 라벨,</text>
+      <text x="530" y="236" font-size="10" fill="#64748b" text-anchor="middle">세부 주석까지 정확히 인식</text>
+    </svg>
+    <div class="diagram-caption">큰 Vision Encoder는 토큰 축소 과정에서 세부 정보 손실을 줄여 고해상도 문서에 유리하다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 3: 저해상도 사진 vs 고해상도 사진</div>
+    <p>스마트폰 카메라에 비유하자면, 기존의 작은 Vision Encoder는 <strong>저해상도 카메라</strong>입니다. 전체 풍경은 찍히지만 멀리 있는 간판 글씨나 작은 차트 숫자는 뭉개지죠.</p>
+    <p>EXAONE 4.5의 1.2B 인코더는 <strong>4K 고해상도 카메라</strong>와 같습니다. 고해상도 문서 이미지의 작은 글씨까지 선명하게 포착해 "이 표의 3행 5열 값은 7.2입니다"라고 정확히 읽어낼 수 있습니다.</p>
+    <p>공장의 품질 검사서, 회계 보고서, 엔지니어링 도면처럼 <strong>작은 숫자와 글자가 중요한 문서</strong>에서는 이 차이가 결정적입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>EXAONE 4.5의 핵심 아이디어 5가지</h2>
+
+  <p>EXAONE 4.5는 "큰 Vision Encoder" 하나만이 아니라, 산업 VLM을 위해 여러 가지 설계를 함께 적용했습니다. 다섯 가지 핵심을 순서대로 살펴봅시다.</p>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">1.2B Vision<br>Encoder</div>
+      <div class="step-desc">큰 시각 인코더로<br>세부 정보 보존</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">2D RoPE +<br>GQA</div>
+      <div class="step-desc">2D 위치 인식과<br>효율적 attention</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">32B Language<br>Model</div>
+      <div class="step-desc">EXAONE 4.0 기반<br>추론 엔진</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 4</div>
+      <div class="step-title">256K 컨텍스트<br>SFT 통합</div>
+      <div class="step-desc">긴 문서 이해와<br>지시 학습 동시</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 5</div>
+      <div class="step-title">Multi-stage<br>Post-training</div>
+      <div class="step-desc">DPO + RL로<br>추론 능력 강화</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2.5rem; font-size:1.25rem; color:#5a0a1f;">1단계 — 1.2B Vision Encoder를 처음부터 다시 학습</h3>
+
+  <div class="card card-accent">
+    <p>가장 큰 결정은 <strong>Vision Encoder를 기존 모델에서 가져오지 않고 from-scratch(처음부터)로 학습</strong>한 것입니다. 왜 그럴까요?</p>
+    <p>기존 오픈 VLM들은 대개 CLIP이나 SigLIP처럼 외부에서 공개된 인코더를 재사용합니다. 편리하지만, 그 인코더들은 일반 웹 이미지로 학습되어 "한국어 문서", "복잡한 차트", "기술 도면"에 약합니다.</p>
+    <p>LG는 이런 범용 인코더로는 산업 현장 성능을 내기 어렵다고 판단하고, 1.2B 규모의 인코더를 자체 데이터로 밑바닥부터 학습시켰습니다. 이것이 EXAONE 4.5의 문서 이해 강점의 기반이 됩니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">2단계 — 2D RoPE: 이미지의 "가로·세로" 위치를 인식</h3>
+
+  <p>텍스트는 한 줄이라 단어 위치는 1차원(왼쪽부터 오른쪽)이지만, 이미지는 2차원(가로·세로)입니다. 만약 위치 정보를 1차원으로 다루면, AI는 "왼쪽 상단"과 "오른쪽 하단"을 구분하기 어렵습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">1D RoPE vs 2D RoPE — 위치를 어떻게 인코딩할 것인가?</text>
+
+      <!-- 1D -->
+      <rect x="40" y="60" width="300" height="190" rx="12" fill="#f1f5f9" stroke="#64748b"/>
+      <text x="190" y="85" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">1D 위치 인코딩 (단순 일렬)</text>
+
+      <g>
+        <rect x="70" y="110" width="40" height="40" fill="#64748b" opacity="0.3"/>
+        <text x="90" y="135" font-size="10" text-anchor="middle" fill="#334155">1</text>
+        <rect x="115" y="110" width="40" height="40" fill="#64748b" opacity="0.4"/>
+        <text x="135" y="135" font-size="10" text-anchor="middle" fill="#334155">2</text>
+        <rect x="160" y="110" width="40" height="40" fill="#64748b" opacity="0.5"/>
+        <text x="180" y="135" font-size="10" text-anchor="middle" fill="#334155">3</text>
+        <rect x="205" y="110" width="40" height="40" fill="#64748b" opacity="0.6"/>
+        <text x="225" y="135" font-size="10" text-anchor="middle" fill="#334155">4</text>
+        <rect x="250" y="110" width="40" height="40" fill="#64748b" opacity="0.7"/>
+        <text x="270" y="135" font-size="10" text-anchor="middle" fill="#334155">5</text>
+
+        <rect x="70" y="155" width="40" height="40" fill="#64748b" opacity="0.3"/>
+        <text x="90" y="180" font-size="10" text-anchor="middle" fill="#334155">6</text>
+        <rect x="115" y="155" width="40" height="40" fill="#64748b" opacity="0.4"/>
+        <text x="135" y="180" font-size="10" text-anchor="middle" fill="#334155">7</text>
+        <rect x="160" y="155" width="40" height="40" fill="#64748b" opacity="0.5"/>
+        <text x="180" y="180" font-size="10" text-anchor="middle" fill="#334155">8</text>
+        <rect x="205" y="155" width="40" height="40" fill="#64748b" opacity="0.6"/>
+        <text x="225" y="180" font-size="10" text-anchor="middle" fill="#334155">9</text>
+        <rect x="250" y="155" width="40" height="40" fill="#64748b" opacity="0.7"/>
+        <text x="270" y="180" font-size="10" text-anchor="middle" fill="#334155">10</text>
+      </g>
+
+      <text x="190" y="225" font-size="11" fill="#dc2626" text-anchor="middle">토큰을 일렬로 번호 매김</text>
+      <text x="190" y="242" font-size="10" fill="#64748b" text-anchor="middle">→ "위·아래" 관계가 뚜렷하지 않음</text>
+
+      <!-- 2D -->
+      <rect x="380" y="60" width="300" height="190" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="530" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">2D 위치 인코딩 (가로·세로 분리)</text>
+
+      <g>
+        <rect x="410" y="110" width="40" height="40" fill="#c8102e" opacity="0.4"/>
+        <text x="430" y="135" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(1,1)</text>
+        <rect x="455" y="110" width="40" height="40" fill="#c8102e" opacity="0.4"/>
+        <text x="475" y="135" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(1,2)</text>
+        <rect x="500" y="110" width="40" height="40" fill="#c8102e" opacity="0.4"/>
+        <text x="520" y="135" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(1,3)</text>
+        <rect x="545" y="110" width="40" height="40" fill="#c8102e" opacity="0.4"/>
+        <text x="565" y="135" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(1,4)</text>
+        <rect x="590" y="110" width="40" height="40" fill="#c8102e" opacity="0.4"/>
+        <text x="610" y="135" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(1,5)</text>
+
+        <rect x="410" y="155" width="40" height="40" fill="#c8102e" opacity="0.7"/>
+        <text x="430" y="180" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(2,1)</text>
+        <rect x="455" y="155" width="40" height="40" fill="#c8102e" opacity="0.7"/>
+        <text x="475" y="180" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(2,2)</text>
+        <rect x="500" y="155" width="40" height="40" fill="#c8102e" opacity="0.7"/>
+        <text x="520" y="180" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(2,3)</text>
+        <rect x="545" y="155" width="40" height="40" fill="#c8102e" opacity="0.7"/>
+        <text x="565" y="180" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(2,4)</text>
+        <rect x="590" y="155" width="40" height="40" fill="#c8102e" opacity="0.7"/>
+        <text x="610" y="180" font-size="9" text-anchor="middle" fill="#fff" font-weight="700">(2,5)</text>
+      </g>
+
+      <text x="530" y="225" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">각 토큰에 (행, 열) 좌표를 부여</text>
+      <text x="530" y="242" font-size="10" fill="#64748b" text-anchor="middle">→ 차트·도면의 위치 관계를 정확히 포착</text>
+    </svg>
+    <div class="diagram-caption">2D RoPE는 이미지 토큰에 (행, 열) 좌표를 부여해 공간 관계를 보존한다</div>
+  </div>
+
+  <p>EXAONE 4.5는 Vision Encoder에 <strong>2D Rotary Positional Embedding(2D RoPE)</strong>을 사용해 이미지의 각 패치가 "몇 번째 행의 몇 번째 열인지"를 함께 인식합니다. 이 덕분에 "그래프의 X축 라벨"과 "표의 특정 셀"을 정확히 가리킬 수 있습니다.</p>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">3단계 — GQA로 계산량 다이어트</h3>
+
+  <p>Vision Encoder가 커지면 계산량도 폭증합니다. 이를 해결하기 위해 EXAONE 4.5는 <strong>GQA(Grouped Query Attention)</strong>라는 기법을 인코더와 언어 모델 양쪽에 적용합니다. 쉽게 말해, Attention 계산 시 Key/Value를 여러 Query가 "공유"하도록 해 메모리 사용량과 계산량을 줄이는 방법입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">GQA: 여러 Query가 Key/Value를 공유해서 효율성 확보</text>
+
+      <!-- Standard MHA -->
+      <rect x="40" y="60" width="300" height="170" rx="12" fill="#f1f5f9" stroke="#64748b"/>
+      <text x="190" y="85" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">표준 Multi-Head Attention</text>
+
+      <g>
+        <circle cx="80" cy="120" r="12" fill="#64748b"/>
+        <text x="80" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="80" cy="160" r="12" fill="#d97706"/>
+        <text x="80" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="80" cy="195" r="12" fill="#059669"/>
+        <text x="80" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+
+        <circle cx="135" cy="120" r="12" fill="#64748b"/>
+        <text x="135" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="135" cy="160" r="12" fill="#d97706"/>
+        <text x="135" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="135" cy="195" r="12" fill="#059669"/>
+        <text x="135" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+
+        <circle cx="190" cy="120" r="12" fill="#64748b"/>
+        <text x="190" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="190" cy="160" r="12" fill="#d97706"/>
+        <text x="190" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="190" cy="195" r="12" fill="#059669"/>
+        <text x="190" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+
+        <circle cx="245" cy="120" r="12" fill="#64748b"/>
+        <text x="245" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="245" cy="160" r="12" fill="#d97706"/>
+        <text x="245" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="245" cy="195" r="12" fill="#059669"/>
+        <text x="245" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+
+        <circle cx="300" cy="120" r="12" fill="#64748b"/>
+        <text x="300" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="300" cy="160" r="12" fill="#d97706"/>
+        <text x="300" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="300" cy="195" r="12" fill="#059669"/>
+        <text x="300" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+      </g>
+      <text x="190" y="105" font-size="10" fill="#dc2626" text-anchor="middle">Q마다 K, V 각각 보유 → 메모리 많음</text>
+
+      <!-- GQA -->
+      <rect x="380" y="60" width="300" height="170" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="530" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">GQA (EXAONE 4.5)</text>
+
+      <g>
+        <circle cx="415" cy="120" r="12" fill="#c8102e"/>
+        <text x="415" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="450" cy="120" r="12" fill="#c8102e"/>
+        <text x="450" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="432" cy="160" r="12" fill="#d97706"/>
+        <text x="432" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="432" cy="195" r="12" fill="#059669"/>
+        <text x="432" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+        <line x1="415" y1="132" x2="425" y2="152" stroke="#c8102e"/>
+        <line x1="450" y1="132" x2="440" y2="152" stroke="#c8102e"/>
+
+        <circle cx="505" cy="120" r="12" fill="#c8102e"/>
+        <text x="505" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="540" cy="120" r="12" fill="#c8102e"/>
+        <text x="540" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="522" cy="160" r="12" fill="#d97706"/>
+        <text x="522" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="522" cy="195" r="12" fill="#059669"/>
+        <text x="522" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+        <line x1="505" y1="132" x2="515" y2="152" stroke="#c8102e"/>
+        <line x1="540" y1="132" x2="529" y2="152" stroke="#c8102e"/>
+
+        <circle cx="595" cy="120" r="12" fill="#c8102e"/>
+        <text x="595" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="630" cy="120" r="12" fill="#c8102e"/>
+        <text x="630" y="125" font-size="9" fill="#fff" text-anchor="middle">Q</text>
+        <circle cx="612" cy="160" r="12" fill="#d97706"/>
+        <text x="612" y="165" font-size="9" fill="#fff" text-anchor="middle">K</text>
+        <circle cx="612" cy="195" r="12" fill="#059669"/>
+        <text x="612" y="200" font-size="9" fill="#fff" text-anchor="middle">V</text>
+        <line x1="595" y1="132" x2="605" y2="152" stroke="#c8102e"/>
+        <line x1="630" y1="132" x2="619" y2="152" stroke="#c8102e"/>
+      </g>
+      <text x="530" y="105" font-size="10" fill="#059669" text-anchor="middle">여러 Q가 K, V 공유 → 메모리 절약</text>
+    </svg>
+    <div class="diagram-caption">GQA는 Query를 그룹으로 묶어 Key, Value를 공유하므로 계산·메모리 효율이 크게 향상된다</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">4단계 — 256K 초장문 컨텍스트, 그런데 SFT에 통합</h3>
+
+  <p>EXAONE 4.5는 최대 <strong>256,000개의 토큰</strong>(= 대략 책 한두 권 분량)을 한 번에 읽을 수 있습니다. 이게 왜 중요할까요? 장비 매뉴얼, 법률 문서, 기술 사양서처럼 "매우 긴 문서 전체를 한 번에 참조하면서" 답변해야 하는 산업 시나리오에 필수이기 때문입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">256K 컨텍스트 — 얼마나 긴가?</text>
+
+      <!-- Bars comparison -->
+      <text x="100" y="75" font-size="11" fill="#475569" font-weight="700">GPT-3.5</text>
+      <rect x="180" y="60" width="15" height="25" fill="#94a3b8"/>
+      <text x="205" y="78" font-size="10" fill="#64748b">4K (책 10쪽)</text>
+
+      <text x="100" y="115" font-size="11" fill="#475569" font-weight="700">GPT-4</text>
+      <rect x="180" y="100" width="30" height="25" fill="#94a3b8"/>
+      <text x="220" y="118" font-size="10" fill="#64748b">8K (책 20쪽)</text>
+
+      <text x="100" y="155" font-size="11" fill="#475569" font-weight="700">Llama 3</text>
+      <rect x="180" y="140" width="120" height="25" fill="#94a3b8"/>
+      <text x="310" y="158" font-size="10" fill="#64748b">32K (책 80쪽)</text>
+
+      <text x="100" y="195" font-size="11" fill="#475569" font-weight="700">Claude Opus</text>
+      <rect x="180" y="180" width="360" height="25" fill="#94a3b8"/>
+      <text x="550" y="198" font-size="10" fill="#64748b">200K (책 한 권)</text>
+
+      <text x="100" y="235" font-size="11" fill="#c8102e" font-weight="700">EXAONE 4.5</text>
+      <rect x="180" y="220" width="460" height="25" fill="#c8102e"/>
+      <text x="650" y="238" font-size="10" fill="#c8102e" font-weight="700">256K</text>
+
+      <text x="360" y="268" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">≒ 책 500권 분량의 글자 중 핵심만 뽑아 한 번에 참조 가능</text>
+    </svg>
+    <div class="diagram-caption">EXAONE 4.5의 256K 컨텍스트는 주요 오픈 LLM 중 가장 긴 편이다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 5: 256K 컨텍스트 = 500권짜리 도서관을 한 번에 열어두는 책상</div>
+    <p>보통 AI는 한 번에 몇십 쪽 짜리 책 하나만 참조할 수 있습니다. 마치 책상에 책 한 권을 펼쳐놓고 작업하는 것과 같습니다.</p>
+    <p>EXAONE 4.5의 256K 컨텍스트는 <strong>책상에 책 500권이 동시에 펼쳐져 있어서, 어느 페이지든 즉시 참조할 수 있는</strong> 상태와 비슷합니다. 회사의 전체 기술 매뉴얼, 품질 관리 규정, 과거 보고서를 한꺼번에 읽으면서 "이 장비의 2020년 규정과 2026년 규정이 어떻게 다릅니까?" 같은 질문에 답할 수 있습니다.</p>
+    <p>물론 "책이 많다"와 "모든 책을 완벽히 이해한다"는 다릅니다. 뒤에서 보겠지만 EXAONE 4.5의 초장문 추론 품질에는 개선의 여지가 있습니다.</p>
+  </div>
+
+  <p>EXAONE 4.5의 독특한 점은 <strong>256K 컨텍스트 확장을 별도 단계가 아니라 지시 학습(SFT) 단계에 통합</strong>했다는 것입니다. 보통은 "먼저 짧은 컨텍스트로 학습 → 나중에 컨텍스트를 강제로 늘림" 2단계로 하는데, 이 방식은 추가 학습 도중 모델이 "지시 따르는 법"을 잊어버리는 문제가 있습니다. LG는 이를 한 단계로 합쳐서 두 마리 토끼를 동시에 잡았습니다.</p>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">5단계 — 3단계 후처리로 추론 능력 극대화</h3>
+
+  <p>기본 학습이 끝난 후에도, EXAONE 4.5는 세 단계에 걸친 미세 조정(Post-training)을 받습니다. 이 과정이 "똑똑한 AI"가 되는 핵심입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">EXAONE 4.5 Post-training 3단계</text>
+
+      <!-- Stage 1: SFT -->
+      <rect x="40" y="60" width="180" height="160" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="130" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">1. SFT</text>
+      <text x="130" y="105" font-size="11" fill="#475569" text-anchor="middle">(Supervised Fine-Tuning)</text>
+      <line x1="60" y1="120" x2="200" y2="120" stroke="#f1d4db"/>
+      <text x="130" y="140" font-size="10" fill="#475569" text-anchor="middle">"올바른 답변 예시"를</text>
+      <text x="130" y="155" font-size="10" fill="#475569" text-anchor="middle">대량으로 보고 배운다</text>
+      <text x="130" y="180" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">+ 256K 컨텍스트</text>
+      <text x="130" y="195" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">동시 학습</text>
+
+      <text x="245" y="150" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- Stage 2: DPO/Grouper -->
+      <rect x="270" y="60" width="180" height="160" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="360" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">2. DPO + Grouper</text>
+      <text x="360" y="105" font-size="11" fill="#475569" text-anchor="middle">(선호 학습)</text>
+      <line x1="290" y1="120" x2="430" y2="120" stroke="#f1d4db"/>
+      <text x="360" y="140" font-size="10" fill="#475569" text-anchor="middle">"좋은 답과 나쁜 답"을</text>
+      <text x="360" y="155" font-size="10" fill="#475569" text-anchor="middle">비교하며 스타일을 잡는다</text>
+      <text x="360" y="180" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">Vision: DPO</text>
+      <text x="360" y="195" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">Text: Grouper</text>
+
+      <text x="475" y="150" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- Stage 3: RL -->
+      <rect x="500" y="60" width="180" height="160" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="590" y="85" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">3. Multimodal RL</text>
+      <text x="590" y="105" font-size="11" fill="#475569" text-anchor="middle">(강화 학습)</text>
+      <line x1="520" y1="120" x2="660" y2="120" stroke="#f1d4db"/>
+      <text x="590" y="140" font-size="10" fill="#475569" text-anchor="middle">스스로 답을 생성하고</text>
+      <text x="590" y="155" font-size="10" fill="#475569" text-anchor="middle">보상을 받으며 시행착오</text>
+      <text x="590" y="180" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">GRPO + IcePop +</text>
+      <text x="590" y="195" font-size="10" fill="#c8102e" text-anchor="middle" font-weight="700">Zero-variance filter</text>
+    </svg>
+    <div class="diagram-caption">EXAONE 4.5는 SFT → DPO/Grouper → 강화 학습의 3단계로 점진적으로 능력을 강화한다</div>
+  </div>
+
+  <div class="card">
+    <h3>각 단계가 하는 일</h3>
+    <ul>
+      <li><strong>SFT (Supervised Fine-Tuning)</strong>: 수많은 "질문과 모범 답안 예시"를 학습. 여기서 256K 컨텍스트 확장도 동시에 진행. 모델이 "길고 복잡한 지시를 따르는 법"을 익힙니다.</li>
+      <li><strong>DPO + Grouper (선호 학습)</strong>: 같은 질문에 대해 "더 좋은 답"과 "덜 좋은 답" 쌍을 보여주고, 더 좋은 답 쪽으로 모델을 밀어줍니다. Vision 작업에는 DPO를, Text 작업에는 Grouper라는 확장 기법을 씁니다.</li>
+      <li><strong>Multimodal 강화 학습(RL)</strong>: 모델이 스스로 여러 답을 생성하고, 그중 "정답을 잘 맞춘 답"에 점수를 주어 학습. 수학/코딩/문서 이해 등 추론 능력이 폭발적으로 강화됩니다.</li>
+    </ul>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 요리사 수련 과정</div>
+    <p>3단계 후처리는 마치 요리사 수련과 비슷합니다. <strong>SFT</strong>는 "요리책 수천 권을 보며 모범 레시피를 외우는" 단계입니다. <strong>DPO</strong>는 "좋은 요리와 평범한 요리를 비교 시식하며 미각을 키우는" 단계입니다. <strong>RL</strong>은 "직접 요리를 만들고 손님 평가를 받으며 스스로 개선하는" 실전 단계입니다.</p>
+    <p>이 세 단계를 모두 거친 요리사가 진짜 미슐랭급 요리사가 되듯, EXAONE 4.5도 세 단계의 후처리를 모두 거쳐 산업 현장에 투입 가능한 "전문가 AI"가 됩니다.</p>
+  </div>
+</section>
+
+<!-- ===== 학습 데이터 ===== -->
+<section>
+  <h2>어떤 데이터로 학습했나?</h2>
+
+  <p>모델 아키텍처만큼이나 중요한 게 "무엇을 먹이느냐"입니다. EXAONE 4.5는 산업 문서 이해에 특화되도록 데이터 큐레이션을 치밀하게 설계했습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">EXAONE 4.5 학습 데이터 구성</text>
+
+      <!-- Center circle -->
+      <circle cx="360" cy="200" r="60" fill="#c8102e"/>
+      <text x="360" y="195" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">EXAONE</text>
+      <text x="360" y="213" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">4.5</text>
+
+      <!-- Categories around -->
+      <g>
+        <circle cx="150" cy="100" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="150" y="95" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">이미지-텍스트</text>
+        <text x="150" y="110" font-size="10" fill="#475569" text-anchor="middle">한영 이중언어</text>
+        <text x="150" y="123" font-size="9" fill="#64748b" text-anchor="middle">캡션 데이터</text>
+        <line x1="190" y1="115" x2="305" y2="180" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+
+      <g>
+        <circle cx="570" cy="100" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="570" y="95" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">OCR /</text>
+        <text x="570" y="110" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">문서 파싱</text>
+        <text x="570" y="123" font-size="9" fill="#64748b" text-anchor="middle">한영 양쪽</text>
+        <line x1="530" y1="115" x2="415" y2="180" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+
+      <g>
+        <circle cx="100" cy="220" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="100" y="215" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">Interleaved</text>
+        <text x="100" y="230" font-size="10" fill="#475569" text-anchor="middle">이미지+텍스트</text>
+        <text x="100" y="243" font-size="9" fill="#64748b" text-anchor="middle">웹 문서</text>
+        <line x1="145" y1="220" x2="300" y2="205" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+
+      <g>
+        <circle cx="620" cy="220" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="620" y="215" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">Grounding</text>
+        <text x="620" y="230" font-size="10" fill="#475569" text-anchor="middle">위치 좌표</text>
+        <text x="620" y="243" font-size="9" fill="#64748b" text-anchor="middle">Counting</text>
+        <line x1="575" y1="220" x2="420" y2="205" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+
+      <g>
+        <circle cx="180" cy="320" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="180" y="315" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">STEM</text>
+        <text x="180" y="330" font-size="10" fill="#475569" text-anchor="middle">수학·과학·공학</text>
+        <text x="180" y="343" font-size="9" fill="#64748b" text-anchor="middle">추론 CoT</text>
+        <line x1="218" y1="300" x2="315" y2="235" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+
+      <g>
+        <circle cx="540" cy="320" r="45" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+        <text x="540" y="315" font-size="11" fill="#5a0a1f" text-anchor="middle" font-weight="700">한국어 특화</text>
+        <text x="540" y="330" font-size="10" fill="#475569" text-anchor="middle">한국관광공사</text>
+        <text x="540" y="343" font-size="9" fill="#64748b" text-anchor="middle">IT/Game Donga</text>
+        <line x1="500" y1="300" x2="405" y2="235" stroke="#c8102e" stroke-width="1.5" opacity="0.4"/>
+      </g>
+    </svg>
+    <div class="diagram-caption">EXAONE 4.5는 6가지 카테고리의 데이터를 치밀하게 큐레이션하여 학습했다</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>주목할 데이터 특징</h3>
+    <ul>
+      <li><strong>한영 이중언어 이미지 캡션</strong>: 기존 웹에서 긁어온 캡션은 짧고 노이즈가 많으므로, 합성 캡셔닝 파이프라인으로 의미 있는 설명을 자동 생성</li>
+      <li><strong>OCR / 문서 파싱 강화</strong>: 차트·테이블·문서를 HTML, Markdown, JSON 같은 구조화된 형식으로 변환하는 태스크를 대량 학습</li>
+      <li><strong>STEM 추론 체인</strong>: 수학·공학·과학 도면에 대한 "긴 사고 과정(Long CoT)"을 학습해 단순 인식을 넘어 추론까지</li>
+      <li><strong>한국어 특화</strong>: 한국관광공사의 문화 이미지/설명, IT Donga, Game Donga 등 실제 한국어 실사용 데이터셋을 전략적으로 포함</li>
+      <li><strong>Text-to-Vision 증강</strong>: 텍스트 기반 한국어 문제를 고해상도 이미지로 렌더링해 모델이 한국어 문서 스캔을 robust하게 파싱할 수 있게 함</li>
+    </ul>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 한국어 튜터가 문화 맥락까지 가르치는 학원</div>
+    <p>해외 VLM들은 한국어 데이터를 웹에서 주섬주섬 주워 학습합니다. 마치 <strong>영어권 학원에서 "한국어 선택 수업"을 듣는 것</strong>과 같아서 한국어 교과서나 일상 회화까지는 가능하지만, 한국의 문화 맥락, 행정 양식, 기술 문서의 관례까지는 모릅니다.</p>
+    <p>EXAONE 4.5는 한국관광공사의 문화 이미지, Donga IT의 실전 기술 기사 등을 <strong>체계적으로</strong> 학습했습니다. 이는 마치 <strong>한국 토박이 튜터가 문화 배경까지 일대일로 가르치는 한국어 학원</strong>과 같습니다. 그래서 "이 한국어 기술 사양서의 3페이지 6번 항목 의미가 뭐냐"는 질문에 맥락까지 살려서 답할 수 있습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>핵심 성과: 숫자로 보는 EXAONE 4.5</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">33B</div>
+      <div class="label">전체 파라미터<br>(32B LLM + 1.2B Vision)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">256K</div>
+      <div class="label">컨텍스트 길이<br>(≒ 책 500권 분량)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1/7</div>
+      <div class="label">Qwen3-VL-235B 대비<br>크기 (MoE 비교)</div>
+    </div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">81.4</div>
+      <div class="label">LiveCodeBench v6<br>(코딩, 오픈 모델 최고)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">91.9</div>
+      <div class="label">KRETA<br>(한국어 벤치마크)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">81.2</div>
+      <div class="label">OmniDocBench v1.5<br>(문서 이해)</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">문서 이해(Document Understanding) — EXAONE 4.5의 가장 큰 강점</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">문서 이해 벤치마크: EXAONE 4.5 vs Qwen3-VL-235B (7배 큰 MoE)</text>
+
+      <!-- CharXiv -->
+      <text x="90" y="80" font-size="11" fill="#475569" font-weight="700">CharXiv RQ</text>
+      <rect x="160" y="60" width="310" height="22" fill="#c8102e"/>
+      <text x="475" y="77" font-size="11" fill="#c8102e" font-weight="700">71.7 (EXAONE 4.5)</text>
+      <rect x="160" y="85" width="286" height="22" fill="#94a3b8"/>
+      <text x="455" y="102" font-size="11" fill="#64748b">66.1 (Qwen3-VL-235B)</text>
+
+      <!-- AI2D -->
+      <text x="90" y="140" font-size="11" fill="#475569" font-weight="700">AI2D</text>
+      <rect x="160" y="120" width="386" height="22" fill="#c8102e"/>
+      <text x="550" y="137" font-size="11" fill="#c8102e" font-weight="700">89.0 (EXAONE 4.5)</text>
+      <rect x="160" y="145" width="387" height="22" fill="#94a3b8"/>
+      <text x="555" y="162" font-size="11" fill="#64748b">89.2 (Qwen3-VL-235B)</text>
+
+      <!-- ChartQAPro -->
+      <text x="90" y="200" font-size="11" fill="#475569" font-weight="700">ChartQAPro</text>
+      <rect x="160" y="180" width="270" height="22" fill="#c8102e"/>
+      <text x="435" y="197" font-size="11" fill="#c8102e" font-weight="700">62.2 (EXAONE 4.5)</text>
+      <rect x="160" y="205" width="266" height="22" fill="#94a3b8"/>
+      <text x="431" y="222" font-size="11" fill="#64748b">61.2 (Qwen3-VL-235B)</text>
+
+      <!-- OmniDoc -->
+      <text x="90" y="260" font-size="11" fill="#475569" font-weight="700">OmniDocBench</text>
+      <rect x="160" y="240" width="352" height="22" fill="#c8102e"/>
+      <text x="517" y="257" font-size="11" fill="#c8102e" font-weight="700">81.2 (EXAONE 4.5)</text>
+      <rect x="160" y="265" width="366" height="22" fill="#94a3b8"/>
+      <text x="530" y="282" font-size="11" fill="#64748b">84.5 (Qwen3-VL-235B)</text>
+    </svg>
+    <div class="diagram-caption">CharXiv와 ChartQAPro에서 EXAONE 4.5는 7배 큰 Qwen3-VL-235B를 앞선다 — 도메인 특화 데이터의 힘</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">수학 추론 — MATH-Vision·We-Math에서도 우위</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">시각 수학 추론 벤치마크</text>
+
+      <text x="90" y="80" font-size="11" fill="#475569" font-weight="700">MATH-Vision</text>
+      <rect x="170" y="60" width="301" height="22" fill="#c8102e"/>
+      <text x="476" y="77" font-size="11" fill="#c8102e" font-weight="700">75.2 (EXAONE)</text>
+      <rect x="170" y="85" width="298" height="22" fill="#94a3b8"/>
+      <text x="473" y="102" font-size="11" fill="#64748b">74.6 (Qwen3-VL-235B)</text>
+
+      <text x="90" y="145" font-size="11" fill="#475569" font-weight="700">We-Math</text>
+      <rect x="170" y="125" width="316" height="22" fill="#c8102e"/>
+      <text x="491" y="142" font-size="11" fill="#c8102e" font-weight="700">79.1 (EXAONE)</text>
+      <rect x="170" y="150" width="299" height="22" fill="#94a3b8"/>
+      <text x="474" y="167" font-size="11" fill="#64748b">74.8 (Qwen3-VL-235B)</text>
+    </svg>
+    <div class="diagram-caption">그래프·도형을 포함한 수학 추론에서도 7배 큰 모델을 앞선다</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">Agentic Tool Use — 실제 업무 처리 능력</h3>
+
+  <p>"Agentic Tool Use"란 AI가 실제 툴(데이터베이스 조회, 예약 시스템, 통신 API 등)을 호출해 복잡한 업무를 수행하는 능력입니다. EXAONE 4.5는 이 영역에서 Qwen3-VL-235B를 크게 앞섰습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">τ²-Bench Agentic Tool Use 평균</text>
+
+      <text x="90" y="100" font-size="11" fill="#475569" font-weight="700">EXAONE 4.5</text>
+      <rect x="170" y="80" width="432" height="30" fill="#c8102e"/>
+      <text x="610" y="100" font-size="13" fill="#c8102e" font-weight="700">72.0</text>
+
+      <text x="90" y="160" font-size="11" fill="#475569" font-weight="700">Qwen3-VL-235B</text>
+      <rect x="170" y="140" width="342" height="30" fill="#94a3b8"/>
+      <text x="520" y="160" font-size="13" fill="#64748b" font-weight="700">57.0</text>
+
+      <text x="360" y="200" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">+15점 우위 — 산업 자동화에 실용적 가치</text>
+    </svg>
+    <div class="diagram-caption">τ²-Bench 평균에서 EXAONE 4.5는 훨씬 큰 Qwen3-VL-235B 대비 15점 우위를 보인다</div>
+  </div>
+</section>
+
+<!-- ===== 비교표 ===== -->
+<section>
+  <h2>경쟁 모델과의 한눈 비교</h2>
+
+  <p>가장 의미 있는 비교 대상인 Qwen3-VL-235B(236B MoE, 22B active)와 대결을 표로 정리해 봅시다. EXAONE 4.5가 7배 작은 dense 모델임을 감안하면 매우 인상적인 결과입니다.</p>
+
+  <table class="comp-table">
+    <tr>
+      <th>카테고리</th>
+      <th>벤치마크</th>
+      <th>EXAONE 4.5 (33B)</th>
+      <th>Qwen3-VL-235B</th>
+      <th>누가 이김?</th>
+    </tr>
+    <tr>
+      <td rowspan="3">문서 이해</td>
+      <td>CharXiv RQ</td>
+      <td class="win">71.7</td>
+      <td>66.1</td>
+      <td class="win">EXAONE +5.6</td>
+    </tr>
+    <tr>
+      <td>ChartQAPro</td>
+      <td class="win">62.2</td>
+      <td>61.2</td>
+      <td class="win">EXAONE +1.0</td>
+    </tr>
+    <tr>
+      <td>OmniDocBench</td>
+      <td>81.2</td>
+      <td class="win">84.5</td>
+      <td class="lose">Qwen -3.3</td>
+    </tr>
+    <tr>
+      <td rowspan="2">수학 추론</td>
+      <td>MATH-Vision</td>
+      <td class="win">75.2</td>
+      <td>74.6</td>
+      <td class="win">EXAONE +0.6</td>
+    </tr>
+    <tr>
+      <td>We-Math</td>
+      <td class="win">79.1</td>
+      <td>74.8</td>
+      <td class="win">EXAONE +4.3</td>
+    </tr>
+    <tr>
+      <td>코딩</td>
+      <td>LiveCodeBench v6</td>
+      <td class="win">81.4</td>
+      <td>70.1</td>
+      <td class="win">EXAONE +11.3</td>
+    </tr>
+    <tr>
+      <td>Agentic</td>
+      <td>τ²-Bench 평균</td>
+      <td class="win">72.0</td>
+      <td>57.0</td>
+      <td class="win">EXAONE +15.0</td>
+    </tr>
+    <tr>
+      <td rowspan="2">한국어</td>
+      <td>KRETA</td>
+      <td>91.9</td>
+      <td class="win">92.8</td>
+      <td class="lose">근접 (−0.9)</td>
+    </tr>
+    <tr>
+      <td>K-Viscuit</td>
+      <td>80.1</td>
+      <td class="win">83.9</td>
+      <td class="lose">Qwen +3.8</td>
+    </tr>
+    <tr>
+      <td>일반</td>
+      <td>MMMU</td>
+      <td>78.7</td>
+      <td class="win">80.6</td>
+      <td class="lose">Qwen +1.9</td>
+    </tr>
+    <tr class="highlight-row">
+      <td colspan="2">총평</td>
+      <td colspan="3">7배 작은 모델로 문서/수학/코딩/Agentic에서 우위 달성</td>
+    </tr>
+  </table>
+
+  <div class="card card-green">
+    <h3>이 표에서 가져갈 핵심</h3>
+    <ul>
+      <li><strong>EXAONE 4.5의 진짜 가치는 "산업 태스크"에 있다</strong>: 문서·차트·코딩·Agentic 모두 7배 작은 모델로 우위</li>
+      <li><strong>범용 벤치마크에서는 Qwen3-VL-235B가 여전히 유리</strong>: 일반 이미지 인식(MMMU)이나 한국 문화 퀴즈(K-Viscuit)에서는 소폭 열위</li>
+      <li><strong>도메인 특화가 스케일을 이기는 경우가 있다</strong>: 데이터 큐레이션이 잘 되면 "더 작은 모델이 더 큰 모델을 이기는" 효율성을 보여준다</li>
+    </ul>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 공장 검사관 vs 백과사전 전문가</div>
+    <p>Qwen3-VL-235B는 마치 <strong>움직이는 백과사전 같은 박학다식한 학자</strong>입니다. 영화, 음식, 역사, 동물 등 모든 주제에 답할 수 있죠.</p>
+    <p>반면 EXAONE 4.5는 <strong>"공장과 사무실을 훤히 아는 현장 검사관"</strong>입니다. 학자처럼 모든 걸 알진 못하지만, 품질 보고서의 숫자와 도면의 결함을 훨씬 정밀하게 짚어냅니다. <strong>생산 현장에 투입할 AI가 필요하다면, 박학다식한 학자보다 현장 검사관이 필요합니다.</strong></p>
+  </div>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>산업 활용 분야 — 어디에 쓸 수 있나?</h2>
+
+  <p>LG AI Research가 EXAONE 4.5를 설계하며 염두에 둔 구체적 활용 분야들을 마인드맵으로 정리해 봅시다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 480" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">EXAONE 4.5 산업 활용 마인드맵</text>
+
+      <!-- Center -->
+      <circle cx="380" cy="240" r="70" fill="#c8102e"/>
+      <text x="380" y="235" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">EXAONE 4.5</text>
+      <text x="380" y="252" font-size="11" fill="#fff" text-anchor="middle">산업 VLM</text>
+
+      <!-- Branches -->
+      <!-- 1. Manufacturing QA -->
+      <line x1="330" y1="200" x2="160" y2="90" stroke="#c8102e" stroke-width="2"/>
+      <rect x="30" y="60" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="160" y="82" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">1. 제조 품질 관리</text>
+      <text x="160" y="100" font-size="10" fill="#475569" text-anchor="middle">조립 라인 실시간 이미지 분석</text>
+      <text x="160" y="115" font-size="10" fill="#475569" text-anchor="middle">결함 탐지·품질 보고서 자동 생성</text>
+
+      <!-- 2. Engineering -->
+      <line x1="430" y1="200" x2="600" y2="90" stroke="#c8102e" stroke-width="2"/>
+      <rect x="470" y="60" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="600" y="82" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">2. 엔터프라이즈 엔지니어링</text>
+      <text x="600" y="100" font-size="10" fill="#475569" text-anchor="middle">설계 도면·파이프라인 해석</text>
+      <text x="600" y="115" font-size="10" fill="#475569" text-anchor="middle">유지보수 진단 자동화</text>
+
+      <!-- 3. Compliance -->
+      <line x1="310" y1="235" x2="140" y2="235" stroke="#c8102e" stroke-width="2"/>
+      <rect x="10" y="200" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="140" y="222" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">3. 규정 준수 자동화</text>
+      <text x="140" y="240" font-size="10" fill="#475569" text-anchor="middle">안전 규정·법률 문서 크로스체크</text>
+      <text x="140" y="255" font-size="10" fill="#475569" text-anchor="middle">한국어 법률/규제 대응</text>
+
+      <!-- 4. Document IA -->
+      <line x1="450" y1="235" x2="620" y2="235" stroke="#c8102e" stroke-width="2"/>
+      <rect x="490" y="200" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="620" y="222" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">4. 기업 문서 지능화</text>
+      <text x="620" y="240" font-size="10" fill="#475569" text-anchor="middle">수천 페이지 매뉴얼·보고서</text>
+      <text x="620" y="255" font-size="10" fill="#475569" text-anchor="middle">검색·요약·Q&amp;A</text>
+
+      <!-- 5. Chart Analysis -->
+      <line x1="330" y1="280" x2="160" y2="400" stroke="#c8102e" stroke-width="2"/>
+      <rect x="30" y="380" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="160" y="402" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">5. 재무·매출 차트 분석</text>
+      <text x="160" y="420" font-size="10" fill="#475569" text-anchor="middle">복잡한 차트 해석·인사이트 추출</text>
+      <text x="160" y="435" font-size="10" fill="#475569" text-anchor="middle">경영진 요약 자동 생성</text>
+
+      <!-- 6. Korean Industry -->
+      <line x1="430" y1="280" x2="600" y2="400" stroke="#c8102e" stroke-width="2"/>
+      <rect x="470" y="380" width="260" height="70" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="1.5"/>
+      <text x="600" y="402" font-size="12" fill="#5a0a1f" text-anchor="middle" font-weight="700">6. 한국어 산업 특화</text>
+      <text x="600" y="420" font-size="10" fill="#475569" text-anchor="middle">한국 양식·관공서·기술문서</text>
+      <text x="600" y="435" font-size="10" fill="#475569" text-anchor="middle">한국 문화 맥락 이해</text>
+    </svg>
+    <div class="diagram-caption">EXAONE 4.5가 겨냥하는 6대 산업 활용 분야</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 눈과 뇌를 모두 갖춘 공장 검사관</div>
+    <p>과거에는 공장에서 "센서가 본 것(이미지)"과 "관리자가 쓴 보고서(텍스트)"가 완전히 분리되어 있었습니다. 누군가 수작업으로 연결해야 했죠.</p>
+    <p>EXAONE 4.5는 마치 <strong>"눈과 뇌를 모두 갖춘 공장 검사관"</strong>과 같아서, 생산 라인의 카메라가 찍은 이미지를 직접 보고 "이 제품의 저 부분에 균열이 생겼는데, 작년 이슈 추적 보고서 178번과 같은 패턴입니다. 규정 4조 3항에 따라 라인을 멈춰야 합니다"라고 전체 문서 맥락에서 판단할 수 있습니다.</p>
+    <p>이런 능력이야말로 "Vision-Language-Action(VLA)"의 전신이며, LG가 EXAONE 4.5를 "VLA로 가는 디딤돌"이라고 부르는 이유입니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5a0a1f;">VLA(Vision-Language-Action)로 가는 디딤돌</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 230" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="15" font-weight="700" fill="#5a0a1f" text-anchor="middle">LLM → VLM → VLA 로드맵</text>
+
+      <!-- LLM -->
+      <rect x="40" y="70" width="180" height="90" rx="12" fill="#f1f5f9" stroke="#94a3b8"/>
+      <text x="130" y="100" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">LLM</text>
+      <text x="130" y="122" font-size="10" fill="#475569" text-anchor="middle">텍스트로 읽고</text>
+      <text x="130" y="138" font-size="10" fill="#475569" text-anchor="middle">텍스트로 답한다</text>
+      <text x="130" y="188" font-size="10" fill="#64748b" text-anchor="middle">EXAONE 3.5, 4.0</text>
+
+      <text x="245" y="125" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- VLM -->
+      <rect x="270" y="70" width="180" height="90" rx="12" fill="#fdf0f3" stroke="#c8102e" stroke-width="2"/>
+      <text x="360" y="100" font-size="13" font-weight="700" fill="#5a0a1f" text-anchor="middle">VLM</text>
+      <text x="360" y="122" font-size="10" fill="#475569" text-anchor="middle">보고 + 읽고</text>
+      <text x="360" y="138" font-size="10" fill="#475569" text-anchor="middle">텍스트로 답한다</text>
+      <text x="360" y="188" font-size="11" fill="#c8102e" text-anchor="middle" font-weight="700">EXAONE 4.5 (현재)</text>
+
+      <text x="475" y="125" font-size="24" fill="#c8102e" text-anchor="middle">→</text>
+
+      <!-- VLA -->
+      <rect x="500" y="70" width="180" height="90" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-dasharray="4"/>
+      <text x="590" y="100" font-size="13" font-weight="700" fill="#334155" text-anchor="middle">VLA (미래)</text>
+      <text x="590" y="122" font-size="10" fill="#475569" text-anchor="middle">보고 + 읽고</text>
+      <text x="590" y="138" font-size="10" fill="#475569" text-anchor="middle">행동까지 수행</text>
+      <text x="590" y="188" font-size="10" fill="#64748b" text-anchor="middle">로봇·자율 제조 장비</text>
+    </svg>
+    <div class="diagram-caption">EXAONE 4.5는 궁극적으로 로봇이 직접 보고 판단해 행동하는 VLA 시대를 위한 기반 기술이다</div>
+  </div>
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 방식 대비 장점</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>측면</th>
+      <th>기존 범용 VLM (GPT-5, Qwen3-VL)</th>
+      <th>EXAONE 4.5</th>
+    </tr>
+    <tr>
+      <td>언어</td>
+      <td>영어 중심, 한국어 이차적</td>
+      <td class="win">한국어 산업 문서 특화</td>
+    </tr>
+    <tr>
+      <td>문서 이해</td>
+      <td>일반적 수준</td>
+      <td class="win">차트/도면/OCR 특화 큐레이션</td>
+    </tr>
+    <tr>
+      <td>Vision Encoder</td>
+      <td>보통 600M 재사용</td>
+      <td class="win">1.2B, from scratch</td>
+    </tr>
+    <tr>
+      <td>컨텍스트 길이</td>
+      <td>8K~200K</td>
+      <td class="win">256K</td>
+    </tr>
+    <tr>
+      <td>배포 형태</td>
+      <td>주로 클라우드 API</td>
+      <td class="win">오픈 웨이트 (자체 배포 가능)</td>
+    </tr>
+    <tr>
+      <td>모델 크기</td>
+      <td>수백 B (200B+)</td>
+      <td class="win">33B dense (실용적)</td>
+    </tr>
+    <tr>
+      <td>데이터 프라이버시</td>
+      <td>API 사용 시 외부 전송</td>
+      <td class="win">내부 서버 운영 가능</td>
+    </tr>
+    <tr>
+      <td>범용 이미지 인식</td>
+      <td class="win">더 폭넓음</td>
+      <td>특화 분야에 집중</td>
+    </tr>
+    <tr>
+      <td>상업적 자유도</td>
+      <td class="win">제약 적음 (유료 API)</td>
+      <td>비상업적 라이선스 (NC)</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "EXAONE 4.5는 글로벌 빅테크 모델의 1/7 크기로 <br>
+    한국 산업 현장의 문서·차트·도면을 더 잘 이해하는<br>
+    LG의 산업 특화 파운데이션 모델이다."
+  </div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점과 주의할 점</h2>
+
+  <p>EXAONE 4.5는 인상적인 기술 성과이지만, 실무 도입 전에 반드시 알아야 할 한계가 몇 가지 있습니다. 균형 잡힌 시각에서 살펴봅시다.</p>
+
+  <div class="card card-orange">
+    <h3>1. 비상업 라이선스 (Non-Commercial)</h3>
+    <p>"오픈 웨이트"로 홍보되지만, 공식 라이선스는 <strong>EXAONE AI Model License 1.2 - NC</strong>입니다. 여기서 "NC"는 Non-Commercial(비상업적)을 뜻합니다. 학술 연구와 교육 목적은 자유롭지만, <strong>상업적 사용은 별도 계약이 필요</strong>합니다.</p>
+    <p>이는 Apache 2.0이나 MIT 같은 완전 오픈 소스 라이선스(예: Llama 3 일부, Qwen 일부)와 구분되는 점입니다. 자사 서비스에 통합하려면 LG AI Research와 개별 협의가 선행되어야 합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>2. BabyVision 점수 18.8 — 기본 시각 추론의 의외의 약점</h3>
+    <p>BabyVision은 유아 수준의 기본적 시각 추론을 측정하는 벤치마크입니다. EXAONE 4.5의 점수는 <strong>18.8</strong>로, Qwen3-VL-235B(22.2)보다 낮고, Qwen3.5-27B(44.6) 대비 절반 이하입니다.</p>
+    <p>이는 문서 특화 데이터 큐레이션의 <strong>부작용</strong>으로 보입니다. 고도화된 차트/도면은 잘 해석하지만, 공/나뭇잎 같은 일상적 물체의 기본 공간 추론에는 약할 수 있습니다. "공장 품질 검사"용으로는 문제없지만, "범용 비서 AI"로 쓰기엔 한계가 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>3. 긴 컨텍스트 품질의 한계</h3>
+    <p>256K 컨텍스트를 "지원"한다고는 하지만, 긴 문서 추론 벤치마크(AA-LCR)에서 점수는 <strong>50.6</strong>입니다. GPT-5 mini(68.0)나 Qwen3.5-27B Reasoning(67.3)보다 상당히 낮은 수치입니다.</p>
+    <p>즉, "500권짜리 도서관"을 펼쳐 놓을 수는 있지만, 그 모든 정보를 꼼꼼히 엮어 정밀한 추론을 해내는 부분은 아직 미완성입니다. 실제 초장문 활용 시 성능 저하를 예상하고 평가해야 합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#5a0a1f" text-anchor="middle">긴 문서 추론(AA-LCR) 벤치마크</text>
+
+      <text x="90" y="80" font-size="11" fill="#475569" font-weight="700">GPT-5 mini</text>
+      <rect x="180" y="60" width="340" height="22" fill="#059669"/>
+      <text x="525" y="77" font-size="11" fill="#059669" font-weight="700">68.0</text>
+
+      <text x="90" y="115" font-size="11" fill="#475569" font-weight="700">Qwen3.5-27B</text>
+      <rect x="180" y="95" width="337" height="22" fill="#64748b"/>
+      <text x="523" y="112" font-size="11" fill="#64748b" font-weight="700">67.3</text>
+
+      <text x="90" y="150" font-size="11" fill="#c8102e" font-weight="700">EXAONE 4.5</text>
+      <rect x="180" y="130" width="253" height="22" fill="#c8102e"/>
+      <text x="438" y="147" font-size="11" fill="#c8102e" font-weight="700">50.6 (낮음)</text>
+
+      <text x="360" y="185" font-size="11" fill="#d97706" text-anchor="middle" font-weight="700">256K를 지원은 하지만 품질은 개선 여지 있음</text>
+    </svg>
+    <div class="diagram-caption">긴 컨텍스트 추론 품질은 EXAONE 4.5의 약한 영역이다</div>
+  </div>
+
+  <div class="card card-orange">
+    <h3>4. Ablation(구성 요소 기여도 분석) 부재</h3>
+    <p>논문은 "1.2B vision encoder가 중요하다", "2D RoPE가 유용하다"고 주장하지만, <strong>각 구성 요소가 실제로 얼마나 기여했는지에 대한 정량적 실험이 없습니다</strong>. 600M vs 1.2B 인코더 비교, 1D vs 2D RoPE 비교 등이 빠져 있어, 연구자 입장에서는 어떤 설계가 핵심이었는지 판단이 어렵습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>5. 산업 특화 주장의 직접 검증 부재</h3>
+    <p>"제조 품질 관리, 엔터프라이즈 엔지니어링"이 반복 언급되지만, 논문에는 <strong>실제 산업 현장 벤치마크나 케이스 스터디가 없습니다</strong>. 대신 문서 이해 벤치마크(OmniDocBench, CharXiv) 등이 간접 증거로 기능합니다.</p>
+    <p>실무자라면 "우리 공장의 실제 보고서로 직접 평가" 단계를 반드시 거치는 것이 좋습니다.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3>6. Qwen3.5-27B Reasoning(더 작은 오픈 모델)과의 격차</h3>
+    <p>최근 공개된 Qwen3.5-27B Reasoning은 EXAONE 4.5보다 작은 모델임에도 여러 범용 벤치마크에서 더 좋은 점수를 냅니다(MMMU 82.3 vs 78.7, GPQA-Diamond 85.5 vs 80.5, MMLU-Pro 86.1 vs 83.3 등).</p>
+    <p>이는 EXAONE 4.5가 "산업 문서" 특화 외의 범용 영역에서는 <strong>최신 오픈 모델 대비 전반적 우위를 보이지 못한다</strong>는 뜻입니다. "한국어 산업 문서"라는 목적이 명확할 때에만 비교 우위가 선명해집니다.</p>
+  </div>
+</section>
+
+<!-- ===== Key Takeaways ===== -->
+<section>
+  <h2>핵심 정리 — 이 논문에서 가져갈 것</h2>
+
+  <div class="card card-green">
+    <ol style="padding-left:1.4rem; line-height:2;">
+      <li><strong>도메인 특화가 스케일을 이길 수 있다</strong>: EXAONE 4.5(33B dense)가 Qwen3-VL-235B(236B MoE)를 문서/수학/코딩/Agentic 태스크에서 이긴 것은, 치밀한 데이터 큐레이션이 모델 크기를 대체할 수 있음을 보여줍니다.</li>
+      <li><strong>Vision Encoder 크기가 핵심</strong>: 기존 600M 급 인코더의 한계를 인식하고 1.2B로 키운 것이 문서 이해 강점의 기반입니다. 고해상도 시각 정보가 중요한 분야에서는 인코더 스케일에 투자할 가치가 있습니다.</li>
+      <li><strong>컨텍스트 확장을 SFT에 통합하는 설계</strong>: 별도 단계가 아닌 SFT와 한 번에 처리하는 접근은 지시 따르기와 긴 문서 이해를 동시에 개선할 수 있는 우아한 설계입니다. 단, AA-LCR 결과를 보면 품질 측면에서는 여전히 추가 작업이 필요합니다.</li>
+      <li><strong>한국어 산업 문서의 가치</strong>: 한국관광공사, 국내 기술 매체 등 특화 데이터 수집이 KRETA 91.9 등의 성능으로 이어졌습니다. 언어·문화 특화가 중요한 분야에서는 이런 전략이 필수입니다.</li>
+      <li><strong>산업 VLM의 실용적 방향성</strong>: 수학 추론, 코딩, Agentic Tool Use의 균형 있는 강화는 "실제 산업 워크플로우"에서 작동할 수 있는 AI의 청사진을 보여줍니다. 이는 단순히 벤치마크 점수 경쟁을 넘어 실용 가치 중심의 VLM 개발 방향을 제시합니다.</li>
+    </ol>
+  </div>
+</section>
+
+<!-- ===== 이 논문을 읽어야 할 이유 ===== -->
+<section>
+  <h2>이 논문을 누가 읽어야 할까?</h2>
+
+  <div class="card card-accent">
+    <h3>AI 연구자</h3>
+    <p>대형 Vision Encoder의 효과, 2D RoPE 설계, 컨텍스트 확장의 SFT 통합 등 VLM 아키텍처 설계의 구체적 선택지를 배울 수 있습니다. 단, ablation이 없어 각 선택의 개별 기여도를 알기는 어렵습니다.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>산업 AI 엔지니어</h3>
+    <p>문서 중심 산업 AI 시스템을 구축하려는 엔지니어에게 EXAONE 4.5는 "오픈 웨이트 기반으로 시작할 만한 강력한 후보"입니다. 특히 한국어 문서와 차트 해석이 핵심인 경우 고려할 가치가 큽니다. 단, 상업 사용 시 라이선스 협의가 필요합니다.</p>
+  </div>
+
+  <div class="card card-accent">
+    <h3>경영진/의사결정자</h3>
+    <p>"7배 큰 글로벌 모델을 1/7 크기 국내 모델이 특정 영역에서 이긴다"는 사실이 시사하는 바가 큽니다. 도메인 특화 AI 투자가 범용 AI 구독보다 ROI가 높을 수 있는 가능성을 보여주며, 자체 모델 개발 vs 외부 API 의존 전략 결정에 참고할 수 있습니다.</p>
+  </div>
+</section>
+
+<!-- 하단 전문가용 링크 -->
+<a href="20260409_lg_exaone45.html" class="link-banner">전문가용 상세 요약 보기 (수식·벤치마크·세부 아키텍처 포함) →</a>
+
+</div>
+
+<!-- ===== Footer ===== -->
+<div class="footer">
+  EXAONE 4.5: LG's First Open-Weight Vision-Language Model for Industrial Intelligence<br>
+  LG AI Research · 2026 · Technical Report<br>
+  <a href="https://github.com/LG-AI-EXAONE/EXAONE-4.5" style="color:#c8102e;">GitHub</a> ·
+  <a href="https://huggingface.co/LGAI-EXAONE/EXAONE-4.5-33B" style="color:#c8102e;">Hugging Face</a>
+</div>
+
+</body>
+</html>
