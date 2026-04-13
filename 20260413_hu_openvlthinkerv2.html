@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenVLThinkerV2: A Generalist Multimodal Reasoning Model for Multi-domain Visual Tasks</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>OpenVLThinkerV2: A Generalist Multimodal Reasoning Model for Multi-domain Visual Tasks</h1>
+
+<p><a href="20260413_hu_openvlthinkerv2_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Wenbo Hu, Xin Chen, Yan Gao-Tian, Yihe Deng, Nanyun Peng, Kai-Wei Chang</li>
+  <li><strong>소속</strong>: University of California, Los Angeles (UCLA)</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint (Under review)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.08539">arXiv:2604.08539</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Multimodal LLM (MLLM)의 RL post-training에서 다양한 시각 태스크(수학 VQA, OCR, grounding 등)의 reward topology가 극도로 다르기 때문에 표준 GRPO가 task 간 gradient 불균형, heavy-tail outlier, entropy 붕괴/폭발 등 심각한 불안정성을 초래한다.</li>
+  <li><strong>해결</strong>: G²RPO (Gaussian GRPO)를 제안 — 1D Optimal Transport를 활용해 각 task의 advantage distribution을 $\mathcal{N}(0,1)$로 강제 매핑하여 task 간 gradient equity를 보장하고, task-level response length shaping과 entropy shaping으로 perception-reasoning 균형을 달성한다.</li>
+  <li><strong>왜 작동하는가</strong>: 선형 정규화(z-score)는 분포의 형태(skewness, bimodality 등)를 보존하여 heavy-tail outlier와 task 간 variance 불일치 문제를 해결하지 못하지만, G²RPO의 비선형 CDF 매핑은 분포 형태 자체를 Gaussian으로 변환해 outlier를 수학적으로 cap하고 대칭적 gradient update를 보장한다.</li>
+  <li><strong>비유</strong>: 여러 과목(수학, 체육, 미술)의 점수를 하나의 성적표로 합칠 때, 단순 평균/표준편차 정규화(z-score)는 한 과목의 만점자 때문에 다른 과목 점수가 왜곡되지만, G²RPO는 각 과목의 점수 분포를 "정규분포 곡선"에 맞춰 재배치하여 모든 과목이 공정하게 반영되도록 한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>G²RPO (Gaussian GRPO)</strong>: 표준 GRPO의 선형 advantage 정규화를 1D Optimal Transport 기반 비선형 distributional matching으로 교체. 각 task의 경험적 reward 분포를 CDF 매핑을 통해 $\mathcal{N}(0,1)$로 엄격히 변환하여, ##inter-task gradient equity를 이론적으로 보장하고 heavy-tail outlier를 수학적으로 제거##한다.</li>
+  <li><strong>Task-level response length 및 entropy shaping</strong>: Reasoning-centric task에서는 긴 추론 체인을, vision-centric task에서는 간결한 출력을 유도하는 trapezoidal length reward와, entropy collapse/explosion을 동시에 방지하는 entropy regularization envelope를 도입.</li>
+  <li><strong>OpenVLThinkerV2</strong>: 위 방법론들을 통합한 범용 멀티모달 모델로, ##18개 벤치마크에서 SOTA (State-of-the-Art)를 달성##하며 GPT-4o, Gemini 2.5 Pro 등 proprietary 모델도 다수 벤치마크에서 능가.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>MLLM의 RL Post-training이 직면한 도전</h3>
+
+<p>Reinforcement Learning (RL)은 LLM과 MLLM의 추론 능력을 크게 향상시키는 핵심 기법이 되었다. 그러나 시각 태스크들을 <strong>동시에(jointly)</strong> 학습할 때, 각 태스크의 reward topology가 극단적으로 다르다는 근본적 문제가 발생한다:</p>
+
+<table>
+<tr><th>태스크 유형</th><th>Reward 특성</th><th>예시</th></tr>
+<tr><td>Math VQA</td><td>Sparse, binary (0 또는 1)</td><td>정답이면 1, 아니면 0</td></tr>
+<tr><td>OCR/Document</td><td>Continuous, dense</td><td>문자 인식 정확도</td></tr>
+<tr><td>Visual Grounding</td><td>Dense, continuous IoU (Intersection-over-Union)</td><td>0~1 범위의 IoU 점수</td></tr>
+<tr><td>Chart/Science VQA (Visual Question Answering)</td><td>Semi-sparse</td><td>부분 점수 가능</td></tr>
+</table>
+
+<p>이러한 reward 이질성은 Group Relative Policy Optimization (GRPO)에서 심각한 intra-task 및 inter-task update 불균형을 야기하고, 대규모 학습 시 gradient explosion에 취약하게 만든다.</p>
+
+<h3>기존 접근법의 한계</h3>
+
+<p><strong>표준 GRPO</strong>는 sample-wise 표준편차 정규화를 사용하므로 low-variance rollout에 불균형적으로 큰 가중치를 부여한다. <strong>Dr.GRPO</strong>는 이 정규화를 제거하지만, high-variance task가 gradient를 독점하게 되어 task 간 불균형을 초래한다. <strong>EMA-GRPO</strong> (EMA: Exponential Moving Average)는 task별 이동평균 표준편차를 추적하지만, 본질적으로 <strong>선형 변환</strong>에 의존하기 때문에 reward 분포의 원래 형태(skewness, bimodality, heavy-tail)를 보존하여 구조적 병리를 해결하지 못한다.</p>
+
+<p>직관적으로 말하면, 선형 정규화는 분포의 "모양"을 바꾸지 않고 "위치와 스케일"만 조정하므로, 극단적 outlier나 비대칭 분포가 그대로 gradient에 전달되는 한계가 있다.</p>
+
+<h3>추가 도전: Perception vs. Reasoning 균형</h3>
+
+<p>MLLM의 RL post-training에서 또 다른 핵심 과제는 fine-grained perception(시각 인식)과 multi-step reasoning(다단계 추론) 능력의 균형이다. 기존 접근법들은 데이터 어노테이션이나 추가 모듈을 필요로 하며, 다양한 벤치마크에 걸친 확장성이 제한적이다.</p>
+
+<h2>2. Method</h2>
+
+<h3>2.1 Preliminary — GRPO 기본 구조</h3>
+
+<p>GRPO (Group Relative Policy Optimization)는 autoregressive 언어 모델 $\pi_\theta$에 대해, 주어진 query $q \sim \mathcal{D}$에서 G개의 응답 $\mathcal{G} = \{y_1, \ldots, y_G\}$를 behavior policy $\pi_{\theta_\text{old}}$로 샘플링하고, 각 응답의 scalar reward $\{R_1, \ldots, R_G\}$를 계산한 뒤, 다음의 token-level 목적함수를 최대화한다:</p>
+
+$$\mathcal{J}_\text{GRPO}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{y_i\}_{i=1}^G \sim \pi_{\theta_\text{old}}} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|y_i|} \sum_{t=1}^{|y_i|} \min\left( r_{i,t}(\theta) \hat{A}_i, \text{clip}(r_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon) \hat{A}_i \right) \right] \quad (1)$$
+
+<p>여기서 $r_{i,t}(\theta)$는 new/old policy의 확률 비율이고, $\varepsilon$는 clipping 범위이다. Advantage $\hat{A}_i$는 그룹 내 reward의 표준화로 정의된다:</p>
+
+$$\hat{A}_i^{\text{GRPO}} = \frac{R_i - \mu_\mathcal{G}}{\sigma_\mathcal{G} + \epsilon} \quad (2)$$
+
+<p>직관적으로, GRPO는 그룹 내에서 평균보다 좋은 응답을 강화하고 나쁜 응답을 억제하는 상대적 학습을 수행한다. 별도의 value network 없이도 그룹 내 비교를 통해 안정적인 학습 신호를 얻는다.</p>
+
+<h4>Multi-Task 정규화의 문제</h4>
+
+<p>GRPO는 단일 task에서는 효과적이지만, multi-task 설정에서는 각 task의 로컬 표준편차 $\sigma_\mathcal{G}$가 크게 달라지며 최적화가 불안정해진다. EMA-GRPO는 task별 이동평균 표준편차 $\sigma_\tau^{(t)}$를 추적하여 이를 완화하려 한다:</p>
+
+$$\sigma_\tau^{(t)} = a \cdot \sigma_\tau^{(t-1)} + (1-a) \cdot \sigma_\mathcal{G}, \quad \hat{A}_i^{\text{EMA-GRPO}} = \frac{R_i - \mu_\mathcal{G}}{\sigma_\tau^{(t)} + \epsilon} \quad (3)$$
+
+<p>그러나 이 접근법은 여전히 선형 변환에 불과하므로, reward 분포의 원래 topology(extreme skewness, bimodal step-function, heavy tail)를 보존하며, 하나의 anomalous reward spike가 EMA variance를 인위적으로 팽창시켜 이후 정상 응답의 학습 신호를 억압하는 <strong>momentum lag</strong> 문제도 존재한다.</p>
+
+<h3>2.2 Gaussian GRPO (G²RPO)</h3>
+
+<p>G²RPO의 핵심 아이디어는 scalar 표준화를 <strong>비선형 distributional matching</strong>으로 교체하는 것이다. 이를 위해 advantage 추정을 <strong>Optimal Transport 문제</strong>로 재정의한다.</p>
+
+<h4>핵심 발상: Optimal Transport을 통한 분포 매핑</h4>
+
+<p>이상적인 advantage 분포는 다음 조건을 만족해야 한다: (1) outlier에 강건, (2) 양수/음수 reward에 대칭적 update, (3) 다양한 task에 걸쳐 균일한 분산. 이 조건을 자연스럽게 만족하는 분포가 바로 <strong>표준정규분포 $\mathcal{N}(0,1)$</strong>이다.</p>
+
+<p>구체적으로, 특정 task $\tau$의 경험적 reward 집합 $\mathcal{R}_\tau = \{R_1, \ldots, R_N\}$에 대해, 이 경험적 분포 $P_{\mathcal{R}_\tau}$를 표준정규 $P_\mathcal{N}$으로 매핑하는 transport map $\Psi$를 찾는 것이 목표이다. 이는 Wasserstein-2 거리를 최소화하는 문제로 정식화된다:</p>
+
+$$W_2^2(P_{\mathcal{R}_\tau}, P_\mathcal{N}) = \inf_{\gamma \in \Pi(P_{\mathcal{R}_\tau}, P_\mathcal{N})} \int_{\mathbb{R} \times \mathbb{R}} |x - y|^2 d\gamma(x, y) \quad (4)$$
+
+<p>##1차원에서 이 Optimal Transport 문제는 CDF(Cumulative Distribution Function)를 통해 닫힌 형태의 해를 가진다.## 이것이 G²RPO의 수학적 우아함의 핵심이다. Advantage는 경험적 CDF의 역함수를 표준정규분포의 역CDF에 매핑하여 직접 계산된다:</p>
+
+$$\hat{A}_i^{\text{Ours}} = \Psi(R_i, \mathcal{R}_\tau) = \Phi^{-1}(F_{\mathcal{R}_\tau}(R_i)) \quad (5)$$
+
+<p>직관적으로, 이는 각 reward를 "해당 task에서 몇 번째 percentile인지" 계산한 뒤, 그 percentile을 표준정규분포의 해당 위치로 변환하는 것이다.</p>
+
+<h4>Algorithm 1: G²RPO의 3단계 알고리즘</h4>
+
+<div class="flow-diagram">입력: 경험적 task reward $\mathcal{R}_\tau = \{R_1, \ldots, R_N\}$
+목표: $\mathcal{N}(0,1)$로 매핑
+
+[Step 1] Rank Rewards
+  → 각 reward의 상대적 rank에서 uniform probability 계산
+  → $p_i = \frac{\text{rank}(R_i) - 0.5}{N}$                    ... (6)
+
+[Step 2] Quantile Mapping
+  → $p_i$를 $\mathcal{N}(0,1)$의 inverse CDF(quantile function)로 매핑
+  → $\Psi(R_i, \mathcal{R}_\tau) = \Phi^{-1}(p_i) = \sqrt{2} \, \text{erfinv}(2p_i - 1)$     ... (7)
+
+[Step 3] Tie-Breaking
+  → 동일 reward를 가진 응답들은 동일 학습 신호를 받도록 평균
+  → $\hat{A}_i^{\text{Ours}} = \Psi_{\text{tied}}(R_i, \mathcal{R}_\tau) = \frac{1}{|\mathcal{K}_{R_i}|} \sum_{j \in \mathcal{K}_{R_i}} \Psi(R_j, \mathcal{R}_\tau)$    ... (8)
+  (여기서 $\mathcal{K}_{R_i}$는 $R_j = R_i$인 인덱스 집합)</div>
+
+<p>구현은 매우 간결하다. PyTorch에서 <code>torch.sort</code>로 rank 계산, <code>torch.erfinv</code>로 quantile 매핑, 동일 reward에 대한 <code>scatter_add</code>로 tie-breaking을 수행하면 된다.</p>
+
+<h4>G²RPO의 이론적 보장과 효과</h4>
+
+<p><strong>Outlier 제거</strong>: Gaussian topology를 강제하면, 이상치 reward는 최고 quantile에서 수학적으로 cap된다. Binary reward의 경우, bimodal step-function이 매끄러운 대칭적 Gaussian tail로 변환된다.</p>
+
+<p><strong>대칭 update</strong>: $\mathcal{N}(0,1)$에 매핑되므로 양수/음수 advantage가 대칭적이며, positive와 negative reward에 대한 gradient update가 균형을 이룬다.</p>
+
+<p><strong>Inter-task equity</strong>: 모든 task의 advantage 분포가 동일한 $\mathcal{N}(0,1)$로 변환되므로, 별도의 momentum hyperparameter 없이 ##task 간 gradient equity가 자동으로 보장##된다.</p>
+
+<blockquote>
+<p><strong>[Figure 2 설명]</strong>: 다양한 advantage 정규화 방식의 비교. Binary reward (math, MCQ)에서 GRPO는 [−0.5, −0.5, −0.5, 0.5, 2.0] 같은 비대칭 advantage를 생성하지만, G²RPO는 [−0.9, −0.9, 0.6, 0.6, 0.6]으로 대칭적 Gaussian 분포를 만든다. Dense reward (grounding)에서 GRPO의 jagged gradient가 G²RPO에서는 continuous, smooth update로 변환된다. EMA-GRPO는 outlier로 인해 catastrophic update가 발생할 수 있지만, G²RPO는 outlier를 자연스럽게 흡수한다.</p>
+</blockquote>
+
+<h3>2.3 Task-level Length and Entropy Shaping</h3>
+
+<p>G²RPO가 inter-task gradient equity를 제공하더라도, MLLM의 RL 학습에서 fine-grained perception과 multi-step reasoning의 균형을 맞추는 것은 별도의 과제이다. 저자들은 학습 중 response length와 entropy의 task별 동태를 분석한 뒤, 두 가지 shaping 메커니즘을 제안한다.</p>
+
+<h4>Task-Level Response Length Shaping</h4>
+
+<blockquote>
+<p><strong>[Figure 3 설명]</strong>: 학습 중 response length 동태. (a) Reasoning-centric task(수학, 과학 VQA 등)는 초기에 response length가 감소했다가 점차 길어지며, 이는 모델이 더 정교한 reasoning chain을 발전시키는 것을 반영한다. (b) Vision-centric task(grounding, document understanding 등)는 response length가 지속적으로 감소하며, 이는 간결한 perceptual grounding을 향한 최적화를 나타낸다. (c) 두 유형이 혼합된 heavy task에서는 G²RPO가 response length를 최적 범위 내에서 안정시킨다.</p>
+</blockquote>
+
+<p>이러한 발산적 경향에 기반하여, 저자들은 task별 <strong>trapezoidal reward envelope</strong>를 설계한다. 모델 응답의 token 길이 $|y|$에 대해 4개의 task-specific threshold를 정의한다:</p>
+<ul>
+  <li>$L_\text{min}$: 절대 최소 허용 길이</li>
+  <li>$L_\text{low}$: optimal plateau 시작점</li>
+  <li>$L_\text{high}$: optimal plateau 끝점</li>
+  <li>$L_\text{max}$: 절대 최대 허용 길이</li>
+</ul>
+
+<p>Length reward는 사다리꼴(trapezoidal) 형태로 정의된다:</p>
+
+$$R_\text{length}(y) = \begin{cases} 0, & |y| < L_\text{min} \text{ or } |y| > L_\text{max} \\ \frac{|y| - L_\text{min}}{L_\text{low} - L_\text{min}}, & L_\text{min} \le |y| < L_\text{low} \\ 1, & L_\text{low} \le |y| \le L_\text{high} \\ \frac{L_\text{max} - |y|}{L_\text{max} - L_\text{high}}, & L_\text{high} < |y| \le L_\text{max} \end{cases} \quad (9)$$
+
+<p>직관적으로, 이 사다리꼴 reward는 "이 task에서 적절한 응답 길이 범위"를 설정하고, 그 안에서는 최대 reward를, 범위 밖에서는 점진적 페널티를 부과한다. ##복잡한 query에는 긴 reasoning chain을, vision-centric task에는 간결한 출력을 동적으로 유도##한다.</p>
+
+<h4>Task-Level Entropy Shaping</h4>
+
+<blockquote>
+<p><strong>[Figure 4 설명]</strong>: Task별 entropy 동태. (a) Reasoning-centric task에서는 entropy가 인위적으로 팽창하여 <strong>entropy explosion</strong>이 발생 — 모델이 incoherent token을 탐색한다. (b) Vision-centric task에서는 entropy가 급격히 감소하여 <strong>entropy collapse</strong> 발생 — high-probability token만 과도하게 활용하고 탐색을 조기 포기한다. (c) Spatial reasoning 같은 OOD task에서는 entropy explosion이 더욱 극심해진다.</p>
+</blockquote>
+
+<p>이를 해결하기 위해, task별로 최적 탐색 구간의 entropy 상한/하한을 설정하는 <strong>entropy regularization envelope</strong>를 도입한다. $H_\text{task}$를 해당 task의 평균 entropy loss (생성된 negative log-probability의 평균)로 정의하고, $H_\text{min}$과 $H_\text{max}$를 target entropy 구간의 경계로 설정한다:</p>
+
+$$\mathcal{L}_\text{ent\_reg} = \max(0, H_\text{task} - H_\text{max}) + \max(0, H_\text{min} - H_\text{task}) \quad (10)$$
+
+<p>이 정규화는 entropy가 최적 구간 바깥으로 벗어날 때만 선형 페널티를 적용하는 <strong>margin-based penalty</strong>로, 구간 내에서는 자유로운 탐색을 허용하면서 collapse와 explosion을 동시에 방지한다.</p>
+
+<p>이 정규화 항은 가중 하이퍼파라미터 $\lambda_\text{ent}$로 최종 최적화 목적함수에 추가된다.</p>
+
+<h4>Discussion: Response length/entropy shaping의 설계 철학</h4>
+
+<p>저자들은 이 shaping 메커니즘들이 task-specific threshold hyperparameter($L_\text{min}$, $L_\text{low}$ 등)를 도입하지만, 이들은 <strong>직관적으로 설정 가능</strong>하다고 주장한다. 예를 들어, 복잡한 task에는 긴 reasoning chain을 장려하고, vision-centric task에는 짧은 직접 출력을 유도하는 것은 단순한 경험적 관찰에 기반한다. 정밀한 hyperparameter 탐색은 future work으로 남긴다.</p>
+
+<h2>3. Experiments</h2>
+
+<h3>3.1 Setup</h3>
+
+<p><strong>학습 세부사항</strong>:</p>
+<ul>
+  <li><strong>Base model</strong>: Qwen3-VL-Instruct-8B (Bai et al., 2025)</li>
+  <li><strong>학습 데이터</strong>: OneThinker-600k dataset의 필터링된 부분집합 (Feng et al., 2025b)</li>
+  <li><strong>Hardware</strong>: AWS Trainium instances (Trn1.32xlarge)</li>
+  <li><strong>Optimizer</strong>: AdamW, learning rate $2 \times 10^{-6}$</li>
+  <li><strong>Batch size</strong>: 128</li>
+  <li><strong>Epoch</strong>: 1 epoch</li>
+  <li><strong>최대 생성 길이</strong>: 4096 tokens</li>
+  <li><strong>KL regularization</strong>: 비활성화 (Yu et al., 2025a 따름)</li>
+  <li><strong>Dynamic data filtering</strong>: 모든 rollout이 일정하게 정답 또는 오답인 경우 필터링</li>
+  <li><strong>학습 시간</strong>: 약 3일</li>
+</ul>
+
+<p><strong>벤치마크 (18개)</strong>:</p>
+<table>
+<tr><th>카테고리</th><th>벤치마크</th></tr>
+<tr><td>General VQA</td><td>MMMU, MMBench, MMStar</td></tr>
+<tr><td>Math VQA</td><td>MathVista, MathVerse, MathVision</td></tr>
+<tr><td>Chart VQA</td><td>AI2D, ChartQA, CharXiv(RQ)</td></tr>
+<tr><td>Document Understanding</td><td>DocVQA, OCRBench, InfoVQA</td></tr>
+<tr><td>Spatial Reasoning</td><td>EmbSpatial, RefSpatial, RoboSpatial</td></tr>
+<tr><td>Visual Grounding</td><td>RefCOCO, RefCOCO+, RefCOCOg</td></tr>
+</table>
+
+<h3>3.2 Main Results</h3>
+
+<p>이 논문의 실험은 다음 핵심 질문들에 답하고자 한다:</p>
+<ol>
+  <li><strong>RQ1</strong>: G²RPO가 표준 GRPO/GDPO 대비 multi-task visual reasoning에서 전반적으로 우수한가?</li>
+  <li><strong>RQ2</strong>: Vision-centric task(document understanding, grounding)에서도 reasoning 능력을 유지하면서 성능을 높이는가?</li>
+  <li><strong>RQ3</strong>: Proprietary frontier model(GPT-4o, Gemini 2.5 Pro)과 비교하여 경쟁력이 있는가?</li>
+</ol>
+
+<h4>Visual Reasoning Tasks (RQ1)</h4>
+
+<table>
+<tr><th>Model</th><th>MMMU</th><th>MMBench</th><th>MMStar</th><th>MathVista</th><th>MathVerse</th><th>MathVision</th><th>AI2D</th><th>ChartQA</th><th>CharXiv</th></tr>
+<tr><td>GPT-4o</td><td>70.7</td><td>84.3</td><td>84.5</td><td>63.6</td><td>42.2</td><td>30.4</td><td>84.9</td><td>86.7</td><td>47.1</td></tr>
+<tr><td>Gemini 2.5 Pro</td><td>81.7</td><td>90.1</td><td>77.5</td><td>82.7</td><td>42.9</td><td>73.3</td><td>86.4</td><td>86.3</td><td>67.9</td></tr>
+<tr><td>OneThinker-8B</td><td>70.4</td><td>86.6</td><td>70.6</td><td>77.6</td><td>44.3</td><td>45.3</td><td>85.2</td><td>76.4</td><td>44.0</td></tr>
+<tr><td>Qwen3-VL (baseline)</td><td>69.7</td><td>86.1</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>Qwen3-VL GRPO</td><td>69.7</td><td>86.0</td><td>71.7</td><td>78.1</td><td>64.7</td><td>52.6</td><td>85.1</td><td>82.4</td><td>50.5</td></tr>
+<tr><td>Qwen3-VL GDPO</td><td>69.8</td><td>86.1</td><td>71.5</td><td>78.0</td><td>64.9</td><td>49.7</td><td>85.2</td><td>82.4</td><td>51.6</td></tr>
+<tr style="font-weight:bold;"><td>OpenVLThinkerV2 (Ours)</td><td>71.6</td><td>88.2</td><td>73.8</td><td>78.5</td><td>65.8</td><td>53.4</td><td>87.5</td><td>87.4</td><td>53.0</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>OpenVLThinkerV2는 동일한 학습 데이터와 compute 조건에서 GRPO와 GDPO를 <strong>모든</strong> 벤치마크에서 일관되게 능가한다.</li>
+  <li>##MMMU 71.6%로 GPT-4o를 능가하고, MathVista 78.5%/MathVerse 65.8%/MathVision 53.4%로 수학 벤치마크에서 open-source SOTA##를 달성한다.</li>
+  <li>ChartQA 87.4%는 Gemini 2.5 Pro (86.3%)를 상회하며, chart/visual reasoning에서의 강점을 보여준다.</li>
+</ul>
+
+<h4>Document Understanding & Spatial Reasoning (RQ2)</h4>
+
+<table>
+<tr><th>Model</th><th>DocVQA</th><th>OCRBench</th><th>InfoVQA</th><th>EmbSpatial</th><th>RefSpatial</th><th>RoboSpatial</th></tr>
+<tr><td>GPT-4o</td><td>93.3</td><td>785</td><td>—</td><td>52.9</td><td>—</td><td>43.5</td></tr>
+<tr><td>Gemini 2.5 Pro</td><td>92.6</td><td>864</td><td>84.2</td><td>79.1</td><td>36.5</td><td>67.5</td></tr>
+<tr><td>DeepEyesV2</td><td>95.3</td><td>—</td><td>83.2</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>VisionZero</td><td>95.0</td><td>833</td><td>84.3</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>OneThinker-8B</td><td>95.0</td><td>810</td><td>83.6</td><td>79.7</td><td>30.9</td><td>63.7</td></tr>
+<tr style="font-weight:bold;"><td>OpenVLThinkerV2 (Ours)</td><td>96.7</td><td>911</td><td>86.4</td><td>83.1</td><td>44.6</td><td>63.2</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##OCRBench에서 911점으로, zoom-in 도구를 사용하는 특화 모델 DeepEyesV2를 넘어서는 SOTA를 달성##한다.</li>
+  <li>Document understanding 3개 벤치마크 모두에서 open-source 및 proprietary 모델(GPT-5, Gemini 2.5 Pro 포함)을 능가한다.</li>
+  <li>EmbSpatial에서 83.1%로 최고 성능을 기록하며, RefSpatial에서 44.6%로 전체 모델 중 최고 성능을 달성한다. RoboSpatial에서는 spatial expert SpatialRGPT와 동등 수준이며, fine-tuned expert RoboRefer-SFT에는 근소하게 미달한다.</li>
+</ul>
+
+<h4>Grounding Tasks</h4>
+
+<table>
+<tr><th>Model</th><th>RefCOCO</th><th>RefCOCO+</th><th>RefCOCOg</th></tr>
+<tr><td>Grounding DINO</td><td>90.6</td><td>84.2</td><td>86.1</td></tr>
+<tr><td>DeepEyesV2</td><td>89.8</td><td>85.6</td><td>86.7</td></tr>
+<tr><td>OneThinker-8B</td><td>92.0</td><td>87.0</td><td>89.2</td></tr>
+<tr><td>Qwen3-VL GRPO</td><td>92.1</td><td>87.7</td><td>89.6</td></tr>
+<tr style="font-weight:bold;"><td>OpenVLThinkerV2 (Ours)</td><td>93.4</td><td>89.2</td><td>90.4</td></tr>
+</table>
+
+<p>OpenVLThinkerV2는 ##RefCOCO 93.4%, RefCOCO+ 89.2%, RefCOCOg 90.4%로 특화된 visual grounding expert(Grounding DINO 포함)를 포함한 모든 모델을 능가##한다.</p>
+
+<h4>Overall Performance (RQ3)</h4>
+
+<blockquote>
+<p><strong>[Figure 1 설명]</strong>: OpenVLThinkerV2의 baseline Qwen3-VL-Instruct-8B 대비 상대적 성능 향상. MMMU +18.9%, MathVerse +17.6%, MathVision +13.3%, AI2D +6.3%, ChartQA +6.3%, EmbSpatial +19.1%, DocVQA +4.3%, OCRBench +11.2% 등 전 카테고리에 걸쳐 일관된 개선을 보인다.</p>
+</blockquote>
+
+<p>6개 major task 카테고리에 걸쳐, OpenVLThinkerV2는 vision-centric과 reasoning-centric 태스크 모두에서 balanced하고 robust한 성능을 보이며, G²RPO의 multi-task RL 최적화 우수성과 task-level shaping의 perception-reasoning 균형 효과를 실증적으로 검증한다.</p>
+
+<h3>3.3 Ablation Study</h3>
+
+<p>각 구성 요소의 기여도를 분리하기 위해 incremental ablation을 수행한다.</p>
+
+<p><strong>실험 의도</strong>: G²RPO, entropy shaping, length reward가 각각 독립적으로, 그리고 결합하여 어떤 효과를 내는지 확인.</p>
+
+<table>
+<tr><th>Model</th><th>General VQA</th><th>Math VQA</th><th>Chart VQA</th><th>Grounding</th><th>Doc Understanding</th><th>Spatial Reasoning</th></tr>
+<tr><td>Qwen3-VL-Instruct-8B (baseline)</td><td>71.8</td><td>59.2</td><td>69.9</td><td>90.1</td><td>—</td><td>40.9</td></tr>
+<tr><td>+ G²RPO</td><td>76.9</td><td>64.8</td><td>74.5</td><td>90.2</td><td>90.6</td><td>62.3</td></tr>
+<tr><td>+ task-level entropy loss</td><td>77.0</td><td>65.1</td><td>75.3</td><td>90.4</td><td>90.8</td><td>62.8</td></tr>
+<tr><td>+ task-level length reward</td><td>77.4</td><td>65.7</td><td>75.4</td><td>90.5</td><td>91.1</td><td>63.2</td></tr>
+<tr style="font-weight:bold;"><td>OpenVLThinkerV2 (Ours, 전체)</td><td>77.9</td><td>66.2</td><td>76.0</td><td>90.7</td><td>91.4</td><td>63.6</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##G²RPO 통합만으로 가장 큰 초기 성능 향상##을 제공한다 — 특히 Math VQA (+5.6pp), Spatial Reasoning (+21.4pp)에서 극적인 개선.</li>
+  <li>Entropy shaping 추가 시 reasoning-centric task에서 추가 개선이 관찰되며, saturated/OOD 도메인(grounding, spatial reasoning)에서도 modest gain을 제공한다.</li>
+  <li>Length reward는 entropy shaping보다 더 큰 전반적 개선을 제공하며, 이는 response length 제어가 perception-reasoning 균형에 더 직접적인 영향을 미침을 시사한다.</li>
+  <li>전체 조합이 최고 성능을 달성 — response length와 entropy shaping이 <strong>상호 보완적(complementary)</strong>임을 실증. 둘 다 정규화 지시자(regularization directive) 역할을 하지만 다른 축(길이 vs. 탐색 다양성)을 제어한다.</li>
+</ul>
+
+<h3>Appendix A: 학습 안정성 분석</h3>
+
+<p>Appendix에서는 G²RPO의 학습 안정성을 accuracy reward, length reward, format reward, structure reward의 4가지 축에서 GRPO/GDPO와 비교한다.</p>
+
+<blockquote>
+<p><strong>[Figure 5-8 설명]</strong>: 6개 task에 걸친 validation set 비교. (1) <strong>Accuracy reward</strong>: GRPO/GDPO가 0.685-0.695에서 oscillation하는 동안 G²RPO는 안정적으로 상승 (2) <strong>Length reward</strong>: G²RPO가 일관되게 높은 length reward를 유지 (3) <strong>Format reward</strong>: GDPO는 초기에 높지만 후반에 하락, G²RPO는 최종적으로 최고 format reward 유지 (4) <strong>Structure reward</strong>: 유사한 패턴 — G²RPO가 안정적으로 최고 수준 유지. 이 결과들은 G²RPO의 비선형 distributional matching이 학습 안정성과 최종 성능 모두에서 선형 정규화를 능가함을 보여준다.</p>
+</blockquote>
+
+<h2>Appendix B: G²RPO의 Policy Gradient 유도</h2>
+
+<p>G²RPO의 이론적 기반을 더 명확히 하기 위해, 표준 policy gradient에서 출발하여 G²RPO 목적함수까지의 유도 과정을 정리한다.</p>
+
+<p><strong>Base Policy Gradient</strong>: query $q \sim \mathcal{D}$와 response $y$에 대해:</p>
+
+$$\nabla_\theta \mathcal{J}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, y \sim \pi_\theta} \left[ \sum_{t=1}^{|y|} \nabla_\theta \log \pi_\theta(y_t | q, y_{<t}) A(q, y) \right] \quad (11)$$
+
+<p><strong>Group Sampling과 Importance Sampling</strong>: G개의 응답에 대해 token-level importance ratio를 도입:</p>
+
+$$r_{i,t}(\theta) = \frac{\pi_\theta(y_{i,t} | q, y_{i,<t})}{\pi_{\theta_\text{old}}(y_{i,t} | q, y_{i,<t})} \quad (12)$$
+
+<p><strong>Gaussian Advantage 주입</strong>: 표준 GRPO의 scalar 표준화 advantage를 G²RPO의 OT-based advantage로 교체:</p>
+
+$$\hat{A}_i^{\text{G}^2\text{RPO}} = \frac{1}{|\mathcal{K}_{R_i}|} \sum_{j \in \mathcal{K}_{R_i}} \sqrt{2} \, \text{erfinv}(2p_j - 1) \quad (13)$$
+
+<p>이 advantage는 $\sum_i \hat{A}_i^{\text{G}^2\text{RPO}} \approx 0$ (zero-mean)과 $\sum_i (\hat{A}_i^{\text{G}^2\text{RPO}})^2 \approx 1$ (unit-variance)을 내재적으로 만족하여, 안정적인 policy update를 보장한다.</p>
+
+<p><strong>최종 Surrogate Objective</strong>:</p>
+
+$$\mathcal{J}_{\text{G}^2\text{RPO}}(\theta) = \mathbb{E}_{q \sim \mathcal{D}, \{y_i\}_{i=1}^G \sim \pi_{\theta_\text{old}}} \left[ \frac{1}{G} \sum_{i=1}^{G} \frac{1}{|y_i|} \sum_{t=1}^{|y_i|} \min\left( r_{i,t}(\theta) \hat{A}_i^{\text{G}^2\text{RPO}}, \text{clip}(r_{i,t}(\theta), 1-\varepsilon, 1+\varepsilon) \hat{A}_i^{\text{G}^2\text{RPO}} \right) \right] \quad (14)$$
+
+<p>PPO-style clipping이 비파괴적인 policy update를 보장하며, G²RPO advantage가 task-agnostic한 Gaussian 학습 신호를 제공한다.</p>
+
+<h2>Related Work</h2>
+
+<h3>GRPO 관련 연구</h3>
+
+<p>GRPO (Guo et al., 2025)는 DeepSeek-R1에서 처음 도입되어 LLM과 MLLM의 de facto RL 목적함수가 되었다. 그러나 다양한 시각 태스크의 reward topology 이질성은 표준 LLM task 대비 훨씬 높은 분산을 보이며, 심각한 intra/inter-task update 불균형을 초래한다. EMA-GRPO (Feng et al., 2025b)는 task별 이동평균으로 이를 완화하지만 선형 스케일링에 의존하여 분포 형태의 구조적 문제를 해결하지 못한다. G²RPO는 비선형 매핑으로 이 근본적 한계를 극복한다.</p>
+
+<h3>Multimodal Reasoning</h3>
+
+<p>MLLM에 RL을 통합하여 복잡한 추론을 가능하게 하는 연구가 활발하다. 핵심 과제는 fine-grained perception과 multi-step reasoning의 동시 보존이다. 기존 접근법들은 corrupted visual input, explicit vision anchor, proprietary model captioner 등을 활용하지만, 비용이 높고 확장성이 제한적이다. OpenVLThinkerV2는 이를 multi-task 최적화 문제로 직접 프레이밍하여, 데이터 어노테이션 없이 task-level shaping만으로 해결한다.</p>
+
+<h3>LLM에서의 Optimal Transport</h3>
+
+<p>Optimal Transport (OT)는 LLM의 preference alignment, token distribution 간 의미적 거리 계산, safety representation 매핑 등에 활용되어 왔다. 그러나 기존 연구들은 OT를 거리 메트릭으로 사용한 반면, G²RPO는 ##1D OT를 advantage 정규화의 범용 메커니즘으로 재정의##하여, multi-domain multimodal RL의 reward 분산과 heavy-tail topology를 직접 해결하는 최초의 시도이다.</p>
+
+<h2>4. Conclusion</h2>
+
+<p>저자들은 OpenVLThinkerV2를 다양한 시각 태스크에 대한 multi-task RL post-training의 robust한 솔루션으로 제시하며, 세 가지 핵심 기여를 요약한다: (1) G²RPO를 통한 inter-task gradient equity 보장, (2) task-level response length 및 entropy shaping을 통한 perception-reasoning 균형, (3) 18개 벤치마크에서의 SOTA 달성.</p>
+
+<p>중요하게도, 저자들은 G²RPO가 MLLM을 넘어 <strong>더 넓은 LLM 응용</strong>에 자연스럽게 적용 가능하다고 주장한다. G²RPO는 본질적으로 이질적인 reward topology를 조화시키도록 설계되었으므로, SWE coding이나 GUI task 등 유사한 reward 이질성을 가진 모든 multi-task RL 환경에 확장할 수 있다. 이러한 대규모 확장은 future work으로 남기며, 커뮤니티에 이 원리를 활용하여 더 안정적이고 공정한 RL 최적화 패러다임을 구축할 것을 제안한다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론적 우아함</strong>: 1D Optimal Transport의 닫힌 형태 해를 advantage 정규화에 적용한 것은 수학적으로 깔끔하며, 추가 hyperparameter(momentum decay 등) 없이 inter-task equity를 자동으로 보장한다.</li>
+  <li><strong>구현 간결성</strong>: Algorithm 1은 수십 줄의 PyTorch 코드로 구현 가능하며, 기존 GRPO 코드베이스에 최소한의 변경으로 통합 가능하다.</li>
+  <li><strong>포괄적 평가</strong>: 18개 벤치마크에 걸친 6개 task 카테고리로 평가하며, 동일 조건(같은 데이터, 같은 base model)에서의 controlled comparison이 설득력 있다.</li>
+  <li><strong>학습 안정성 분석</strong>: Appendix의 4가지 reward 축에 걸친 training dynamics 비교가 단순 최종 성능 비교를 넘어 방법론의 작동 원리를 이해하는 데 기여한다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>단일 base model</strong>: Qwen3-VL-Instruct-8B에서만 실험. 모델 크기 확장(70B+)이나 다른 아키텍처(LLaVA 등)에서의 일반화는 미검증.</li>
+  <li><strong>단일 학습 데이터셋</strong>: OneThinker-600k subset만 사용. 다른 데이터 구성에서의 효과는 불명확하다.</li>
+  <li><strong>Shaping hyperparameter 튜닝</strong>: Response length ($L_\text{min}$, $L_\text{low}$, $L_\text{high}$, $L_\text{max}$)과 entropy ($H_\text{min}$, $H_\text{max}$) threshold의 구체적인 값이 논문에 명시되지 않았다. "직관적으로 설정 가능"이라 주장하지만, 실제 sensitivity analysis가 부재.</li>
+  <li><strong>표준편차 미보고</strong>: 모든 실험이 단일 run의 결과로 보이며, 여러 seed에 걸친 표준편차가 보고되지 않았다. RL 학습의 high variance를 고려하면 신뢰도 평가가 어렵다.</li>
+  <li><strong>G²RPO의 group size 의존성</strong>: CDF 기반 매핑은 group size G가 작을 때 quantile 추정이 부정확할 수 있다. G의 영향에 대한 분석이 없다.</li>
+  <li><strong>계산 비용 비교 부재</strong>: G²RPO의 추가 연산(sorting, erfinv)이 전체 학습 시간에 미치는 영향이 보고되지 않았다.</li>
+  <li><strong>코드/데이터 공개</strong>: Project page와 GitHub 링크가 제공되지만, 구체적 코드 공개 여부는 불명확.</li>
+</ul>
+
+<h3>추가 관찰</h3>
+<ul>
+  <li>Ablation에서 G²RPO가 Spatial Reasoning에서 +21.4pp라는 극적인 개선을 보이는데, 이는 해당 task가 base model에서 특히 약했기 때문이며, 상대적 gain이 과대평가될 수 있다.</li>
+  <li>Grounding task에서의 개선폭(+0.1~0.6pp)은 이미 높은 baseline 대비 marginal하여, G²RPO의 주된 효과는 reasoning-centric task에 집중될 수 있다.</li>
+  <li>SWE coding, GUI task 등 더 넓은 영역으로의 확장은 future work으로 남겨져 있다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>비선형 advantage 정규화의 중요성</strong>: Multi-task RL에서 선형 정규화(z-score, EMA)는 reward 분포의 구조적 병리를 보존한다. 1D Optimal Transport를 통한 distributional matching은 이 문제를 근본적으로 해결하는 원리적 접근이다.</li>
+  <li><strong>Task-specific shaping의 실용성</strong>: 복잡한 보조 목적함수나 데이터 어노테이션 없이, 단순한 length/entropy envelope만으로 perception-reasoning 균형을 효과적으로 달성할 수 있다.</li>
+  <li><strong>범용적 적용 가능성</strong>: G²RPO는 MLLM뿐 아니라, reward topology가 이질적인 모든 multi-task RL 환경(코딩, GUI, 로보틱스 등)에 적용 가능한 범용 normalization 기법이다.</li>
+  <li><strong>구현 용이성</strong>: Algorithm 1의 3단계 (rank → quantile mapping → tie-breaking)는 기존 GRPO 코드에 최소한의 변경으로 통합 가능하며, 즉각적인 성능 향상을 기대할 수 있다.</li>
+  <li><strong>8B 모델의 가능성</strong>: 8B 파라미터 모델로 GPT-4o와 Gemini 2.5 Pro를 다수 벤치마크에서 능가한 것은, 학습 알고리즘의 최적화가 모델 크기 확장 못지않게 중요함을 시사한다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

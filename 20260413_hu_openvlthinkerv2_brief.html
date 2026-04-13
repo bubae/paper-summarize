@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OpenVLThinkerV2 — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0f172a, #1e40af, #6366f1);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 680px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #1e3a5f; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #1e40af, #6366f1); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #1e40af; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #1e40af, #6366f1);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #1e40af, #6366f1); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #1e3a5f; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #eff6ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #1e40af; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #1e40af; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #1e40af; padding: 0 0.4rem; }
+
+  h3 { margin-top: 1.5rem; margin-bottom: 0.5rem; font-size: 1.15rem; color: #1e3a5f; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">UCLA &middot; 2026</div>
+  <h1>OpenVLThinkerV2</h1>
+  <p class="subtitle">사진을 보고 수학 문제도 풀고, 글자도 읽고, 물체도 찾는<br>"만능 시각 AI"를 공정한 학습법으로 완성하다</p>
+</div>
+
+<div class="container">
+
+<p style="margin-top:1.5rem; text-align:center;">
+  <a href="20260413_hu_openvlthinkerv2.html" style="color:#1e40af; font-weight:600;">전문가용 상세 요약 보기 →</a>
+</p>
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "여러 과목 시험을 한 번에 준비할 때,<br>각 과목의 채점 기준이 너무 달라서 공부가 흔들린다면?<br>모든 점수를 같은 기준으로 바꿔주는 마법의 성적 변환기"
+</div>
+
+<!-- ===== 배경 지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것: AI는 어떻게 그림을 이해하나?</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 세 가지 배경 지식이 필요합니다: <strong>(1)</strong> 멀티모달 AI란 무엇인가, <strong>(2)</strong> 강화학습으로 AI를 훈련하는 방법, <strong>(3)</strong> 여러 과제를 동시에 학습할 때의 어려움. 하나씩 차근히 알아봅시다.</p>
+  </div>
+
+  <!-- 개념 1: 멀티모달 AI -->
+  <h3>개념 1: 멀티모달 AI — 눈과 뇌를 함께 가진 AI</h3>
+
+  <p>ChatGPT 같은 언어 AI는 글자만 이해합니다. 하지만 <strong>멀티모달 AI(Multimodal LLM, MLLM)</strong>는 <strong>이미지와 텍스트를 동시에</strong> 이해할 수 있습니다. 사진을 보여주며 "이 그래프에서 매출이 가장 높은 달은?"이라고 물으면 답을 해주는 것이죠.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">멀티모달 AI: 이미지 + 텍스트를 동시에 이해</text>
+
+      <!-- 이미지 입력 -->
+      <rect x="40" y="60" width="140" height="100" rx="12" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="110" y="90" font-size="12" font-weight="600" fill="#1e40af" text-anchor="middle">이미지 입력</text>
+      <text x="110" y="115" font-size="28" text-anchor="middle">📊</text>
+      <text x="110" y="145" font-size="10" fill="#475569" text-anchor="middle">차트, 사진, 문서...</text>
+
+      <!-- 텍스트 입력 -->
+      <rect x="40" y="175" width="140" height="60" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="110" y="200" font-size="12" font-weight="600" fill="#d97706" text-anchor="middle">텍스트 질문</text>
+      <text x="110" y="220" font-size="10" fill="#475569" text-anchor="middle">"매출이 가장 높은 달은?"</text>
+
+      <!-- 화살표 -->
+      <defs>
+        <marker id="arw" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#6366f1"/></marker>
+      </defs>
+      <line x1="180" y1="110" x2="270" y2="145" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+      <line x1="180" y1="205" x2="270" y2="165" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- MLLM 블록 -->
+      <rect x="275" y="120" width="150" height="60" rx="16" fill="url(#grad1)" stroke="#6366f1" stroke-width="2"/>
+      <defs><linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" style="stop-color:#eff6ff"/><stop offset="100%" style="stop-color:#e0e7ff"/></linearGradient></defs>
+      <text x="350" y="147" font-size="14" font-weight="700" fill="#1e40af" text-anchor="middle">멀티모달 AI</text>
+      <text x="350" y="167" font-size="10" fill="#475569" text-anchor="middle">(MLLM)</text>
+
+      <!-- 출력 화살표 -->
+      <line x1="425" y1="150" x2="500" y2="150" stroke="#059669" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- 출력 -->
+      <rect x="505" y="120" width="160" height="60" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="585" y="147" font-size="12" font-weight="600" fill="#059669" text-anchor="middle">답변</text>
+      <text x="585" y="167" font-size="10" fill="#475569" text-anchor="middle">"7월 매출이 가장 높습니다"</text>
+    </svg>
+    <div class="diagram-caption">멀티모달 AI는 그림과 글자를 동시에 처리하여 답변을 생성한다</div>
+  </div>
+
+  <p>이런 AI가 잘하려면 <strong>다양한 시각 과제</strong>를 동시에 학습해야 합니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">멀티모달 AI가 수행하는 다양한 시각 과제</text>
+
+      <!-- 수학 VQA -->
+      <rect x="20" y="50" width="100" height="80" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="70" y="75" font-size="18" text-anchor="middle">🧮</text>
+      <text x="70" y="95" font-size="10" font-weight="600" fill="#d97706" text-anchor="middle">수학 문제</text>
+      <text x="70" y="110" font-size="8" fill="#475569" text-anchor="middle">도형 각도 계산</text>
+      <text x="70" y="122" font-size="8" fill="#475569" text-anchor="middle">그래프 해석</text>
+
+      <!-- 문서 이해 -->
+      <rect x="135" y="50" width="100" height="80" rx="10" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="185" y="75" font-size="18" text-anchor="middle">📄</text>
+      <text x="185" y="95" font-size="10" font-weight="600" fill="#1e40af" text-anchor="middle">문서 이해</text>
+      <text x="185" y="110" font-size="8" fill="#475569" text-anchor="middle">OCR, 표 읽기</text>
+      <text x="185" y="122" font-size="8" fill="#475569" text-anchor="middle">문서 분류</text>
+
+      <!-- 차트 분석 -->
+      <rect x="250" y="50" width="100" height="80" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="300" y="75" font-size="18" text-anchor="middle">📈</text>
+      <text x="300" y="95" font-size="10" font-weight="600" fill="#059669" text-anchor="middle">차트 분석</text>
+      <text x="300" y="110" font-size="8" fill="#475569" text-anchor="middle">차트 질의응답</text>
+      <text x="300" y="122" font-size="8" fill="#475569" text-anchor="middle">데이터 추출</text>
+
+      <!-- 공간 추론 -->
+      <rect x="365" y="50" width="100" height="80" rx="10" fill="#f5f3ff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="415" y="75" font-size="18" text-anchor="middle">🗺️</text>
+      <text x="415" y="95" font-size="10" font-weight="600" fill="#6366f1" text-anchor="middle">공간 추론</text>
+      <text x="415" y="110" font-size="8" fill="#475569" text-anchor="middle">물체 위치 관계</text>
+      <text x="415" y="122" font-size="8" fill="#475569" text-anchor="middle">3D 이해</text>
+
+      <!-- 물체 찾기 -->
+      <rect x="480" y="50" width="100" height="80" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="530" y="75" font-size="18" text-anchor="middle">🔍</text>
+      <text x="530" y="95" font-size="10" font-weight="600" fill="#dc2626" text-anchor="middle">물체 찾기</text>
+      <text x="530" y="110" font-size="8" fill="#475569" text-anchor="middle">Grounding</text>
+      <text x="530" y="122" font-size="8" fill="#475569" text-anchor="middle">좌표 예측</text>
+
+      <!-- 일반 VQA -->
+      <rect x="595" y="50" width="100" height="80" rx="10" fill="#f0fdf4" stroke="#16a34a" stroke-width="1.5"/>
+      <text x="645" y="75" font-size="18" text-anchor="middle">💬</text>
+      <text x="645" y="95" font-size="10" font-weight="600" fill="#16a34a" text-anchor="middle">일반 질의</text>
+      <text x="645" y="110" font-size="8" fill="#475569" text-anchor="middle">사진 설명</text>
+      <text x="645" y="122" font-size="8" fill="#475569" text-anchor="middle">상식 추론</text>
+
+      <text x="350" y="165" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">← 이 과제들의 "채점 방식"이 모두 다르다! →</text>
+      <text x="350" y="185" font-size="10" fill="#64748b" text-anchor="middle">수학: 맞으면 1, 틀리면 0 | 물체 찾기: 위치 정확도 0~100% | 문서 이해: 부분 점수</text>
+    </svg>
+    <div class="diagram-caption">하나의 AI가 수행해야 하는 6가지 유형의 시각 과제 — 각각의 채점 방식이 완전히 다르다</div>
+  </div>
+
+  <!-- 개념 2: 강화학습(RL) -->
+  <h3>개념 2: 강화학습 — "시행착오로 배우기"</h3>
+
+  <p>AI를 학습시키는 방법 중 하나가 <strong>강화학습(Reinforcement Learning, RL)</strong>입니다. 사람이 정답을 일일이 알려주는 대신, AI가 스스로 여러 답을 시도해보고 <strong>"잘했다/못했다"라는 보상(reward)</strong>을 받아 점점 나아지는 방식입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">강화학습: AI가 시행착오를 통해 학습하는 과정</text>
+
+      <!-- AI 모델 -->
+      <rect x="50" y="60" width="130" height="70" rx="14" fill="#eff6ff" stroke="#1e40af" stroke-width="2"/>
+      <text x="115" y="92" font-size="14" font-weight="700" fill="#1e40af" text-anchor="middle">AI 모델</text>
+      <text x="115" y="112" font-size="10" fill="#475569" text-anchor="middle">(여러 답을 생성)</text>
+
+      <!-- 답변들 -->
+      <line x1="180" y1="80" x2="250" y2="65" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="180" y1="95" x2="250" y2="95" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="180" y1="110" x2="250" y2="125" stroke="#6366f1" stroke-width="1.5" marker-end="url(#arw)"/>
+
+      <rect x="255" y="45" width="110" height="30" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1"/>
+      <text x="310" y="65" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">답 A: 정답! ✓</text>
+      <rect x="255" y="80" width="110" height="30" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="310" y="100" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">답 B: 오답 ✗</text>
+      <rect x="255" y="115" width="110" height="30" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="310" y="135" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">답 C: 오답 ✗</text>
+
+      <!-- 보상 -->
+      <line x1="365" y1="60" x2="430" y2="85" stroke="#d97706" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="365" y1="95" x2="430" y2="95" stroke="#d97706" stroke-width="1.5" marker-end="url(#arw)"/>
+      <line x1="365" y1="130" x2="430" y2="105" stroke="#d97706" stroke-width="1.5" marker-end="url(#arw)"/>
+
+      <rect x="435" y="65" width="110" height="55" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="490" y="88" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">보상 비교</text>
+      <text x="490" y="107" font-size="9" fill="#475569" text-anchor="middle">"A가 B, C보다 좋다"</text>
+
+      <!-- 학습 화살표 (피드백 루프) -->
+      <line x1="545" y1="92" x2="600" y2="92" stroke="#1e40af" stroke-width="1.5" marker-end="url(#arw)"/>
+      <rect x="605" y="72" width="80" height="40" rx="10" fill="#1e40af"/>
+      <text x="645" y="97" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">학습!</text>
+
+      <path d="M645,112 L645,190 L115,190 L115,135" stroke="#1e40af" stroke-width="1.5" fill="none" stroke-dasharray="4" marker-end="url(#arw)"/>
+      <text x="380" y="210" font-size="11" fill="#1e40af" text-anchor="middle" font-weight="600">→ "A 같은 답을 더 많이 만들어라!" →</text>
+    </svg>
+    <div class="diagram-caption">GRPO의 기본 원리: 여러 답을 비교하여, 좋은 답을 강화하고 나쁜 답을 억제한다</div>
+  </div>
+
+  <p>이 논문에서 사용하는 <strong>GRPO (Group Relative Policy Optimization)</strong>는 이 방식의 일종입니다. AI가 한 질문에 여러 답을 만들고, 그 중 가장 좋은 답의 방향으로 학습하는 것이죠.</p>
+
+  <!-- 개념 3: 다중 과제의 어려움 -->
+  <h3>개념 3: 핵심 문제 — "과목마다 채점 기준이 너무 다르다"</h3>
+
+  <p>여기서 진짜 문제가 발생합니다. AI가 <strong>여러 과제를 동시에</strong> 배울 때, 각 과제의 <strong>"보상(점수) 체계"가 너무 다릅니다</strong>:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">과제별 보상 분포가 완전히 다른 문제</text>
+
+      <!-- 수학 VQA: binary -->
+      <rect x="30" y="50" width="200" height="120" rx="12" fill="#fff" stroke="#d97706" stroke-width="1.5"/>
+      <text x="130" y="72" font-size="11" font-weight="700" fill="#d97706" text-anchor="middle">수학 문제 (Binary)</text>
+      <!-- binary 분포 -->
+      <rect x="60" y="85" width="30" height="60" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="75" y="158" font-size="9" fill="#475569" text-anchor="middle">0점</text>
+      <rect x="110" y="85" width="4" height="5" rx="1" fill="#ccc"/>
+      <rect x="160" y="85" width="30" height="60" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="175" y="158" font-size="9" fill="#475569" text-anchor="middle">1점</text>
+      <text x="130" y="80" font-size="9" fill="#64748b" text-anchor="middle">↑ 빈도</text>
+
+      <!-- Grounding: continuous -->
+      <rect x="250" y="50" width="200" height="120" rx="12" fill="#fff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="350" y="72" font-size="11" font-weight="700" fill="#6366f1" text-anchor="middle">물체 찾기 (Continuous)</text>
+      <!-- continuous 분포 -->
+      <path d="M280,140 Q295,135 310,120 Q325,100 340,88 Q355,80 370,82 Q385,85 400,100 Q415,125 425,140" stroke="#6366f1" stroke-width="2" fill="#e0e7ff" fill-opacity="0.5"/>
+      <text x="280" y="158" font-size="9" fill="#475569" text-anchor="middle">0%</text>
+      <text x="425" y="158" font-size="9" fill="#475569" text-anchor="middle">100%</text>
+      <text x="350" y="80" font-size="9" fill="#64748b" text-anchor="middle">↑ 빈도</text>
+
+      <!-- OCR: dense -->
+      <rect x="470" y="50" width="200" height="120" rx="12" fill="#fff" stroke="#059669" stroke-width="1.5"/>
+      <text x="570" y="72" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">문서 읽기 (Dense)</text>
+      <!-- dense 분포 (skewed) -->
+      <path d="M500,140 Q515,138 530,130 Q545,118 560,100 Q575,88 590,84 Q605,82 620,83 Q635,86 645,140" stroke="#059669" stroke-width="2" fill="#ecfdf5" fill-opacity="0.5"/>
+      <text x="500" y="158" font-size="9" fill="#475569" text-anchor="middle">낮음</text>
+      <text x="645" y="158" font-size="9" fill="#475569" text-anchor="middle">높음</text>
+      <text x="570" y="80" font-size="9" fill="#64748b" text-anchor="middle">↑ 빈도</text>
+
+      <!-- 문제 설명 -->
+      <rect x="50" y="195" width="600" height="100" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="350" y="220" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">문제: 기존 방식(GRPO)이 이 점수들을 단순 평균으로 맞추면?</text>
+      <text x="350" y="245" font-size="11" fill="#475569" text-anchor="middle">→ 수학은 0 아니면 1이라 점수 차이가 극단적 → 학습 신호가 과도하게 흔들림</text>
+      <text x="350" y="265" font-size="11" fill="#475569" text-anchor="middle">→ 물체 찾기는 점수가 촘촘해서 학습 신호가 너무 약함</text>
+      <text x="350" y="285" font-size="11" fill="#475569" text-anchor="middle">→ 결과: 어떤 과목은 과하게, 어떤 과목은 부족하게 학습 = 불균형!</text>
+    </svg>
+    <div class="diagram-caption">각 과제의 점수 분포가 완전히 다르기 때문에, 단순한 정규화로는 공정한 학습이 불가능하다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 다과목 성적 처리의 딜레마</div>
+    <p>중학교에서 수학(100점 만점, 정답 아니면 0점), 체육(달리기 기록, 연속 값), 미술(심사위원 주관 평가)의 성적을 하나의 종합 성적표로 합쳐야 한다고 생각해보세요. 단순히 각 과목의 "평균과 표준편차"로 정규화하면, 수학에서 한 명만 100점 맞으면 나머지 학생 전체의 점수가 왜곡됩니다. 이것이 기존 GRPO가 겪는 문제입니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>핵심 아이디어: G²RPO — 점수를 "같은 모양"으로 변환하기</h2>
+
+  <div class="card card-accent">
+    <p>이 논문의 핵심 아이디어인 <strong>G²RPO (Gaussian GRPO)</strong>는 놀랍도록 간단합니다: 어떤 형태의 점수 분포든 <strong>"정규분포(종 모양 곡선)"로 변환</strong>하여, 모든 과제가 동일한 기준으로 학습되게 만드는 것입니다.</p>
+  </div>
+
+  <h3>기존 방식 vs. G²RPO: 무엇이 다른가?</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">기존 방식(선형 정규화) vs. G²RPO(분포 변환)</text>
+
+      <!-- 왼쪽: 기존 방식 -->
+      <rect x="20" y="45" width="310" height="310" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="175" y="70" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">기존 방식: 선형 정규화</text>
+      <text x="175" y="88" font-size="10" fill="#dc2626" text-anchor="middle">(z-score: 평균 빼고, 표준편차로 나누기)</text>
+
+      <!-- 원래 분포 (skewed) -->
+      <text x="175" y="115" font-size="10" font-weight="600" fill="#475569" text-anchor="middle">원래 분포 (기울어진 모양)</text>
+      <path d="M60,190 Q80,188 100,175 Q120,155 140,130 Q150,125 160,128 Q170,132 180,150 Q200,180 220,188 Q240,190 260,190 L260,190" stroke="#dc2626" stroke-width="2" fill="#fecaca" fill-opacity="0.4"/>
+      <line x1="60" y1="190" x2="280" y2="190" stroke="#94a3b8" stroke-width="1"/>
+
+      <!-- 변환 화살표 -->
+      <text x="175" y="215" font-size="10" fill="#dc2626" text-anchor="middle">↓ 평균 빼기 + 표준편차로 나누기 ↓</text>
+
+      <!-- 정규화 후 분포 (여전히 skewed) -->
+      <text x="175" y="245" font-size="10" font-weight="600" fill="#475569" text-anchor="middle">정규화 후 (모양은 그대로!)</text>
+      <path d="M60,320 Q80,318 100,305 Q120,285 140,260 Q150,255 160,258 Q170,262 180,280 Q200,310 220,318 Q240,320 260,320" stroke="#dc2626" stroke-width="2" fill="#fecaca" fill-opacity="0.4"/>
+      <line x1="60" y1="320" x2="280" y2="320" stroke="#94a3b8" stroke-width="1"/>
+      <text x="175" y="345" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="600">❌ 기울어진 모양, 극단값 여전히 존재</text>
+
+      <!-- 오른쪽: G²RPO -->
+      <rect x="370" y="45" width="310" height="310" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="525" y="70" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">G²RPO: 분포 변환</text>
+      <text x="525" y="88" font-size="10" fill="#059669" text-anchor="middle">(Optimal Transport로 모양 자체를 변환)</text>
+
+      <!-- 원래 분포 (같은 skewed) -->
+      <text x="525" y="115" font-size="10" font-weight="600" fill="#475569" text-anchor="middle">원래 분포 (같은 기울어진 모양)</text>
+      <path d="M410,190 Q430,188 450,175 Q470,155 490,130 Q500,125 510,128 Q520,132 530,150 Q550,180 570,188 Q590,190 610,190" stroke="#059669" stroke-width="2" fill="#bbf7d0" fill-opacity="0.4"/>
+      <line x1="410" y1="190" x2="630" y2="190" stroke="#94a3b8" stroke-width="1"/>
+
+      <!-- 변환 화살표 -->
+      <text x="525" y="215" font-size="10" fill="#059669" text-anchor="middle">↓ 순위 → 표준정규분포 매핑 ↓</text>
+
+      <!-- 변환 후 분포 (완벽한 Gaussian) -->
+      <text x="525" y="245" font-size="10" font-weight="600" fill="#475569" text-anchor="middle">변환 후 (완벽한 종 모양!)</text>
+      <path d="M410,320 Q430,318 450,312 Q470,295 490,270 Q505,255 520,252 Q535,255 550,270 Q570,295 590,312 Q610,318 630,320" stroke="#059669" stroke-width="2" fill="#bbf7d0" fill-opacity="0.4"/>
+      <line x1="410" y1="320" x2="630" y2="320" stroke="#94a3b8" stroke-width="1"/>
+      <text x="525" y="345" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">✅ 대칭, 극단값 제거, 모든 과제가 동일한 모양!</text>
+    </svg>
+    <div class="diagram-caption">기존 방식은 분포의 "위치와 크기"만 바꾸지만, G²RPO는 분포의 "모양 자체"를 바꾼다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 시험 점수 변환 시스템</div>
+    <p>수능의 "표준점수"를 떠올려보세요. 원래 점수가 어떤 분포를 가지든, 표준점수 변환을 거치면 평균 100, 표준편차 20의 <strong>정규분포</strong>로 변환됩니다. G²RPO도 같은 원리입니다 — 원래 점수의 "몇 등인가(순위)"를 기반으로, 그 순위를 정규분포의 해당 위치에 배치합니다. 수학처럼 0 아니면 100인 극단적 점수도, 미술처럼 60~80에 몰린 점수도, 변환 후에는 모두 같은 종 모양 곡선이 됩니다.</p>
+  </div>
+
+  <h3>G²RPO의 3단계 알고리즘</h3>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">순위 매기기</div>
+      <div class="step-desc">각 답의 점수 순위를<br>백분위로 변환</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">정규분포 매핑</div>
+      <div class="step-desc">백분위를 정규분포의<br>해당 위치로 변환</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">동점 처리</div>
+      <div class="step-desc">같은 점수의 답들은<br>같은 학습 신호 부여</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">G²RPO 변환 과정: 구체적 예시</text>
+
+      <!-- 원래 점수 -->
+      <text x="100" y="55" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">원래 점수 (수학, 0/1)</text>
+      <rect x="30" y="65" width="140" height="120" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+      <text x="100" y="90" font-size="11" fill="#475569" text-anchor="middle">답A: 0점</text>
+      <text x="100" y="110" font-size="11" fill="#475569" text-anchor="middle">답B: 0점</text>
+      <text x="100" y="130" font-size="11" fill="#475569" text-anchor="middle">답C: 1점</text>
+      <text x="100" y="150" font-size="11" fill="#475569" text-anchor="middle">답D: 1점</text>
+      <text x="100" y="170" font-size="11" fill="#475569" text-anchor="middle">답E: 1점</text>
+
+      <!-- 화살표 1 -->
+      <text x="230" y="80" font-size="9" fill="#6366f1" text-anchor="middle" font-weight="600">Step 1</text>
+      <text x="230" y="95" font-size="9" fill="#6366f1" text-anchor="middle">순위→백분위</text>
+      <line x1="175" y1="120" x2="270" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- 백분위 -->
+      <text x="350" y="55" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">백분위</text>
+      <rect x="280" y="65" width="140" height="120" rx="10" fill="#dbeafe" stroke="#1e40af" stroke-width="1"/>
+      <text x="350" y="90" font-size="11" fill="#475569" text-anchor="middle">답A: 10%</text>
+      <text x="350" y="110" font-size="11" fill="#475569" text-anchor="middle">답B: 30%</text>
+      <text x="350" y="130" font-size="11" fill="#475569" text-anchor="middle">답C: 50%</text>
+      <text x="350" y="150" font-size="11" fill="#475569" text-anchor="middle">답D: 70%</text>
+      <text x="350" y="170" font-size="11" fill="#475569" text-anchor="middle">답E: 90%</text>
+
+      <!-- 화살표 2 -->
+      <text x="480" y="80" font-size="9" fill="#6366f1" text-anchor="middle" font-weight="600">Step 2</text>
+      <text x="480" y="95" font-size="9" fill="#6366f1" text-anchor="middle">정규분포 매핑</text>
+      <line x1="425" y1="120" x2="520" y2="120" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- 변환 후 -->
+      <text x="600" y="55" font-size="12" font-weight="600" fill="#1e3a5f" text-anchor="middle">G²RPO 학습 신호</text>
+      <rect x="530" y="65" width="140" height="120" rx="10" fill="#ecfdf5" stroke="#059669" stroke-width="1"/>
+      <text x="600" y="90" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">답A: −1.28</text>
+      <text x="600" y="110" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">답B: −0.52</text>
+      <text x="600" y="130" font-size="11" fill="#475569" text-anchor="middle">답C: 0.00</text>
+      <text x="600" y="150" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">답D: +0.52</text>
+      <text x="600" y="170" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">답E: +1.28</text>
+
+      <!-- 핵심 포인트 -->
+      <rect x="50" y="210" width="600" height="70" rx="12" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="350" y="235" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">핵심: 0점과 1점이라는 극단적 점수가</text>
+      <text x="350" y="255" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">-1.28 ~ +1.28의 부드러운 학습 신호로 변환된다</text>
+      <text x="350" y="275" font-size="10" fill="#64748b" text-anchor="middle">→ 물체 찾기의 0~100% 연속 점수도 동일한 범위의 종 모양 곡선으로 변환!</text>
+    </svg>
+    <div class="diagram-caption">어떤 형태의 점수든 "순위 → 백분위 → 정규분포"로 3단계 변환하면 동일한 학습 신호가 된다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 국제 대회의 점수 변환</div>
+    <p>올림픽 체조에서 각 나라마다 채점 방식이 다르다면, 공정하게 비교할 수 없겠죠? G²RPO는 마치 "각 종목의 순위"를 기준으로 공통된 점수 체계로 바꿔주는 것입니다. 1등은 항상 +1.28점, 꼴찌는 항상 -1.28점 — 종목이 무엇이든, 원래 채점이 어떻든 상관없이요.</p>
+  </div>
+</section>
+
+<!-- ===== 추가 핵심 아이디어: Task-level Shaping ===== -->
+<section>
+  <h2>추가 핵심 아이디어: 과제별 맞춤 학습 가이드</h2>
+
+  <div class="card card-accent">
+    <p>G²RPO가 점수 변환을 해결했다면, 두 번째 문제가 남아 있습니다: <strong>어떤 과제는 긴 사고가 필요하고, 어떤 과제는 짧은 답이 정답</strong>입니다. 이를 위해 두 가지 "맞춤 가이드"를 추가합니다.</p>
+  </div>
+
+  <h3>가이드 1: 답변 길이 조절 — "길게 생각할 때와 짧게 답할 때"</h3>
+
+  <p>수학 문제를 풀 때는 긴 풀이 과정이 필요하지만, "이 사진에서 고양이 찾기"에는 짧은 좌표만 답하면 됩니다. 기존 AI는 이를 구분하지 못해, 사진 속 물체를 찾을 때도 불필요한 긴 문장을 생성하거나, 수학 문제를 풀 때 중간 과정을 생략하는 문제가 있었습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">과제별 최적 답변 길이가 다르다</text>
+
+      <!-- 수학 문제: 긴 답 필요 -->
+      <rect x="40" y="50" width="280" height="80" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="180" y="75" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">수학 문제 → 긴 추론 체인 필요</text>
+      <text x="180" y="95" font-size="10" fill="#475569" text-anchor="middle">"삼각형의 각도를 구하려면..."</text>
+      <text x="180" y="110" font-size="10" fill="#475569" text-anchor="middle">"Step 1: ... Step 2: ... Step 3: ... 답: 45°"</text>
+      <rect x="50" y="118" width="260" height="5" rx="2" fill="#d97706" opacity="0.4"/>
+      <text x="310" y="125" font-size="8" fill="#d97706" font-weight="600">████████████ 긴 답</text>
+
+      <!-- 물체 찾기: 짧은 답 필요 -->
+      <rect x="380" y="50" width="280" height="80" rx="12" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="520" y="75" font-size="12" font-weight="700" fill="#1e40af" text-anchor="middle">물체 찾기 → 짧은 좌표만</text>
+      <text x="520" y="95" font-size="10" fill="#475569" text-anchor="middle">"고양이의 위치는?"</text>
+      <text x="520" y="110" font-size="10" fill="#475569" text-anchor="middle">"[234, 156, 450, 320]"</text>
+      <rect x="390" y="118" width="60" height="5" rx="2" fill="#1e40af" opacity="0.4"/>
+      <text x="455" y="125" font-size="8" fill="#1e40af" font-weight="600">██ 짧은 답</text>
+
+      <!-- 해결책 -->
+      <rect x="100" y="150" width="500" height="55" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="350" y="172" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">해결: 과제별로 "이상적인 답변 길이 범위"를 설정</text>
+      <text x="350" y="192" font-size="10" fill="#475569" text-anchor="middle">→ 범위 안이면 보상 최대, 범위 밖이면 보상 감소 (사다리꼴 형태)</text>
+    </svg>
+    <div class="diagram-caption">Response Length Shaping: 과제 유형에 맞는 답변 길이를 유도한다</div>
+  </div>
+
+  <h3>가이드 2: 탐색 범위 조절 — "너무 모험적이지도, 너무 소심하지도 않게"</h3>
+
+  <p>AI 학습에서 <strong>"entropy"</strong>는 AI의 답변이 얼마나 다양한지를 나타냅니다. Entropy가 너무 높으면 AI가 횡설수설(entropy explosion), 너무 낮으면 AI가 한 가지 답만 반복(entropy collapse)합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">Entropy 문제: 탐색의 양 극단</text>
+
+      <!-- Entropy Explosion -->
+      <rect x="30" y="50" width="200" height="140" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="130" y="75" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">Entropy 폭발 💥</text>
+      <text x="130" y="100" font-size="10" fill="#475569" text-anchor="middle">수학 문제에서 발생</text>
+      <text x="130" y="125" font-size="10" fill="#475569" text-anchor="middle">AI가 이상한 답을 탐색</text>
+      <text x="130" y="145" font-size="10" fill="#475569" text-anchor="middle">"답은... 사과? 바나나?"</text>
+      <text x="130" y="170" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">= 횡설수설</text>
+
+      <!-- 최적 -->
+      <rect x="250" y="50" width="200" height="140" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="350" y="75" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">최적 탐색 ✅</text>
+      <text x="350" y="100" font-size="10" fill="#475569" text-anchor="middle">적절한 다양성 유지</text>
+      <text x="350" y="125" font-size="10" fill="#475569" text-anchor="middle">다양한 풀이를 시도하되</text>
+      <text x="350" y="145" font-size="10" fill="#475569" text-anchor="middle">합리적인 범위 내에서</text>
+      <text x="350" y="170" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">= 건강한 학습</text>
+
+      <!-- Entropy Collapse -->
+      <rect x="470" y="50" width="200" height="140" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="570" y="75" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">Entropy 붕괴 📉</text>
+      <text x="570" y="100" font-size="10" fill="#475569" text-anchor="middle">시각 과제에서 발생</text>
+      <text x="570" y="125" font-size="10" fill="#475569" text-anchor="middle">AI가 한 가지 답만 고집</text>
+      <text x="570" y="145" font-size="10" fill="#475569" text-anchor="middle">"답은 항상 [0,0,1,1]"</text>
+      <text x="570" y="170" font-size="10" fill="#d97706" text-anchor="middle" font-weight="600">= 탐색 포기</text>
+
+      <!-- 해결 -->
+      <rect x="100" y="205" width="500" height="35" rx="10" fill="#eff6ff" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="350" y="228" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">해결: 과제별로 "탐색의 상한선과 하한선"을 설정 → 두 극단 모두 방지</text>
+    </svg>
+    <div class="diagram-caption">Entropy Shaping: AI의 탐색 범위를 과제별로 최적 구간 내에 유지한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 요리사의 레시피 실험</div>
+    <p>레시피를 개발하는 요리사에게 비유하면, entropy explosion은 "소금 대신 설탕, 버터 대신 식초"를 넣는 것이고, entropy collapse는 "항상 같은 레시피만 반복"하는 것입니다. 좋은 요리사는 적절한 범위 내에서 창의적으로 실험해야 합니다. G²RPO의 entropy shaping이 바로 이 "적절한 실험 범위"를 과제별로 설정해주는 것입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 전체 시스템 ===== -->
+<section>
+  <h2>OpenVLThinkerV2: 세 가지 혁신을 하나로</h2>
+
+  <div class="step-flow">
+    <div class="step-box" style="border-color:#1e40af;">
+      <div class="step-num" style="color:#1e40af;">혁신 1</div>
+      <div class="step-title">G²RPO</div>
+      <div class="step-desc">점수 분포를<br>정규분포로 변환</div>
+    </div>
+    <div class="step-arrow">+</div>
+    <div class="step-box" style="border-color:#059669;">
+      <div class="step-num" style="color:#059669;">혁신 2</div>
+      <div class="step-title">길이 조절</div>
+      <div class="step-desc">과제별 최적<br>답변 길이 유도</div>
+    </div>
+    <div class="step-arrow">+</div>
+    <div class="step-box" style="border-color:#d97706;">
+      <div class="step-num" style="color:#d97706;">혁신 3</div>
+      <div class="step-title">탐색 범위 조절</div>
+      <div class="step-desc">entropy collapse와<br>explosion 동시 방지</div>
+    </div>
+    <div class="step-arrow">=</div>
+    <div class="step-box" style="border-color:#6366f1; background:#eff6ff;">
+      <div class="step-num" style="color:#6366f1;">결과</div>
+      <div class="step-title">OpenVLThinkerV2</div>
+      <div class="step-desc">만능 시각 AI<br>18개 벤치마크 SOTA</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>핵심 성과: 숫자로 보는 결과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">18개</div>
+      <div class="label">평가 벤치마크</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">71.6%</div>
+      <div class="label">MMMU 정확도<br>(GPT-4o: 70.7%)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">911</div>
+      <div class="label">OCRBench 점수<br>(SOTA 달성)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">8B</div>
+      <div class="label">파라미터 수<br>(소형 모델로 달성)</div>
+    </div>
+  </div>
+
+  <h3>주요 벤치마크 비교</h3>
+
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>카테고리</th>
+      <th>GPT-4o</th>
+      <th>Gemini 2.5 Pro</th>
+      <th style="background:#1e40af;">OpenVLThinkerV2</th>
+    </tr>
+    <tr>
+      <td>MMMU (종합 추론)</td>
+      <td>General VQA</td>
+      <td>70.7%</td>
+      <td>81.7%</td>
+      <td><strong>71.6%</strong></td>
+    </tr>
+    <tr>
+      <td>MathVista (수학)</td>
+      <td>Math VQA</td>
+      <td>63.6%</td>
+      <td>82.7%</td>
+      <td><strong>78.5%</strong></td>
+    </tr>
+    <tr>
+      <td>ChartQA (차트)</td>
+      <td>Chart VQA</td>
+      <td>86.7%</td>
+      <td>86.3%</td>
+      <td><strong>87.4%</strong></td>
+    </tr>
+    <tr>
+      <td>OCRBench (문서)</td>
+      <td>Document</td>
+      <td>785</td>
+      <td>864</td>
+      <td><strong>911</strong></td>
+    </tr>
+    <tr>
+      <td>RefCOCO (물체 찾기)</td>
+      <td>Grounding</td>
+      <td>—</td>
+      <td>—</td>
+      <td><strong>93.4%</strong></td>
+    </tr>
+    <tr>
+      <td>EmbSpatial (공간)</td>
+      <td>Spatial</td>
+      <td>52.9%</td>
+      <td>79.1%</td>
+      <td><strong>83.1%</strong></td>
+    </tr>
+  </table>
+
+  <div class="card card-green">
+    <p><strong>핵심 포인트</strong>: OpenVLThinkerV2는 80억 개의 파라미터를 가진 "소형" 오픈소스 모델임에도, 수백~수천억 파라미터의 상용 모델(GPT-4o, Gemini 2.5 Pro)을 <strong>다수의 벤치마크에서 능가</strong>합니다. 특히 문서 이해(OCRBench 911), 차트 분석(ChartQA 87.4%), 물체 찾기(RefCOCO 93.4%) 등 실용적 과제에서 두드러진 성과를 보입니다.</p>
+  </div>
+
+  <h3>각 혁신 요소가 기여한 정도</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">Ablation: 각 요소를 하나씩 추가했을 때의 효과</text>
+
+      <!-- 기준선 -->
+      <rect x="50" y="60" width="120" height="40" rx="8" fill="#e2e8f0" stroke="#94a3b8" stroke-width="1"/>
+      <text x="110" y="82" font-size="9" fill="#475569" text-anchor="middle" font-weight="600">기본 모델 (Qwen3-VL)</text>
+      <text x="110" y="108" font-size="11" fill="#64748b" text-anchor="middle">기준점</text>
+
+      <line x1="170" y1="80" x2="210" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- G²RPO -->
+      <rect x="215" y="50" width="130" height="55" rx="8" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="280" y="72" font-size="10" font-weight="700" fill="#1e40af" text-anchor="middle">+ G²RPO</text>
+      <text x="280" y="92" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">큰 폭 향상 ⬆⬆</text>
+      <text x="280" y="112" font-size="8" fill="#64748b" text-anchor="middle">수학 +5.6pp, 공간 +21.4pp</text>
+
+      <line x1="345" y1="80" x2="375" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- Entropy -->
+      <rect x="380" y="50" width="130" height="55" rx="8" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="445" y="72" font-size="10" font-weight="700" fill="#059669" text-anchor="middle">+ Entropy 조절</text>
+      <text x="445" y="92" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">추가 향상 ⬆</text>
+      <text x="445" y="112" font-size="8" fill="#64748b" text-anchor="middle">추론 과제에서 효과</text>
+
+      <line x1="510" y1="80" x2="540" y2="80" stroke="#6366f1" stroke-width="2" marker-end="url(#arw)"/>
+
+      <!-- Length -->
+      <rect x="545" y="50" width="130" height="55" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="610" y="72" font-size="10" font-weight="700" fill="#d97706" text-anchor="middle">+ 길이 조절</text>
+      <text x="610" y="92" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">추가 향상 ⬆</text>
+      <text x="610" y="112" font-size="8" fill="#64748b" text-anchor="middle">전반적 균형 개선</text>
+
+      <!-- 최종 -->
+      <rect x="200" y="150" width="300" height="55" rx="12" fill="#eff6ff" stroke="#6366f1" stroke-width="2"/>
+      <text x="350" y="175" font-size="13" font-weight="700" fill="#6366f1" text-anchor="middle">세 가지 합치면 = 최고 성능!</text>
+      <text x="350" y="195" font-size="10" fill="#475569" text-anchor="middle">G²RPO가 가장 큰 기여, 나머지 둘이 상호 보완적으로 추가 개선</text>
+
+      <!-- 화살표들 -->
+      <line x1="280" y1="108" x2="300" y2="150" stroke="#1e40af" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arw)"/>
+      <line x1="445" y1="108" x2="380" y2="150" stroke="#059669" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arw)"/>
+      <line x1="610" y1="108" x2="460" y2="150" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3" marker-end="url(#arw)"/>
+
+      <!-- 핵심 메시지 -->
+      <text x="350" y="240" font-size="11" fill="#1e3a5f" text-anchor="middle" font-weight="600">핵심 발견: G²RPO 하나만으로도 대부분의 성능 향상을 얻지만,</text>
+      <text x="350" y="260" font-size="11" fill="#1e3a5f" text-anchor="middle" font-weight="600">세 가지를 조합하면 시너지 효과로 최고 성능 달성</text>
+    </svg>
+    <div class="diagram-caption">각 혁신 요소의 독립적 기여도 — G²RPO가 핵심이고, 나머지는 보완적 역할</div>
+  </div>
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 방법 대비 장점</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>비교 항목</th>
+      <th>기존 GRPO</th>
+      <th>EMA-GRPO</th>
+      <th style="background:#1e40af;">G²RPO (본 논문)</th>
+    </tr>
+    <tr>
+      <td>정규화 방식</td>
+      <td>그룹별 z-score</td>
+      <td>이동평균 z-score</td>
+      <td class="highlight-row">비선형 분포 변환</td>
+    </tr>
+    <tr>
+      <td>분포 모양 보존?</td>
+      <td>그대로 보존 ❌</td>
+      <td>그대로 보존 ❌</td>
+      <td class="highlight-row">정규분포로 변환 ✅</td>
+    </tr>
+    <tr>
+      <td>극단값(outlier) 처리</td>
+      <td>취약</td>
+      <td>부분적</td>
+      <td class="highlight-row">수학적으로 제거 ✅</td>
+    </tr>
+    <tr>
+      <td>과제 간 공정성</td>
+      <td>불균형</td>
+      <td>부분적 개선</td>
+      <td class="highlight-row">자동 보장 ✅</td>
+    </tr>
+    <tr>
+      <td>추가 hyperparameter</td>
+      <td>없음</td>
+      <td>decay rate 필요</td>
+      <td class="highlight-row">없음 ✅</td>
+    </tr>
+    <tr>
+      <td>구현 복잡도</td>
+      <td>낮음</td>
+      <td>중간</td>
+      <td class="highlight-row">낮음 ✅</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="30" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">OpenVLThinkerV2 & G²RPO의 활용 가능 분야</text>
+
+      <!-- 중심 -->
+      <circle cx="350" cy="190" r="55" fill="url(#gradC)" stroke="#1e40af" stroke-width="2"/>
+      <defs><radialGradient id="gradC"><stop offset="0%" style="stop-color:#eff6ff"/><stop offset="100%" style="stop-color:#dbeafe"/></radialGradient></defs>
+      <text x="350" y="183" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">OpenVL</text>
+      <text x="350" y="200" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">ThinkerV2</text>
+
+      <!-- 분야들 -->
+      <!-- 의료 -->
+      <rect x="50" y="55" width="140" height="60" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="120" y="80" font-size="11" font-weight="700" fill="#d97706" text-anchor="middle">🏥 의료 영상 분석</text>
+      <text x="120" y="100" font-size="9" fill="#475569" text-anchor="middle">X-ray, CT 판독 보조</text>
+      <line x1="190" y1="100" x2="300" y2="160" stroke="#d97706" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <!-- 교육 -->
+      <rect x="510" y="55" width="140" height="60" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="580" y="80" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">📚 AI 교육 튜터</text>
+      <text x="580" y="100" font-size="9" fill="#475569" text-anchor="middle">수학/과학 문제 풀이</text>
+      <line x1="510" y1="100" x2="400" y2="160" stroke="#059669" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <!-- 문서 자동화 -->
+      <rect x="50" y="250" width="140" height="60" rx="12" fill="#dbeafe" stroke="#1e40af" stroke-width="1.5"/>
+      <text x="120" y="275" font-size="11" font-weight="700" fill="#1e40af" text-anchor="middle">📄 문서 자동 처리</text>
+      <text x="120" y="295" font-size="9" fill="#475569" text-anchor="middle">영수증, 계약서 OCR</text>
+      <line x1="190" y1="270" x2="300" y2="220" stroke="#1e40af" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <!-- 로보틱스 -->
+      <rect x="510" y="250" width="140" height="60" rx="12" fill="#f5f3ff" stroke="#6366f1" stroke-width="1.5"/>
+      <text x="580" y="275" font-size="11" font-weight="700" fill="#6366f1" text-anchor="middle">🤖 로보틱스</text>
+      <text x="580" y="295" font-size="9" fill="#475569" text-anchor="middle">물체 인식 & 공간 추론</text>
+      <line x1="510" y1="270" x2="400" y2="220" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <!-- G²RPO 범용 -->
+      <rect x="250" y="330" width="200" height="25" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="350" y="348" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="600">G²RPO는 코딩, GUI, SWE 등 더 넓은 영역에도 적용 가능</text>
+
+      <!-- 데이터 분석 -->
+      <rect x="280" y="50" width="140" height="50" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="350" y="72" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">📊 데이터 분석</text>
+      <text x="350" y="90" font-size="9" fill="#475569" text-anchor="middle">차트/그래프 해석</text>
+      <line x1="350" y1="100" x2="350" y2="135" stroke="#dc2626" stroke-width="1.5" stroke-dasharray="4"/>
+    </svg>
+    <div class="diagram-caption">OpenVLThinkerV2는 다양한 시각 AI 과제에, G²RPO는 더 넓은 multi-task RL 분야에 활용 가능</div>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<div class="one-liner">
+  "점수 체계가 다른 여러 과목을 동시에 공부할 때,<br>모든 점수를 같은 기준으로 변환하면 공부 효율이 극대화된다 —<br>이것이 G²RPO의 핵심이고, OpenVLThinkerV2의 비결이다"
+</div>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점</h2>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">단일 모델 크기만 검증</h3>
+    <p>현재 실험은 80억 파라미터(8B) 모델에서만 진행되었습니다. 더 크거나(700억+) 더 작은 모델에서도 동일한 효과가 있는지는 아직 확인되지 않았습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">반복 실험 부재</h3>
+    <p>AI 학습은 매번 결과가 조금씩 달라지는데(확률적 특성), 이 논문의 결과는 단 1회 학습의 결과로 보입니다. 여러 번 반복한 평균과 편차가 보고되지 않아, 결과의 신뢰도를 정확히 판단하기 어렵습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">세부 설정값 미공개</h3>
+    <p>"과제별 답변 길이 범위"와 "탐색 범위"를 설정하는 구체적인 값들이 논문에 명시되지 않았습니다. 다른 연구자가 이를 재현하려면 추가 정보가 필요합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#d97706; margin-top:0;">적용 영역의 한계</h3>
+    <p>현재는 시각 과제에 집중되어 있으며, 코딩(SWE), GUI 조작 등 더 넓은 영역으로의 확장은 향후 과제로 남아 있습니다.</p>
+  </div>
+</section>
+
+<p style="margin-top:2rem; text-align:center;">
+  <a href="20260413_hu_openvlthinkerv2.html" style="color:#1e40af; font-weight:600;">전문가용 상세 요약 보기 →</a>
+</p>
+
+</div><!-- container -->
+
+<div class="footer">
+  <p>OpenVLThinkerV2: A Generalist Multimodal Reasoning Model for Multi-domain Visual Tasks</p>
+  <p>Wenbo Hu, Xin Chen, Yan Gao-Tian, Yihe Deng, Nanyun Peng, Kai-Wei Chang · UCLA · 2026</p>
+  <p>arXiv:2604.08539</p>
+</div>
+
+</body>
+</html>
