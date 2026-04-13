@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Revisiting On-Policy Distillation: Empirical Failure Modes and Simple Fixes</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Revisiting On-Policy Distillation: Empirical Failure Modes and Simple Fixes</h1>
+
+<p><a href="20260413_fu_opd_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuqian Fu, Haohuan Huang, Kaiwen Jiang, Yuanheng Zhu, Dongbin Zhao</li>
+  <li><strong>소속</strong>: State Key Laboratory of Multimodal Artificial Intelligence Systems, CASIA (Chinese Academy of Sciences) / School of Artificial Intelligence, UCAS</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint (Under review)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2603.25562">arXiv:2603.25562</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-policy distillation (OPD)에서 흔히 사용되는 sampled-token 변형이 long-horizon 설정에서 취약하다. Distribution matching이 단일 토큰 비교로 축소되면서 (1) 심하게 불균형한 학습 신호, (2) student가 생성한 prefix에서 teacher의 신뢰도 하락, (3) tokenizer/special-token 불일치로 인한 왜곡이 발생한다.</li>
+  <li><strong>해결</strong>: Teacher top-$K$ local support matching을 제안 — 단일 sampled token 대신 teacher의 top-$K$ token 집합 위에서 분포 수준의 비교를 수행하는 truncated reverse-KL 목적함수. Top-$p$ rollout sampling과 special-token masking으로 안정화.</li>
+  <li><strong>왜 작동하는가</strong>: 단일 토큰 비교는 teacher가 locally 선호하는 소수 토큰에만 학습 신호가 집중되어 trajectory 품질과 무관한 최적화가 일어나지만, local support matching은 teacher의 plausible token 집합 전체에 걸쳐 positive/negative 조정을 재분배하여 더 균형 잡힌 학습 신호를 제공한다.</li>
+  <li><strong>비유</strong>: 기존 OPD는 선생님이 학생의 답안지에서 "이 한 글자가 맞았는지 틀렸는지"만 평가하는 것이라면, local support matching은 "이 단어 주변에서 선생님이 쓸 법한 단어들과 비교하여" 평가하는 것이다. 한 글자 평가는 빠르지만 오판이 잦고, 단어 단위 평가는 더 공정하고 안정적이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>OPD의 estimator tradeoff 분석</strong>: Token-level OPD가 sequence-level OPD 대비 biased이지만 worst-case variance가 $O(T^2)$ vs $O(T^4)$로 훨씬 낮음을 이론적으로 보이고, 실험적으로 variance-stability tradeoff를 검증.</li>
+  <li><strong>Sampled-token OPD의 3가지 실용적 failure mode 식별</strong>: ##불균형한 one-token signal, student-generated prefix에서의 teacher 신뢰도 하락, tokenizer/special-token 불일치##.</li>
+  <li><strong>Teacher top-$K$ local support matching</strong>: Truncated reverse-KL로 구현, top-$p$ rollout sampling과 special-token masking과 결합하여 sampled-token OPD 대비 더 안정적인 최적화와 더 높은 downstream performance를 single-task/multi-task 모두에서 달성.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>On-Policy Distillation (OPD)이란?</h3>
+
+<p>OPD는 student가 자신의 rollout에서 생성한 trajectory에 대해 teacher의 피드백을 받는 방식이다. Offline distillation이 teacher의 고정된 출력/logit을 학습하는 것과 달리, OPD는 student가 생성한 prefix를 기반으로 teacher가 평가한다. 이는 long-horizon reasoning과 agentic post-training에서 매력적인데, student가 빠르게 teacher의 데이터에 없는 prefix에 도달하기 때문이다.</p>
+
+<p>최근 Qwen3 (Yang et al., 2025), MiMo-V2-Flash (Xiao et al., 2026), GLM-5 (Zeng et al., 2026), Thinking Machines Lab (Lu & Lab, 2025) 등의 모델 보고서에서 OPD가 활용되고 있어, 이 방식이 실무에서 점점 중요해지고 있다.</p>
+
+<h3>Sampled-Token OPD의 문제</h3>
+
+<p>현재 LLM 파이프라인에서 OPD는 보통 <strong>sampled-token comparison</strong>으로 구현된다: 각 decoding step에서 student의 sampled token 하나에 대한 log-ratio만으로 업데이트한다. 이 근사는 저렴하지만 brittle하다 — (1) 분포 수준의 비교를 하나의 점 추정으로 축소하고, (2) rollout이 길어질수록 teacher가 흔히 방문하는 prefix에서 벗어나 신뢰도가 떨어지며, (3) tokenizer 차이로 왜곡된다.</p>
+
+<h2>2. Related Work</h2>
+
+<p>OPD 안정화를 위한 기존 연구는 크게 두 방향으로 나뉜다:</p>
+<ul>
+  <li><strong>Broader optimization/rollout 방식 변경</strong>: EMA-anchor stabilization (Zhang & Ba, 2026), off-policy correction (Liu et al., 2025), perturbation-based stabilization (Ye et al., 2026), logit-level fusion (Zhang et al., 2026) 등</li>
+  <li><strong>Local comparison 개선</strong>: 본 논문의 접근 — teacher와 student가 diverge하기 시작할 때 per-prefix OPD comparison 자체를 개선하여 teacher 신호의 정보성을 유지</li>
+</ul>
+
+<h2>3. Understanding Sampled-token OPD: Tradeoffs and Failure Modes</h2>
+
+<h3>3.1 From Reverse-KL to Token-Level OPD</h3>
+
+<p>Prompt $x$에 대해 student $\pi_\theta$와 teacher $q$의 sequence-level reverse-KL 목적함수는:</p>
+
+$$J_\text{OPD}(\theta) = \mathbb{E}_{x \sim \mathcal{D}} \left[ D_\text{KL}\left(\pi_\theta(\cdot \mid x) \| q(\cdot \mid x)\right) \right]$$
+
+<p>Score function identity를 사용하면 gradient는:</p>
+
+$$\nabla_\theta J_\text{OPD}(\theta) = \mathbb{E}_{x, y \sim \pi_\theta(\cdot|x)} \left[ \left(\log \pi_\theta(y \mid x) - \log q(y \mid x)\right) \nabla_\theta \log \pi_\theta(y \mid x) \right]$$
+
+<p>각 decoding step $t$에서 prefix context $c_t = (x, y_{<t})$를 정의하고, score-function gradient $g_t = \nabla_\theta \log \pi_\theta(y_t \mid c_t)$와 log-ratio $r_t = \log \frac{\pi_\theta(y_t \mid c_t)}{q(y_t \mid c_t)}$를 도입하면, autoregressive factorization에 의해 <strong>sequence-level estimator</strong>는:</p>
+
+$$\hat{g}_\text{seq} = \sum_{t=1}^{T} \left(\sum_{t'=1}^{T} r_{t'}\right) g_t \quad (1)$$
+
+<p>일반적인 LLM 학습에서는 immediate term만 유지하여 <strong>token-level estimator</strong>를 사용한다:</p>
+
+$$\hat{g}_\text{tok} = \sum_{t=1}^{T} r_t g_t \quad (2)$$
+
+<p>직관적으로, token-level OPD는 "각 토큰의 업데이트가 해당 토큰의 즉각적 reward에만 의존"하도록 future-reward coupling을 제거한 것이다.</p>
+
+<h3>Bias-Variance Tradeoff</h3>
+
+<p>Token-level OPD는 sequence-level reverse-KL에 대해 biased이지만, worst-case variance upper bound가 훨씬 낮다:</p>
+<ul>
+  <li><strong>Token-level</strong>: $\text{Var}(\hat{g}_\text{tok}) = O(T^2)$</li>
+  <li><strong>Sequence-level</strong>: $\text{Var}(\hat{g}_\text{seq}) = O(T^4)$</li>
+</ul>
+
+<p>이 차이는 sequence 길이 $T$가 길어질수록 극적으로 커진다. Discounted return-to-go estimator $\hat{g}_\gamma = \sum_{t=1}^{T} \left(\sum_{t'=t}^{T} \gamma^{t'-t} r_{t'}\right) g_t$에서 $\gamma = 0$이 token-level, $\gamma = 1$이 sequence-level을 복구하며, 실험적으로도 $\gamma$가 커질수록 variance가 증가하고 학습이 불안정해진다.</p>
+
+<blockquote>
+<p><strong>[Figure 1 설명]</strong>: Two-task toy environment에서 $\gamma \in \{0.0, 0.5, 1.0\}$의 효과. (a) $\gamma$가 클수록 gradient variance가 높고 persistent하다. (b) $\gamma = 1.0$ (sequence-level)에서는 policy가 target에 수렴하지 못하고 drifting behavior를 보인다. $\gamma = 0$ (token-level)은 안정적으로 수렴한다.</p>
+</blockquote>
+
+<h3>3.2 Why Sampled-Token OPD is Brittle in Practice</h3>
+
+<p>Token-level OPD가 bias-variance 관점에서는 매력적이지만, 실제 sampled-token 비교는 세 가지 실용적 문제를 겪는다:</p>
+
+<h4>Failure Mode 1: 심하게 불균형한 Sampled-Token Signal</h4>
+
+<p>Sampled-token OPD의 업데이트는 각 step에서 단일 토큰의 log-ratio $\log q(y_t \mid c_t) - \log \pi_\theta(y_t \mid c_t)$에 의해 구동된다.</p>
+
+<blockquote>
+<p><strong>[Figure 2 설명]</strong>: Qwen2.5-7B-It (student)와 OpenThinker3-7B (teacher)의 첫 training iteration에서 token probability scatter plot. ##대부분의 sampled token은 student가 teacher보다 높은 확률을 부여하여 negative reward를 받고, positive signal은 소수의 locally teacher-favored token에 집중##. 결과적으로 teacher가 locally 선호하는 filler나 hesitation marker 같은 토큰을 향해 최적화가 편향된다.</p>
+</blockquote>
+
+<h4>Failure Mode 2: Student-Generated Prefix에서 Teacher 신호의 비신뢰성</h4>
+
+<p>Sampled-token OPD는 teacher가 student-generated prefix에 대해 유용한 확률을 부여한다고 가정한다. 그러나 student가 생성한 prefix가 teacher에게 uncommon한 경우, teacher는 plausible하게 보이지만 실제로는 전체 trajectory가 잘못된 방향으로 빗나간 토큰에도 높은 확률을 부여할 수 있다.</p>
+
+<blockquote>
+<p><strong>[Figure 3 설명]</strong>: Student가 repetition loop에 빠졌는데도 teacher model이 반복 토큰에 높은 확률을 유지하는 사례. Teacher 입장에서는 각 개별 토큰이 로컬하게 plausible하지만, 전체 trajectory는 비생산적이다.</p>
+</blockquote>
+
+<blockquote>
+<p><strong>[Figure 4 설명]</strong>: Token position에 따른 teacher-student log-probability gap 분포. 후반 position에서 gap이 더 넓어지고 극단값이 증가 — ##롱 rollout에서 teacher signal이 점점 더 noisy해짐##을 보여준다.</p>
+</blockquote>
+
+<h4>Failure Mode 3: Tokenizer 및 Special-Token 불일치</h4>
+
+<p>Student와 teacher가 다른 tokenizer를 사용하면, 동일한 raw text가 다르게 segmentation된다. 예: student는 <code>&lt;think&gt;</code>를 <code>&lt;</code>, <code>think,</code>, <code>&gt;</code>로 분할하지만 teacher는 <code>&lt;th</code>, <code>ink,</code>, <code>&gt;</code>로 분할한다. Token-level 비교에서 <code>&lt;</code>이 teacher에서 낮은 확률을 받아 spurious penalty가 발생한다. 마찬가지로 EOS 토큰(<code>&lt;|im_end|&gt;</code> vs <code>&lt;|endoftext|&gt;</code>) 불일치도 reward signal을 왜곡한다.</p>
+
+<blockquote>
+<p><strong>[Figure 5 설명]</strong>: Token-level 비교가 의미적으로는 올바른 출력을 tokenizer 불일치 때문에 penalize하는 구체적 사례를 시각화.</p>
+</blockquote>
+
+<h2>4. Method</h2>
+
+<h3>4.1 Teacher Top-$K$ Local Support Matching</h3>
+
+<p>핵심 아이디어: 단일 sampled token 대신, 각 prefix에서 <strong>teacher가 정의한 local support set</strong> 위에서 teacher와 student의 분포를 비교한다.</p>
+
+<p>Full-vocabulary reverse-KL은:</p>
+
+$$\mathcal{L}_\text{full}(c_t) = \sum_{v \in \mathcal{V}} \pi_\theta(v \mid c_t) \log \frac{\pi_\theta(v \mid c_t)}{q(v \mid c_t)} \quad (4)$$
+
+<p>Sampled-token OPD는 이를 단일 샘플로 근사하는 것으로 볼 수 있다:</p>
+
+$$\mathcal{L}_\text{sample}(c_t, y_t) = \log \frac{\pi_\theta(y_t \mid c_t)}{q(y_t \mid c_t)}, \quad y_t \sim \pi_\theta(\cdot \mid c_t) \quad (5)$$
+
+<p>본 논문은 teacher의 top-$K$ token으로 support set을 정의한다. Student의 출력 $o_i$의 position $t$에서:</p>
+
+$$S(c_{i,t}) = \text{TopK}_q(c_{i,t}) \quad (6)$$
+
+<p>이 support 내에서 teacher와 student 분포를 <strong>재정규화(renormalize)</strong>한다:</p>
+
+$$\tilde{\pi}_\theta(v \mid c_{i,t}) = \frac{\pi_\theta(v \mid c_{i,t})}{\sum_{u \in S(c_{i,t})} \pi_\theta(u \mid c_{i,t})}, \quad \tilde{q}(v \mid c_{i,t}) = \frac{q(v \mid c_{i,t})}{\sum_{u \in S(c_{i,t})} q(u \mid c_{i,t})} \quad (7)$$
+
+<p>최종 학습 목적함수는 이 truncated reverse-KL을 모든 rollout의 모든 position에 대해 평균한다:</p>
+
+$$\mathcal{L}_\text{LSM} = \mathbb{E}_{x, \{o_i\} \sim \pi_\theta} \left[ \frac{1}{\sum_{i=1}^{G} |o_i|} \sum_{i=1}^{G} \frac{1}{|o_i|} \sum_{t=1}^{|o_i|} \sum_{v \in S(c_{i,t})} \tilde{\pi}_\theta(v \mid c_{i,t}) \log \frac{\tilde{\pi}_\theta(v \mid c_{i,t})}{\tilde{q}(v \mid c_{i,t})} \right] \quad (8)$$
+
+<p>직관적으로, ##sampled-token OPD가 하나의 토큰만 rewarding/penalizing하는 것과 달리, local support matching은 teacher의 plausible 후보 전체에 걸쳐 positive/negative adjustment를 재분배##하여 더 균형 잡힌 학습 신호를 제공한다.</p>
+
+<h3>4.2 Practical Stabilization Choices</h3>
+
+<h4>Support-set Renormalization</h4>
+<p>Truncated support 내에서의 재정규화가 필수적이다 — 없으면 teacher와 student의 mass가 support 내에서 직접 비교할 수 없어 최적화가 불안정해진다.</p>
+
+<h4>Top-$p$ Rollout Sampling</h4>
+<p>Unconstrained sampling은 극도로 low-probability token을 생성하여 teacher 분포가 덜 informative하고 student 분포가 이미 악화된 prefix를 만든다. Top-$p$ sampling ($p = 0.9$)이 rollout을 typical continuation 근처로 유지하여 teacher signal을 더 신뢰할 수 있게 한다.</p>
+
+<h4>Special-Token Masking</h4>
+<p>Tokenizer 불일치로 인한 false negative를 줄이기 위해 problematic special token을 마스킹한다. Sampled-token OPD에는 큰 도움이 되지만, distribution-level matching은 이미 tokenizer 불일치에 덜 민감하여 본 method에는 minor effect.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>5.1 Setup</h3>
+
+<ul>
+  <li><strong>Student</strong>: Qwen2.5-7B-Instruct (Qwen et al., 2025)</li>
+  <li><strong>Teacher</strong>: OpenThinker3-7B (Guha et al., 2025)</li>
+  <li><strong>Setting 1: Single-task math reasoning</strong> — DAPO-Math-17K의 English portion, 최대 context length 16K</li>
+  <li><strong>Setting 2: Multi-task agentic-plus-math</strong> — Math (OpenThinker3-7B teacher) + ALFWorld (GiGPO-Qwen2.5-7B-Instruct-ALFWorld checkpoint teacher)</li>
+  <li><strong>학습 세부사항</strong>: Batch size 128, mini-batch 64, learning rate $2 \times 10^{-6}$, temperature 1, top-$p = 0.9$ rollout</li>
+  <li><strong>평가</strong>: Math500, AIME24, AIME25, Minerva, OlympiadBench (pass@1), ALFWorld (success rate)</li>
+</ul>
+
+<h3>5.2 Single-Task Math Reasoning</h3>
+
+<table>
+<tr><th>Method</th><th>Math500</th><th>AIME24</th><th>AIME25</th><th>Minerva</th><th>OlympiadBench</th><th>Avg.</th></tr>
+<tr><td>Qwen2.5-7B-It (baseline)</td><td>68.2</td><td>13.3</td><td>0.0</td><td>26.5</td><td>32.9</td><td>28.2</td></tr>
+<tr><td>OpenThinker3-7B (teacher)</td><td>92.2</td><td>53.3</td><td>40.0</td><td>39.0</td><td>55.6</td><td>56.0</td></tr>
+<tr><td>Sampled-token OPD</td><td>80.0</td><td>10.0</td><td>16.7</td><td>32.4</td><td>43.1</td><td>36.4</td></tr>
+<tr><td>Sampled-token OPD w/ mask</td><td>81.4</td><td>26.7</td><td>16.7</td><td>34.2</td><td>44.7</td><td>40.7</td></tr>
+<tr><td>Ours w/o mask</td><td>80.4</td><td>23.3</td><td>26.7</td><td>34.2</td><td>43.9</td><td>41.0</td></tr>
+<tr style="font-weight:bold;"><td>Ours w/ mask</td><td>82.0</td><td>23.3</td><td>23.3</td><td>34.9</td><td>43.9</td><td>41.5</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>Sampled-token OPD는 baseline 대비 평균 28.2 → 36.4로 개선하지만, ##teacher (56.0)에 크게 못 미침##.</li>
+  <li>Special-token masking만 추가해도 36.4 → 40.7로 상당한 개선 — tokenization artifact가 material part of the problem임을 시사.</li>
+  <li>##Local support matching (Ours w/ mask)은 평균 41.5로 sampled-token OPD (36.4) 대비 +5.1pp, masking 포함 대비 +0.8pp 추가 개선##.</li>
+  <li>Masking의 효과가 sampled-token OPD에서 더 크고 본 method에서는 작음 — distribution-level matching이 tokenizer mismatch에 본질적으로 더 robust함을 시사.</li>
+</ul>
+
+<h3>5.3 Multi-Task Agentic-Plus-Math Training</h3>
+
+<table>
+<tr><th>Method</th><th>ALFWorld</th><th>Math500</th><th>AIME24</th><th>AIME25</th><th>Minerva</th><th>OlympiadBench</th><th>Avg.</th></tr>
+<tr><td>Qwen2.5-7B-It</td><td>21.9</td><td>68.2</td><td>13.3</td><td>0.0</td><td>26.5</td><td>32.9</td><td>28.2</td></tr>
+<tr><td>GiGPO-Qwen2.5-7B-It-ALFWorld</td><td>95.3</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+<tr><td>OpenThinker3-7B (teacher)</td><td>—</td><td>92.2</td><td>53.3</td><td>40.0</td><td>39.0</td><td>55.6</td><td>56.0</td></tr>
+<tr><td>Sampled-token OPD</td><td>90.6</td><td>74.8</td><td>13.3</td><td>13.3</td><td>32.1</td><td>40.5</td><td>34.8</td></tr>
+<tr><td>Sampled-token OPD w/ mask</td><td>93.8</td><td>76.0</td><td>20.0</td><td>13.3</td><td>33.5</td><td>40.4</td><td>36.6</td></tr>
+<tr><td>Ours w/o mask</td><td>95.3</td><td>82.0</td><td>33.3</td><td>16.7</td><td>32.7</td><td>44.0</td><td>41.7</td></tr>
+<tr style="font-weight:bold;"><td>Ours w/ mask</td><td>97.7</td><td>79.0</td><td>20.0</td><td>16.7</td><td>34.6</td><td>42.5</td><td>38.6</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>Sampled-token OPD baseline이 이미 ALFWorld에서 강력하여 (90.6), 주된 개선 여지는 math 쪽에 있다.</li>
+  <li>Unmasked 버전 (Ours w/o mask)이 Math500 82.0, AIME24 33.3으로 최고의 math 점수를 기록하면서 ALFWorld에서도 95.3 달성.</li>
+  <li>Masked 버전은 ##ALFWorld 97.7로 최고 agentic 성능##을 달성하지만 일부 math gain을 교환.</li>
+  <li>이 결과는 ##local support matching이 long-horizon token-level supervision이 가장 brittle한 곳에서 가장 큰 도움##을 줌을 시사한다.</li>
+</ul>
+
+<h3>5.4 Training Dynamics and Alignment</h3>
+
+<blockquote>
+<p><strong>[Figure 6-8 설명]</strong>: (1) <strong>더 나은 학습 곡선</strong>: Math reasoning에서 본 method가 training reward와 evaluation performance를 학습 전반에 걸쳐 개선. (2) <strong>더 안정적인 최적화</strong>: 더 작은 gradient norm, 더 낮은 clipping-boundary fraction, 충분한 policy entropy 유지. Special-token masking이 sampled-token OPD의 clipping 비율을 크게 줄이지만 본 method에는 minor effect. (3) <strong>더 나은 teacher-student alignment</strong>: Sampled token에 대한 teacher-student log-probability gap이 더 작아지며, truncated local support objective가 sampled-token diagnostic에서도 alignment을 개선.</p>
+</blockquote>
+
+<h3>5.5 Ablations</h3>
+
+<p><strong>실험 의도</strong>: Gain이 단일 설계 선택이 아닌 여러 설계 선택의 조합에서 비롯됨을 확인.</p>
+
+<table>
+<tr><th>Method</th><th>AIME24 avg@32</th></tr>
+<tr><td>Qwen2.5-7B-Instruct</td><td>10.0</td></tr>
+<tr><td>OpenThinker3-7B</td><td>63.3</td></tr>
+<tr><td>Sampled-token OPD (point estimate)</td><td>20.4</td></tr>
+<tr><td>+ teacher top-$K$ (truncated reverse-KL)</td><td>17.7</td></tr>
+<tr><td>+ teacher top-$K$ + top-$p$</td><td>23.6</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Teacher top-$K$ comparison만으로는 성능이 오히려 하락## (20.4 → 17.7) — rollout이 안정적인 영역에 있어야 local support matching이 효과적이다.</li>
+  <li>Top-$p$ sampling 추가 시 비로소 23.6으로 개선 — 안정적인 rollout과 local support matching의 조합이 핵심.</li>
+  <li>Renormalization 제거 시 rapid collapse, 너무 작은 $K$ 역시 불안정 (Figure 9).</li>
+</ul>
+
+<p><strong>Top-$K$ Support Variants</strong> (Table 4):</p>
+
+<table>
+<tr><th>Method</th><th>AIME24 avg@32</th><th>Math500</th><th>AIME24</th><th>AIME25</th><th>Minerva</th><th>OlympiadBench</th><th>Avg.</th></tr>
+<tr><td>Teacher top-$K$</td><td><strong>23.6</strong></td><td>80.4</td><td>23.3</td><td><strong>26.7</strong></td><td>34.2</td><td>43.9</td><td>41.0</td></tr>
+<tr><td>Student top-$K$</td><td>22.3</td><td><strong>82.4</strong></td><td><strong>30.0</strong></td><td>16.7</td><td>35.7</td><td>44.9</td><td>41.9</td></tr>
+<tr><td>Teacher top-$K$ + sampled token</td><td>22.4</td><td>81.6</td><td>26.7</td><td>23.3</td><td><strong>36.4</strong></td><td><strong>46.7</strong></td><td><strong>42.9</strong></td></tr>
+</table>
+
+<ul>
+  <li>어느 하나가 일관되게 우위가 아니며, "단일 토큰 비교를 local distribution-level matching으로 교체"하는 것 자체가 핵심임을 시사.</li>
+</ul>
+
+<h2>6. Discussion and Limitations</h2>
+
+<p><strong>Truncated surrogate의 한계</strong>: Local-support loss는 full-vocabulary reverse-KL의 근사이며, rollout policy의 sampling 과정을 명시적으로 교정하지 않는다. Sampled token의 통합 방식, importance-weighting style correction의 필요성 등이 미탐구.</p>
+
+<p><strong>Reward-hacking 가설의 한계</strong>: Teacher의 sharp 분포와 off-distribution prefix가 공동으로 misleading local reward를 생성한다는 가설은 qualitative 사례로 뒷받침되지만, 완전한 인과 메커니즘의 분리(isolation)는 이루어지지 않았다.</p>
+
+<p><strong>Teacher matching ≠ task success</strong>: OPD가 teacher-matching objective를 잘 최적화해도, teacher-preferred continuation이 locally rewarding이지만 trajectory 전체로는 unhelpful/harmful할 수 있다. Teacher와 student 간의 gap을 줄이기 위해 더 강한 rollout 제어, distribution shift 처리, teacher uncertainty 활용, outcome-verifiable reward와의 결합이 필요하다.</p>
+
+<h2>7. Conclusion</h2>
+
+<p>본 논문은 long-horizon post-training에서 OPD를 재검토한다. 핵심 tradeoff는 명쾌하다: sequence-level coupling은 underlying objective에 더 가깝지만 variance가 훨씬 높고, sampled-token OPD는 최적화가 쉽지만 brittle하다. ##Teacher top-$K$ local support matching이 이 중간 지점을 차지## — objective를 local로 유지하면서 single-token supervision을 truncated distribution-level comparison으로 교체한다. Single-task math reasoning과 alternating agentic-plus-math training 모두에서 최적화 행동과 downstream performance를 개선한다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>체계적 failure mode 분석</strong>: 3가지 실패 모드(불균형 signal, 비신뢰 teacher, tokenizer mismatch)를 구체적 시각화와 함께 명확히 분리한 것이 설득력 있다.</li>
+  <li><strong>이론-실험 연결</strong>: Bias-variance tradeoff의 이론적 분석($O(T^2)$ vs $O(T^4)$)이 toy experiment와 실제 LLM 실험 모두에서 검증된다.</li>
+  <li><strong>실용적 해결책</strong>: Teacher top-$K$ + renormalization + top-$p$ sampling은 기존 OPD 파이프라인에 최소한의 변경으로 적용 가능하다.</li>
+  <li><strong>Multi-task 검증</strong>: Math-only가 아닌 agentic+math alternating 설정에서도 검증하여 실용성을 높였다.</li>
+  <li><strong>Qualitative failure case study</strong>: Appendix D의 reward-hacking case study가 failure mode를 구체적으로 보여준다.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Teacher와의 gap이 여전히 큼</strong>: Baseline 28.2 → Ours 41.5이지만 teacher는 56.0 — distillation 효율이 아직 낮다.</li>
+  <li><strong>단일 student-teacher 쌍</strong>: Qwen2.5-7B-It (student) + OpenThinker3-7B (teacher)에서만 실험. 다른 크기나 모델 조합에서의 일반화는 미검증.</li>
+  <li><strong>Masking의 inconsistency</strong>: Single-task에서는 mask가 도움이 되지만, multi-task에서는 mask가 math를 일부 희생 — masking의 최적 전략이 task-dependent.</li>
+  <li><strong>$K$ 선택</strong>: Support size $K$에 대한 sensitivity 분석이 제공되지만 (Figure 9b), $K$가 "충분히 크면 robust" 이외의 원칙적 가이드라인이 부족.</li>
+  <li><strong>Computational overhead 미보고</strong>: Top-$K$ token 추출, renormalization 등의 추가 비용이 명시되지 않았다.</li>
+  <li><strong>RL과의 직접 비교 부재</strong>: GRPO 등 verifiable reward 기반 RL과의 head-to-head 비교가 없어, OPD의 절대적 위치 파악이 어렵다.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Single-token supervision의 한계</strong>: Long-horizon LLM post-training에서 단일 토큰 비교는 불균형 signal, noisy teacher guidance, tokenizer artifact로 인해 근본적으로 brittle하다. Distribution-level comparison이 더 robust한 대안이다.</li>
+  <li><strong>Bias-variance tradeoff의 실용적 함의</strong>: Token-level OPD의 $O(T^2)$ variance가 sequence-level의 $O(T^4)$보다 훨씬 manageable하므로, objective를 local로 유지하되 local comparison의 quality를 높이는 것이 올바른 방향이다.</li>
+  <li><strong>안정적인 rollout이 전제 조건</strong>: Local support matching은 rollout이 teacher의 typical region에 있을 때만 효과적이다. Top-$p$ sampling이 이 전제 조건을 보장한다.</li>
+  <li><strong>기존 OPD 파이프라인과의 호환성</strong>: 제안된 방법은 기존 sampled-token OPD 코드에 teacher forward pass에서 top-$K$ 추출과 renormalization을 추가하는 것으로 구현 가능하다.</li>
+  <li><strong>Teacher-student gap의 근본적 문제</strong>: OPD에서 teacher의 local guidance가 trajectory 품질과 괴리될 수 있으며, 이는 outcome-verifiable reward와의 결합으로 해결해야 할 열린 문제이다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

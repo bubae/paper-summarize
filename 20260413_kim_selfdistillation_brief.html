@@ -1,0 +1,1009 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Distillation이 LLM의 추론 능력을 약화시키는 이유 — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #c2410c, #ea580c, #f97316, #fb923c);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.2rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.92; max-width: 680px; margin: 0 auto; }
+  .hero .version-link { display: inline-block; margin-top: 1.2rem; color: rgba(255,255,255,0.85); font-size: 0.9rem; text-decoration: underline; }
+  .hero .version-link:hover { color: #fff; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #9a3412; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #ea580c, #dc2626); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #ea580c; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #ea580c, #dc2626);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #ea580c, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #9a3412; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fff7ed; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #ea580c; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #ea580c; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #ea580c; padding: 0 0.4rem; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #ea580c; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">Microsoft Research &middot; KAIST &middot; Seoul National University &middot; 2026</div>
+  <h1>Self-Distillation은 왜 AI의<br>추론 능력을 망가뜨리는가?</h1>
+  <p class="subtitle">AI가 스스로를 가르칠 때, "잠깐, 다시 생각해볼게..."라는 습관이 사라지고<br>자신만만하지만 틀린 답을 내놓게 되는 이유</p>
+  <a class="version-link" href="20260413_kim_selfdistillation.html">전문가용 상세 요약 보기 &rarr;</a>
+</div>
+
+<div class="container">
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "AI가 자기 자신을 선생님 삼아 공부하면,<br>'다시 확인해볼게'라는 신중함이 사라져 수학 성적이 40%나 떨어진다"
+</div>
+
+<!-- ===== 핵심 숫자 ===== -->
+<section>
+  <h2>핵심 숫자 한눈에 보기</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">40%</div>
+      <div class="label">수학 추론 성능 하락<br>(Out-of-Distribution)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">97%</div>
+      <div class="label">Epistemic token 감소<br>(신중함 표현 제거율)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">3개</div>
+      <div class="label">검증된 모델<br>DeepSeek, Qwen, Llama</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">182&rarr;8.8</div>
+      <div class="label">Epistemic token 수<br>(자유 생성 vs 가이드 생성)</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 배경지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 세 가지 배경 개념을 알아야 합니다: <strong>LLM의 추론 과정</strong>, <strong>Reinforcement Learning(강화학습) 기반 훈련</strong>, 그리고 <strong>Self-Distillation(자기 증류)</strong>. 차근차근 설명하겠습니다.</p>
+  </div>
+
+  <!-- ── 개념 1: LLM의 사고 과정 ── -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#9a3412;">개념 1: AI는 어떻게 "생각"하는가?</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT나 DeepSeek 같은 대형 언어 모델(LLM)은 한 번에 정답을 내뱉는 것이 아닙니다. 마치 사람이 시험 문제를 풀 때 연습장에 풀이를 적어가듯, AI도 <strong>중간 과정(chain-of-thought)</strong>을 단계별로 생성하면서 답에 도달합니다.</p>
+
+  <p style="margin:0.8rem 0;">특히 최근 "추론 특화 AI"(Reasoning LLM)들은 이 과정에서 흥미로운 표현들을 사용합니다: <strong>"잠깐(wait)"</strong>, <strong>"음(hmm)"</strong>, <strong>"아마도(maybe)"</strong>, <strong>"다시 확인해보자(let me reconsider)"</strong> 같은 표현입니다. 이것을 연구자들은 <strong>Epistemic Verbalization</strong>이라고 부릅니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">AI의 두 가지 사고 방식: 신중한 AI vs 자신만만한 AI</text>
+
+      <!-- 좌측: 신중한 AI -->
+      <rect x="20" y="45" width="320" height="260" rx="14" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="180" y="72" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">신중한 AI (Epistemic Tokens 사용)</text>
+
+      <rect x="40" y="88" width="280" height="32" rx="6" fill="#fff" stroke="#059669" stroke-width="1"/>
+      <text x="180" y="109" font-size="11" fill="#334155" text-anchor="middle">Q: 3x + 7 = 22일 때 x는?</text>
+
+      <rect x="40" y="130" width="280" height="32" rx="6" fill="#dcfce7" stroke="#059669" stroke-width="1"/>
+      <text x="180" y="151" font-size="11" fill="#166534" text-anchor="middle">"3x = 15이니까 x = 5... 잠깐,"</text>
+
+      <rect x="40" y="172" width="280" height="32" rx="6" fill="#fef9c3" stroke="#d97706" stroke-width="1.5"/>
+      <text x="180" y="193" font-size="11" fill="#92400e" text-anchor="middle" font-weight="700">"다시 확인해보자: 3(5)+7 = 22 맞다!"</text>
+
+      <rect x="40" y="214" width="280" height="32" rx="6" fill="#dcfce7" stroke="#059669" stroke-width="1"/>
+      <text x="180" y="235" font-size="11" fill="#166534" text-anchor="middle">최종 답: x = 5 ✓ 정확!</text>
+
+      <rect x="90" y="260" width="180" height="30" rx="8" fill="#059669"/>
+      <text x="180" y="280" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">자기 검증 = 높은 정확도</text>
+
+      <!-- 우측: 자신만만한 AI -->
+      <rect x="380" y="45" width="320" height="260" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="540" y="72" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">자신만만한 AI (Epistemic Tokens 없음)</text>
+
+      <rect x="400" y="88" width="280" height="32" rx="6" fill="#fff" stroke="#dc2626" stroke-width="1"/>
+      <text x="540" y="109" font-size="11" fill="#334155" text-anchor="middle">Q: 복잡한 적분 문제</text>
+
+      <rect x="400" y="130" width="280" height="32" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1"/>
+      <text x="540" y="151" font-size="11" fill="#991b1b" text-anchor="middle">"답은 바로 42입니다."</text>
+
+      <rect x="400" y="172" width="280" height="32" rx="6" fill="#fef2f2" stroke="#fca5a5" stroke-width="1" stroke-dasharray="4"/>
+      <text x="540" y="193" font-size="11" fill="#94a3b8" text-anchor="middle">(검증 단계 없음)</text>
+
+      <rect x="400" y="214" width="280" height="32" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1"/>
+      <text x="540" y="235" font-size="11" fill="#991b1b" text-anchor="middle">최종 답: 42 ✗ 오답!</text>
+
+      <rect x="450" y="260" width="180" height="30" rx="8" fill="#dc2626"/>
+      <text x="540" y="280" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">검증 생략 = 자신있게 틀림</text>
+    </svg>
+    <div class="diagram-caption">Epistemic token("잠깐", "다시 확인")이 있는 AI는 자기 검증을 통해 정확도가 높지만, 이것이 사라지면 검증 없이 오답을 내놓는다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">시험 보는 학생의 비유</div>
+    <p>시험을 볼 때, 답을 적고 나서 <strong>"잠깐, 이거 맞나? 다시 계산해보자"</strong>라고 스스로 되묻는 학생이 있습니다. 이런 학생은 실수를 스스로 잡아내서 높은 점수를 받습니다. 반면 <strong>"나 이거 확실해!"</strong>라며 바로 다음 문제로 넘어가는 학생은 계산 실수를 놓치기 쉽습니다. AI에게 "잠깐, 다시 확인해보자"가 바로 epistemic verbalization이고, self-distillation은 이 습관을 없애버리는 훈련법입니다.</p>
+  </div>
+
+  <!-- ── 개념 2: 강화학습 기반 훈련 (GRPO) ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#9a3412;">개념 2: AI를 똑똑하게 만드는 훈련법 - 강화학습(RL)</h3>
+
+  <p style="margin:0.8rem 0;">최근 AI를 더 똑똑하게 만드는 핵심 기술은 <strong>강화학습(Reinforcement Learning, RL)</strong>입니다. 이것은 마치 <strong>시행착오를 통해 배우는 것</strong>과 같습니다. AI가 문제를 풀면, 정답이면 보상(+점수)을, 오답이면 벌점(-점수)을 줍니다. AI는 보상을 최대화하는 방향으로 자신을 개선합니다.</p>
+
+  <p style="margin:0.8rem 0;">이 논문에서 주로 다루는 <strong>GRPO (Group Relative Policy Optimization)</strong>는 AI가 같은 문제에 대해 여러 개의 답을 생성한 뒤, 그 중 좋은 답의 패턴을 강화하고 나쁜 답의 패턴을 약화시키는 방법입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">GRPO: 여러 답 중 좋은 것을 강화하는 훈련법</text>
+
+      <!-- 문제 입력 -->
+      <rect x="30" y="60" width="120" height="50" rx="10" fill="#ea580c" opacity="0.9"/>
+      <text x="90" y="82" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">수학 문제</text>
+      <text x="90" y="98" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">x + 3 = 10</text>
+
+      <!-- 화살표 -->
+      <path d="M150,85 L180,85" stroke="#ea580c" stroke-width="2" fill="none" marker-end="url(#arrow1)"/>
+      <defs><marker id="arrow1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ea580c"/></marker></defs>
+
+      <!-- AI 모델 -->
+      <rect x="185" y="50" width="100" height="70" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="235" y="78" font-size="12" fill="#ea580c" text-anchor="middle" font-weight="700">AI 모델</text>
+      <text x="235" y="95" font-size="10" fill="#64748b" text-anchor="middle">답 여러 개 생성</text>
+
+      <!-- 여러 답 생성 -->
+      <path d="M285,70 L330,50" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M285,85 L330,85" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arrow3)"/>
+      <path d="M285,100 L330,115" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M285,100 L330,148" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arrow3)"/>
+      <defs>
+        <marker id="arrow2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#059669"/></marker>
+        <marker id="arrow3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#dc2626"/></marker>
+      </defs>
+
+      <!-- 답 1: 정답 -->
+      <rect x="335" y="35" width="170" height="32" rx="6" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="420" y="55" font-size="10" fill="#166534" text-anchor="middle">답1: "wait... x=7" ✓ 정답</text>
+
+      <!-- 답 2: 오답 -->
+      <rect x="335" y="72" width="170" height="32" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="420" y="92" font-size="10" fill="#991b1b" text-anchor="middle">답2: "x=13" ✗ 오답</text>
+
+      <!-- 답 3: 정답 -->
+      <rect x="335" y="109" width="170" height="32" rx="6" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="420" y="129" font-size="10" fill="#166534" text-anchor="middle">답3: "hmm, x=7" ✓ 정답</text>
+
+      <!-- 답 4: 오답 -->
+      <rect x="335" y="146" width="170" height="32" rx="6" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="420" y="166" font-size="10" fill="#991b1b" text-anchor="middle">답4: "x=3" ✗ 오답</text>
+
+      <!-- 보상 부여 -->
+      <path d="M505,52 L545,52" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M505,88 L545,88" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arrow3)"/>
+      <path d="M505,125 L545,125" stroke="#059669" stroke-width="1.5" fill="none" marker-end="url(#arrow2)"/>
+      <path d="M505,163 L545,163" stroke="#dc2626" stroke-width="1.5" fill="none" marker-end="url(#arrow3)"/>
+
+      <text x="580" y="55" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">+1 강화!</text>
+      <text x="580" y="91" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">-1 약화</text>
+      <text x="580" y="128" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">+1 강화!</text>
+      <text x="580" y="166" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">-1 약화</text>
+
+      <!-- 결론 -->
+      <rect x="130" y="200" width="460" height="60" rx="12" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="360" y="225" font-size="13" font-weight="700" fill="#ea580c" text-anchor="middle">결과: AI는 "wait..."나 "hmm"을 포함한 신중한 풀이 패턴을 학습</text>
+      <text x="360" y="245" font-size="11" fill="#475569" text-anchor="middle">정답을 낸 풀이 방식이 자연스럽게 강화되고, 그 안에는 epistemic token이 들어있다</text>
+    </svg>
+    <div class="diagram-caption">GRPO는 AI가 스스로 여러 답을 생성하고 정답인 풀이 패턴(wait, hmm 등 포함)을 강화하는 자율 학습법</div>
+  </div>
+
+  <!-- ── 개념 3: Self-Distillation ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#9a3412;">개념 3: Self-Distillation — AI가 자기 자신에게 배우는 방법</h3>
+
+  <p style="margin:0.8rem 0;">Self-Distillation(자기 증류)은 AI 훈련의 또 다른 방법입니다. 같은 AI의 복사본 두 개를 만들어, 하나는 <strong>"선생님(teacher)"</strong> 역할을, 다른 하나는 <strong>"학생(student)"</strong> 역할을 맡깁니다.</p>
+
+  <p style="margin:0.8rem 0;">핵심 차이점은 이것입니다: 선생님에게는 <strong>정답(answer key)</strong>을 미리 보여줍니다. 선생님은 정답을 참고해서 풀이를 만들고, 학생은 그 풀이를 따라 배웁니다. 이 방법을 <strong>SDPO (Self-Distilled Policy Optimization)</strong>라고 부릅니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">Self-Distillation: 선생님(정답 참고) → 학생(따라 배우기)</text>
+
+      <!-- 선생님 영역 -->
+      <rect x="20" y="50" width="320" height="280" rx="14" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="180" y="78" font-size="14" font-weight="700" fill="#2563eb" text-anchor="middle">선생님 (Teacher)</text>
+
+      <!-- 문제 + 정답 입력 -->
+      <rect x="45" y="95" width="130" height="40" rx="8" fill="#ea580c" opacity="0.85"/>
+      <text x="110" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">수학 문제</text>
+      <text x="110" y="127" font-size="9" fill="#fff" text-anchor="middle" opacity="0.8">x + 3 = 10</text>
+
+      <text x="190" y="118" font-size="16" fill="#2563eb" text-anchor="middle">+</text>
+
+      <rect x="205" y="95" width="120" height="40" rx="8" fill="#059669" opacity="0.85"/>
+      <text x="265" y="113" font-size="11" fill="#fff" text-anchor="middle" font-weight="600">정답 제공!</text>
+      <text x="265" y="127" font-size="9" fill="#fff" text-anchor="middle" opacity="0.8">x = 7</text>
+
+      <!-- 선생님의 풀이 -->
+      <path d="M180,135 L180,155" stroke="#2563eb" stroke-width="1.5" fill="none" marker-end="url(#arrow4)"/>
+      <defs><marker id="arrow4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#2563eb"/></marker></defs>
+
+      <rect x="45" y="160" width="270" height="55" rx="8" fill="#fff" stroke="#2563eb" stroke-width="1"/>
+      <text x="180" y="180" font-size="11" fill="#334155" text-anchor="middle">선생님의 풀이 (정답을 아는 상태에서 작성):</text>
+      <text x="180" y="200" font-size="11" fill="#2563eb" text-anchor="middle" font-weight="600">"x + 3 = 10, x = 10 - 3 = 7. 답은 7."</text>
+
+      <!-- 특징 -->
+      <rect x="45" y="228" width="270" height="85" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1"/>
+      <text x="180" y="250" font-size="11" fill="#1e40af" text-anchor="middle" font-weight="700">선생님 풀이의 특징:</text>
+      <text x="180" y="270" font-size="10" fill="#334155" text-anchor="middle">- 정답을 이미 알고 있으므로 자신만만하게 진행</text>
+      <text x="180" y="287" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">- "잠깐", "다시 확인" 같은 표현이 거의 없음!</text>
+      <text x="180" y="304" font-size="10" fill="#334155" text-anchor="middle">- 깔끔하고 직선적인 풀이</text>
+
+      <!-- 학생 영역 -->
+      <rect x="380" y="50" width="320" height="280" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="540" y="78" font-size="14" font-weight="700" fill="#dc2626" text-anchor="middle">학생 (Student)</text>
+
+      <!-- 화살표: 선생 → 학생 -->
+      <path d="M340,200 L380,200" stroke="#7c3aed" stroke-width="2.5" fill="none" marker-end="url(#arrow5)" stroke-dasharray="6"/>
+      <defs><marker id="arrow5" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#7c3aed"/></marker></defs>
+      <text x="360" y="190" font-size="9" fill="#7c3aed" text-anchor="middle" font-weight="700">모방 학습</text>
+
+      <!-- 학생의 학습 결과 -->
+      <rect x="405" y="100" width="270" height="55" rx="8" fill="#fff" stroke="#dc2626" stroke-width="1"/>
+      <text x="540" y="120" font-size="11" fill="#334155" text-anchor="middle">학생이 배운 풀이 스타일:</text>
+      <text x="540" y="140" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">"답은 바로 7입니다." (검증 생략)</text>
+
+      <!-- 문제 발생 -->
+      <rect x="405" y="170" width="270" height="40" rx="8" fill="#fef9c3" stroke="#d97706" stroke-width="1.5"/>
+      <text x="540" y="190" font-size="11" fill="#92400e" text-anchor="middle" font-weight="700">새로운 어려운 문제를 만나면?</text>
+
+      <rect x="405" y="225" width="270" height="85" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1"/>
+      <text x="540" y="247" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="700">치명적 결과:</text>
+      <text x="540" y="267" font-size="10" fill="#334155" text-anchor="middle">- "잠깐, 다시 생각해보자"를 하지 않음</text>
+      <text x="540" y="284" font-size="10" fill="#334155" text-anchor="middle">- 자신만만하게 틀린 답을 제출</text>
+      <text x="540" y="301" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">- 수학 성적 최대 40% 하락!</text>
+    </svg>
+    <div class="diagram-caption">Self-Distillation에서 선생님은 정답을 이미 알고 있어서 "신중함"이 없고, 학생은 이 자신만만한 스타일을 그대로 학습한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">수학 과외의 비유</div>
+    <p>수학 과외 선생님이 학생에게 풀이를 보여줄 때를 생각해보세요. 선생님은 <strong>이미 정답을 알고 있기 때문에</strong> 막힘 없이 깔끔하게 풀어냅니다. 학생이 이 풀이만 보고 따라하면, "어디서 막히는지", "어떤 부분을 다시 확인해야 하는지" 같은 <strong>실전 감각</strong>을 배우지 못합니다. 실제 시험장에서 처음 보는 문제를 만나면, 선생님처럼 술술 풀 수 없어 당황하게 되죠. Self-distillation이 정확히 이 문제를 일으킵니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>이 논문의 핵심 발견</h2>
+
+  <div class="card card-accent">
+    <p>이 논문의 핵심 질문은 명확합니다: <strong>"Self-distillation은 왜 화학이나 코딩에서는 잘 작동하는데, 수학에서는 성능을 떨어뜨리는가?"</strong> 연구진은 3가지 핵심 원인을 밝혀냈습니다.</p>
+  </div>
+
+  <!-- Step flow -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#9a3412;">발견 1: Epistemic Token의 억제</h3>
+
+  <p style="margin:0.8rem 0;">연구진이 가장 먼저 발견한 것은 놀라웠습니다. Self-distillation을 하면 AI가 사용하는 <strong>epistemic token("wait", "hmm", "let me reconsider" 등)</strong>이 거의 완전히 사라진다는 것입니다. 구체적으로, 가이드 없이 자유롭게 생성할 때 평균 <strong>182개</strong>였던 epistemic token이, 정답을 보여주고 생성시키면 <strong>8.8개</strong>로 줄었습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">Epistemic Token 변화: 자유 생성 vs 정답 가이드 생성</text>
+
+      <!-- 축 -->
+      <line x1="80" y1="250" x2="650" y2="250" stroke="#64748b" stroke-width="1.5"/>
+      <line x1="80" y1="50" x2="80" y2="250" stroke="#64748b" stroke-width="1.5"/>
+
+      <!-- Y축 라벨 -->
+      <text x="70" y="55" font-size="10" fill="#64748b" text-anchor="end">200</text>
+      <text x="70" y="105" font-size="10" fill="#64748b" text-anchor="end">150</text>
+      <text x="70" y="155" font-size="10" fill="#64748b" text-anchor="end">100</text>
+      <text x="70" y="205" font-size="10" fill="#64748b" text-anchor="end">50</text>
+      <text x="70" y="250" font-size="10" fill="#64748b" text-anchor="end">0</text>
+
+      <!-- 가로 기준선 -->
+      <line x1="80" y1="55" x2="650" y2="55" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="105" x2="650" y2="105" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="155" x2="650" y2="155" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="205" x2="650" y2="205" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+
+      <!-- 바 1: 자유 생성 (Unguided) - DeepSeek -->
+      <rect x="120" y="68" width="55" height="182" rx="4" fill="#059669" opacity="0.85"/>
+      <text x="147" y="60" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">182</text>
+      <text x="147" y="270" font-size="9" fill="#334155" text-anchor="middle">자유 생성</text>
+
+      <!-- 바 2: 가이드 생성 (Guided) - DeepSeek -->
+      <rect x="185" y="241" width="55" height="9" rx="4" fill="#dc2626" opacity="0.85"/>
+      <text x="212" y="236" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">8.8</text>
+      <text x="212" y="270" font-size="9" fill="#334155" text-anchor="middle">가이드</text>
+
+      <!-- DeepSeek 라벨 -->
+      <text x="175" y="290" font-size="10" fill="#9a3412" text-anchor="middle" font-weight="600">DeepSeek-R1</text>
+
+      <!-- 바 3: 자유 - Qwen -->
+      <rect x="300" y="88" width="55" height="162" rx="4" fill="#059669" opacity="0.85"/>
+      <text x="327" y="80" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">162</text>
+      <text x="327" y="270" font-size="9" fill="#334155" text-anchor="middle">자유 생성</text>
+
+      <!-- 바 4: 가이드 - Qwen -->
+      <rect x="365" y="238" width="55" height="12" rx="4" fill="#dc2626" opacity="0.85"/>
+      <text x="392" y="232" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">12.1</text>
+      <text x="392" y="270" font-size="9" fill="#334155" text-anchor="middle">가이드</text>
+
+      <!-- Qwen 라벨 -->
+      <text x="355" y="290" font-size="10" fill="#9a3412" text-anchor="middle" font-weight="600">QwQ</text>
+
+      <!-- 바 5: 자유 - Llama -->
+      <rect x="480" y="105" width="55" height="145" rx="4" fill="#059669" opacity="0.85"/>
+      <text x="507" y="98" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">145</text>
+      <text x="507" y="270" font-size="9" fill="#334155" text-anchor="middle">자유 생성</text>
+
+      <!-- 바 6: 가이드 - Llama -->
+      <rect x="545" y="240" width="55" height="10" rx="4" fill="#dc2626" opacity="0.85"/>
+      <text x="572" y="234" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">10.3</text>
+      <text x="572" y="270" font-size="9" fill="#334155" text-anchor="middle">가이드</text>
+
+      <!-- Llama 라벨 -->
+      <text x="535" y="290" font-size="10" fill="#9a3412" text-anchor="middle" font-weight="600">Llama-Nemotron</text>
+
+      <!-- 범례 -->
+      <rect x="500" y="42" width="12" height="12" rx="2" fill="#059669" opacity="0.85"/>
+      <text x="518" y="52" font-size="10" fill="#334155">자유 생성</text>
+      <rect x="580" y="42" width="12" height="12" rx="2" fill="#dc2626" opacity="0.85"/>
+      <text x="598" y="52" font-size="10" fill="#334155">정답 가이드</text>
+    </svg>
+    <div class="diagram-caption">정답을 미리 보여주면, AI의 "신중함 표현"이 95~97% 사라진다 (3개 모델 공통)</div>
+  </div>
+
+  <p style="margin:0.8rem 0;">이 결과의 의미는 분명합니다. 선생님(teacher)이 정답을 이미 알고 있으면, <strong>"잠깐, 이게 맞나?"</strong>라고 되물을 이유가 없습니다. 그리고 학생(student)은 이 "의심 없는" 풀이 스타일을 그대로 배워버립니다.</p>
+
+  <!-- 발견 2: Task coverage -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#9a3412;">발견 2: 반복적인 문제 vs 다양한 문제</h3>
+
+  <p style="margin:0.8rem 0;">그런데 흥미로운 점이 있습니다. Self-distillation이 <strong>모든 과목에서</strong> 성능을 떨어뜨리는 것은 아닙니다. 화학이나 코딩 같은 분야에서는 오히려 성능이 <strong>올라갑니다</strong>. 왜 그럴까요?</p>
+
+  <p style="margin:0.8rem 0;">핵심은 <strong>task coverage(과제 범위)</strong>입니다. 화학 문제들은 상대적으로 패턴이 비슷합니다. 비슷한 유형의 문제가 반복되므로, 선생님의 깔끔한 풀이를 따라하면 충분합니다. 하지만 수학은 다릅니다. 문제 유형이 매우 다양하고, 훈련 데이터에 없는 새로운 유형의 문제(Out-of-Distribution, OOD)가 시험에 나옵니다. 이런 문제에서는 "다시 생각해보자"라는 능력이 핵심인데, self-distillation이 바로 이 능력을 없애버린 것입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 310" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">Task Coverage가 높으면 안전, 낮으면 위험</text>
+
+      <!-- 좌측: 높은 coverage -->
+      <rect x="20" y="50" width="320" height="240" rx="14" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="180" y="78" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">높은 Task Coverage (화학/코딩)</text>
+
+      <!-- 훈련 문제 원 -->
+      <circle cx="130" cy="155" r="70" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="130" y="145" font-size="11" fill="#166534" text-anchor="middle" font-weight="600">훈련 문제</text>
+      <text x="130" y="162" font-size="9" fill="#166534" text-anchor="middle">(비슷한 패턴 반복)</text>
+
+      <!-- 시험 문제 원 (거의 겹침) -->
+      <circle cx="155" cy="165" r="50" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="5"/>
+      <text x="195" y="200" font-size="10" fill="#2563eb" font-weight="600">시험 문제</text>
+
+      <!-- 설명 -->
+      <text x="180" y="265" font-size="10" fill="#475569" text-anchor="middle">시험 문제가 훈련 범위 안에 있음</text>
+      <text x="180" y="280" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">→ Self-distillation 효과적!</text>
+
+      <!-- 우측: 낮은 coverage -->
+      <rect x="380" y="50" width="320" height="240" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="540" y="78" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">낮은 Task Coverage (수학)</text>
+
+      <!-- 훈련 문제 원 (작음) -->
+      <circle cx="490" cy="160" r="45" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="490" y="155" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">훈련 문제</text>
+      <text x="490" y="170" font-size="8" fill="#991b1b" text-anchor="middle">(제한된 범위)</text>
+
+      <!-- 시험 문제 원 (훨씬 넓음) -->
+      <circle cx="540" cy="170" r="80" fill="none" stroke="#2563eb" stroke-width="2" stroke-dasharray="5"/>
+      <text x="600" y="125" font-size="10" fill="#2563eb" font-weight="600">시험 문제</text>
+      <text x="600" y="140" font-size="9" fill="#2563eb">(매우 다양)</text>
+
+      <!-- 새로운 문제 표시 -->
+      <circle cx="590" cy="200" r="4" fill="#dc2626"/>
+      <text x="615" y="204" font-size="9" fill="#dc2626">새로운 유형!</text>
+      <circle cx="560" cy="230" r="4" fill="#dc2626"/>
+      <circle cx="610" cy="170" r="4" fill="#dc2626"/>
+
+      <!-- 설명 -->
+      <text x="540" y="265" font-size="10" fill="#475569" text-anchor="middle">시험에 훈련 범위 밖 문제가 많음</text>
+      <text x="540" y="280" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">→ Self-distillation 성능 하락!</text>
+    </svg>
+    <div class="diagram-caption">화학/코딩은 훈련 데이터가 시험 범위를 잘 커버하지만, 수학은 처음 보는 문제가 많아 "다시 생각하기" 능력이 필수적이다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">운전 학원의 비유</div>
+    <p>운전 학원에서 항상 같은 코스(주차, 직진, 좌회전)만 반복 연습하면, 그 코스에서는 완벽해집니다. 선생님의 깔끔한 시범을 따라하면 됩니다. 하지만 실제 도로에 나가면 <strong>학원에서 해보지 못한 상황</strong>(갑자기 나타나는 공사 구간, 예상치 못한 좁은 골목 등)이 생깁니다. 이때 <strong>"잠깐, 여기서 어떻게 해야 하지?"</strong>라고 스스로 판단하는 능력이 필요한데, 학원에서 선생님의 완벽한 시범만 따라한 학생은 이 능력이 부족합니다.</p>
+  </div>
+
+  <!-- 발견 3: Token-level 분석 -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#9a3412;">발견 3: 정답을 보여주면 AI의 "사고 흐름"이 바뀐다</h3>
+
+  <p style="margin:0.8rem 0;">연구진은 더 깊이 파고들었습니다. 정답을 보여줬을 때 AI의 출력이 <strong>어떻게 달라지는지</strong>를 token(단어) 단위로 분석한 것입니다. 결과는 충격적이었습니다:</p>
+
+  <div class="card card-accent">
+    <p><strong>정답을 보여주면 일어나는 세 가지 변화:</strong></p>
+    <ol style="margin-top:0.8rem; padding-left:1.2rem; line-height:2;">
+      <li><strong>길이 감소</strong>: 풀이가 짧아집니다. 정답을 알면 불필요한 탐색을 건너뛰기 때문입니다.</li>
+      <li><strong>Epistemic token 소멸</strong>: "wait", "hmm", "alternatively" 같은 신중한 표현이 97% 감소합니다.</li>
+      <li><strong>반복/탐색 감소</strong>: 여러 접근법을 시도해보는 과정이 사라지고, 한 번에 직선적으로 답에 도달합니다.</li>
+    </ol>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">AI의 풀이 과정 비교: 자유 생성 vs 정답 가이드 생성</text>
+
+      <!-- 자유 생성 (위) -->
+      <rect x="20" y="45" width="680" height="85" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="40" y="68" font-size="12" fill="#059669" font-weight="700">자유 생성 (Unguided) — 길고 탐색적인 풀이</text>
+
+      <!-- 단계별 토큰 -->
+      <rect x="35" y="78" width="80" height="24" rx="5" fill="#059669" opacity="0.7"/>
+      <text x="75" y="94" font-size="8" fill="#fff" text-anchor="middle">접근법 1 시도</text>
+
+      <rect x="120" y="78" width="50" height="24" rx="5" fill="#d97706" opacity="0.8"/>
+      <text x="145" y="94" font-size="8" fill="#fff" text-anchor="middle">wait...</text>
+
+      <rect x="175" y="78" width="80" height="24" rx="5" fill="#059669" opacity="0.7"/>
+      <text x="215" y="94" font-size="8" fill="#fff" text-anchor="middle">접근법 2 시도</text>
+
+      <rect x="260" y="78" width="50" height="24" rx="5" fill="#d97706" opacity="0.8"/>
+      <text x="285" y="94" font-size="8" fill="#fff" text-anchor="middle">hmm...</text>
+
+      <rect x="315" y="78" width="65" height="24" rx="5" fill="#059669" opacity="0.7"/>
+      <text x="347" y="94" font-size="8" fill="#fff" text-anchor="middle">다시 검증</text>
+
+      <rect x="385" y="78" width="80" height="24" rx="5" fill="#d97706" opacity="0.8"/>
+      <text x="425" y="94" font-size="8" fill="#fff" text-anchor="middle">let me check</text>
+
+      <rect x="470" y="78" width="80" height="24" rx="5" fill="#059669" opacity="0.7"/>
+      <text x="510" y="94" font-size="8" fill="#fff" text-anchor="middle">수정 후 진행</text>
+
+      <rect x="555" y="78" width="55" height="24" rx="5" fill="#d97706" opacity="0.8"/>
+      <text x="582" y="94" font-size="8" fill="#fff" text-anchor="middle">actually</text>
+
+      <rect x="615" y="78" width="70" height="24" rx="5" fill="#2563eb" opacity="0.9"/>
+      <text x="650" y="94" font-size="8" fill="#fff" text-anchor="middle">최종 답 ✓</text>
+
+      <!-- 정답 가이드 (아래) -->
+      <rect x="20" y="150" width="680" height="85" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="40" y="173" font-size="12" fill="#dc2626" font-weight="700">정답 가이드 생성 (Guided) — 짧고 직선적인 풀이</text>
+
+      <rect x="35" y="183" width="120" height="24" rx="5" fill="#dc2626" opacity="0.7"/>
+      <text x="95" y="199" font-size="8" fill="#fff" text-anchor="middle">바로 풀이 시작</text>
+
+      <rect x="160" y="183" width="100" height="24" rx="5" fill="#dc2626" opacity="0.7"/>
+      <text x="210" y="199" font-size="8" fill="#fff" text-anchor="middle">계산 진행</text>
+
+      <rect x="265" y="183" width="80" height="24" rx="5" fill="#2563eb" opacity="0.9"/>
+      <text x="305" y="199" font-size="8" fill="#fff" text-anchor="middle">최종 답</text>
+
+      <!-- 빈 공간 표시 -->
+      <rect x="360" y="183" width="325" height="24" rx="5" fill="#f1f5f9" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4"/>
+      <text x="522" y="199" font-size="9" fill="#94a3b8" text-anchor="middle">(탐색/검증 과정 없음)</text>
+
+      <!-- 비교 화살표 -->
+      <text x="360" y="146" font-size="12" fill="#9a3412" text-anchor="middle" font-weight="700">↓ 정답을 보여주면 탐색과 검증이 모두 사라진다</text>
+    </svg>
+    <div class="diagram-caption">자유 생성에서는 다양한 시도와 자기 검증(노란색)을 거치지만, 가이드 생성에서는 이 과정이 완전히 생략된다</div>
+  </div>
+
+</section>
+
+<!-- ===== GRPO vs SDPO 비교 ===== -->
+<section>
+  <h2>두 훈련 방법의 차이: GRPO vs SDPO</h2>
+
+  <p style="margin:0.8rem 0;">이 논문의 핵심은 두 가지 AI 훈련 방법의 비교입니다. <strong>GRPO</strong>(스스로 시행착오로 배우는 방법)와 <strong>SDPO</strong>(자기 자신의 "선생님 버전"에게 배우는 방법)가 어떻게 다른 결과를 만들어내는지 정리하겠습니다.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th style="width:22%;">비교 항목</th>
+        <th style="width:39%;">GRPO (강화학습)</th>
+        <th style="width:39%;">SDPO (Self-Distillation)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>학습 방식</strong></td>
+        <td>AI가 여러 답을 생성하고, 정답인 것을 강화</td>
+        <td>정답을 아는 "선생님"이 풀이를 만들고, "학생"이 따라 학습</td>
+      </tr>
+      <tr>
+        <td><strong>정답 참고</strong></td>
+        <td>풀이 생성 시 정답을 모름 (결과로만 보상)</td>
+        <td>풀이 생성 시 정답을 미리 참고</td>
+      </tr>
+      <tr>
+        <td><strong>Epistemic Token</strong></td>
+        <td>자연스럽게 유지됨 ("wait", "hmm" 등)</td>
+        <td>거의 완전히 제거됨 (97% 감소)</td>
+      </tr>
+      <tr>
+        <td><strong>풀이 스타일</strong></td>
+        <td>탐색적, 자기 수정, 여러 경로 시도</td>
+        <td>직선적, 깔끔, 한 번에 정답까지</td>
+      </tr>
+      <tr>
+        <td><strong>화학/코딩 성적</strong></td>
+        <td>양호</td>
+        <td>더 좋음 (반복적 패턴에 강함)</td>
+      </tr>
+      <tr class="highlight-row">
+        <td><strong>수학 성적 (OOD)</strong></td>
+        <td>높음 (자기 검증 능력 유지)</td>
+        <td>최대 40% 하락 (자기 검증 능력 상실)</td>
+      </tr>
+      <tr>
+        <td><strong>풀이 길이</strong></td>
+        <td>상대적으로 김 (탐색 과정 포함)</td>
+        <td>짧음 (불필요한 탐색 제거)</td>
+      </tr>
+      <tr>
+        <td><strong>적합한 상황</strong></td>
+        <td>다양한 유형의 문제, 새로운 상황</td>
+        <td>반복적인 패턴의 문제, 익숙한 영역</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="analogy">
+    <div class="analogy-title">요리 학원의 비유</div>
+    <p><strong>GRPO</strong>는 요리 학원에서 학생이 <strong>레시피 없이</strong> 직접 여러 번 시도하면서 맛을 보고 조절하는 방식입니다. "음, 좀 짠가? 소금을 줄여볼까" 하면서 시행착오로 배웁니다. <strong>SDPO</strong>는 셰프가 <strong>완성된 요리 맛을 이미 알면서</strong> 조리법을 시연하고, 학생이 그것을 따라하는 방식입니다. 셰프의 시연은 깔끔하지만, 학생은 "이 맛이 이상하면 어떻게 수정하지?"를 배우지 못합니다. 새로운 재료를 만나면 당황하게 되죠.</p>
+  </div>
+</section>
+
+<!-- ===== 왜 이런 일이 일어나는가 — 메커니즘 ===== -->
+<section>
+  <h2>왜 이런 일이 일어나는가?</h2>
+
+  <p style="margin:0.8rem 0;">연구진은 이 현상의 근본 원인을 세 가지 관점에서 설명합니다.</p>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">원인 1</div>
+      <div class="step-title">정답이 "힌트" 역할</div>
+      <div class="step-desc">선생님이 정답을 이미<br>알면 탐색할 필요 없음</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">원인 2</div>
+      <div class="step-title">신중함 표현 소멸</div>
+      <div class="step-desc">"wait", "hmm" 등이<br>97% 감소</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">원인 3</div>
+      <div class="step-title">자기검증 능력 상실</div>
+      <div class="step-desc">새로운 문제에서<br>오류를 잡지 못함</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box" style="border-color:#dc2626;">
+      <div class="step-num" style="color:#dc2626;">결과</div>
+      <div class="step-title" style="color:#dc2626;">성능 하락</div>
+      <div class="step-desc">OOD 수학 문제에서<br>최대 40% 하락</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.15rem; color:#9a3412;">메커니즘 상세 설명</h3>
+
+  <div class="card card-accent">
+    <p><strong>핵심 인사이트</strong>: Epistemic verbalization은 단순한 "말투"가 아닙니다. 이것은 AI가 <strong>자신의 추론 과정을 모니터링하고 수정하는 실질적인 메커니즘</strong>입니다. "wait"라고 말하는 순간 AI의 내부 상태가 바뀌어, 이전 추론을 재평가하는 계산이 시작됩니다. 이 표현을 제거하면, 재평가 자체가 사라지는 것입니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">Self-Distillation의 악순환 메커니즘</text>
+
+      <!-- 중앙 순환 다이어그램 -->
+      <!-- 1단계: 정답 제공 -->
+      <rect x="260" y="50" width="200" height="50" rx="12" fill="#ea580c" opacity="0.9"/>
+      <text x="360" y="72" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">1. 선생님에게 정답 제공</text>
+      <text x="360" y="88" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">"답은 x=7이야"</text>
+
+      <!-- 화살표 1→2 -->
+      <path d="M460,75 Q530,75 530,135" stroke="#ea580c" stroke-width="2" fill="none" marker-end="url(#arrow6)"/>
+      <defs><marker id="arrow6" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#ea580c"/></marker></defs>
+
+      <!-- 2단계: 깔끔한 풀이 -->
+      <rect x="430" y="135" width="220" height="60" rx="12" fill="#d97706" opacity="0.85"/>
+      <text x="540" y="158" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">2. 선생님: 깔끔한 풀이 생성</text>
+      <text x="540" y="178" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">"잠깐" 없이 직선적으로 풀이</text>
+
+      <!-- 화살표 2→3 -->
+      <path d="M540,195 Q540,240 460,250" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#arrow7)"/>
+      <defs><marker id="arrow7" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#d97706"/></marker></defs>
+
+      <!-- 3단계: 학생이 모방 -->
+      <rect x="260" y="235" width="200" height="60" rx="12" fill="#dc2626" opacity="0.85"/>
+      <text x="360" y="258" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">3. 학생: 스타일 모방</text>
+      <text x="360" y="278" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">자기검증 없는 풀이를 학습</text>
+
+      <!-- 화살표 3→4 -->
+      <path d="M260,265 Q190,265 190,195" stroke="#dc2626" stroke-width="2" fill="none" marker-end="url(#arrow8)"/>
+      <defs><marker id="arrow8" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#dc2626"/></marker></defs>
+
+      <!-- 4단계: 새 문제에서 실패 -->
+      <rect x="70" y="135" width="220" height="60" rx="12" fill="#7c3aed" opacity="0.85"/>
+      <text x="180" y="158" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">4. 새로운 문제에서 실패</text>
+      <text x="180" y="178" font-size="10" fill="#fff" text-anchor="middle" opacity="0.8">검증 없이 자신만만하게 오답</text>
+
+      <!-- 핵심 메시지 -->
+      <rect x="180" y="320" width="360" height="30" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="360" y="340" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">핵심: 선생님의 "자신만만함"이 학생에게 전염된다</text>
+    </svg>
+    <div class="diagram-caption">Self-Distillation의 핵심 문제: 정답을 아는 선생님의 자신감이 학생에게 전이되어, 새로운 문제 앞에서 무방비 상태가 된다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">내비게이션 의존의 비유</div>
+    <p>내비게이션(GPS)을 켜고 운전하면 항상 최적의 경로로 갑니다. 하지만 <strong>내비게이션이 알려주는 경로만 따라가는 데 익숙해지면</strong>, 내비게이션이 고장났을 때 길을 찾지 못합니다. "잠깐, 여기가 어디지? 저 간판을 보면..."이라는 <strong>스스로 판단하는 능력</strong>이 퇴화하기 때문입니다. Self-distillation에서 "정답"은 내비게이션이고, "epistemic token"은 스스로 길을 찾는 능력입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 실험 결과 ===== -->
+<section>
+  <h2>실험 결과: 숫자로 보는 증거</h2>
+
+  <p style="margin:0.8rem 0;">연구진은 3개의 대표적인 추론 특화 모델에서 실험을 진행했습니다. 결과는 일관적이었습니다.</p>
+
+  <h3 style="margin-top:1.5rem; font-size:1.15rem; color:#9a3412;">수학 추론 성능 변화</h3>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>모델</th>
+        <th>훈련 방법</th>
+        <th>In-Distribution (같은 유형)</th>
+        <th>Out-of-Distribution (새 유형)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td rowspan="2"><strong>DeepSeek-R1-Distill-Qwen-7B</strong></td>
+        <td>GRPO (강화학습)</td>
+        <td style="color:#059669; font-weight:700;">성능 유지/향상</td>
+        <td style="color:#059669; font-weight:700;">성능 유지</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>SDPO (Self-Distillation)</td>
+        <td>성능 향상</td>
+        <td style="color:#dc2626; font-weight:700;">최대 40% 하락!</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><strong>QwQ-32B</strong></td>
+        <td>GRPO</td>
+        <td style="color:#059669; font-weight:700;">성능 유지/향상</td>
+        <td style="color:#059669; font-weight:700;">성능 유지</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>SDPO</td>
+        <td>성능 향상</td>
+        <td style="color:#dc2626; font-weight:700;">큰 폭 하락</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><strong>Llama-3.1-Nemotron-70B</strong></td>
+        <td>GRPO</td>
+        <td style="color:#059669; font-weight:700;">성능 유지/향상</td>
+        <td style="color:#059669; font-weight:700;">성능 유지</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>SDPO</td>
+        <td>성능 향상</td>
+        <td style="color:#dc2626; font-weight:700;">큰 폭 하락</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="card card-green">
+    <p><strong>핵심 패턴</strong>: 모든 모델에서 동일한 현상이 관찰됩니다. Self-distillation은 훈련 데이터와 비슷한 유형(In-Distribution)의 문제에서는 성능이 오르지만, 새로운 유형(Out-of-Distribution)의 문제에서는 성능이 크게 떨어집니다. 이 격차가 <strong>"자기검증 능력 상실"</strong>의 직접적인 증거입니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.15rem; color:#9a3412;">분야별 결과: 화학과 코딩에서는?</h3>
+
+  <p style="margin:0.8rem 0;">흥미롭게도 화학과 코딩에서는 self-distillation이 <strong>오히려 효과적</strong>이었습니다. 이는 task coverage 가설을 강력히 뒷받침합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#9a3412" text-anchor="middle">분야별 Self-Distillation 효과: 수학 vs 화학 vs 코딩</text>
+
+      <!-- 기준선 (성능 변화 0%) -->
+      <line x1="100" y1="155" x2="650" y2="155" stroke="#64748b" stroke-width="1.5" stroke-dasharray="4"/>
+      <text x="90" y="160" font-size="10" fill="#64748b" text-anchor="end">0%</text>
+      <text x="660" y="160" font-size="9" fill="#64748b">기준</text>
+
+      <!-- Y축 -->
+      <line x1="100" y1="50" x2="100" y2="250" stroke="#64748b" stroke-width="1"/>
+      <text x="88" y="80" font-size="9" fill="#059669" text-anchor="end">+20%</text>
+      <text x="88" y="120" font-size="9" fill="#059669" text-anchor="end">+10%</text>
+      <text x="88" y="195" font-size="9" fill="#dc2626" text-anchor="end">-10%</text>
+      <text x="88" y="245" font-size="9" fill="#dc2626" text-anchor="end">-20%</text>
+
+      <!-- 가로 기준선 -->
+      <line x1="100" y1="80" x2="650" y2="80" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="2"/>
+      <line x1="100" y1="117" x2="650" y2="117" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="2"/>
+      <line x1="100" y1="193" x2="650" y2="193" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="2"/>
+      <line x1="100" y1="230" x2="650" y2="230" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="2"/>
+
+      <!-- 수학 OOD (하락) -->
+      <rect x="150" y="155" width="80" height="90" rx="6" fill="#dc2626" opacity="0.8"/>
+      <text x="190" y="260" font-size="11" fill="#9a3412" text-anchor="middle" font-weight="700">수학 (OOD)</text>
+      <text x="190" y="210" font-size="12" fill="#fff" text-anchor="middle" font-weight="900">-40%</text>
+
+      <!-- 수학 ID (향상) -->
+      <rect x="270" y="130" width="80" height="25" rx="6" fill="#059669" opacity="0.6"/>
+      <text x="310" y="260" font-size="11" fill="#9a3412" text-anchor="middle" font-weight="700">수학 (ID)</text>
+      <text x="310" y="122" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">+7%</text>
+
+      <!-- 화학 (향상) -->
+      <rect x="390" y="100" width="80" height="55" rx="6" fill="#059669" opacity="0.8"/>
+      <text x="430" y="260" font-size="11" fill="#9a3412" text-anchor="middle" font-weight="700">화학</text>
+      <text x="430" y="92" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">+15%</text>
+
+      <!-- 코딩 (향상) -->
+      <rect x="510" y="110" width="80" height="45" rx="6" fill="#059669" opacity="0.8"/>
+      <text x="550" y="260" font-size="11" fill="#9a3412" text-anchor="middle" font-weight="700">코딩</text>
+      <text x="550" y="102" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">+12%</text>
+
+      <!-- 레이블 -->
+      <text x="190" y="48" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">신중함이 필요한 영역</text>
+      <path d="M190,52 L190,65" stroke="#dc2626" stroke-width="1" marker-end="url(#arrow6)"/>
+
+      <text x="490" y="48" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">패턴 반복이 충분한 영역</text>
+      <path d="M490,52 L490,65" stroke="#059669" stroke-width="1" marker-end="url(#arrow2)"/>
+    </svg>
+    <div class="diagram-caption">Self-Distillation은 반복적 패턴(화학, 코딩)에는 효과적이지만, 다양한 문제 유형(수학 OOD)에서는 성능이 크게 하락한다</div>
+  </div>
+</section>
+
+<!-- ===== 활용 분야 / 시사점 ===== -->
+<section>
+  <h2>이 연구가 중요한 이유</h2>
+
+  <p style="margin:0.8rem 0;">이 연구는 AI 개발 업계에 중요한 시사점을 던집니다. Self-distillation은 매우 인기 있는 훈련 기법이지만, <strong>언제 써야 하고 언제 피해야 하는지</strong>에 대한 이해가 부족했습니다. 이 논문은 그 기준을 제시합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="30" font-size="15" font-weight="700" fill="#9a3412" text-anchor="middle">이 연구의 파급 효과</text>
+
+      <!-- 중앙 -->
+      <circle cx="360" cy="200" r="55" fill="#ea580c" opacity="0.9"/>
+      <text x="360" y="193" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Self-Distillation</text>
+      <text x="360" y="210" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">연구 결과</text>
+
+      <!-- 분기 1: AI 개발자 -->
+      <line x1="305" y1="170" x2="160" y2="90" stroke="#2563eb" stroke-width="2"/>
+      <rect x="40" y="60" width="230" height="65" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="155" y="82" font-size="12" fill="#2563eb" text-anchor="middle" font-weight="700">AI 모델 개발자</text>
+      <text x="155" y="100" font-size="10" fill="#475569" text-anchor="middle">Task coverage를 먼저 분석하고</text>
+      <text x="155" y="115" font-size="10" fill="#475569" text-anchor="middle">훈련 방법을 선택해야 함</text>
+
+      <!-- 분기 2: 연구자 -->
+      <line x1="415" y1="170" x2="560" y2="90" stroke="#059669" stroke-width="2"/>
+      <rect x="450" y="60" width="230" height="65" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="565" y="82" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">AI 연구자</text>
+      <text x="565" y="100" font-size="10" fill="#475569" text-anchor="middle">Epistemic verbalization의 역할을</text>
+      <text x="565" y="115" font-size="10" fill="#475569" text-anchor="middle">더 깊이 연구할 새로운 방향 제시</text>
+
+      <!-- 분기 3: 교육 -->
+      <line x1="305" y1="230" x2="160" y2="310" stroke="#7c3aed" stroke-width="2"/>
+      <rect x="40" y="280" width="230" height="65" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="155" y="302" font-size="12" fill="#7c3aed" text-anchor="middle" font-weight="700">AI 교육/정책</text>
+      <text x="155" y="320" font-size="10" fill="#475569" text-anchor="middle">"자기 의심"이 AI 안전성과</text>
+      <text x="155" y="335" font-size="10" fill="#475569" text-anchor="middle">정확성에 필수적이라는 증거</text>
+
+      <!-- 분기 4: 기업 -->
+      <line x1="415" y1="230" x2="560" y2="310" stroke="#d97706" stroke-width="2"/>
+      <rect x="450" y="280" width="230" height="65" rx="12" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="565" y="302" font-size="12" fill="#d97706" text-anchor="middle" font-weight="700">AI 서비스 기업</text>
+      <text x="565" y="320" font-size="10" fill="#475569" text-anchor="middle">효율성(짧은 답변)만 추구하면</text>
+      <text x="565" y="335" font-size="10" fill="#475569" text-anchor="middle">추론 정확도를 희생할 수 있음</text>
+    </svg>
+    <div class="diagram-caption">이 연구는 AI 개발, 연구, 교육, 산업 전반에 걸쳐 중요한 시사점을 제공한다</div>
+  </div>
+
+  <div class="card card-green">
+    <p><strong>실용적 가이드라인</strong></p>
+    <ul style="margin-top:0.5rem; padding-left:1.2rem; line-height:2;">
+      <li><strong>Self-distillation을 써도 되는 경우</strong>: 훈련 데이터가 실제 사용 사례를 충분히 커버하는 경우 (화학, 반복적 코딩 문제 등)</li>
+      <li><strong>Self-distillation을 피해야 하는 경우</strong>: 다양하고 예측 불가능한 문제를 다뤄야 하는 경우 (수학 올림피아드, 새로운 유형의 추론 문제 등)</li>
+      <li><strong>대안</strong>: GRPO 같은 강화학습 방법은 epistemic token을 자연스럽게 유지하므로, 추론 다양성이 필요한 상황에서 더 안전함</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<div class="one-liner">
+  "AI에게 정답지를 보여주고 가르치면, 시험을 잘 보는 학생이 아니라<br>답을 외운 학생이 된다 — 처음 보는 문제 앞에서 속수무책"
+</div>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점과 남은 질문들</h2>
+
+  <p style="margin:0.8rem 0;">모든 연구에는 한계가 있습니다. 이 논문도 예외가 아닙니다. 결과를 해석할 때 고려해야 할 점들을 정리합니다.</p>
+
+  <div class="card card-orange">
+    <p><strong>한계 1: 수학에 집중된 분석</strong></p>
+    <p style="margin-top:0.5rem;">연구의 주요 실험이 수학 추론에 집중되어 있습니다. 법률 추론, 의학적 진단, 복잡한 논증 등 다른 "추론 집약적" 분야에서도 같은 현상이 나타나는지는 아직 확인되지 않았습니다. 다만 메커니즘 자체(epistemic token 억제)는 분야를 가리지 않으므로 유사한 효과가 있을 가능성이 높습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>한계 2: 인과관계 vs 상관관계</strong></p>
+    <p style="margin-top:0.5rem;">Epistemic token 감소와 성능 하락이 동시에 일어나지만, epistemic token이 <strong>직접적 원인</strong>인지 아니면 더 깊은 내부 변화의 <strong>표면적 증상</strong>인지는 완전히 밝혀지지 않았습니다. "wait"라는 단어 자체가 중요한 건지, 아니면 그 단어가 반영하는 내부 계산 과정이 중요한 건지 추가 연구가 필요합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>한계 3: 해결책 미제시</strong></p>
+    <p style="margin-top:0.5rem;">이 논문은 "문제 진단"에 초점을 맞추고 있으며, self-distillation의 장점(효율성)을 유지하면서 단점(추론 능력 하락)을 보완하는 구체적인 해결책은 제시하지 않습니다. "epistemic token을 보존하면서 self-distillation하는 방법"이 향후 연구 과제로 남아 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>한계 4: Task coverage 경계의 모호성</strong></p>
+    <p style="margin-top:0.5rem;">"task coverage가 높으면 안전하고 낮으면 위험하다"는 결론은 직관적이지만, <strong>정확히 어느 정도의 coverage가 "충분한지"</strong>에 대한 정량적 기준은 제시되지 않았습니다. 실무에서 이 기준을 어떻게 판단할지는 아직 불명확합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>한계 5: 모델 규모의 제한</strong></p>
+    <p style="margin-top:0.5rem;">실험에 사용된 모델은 7B~70B 파라미터 범위입니다. 100B 이상의 더 큰 모델이나 1B 이하의 작은 모델에서도 같은 현상이 나타나는지는 확인되지 않았습니다. 모델 규모가 충분히 크면 epistemic token 없이도 내부적으로 자기검증이 가능할 수 있다는 가능성도 열려 있습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 140" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="30" font-size="13" font-weight="700" fill="#9a3412" text-anchor="middle">이 연구의 가치와 불확실성</text>
+
+      <!-- 가로 축 -->
+      <line x1="100" y1="70" x2="600" y2="70" stroke="#9a3412" stroke-width="2.5"/>
+
+      <!-- 왼쪽: 가치 -->
+      <line x1="100" y1="70" x2="100" y2="90" stroke="#059669" stroke-width="2"/>
+      <rect x="20" y="90" width="200" height="40" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="120" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#059669">확인된 가치</text>
+      <text x="120" y="122" text-anchor="middle" font-size="8" fill="#475569">문제 진단 명확 / 3개 모델 일관된 결과</text>
+
+      <!-- 가운데: 핵심 발견 -->
+      <line x1="350" y1="70" x2="350" y2="90" stroke="#ea580c" stroke-width="2"/>
+      <rect x="250" y="90" width="200" height="40" rx="10" fill="#fff7ed" stroke="#ea580c" stroke-width="1.5"/>
+      <text x="350" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#ea580c">핵심 발견</text>
+      <text x="350" y="122" text-anchor="middle" font-size="8" fill="#475569">Epistemic token 억제 = 추론 능력 손상</text>
+
+      <!-- 오른쪽: 불확실성 -->
+      <line x1="600" y1="70" x2="600" y2="90" stroke="#d97706" stroke-width="2"/>
+      <rect x="500" y="90" width="200" height="40" rx="10" fill="#fffbeb" stroke="#d97706" stroke-width="1.5"/>
+      <text x="600" y="108" text-anchor="middle" font-size="10" font-weight="bold" fill="#d97706">남은 불확실성</text>
+      <text x="600" y="122" text-anchor="middle" font-size="8" fill="#475569">해결책 미제시 / 인과관계 추가검증 필요</text>
+    </svg>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 정리 ===== -->
+<section>
+  <h2>핵심 정리: 한 장으로 보는 이 논문</h2>
+
+  <div class="card card-accent">
+    <p style="font-size:1.05rem; line-height:1.9;">
+      <strong>1. 무엇을 발견했나?</strong><br>
+      Self-distillation(AI가 자기 자신을 선생님 삼아 배우는 방법)이 수학 추론에서 최대 40%의 성능 하락을 일으킨다.
+    </p>
+    <p style="font-size:1.05rem; line-height:1.9; margin-top:1rem;">
+      <strong>2. 왜 그런가?</strong><br>
+      정답을 아는 선생님이 만든 풀이에서 "잠깐, 다시 확인" 같은 신중한 표현(epistemic verbalization)이 97% 사라지고, 학생이 이 자신만만한 스타일을 학습하기 때문.
+    </p>
+    <p style="font-size:1.05rem; line-height:1.9; margin-top:1rem;">
+      <strong>3. 언제 문제가 되나?</strong><br>
+      훈련 데이터에 없는 새로운 유형의 문제(OOD)를 만날 때. 패턴이 반복되는 분야(화학, 코딩)에서는 문제없음.
+    </p>
+    <p style="font-size:1.05rem; line-height:1.9; margin-top:1rem;">
+      <strong>4. 핵심 교훈</strong><br>
+      AI의 "자기 의심"은 버그가 아니라 기능이다. 효율을 위해 이것을 제거하면 정확도를 잃는다.
+    </p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">최종 비유: 편집자 없는 작가</div>
+    <p>뛰어난 작가도 좋은 편집자가 필요합니다. 편집자는 "이 문단이 정말 필요한가?", "이 논리가 맞나?" 라고 질문하면서 글의 완성도를 높입니다. AI에게 epistemic verbalization은 바로 이 <strong>내면의 편집자</strong>입니다. Self-distillation은 이 편집자를 해고하고, 작가에게 "자신감 있게 한 번에 써"라고 요구하는 것과 같습니다. 결과는? 술술 읽히지만 논리적 오류가 가득한 글이 됩니다.</p>
+  </div>
+</section>
+
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  <a href="20260413_kim_selfdistillation.html">전문가용 상세 요약 보기 &rarr;</a><br><br>
+  Why Does Self-Distillation (Sometimes) Degrade the Reasoning Capability of LLMs? (Kim et al., 2026)<br>
+  Microsoft Research &middot; KAIST &middot; Seoul National University &middot; arXiv:2603.24472 &middot; 개요 브리핑 자료
+</div>
+
+</body>
+</html>
