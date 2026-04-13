@@ -77,6 +77,36 @@ document.addEventListener("DOMContentLoaded", function() {
 </ol>
 
 <!-- ============================================================ -->
+<h2>관련 연구 맥락: Native Multimodal 접근법의 지형도</h2>
+
+<p>LongCat-Next를 이해하려면, "모든 modality를 하나의 모델에서 처음부터 통합 학습"하는 <strong>native multimodal</strong> 접근법의 최근 지형도를 파악해야 한다. 기존의 modular 접근(vision encoder + adapter + LLM)과 근본적으로 다른 이 흐름은 2023-2026년에 급속히 발전했다.</p>
+
+<table>
+<tr><th>모델</th><th>소속</th><th>연도</th><th>핵심 접근</th><th>Visual Representation</th><th>Generation 방식</th></tr>
+<tr><td><strong>Gemini</strong></td><td>Google DeepMind</td><td>2023</td><td>Native multimodal from scratch</td><td>Continuous (internal)</td><td>Proprietary</td></tr>
+<tr><td><strong>Chameleon</strong></td><td>Meta FAIR</td><td>2024</td><td>Early-fusion, mixed-modal token</td><td>Discrete (VQ-VAE)</td><td>Autoregressive NTP</td></tr>
+<tr><td><strong>Transfusion</strong></td><td>Meta</td><td>2024</td><td>NTP(text) + Diffusion(image)</td><td>Continuous (diffusion latent)</td><td>Diffusion</td></tr>
+<tr><td><strong>Emu3</strong></td><td>BAAI</td><td>2025</td><td>NTP only, no diffusion</td><td>Discrete (SBER-MoVQGAN)</td><td>Autoregressive NTP</td></tr>
+<tr><td><strong>LongCat-Next</strong></td><td>Meituan</td><td>2026</td><td><strong>DiNA: Discrete Native Autoregression</strong></td><td>Discrete (SAE + RVQ)</td><td>Autoregressive NTP + Flow-matching refiner</td></tr>
+</table>
+
+<h3>LongCat-Next의 차별점</h3>
+
+<p>LongCat-Next가 기존 native multimodal 접근들과 구분되는 핵심 차별점:</p>
+
+<ol>
+  <li><strong>Semantic Completeness 원칙</strong>: Chameleon/Emu3가 reconstruction 품질 중심의 tokenizer를 사용하는 반면, LongCat-Next는 ##이해와 생성 모두를 보장하는 semantic completeness를 원칙으로 tokenizer를 설계##. Language-aligned encoder (SAE)가 discriminative invariance와 generative sufficiency를 동시에 만족.</li>
+  <li><strong>Residual Vector Quantization (RVQ)</strong>: Chameleon이 single-level VQ를 사용하는 반면, LongCat-Next는 8-level RVQ로 "residual의 residual"을 계층적으로 포착하여 discretization 손실을 최소화.</li>
+  <li><strong>Modality-agnostic backbone</strong>: Transfusion이 text에는 NTP, image에는 diffusion이라는 modality-specific objective를 사용하는 반면, LongCat-Next는 ##모든 modality를 단일 NTP objective로 통합하면서도 modality-specific branching을 일절 사용하지 않음##.</li>
+  <li><strong>Audio까지 포괄하는 진정한 omni-modal</strong>: Chameleon과 Emu3는 text+vision에 집중하지만, LongCat-Next는 audio(ASR, TTS, audio understanding)까지 통합.</li>
+  <li><strong>RL 적용 가능성</strong>: Discrete representation이 finite MDP 구조를 자연스럽게 형성하여, text RL 기법(GRPO 등)을 vision/audio generation에도 직접 적용 가능. Continuous latent 기반(Transfusion)에서는 ODE-to-SDE 변환 등 추가 작업이 필요.</li>
+</ol>
+
+<h3>세미나 Discussion Point: "Discrete vs Continuous, 결론이 난 것인가?"</h3>
+
+<p>LongCat-Next는 Table 9의 Exp VI vs VII에서 discrete가 continuous와 300B 토큰 학습 후 ~1% 이내로 수렴함을 보여, "discrete modeling에 inherent ceiling이 없다"고 주장한다. 그러나 이는 충분히 큰 SAE (Qwen2.5-ViT 같은 대규모 vision-language pretrained encoder)를 전제로 하며, SAE 학습 비용은 LongCat-Next의 cost에 포함되지 않는다. 또한 high-frequency detail(texture, fine pattern)에서는 여전히 continuous approach가 우위일 수 있으며, de-tokenizer의 flow-matching refiner가 이 gap을 보완하고 있다. 이는 "discrete가 충분히 좋다"와 "discrete가 더 낫다" 사이의 미묘한 차이를 세미나에서 토론할 만한 포인트이다.</p>
+
+<!-- ============================================================ -->
 <h2>1. Introduction</h2>
 
 <h3>NTP 패러다임의 성공과 multimodality 확장의 도전</h3>
@@ -119,6 +149,30 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <!-- ============================================================ -->
 <h2>2. Methodology</h2>
+
+<h3>수식 표기 가이드 (Notation Guide)</h3>
+
+<table>
+<tr><th>기호</th><th>의미</th><th>비고</th></tr>
+<tr><td>$I$</td><td>원본 이미지 (continuous visual manifold $\mathcal{M}$에서 샘플)</td><td>입력 signal</td></tr>
+<tr><td>$z = \{idx_1, idx_2, \ldots, idx_n\}$</td><td>Discrete representation (codebook index 시퀀스)</td><td>quantization mapping $\mathcal{Q}(\cdot)$의 출력</td></tr>
+<tr><td>$\mathbf{z}_p = \mathcal{E}_\text{sae}(I)$</td><td>SAE가 출력하는 pre-quantization representation</td><td>연속 feature, RVQ 입력</td></tr>
+<tr><td>$\mathcal{Q}, A$</td><td>Image-centric inquiry (질문)와 정답/응답</td><td>semantic completeness 정의에 사용</td></tr>
+<tr><td>$L$</td><td>RVQ의 cascaded codebook level 수</td><td>LongCat-Next에서 $L=8$</td></tr>
+<tr><td>$\mathbf{r}_l$</td><td>Level $l$에서의 residual error</td><td>$\mathbf{r}_0 = f_\text{proj}(\mathbf{z})$, $\mathbf{r}_l = \mathbf{r}_{l-1} - \hat{\mathbf{q}}_l$</td></tr>
+<tr><td>$\hat{\mathbf{q}}_l$</td><td>Level $l$에서의 quantized feature</td><td>$\hat{\mathbf{q}}_l = \text{VQ}(\mathbf{r}_{l-1})$</td></tr>
+<tr><td>$\hat{\mathbf{z}}$</td><td>최종 quantized representation</td><td>$\hat{\mathbf{z}} = \sum_{l=1}^{L} \hat{\mathbf{q}}_l$</td></tr>
+<tr><td>$\mathbf{e}_k$</td><td>Codebook의 $k$번째 entry (embedding vector)</td><td>EMA로 업데이트</td></tr>
+<tr><td>$N_k, \mathbf{m}_k$</td><td>$k$번째 entry의 running cluster size와 embedding sum</td><td>EMA 통계량</td></tr>
+<tr><td>$\gamma$</td><td>EMA decay factor</td><td>codebook 업데이트 속도 제어</td></tr>
+<tr><td>$f_\text{proj}$</td><td>Learnable down-projection (SAE feature → RVQ latent)</td><td>차원 변환</td></tr>
+<tr><td>$D(\cdot)$</td><td>De-tokenizer (discrete code → image)</td><td>pixel decoder + refiner</td></tr>
+<tr><td>$\mathcal{F}_l(\cdot)$</td><td>Encoder의 $l$번째 residual block의 learned transformation</td><td>intrinsic info recovery 분석</td></tr>
+<tr><td>$\mathbf{x}_l$</td><td>Encoder $l$번째 layer 출력</td><td>$\mathbf{x}_l = \mathbf{x}_{l-1} + \mathcal{F}_l(\mathbf{x}_{l-1})$</td></tr>
+<tr><td>$w_l$</td><td>RL에서 RVQ level $l$의 가중치</td><td>multi-level GRPO</td></tr>
+<tr><td>$\pi_\theta^{(l)}$</td><td>Level $l$에서의 policy probability</td><td>RL per-level ratio 계산</td></tr>
+<tr><td>$\text{sg}(\cdot)$</td><td>Stop-gradient 연산자</td><td>codebook은 EMA로만 업데이트</td></tr>
+</table>
 
 <p>Discrete autoregressive 패러다임을 multimodality로 확장하면 다음과 같은 핵심 이점이 있다: (1) <strong>Architectural Synergy</strong> --- LLM의 성숙한 optimization/scaling infrastructure 재사용, (2) <strong>Unification of Understanding and Generation</strong> --- 하나의 NTP objective로 이해와 생성을 통합, (3) <strong>Seamless Cross-Modal Interaction</strong> --- modality 간 자연스러운 상호작용, (4) <strong>Native Data Scaling and Unified Self-Supervision</strong> --- uncurated in-the-wild 데이터에서 자기지도 학습 가능.</p>
 
@@ -180,17 +234,39 @@ $$\mathbf{r}_0 = f_{\text{proj}}(\mathbf{z}), \quad \hat{\mathbf{q}}_l = \text{V
 
 <p>직관적으로, 첫 번째 level은 "대략적인 스케치"를, 각 후속 level은 이전 level이 놓친 "디테일"을 잡아내는 방식이다. $\mathbf{r}_0$은 projected latent representation, $\hat{\mathbf{q}}_l$은 level $l$에서의 quantized feature, $\mathbf{r}_l$은 해당 level의 residual error이다.</p>
 
-<p><strong>EMA Codebook Update</strong>: Gradient descent 대신 exponential moving average (EMA)로 codebook entry를 업데이트한다. 각 codebook entry $\mathbf{e}_k$에 대해 running cluster size $N_k$와 embedding sum $\mathbf{m}_k$를 유지한다:</p>
+<h4>Vector Quantization (VQ) 연산의 상세</h4>
+
+<p>각 level $l$에서의 VQ 연산은 residual vector $\mathbf{r}_{l-1}$를 codebook의 가장 가까운 entry로 매핑하는 <strong>nearest-neighbor lookup</strong>이다:</p>
+
+$$\hat{\mathbf{q}}_l = \text{VQ}(\mathbf{r}_{l-1}) = \mathbf{e}_{k^*}, \quad \text{where} \quad k^* = \arg\min_{k} \|\mathbf{r}_{l-1} - \mathbf{e}_k\|_2$$
+
+<p>직관적으로, 연속 벡터 $\mathbf{r}_{l-1}$를 유한한 codebook $\{\mathbf{e}_1, \ldots, \mathbf{e}_K\}$ 중 가장 가까운 항목으로 "스냅"하는 것이다. 이 과정에서 $\mathbf{r}_{l-1}$와 $\hat{\mathbf{q}}_l$ 사이의 차이가 quantization error가 되며, 이것이 다음 level의 residual $\mathbf{r}_l = \mathbf{r}_{l-1} - \hat{\mathbf{q}}_l$로 전달되어 후속 level이 보정한다.</p>
+
+<p><strong>EMA Codebook Update</strong>: Codebook entry를 gradient descent 대신 exponential moving average (EMA)로 업데이트한다. 이는 VQ의 $\arg\min$ 연산이 미분 불가능하기 때문이다. 각 codebook entry $\mathbf{e}_k$에 대해 running cluster size $N_k$와 embedding sum $\mathbf{m}_k$를 유지한다:</p>
+
+$$N_k \leftarrow \gamma N_k + (1 - \gamma) |\mathcal{S}_k|$$
+
+$$\mathbf{m}_k \leftarrow \gamma \mathbf{m}_k + (1 - \gamma) \sum_{j \in \mathcal{S}_k} \mathbf{r}_j$$
 
 $$\mathbf{e}_k \leftarrow \frac{\mathbf{m}_k}{N_k} \tag{4}$$
 
-<p>Laplace smoothing으로 수치 안정성을 확보하고, 비활성 entry ($N_k < 1$)는 현재 batch에서 re-initialize하여 codebook utilization을 유지한다.</p>
+<p>여기서 $\gamma$는 EMA decay factor, $\mathcal{S}_k = \{\mathbf{r}_j : \arg\min_i \|\mathbf{r}_j - \mathbf{e}_i\| = k\}$는 현재 batch에서 entry $k$에 할당된 residual vector 집합이다. 직관적으로, 각 codebook entry는 자신에게 할당된 벡터들의 "이동 평균 중심"으로 지속적으로 업데이트된다. Laplace smoothing으로 수치 안정성을 확보하고, 비활성 entry ($N_k < 1$)는 현재 batch에서 re-initialize하여 codebook utilization을 유지한다.</p>
 
-<p><strong>Quantization Objective</strong>: Projection function $f_{\text{proj}}$에 supervision을 제공하기 위해, quantized embedding에서 pre-quantization semantic feature를 재구성하는 lightweight decoder를 도입한다:</p>
+<p><strong>Quantization Objective</strong>: Projection function $f_\text{proj}$에 supervision을 제공하기 위해, quantized embedding에서 pre-quantization semantic feature를 재구성하는 lightweight decoder를 도입한다:</p>
 
 $$\mathcal{L}_{\text{quant}} = \lambda_c \mathcal{L}_{\text{commit}} + \lambda_s \mathcal{L}_{\text{semantic}} \tag{5}$$
 
-<p>$\mathcal{L}_{\text{commit}}$은 projected representation $\mathbf{r}_0$을 assigned codebook entry에 가깝게 유지하는 standard commitment loss이고, $\mathcal{L}_{\text{semantic}}$은 feature cosine similarity를 활용한 semantic reconstruction loss이다.</p>
+<p><strong>Commitment loss</strong> $\mathcal{L}_\text{commit}$는 projected representation $\mathbf{r}_0$을 assigned codebook entry에 가깝게 유지한다:</p>
+
+$$\mathcal{L}_\text{commit} = \sum_{l=1}^{L} \|\mathbf{r}_{l-1} - \text{sg}(\hat{\mathbf{q}}_l)\|_2^2$$
+
+<p>여기서 $\text{sg}(\cdot)$는 stop-gradient 연산자로, codebook 쪽으로의 gradient flow를 차단한다 (codebook은 EMA로만 업데이트하므로). 직관적으로, "입력 feature가 가장 가까운 codebook entry를 향해 이동하되, codebook entry 자체는 이 loss로 업데이트하지 않는다."</p>
+
+<p><strong>Semantic reconstruction loss</strong> $\mathcal{L}_\text{semantic}$은 quantized embedding $\hat{\mathbf{z}}$에서 원래의 pre-quantization SAE feature $\mathbf{z}_p$를 재구성하는 loss로, feature cosine similarity를 활용한다:</p>
+
+$$\mathcal{L}_\text{semantic} = 1 - \frac{\mathbf{z}_\text{recon} \cdot \mathbf{z}_p}{\|\mathbf{z}_\text{recon}\| \cdot \|\mathbf{z}_p\|}$$
+
+<p>여기서 $\mathbf{z}_\text{recon}$은 lightweight decoder가 $\hat{\mathbf{z}}$로부터 재구성한 feature이다. 직관적으로, quantization을 거친 후에도 원래 semantic 정보가 얼마나 보존되는지를 cosine distance로 측정하는 것이다.</p>
 
 <p>전체 tokenization pipeline은 3단계로 구성된다: (1) SAE를 통한 semantically aligned feature 추출 → (2) RVQ with EMA-updated codebook을 통한 hierarchical discretization → (3) Autoregressive modeling을 위한 semantic token 생성.</p>
 
@@ -202,7 +278,13 @@ $$\mathcal{L}_{\text{dec}} = \lambda_1 \mathcal{L}_{\text{pixel}} + \lambda_2 \m
 
 <p>$\mathcal{L}_{\text{pixel}}$은 pixel-level reconstruction loss, $\mathcal{L}_{\text{percep}}$은 perceptual loss, $\mathcal{L}_{\text{align}}$은 alignment loss이다.</p>
 
-<p>Pixel decoder만으로도 coherent spatial layout, object structure, semantic content를 복원할 수 있으나, 결과 이미지가 지나치게 smooth하고 high-frequency detail이 부족하다. 이를 보완하기 위해 <strong>flow-matching objective $\mathcal{L}_{\text{flow}}$로 학습된 lightweight image refiner</strong>를 도입한다. Refiner는 pixel decoder의 reconstruction과 projected discrete code embedding을 conditioning으로 받아, fine-grained texture를 향상시킨다. Refiner는 OmniGen2에서 초기화된다.</p>
+<p>Pixel decoder만으로도 coherent spatial layout, object structure, semantic content를 복원할 수 있으나, 결과 이미지가 지나치게 smooth하고 high-frequency detail이 부족하다. 이를 보완하기 위해 <strong>flow-matching objective로 학습된 lightweight image refiner</strong>를 도입한다.</p>
+
+<p>Flow-matching은 noise sample $\epsilon$에서 target image $I$로의 "흐름"을 학습하는 생성 모델 기법이다. Refiner는 pixel decoder의 reconstruction $I_\text{coarse}$와 discrete code embedding $\hat{\mathbf{z}}$를 conditioning으로 받아, 시간 $t \in [0, 1]$에 따른 velocity field를 학습한다:</p>
+
+$$\mathcal{L}_\text{flow} = \mathbb{E}_{t, \epsilon} \left[ \| v_\phi(I_t, t, I_\text{coarse}, \hat{\mathbf{z}}) - (I - \epsilon) \|_2^2 \right]$$
+
+<p>여기서 $I_t = (1-t) \cdot \epsilon + t \cdot I$는 시간 $t$에서의 interpolated sample, $v_\phi$는 refiner network가 예측하는 velocity field이다. 직관적으로, refiner는 pixel decoder의 "흐릿한 스케치"를 받아서, noise에서 점진적으로 선명한 이미지로 변환하는 "경로"를 학습한다. Refiner는 OmniGen2에서 초기화된다.</p>
 
 <h4>Intrinsic Information Recovery: Residual Connection의 역할</h4>
 
@@ -237,7 +319,15 @@ $$\mathbf{z}_p = \mathbf{x}_0 + \sum_{l=1}^{L} \mathcal{F}_l(\mathbf{x}_{l-1}) =
 
 <p><strong>Native Visual Representation</strong>: dNaViT의 핵심 혁신은 visual codebook embedding이 <strong>randomly initialized되어 LLM과 함께 co-evolve</strong>한다는 점이다. Semantic content가 tokenizer 내부에 고정되는 것이 아니라, LLM의 visual embedding space에 internalize된다. 이를 통해 모델은 externally defined quantized ID가 아닌, learned model-internal visual semantic에 기반한 "native language" for vision을 개발한다.</p>
 
-<p><strong>Additive Encoding</strong>: Autoregressive modeling 시, multi-layer token에 대해 additive encoding을 사용하여 exponential representation space를 확보하면서도 single autoregressive step의 computational efficiency를 유지한다.</p>
+<h4>Additive Encoding: Multi-Level Token의 LLM 입력 방식</h4>
+
+<p>RVQ가 $L$개 level의 discrete token을 생성하면, 각 level의 codebook embedding을 element-wise summation으로 결합하여 LLM에 입력한다:</p>
+
+$$\mathbf{e}_\text{combined} = \sum_{l=1}^{L} \mathbf{e}_l^{(\text{code}_l)}$$
+
+<p>여기서 $\mathbf{e}_l^{(\text{code}_l)}$은 level $l$의 codebook에서 선택된 embedding vector이다. 각 level의 embedding은 공유되지 않으므로 ($\mathbf{e}_l \neq \mathbf{e}_{l'}$ for $l \neq l'$), 각 level이 complementary information을 캡처한다.</p>
+
+<p>직관적으로, 8개 level × 16,384개 codebook entry일 때, 가능한 조합 수는 $16{,}384^8 \approx 7.2 \times 10^{33}$으로 사실상 무한한 representation space를 형성한다. 그러나 LLM 입장에서는 단일 embedding vector $\mathbf{e}_\text{combined}$만 입력되므로, single autoregressive step의 computational cost는 text token과 동일하다. 이것이 LongCat-Next가 효율적이면서도 풍부한 visual representation을 달성하는 핵심 메커니즘이다.</p>
 
 <p><strong>DepthTransformer for Decoding</strong>: Multi-level token의 efficient decoding을 위해 task-aware DepthTransformer를 사용한다.</p>
 
@@ -316,7 +406,11 @@ $$\mathcal{L}_{\text{audio}} = \lambda_1 \mathcal{L}_{\text{recon}} + \lambda_2 
   <li><strong>Serial Generation</strong>: Text segment를 먼저 생성한 후, 해당 audio segment를 생성한다. 각 step에서 single modality만 예측하므로 modality representation 간 conflict를 회피하고, 높은 linguistic quality를 보장한다.</li>
 </ol>
 
-<p><strong>Random delay training paradigm</strong>: Text-guided audio modality에서 각 aligned text-audio segment의 delay를 1부터 text segment 길이까지 랜덤하게 선택한다. 이를 통해 모델이 arbitrary delay step에서 text-audio alignment을 학습하며, serial/parallel generation을 unified framework의 두 extreme case로 통합한다.</p>
+<p><strong>Random delay training paradigm</strong>: Text-guided audio modality에서 각 aligned text-audio segment pair $(T_i, A_i)$에 대해 delay $\delta_i$를 uniform random하게 선택한다:</p>
+
+$$\delta_i \sim \text{Uniform}(1, |T_i|)$$
+
+<p>여기서 $|T_i|$는 text segment $T_i$의 토큰 길이이다. Text segment $T_i$의 생성 시작 후 $\delta_i$ step이 지난 뒤에 audio segment $A_i$의 생성을 시작한다. $\delta_i = |T_i|$이면 serial generation (text 완전히 생성 후 audio 시작), $\delta_i = 1$이면 near-parallel generation이 된다. 이 unified training으로 모델이 arbitrary delay에서 text-audio alignment을 학습하며, ##serial과 parallel generation을 하나의 framework의 두 극단으로 통합##한다.</p>
 
 <!-- ============================================================ -->
 <h2>3. Main Experiments</h2>
@@ -893,6 +987,32 @@ $$\left.\cdot \min\left(r_t(\theta) \cdot \hat{A}_t, \; \text{clip}(r_t(\theta),
   <li><strong>Intrinsic information recovery via residual connection</strong>: Semantic encoder의 residual architecture가 explicit reconstruction supervision 없이도 low-level signal을 보존한다는 발견은, 향후 visual tokenizer 설계 시 encoder selection의 중요한 기준을 제시한다.</li>
   <li><strong>RL에서의 entropy explosion 해결</strong>: Discrete multimodal RL에서 training-inference mismatch로 인한 entropy explosion이 심각한 문제이며, sequence-level entropy + probability difference filter가 효과적 해법이다. 이 filtering 전략은 다른 discrete RL 시나리오에도 적용 가능하다.</li>
 </ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>세미나 토론 포인트</h2>
+
+<div class="takeaways" style="border-left-color:#3498db;">
+<h3 style="margin-top:0;">1. "Discrete vs Continuous: 논쟁은 끝난 것인가?"</h3>
+<p>LongCat-Next는 300B 토큰 학습 후 discrete가 continuous와 ~1% 이내로 수렴한다고 보여줌. 하지만 이는 대규모 SAE (Qwen2.5-ViT)를 전제로 하며, high-frequency detail에서는 여전히 flow-matching refiner가 필요. 우리 시스템에서 discrete tokenization의 실용적 이점(RL 적용 가능성, infrastructure 호환성)이 training cost 증가를 정당화하는가?</p>
+
+<h3>2. "Modality-specific branching은 정말 불필요한가?"</h3>
+<p>LongCat-Next는 modality-aware MoE, 3D RoPE, bidirectional attention 등을 일절 사용하지 않으면서도 competitive한 결과를 달성. 그러나 Qwen3-Omni는 modality-specific 설계를 사용하면서 일부 벤치마크(ASR, TTS)에서 LongCat-Next를 상회. Modality-agnostic의 simplicity와 modality-specific의 성능 사이의 trade-off를 어떻게 판단할 것인가?</p>
+
+<h3>3. "Random ViT > Pretrained ViT: Tokenizer 설계에 어떤 함의가 있는가?"</h3>
+<p>Intrinsic information recovery 실험에서 random ViT의 reconstruction PSNR이 30.52로, pretrained ViT의 21.86을 크게 상회. 이는 information recovery가 학습된 semantic이 아닌 residual connection 구조 자체에 기인함을 시사. 그렇다면 우리의 vision/audio tokenizer에서도 residual architecture를 최우선으로 고려해야 하는가?</p>
+
+<h3>4. "Understanding이 Generation을 enhance하는 메커니즘은?"</h3>
+<p>Unified model의 generation loss가 pure-generation보다 0.02 낮다는 결과는 매우 흥미롭다. 이 synergy의 메커니즘을 어떻게 해석할 것인가? 이해 task가 풍부한 semantic planning 능력을 제공하여 generation의 "구도"를 잡아주는 것인가? 이 synergy가 audio modality에서도 동일하게 작동하는가?</p>
+
+<h3>5. "Audio의 parallel vs serial generation: 우리 시스템에 적합한 것은?"</h3>
+<p>Random delay training으로 parallel과 serial을 unified framework로 통합한 것은 elegant하지만, parallel은 ReasoningQA에서 serial 대비 5.35pp 낮음. 실시간 대화 시스템에서 latency와 quality의 trade-off를 어떻게 조절할 것인가?</p>
+
+<h3>6. "Discrete RL의 entropy explosion: 우리도 겪을 문제인가?"</h3>
+<p>Discrete multimodal RL에서 training-inference mismatch로 소수의 anomalous token이 전체 sequence를 오염시키는 entropy explosion은 심각한 문제. Sequence-level filtering이 해법이지만, 이것이 학습 효율에 미치는 영향은? 우리의 RLHF/RLVR 파이프라인에서도 유사한 문제가 발생할 가능성은?</p>
+
+<h3>7. "2T 토큰 학습: 우리의 compute budget으로 실현 가능한가?"</h3>
+<p>LongCat-Next는 4-stage pipeline으로 ~2T 토큰을 학습하며, SAE (Qwen2.5-ViT) 학습 비용은 별도. 이 규모의 학습이 우리에게 가능한가? 가능하지 않다면, 어떤 shortcut(pretrained tokenizer 재활용, data efficiency 개선 등)이 현실적인가?</p>
 </div>
 
 <!-- ============================================================ -->
