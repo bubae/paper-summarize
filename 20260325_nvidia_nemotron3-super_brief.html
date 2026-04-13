@@ -1,0 +1,1589 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemotron 3 Super — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #76b900, #1a8a3f, #0d4d2b);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 700px; margin: 0 auto; }
+  .hero .version-link { margin-top: 1.2rem; }
+  .hero .version-link a { color: rgba(255,255,255,0.85); text-decoration: underline; font-size: 0.95rem; }
+  .hero .version-link a:hover { color: #fff; }
+
+  /* ── Container ── */
+  .container { max-width: 860px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #0d4d2b; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #76b900, #1a8a3f); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; color: #1a8a3f; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #76b900; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .card p { margin: 0.5rem 0; }
+  .card ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  .card li { margin: 0.3rem 0; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #76b900, #1a8a3f);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #76b900, #1a8a3f); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #0d4d2b; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f0fdf4; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #1a8a3f; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 120px; }
+  .step-box .step-num { font-size: 0.75rem; color: #1a8a3f; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #1a8a3f; padding: 0 0.4rem; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #1a8a3f; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">NVIDIA &middot; Technical Report &middot; 2026</div>
+  <h1>Nemotron 3 Super</h1>
+  <p class="subtitle">120B 파라미터 AI에서 12B만 활성화하여<br>GPT-OSS 대비 2.2배 빠르면서 동등한 성능을 달성한 차세대 효율 모델</p>
+  <div class="version-link">
+    <a href="20260325_nvidia_nemotron3-super.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+</div>
+
+<div class="container">
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "512명의 전문가 중 22명만 골라 일시키는데,<br>128명 전원이 일할 때보다 더 똑똑하고 7.5배 빠르다"
+</div>
+
+<!-- ===== 핵심 숫자 ===== -->
+<section>
+  <h2>핵심 숫자 한눈에 보기</h2>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">120.6B</div>
+      <div class="label">총 파라미터</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">12.7B</div>
+      <div class="label">활성 파라미터<br>(요청당 실제 사용)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">25T</div>
+      <div class="label">학습 토큰 수<br>(25조 개 단어 조각)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">512</div>
+      <div class="label">전문가(Expert) 수</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">2.2x</div>
+      <div class="label">GPT-OSS 대비<br>처리 속도</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">7.5x</div>
+      <div class="label">Qwen3.5 대비<br>처리 속도</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1M</div>
+      <div class="label">최대 문맥 길이<br>(토큰)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">3.45</div>
+      <div class="label">MTP 평균<br>수락 토큰 수</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 배경 지식: 먼저 알아야 할 것들 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super를 이해하려면, AI 모델이 어떻게 작동하고, 왜 "크고 느린" 문제가 있으며, 이를 해결하기 위한 기존 시도들이 무엇이었는지를 먼저 알아야 합니다. 네 가지 핵심 개념을 차근차근 설명합니다.</p>
+  </div>
+
+  <!-- ── 개념 1: Transformer와 Attention ── -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#0d4d2b;">개념 1: Transformer와 Attention -- AI가 문장을 이해하는 방법</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT 같은 대형 AI 모델은 <strong>Transformer</strong>라는 구조를 사용합니다. 핵심은 <strong>Attention(어텐션)</strong> 메커니즘인데, 다음 단어를 예측할 때 이전에 나온 <strong>모든 단어</strong>를 동시에 참조합니다. "오늘 날씨가 정말 ___" 에서 빈칸을 채울 때, "오늘"과 "날씨"와 "정말" 모두를 고려하는 것입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">Attention: 모든 이전 단어를 참조해 다음 단어를 예측</text>
+      <!-- 이전 토큰들 -->
+      <rect x="60" y="55" width="80" height="38" rx="8" fill="#1a8a3f" opacity="0.85"/>
+      <text x="100" y="79" font-size="13" fill="#fff" text-anchor="middle" font-weight="500">오늘</text>
+      <rect x="160" y="55" width="80" height="38" rx="8" fill="#1a8a3f" opacity="0.85"/>
+      <text x="200" y="79" font-size="13" fill="#fff" text-anchor="middle" font-weight="500">날씨가</text>
+      <rect x="260" y="55" width="80" height="38" rx="8" fill="#1a8a3f" opacity="0.85"/>
+      <text x="300" y="79" font-size="13" fill="#fff" text-anchor="middle" font-weight="500">정말</text>
+      <!-- 예측 대상 -->
+      <rect x="400" y="55" width="80" height="38" rx="8" fill="#dc2626" opacity="0.9"/>
+      <text x="440" y="79" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">???</text>
+      <!-- Attention 블록 -->
+      <rect x="380" y="120" width="120" height="36" rx="8" fill="#f8fafc" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="440" y="143" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">Attention</text>
+      <line x1="440" y1="93" x2="440" y2="120" stroke="#dc2626" stroke-width="1.5"/>
+      <!-- 화살표들 -->
+      <defs><marker id="arr1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#1a8a3f"/></marker></defs>
+      <path d="M100,93 Q100,115 200,130 L380,138" stroke="#1a8a3f" stroke-width="1.5" fill="none" stroke-dasharray="5" marker-end="url(#arr1)"/>
+      <path d="M200,93 Q200,115 280,128 L380,138" stroke="#1a8a3f" stroke-width="1.5" fill="none" stroke-dasharray="5" marker-end="url(#arr1)"/>
+      <path d="M300,93 Q300,118 340,130 L380,138" stroke="#1a8a3f" stroke-width="1.5" fill="none" stroke-dasharray="5" marker-end="url(#arr1)"/>
+      <!-- 문제점 표시 -->
+      <rect x="60" y="180" width="600" height="60" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="360" y="203" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">문제: 단어 N개일 때, N x N번 비교해야 함 (이차 시간 복잡도)</text>
+      <text x="360" y="225" font-size="11" fill="#64748b" text-anchor="middle">1,000단어 = 100만 번 비교 / 100,000단어 = 100억 번 비교 -- 문맥이 길어지면 기하급수적으로 느려짐</text>
+    </svg>
+    <div class="diagram-caption">Attention은 강력하지만, 문장이 길어질수록 계산량이 급격히 증가하는 "이차 시간 복잡도" 문제가 있다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">교실 비유: Attention의 한계</div>
+    <p>30명이 토론할 때, 모든 학생이 다른 29명 각각과 의견을 교환하면 30 x 30 = 900번의 대화가 필요합니다. 학생이 1,000명이면? 100만 번입니다. 이것이 Transformer의 근본적 한계입니다. 문맥이 100만 단어가 되면 계산이 폭발적으로 증가합니다.</p>
+  </div>
+
+  <!-- ── 개념 2: MoE (Mixture of Experts) ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#0d4d2b;">개념 2: MoE (Mixture of Experts) -- 모든 전문가를 다 쓰지 않는 전략</h3>
+
+  <p style="margin:0.8rem 0;">보통 AI 모델은 모든 파라미터(가중치)를 매번 사용합니다. 120B(1,200억 개) 파라미터가 있으면 매 단어마다 1,200억 개를 모두 계산합니다. <strong>MoE (Mixture of Experts)</strong>는 다른 접근을 취합니다: 모델 내부에 여러 "전문가(Expert)"를 두고, 각 입력에 대해 <strong>가장 적합한 소수의 전문가만 활성화</strong>합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">MoE: 512명 중 22명만 골라 일시키기</text>
+      <!-- 입력 -->
+      <rect x="10" y="120" width="100" height="40" rx="8" fill="#1a8a3f"/>
+      <text x="60" y="145" font-size="12" fill="#fff" text-anchor="middle" font-weight="600">입력 토큰</text>
+      <!-- Router -->
+      <rect x="140" y="110" width="100" height="60" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="190" y="137" font-size="11" fill="#d97706" text-anchor="middle" font-weight="700">Router</text>
+      <text x="190" y="155" font-size="9" fill="#92400e" text-anchor="middle">(교통 정리)</text>
+      <line x1="110" y1="140" x2="140" y2="140" stroke="#475569" stroke-width="2" marker-end="url(#arr1)"/>
+      <!-- 전문가 그리드 (비활성) -->
+      <g transform="translate(280, 40)">
+        <!-- 타이틀 -->
+        <text x="190" y="0" font-size="11" fill="#64748b" text-anchor="middle">512명의 전문가</text>
+        <!-- 비활성 전문가들 (8x4 그리드 일부) -->
+        <rect x="0" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="44" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="88" y="15" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="107" y="33" font-size="8" fill="#fff" text-anchor="middle">E3</text>
+        <rect x="132" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="176" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="220" y="15" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="239" y="33" font-size="8" fill="#fff" text-anchor="middle">E6</text>
+        <rect x="264" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="308" y="15" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <!-- 2행 -->
+        <rect x="0" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="44" y="49" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="63" y="67" font-size="8" fill="#fff" text-anchor="middle">E10</text>
+        <rect x="88" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="132" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="176" y="49" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="195" y="67" font-size="8" fill="#fff" text-anchor="middle">E13</text>
+        <rect x="220" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="264" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="308" y="49" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <!-- 3행 -->
+        <rect x="0" y="83" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="19" y="101" font-size="8" fill="#fff" text-anchor="middle">E17</text>
+        <rect x="44" y="83" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="88" y="83" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="132" y="83" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="151" y="101" font-size="8" fill="#fff" text-anchor="middle">E20</text>
+        <rect x="176" y="83" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="220" y="83" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <rect x="264" y="83" width="38" height="28" rx="5" fill="#76b900"/>
+        <text x="283" y="101" font-size="8" fill="#fff" text-anchor="middle">E23</text>
+        <rect x="308" y="83" width="38" height="28" rx="5" fill="#e2e8f0"/>
+        <!-- ... 표시 -->
+        <text x="175" y="140" font-size="12" fill="#94a3b8" text-anchor="middle">... 총 512개 중 22개만 활성화 (초록색) ...</text>
+      </g>
+      <!-- Router에서 활성 전문가로 화살표 -->
+      <path d="M240,130 L368,73" stroke="#d97706" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+      <path d="M240,140 L324,103" stroke="#d97706" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+      <path d="M240,145 L500,73" stroke="#d97706" stroke-width="1.5" fill="none" stroke-dasharray="4"/>
+      <!-- 결과 합산 -->
+      <rect x="280" y="220" width="380" height="35" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="470" y="242" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">22개 전문가의 결과를 가중 합산 --> 최종 출력</text>
+      <!-- 범례 -->
+      <rect x="25" y="230" width="16" height="16" rx="3" fill="#76b900"/>
+      <text x="48" y="243" font-size="10" fill="#475569">= 활성 전문가</text>
+      <rect x="25" y="255" width="16" height="16" rx="3" fill="#e2e8f0"/>
+      <text x="48" y="268" font-size="10" fill="#475569">= 비활성 (이번 입력에서 사용 안 함)</text>
+      <!-- 핵심 수치 -->
+      <text x="360" y="300" font-size="12" font-weight="600" fill="#0d4d2b" text-anchor="middle">결과: 120B 파라미터를 가졌지만, 매번 12B만 계산 = 10배 효율</text>
+    </svg>
+    <div class="diagram-caption">MoE는 모든 전문가를 동시에 쓰지 않고, Router가 각 입력에 맞는 소수만 선택한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">종합 병원 비유: MoE</div>
+    <p>종합 병원에 512명의 의사가 있다고 합시다. 환자가 올 때마다 512명이 모두 달려드는 것이 아니라, 접수처(Router)가 증상을 보고 22명의 적합한 전문의만 배정합니다. 감기 환자에게는 내과 의사 팀을, 골절 환자에게는 정형외과 팀을 보내는 것입니다. 병원 전체의 역량은 512명분이지만, 환자 한 명에게 드는 비용은 22명분뿐입니다.</p>
+  </div>
+
+  <!-- ── 개념 3: State Space Model (Mamba) ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#0d4d2b;">개념 3: Mamba (State Space Model) -- Attention의 대안</h3>
+
+  <p style="margin:0.8rem 0;">Attention은 모든 단어를 서로 비교하기 때문에 강력하지만 느립니다. <strong>Mamba</strong>는 완전히 다른 접근을 취합니다: 텍스트를 한 번에 한 단어씩 순서대로 읽으면서, <strong>고정 크기의 "요약 상태"</strong>를 업데이트합니다. 이전 모든 단어의 핵심 정보를 이 요약 상태에 압축해 넣는 것입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">Attention vs Mamba: 두 가지 텍스트 처리 방식</text>
+      <!-- Attention 방식 -->
+      <rect x="20" y="40" width="320" height="130" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="180" y="62" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">Attention (기존 방식)</text>
+      <!-- 모든 단어 간 연결 -->
+      <circle cx="60" cy="105" r="16" fill="#dc2626" opacity="0.8"/><text x="60" y="110" font-size="9" fill="#fff" text-anchor="middle">W1</text>
+      <circle cx="120" cy="105" r="16" fill="#dc2626" opacity="0.8"/><text x="120" y="110" font-size="9" fill="#fff" text-anchor="middle">W2</text>
+      <circle cx="180" cy="105" r="16" fill="#dc2626" opacity="0.8"/><text x="180" y="110" font-size="9" fill="#fff" text-anchor="middle">W3</text>
+      <circle cx="240" cy="105" r="16" fill="#dc2626" opacity="0.8"/><text x="240" y="110" font-size="9" fill="#fff" text-anchor="middle">W4</text>
+      <circle cx="300" cy="105" r="16" fill="#dc2626" opacity="0.8"/><text x="300" y="110" font-size="9" fill="#fff" text-anchor="middle">W5</text>
+      <!-- 모든 쌍 연결선 -->
+      <line x1="76" y1="105" x2="104" y2="105" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="60" y1="89" x2="120" y2="89" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="60" y1="121" x2="180" y2="121" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="60" y1="86" x2="240" y2="86" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="60" y1="124" x2="300" y2="124" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="120" y1="89" x2="180" y2="89" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="120" y1="121" x2="240" y2="121" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="120" y1="86" x2="300" y2="86" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="180" y1="89" x2="240" y2="89" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="180" y1="121" x2="300" y2="121" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <line x1="240" y1="105" x2="284" y2="105" stroke="#dc2626" stroke-width="0.7" opacity="0.5"/>
+      <text x="180" y="155" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">N개 단어 = N x N 비교 (이차 시간)</text>
+      <!-- Mamba 방식 -->
+      <rect x="380" y="40" width="320" height="130" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="540" y="62" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">Mamba (새로운 방식)</text>
+      <!-- 순차적 처리 -->
+      <rect x="400" y="85" width="40" height="28" rx="6" fill="#059669" opacity="0.8"/>
+      <text x="420" y="103" font-size="9" fill="#fff" text-anchor="middle">W1</text>
+      <text x="450" y="103" font-size="14" fill="#059669">&#8594;</text>
+      <rect x="460" y="80" width="50" height="38" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="485" y="96" font-size="8" fill="#d97706" text-anchor="middle" font-weight="600">요약</text>
+      <text x="485" y="110" font-size="8" fill="#d97706" text-anchor="middle">상태</text>
+      <text x="520" y="103" font-size="14" fill="#059669">&#8594;</text>
+      <rect x="530" y="85" width="40" height="28" rx="6" fill="#059669" opacity="0.8"/>
+      <text x="550" y="103" font-size="9" fill="#fff" text-anchor="middle">W2</text>
+      <text x="580" y="103" font-size="14" fill="#059669">&#8594;</text>
+      <rect x="590" y="80" width="50" height="38" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="615" y="96" font-size="8" fill="#d97706" text-anchor="middle" font-weight="600">요약</text>
+      <text x="615" y="110" font-size="8" fill="#d97706" text-anchor="middle">상태'</text>
+      <text x="660" y="103" font-size="10" fill="#059669">...</text>
+      <text x="540" y="155" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">N개 단어 = N번 처리 (선형 시간)</text>
+      <!-- 비교 표 -->
+      <rect x="60" y="195" width="600" height="130" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="360" y="220" font-size="13" font-weight="700" fill="#0d4d2b" text-anchor="middle">속도 비교: 문맥 길이가 길어질수록 차이 폭발</text>
+      <!-- 바 차트 느낌 -->
+      <text x="100" y="245" font-size="10" fill="#64748b" text-anchor="end">1K 토큰</text>
+      <rect x="110" y="235" width="100" height="14" rx="3" fill="#dc2626" opacity="0.7"/>
+      <rect x="110" y="253" width="95" height="14" rx="3" fill="#059669" opacity="0.7"/>
+      <text x="220" y="247" font-size="9" fill="#64748b">비슷</text>
+      <text x="100" y="282" font-size="10" fill="#64748b" text-anchor="end">100K 토큰</text>
+      <rect x="110" y="272" width="400" height="14" rx="3" fill="#dc2626" opacity="0.7"/>
+      <text x="520" y="284" font-size="9" fill="#dc2626" font-weight="600">Attention: 매우 느림</text>
+      <rect x="110" y="290" width="95" height="14" rx="3" fill="#059669" opacity="0.7"/>
+      <text x="215" y="302" font-size="9" fill="#059669" font-weight="600">Mamba: 여전히 빠름</text>
+    </svg>
+    <div class="diagram-caption">Attention은 N의 제곱에 비례하지만, Mamba는 N에 비례하여 처리 -- 긴 문서에서 압도적 우위</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">독서 비유: Attention vs Mamba</div>
+    <p><strong>Attention</strong>은 책을 읽을 때, 새로운 문장마다 이전의 모든 페이지를 다시 펼쳐 대조하는 것과 같습니다. 10페이지 책은 괜찮지만, 1,000페이지 책에서는 불가능에 가깝습니다.</p>
+    <p><strong>Mamba</strong>는 책을 읽으며 "노트 한 장"에 핵심 내용을 계속 업데이트하는 것과 같습니다. 새 문장을 읽을 때마다 노트만 참조하면 되므로, 책이 아무리 길어도 속도가 일정합니다. 다만, 노트 한 장에 모든 것을 담을 수 없으니 세부 정보를 놓칠 수 있습니다.</p>
+  </div>
+
+  <!-- ── 개념 4: Quantization ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#0d4d2b;">개념 4: Quantization (양자화) -- 숫자를 압축하는 기술</h3>
+
+  <p style="margin:0.8rem 0;">AI 모델의 파라미터는 모두 숫자입니다. 이 숫자를 얼마나 정밀하게 저장하느냐에 따라 메모리 사용량이 달라집니다. <strong>Quantization(양자화)</strong>은 높은 정밀도(예: 16비트)의 숫자를 낮은 정밀도(예: 4비트)로 "반올림"하여 공간을 절약하는 기법입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">숫자 정밀도별 비교: BF16 vs FP8 vs FP4</text>
+      <!-- BF16 -->
+      <rect x="20" y="45" width="200" height="140" rx="12" fill="#f8fafc" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="120" y="70" font-size="12" font-weight="700" fill="#2563eb" text-anchor="middle">BF16 (16비트)</text>
+      <text x="120" y="90" font-size="10" fill="#64748b" text-anchor="middle">65,536가지 값 표현</text>
+      <rect x="40" y="100" width="160" height="20" rx="4" fill="#2563eb" opacity="0.3"/>
+      <text x="120" y="115" font-size="9" fill="#2563eb" text-anchor="middle" font-weight="600">메모리: 파라미터당 2 byte</text>
+      <text x="120" y="140" font-size="11" fill="#334155" text-anchor="middle">고정밀 -- 학습에 사용</text>
+      <text x="120" y="170" font-size="18" text-anchor="middle">&#128175;</text>
+      <!-- FP8 -->
+      <rect x="260" y="45" width="200" height="140" rx="12" fill="#f8fafc" stroke="#d97706" stroke-width="1.5"/>
+      <text x="360" y="70" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">FP8 (8비트)</text>
+      <text x="360" y="90" font-size="10" fill="#64748b" text-anchor="middle">256가지 값 표현</text>
+      <rect x="280" y="100" width="80" height="20" rx="4" fill="#d97706" opacity="0.3"/>
+      <text x="360" y="115" font-size="9" fill="#d97706" text-anchor="middle" font-weight="600">메모리: 1 byte (절반)</text>
+      <text x="360" y="140" font-size="11" fill="#334155" text-anchor="middle">중간 -- 추론 최적화</text>
+      <text x="360" y="170" font-size="18" text-anchor="middle">&#9989;</text>
+      <!-- FP4 -->
+      <rect x="500" y="45" width="200" height="140" rx="12" fill="#f8fafc" stroke="#059669" stroke-width="1.5"/>
+      <text x="600" y="70" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">NVFP4 (4비트)</text>
+      <text x="600" y="90" font-size="10" fill="#64748b" text-anchor="middle">16가지 값 표현</text>
+      <rect x="520" y="100" width="40" height="20" rx="4" fill="#059669" opacity="0.3"/>
+      <text x="600" y="115" font-size="9" fill="#059669" text-anchor="middle" font-weight="600">메모리: 0.5 byte (1/4)</text>
+      <text x="600" y="140" font-size="11" fill="#334155" text-anchor="middle">초효율 -- NVIDIA 혁신</text>
+      <text x="600" y="170" font-size="18" text-anchor="middle">&#128640;</text>
+    </svg>
+    <div class="diagram-caption">정밀도를 낮출수록 메모리가 절약되지만, 너무 낮추면 정확도가 떨어질 수 있다. NVIDIA는 FP4에서도 정확도를 유지하는 기술을 개발했다.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">색연필 비유: Quantization</div>
+    <p>64색 색연필 세트(16비트)로 그림을 그리면 섬세하게 표현할 수 있습니다. 이걸 8색(8비트)으로 줄이면 약간 뭉뚱그려지지만 대부분의 그림은 충분히 잘 그릴 수 있습니다. NVIDIA의 NVFP4는 4색(4비트)으로도 거의 동일한 그림을 그릴 수 있게 하는 기술입니다. 비결은 색을 단순히 줄이는 것이 아니라, 영역별로 가장 중요한 색을 골라 배치하는 "블록 단위 스케일링" 기법입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 아이디어 1: LatentMoE ===== -->
+<section>
+  <h2>핵심 아이디어 1: LatentMoE -- 더 작은 도마, 더 많은 셰프</h2>
+
+  <div class="card card-accent">
+    <p>기존 MoE는 각 전문가가 큰 "작업 공간(hidden dimension)"을 가집니다. NVIDIA의 <strong>LatentMoE</strong>는 발상을 전환합니다: 각 전문가의 작업 공간을 1/4로 줄이되, 전문가 수를 4배로 늘립니다. 더 다양한 전문가 조합이 가능해져, 같은 비용으로 더 높은 품질을 달성합니다.</p>
+  </div>
+
+  <p style="margin:1rem 0;">LatentMoE의 핵심은 입력 데이터를 먼저 "압축된 공간(latent space)"에 투영한 뒤, 그 압축 공간에서 전문가가 작업하게 하는 것입니다. 작업 후 다시 원래 크기로 복원합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">Standard MoE vs LatentMoE 비교</text>
+      <!-- Standard MoE -->
+      <rect x="20" y="40" width="320" height="170" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="180" y="62" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">기존 Standard MoE</text>
+      <!-- 입력 -->
+      <rect x="40" y="80" width="80" height="30" rx="6" fill="#1a8a3f"/>
+      <text x="80" y="99" font-size="9" fill="#fff" text-anchor="middle">입력 (4096차원)</text>
+      <!-- 큰 전문가들 -->
+      <text x="155" y="78" font-size="8" fill="#64748b">128개 전문가, 큰 작업공간</text>
+      <rect x="140" y="85" width="55" height="40" rx="5" fill="#dc2626" opacity="0.6"/>
+      <text x="167" y="110" font-size="8" fill="#fff" text-anchor="middle">E1</text>
+      <rect x="200" y="85" width="55" height="40" rx="5" fill="#dc2626" opacity="0.6"/>
+      <text x="227" y="110" font-size="8" fill="#fff" text-anchor="middle">E2</text>
+      <rect x="260" y="85" width="55" height="40" rx="5" fill="#dc2626" opacity="0.6"/>
+      <text x="287" y="110" font-size="8" fill="#fff" text-anchor="middle">E3</text>
+      <text x="215" y="145" font-size="10" fill="#dc2626" text-anchor="middle">각 전문가: 큰 hidden dim</text>
+      <text x="215" y="162" font-size="10" fill="#dc2626" text-anchor="middle">Top-5 활성화 = 5개 사용</text>
+      <text x="180" y="195" font-size="10" fill="#64748b" text-anchor="middle">128개 중 5개 조합 = 약 2.8억 가지</text>
+      <!-- LatentMoE -->
+      <rect x="380" y="40" width="320" height="170" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="540" y="62" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">LatentMoE (NVIDIA)</text>
+      <!-- 입력 + 압축 -->
+      <rect x="395" y="80" width="55" height="25" rx="5" fill="#1a8a3f"/>
+      <text x="422" y="97" font-size="7" fill="#fff" text-anchor="middle">입력 4096</text>
+      <text x="462" y="95" font-size="10" fill="#059669">&#8594;</text>
+      <rect x="475" y="82" width="40" height="21" rx="5" fill="#d97706" opacity="0.8"/>
+      <text x="495" y="97" font-size="7" fill="#fff" text-anchor="middle">1024</text>
+      <text x="527" y="95" font-size="8" fill="#d97706" font-weight="600">압축!</text>
+      <!-- 작은 전문가들 많이 -->
+      <text x="540" y="118" font-size="8" fill="#64748b" text-anchor="middle">512개 전문가, 작은 작업공간</text>
+      <rect x="400" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="414" y="140" font-size="6" fill="#fff" text-anchor="middle">E1</text>
+      <rect x="432" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="446" y="140" font-size="6" fill="#fff" text-anchor="middle">E2</text>
+      <rect x="464" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="478" y="140" font-size="6" fill="#fff" text-anchor="middle">E3</text>
+      <rect x="496" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="510" y="140" font-size="6" fill="#fff" text-anchor="middle">E4</text>
+      <rect x="528" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="542" y="140" font-size="6" fill="#fff" text-anchor="middle">E5</text>
+      <rect x="560" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="574" y="140" font-size="6" fill="#fff" text-anchor="middle">E6</text>
+      <rect x="592" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="606" y="140" font-size="6" fill="#fff" text-anchor="middle">E7</text>
+      <rect x="624" y="124" width="28" height="24" rx="4" fill="#059669" opacity="0.6"/><text x="638" y="140" font-size="6" fill="#fff" text-anchor="middle">E8</text>
+      <text x="540" y="168" font-size="10" fill="#059669" text-anchor="middle">Top-22 활성화 = 22개 사용</text>
+      <text x="540" y="195" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">512개 중 22개 조합 = 약 10^30 가지!</text>
+
+      <!-- 핵심 비교 -->
+      <rect x="60" y="230" width="600" height="175" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="360" y="258" font-size="13" font-weight="700" fill="#0d4d2b" text-anchor="middle">Standard MoE vs LatentMoE: 정량 비교</text>
+
+      <text x="100" y="290" font-size="11" fill="#64748b" text-anchor="end">전문가 수</text>
+      <rect x="110" y="278" width="128" height="16" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="245" y="291" font-size="10" fill="#dc2626">128</text>
+      <rect x="110" y="298" width="400" height="16" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="518" y="311" font-size="10" fill="#059669" font-weight="700">512 (4x)</text>
+
+      <text x="100" y="336" font-size="11" fill="#64748b" text-anchor="end">활성 전문가</text>
+      <rect x="110" y="324" width="50" height="16" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="167" y="337" font-size="10" fill="#dc2626">5</text>
+      <rect x="110" y="344" width="220" height="16" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="338" y="357" font-size="10" fill="#059669" font-weight="700">22 (~4x)</text>
+
+      <text x="100" y="385" font-size="11" fill="#64748b" text-anchor="end">추론 비용</text>
+      <rect x="110" y="373" width="200" height="16" rx="3" fill="#dc2626" opacity="0.6"/>
+      <text x="318" y="386" font-size="10" fill="#dc2626">기준선</text>
+      <rect x="110" y="393" width="200" height="16" rx="3" fill="#059669" opacity="0.6"/>
+      <text x="318" y="406" font-size="10" fill="#059669" font-weight="700">동일 (작업공간이 1/4)</text>
+    </svg>
+    <div class="diagram-caption">LatentMoE는 작업 공간을 1/4로 줄이고 전문가 수를 4배로 늘려, 동일 비용에서 훨씬 다양한 전문가 조합을 제공한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">주방 비유: Standard MoE vs LatentMoE</div>
+    <p><strong>기존 MoE</strong>: 128명의 셰프에게 각각 큰 도마(2m x 2m)를 줍니다. 요리당 5명의 셰프가 일하고, 각자 넓은 공간에서 편하게 작업합니다.</p>
+    <p><strong>LatentMoE</strong>: 512명의 셰프에게 각각 작은 도마(1m x 1m)를 줍니다. 요리당 22명의 셰프가 참여합니다. 개인 작업 공간은 좁지만, 더 많은 전문 셰프가 협력하므로 최종 요리의 품질이 더 높습니다. 그런데 전체 주방 비용(추론 비용)은 동일합니다!</p>
+    <p>비결은 <strong>재료를 먼저 소형 포장(latent projection)으로 바꿔</strong> 작은 도마에서도 다룰 수 있게 만드는 것입니다.</p>
+  </div>
+
+  <table class="comp-table">
+    <tr>
+      <th>항목</th>
+      <th>Standard MoE</th>
+      <th>LatentMoE (NVIDIA)</th>
+      <th>차이</th>
+    </tr>
+    <tr>
+      <td>전문가 수 (N)</td>
+      <td>128</td>
+      <td>512</td>
+      <td>4x 증가</td>
+    </tr>
+    <tr>
+      <td>활성 전문가 (Top-K)</td>
+      <td>5</td>
+      <td>22</td>
+      <td>~4x 증가</td>
+    </tr>
+    <tr>
+      <td>전문가 Hidden Dim</td>
+      <td>크게 (원본 dim)</td>
+      <td>작게 (1/4 dim)</td>
+      <td>1/4 축소</td>
+    </tr>
+    <tr>
+      <td>추론 비용</td>
+      <td>기준선</td>
+      <td>동일</td>
+      <td>비용 동일</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>전문가 조합 수</td>
+      <td>~2.8억 가지</td>
+      <td>~10^30 가지</td>
+      <td>천문학적 증가</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>정확도</td>
+      <td>기준선</td>
+      <td>더 높음</td>
+      <td>품질 향상</td>
+    </tr>
+  </table>
+
+  <div class="card card-accent">
+    <h3 style="margin-top:0; color:#0d4d2b;">LatentMoE를 설계한 5가지 원칙</h3>
+    <p>NVIDIA는 실제 GPU 하드웨어의 병목 지점을 분석하여 5가지 설계 원칙을 도출하고, 이를 기반으로 LatentMoE를 설계했습니다:</p>
+    <ol style="margin-top:0.5rem;">
+      <li><strong>메모리 대역폭이 병목</strong>: AI가 답을 생성할 때, 전문가의 가중치(weight)를 GPU 메모리에서 읽는 속도가 핵심. 전문가의 작업 공간(hidden dimension)을 줄이면 읽어야 할 데이터가 줄어 더 빨라집니다.</li>
+      <li><strong>GPU 간 통신도 병목</strong>: 여러 GPU에 전문가를 나눠 놓으면, 데이터를 주고받는 양이 "작업 공간 × 활성 전문가 수"에 비례. 작업 공간을 줄이면 통신량도 줄어듭니다.</li>
+      <li><strong>비선형 연산 예산은 유지</strong>: 전문가가 실제로 "사고"하는 연산량(K × m)은 줄이면 안 됩니다. 품질 저하의 원인이 되기 때문입니다.</li>
+      <li><strong>작업 공간의 하한이 존재</strong>: 작업 공간을 너무 줄이면 "특성 순위(feature rank)"가 부족해져 복잡한 패턴을 표현할 수 없습니다. 적정 수준(1024차원)까지만 줄여야 합니다.</li>
+      <li><strong>전문가 수와 활성 전문가를 동시에 늘리면 품질 향상</strong>: 절약한 자원으로 전문가 수(N)와 활성 수(K)를 동시에 늘리면, 가능한 전문가 조합이 기하급수적으로 확장되어 더 풍부한 표현이 가능해집니다.</li>
+    </ol>
+    <p style="margin-top:0.5rem;"><strong>결론</strong>: 원칙 1-2에서 "작업 공간을 줄이라", 원칙 3-4에서 "너무 줄이지는 마라", 원칙 5에서 "절약분으로 전문가를 늘려라" → 이것이 LatentMoE의 설계 철학입니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 아이디어 2: Hybrid Architecture ===== -->
+<section>
+  <h2>핵심 아이디어 2: 하이브리드 아키텍처 -- Mamba + Attention의 최적 조합</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super는 Mamba도, Attention도 단독으로 사용하지 않습니다. <strong>88개 레이어</strong> 중 대부분을 빠른 Mamba-2 블록으로 채우고, 중간중간에 소수의 Attention 레이어를 "전역 앵커(global anchor)"로 배치합니다. Mamba가 빠르게 텍스트를 훑고, Attention이 먼 거리의 정보를 연결하는 역할 분담입니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">88-Layer Hybrid Architecture: Mamba + Attention + LatentMoE</text>
+      <!-- 범례 -->
+      <rect x="30" y="40" width="20" height="14" rx="3" fill="#1a8a3f"/><text x="56" y="52" font-size="10" fill="#475569">Mamba-2 블록</text>
+      <rect x="170" y="40" width="20" height="14" rx="3" fill="#2563eb"/><text x="196" y="52" font-size="10" fill="#475569">Attention 블록</text>
+      <rect x="320" y="40" width="20" height="14" rx="3" fill="#d97706"/><text x="346" y="52" font-size="10" fill="#475569">LatentMoE 블록</text>
+      <!-- 패턴 블록: [M, MoE] x 3 -> [M, MoE, A, MoE] x 4 -> [M, MoE] x 3 ... -->
+      <!-- 그룹 1: Mamba-MoE 반복 -->
+      <text x="360" y="80" font-size="11" font-weight="600" fill="#0d4d2b" text-anchor="middle">Layer 구성 패턴 (88개 레이어)</text>
+      <!-- 첫 번째 그룹 -->
+      <rect x="30" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="47" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="67" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="84" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <rect x="104" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="121" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="141" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="158" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <rect x="178" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="195" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="215" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="232" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <!-- Attention 앵커 그룹 -->
+      <rect x="260" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="277" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="297" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="314" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <rect x="334" y="95" width="35" height="22" rx="4" fill="#2563eb"/><text x="351" y="110" font-size="7" fill="#fff" text-anchor="middle">Att</text>
+      <rect x="371" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="388" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <!-- 반복 -->
+      <rect x="416" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="433" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="453" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="470" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <rect x="490" y="95" width="35" height="22" rx="4" fill="#2563eb"/><text x="507" y="110" font-size="7" fill="#fff" text-anchor="middle">Att</text>
+      <rect x="527" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="544" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <!-- ... -->
+      <text x="580" y="110" font-size="14" fill="#64748b">...</text>
+      <rect x="600" y="95" width="35" height="22" rx="4" fill="#1a8a3f"/><text x="617" y="110" font-size="7" fill="#fff" text-anchor="middle">M</text>
+      <rect x="637" y="95" width="35" height="22" rx="4" fill="#d97706"/><text x="654" y="110" font-size="7" fill="#fff" text-anchor="middle">MoE</text>
+      <!-- 괄호로 구조 표시 -->
+      <text x="145" y="135" font-size="9" fill="#1a8a3f" text-anchor="middle">[Mamba, MoE] x 3</text>
+      <text x="360" y="135" font-size="9" fill="#2563eb" text-anchor="middle">[Mamba, MoE, Attention, MoE] x 4</text>
+      <text x="620" y="135" font-size="9" fill="#1a8a3f" text-anchor="middle">[M, MoE] x 3</text>
+
+      <!-- 역할 설명 -->
+      <rect x="40" y="160" width="300" height="85" rx="10" fill="#f0fdf4" stroke="#1a8a3f" stroke-width="1.5"/>
+      <text x="190" y="182" font-size="12" font-weight="700" fill="#1a8a3f" text-anchor="middle">Mamba-2 블록 (대다수)</text>
+      <text x="190" y="200" font-size="10" fill="#475569" text-anchor="middle">빠른 순차 처리 (선형 시간)</text>
+      <text x="190" y="217" font-size="10" fill="#475569" text-anchor="middle">고정 크기 상태로 메모리 절약</text>
+      <text x="190" y="234" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">역할: 텍스트의 흐름을 빠르게 처리</text>
+
+      <rect x="380" y="160" width="300" height="85" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="530" y="182" font-size="12" font-weight="700" fill="#2563eb" text-anchor="middle">Attention 앵커 (소수)</text>
+      <text x="530" y="200" font-size="10" fill="#475569" text-anchor="middle">전체 문맥을 한 번에 조망</text>
+      <text x="530" y="217" font-size="10" fill="#475569" text-anchor="middle">먼 거리 정보 연결 가능</text>
+      <text x="530" y="234" font-size="10" fill="#2563eb" text-anchor="middle" font-weight="600">역할: 멀리 떨어진 정보를 연결</text>
+
+      <!-- 결과 -->
+      <rect x="100" y="265" width="520" height="75" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="360" y="290" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">결과: 두 방식의 장점을 동시에 얻다</text>
+      <text x="360" y="310" font-size="11" fill="#475569" text-anchor="middle">Mamba의 속도 + Attention의 전역 연결 능력 = 1,000,000 토큰 문맥 지원</text>
+      <text x="360" y="328" font-size="10" fill="#64748b" text-anchor="middle">(일반적인 책 10권 분량을 한 번에 읽고 이해할 수 있는 능력)</text>
+    </svg>
+    <div class="diagram-caption">88개 레이어에서 Mamba가 빠른 처리를, Attention이 글로벌 연결을 담당하는 하이브리드 구조</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">고속도로 비유: 하이브리드 아키텍처</div>
+    <p>Mamba 블록은 <strong>고속도로의 직진 구간</strong>입니다. 빠르게 달릴 수 있지만, 먼 도시의 정보를 얻기 어렵습니다. Attention 블록은 중간중간에 있는 <strong>인터체인지(IC)</strong>입니다. 여기서 다른 방향의 도로와 연결되어, 멀리 떨어진 정보에 접근할 수 있습니다. 고속도로(Mamba)를 주로 달리되, 가끔 IC(Attention)에서 경로를 조정하면 빠르면서도 어디든 갈 수 있습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 아이디어 3: Multi-Token Prediction ===== -->
+<section>
+  <h2>핵심 아이디어 3: Multi-Token Prediction (MTP) -- 한 번에 여러 단어 예측</h2>
+
+  <div class="card card-accent">
+    <p>일반적인 AI는 한 번에 <strong>한 단어</strong>씩 생성합니다. Nemotron 3 Super의 MTP는 한 번에 <strong>여러 단어를 동시에 예측</strong>합니다. 이 예측을 "초안(draft)"으로 사용하여 검증하면, 한 번의 계산으로 여러 단어를 확정할 수 있어 생성 속도가 크게 빨라집니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">MTP와 Speculative Decoding: 한 번에 여러 토큰 생성</text>
+      <!-- 기존 방식 -->
+      <rect x="20" y="40" width="680" height="110" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1"/>
+      <text x="50" y="62" font-size="12" font-weight="700" fill="#dc2626">기존: 한 번에 1개씩</text>
+      <rect x="40" y="75" width="60" height="28" rx="5" fill="#dc2626" opacity="0.7"/><text x="70" y="93" font-size="9" fill="#fff" text-anchor="middle">오늘</text>
+      <text x="108" y="93" font-size="12" fill="#dc2626">&#8594;</text>
+      <rect x="118" y="75" width="60" height="28" rx="5" fill="#dc2626" opacity="0.7"/><text x="148" y="93" font-size="9" fill="#fff" text-anchor="middle">날씨가</text>
+      <text x="186" y="93" font-size="12" fill="#dc2626">&#8594;</text>
+      <rect x="196" y="75" width="60" height="28" rx="5" fill="#dc2626" opacity="0.7"/><text x="226" y="93" font-size="9" fill="#fff" text-anchor="middle">정말</text>
+      <text x="264" y="93" font-size="12" fill="#dc2626">&#8594;</text>
+      <rect x="274" y="75" width="60" height="28" rx="5" fill="#dc2626" opacity="0.7"/><text x="304" y="93" font-size="9" fill="#fff" text-anchor="middle">좋습</text>
+      <text x="342" y="93" font-size="12" fill="#dc2626">&#8594;</text>
+      <rect x="352" y="75" width="60" height="28" rx="5" fill="#dc2626" opacity="0.7"/><text x="382" y="93" font-size="9" fill="#fff" text-anchor="middle">니다</text>
+      <text x="500" y="93" font-size="11" fill="#dc2626" font-weight="600">5단어 = 5번 계산</text>
+      <text x="500" y="115" font-size="10" fill="#64748b">매 단어마다 전체 모델 실행 필요</text>
+
+      <!-- MTP 방식 -->
+      <rect x="20" y="170" width="680" height="190" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1"/>
+      <text x="50" y="195" font-size="12" font-weight="700" fill="#059669">MTP + Speculative Decoding: 한 번에 여러 개</text>
+      <!-- Step 1: Draft 생성 -->
+      <text x="50" y="220" font-size="10" fill="#1a8a3f" font-weight="600">Step 1: MTP Head가 초안(draft) 생성</text>
+      <rect x="40" y="228" width="60" height="26" rx="5" fill="#1a8a3f"/>
+      <text x="70" y="245" font-size="8" fill="#fff" text-anchor="middle">오늘</text>
+      <text x="108" y="245" font-size="10" fill="#059669">&#8594;</text>
+      <rect x="115" y="228" width="55" height="26" rx="5" fill="#d97706" opacity="0.7"/>
+      <text x="142" y="245" font-size="8" fill="#fff" text-anchor="middle">날씨가</text>
+      <rect x="175" y="228" width="55" height="26" rx="5" fill="#d97706" opacity="0.7"/>
+      <text x="202" y="245" font-size="8" fill="#fff" text-anchor="middle">정말</text>
+      <rect x="235" y="228" width="55" height="26" rx="5" fill="#d97706" opacity="0.7"/>
+      <text x="262" y="245" font-size="8" fill="#fff" text-anchor="middle">좋습</text>
+      <rect x="295" y="228" width="55" height="26" rx="5" fill="#d97706" opacity="0.7"/>
+      <text x="322" y="245" font-size="8" fill="#fff" text-anchor="middle">니다</text>
+      <text x="380" y="245" font-size="9" fill="#d97706" font-weight="600">초안 4개를 빠르게 생성</text>
+      <!-- Step 2: 검증 -->
+      <text x="50" y="275" font-size="10" fill="#1a8a3f" font-weight="600">Step 2: 본체 모델이 초안을 한 번에 검증</text>
+      <rect x="115" y="283" width="55" height="26" rx="5" fill="#059669"/><text x="142" y="300" font-size="8" fill="#fff" text-anchor="middle">날씨가 &#10003;</text>
+      <rect x="175" y="283" width="55" height="26" rx="5" fill="#059669"/><text x="202" y="300" font-size="8" fill="#fff" text-anchor="middle">정말 &#10003;</text>
+      <rect x="235" y="283" width="55" height="26" rx="5" fill="#059669"/><text x="262" y="300" font-size="8" fill="#fff" text-anchor="middle">좋습 &#10003;</text>
+      <rect x="295" y="283" width="55" height="26" rx="5" fill="#dc2626" opacity="0.7"/><text x="322" y="300" font-size="8" fill="#fff" text-anchor="middle">니다 &#10007;</text>
+      <text x="380" y="300" font-size="9" fill="#059669" font-weight="600">3개 수락, 1개 거부</text>
+      <!-- 결과 -->
+      <text x="50" y="335" font-size="10" fill="#1a8a3f" font-weight="600">결과: 1번의 검증으로 3개 토큰 확정!</text>
+      <text x="480" y="335" font-size="11" fill="#059669" font-weight="700">평균 3.45 토큰/스텝</text>
+      <text x="480" y="352" font-size="10" fill="#64748b">= 생성 속도 약 3.45배 향상</text>
+    </svg>
+    <div class="diagram-caption">MTP는 여러 토큰을 "초안"으로 미리 생성하고, 한 번의 검증으로 다수를 확정하여 생성 속도를 높인다</div>
+  </div>
+
+  <p style="margin:1rem 0;">Nemotron 3 Super의 MTP가 특별한 이유는 <strong>Shared-weight MTP</strong> 설계입니다. 기존 방식은 각 위치별로 별도의 예측 모듈을 사용하지만, Nemotron 3 Super는 하나의 예측 모듈이 파라미터를 공유합니다. 이렇게 하면 초안이 길어져도 품질이 유지되어, 평균 3.45개의 토큰을 한 번에 수락할 수 있습니다 (경쟁 모델 DeepSeek-R1은 2.70개).</p>
+
+  <table class="comp-table">
+    <tr>
+      <th>모델</th>
+      <th>코딩</th>
+      <th>수학</th>
+      <th>다국어</th>
+      <th>RAG</th>
+      <th>추론</th>
+      <th>평균</th>
+    </tr>
+    <tr>
+      <td>DeepSeek-R1</td>
+      <td>2.99</td>
+      <td>2.98</td>
+      <td>2.83</td>
+      <td>2.79</td>
+      <td>2.80</td>
+      <td>2.70</td>
+    </tr>
+    <tr>
+      <td>Qwen3-Next</td>
+      <td>4.32</td>
+      <td>3.89</td>
+      <td>3.97</td>
+      <td>3.53</td>
+      <td>3.47</td>
+      <td>3.33</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>Nemotron 3 Super</td>
+      <td>3.78</td>
+      <td>3.73</td>
+      <td>4.05</td>
+      <td>3.78</td>
+      <td>3.59</td>
+      <td>3.45</td>
+    </tr>
+  </table>
+  <p style="font-size:0.9rem; color:#64748b; margin-top:0.5rem;">SPEED-Bench 평균 수락 길이 (draft length 7). 높을수록 좋음. Nemotron 3 Super가 전체 평균에서 최고.</p>
+</section>
+
+<!-- ===== 핵심 아이디어 4: NVFP4 Pretraining ===== -->
+<section>
+  <h2>핵심 아이디어 4: NVFP4 사전학습 -- 4비트 정밀도로 25조 토큰 학습</h2>
+
+  <div class="card card-accent">
+    <p>보통 AI 모델은 16비트 또는 8비트 정밀도로 학습합니다. NVIDIA는 <strong>4비트(NVFP4)</strong> 정밀도로 120B 모델을 <strong>25조(25 Trillion) 토큰</strong>에 대해 안정적으로 학습한 최초의 사례입니다. 4비트 학습은 메모리와 계산량을 대폭 줄여 학습 비용을 절감합니다.</p>
+  </div>
+
+  <p style="margin:1rem 0;">25조 토큰이란 어느 정도일까요? 한국어 위키백과 전체가 약 10억 토큰이니, 위키백과 25,000세트 분량입니다. 이 방대한 데이터를 4비트라는 극히 낮은 정밀도로 학습하면서도 16비트 학습과 동등한 품질을 달성한 것이 핵심입니다.</p>
+
+  <p style="margin:1rem 0;">NVIDIA는 NVFP4 학습 중 <strong>Zero-valued gradient(0값 기울기)</strong> 현상을 발견했습니다. 가중치 기울기의 약 7%가 0으로 수렴하는 현상입니다. 이것이 학습에 문제를 일으키는 것은 아닐까? 분석 결과, 16비트 학습에서도 유사한 패턴이 자연적으로 존재하며, NVFP4가 이를 가속할 뿐 새로운 문제를 도입하지 않는다는 것을 확인했습니다.</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">25T</div>
+      <div class="label">학습 토큰</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4-bit</div>
+      <div class="label">학습 정밀도 (NVFP4)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">7%</div>
+      <div class="label">Zero-valued gradient<br>(무해한 현상)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">2-Phase</div>
+      <div class="label">학습 커리큘럼<br>(20T + 5T)</div>
+    </div>
+  </div>
+
+  <p style="margin:1rem 0;">학습 데이터는 2단계로 구성됩니다:</p>
+  <ul style="margin:0.5rem 0 1rem 1.5rem;">
+    <li><strong>Phase 1 (80%, 20조 토큰)</strong>: 다양성 중심 -- 웹 크롤, 코드, 수학, 다국어 등 폭넓은 데이터</li>
+    <li><strong>Phase 2 (20%, 5조 토큰)</strong>: 고품질 집중 -- 위키백과, 고품질 코드, STEM 데이터 비중 대폭 증가</li>
+  </ul>
+</section>
+
+<!-- ===== Post-Training Pipeline ===== -->
+<section>
+  <h2>학습 이후 튜닝: 6단계 파이프라인</h2>
+
+  <div class="card card-accent">
+    <p>사전학습(pretraining)이 "기본 지식을 쌓는" 단계라면, <strong>Post-training</strong>은 "실전 능력을 키우는" 단계입니다. Nemotron 3 Super는 6단계의 정교한 후처리 파이프라인을 거칩니다.</p>
+  </div>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">2-Stage SFT</div>
+      <div class="step-desc">7M 샘플<br>지시 따르기 학습</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">RLVR x3</div>
+      <div class="step-desc">21환경, 37데이터셋<br>강화학습 3라운드</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">MTP Healing</div>
+      <div class="step-desc">18B 토큰<br>MTP 정확도 복구</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">STEP 4</div>
+      <div class="step-title">RLHF</div>
+      <div class="step-desc">18B 토큰<br>인간 선호도 정렬</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">STEP 5</div>
+      <div class="step-title">SWE-RL</div>
+      <div class="step-desc">20B 토큰<br>소프트웨어 엔지니어링</div>
+    </div>
+  </div>
+
+  <!-- SFT 설명 -->
+  <h3>Step 1: 2-Stage SFT -- 지시 따르기 학습</h3>
+  <div class="card">
+    <p><strong>SFT (Supervised Fine-Tuning)</strong>는 사전학습된 모델에 "질문에 답하는 방법"을 가르치는 단계입니다. 700만 개의 예시 대화를 보여주며 학습합니다.</p>
+    <p>Nemotron 3 Super는 2단계 SFT를 도입했습니다:</p>
+    <ul>
+      <li><strong>Stage 1 (Token-level)</strong>: 모든 출력 단어에 동일한 가중치를 줌 -- 긴 추론(reasoning) 능력을 강화</li>
+      <li><strong>Stage 2 (Sample-level)</strong>: 각 대화를 하나의 단위로 취급 -- 짧은 답변이 필요한 작업의 성능 복구</li>
+    </ul>
+    <p style="margin-top:0.5rem; font-size:0.9rem; color:#64748b;">왜 2단계? Stage 1만 하면 모든 답변이 길어지는 경향이 생기고, "서울의 수도는?" 같은 간단한 질문에도 장황한 답을 합니다. Stage 2가 이를 교정합니다.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">교육 비유: 2-Stage SFT</div>
+    <p>의대생 교육에 비유하면, <strong>Stage 1</strong>은 "모든 증상을 꼼꼼히 분석하고 상세한 진단서를 작성하라"고 가르치는 것입니다. 학생은 철저한 분석 능력을 기릅니다. <strong>Stage 2</strong>는 "환자가 '감기인가요?'라고 물으면 간단히 '네, 감기입니다'라고 답하는 것도 중요하다"고 가르치는 것입니다. 상황에 따라 적절한 답변 길이를 조절하는 능력입니다.</p>
+  </div>
+
+  <!-- RLVR 설명 -->
+  <h3>Step 2: Multi-Environment RLVR -- 21개 환경에서 강화학습</h3>
+  <div class="card">
+    <p><strong>RLVR (Reinforcement Learning with Verifiable Rewards)</strong>은 모델이 직접 문제를 풀어보고, 정답인지 자동 검증하여 보상을 받는 학습입니다. 수학 문제를 풀고 답이 맞으면 보상, 틀리면 벌점을 주는 방식입니다.</p>
+    <p>Nemotron 3 Super는 <strong>21개 환경, 37개 데이터셋</strong>에서 동시에 학습합니다:</p>
+    <ul>
+      <li><strong>수학</strong>: 경쟁 수학 문제, Python 도구 사용/미사용 두 설정</li>
+      <li><strong>코드</strong>: 프로그래밍 문제 해결 및 테스트</li>
+      <li><strong>STEM</strong>: 과학/공학 문제</li>
+      <li><strong>지시 따르기</strong>: 복잡한 사용자 지시 이행</li>
+      <li><strong>안전성</strong>: 위험한 요청 거부 + 과도한 거부 방지</li>
+      <li><strong>에이전트 도구 사용</strong>: 검색, 터미널, 대화형 도구 활용</li>
+      <li><strong>긴 문맥</strong>: 긴 문서 이해</li>
+    </ul>
+    <p style="margin-top:0.5rem;">3라운드에 걸쳐 진행되며, 각 라운드에서 환경 구성을 조정합니다.</p>
+  </div>
+
+  <p style="margin:1rem 0;">왜 여러 환경을 동시에 학습하는 것이 중요할까요? 한 가지 능력만 집중 훈련하면 다른 능력이 퇴화하는 <strong>"catastrophic forgetting"</strong> 문제가 발생합니다. 수학만 훈련하면 코딩 능력이 떨어지는 식입니다. 21개 환경을 동시에 학습하면 모든 능력을 균형 있게 향상시킬 수 있습니다.</p>
+
+  <!-- PivotRL 설명 -->
+  <h3>PivotRL -- 효율적인 에이전트 강화학습</h3>
+  <div class="card card-green">
+    <p>AI가 소프트웨어 개발이나 웹 검색 같은 복잡한 작업(에이전트 작업)을 할 때, 여러 단계를 거칩니다. 기존 강화학습은 이 전체 과정을 처음부터 끝까지 반복해야 하므로 매우 비쌉니다.</p>
+    <p><strong>PivotRL</strong>은 현명한 단축키를 제안합니다:</p>
+    <ol>
+      <li>전문가가 만든 모범 답안(trajectory)에서, 현재 모델이 <strong>불확실해하는 핵심 순간(pivot)</strong>만 식별합니다.</li>
+      <li>그 순간에서만 강화학습을 수행합니다.</li>
+      <li>전체 작업을 처음부터 재실행하지 않아도 됩니다.</li>
+    </ol>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">운전 교육 비유: PivotRL</div>
+    <p>운전 교습에서, 초보 운전자가 직선 도로는 잘 달리지만 좌회전과 주차에서 실수한다고 합시다. 기존 방식은 매번 출발부터 도착까지 전체 경로를 반복합니다. PivotRL은 "좌회전"과 "주차" 상황만 골라서 집중 연습합니다. 훨씬 효율적입니다.</p>
+  </div>
+
+  <!-- SWE-RL 설명 -->
+  <h3>Step 5: SWE-RL -- 소프트웨어 엔지니어링 전용 강화학습</h3>
+  <div class="card">
+    <p>소프트웨어 개발은 문맥이 매우 길고(최대 256K 토큰), 실제 코드 실행이 필요하기 때문에 다른 환경과 분리하여 학습합니다.</p>
+    <ul>
+      <li>실제 Git 저장소를 컨테이너에 올려 AI가 코드를 수정하게 함</li>
+      <li>수정한 코드가 테스트를 통과하면 보상, 실패하면 벌점</li>
+      <li>OpenHands, Codex 등 다양한 에이전트 형식으로 학습하여 범용성 확보</li>
+    </ul>
+  </div>
+
+  <!-- MTP Healing 설명 -->
+  <h3>Step 3: MTP Healing -- 강화학습 후 MTP 복구</h3>
+  <div class="card card-orange">
+    <p>강화학습 과정에서 모델의 MTP(다중 토큰 예측) 능력이 저하되는 문제가 발생합니다. 강화학습이 "정확한 답"에만 집중하다 보니, "여러 단어를 동시에 예측하는" 능력이 약해지는 것입니다.</p>
+    <p><strong>해결책</strong>: 모델 본체를 고정(freeze)하고, MTP 예측 모듈만 따로 18B 토큰으로 재학습합니다. 본체의 실력은 유지하면서 MTP 정확도만 회복하는 것입니다.</p>
+  </div>
+
+  <!-- 전체 Training Pipeline SVG -->
+  <h3>전체 학습 파이프라인 한눈에 보기</h3>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 500" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">Nemotron 3 Super 전체 학습 파이프라인</text>
+      <!-- Pretraining -->
+      <rect x="30" y="45" width="660" height="70" rx="12" fill="#f0fdf4" stroke="#1a8a3f" stroke-width="2"/>
+      <text x="55" y="68" font-size="12" font-weight="700" fill="#1a8a3f">사전학습 (Pretraining)</text>
+      <text x="55" y="87" font-size="10" fill="#475569">25T 토큰, NVFP4 정밀도, 88-layer Hybrid Mamba-Attention LatentMoE</text>
+      <text x="55" y="103" font-size="10" fill="#475569">Phase 1 (20T 다양성) + Phase 2 (5T 고품질) + Long Context (1M) Extension</text>
+      <!-- 화살표 -->
+      <text x="360" y="135" font-size="20" fill="#1a8a3f" text-anchor="middle">&#8595;</text>
+      <!-- SFT -->
+      <rect x="30" y="145" width="320" height="55" rx="10" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="45" y="167" font-size="11" font-weight="700" fill="#2563eb">Step 1: 2-Stage SFT</text>
+      <text x="45" y="185" font-size="9" fill="#475569">7M 샘플, 8GB tokens / Agent 36% + Reasoning 31% + Chat 23%</text>
+      <!-- RLVR -->
+      <rect x="370" y="145" width="320" height="55" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="385" y="167" font-size="11" font-weight="700" fill="#d97706">Step 2: RLVR (3 Rounds)</text>
+      <text x="385" y="185" font-size="9" fill="#475569">21 환경, 37 데이터셋, 4096 rollouts/batch, PivotRL</text>
+      <!-- 화살표들 -->
+      <path d="M190,200 L190,215 Q190,225 200,225 L350,225 Q360,225 360,235 L360,255" stroke="#475569" stroke-width="1.5" fill="none"/>
+      <path d="M530,200 L530,215 Q530,225 520,225 L370,225 Q360,225 360,235 L360,255" stroke="#475569" stroke-width="1.5" fill="none"/>
+      <!-- MTP Healing -->
+      <rect x="180" y="255" width="190" height="50" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="275" y="275" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">Step 3: MTP Healing</text>
+      <text x="275" y="293" font-size="9" fill="#475569" text-anchor="middle">18B tokens, backbone frozen</text>
+      <!-- 화살표 -->
+      <text x="360" y="325" font-size="20" fill="#1a8a3f" text-anchor="middle">&#8595;</text>
+      <!-- RLHF + SWE-RL -->
+      <rect x="30" y="335" width="320" height="55" rx="10" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="45" y="357" font-size="11" font-weight="700" fill="#7c3aed">Step 4: RLHF</text>
+      <text x="45" y="375" font-size="9" fill="#475569">GenRM 기반, 인간 선호도 정렬, 18B tokens</text>
+      <rect x="370" y="335" width="320" height="55" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="385" y="357" font-size="11" font-weight="700" fill="#d97706">Step 5: SWE-RL</text>
+      <text x="385" y="375" font-size="9" fill="#475569">컨테이너 환경, OpenHands, 20B tokens</text>
+      <!-- 최종 -->
+      <path d="M190,390 L190,405 Q190,415 200,415 L350,415 Q360,415 360,425 L360,440" stroke="#475569" stroke-width="1.5" fill="none"/>
+      <path d="M530,390 L530,405 Q530,415 520,415 L370,415 Q360,415 360,425 L360,440" stroke="#475569" stroke-width="1.5" fill="none"/>
+      <rect x="200" y="440" width="320" height="45" rx="12" fill="#76b900" stroke="#0d4d2b" stroke-width="2"/>
+      <text x="360" y="462" font-size="14" font-weight="900" fill="#fff" text-anchor="middle">Nemotron 3 Super</text>
+      <text x="360" y="478" font-size="9" fill="rgba(255,255,255,0.8)" text-anchor="middle">120B Total / 12B Active / 1M Context / 2.2x Throughput</text>
+    </svg>
+    <div class="diagram-caption">사전학습부터 최종 모델까지 6단계를 거치는 Nemotron 3 Super의 전체 학습 과정</div>
+  </div>
+</section>
+
+<!-- ===== 양자화 (Quantization for Deployment) ===== -->
+<section>
+  <h2>배포를 위한 양자화: 거의 무손실 압축</h2>
+
+  <div class="card card-accent">
+    <p>학습이 완료된 모델을 실제 서비스에 배포할 때, 메모리와 속도를 더 최적화하기 위해 <strong>양자화(quantization)</strong>를 적용합니다. Nemotron 3 Super는 FP8 (8비트)과 NVFP4 (4비트) 양자화를 지원하며, 놀랍게도 정확도 손실이 거의 없습니다.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">99.8%</div>
+      <div class="label">NVFP4 양자화 후<br>정확도 유지율</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4.75</div>
+      <div class="label">유효 비트 수<br>(혼합 정밀도)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">&lt;2h</div>
+      <div class="label">양자화 소요 시간<br>(B200 8 GPU)</div>
+    </div>
+  </div>
+
+  <p style="margin:1rem 0;">NVIDIA는 <strong>AutoQuantize</strong>라는 기술을 사용합니다. 모델의 각 부분이 양자화에 얼마나 민감한지를 자동으로 분석하고, 민감한 부분은 높은 정밀도(BF16/FP8)를, 덜 민감한 부분은 낮은 정밀도(NVFP4)를 할당합니다. 결과적으로 평균 4.75비트의 효율로 BF16 대비 99.8%의 정확도를 유지합니다.</p>
+
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>BF16 (원본)</th>
+      <th>FP8 (8비트)</th>
+      <th>NVFP4 (4비트)</th>
+    </tr>
+    <tr>
+      <td>MMLU-Pro (지식)</td>
+      <td>83.73</td>
+      <td>83.63</td>
+      <td>83.33</td>
+    </tr>
+    <tr>
+      <td>HMMT Feb25 (수학, 도구)</td>
+      <td>94.73</td>
+      <td>94.38</td>
+      <td>95.36</td>
+    </tr>
+    <tr>
+      <td>LiveCodeBench v5 (코딩)</td>
+      <td>81.19</td>
+      <td>80.99</td>
+      <td>80.56</td>
+    </tr>
+    <tr>
+      <td>TauBench V2 (에이전트)</td>
+      <td>61.15</td>
+      <td>61.07</td>
+      <td>60.46</td>
+    </tr>
+    <tr>
+      <td>IFBench (지시 따르기)</td>
+      <td>72.58</td>
+      <td>72.32</td>
+      <td>73.30</td>
+    </tr>
+    <tr>
+      <td>RULER 512k (긴 문맥)</td>
+      <td>96.09</td>
+      <td>95.66</td>
+      <td>96.23</td>
+    </tr>
+  </table>
+  <p style="font-size:0.9rem; color:#64748b; margin-top:0.5rem;">NVFP4(4비트)에서도 성능 차이가 거의 없으며, 일부 벤치마크에서는 오히려 더 높은 점수를 기록</p>
+
+  <!-- Mamba State Quantization -->
+  <h3>Mamba 상태 양자화: Stochastic Rounding의 발견</h3>
+
+  <div class="card card-orange">
+    <p>Nemotron 3 Super의 Mamba 블록을 양자화할 때, NVIDIA 연구팀은 심각한 문제를 발견했습니다. Mamba의 "요약 상태(state)"를 FP32에서 FP16으로 줄이면, <strong>코드 생성에서 최대 40% 장황해지는</strong> 현상이 발생한 것입니다.</p>
+  </div>
+
+  <p style="margin:1rem 0;">원인은 <strong>반올림 편향(rounding bias)</strong>입니다. 일반적인 반올림(Round to Nearest, RTNE)은 항상 같은 방향으로 반올림합니다. 이 작은 편향이 Mamba의 반복적(recurrent) 구조에서 매 단계마다 누적되어, 결국 큰 오차로 변합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">Stochastic Rounding: 편향된 반올림 vs 확률적 반올림</text>
+      <!-- RTNE (기존) -->
+      <rect x="20" y="45" width="320" height="120" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="180" y="68" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">기존: 결정적 반올림 (RTNE)</text>
+      <text x="180" y="88" font-size="10" fill="#475569" text-anchor="middle">0.25 --> 항상 0으로 반올림</text>
+      <text x="180" y="105" font-size="10" fill="#475569" text-anchor="middle">0.75 --> 항상 1로 반올림</text>
+      <text x="180" y="125" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="600">같은 방향 반올림이 누적!</text>
+      <!-- 오차 누적 표시 -->
+      <rect x="50" y="140" width="30" height="8" rx="2" fill="#dc2626" opacity="0.4"/><text x="90" y="148" font-size="8" fill="#dc2626">Step 1</text>
+      <rect x="50" y="150" width="60" height="8" rx="2" fill="#dc2626" opacity="0.5"/><text x="120" y="158" font-size="8" fill="#dc2626">Step 2 (누적)</text>
+      <!-- SR (새로운) -->
+      <rect x="380" y="45" width="320" height="120" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="540" y="68" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">새로운: 확률적 반올림 (SR)</text>
+      <text x="540" y="88" font-size="10" fill="#475569" text-anchor="middle">0.25 --> 75% 확률로 0, 25% 확률로 1</text>
+      <text x="540" y="105" font-size="10" fill="#475569" text-anchor="middle">0.75 --> 25% 확률로 0, 75% 확률로 1</text>
+      <text x="540" y="125" font-size="10" fill="#059669" text-anchor="middle" font-weight="600">기대값이 정확 = 편향 없음!</text>
+      <rect x="410" y="140" width="30" height="8" rx="2" fill="#059669" opacity="0.4"/><text x="450" y="148" font-size="8" fill="#059669">Step 1</text>
+      <rect x="410" y="150" width="28" height="8" rx="2" fill="#059669" opacity="0.5"/><text x="448" y="158" font-size="8" fill="#059669">Step 2 (누적 안 됨)</text>
+      <!-- 결과 비교 -->
+      <rect x="60" y="190" width="600" height="110" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1"/>
+      <text x="360" y="215" font-size="13" font-weight="700" fill="#0d4d2b" text-anchor="middle">Verbosity (장황함) 비교: RTNE vs Stochastic Rounding</text>
+      <!-- RTNE 바 -->
+      <text x="140" y="245" font-size="10" fill="#64748b" text-anchor="end">RTNE (기존)</text>
+      <rect x="150" y="233" width="360" height="18" rx="4" fill="#dc2626" opacity="0.7"/>
+      <text x="520" y="247" font-size="10" fill="#dc2626" font-weight="700">+40.27% 장황해짐</text>
+      <!-- SR 바 -->
+      <text x="140" y="278" font-size="10" fill="#64748b" text-anchor="end">SR (Philox 5)</text>
+      <rect x="150" y="266" width="16" height="18" rx="4" fill="#059669" opacity="0.7"/>
+      <text x="175" y="280" font-size="10" fill="#059669" font-weight="700">+1.79% (거의 변화 없음)</text>
+    </svg>
+    <div class="diagram-caption">Stochastic Rounding으로 Mamba 상태의 반올림 편향을 제거하여 verbosity 증가를 40%에서 1.8%로 감소</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">동전 던지기 비유: Stochastic Rounding</div>
+    <p>기존 반올림은 "의심스러우면 항상 왼쪽으로" 같은 규칙입니다. 한두 번은 괜찮지만, 1,000번 연속으로 왼쪽으로만 가면 원래 목적지에서 크게 벗어납니다. Stochastic rounding은 "의심스러우면 동전을 던져서 결정"하는 것입니다. 평균적으로 왼쪽과 오른쪽이 균형을 이루어, 아무리 많이 반복해도 원래 위치에서 크게 벗어나지 않습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 성과: Throughput 비교 ===== -->
+<section>
+  <h2>핵심 성과: 속도와 정확도 모두 잡다</h2>
+
+  <div class="card card-green">
+    <p>Nemotron 3 Super의 가장 큰 성과는 <strong>"정확도를 유지하면서 처리 속도를 크게 높였다"</strong>는 것입니다. 같은 수준의 AI 능력을 제공하면서도, 서버 비용을 대폭 절감할 수 있습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">처리 속도(Throughput) 비교: 8K 입력 / 64K 출력, B200 GPU</text>
+      <!-- Y축 라벨 -->
+      <text x="35" y="80" font-size="10" fill="#64748b" text-anchor="middle" transform="rotate(-90,35,170)">상대 처리 속도 (Throughput)</text>
+      <!-- 기준선 -->
+      <line x1="80" y1="270" x2="650" y2="270" stroke="#e2e8f0" stroke-width="1"/>
+      <line x1="80" y1="200" x2="650" y2="200" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="130" x2="650" y2="130" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="60" x2="650" y2="60" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <text x="75" y="274" font-size="9" fill="#64748b" text-anchor="end">0x</text>
+      <text x="75" y="204" font-size="9" fill="#64748b" text-anchor="end">2.5x</text>
+      <text x="75" y="134" font-size="9" fill="#64748b" text-anchor="end">5.0x</text>
+      <text x="75" y="64" font-size="9" fill="#64748b" text-anchor="end">7.5x</text>
+      <!-- Qwen3.5 바 -->
+      <rect x="120" y="242" width="100" height="28" rx="6" fill="#9ca3af"/>
+      <text x="170" y="261" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">1.0x</text>
+      <text x="170" y="290" font-size="10" fill="#475569" text-anchor="middle">Qwen3.5-122B</text>
+      <text x="170" y="305" font-size="8" fill="#94a3b8" text-anchor="middle">(BF16)</text>
+      <!-- GPT-OSS 바 -->
+      <rect x="290" y="176" width="100" height="94" rx="6" fill="#2563eb" opacity="0.7"/>
+      <text x="340" y="227" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">3.4x</text>
+      <text x="340" y="290" font-size="10" fill="#475569" text-anchor="middle">GPT-OSS-120B</text>
+      <text x="340" y="305" font-size="8" fill="#94a3b8" text-anchor="middle">(MXFP4)</text>
+      <!-- Nemotron BF16 바 -->
+      <rect x="440" y="68" width="80" height="202" rx="6" fill="#76b900" opacity="0.8"/>
+      <text x="480" y="140" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">7.5x</text>
+      <text x="480" y="290" font-size="9" fill="#475569" text-anchor="middle">Nemotron</text>
+      <text x="480" y="305" font-size="8" fill="#94a3b8" text-anchor="middle">(BF16)</text>
+      <!-- Nemotron NVFP4 바 (더 높음) -->
+      <rect x="540" y="50" width="80" height="220" rx="6" fill="#0d4d2b"/>
+      <text x="580" y="120" font-size="10" fill="#fff" text-anchor="middle" font-weight="600">~8x+</text>
+      <text x="580" y="290" font-size="9" fill="#475569" text-anchor="middle">Nemotron</text>
+      <text x="580" y="305" font-size="8" fill="#94a3b8" text-anchor="middle">(NVFP4)</text>
+      <!-- 주석 -->
+      <text x="360" y="330" font-size="10" fill="#64748b" text-anchor="middle">Qwen3.5 대비 7.5배, GPT-OSS 대비 2.2배 빠른 처리 속도 (동등 이상의 정확도에서)</text>
+    </svg>
+    <div class="diagram-caption">B200 GPU에서 측정한 상대 처리 속도. Nemotron 3 Super가 정확도를 유지하면서 압도적 속도 우위.</div>
+  </div>
+
+  <h3>Base Model 결과 (사전학습만 한 상태)</h3>
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>Nemotron 3 Super</th>
+      <th>Ling-flash-2.0</th>
+      <th>GLM-4.5-Air</th>
+    </tr>
+    <tr class="highlight-row">
+      <td>MMLU (지식)</td>
+      <td>86.01</td>
+      <td>81.00</td>
+      <td>81.00</td>
+    </tr>
+    <tr>
+      <td>MMLU-Pro (고급 지식)</td>
+      <td>75.65</td>
+      <td>62.10</td>
+      <td>58.20</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>GPQA-Diamond (전문 과학)</td>
+      <td>60.00</td>
+      <td>36.00</td>
+      <td>23.20</td>
+    </tr>
+    <tr>
+      <td>MATH Level 5 (고난도 수학)</td>
+      <td>70.00</td>
+      <td>39.80</td>
+      <td>26.30</td>
+    </tr>
+    <tr>
+      <td>AIME 2024 (수학 올림피아드)</td>
+      <td>53.33</td>
+      <td>30.00</td>
+      <td>20.00</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>RULER 1M (100만 토큰 문맥)</td>
+      <td>74.39</td>
+      <td>--</td>
+      <td>--</td>
+    </tr>
+  </table>
+  <p style="font-size:0.9rem; color:#64748b; margin-top:0.5rem;">Base model 단계에서 이미 거의 모든 벤치마크에서 경쟁 모델을 크게 상회</p>
+
+  <h3>Post-Training 후 최종 결과</h3>
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>Nemotron 3 Super</th>
+      <th>Qwen3.5-122B</th>
+      <th>GPT-OSS-120B</th>
+    </tr>
+    <tr>
+      <td>MMLU-Pro (지식)</td>
+      <td>83.73</td>
+      <td>86.70</td>
+      <td>81.00</td>
+    </tr>
+    <tr>
+      <td>HMMT Feb25 (수학, 도구 없음)</td>
+      <td><strong>93.67</strong></td>
+      <td>91.40</td>
+      <td>90.00</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>HMMT Feb25 (수학, 도구 사용)</td>
+      <td><strong>94.73</strong></td>
+      <td>89.55</td>
+      <td>--</td>
+    </tr>
+    <tr>
+      <td>SWE-Bench (코드, OpenHands)</td>
+      <td>60.47</td>
+      <td>66.40</td>
+      <td>41.90</td>
+    </tr>
+    <tr>
+      <td>SWE-Bench 다국어 (OpenHands)</td>
+      <td>45.78</td>
+      <td>--</td>
+      <td>30.80</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>RULER 1M (100만 토큰 문맥)</td>
+      <td>91.75</td>
+      <td>91.33</td>
+      <td>22.30</td>
+    </tr>
+    <tr>
+      <td>LiveCodeBench v5 (코딩)</td>
+      <td>81.19</td>
+      <td>78.93</td>
+      <td>88.00</td>
+    </tr>
+    <tr>
+      <td>TauBench V2 평균 (에이전트)</td>
+      <td>61.15</td>
+      <td>74.53</td>
+      <td>61.00</td>
+    </tr>
+  </table>
+  <p style="font-size:0.9rem; color:#64748b; margin-top:0.5rem;">GPT-OSS-120B와 대등하거나 상회하면서 2.2배 빠름. Qwen3.5와도 전반적으로 근접하면서 7.5배 빠름.</p>
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 방식 대비 무엇이 다른가?</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>항목</th>
+      <th>기존 접근</th>
+      <th>Nemotron 3 Super</th>
+    </tr>
+    <tr>
+      <td>시퀀스 처리</td>
+      <td>Attention만 사용 (이차 시간)</td>
+      <td>Mamba + Attention 하이브리드 (선형 + 앵커)</td>
+    </tr>
+    <tr>
+      <td>MoE 설계</td>
+      <td>큰 전문가, 적은 수 (128)</td>
+      <td>LatentMoE: 작은 전문가, 많은 수 (512)</td>
+    </tr>
+    <tr>
+      <td>토큰 생성</td>
+      <td>한 번에 1개</td>
+      <td>MTP로 한 번에 ~3.45개</td>
+    </tr>
+    <tr>
+      <td>학습 정밀도</td>
+      <td>BF16 / FP8</td>
+      <td>NVFP4 (4비트) 25T 토큰</td>
+    </tr>
+    <tr>
+      <td>문맥 길이</td>
+      <td>128K ~ 256K</td>
+      <td>1,000,000 (1M) 토큰</td>
+    </tr>
+    <tr>
+      <td>에이전트 학습</td>
+      <td>End-to-end RL (비효율적)</td>
+      <td>PivotRL (핵심 순간만 학습)</td>
+    </tr>
+    <tr>
+      <td>Mamba 양자화</td>
+      <td>표준 반올림 (편향 누적)</td>
+      <td>Stochastic Rounding (편향 제거)</td>
+    </tr>
+  </table>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 480" xmlns="http://www.w3.org/2000/svg">
+      <!-- 중앙 -->
+      <circle cx="360" cy="240" r="55" fill="#76b900" opacity="0.9"/>
+      <text x="360" y="233" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">Nemotron 3</text>
+      <text x="360" y="250" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">Super</text>
+      <!-- 가지 1: 소프트웨어 개발 -->
+      <line x1="305" y1="210" x2="140" y2="100" stroke="#76b900" stroke-width="2"/>
+      <rect x="30" y="70" width="220" height="60" rx="12" fill="#f0fdf4" stroke="#1a8a3f" stroke-width="1.5"/>
+      <text x="140" y="93" font-size="12" font-weight="700" fill="#1a8a3f" text-anchor="middle">소프트웨어 개발</text>
+      <text x="140" y="113" font-size="9" fill="#475569" text-anchor="middle">코드 자동 생성, 버그 수정, 리뷰</text>
+      <text x="140" y="125" font-size="8" fill="#64748b" text-anchor="middle">SWE-Bench 60.47 (GPT-OSS 41.9)</text>
+      <!-- 가지 2: 과학/수학 -->
+      <line x1="415" y1="210" x2="570" y2="100" stroke="#76b900" stroke-width="2"/>
+      <rect x="470" y="70" width="220" height="60" rx="12" fill="#eff6ff" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="580" y="93" font-size="12" font-weight="700" fill="#2563eb" text-anchor="middle">과학/수학 연구</text>
+      <text x="580" y="113" font-size="9" fill="#475569" text-anchor="middle">수학 올림피아드, 과학 문제 해결</text>
+      <text x="580" y="125" font-size="8" fill="#64748b" text-anchor="middle">HMMT 94.73, GPQA 82.70</text>
+      <!-- 가지 3: 에이전트 작업 -->
+      <line x1="305" y1="270" x2="120" y2="360" stroke="#76b900" stroke-width="2"/>
+      <rect x="20" y="340" width="220" height="60" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="130" y="363" font-size="12" font-weight="700" fill="#d97706" text-anchor="middle">AI 에이전트</text>
+      <text x="130" y="383" font-size="9" fill="#475569" text-anchor="middle">웹 검색, 도구 사용, 자동화 작업</text>
+      <text x="130" y="395" font-size="8" fill="#64748b" text-anchor="middle">TauBench, Terminal Bench 대응</text>
+      <!-- 가지 4: 긴 문서 분석 -->
+      <line x1="415" y1="270" x2="580" y2="360" stroke="#76b900" stroke-width="2"/>
+      <rect x="470" y="340" width="220" height="60" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="580" y="363" font-size="12" font-weight="700" fill="#7c3aed" text-anchor="middle">긴 문서 분석</text>
+      <text x="580" y="383" font-size="9" fill="#475569" text-anchor="middle">법률 문서, 논문, 재무 보고서</text>
+      <text x="580" y="395" font-size="8" fill="#64748b" text-anchor="middle">1M 토큰 문맥, RULER 91.75</text>
+      <!-- 가지 5: 다국어 -->
+      <line x1="360" y1="185" x2="360" y2="55" stroke="#76b900" stroke-width="2"/>
+      <rect x="260" y="15" width="200" height="45" rx="10" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="360" y="38" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">다국어 서비스</text>
+      <text x="360" y="53" font-size="9" fill="#475569" text-anchor="middle">6+ 언어 지원, 번역, 다국어 QA</text>
+      <!-- 가지 6: 비용 효율적 배포 -->
+      <line x1="360" y1="295" x2="360" y2="430" stroke="#76b900" stroke-width="2"/>
+      <rect x="230" y="430" width="260" height="45" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="360" y="453" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">비용 효율적 대규모 배포</text>
+      <text x="360" y="468" font-size="9" fill="#475569" text-anchor="middle">NVFP4 양자화로 메모리 1/4, 7.5x 속도</text>
+    </svg>
+    <div class="diagram-caption">Nemotron 3 Super의 주요 활용 분야 -- 소프트웨어 개발부터 긴 문서 분석까지 폭넓게 지원</div>
+  </div>
+</section>
+
+<!-- ===== SFT 데이터의 방대함 ===== -->
+<section>
+  <h2>학습 데이터: AI의 교과서는 얼마나 방대한가?</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super의 SFT(지시 따르기 학습) 데이터는 <strong>700만 개 이상의 대화 샘플</strong>로 구성되며, 총 <strong>8GB</strong>에 달합니다. 단순히 양만 많은 것이 아니라, 분야별 비중이 정교하게 설계되어 있습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="700" fill="#0d4d2b" text-anchor="middle">SFT 데이터 구성: 7M+ 샘플의 분야별 비중</text>
+      <!-- Pie chart 대신 horizontal bar로 표현 -->
+      <text x="130" y="60" font-size="11" fill="#475569" text-anchor="end" font-weight="600">Agent (에이전트)</text>
+      <rect x="140" y="47" width="360" height="22" rx="4" fill="#76b900" opacity="0.8"/>
+      <text x="510" y="63" font-size="11" fill="#0d4d2b" font-weight="700">36%</text>
+
+      <text x="130" y="100" font-size="11" fill="#475569" text-anchor="end" font-weight="600">Reasoning (추론)</text>
+      <rect x="140" y="87" width="310" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="460" y="103" font-size="11" fill="#2563eb" font-weight="700">31%</text>
+
+      <text x="130" y="140" font-size="11" fill="#475569" text-anchor="end" font-weight="600">Chat (대화)</text>
+      <rect x="140" y="127" width="230" height="22" rx="4" fill="#d97706" opacity="0.7"/>
+      <text x="380" y="143" font-size="11" fill="#d97706" font-weight="700">23%</text>
+
+      <text x="130" y="180" font-size="11" fill="#475569" text-anchor="end" font-weight="600">Long Context</text>
+      <rect x="140" y="167" width="80" height="22" rx="4" fill="#7c3aed" opacity="0.7"/>
+      <text x="230" y="183" font-size="11" fill="#7c3aed" font-weight="700">8%</text>
+
+      <text x="130" y="220" font-size="11" fill="#475569" text-anchor="end" font-weight="600">기타</text>
+      <rect x="140" y="207" width="20" height="22" rx="4" fill="#94a3b8"/>
+      <text x="170" y="223" font-size="11" fill="#64748b" font-weight="700">2%</text>
+
+      <!-- 주목 포인트 -->
+      <rect x="120" y="250" width="480" height="35" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1"/>
+      <text x="360" y="272" font-size="11" fill="#92400e" text-anchor="middle" font-weight="600">주목: 에이전트 데이터가 전체의 1/3 이상 -- "도구를 사용하는 AI" 능력에 집중 투자</text>
+    </svg>
+    <div class="diagram-caption">SFT 데이터에서 에이전트(36%)와 추론(31%)이 가장 큰 비중을 차지하여, AI가 도구를 활용하고 깊이 사고하는 능력을 우선 학습</div>
+  </div>
+
+  <p style="margin:1rem 0;">특히 주목할 만한 SFT 데이터 분야:</p>
+  <ul style="margin:0.5rem 0 1rem 1.5rem;">
+    <li><strong>소프트웨어 엔지니어링</strong>: 실제 GitHub 저장소에서 AI가 버그를 찾고 수정하는 작업 궤적(trajectory) 수집</li>
+    <li><strong>에이전트 CLI</strong>: 24개 CLI(명령줄) 작업 분류에서 2만 개 이상의 쿼리 생성. 코드 작성, 웹 개발, 복잡한 터미널 작업 포함</li>
+    <li><strong>대화형 도구 사용</strong>: 838개 도메인에서 279,116개 대화 수집 -- 이전 버전(Nano)의 5개 도메인 15,588개에서 대폭 확장</li>
+    <li><strong>범용 도구 사용</strong>: 144개 도구 세트를 기반으로 150만 개의 도구 호출 궤적 생성</li>
+    <li><strong>금융 추론</strong>: S&P 500 기업 x 회계연도(2019-2024)에 대한 366,243개 금융 Q&A</li>
+    <li><strong>CUDA 프로그래밍</strong>: 10만 개 GPU 커널 프로그래밍 예제 (NVIDIA 답게!)</li>
+    <li><strong>안전성</strong>: 과도한 거부 방지, 편향 감소, 간접 프롬프트 주입 대응 등 다층 안전 장치</li>
+  </ul>
+</section>
+
+<!-- ===== Reasoning Control ===== -->
+<section>
+  <h2>추론 모드 제어: 상황에 맞는 "생각의 깊이"</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super는 세 가지 추론 모드를 지원합니다. 사용자가 질문의 복잡도에 따라 AI의 "생각의 깊이"를 조절할 수 있습니다.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box" style="border-left: 4px solid #059669;">
+      <div class="num" style="font-size:1.4rem;">ON</div>
+      <div class="label"><strong>Full Thinking</strong><br>복잡한 수학, 과학 문제<br>깊은 추론 과정 전부 표시</div>
+    </div>
+    <div class="stat-box" style="border-left: 4px solid #d97706;">
+      <div class="num" style="font-size:1.4rem;">LOW</div>
+      <div class="label"><strong>Low Effort</strong><br>중간 난이도 질문<br>짧은 추론만 수행</div>
+    </div>
+    <div class="stat-box" style="border-left: 4px solid #dc2626;">
+      <div class="num" style="font-size:1.4rem;">OFF</div>
+      <div class="label"><strong>No Thinking</strong><br>단순 질문/대화<br>즉답, 추론 과정 생략</div>
+    </div>
+  </div>
+
+  <p style="margin:1rem 0;">이 기능은 실용적으로 매우 중요합니다. "서울의 인구는?"이라는 간단한 질문에 AI가 3분간 추론 과정을 보여주면 사용자 경험이 나빠집니다. 반대로 "이 미분방정식의 해를 구하라"라는 질문에 즉답만 하면 신뢰하기 어렵습니다. Nemotron 3 Super는 상황에 맞게 추론 깊이를 조절하여 속도와 품질 사이의 최적점을 찾을 수 있습니다.</p>
+
+  <div class="analogy">
+    <div class="analogy-title">시험 비유: 추론 모드 제어</div>
+    <p>시험에서 모든 문제를 같은 시간 쓰면 비효율적입니다. 객관식("서울의 수도는?")은 즉시 답하고, 서술형 증명 문제는 풀이 과정을 꼼꼼히 작성합니다. Reasoning ON/LOW/OFF는 각 문제에 맞는 시간 배분 전략입니다.</p>
+  </div>
+</section>
+
+<!-- ===== Long Context Extension ===== -->
+<section>
+  <h2>1,000,000 토큰 문맥: 책 10권을 한 번에 읽는 AI</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super는 <strong>100만 토큰</strong>의 문맥을 지원합니다. 이는 약 750,000 단어, 일반적인 책 10권 분량입니다. 법률 문서 전체, 대형 코드 저장소, 수십 편의 논문을 한 번에 읽고 이해할 수 있습니다.</p>
+  </div>
+
+  <p style="margin:1rem 0;">이 긴 문맥을 지원하기 위해, 사전학습 마지막에 2단계 Long Context Phase를 추가했습니다:</p>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">LC STAGE 1</div>
+      <div class="step-title">1M 학습</div>
+      <div class="step-desc">34B 토큰<br>1M 문맥에서 학습</div>
+    </div>
+    <div class="step-arrow">&rarr;</div>
+    <div class="step-box">
+      <div class="step-num">LC STAGE 2</div>
+      <div class="step-title">혼합 학습</div>
+      <div class="step-desc">17B 토큰<br>1M + 4K 교대 학습</div>
+    </div>
+  </div>
+
+  <p style="margin:1rem 0;">Stage 2가 필요한 이유는 흥미롭습니다. 긴 문맥만 학습하면 짧은 문맥에서의 수학 성능이 약간 떨어지는 현상이 발생했습니다. 그래서 긴 문맥과 짧은 문맥을 교대로 학습하여 양쪽 모두에서 최적 성능을 달성합니다.</p>
+
+  <table class="comp-table">
+    <tr>
+      <th>문맥 길이</th>
+      <th>Nemotron 3 Super</th>
+      <th>GPT-OSS-120B</th>
+      <th>차이</th>
+    </tr>
+    <tr>
+      <td>64K (일반적)</td>
+      <td>93.17</td>
+      <td>--</td>
+      <td>--</td>
+    </tr>
+    <tr>
+      <td>128K (긴 문서)</td>
+      <td>89.00</td>
+      <td>--</td>
+      <td>--</td>
+    </tr>
+    <tr>
+      <td>256K (매우 긴)</td>
+      <td>96.30</td>
+      <td>52.30</td>
+      <td>+44pp</td>
+    </tr>
+    <tr>
+      <td>512K (초장문)</td>
+      <td>95.67</td>
+      <td>46.70</td>
+      <td>+49pp</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>1M (최대)</td>
+      <td>91.75</td>
+      <td>22.30</td>
+      <td>+69.4pp</td>
+    </tr>
+  </table>
+  <p style="font-size:0.9rem; color:#64748b; margin-top:0.5rem;">RULER 벤치마크 (post-training 후). GPT-OSS는 256K부터 급격히 성능이 떨어지지만, Nemotron은 1M에서도 91%+ 유지.</p>
+</section>
+
+<!-- ===== 오픈 모델의 의의 ===== -->
+<section>
+  <h2>왜 이것이 중요한가: 오픈 모델의 의의</h2>
+
+  <div class="card card-green">
+    <p>Nemotron 3 Super는 <strong>오픈 모델</strong>입니다. 가중치가 HuggingFace에 공개되어, 누구나 다운로드하여 자체 서버에서 실행할 수 있습니다. 이는 기업에게 다음과 같은 의미를 갖습니다:</p>
+    <ul>
+      <li><strong>데이터 주권</strong>: 민감한 데이터를 외부 API로 보내지 않고, 자체 인프라에서 처리 가능</li>
+      <li><strong>비용 예측 가능성</strong>: API 호출 비용 대신, 고정 GPU 비용만으로 운영 가능</li>
+      <li><strong>커스터마이징</strong>: 자사 도메인에 맞게 추가 학습(fine-tuning) 가능</li>
+      <li><strong>공급자 종속 회피</strong>: 특정 AI 서비스에 의존하지 않는 독립적 운영</li>
+    </ul>
+  </div>
+
+  <p style="margin:1rem 0;">특히 NVFP4 양자화 버전은 NVIDIA Blackwell GPU (B200)에서 네이티브 가속을 지원하여, 기업이 비용 효율적으로 대규모 AI 서비스를 운영할 수 있는 길을 열어줍니다. 120B 파라미터 모델이지만, 12B만 활성화되고 4비트로 양자화되므로, 실제 필요한 GPU 메모리는 크게 줄어듭니다.</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">Open</div>
+      <div class="label">가중치 공개<br>(HuggingFace)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">BF16</div>
+      <div class="label">고정밀<br>체크포인트</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">FP8</div>
+      <div class="label">8비트 양자화<br>체크포인트</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">NVFP4</div>
+      <div class="label">4비트 양자화<br>체크포인트</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Checkpoint Merging ===== -->
+<section>
+  <h2>보너스: Checkpoint Merging -- 16% 학습 비용 절감</h2>
+
+  <div class="card card-accent">
+    <p>NVIDIA는 학습 효율을 높이기 위해 <strong>Checkpoint Merging</strong> 기법도 도입했습니다. 학습 중간중간에 저장한 체크포인트들의 가중 평균을 구하면, 별도의 추가 학습 없이도 2~4 포인트 더 높은 성능의 모델을 얻을 수 있습니다.</p>
+    <p>이 기법으로 약 <strong>4조 토큰 분량의 추가 학습을 생략</strong>할 수 있어, 전체 사전학습 비용의 약 16%를 절감합니다.</p>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<div class="one-liner">
+  "120B 모델의 지능을 12B의 비용으로, 7.5배 빠르게, 100만 토큰까지 --<br>NVIDIA가 '효율적 AI'의 새 기준을 제시하다"
+</div>
+
+<!-- ===== 안전성 ===== -->
+<section>
+  <h2>안전성: AI가 스스로 "이건 답하면 안 돼"를 판단하는 법</h2>
+
+  <div class="card card-accent">
+    <p>Nemotron 3 Super는 단순히 "금지 목록"을 외우는 것이 아니라, <strong>Deliberative Alignment (숙고적 정렬)</strong>이라는 2단계 방식으로 안전성을 구현합니다.</p>
+  </div>
+
+  <h3>2단계 안전성 생성 과정</h3>
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">숙고 단계</div>
+      <div class="step-desc">safety policy를<br>참조하며 추론</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">응답 생성</div>
+      <div class="step-desc">판단 결과에 따라<br>응답 또는 거절</div>
+    </div>
+  </div>
+
+  <p>먼저 내부 reasoning trace에서 "이 요청이 어떤 safety category에 해당하는가?"를 분석하고, prompt의 메타데이터와 보조 분류기의 예측을 결합하여 multi-class classification으로 <strong>응답 모드</strong>(정상 응답 / 부분 거절 / 완전 거절)를 결정합니다. 그 후 결정에 따라 최종 응답을 생성합니다.</p>
+
+  <h3>안전성 학습 데이터</h3>
+  <ul style="margin:0.5rem 0;">
+    <li><strong>Over-refusal 방지</strong>: 안전한 요청을 지나치게 거부하지 않도록 균형 잡힌 학습</li>
+    <li><strong>Jailbreak 방어</strong>: PAIR 공격 파이프라인으로 실제 공격 프롬프트를 수집하여 RL seed로 활용</li>
+    <li><strong>간접 프롬프트 주입 방어</strong>: 외부 문서에 숨겨진 악의적 지시를 감지</li>
+    <li><strong>저작권/편향/인구통계 대응</strong>: 합성 프롬프트로 다양한 edge case 커버</li>
+  </ul>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점과 남은 과제</h2>
+
+  <div class="card card-orange">
+    <p><strong>에이전트 벤치마크에서 Qwen3.5에 열세</strong></p>
+    <p>"Agentic reasoning"을 강조하지만, 가장 중요한 에이전트 벤치마크에서 Qwen3.5에 뒤집니다. SWE-Bench OpenHands 60.47 vs 66.40, TauBench 평균 61.15 vs 74.53. 에이전트 능력의 추가 확장이 필요합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>LatentMoE의 독립적 검증 부재</strong></p>
+    <p>Standard MoE vs LatentMoE의 통제된 비교 실험(동일 active parameter 예산)이 이 보고서에 포함되어 있지 않습니다. 별도 논문으로 위임되어 있어, LatentMoE의 정확한 기여도를 판단하기 어렵습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>Post-training 파이프라인의 높은 복잡도</strong></p>
+    <p>SFT 2단계 + RLVR 3라운드 + MTP Healing + RLHF + SWE-RL = 6단계 이상의 파이프라인입니다. 각 단계의 개별 기여를 분리하기 어렵고, 재현 난이도가 높습니다. 다른 연구 그룹이 이 파이프라인을 그대로 따라하기는 쉽지 않을 것입니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>PivotRL의 상세 미공개</strong></p>
+    <p>핵심 기법 중 하나인 PivotRL은 "별도 논문에서 상세히 다룰 예정"으로만 언급되어 있습니다. 구체적인 pivot 선택 기준, 보상 설계, 수렴 분석 등이 공개되지 않아 독자가 이 기법을 완전히 이해하기 어렵습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>NVFP4 학습의 정량적 이점 미입증</strong></p>
+    <p>NVFP4로 학습한 것이 BF16 학습 대비 구체적으로 얼마나 빠르고 저렴한지에 대한 정량적 비교가 없습니다. "안정적으로 학습할 수 있다"는 것은 보여주었지만, "왜 NVFP4로 학습해야 하는가?"에 대한 경제적 근거가 부족합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>Knowledge-Intensive 추론의 약점</strong></p>
+    <p>GPQA (도구 없이) 79.23 vs Qwen3.5의 86.60, LiveCodeBench v5 81.19 vs GPT-OSS의 88.00 등, 깊은 지식이 필요한 추론 과제에서 아직 개선 여지가 있습니다.</p>
+  </div>
+</section>
+
+<!-- ===== Footer ===== -->
+</div><!-- container end -->
+
+<div class="footer">
+  <p><strong>Nemotron 3 Super: Open, Efficient MoE Hybrid Mamba-Transformer Model for Agentic Reasoning</strong></p>
+  <p>NVIDIA &middot; Technical Report &middot; 2026-03-11</p>
+  <p>
+    <a href="https://research.nvidia.com/labs/nemotron/files/NVIDIA-Nemotron-3-Super-Technical-Report.pdf">Paper</a> &middot;
+    <a href="https://huggingface.co/nvidia/NVIDIA-Nemotron-3-Super-120B-A12B-BF16">HuggingFace</a> &middot;
+    <a href="https://github.com/NVIDIA-NeMo/Nemotron">GitHub</a>
+  </p>
+  <p style="margin-top:1rem;"><a href="20260325_nvidia_nemotron3-super.html">전문가용 상세 요약 보기 &rarr;</a></p>
+</div>
+
+</body>
+</html>
