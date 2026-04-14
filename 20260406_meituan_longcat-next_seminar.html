@@ -962,10 +962,200 @@
 
 
 <!-- ====================================================================== -->
-<!-- SECTION 8: Parallel vs Serial -->
+<!-- SECTION 7.5: Internal Linguistic Guidance -->
 <!-- ====================================================================== -->
 <section>
-  <h2>8. 음성 생성: Parallel vs Serial 전략</h2>
+  <h2>8. Internal Linguistic Guidance: 텍스트가 음성을 "안내"한다</h2>
+
+  <div class="card card-accent">
+    <p>AI가 음성으로 대답할 때, audio 토큰만 생성하면 언어 품질(문법, 논리)이 떨어질 수 있습니다. LLM은 텍스트를 수조 개로 학습했지만, audio는 상대적으로 적게 학습했기 때문입니다. <strong>Internal Linguistic Guidance</strong>는 음성 생성 시 내부적으로 텍스트도 함께 생성하여, 텍스트의 언어 능력이 음성을 "안내"하게 합니다.</p>
+  </div>
+
+  <h3>핵심 아이디어: 텍스트 = 내비게이션, 오디오 = 실제 운전</h3>
+
+  <p>텍스트 토큰이 "무슨 말을 해야 하는지" 방향을 잡아주고, audio 토큰은 그 방향을 따라 실제 음성을 생성합니다. 3개의 special token으로 구간을 표시합니다:</p>
+  <ul>
+    <li><strong>AS</strong> (Audio Start): 음성 구간 시작</li>
+    <li><strong>AE</strong> (Audio End): 음성 구간 끝</li>
+    <li><strong>TE</strong> (Text End): 텍스트 구간 끝</li>
+  </ul>
+
+  <h3>예시: "오늘 날씨가 좋습니다"를 음성으로 대답할 때</h3>
+
+  <!-- 예시 1: Without guidance -->
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#2d1b69" text-anchor="middle">Internal Linguistic Guidance가 없을 때 vs 있을 때</text>
+
+      <!-- Without -->
+      <rect x="20" y="45" width="660" height="70" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="40" y="65" font-size="11" fill="#dc2626" font-weight="700">❌ Guidance 없이 audio만 생성</text>
+      <rect x="35" y="78" width="55" height="25" rx="5" fill="#059669" opacity="0.7"/><text x="63" y="95" font-size="8" fill="#fff" text-anchor="middle">🔊 a1</text>
+      <rect x="95" y="78" width="55" height="25" rx="5" fill="#059669" opacity="0.7"/><text x="123" y="95" font-size="8" fill="#fff" text-anchor="middle">🔊 a2</text>
+      <rect x="155" y="78" width="55" height="25" rx="5" fill="#059669" opacity="0.7"/><text x="183" y="95" font-size="8" fill="#fff" text-anchor="middle">🔊 a3</text>
+      <rect x="215" y="78" width="55" height="25" rx="5" fill="#059669" opacity="0.7"/><text x="243" y="95" font-size="8" fill="#fff" text-anchor="middle">🔊 a4</text>
+      <rect x="275" y="78" width="55" height="25" rx="5" fill="#059669" opacity="0.7"/><text x="303" y="95" font-size="8" fill="#fff" text-anchor="middle">🔊 a5</text>
+      <rect x="335" y="78" width="35" height="25" rx="5" fill="#94a3b8" opacity="0.5"/><text x="353" y="95" font-size="7" fill="#fff" text-anchor="middle">AE</text>
+      <text x="500" y="88" font-size="9" fill="#dc2626" text-anchor="middle">→ "오늘... 음... 좋습니다..." 😵</text>
+      <text x="500" y="105" font-size="9" fill="#dc2626" text-anchor="middle">텍스트 없이 음성만 만들면 더듬거림</text>
+
+      <!-- With -->
+      <rect x="20" y="130" width="660" height="80" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="40" y="150" font-size="11" fill="#059669" font-weight="700">✅ Guidance 있으면: 텍스트가 음성을 안내</text>
+
+      <!-- 텍스트 행 -->
+      <text x="35" y="170" font-size="8" fill="#2563eb" font-weight="600">텍스트:</text>
+      <rect x="80" y="158" width="50" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="105" y="172" font-size="7" fill="#fff" text-anchor="middle">오늘</text>
+      <rect x="135" y="158" width="55" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="163" y="172" font-size="7" fill="#fff" text-anchor="middle">날씨가</text>
+      <rect x="195" y="158" width="65" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="228" y="172" font-size="7" fill="#fff" text-anchor="middle">좋습니다</text>
+      <rect x="265" y="158" width="30" height="20" rx="4" fill="#94a3b8" opacity="0.5"/><text x="280" y="172" font-size="7" fill="#fff" text-anchor="middle">TE</text>
+
+      <!-- 오디오 행 -->
+      <text x="35" y="198" font-size="8" fill="#059669" font-weight="600">오디오:</text>
+      <rect x="110" y="185" width="40" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="130" y="199" font-size="7" fill="#fff" text-anchor="middle">🔊 a1</text>
+      <rect x="155" y="185" width="40" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="175" y="199" font-size="7" fill="#fff" text-anchor="middle">🔊 a2</text>
+      <rect x="200" y="185" width="40" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="220" y="199" font-size="7" fill="#fff" text-anchor="middle">🔊 a3</text>
+      <rect x="245" y="185" width="40" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="265" y="199" font-size="7" fill="#fff" text-anchor="middle">🔊 a4</text>
+      <rect x="290" y="185" width="30" height="20" rx="4" fill="#94a3b8" opacity="0.5"/><text x="305" y="199" font-size="7" fill="#fff" text-anchor="middle">AE</text>
+
+      <!-- 화살표: 텍스트→오디오 가이드 -->
+      <path d="M105,178 L125,185" stroke="#7c3aed" stroke-width="1" stroke-dasharray="2"/>
+      <path d="M163,178 L170,185" stroke="#7c3aed" stroke-width="1" stroke-dasharray="2"/>
+      <path d="M228,178 L235,185" stroke="#7c3aed" stroke-width="1" stroke-dasharray="2"/>
+
+      <text x="500" y="175" font-size="9" fill="#059669" text-anchor="middle">→ "오늘 날씨가 좋습니다" 🎯</text>
+      <text x="500" y="195" font-size="9" fill="#059669" text-anchor="middle">텍스트가 "대본" 역할 → 유창한 음성</text>
+    </svg>
+    <div class="diagram-caption">텍스트 토큰이 "무슨 말을 할지" 결정하고, audio 토큰은 그 가이드를 따라 자연스러운 음성을 생성한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 뉴스 앵커의 프롬프터</div>
+    <p>뉴스 앵커가 원고(텍스트) 없이 즉석에서 말하면 더듬거리고 논리가 꼬일 수 있습니다. 프롬프터에 원고가 표시되면 앵커는 그것을 보면서 자연스럽게 말합니다. Internal Linguistic Guidance에서 텍스트 토큰은 이 <strong>"프롬프터"</strong> 역할을 합니다.</p>
+  </div>
+
+  <h3>두 가지 입력 형태</h3>
+
+  <p>사용자 입력이 어떤 형태인지에 따라 두 가지로 나뉩니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="13" font-weight="700" fill="#2d1b69" text-anchor="middle">사용자 입력 형태에 따른 처리</text>
+
+      <!-- Text-guided -->
+      <rect x="20" y="45" width="310" height="140" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="175" y="68" font-size="11" fill="#2563eb" text-anchor="middle" font-weight="700">Text-Guided Audio (텍스트 → 음성)</text>
+      <text x="175" y="90" font-size="10" fill="#475569" text-anchor="middle">사용자가 텍스트로 질문한 경우</text>
+      <text x="175" y="112" font-size="9" fill="#475569" text-anchor="middle">예: 채팅에서 "오늘 날씨 알려줘"</text>
+      <rect x="50" y="125" width="250" height="25" rx="6" fill="#eff6ff" stroke="#2563eb"/>
+      <text x="175" y="142" font-size="9" fill="#2563eb" text-anchor="middle">텍스트 가이드가 있으므로</text>
+      <text x="175" y="170" font-size="10" fill="#2563eb" text-anchor="middle" font-weight="600">→ Parallel 또는 Serial 선택 가능</text>
+
+      <!-- Pure audio -->
+      <rect x="370" y="45" width="310" height="140" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="525" y="68" font-size="11" fill="#7c3aed" text-anchor="middle" font-weight="700">Pure Audio (음성 → 음성)</text>
+      <text x="525" y="90" font-size="10" fill="#475569" text-anchor="middle">사용자가 음성으로 직접 말한 경우</text>
+      <text x="525" y="112" font-size="9" fill="#475569" text-anchor="middle">예: 음성 대화에서 "날씨 어때?"</text>
+      <rect x="400" y="125" width="250" height="25" rx="6" fill="#faf5ff" stroke="#7c3aed"/>
+      <text x="525" y="142" font-size="9" fill="#7c3aed" text-anchor="middle">텍스트 가이드 없음</text>
+      <text x="525" y="170" font-size="10" fill="#7c3aed" text-anchor="middle" font-weight="600">→ 모델이 내부적으로 텍스트를 먼저 생성</text>
+    </svg>
+    <div class="diagram-caption">Text-guided 모드는 delay 조절 가능, Pure audio 모드는 모델이 자체적으로 텍스트 생성 후 음성화</div>
+  </div>
+
+  <h3>Random Delay Training: Parallel과 Serial을 하나로 통합</h3>
+
+  <p>Text-guided 모드에서, 텍스트 생성 시작 후 <strong>몇 step 뒤에 음성을 시작하느냐(delay, δ)</strong>를 매 학습 샘플마다 랜덤하게 바꿉니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#2d1b69" text-anchor="middle">Random Delay Training: δ를 매번 랜덤하게!</text>
+
+      <!-- 예시 텍스트: "오늘 날씨가 좋습니다" (4토큰) -->
+      <text x="40" y="50" font-size="10" fill="#64748b">예: "오늘 날씨가 좋습니다" (텍스트 4토큰)</text>
+
+      <!-- δ = 1 (거의 parallel) -->
+      <text x="30" y="78" font-size="9" fill="#2563eb" font-weight="700">δ = 1</text>
+      <rect x="80" y="65" width="40" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="100" y="79" font-size="7" fill="#fff" text-anchor="middle">오늘</text>
+      <rect x="125" y="65" width="45" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="148" y="79" font-size="7" fill="#fff" text-anchor="middle">날씨가</text>
+      <rect x="175" y="65" width="55" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="203" y="79" font-size="7" fill="#fff" text-anchor="middle">좋습니다</text>
+      <rect x="235" y="65" width="25" height="20" rx="4" fill="#94a3b8" opacity="0.4"/><text x="248" y="79" font-size="6" fill="#fff" text-anchor="middle">TE</text>
+      <rect x="105" y="88" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="123" y="100" font-size="6" fill="#fff" text-anchor="middle">🔊1</text>
+      <rect x="145" y="88" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="163" y="100" font-size="6" fill="#fff" text-anchor="middle">🔊2</text>
+      <rect x="185" y="88" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="203" y="100" font-size="6" fill="#fff" text-anchor="middle">🔊3</text>
+      <rect x="225" y="88" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="243" y="100" font-size="6" fill="#fff" text-anchor="middle">🔊4</text>
+      <rect x="265" y="88" width="22" height="18" rx="4" fill="#94a3b8" opacity="0.4"/><text x="276" y="100" font-size="6" fill="#fff" text-anchor="middle">AE</text>
+      <text x="350" y="90" font-size="9" fill="#2563eb" text-anchor="middle">← 거의 Parallel (빠름!)</text>
+
+      <!-- δ = 2 -->
+      <text x="30" y="138" font-size="9" fill="#7c3aed" font-weight="700">δ = 2</text>
+      <rect x="80" y="125" width="40" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="100" y="139" font-size="7" fill="#fff" text-anchor="middle">오늘</text>
+      <rect x="125" y="125" width="45" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="148" y="139" font-size="7" fill="#fff" text-anchor="middle">날씨가</text>
+      <rect x="175" y="125" width="55" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="203" y="139" font-size="7" fill="#fff" text-anchor="middle">좋습니다</text>
+      <rect x="235" y="125" width="25" height="20" rx="4" fill="#94a3b8" opacity="0.4"/><text x="248" y="139" font-size="6" fill="#fff" text-anchor="middle">TE</text>
+      <rect x="150" y="148" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="168" y="160" font-size="6" fill="#fff" text-anchor="middle">🔊1</text>
+      <rect x="190" y="148" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="208" y="160" font-size="6" fill="#fff" text-anchor="middle">🔊2</text>
+      <rect x="230" y="148" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="248" y="160" font-size="6" fill="#fff" text-anchor="middle">🔊3</text>
+      <rect x="270" y="148" width="35" height="18" rx="4" fill="#059669" opacity="0.7"/><text x="288" y="160" font-size="6" fill="#fff" text-anchor="middle">🔊4</text>
+      <rect x="310" y="148" width="22" height="18" rx="4" fill="#94a3b8" opacity="0.4"/><text x="321" y="160" font-size="6" fill="#fff" text-anchor="middle">AE</text>
+      <text x="420" y="148" font-size="9" fill="#7c3aed" text-anchor="middle">← 중간</text>
+
+      <!-- δ = 4 (완전 serial) -->
+      <text x="30" y="198" font-size="9" fill="#059669" font-weight="700">δ = 4</text>
+      <rect x="80" y="185" width="40" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="100" y="199" font-size="7" fill="#fff" text-anchor="middle">오늘</text>
+      <rect x="125" y="185" width="45" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="148" y="199" font-size="7" fill="#fff" text-anchor="middle">날씨가</text>
+      <rect x="175" y="185" width="55" height="20" rx="4" fill="#2563eb" opacity="0.7"/><text x="203" y="199" font-size="7" fill="#fff" text-anchor="middle">좋습니다</text>
+      <rect x="235" y="185" width="25" height="20" rx="4" fill="#94a3b8" opacity="0.4"/><text x="248" y="199" font-size="6" fill="#fff" text-anchor="middle">TE</text>
+      <rect x="270" y="185" width="35" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="288" y="199" font-size="6" fill="#fff" text-anchor="middle">🔊1</text>
+      <rect x="310" y="185" width="35" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="328" y="199" font-size="6" fill="#fff" text-anchor="middle">🔊2</text>
+      <rect x="350" y="185" width="35" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="368" y="199" font-size="6" fill="#fff" text-anchor="middle">🔊3</text>
+      <rect x="390" y="185" width="35" height="20" rx="4" fill="#059669" opacity="0.7"/><text x="408" y="199" font-size="6" fill="#fff" text-anchor="middle">🔊4</text>
+      <rect x="430" y="185" width="22" height="20" rx="4" fill="#94a3b8" opacity="0.4"/><text x="441" y="199" font-size="6" fill="#fff" text-anchor="middle">AE</text>
+      <text x="520" y="198" font-size="9" fill="#059669" text-anchor="middle">← 완전 Serial (정확!)</text>
+
+      <!-- 하단 설명 -->
+      <rect x="60" y="225" width="580" height="40" rx="10" fill="#f5f3ff" stroke="#4c1d95" stroke-width="1.5"/>
+      <text x="350" y="244" font-size="10" fill="#4c1d95" text-anchor="middle" font-weight="700">학습 시 δ를 매번 랜덤으로 뽑음 → 하나의 모델이 모든 delay에서 작동!</text>
+      <text x="350" y="260" font-size="9" fill="#475569" text-anchor="middle">추론 시 δ=1 (실시간 대화) 또는 δ=max (고품질 TTS) 자유 선택 가능</text>
+    </svg>
+    <div class="diagram-caption">δ가 작으면 parallel(빠름), 크면 serial(정확). 학습 시 매번 랜덤하게 δ를 바꿔가며 모든 모드를 통합 학습</div>
+  </div>
+
+  <h3>성능 비교: Parallel vs Serial</h3>
+
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>Parallel (δ=1)</th>
+      <th>Serial (δ=max)</th>
+      <th>차이</th>
+    </tr>
+    <tr>
+      <td>LlamaQuestions</td>
+      <td>79.33</td>
+      <td><strong>81.67</strong></td>
+      <td>+2.34</td>
+    </tr>
+    <tr>
+      <td>ReasoningQA</td>
+      <td>74.95</td>
+      <td><strong>80.30</strong></td>
+      <td>+5.35</td>
+    </tr>
+  </table>
+
+  <p><strong>해석</strong>: Serial이 약간 더 좋지만 (텍스트를 완전히 확정한 후 음성을 만드니까), Parallel도 상당히 competitive합니다. Random delay training 덕에 parallel에서도 텍스트-오디오 alignment이 잘 학습된 것입니다. 특히 추론이 필요한 ReasoningQA에서 serial의 우위가 더 크며(+5.35), 이는 복잡한 답변일수록 텍스트 "가이드"가 더 중요함을 시사합니다.</p>
+
+  <div class="card card-accent">
+    <h3 style="margin-top:0; color:#4c1d95;">세미나 Discussion</h3>
+    <p><strong>우리 시스템에서의 적용</strong>: 실시간 음성 대화 시스템이라면 parallel(δ=1)로 latency를 최소화하고, 고품질 TTS(예: 오디오북)라면 serial(δ=max)로 정확도를 극대화할 수 있습니다. 하나의 모델로 두 가지 사용 사례를 모두 커버할 수 있다는 것이 Random Delay Training의 핵심 가치입니다.</p>
+  </div>
+</section>
+
+<!-- SECTION 9: Parallel vs Serial (기존 유지, 번호 변경) -->
+<!-- ====================================================================== -->
+<section>
+  <h2>9. 음성 생성: Parallel vs Serial 전략 (상세)</h2>
 
   <p>AI가 음성으로 대답할 때, 텍스트와 음성을 <strong>동시에(parallel)</strong> 만들 수도 있고, <strong>순서대로(serial)</strong> 만들 수도 있습니다. LongCat-Next는 두 방식을 하나의 framework로 통합합니다.</p>
 
