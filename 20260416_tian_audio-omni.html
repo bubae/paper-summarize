@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio-Omni: Extending Multi-modal Understanding to Versatile Audio Generation and Editing</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Audio-Omni: Extending Multi-modal Understanding to Versatile Audio Generation and Editing</h1>
+
+<p><a href="20260416_tian_audio-omni_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zeyue Tian, Binxin Yang, Zhaoyang Liu, Jiexuan Zhang, Ruibin Yuan, Hubery Yin, Qifeng Chen, Chen Li*, Jing Lv, Wei Xue*, Yike Guo</li>
+  <li><strong>소속</strong>: Hong Kong University of Science and Technology (HKUST), WeChat Vision / Tencent Inc, Peking University</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.10708">arXiv:2604.10708</a> · <a href="https://zeyuet.github.io/Audio-Omni">Project Page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 오디오 분야는 일반 사운드(sound), 음악(music), 음성(speech)이라는 세 가지 상이한 도메인을 포괄하며, 기존 모델들은 이해(understanding) · 생성(generation) · 편집(editing) 중 일부 기능만, 또는 일부 도메인에서만 동작한다. 세 가지 능력을 세 도메인 전체에 걸쳐 통합하는 end-to-end 프레임워크가 없었다.</li>
+  <li><strong>해결</strong>: Audio-Omni — frozen MLLM(Multimodal Large Language Model)을 이해·추론 코어로, trainable DiT(Diffusion Transformer)를 생성 백본으로 사용하는 decoupled 아키텍처. Hybrid conditioning mechanism으로 high-level semantic stream과 low-level signal stream을 분리하여 DiT에 주입한다. 또한 100만 건 이상의 instruction-guided 편집 데이터셋 AudioEdit를 새로 구축하였다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) MLLM을 freeze하여 풍부한 멀티모달 지식을 보존하면서, DiT만 학습하여 고품질 오디오 합성 능력 획득. (2) Semantic feature(cross-attention)와 signal feature(concatenation)를 분리 주입하여 추상적 지시와 정밀한 시간 정렬 양쪽을 동시에 충족. (3) Speech prompt masking 전략으로 zero-shot voice cloning과 speech editing 능력을 자연스럽게 학습.</li>
+  <li><strong>비유</strong>: 음악 감독(MLLM)이 악보를 읽고 지시를 내리면, 오케스트라(DiT)가 실제 연주를 담당하는 구조. 감독은 악보 해석 능력을 이미 갖추고 있어 별도 교육이 필요 없고, 오케스트라만 훈련하면 된다. 지시는 "분위기와 의도"(semantic) 채널과 "정확한 박자·음정"(signal) 채널 두 경로로 전달된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>최초의 통합 오디오 프레임워크</strong>: ##일반 사운드, 음악, 음성 세 도메인에 걸쳐 이해 · 생성 · 편집을 하나의 모델로 통합한 최초의 end-to-end 프레임워크##. Frozen MLLM + trainable DiT의 decoupled 설계와 hybrid conditioning mechanism이 핵심이다.</li>
+  <li><strong>AudioEdit 데이터셋</strong>: Real Data Branch(VGGSound 기반 소스 분리)와 Synthesis Data Branch(Scaper 프로그래밍 합성)를 결합한 하이브리드 파이프라인으로 100만 건 이상의 instruction-guided 편집 데이터 구축. Add, Remove, Extract, Style Transfer 네 가지 편집 태스크를 커버한다.</li>
+  <li><strong>SOTA 또는 경쟁적 성능</strong>: 이해 벤치마크(MMSU 56.83, MMAU 63.30)에서 기존 unified model 대비 최고 성능, 생성 벤치마크에서 전문 모델과 경쟁적이거나 우월한 성능(T2A FAD 1.86, TTS WER 1.77), 편집에서도 SOTA(AE_FAD 3.27, CLAP 0.32) 달성.</li>
+  <li><strong>Emergent 능력</strong>: Frozen MLLM로부터 ##knowledge-augmented reasoning generation, in-context generation, zero-shot cross-lingual control## 등의 창발적 능력을 상속받아, 단순 다중 태스크 모델을 넘어서는 지능적 오디오 시스템으로서의 가능성을 시사한다.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>멀티모달 통합의 트렌드와 오디오의 공백</h3>
+<p>최근 멀티모달 학습은 시각(image/video) 분야에서 이해와 생성을 단일 모델로 통합하는 추세가 뚜렷하다. 그러나 <strong>오디오 도메인</strong>은 이에 비해 탐색이 부족하다. 오디오의 고유한 어려움은 <strong>세 가지 분포적으로 상이한 하위 도메인</strong>(일반 사운드, 음악, 음성)을 포괄해야 한다는 점이다.</p>
+
+<p>기존 접근 방식의 한계:</p>
+<ul>
+  <li><strong>도메인 한정</strong>: 음성 전용(AI et al. 2025; An et al. 2024) 또는 음악+사운드 전용(Liu et al. 2024a; Tian et al. 2025b) 모델은 전체 오디오 스펙트럼을 커버하지 못함</li>
+  <li><strong>도구 기반 통합</strong>: 전문 모델들을 오케스트레이션하는 방식(Huang et al. 2024a)은 end-to-end 최적화의 이점이 없음</li>
+  <li><strong>편집 전용 모델</strong>: 기존 오디오 편집 모델(Manor and Michaeli 2024; Wang et al. 2023b)은 편집만 가능하고, 이해나 생성으로 확장 불가</li>
+  <li><strong>편집 데이터 부족</strong>: 대규모의 공개된 instruction-guided 오디오 편집 데이터셋이 부재</li>
+</ul>
+
+<h2>2. Related Work</h2>
+
+<h3>오디오 전문 모델 (Specialized Models)</h3>
+<p>오디오 이해는 대규모 사전학습 모델(Chu et al. 2024; Ghosh et al. 2025; Kong et al. 2024)이 세 도메인에 걸쳐 높은 성능을 달성하고 있다. 반면 <strong>생성 모델</strong>은 여전히 전문화 경향이 강하다:</p>
+<ul>
+  <li><strong>Text-to-Audio (T2A)</strong>: Evans et al. 2024; Ghosal et al. 2023; Majumder et al. 2024</li>
+  <li><strong>Text-to-Music (T2M)</strong>: Copet et al. 2024; Melechovsky et al. 2024; Yuan et al. 2025</li>
+  <li><strong>Text-to-Speech (TTS)</strong>: Chen et al. 2025a; Deng et al. 2025</li>
+  <li><strong>Audio Editing</strong>: Lan et al. 2025; Tao et al. 2025 — synthetic 데이터 기반이라 real-world 오디오와의 도메인 갭이 존재</li>
+</ul>
+
+<h3>통합 멀티모달 모델 (Unified Multimodal Models)</h3>
+<p>시각 분야에서는 Chen et al. 2025b; Jiao et al. 2025; Ma et al. 2025 등이 이해+생성 통합에 성공했으나, 오디오에서는 Ming-Omni(AI et al. 2025), Unified-IO2(Lu et al. 2024), MuMuLLaMA(Liu et al. 2024a) 등이 시도했지만 도메인 한정이나 기능 한정(편집 미지원 등)의 문제를 가진다.</p>
+
+<h2>3. Audio Editing Dataset — AudioEdit 구축</h2>
+
+<p>Instruction-guided 오디오 편집의 핵심 장벽은 대규모 페어 데이터의 부재이다. 기존 방법들은 합성 오디오 혼합에 의존하여 real-world 오디오와의 도메인 갭이 크다. Audio-Omni는 이를 해결하기 위해 <strong>두 갈래의 하이브리드 파이프라인</strong>으로 AudioEdit 데이터셋을 구축했다.</p>
+
+<h3>Real Data Branch</h3>
+<p>실세계 데이터셋(VGGSound)에서 진짜 편집 쌍을 채굴한다:</p>
+<ol>
+  <li><strong>카테고리 식별</strong>: Gemini 2.5 Pro로 각 소스 오디오 클립의 주요 sound-emitting object 카테고리 식별</li>
+  <li><strong>소스 분리</strong>: SAM-Audio(Shi et al. 2025)로 식별된 카테고리 기반 source separation → target track + residual track</li>
+  <li><strong>다단계 필터링</strong>: 540K category-labeled 샘플 → VAD 필터링(~347K) → CLAP 기반 semantic alignment 필터링(~50K, 전체의 약 9.2% 잔존). Human validation에서 약 83% agreement 확인</li>
+  <li><strong>Style Transfer 확장</strong>: 필터링된 타겟에 Gemini로 유사하지만 스타일이 다른 키워드 생성 → CLAP 필터링 → ZETA(Manor and Michaeli 2024)로 스타일 변환 → 약 500K 쌍</li>
+</ol>
+
+<h3>Synthesis Data Branch</h3>
+<p>Scaper 툴킷으로 프로그래밍 방식의 soundscape 합성:</p>
+<ul>
+  <li>ESC-50 foreground 이벤트를 AudioCaps의 10초 배경에 믹싱</li>
+  <li>파라미터 랜덤화: onset time, SNR (0~3 dB), pitch shift (-3~+3 semitones), time-stretch factor (0.8~1.2)</li>
+  <li>Add, Remove, Extract 태스크에 대한 정밀 annotation 자동 생성</li>
+</ul>
+
+<table>
+<caption><strong>Table 1</strong>: AudioEdit 데이터셋 통계</caption>
+<tr><th>Task Type</th><th>Data Source</th><th>Train Samples</th><th>Test Samples</th></tr>
+<tr><td>Add</td><td>Real Data / Synthesis Data</td><td>50K / 150K</td><td>500</td></tr>
+<tr><td>Remove</td><td>Real Data / Synthesis Data</td><td>50K / 150K</td><td>500</td></tr>
+<tr><td>Extract</td><td>Real Data / Synthesis Data</td><td>50K / 150K</td><td>500</td></tr>
+<tr><td>Style Transfer</td><td>Real Data</td><td>500K</td><td>500</td></tr>
+<tr><td><strong>Total</strong></td><td></td><td><strong>1,100K</strong></td><td><strong>2,000</strong></td></tr>
+</table>
+
+<h2>4. Method — 모델 아키텍처와 학습</h2>
+
+<h3>4.1 Preliminary: Rectified Flow</h3>
+<p>Audio-Omni의 생성 백본은 Rectified Flow(Liu et al. 2022)를 기반으로 한다. 전통적 diffusion model이 확률적 경로를 따르는 것과 달리, Rectified Flow는 <strong>노이즈와 데이터 사이의 직선 궤적</strong>을 모델링하여 생성 과정을 단순화한다.</p>
+
+<p>랜덤 노이즈 $\mathbf{x}_1 \sim \mathcal{N}(0, \mathbf{I})$에서 데이터 $\mathbf{x}_0$로의 궤적은 상수 속도장 $\mathbf{v} = \mathbf{x}_1 - \mathbf{x}_0$을 가지는 ODE로 정의된다:</p>
+
+$$\frac{d\mathbf{x}_t}{dt} = \mathbf{v} \tag{1}$$
+
+<p>시간 $t$에서의 보간 상태:</p>
+
+$$\mathbf{x}_t = (1-t)\mathbf{x}_0 + t\mathbf{x}_1 \tag{2}$$
+
+<p>직관적으로 말하면, 노이즈에서 데이터로 가는 "직선 고속도로"를 따라가는 것이다. 기존 diffusion의 구불구불한 경로 대비 계산이 효율적이고, $t=1$ (순수 노이즈)에서 $t=0$ (데이터)으로의 역방향 ODE를 수치적으로 풀어 생성한다.</p>
+
+<h3>4.2 모델 아키텍처</h3>
+
+<p>Audio-Omni는 크게 두 모듈로 구성된다:</p>
+
+<div class="flow-diagram">┌─────────────────────────────────────────────────────────────────┐
+│  Understanding Module (Frozen MLLM: Qwen2.5-Omni-3B)          │
+│  ┌─────┐ ┌─────┐ ┌─────┐                                      │
+│  │Text │ │Audio│ │Video│  → Tokenizers → MLLM → Hidden States  │
+│  │T_in │ │A_in │ │V_in │                         (Penultimate) │
+│  └─────┘ └─────┘ └─────┘                              ↓        │
+│    이해 태스크: 직접 텍스트 응답 생성      F_mm ∈ R^(L_mm × D_mm) │
+│    생성 태스크: conditioning signal 생성                          │
+└───────────────────────────────────┬─────────────────────────────┘
+                                    │
+       ┌────────────────────────────┼────────────────────────────┐
+       │                            │                            │
+       ▼                            │                            ▼
+ High-Level Semantic               │               Low-Level Signal
+ ┌──────────────────┐              │              ┌──────────────────┐
+ │ c_high = Concat(  │              │              │ c_low = Concat(   │
+ │   F_mm, F_trans)  │              │              │   F_sync, F_mel)  │
+ │ (cross-attention) │              │              │ (element-add +    │
+ └────────┬─────────┘              │              │  concat w/ noise) │
+          │                        │              └────────┬─────────┘
+          ▼                        ▼                       ▼
+ ┌──────────────────────────────────────────────────────────────────┐
+ │              DiT Backbone (Trainable, 36 blocks)                 │
+ │              Rectified Flow objective                            │
+ │              → Denoised latent → VAE Decoder → Audio Waveform   │
+ └──────────────────────────────────────────────────────────────────┘</div>
+
+<h3>Understanding Module</h3>
+<p>사전학습된 frozen Qwen2.5-Omni-3B MLLM이 핵심이다. 텍스트 지시(T_in), 오디오 파형(A_in), 비디오(V_in)를 각각의 인코더로 토큰화하여 입력받는다. 5 fps로 비디오, 16 kHz로 오디오를 처리한다.</p>
+
+<p>MLLM은 이중 역할을 수행한다:</p>
+<ul>
+  <li><strong>이해 태스크</strong>: 멀티모달 입력에 기반하여 직접 텍스트 응답 생성 (captioning, ASR, reasoning)</li>
+  <li><strong>생성 태스크</strong>: DiT를 위한 조건부 신호 생성. ##최종 레이어가 아닌 두 번째에서 마지막 레이어(penultimate layer)##의 hidden state를 추출한다 — 최종 레이어는 텍스트 예측에 과도하게 특화되어 있는 반면, penultimate layer는 더 풍부하고 압축되지 않은 semantic·acoustic 정보를 유지하기 때문이다.</li>
+</ul>
+
+<p>이 멀티모달 feature를 $\mathbf{F}_{\text{mm}} \in \mathbb{R}^{L_{\text{mm}} \times D_{\text{mm}}}$로 표기한다.</p>
+
+<h3>Generative Module과 Hybrid Conditioning</h3>
+
+<p>DiT 백본은 Rectified Flow 목적함수로 학습되며, 최종 오디오 파형을 합성한다. 핵심 설계는 <strong>두 가지 서로 다른 conditioning stream</strong>을 통해 다양한 태스크 요구사항을 충족하는 것이다:</p>
+
+<h3>Stream 1: High-Level Semantic Features</h3>
+
+$$\mathbf{c}_{\text{high}} = \text{Concat}(\mathbf{F}_{\text{mm}}, \mathbf{F}_{\text{trans}}) \tag{3}$$
+
+<ul>
+  <li>$\mathbf{F}_{\text{mm}}$: MLLM penultimate layer의 멀티모달 feature</li>
+  <li>$\mathbf{F}_{\text{trans}}$: Transcript Encoder가 생성한 character-level text encoding (TTS/VC 태스크용). 텍스트를 character embedding 시퀀스로 변환 후 ConvNeXtV2 기반 아키텍처로 처리</li>
+  <li><strong>주입 방식</strong>: <strong>Cross-attention</strong>으로 DiT에 주입 — 모델이 생성 과정의 매 단계에서 추상적 지시를 유연하게 참조할 수 있게 함</li>
+</ul>
+
+<p>직관적으로, 이 스트림은 "무엇을 만들라"는 고차원적 지시를 전달하는 채널이다.</p>
+
+<h3>Stream 2: Low-Level Signal Features</h3>
+
+$$\mathbf{c}_{\text{low}} = \text{Concat}(\mathbf{F}_{\text{sync}}, \mathbf{F}_{\text{mel}}) \tag{4}$$
+
+<ul>
+  <li>$\mathbf{F}_{\text{mel}}$: Mel Encoder가 추출한 mel-spectrogram feature. 편집 태스크에서는 참조 오디오($\mathbf{A}_{\text{ref}}$)에서, VC에서는 speech prompt($\mathbf{S}_{\text{prompt}}$)에서 추출</li>
+  <li>$\mathbf{F}_{\text{sync}}$: Synchformer(Iashin et al. 2024)가 비디오($\mathbf{V}_{\text{in}}$)에서 추출한 동기화 feature (Video-to-Audio 태스크용)</li>
+  <li><strong>주입 방식</strong>: $\mathbf{c}_{\text{low}}$를 먼저 element-wise addition으로 융합한 뒤, VAE-encoded noisy latent $\mathbf{x}_t$와 <strong>concatenation</strong>하여 DiT의 주 입력 구성 → 프레임 단위의 정밀 시간 정렬 가이드 제공</li>
+</ul>
+
+<p>직관적으로, 이 스트림은 "어떤 신호를 참조하여 정확히 맞추라"는 시간적 정밀 제어 채널이다.</p>
+
+<p>##두 스트림의 분리는 semantic 이해(추상적 지시 → cross-attention)와 signal 제어(시간 정렬 → concatenation)라는 본질적으로 다른 요구사항을 각각 최적의 메커니즘으로 처리##하여, 하나의 프레임워크에서 사운드 · 음악 · 음성의 다양한 요구를 동시에 충족할 수 있게 한다.</p>
+
+<h3>4.3 Training Objective</h3>
+
+<p>단일 통합 Rectified Flow 손실로 end-to-end 학습한다. 각 학습 샘플에 대해 상수 속도 $\mathbf{v} = \mathbf{x}_1 - \mathbf{x}_0$를 예측하도록 학습한다 ($\mathbf{x}_0$: 타겟 오디오의 VAE-encoded latent, $\mathbf{x}_1 \sim \mathcal{N}(0, \mathbf{I})$):</p>
+
+$$\mathcal{L} = \mathbb{E}_{t \sim \mathcal{U}(0,1), \mathbf{x}_0, \mathbf{x}_1, \mathbf{c}} \left[ \| v_\theta(\mathbf{x}_t, t, \mathbf{c}) - (\mathbf{x}_1 - \mathbf{x}_0) \|^2 \right] \tag{5}$$
+
+<p>여기서 $\mathbf{c}$는 주어진 학습 샘플에 대해 가용한 모든 conditioning signal의 집합이다.</p>
+
+<p>직관적으로, 네트워크는 "현재 노이즈 섞인 상태에서 순수 데이터까지의 방향과 속도"를 예측하도록 학습하는 것이다.</p>
+
+<h3>Speech Prompt Masking 전략</h3>
+<p>Voice conversion(VC)과 speech editing 능력을 강화하기 위해, 학습 중 speech prompt의 mel-spectrogram을 20~75%를 랜덤으로 마스킹한다. 이는 모델이 부분적인 음향 신호만으로 화자의 timbre를 추론하면서 전체 발화를 재구성하도록 강제하여, ##zero-shot voice cloning과 content editing 능력을 별도 지도 없이 자연스럽게 학습##하게 한다.</p>
+
+<h2>5. Experiments</h2>
+
+<h3>5.1 구현 세부사항</h3>
+
+<table>
+<tr><th>항목</th><th>세부</th></tr>
+<tr><td>MLLM</td><td>Qwen2.5-Omni-3B (frozen), video 5fps, audio 16kHz</td></tr>
+<tr><td>DiT Backbone</td><td>36 blocks, hidden dim 2048, 32 attention heads</td></tr>
+<tr><td>전체 파라미터</td><td>~7.9B (그 중 3.05B trainable: DiT + conditioners)</td></tr>
+<tr><td>Conditioning</td><td>Synchformer (video sync, 25fps), Mel Encoder (100-dim mel, 44.1kHz, FFT 1024, hop 256), Transcript Encoder (4× ConvNeXtV2)</td></tr>
+<tr><td>VAE</td><td>Evans et al. 2024에서 채택한 사전학습 VAE로 인코딩/디코딩</td></tr>
+<tr><td>Optimizer</td><td>AdamW (lr=5e-5, β₁=0.9, β₂=0.999, weight decay=1e-3)</td></tr>
+<tr><td>Batch Size / Steps</td><td>5120 / ~80K steps</td></tr>
+<tr><td>Inference</td><td>100-step ODE solver, classifier-free guidance scale 6.0</td></tr>
+</table>
+
+<h3>학습 데이터 구성 (Table A.4)</h3>
+<table>
+<tr><th>Task</th><th>Hours</th><th>Datasets</th></tr>
+<tr><td>T2A</td><td>1.4k</td><td>AudioCaps, WavCaps, AudioSetCaps, AudioTime, IF-Caps</td></tr>
+<tr><td>V2A</td><td>0.7k</td><td>VGGSound, AudioSet Strong</td></tr>
+<tr><td>T2M</td><td>17k</td><td>IF-Caps, MUCaps</td></tr>
+<tr><td>V2M</td><td>16k</td><td>V2M</td></tr>
+<tr><td>Speech</td><td>6k</td><td>Audio-FLAN (English subset)</td></tr>
+<tr><td>Editing</td><td>3k</td><td>AudioEdit (Section 3)</td></tr>
+</table>
+
+<h3>5.2 평가 지표</h3>
+<ul>
+  <li><strong>이해</strong>: MMSU (47개 spoken-language tasks), MMAU (27개 reasoning skills)</li>
+  <li><strong>생성 품질</strong>: KL divergence, Inception Score (IS), Fréchet Audio Distance (FAD), Fréchet Distance (FD) — PANNs 임베딩 기반</li>
+  <li><strong>TTS</strong>: Word Error Rate (WER) — Seed-TTS 벤치마크</li>
+  <li><strong>편집</strong>: Log-Spectral Distance (LSD, fidelity), FAD (perceptual quality), CLAP score (instruction adherence)</li>
+</ul>
+
+<h3>5.3 주요 결과</h3>
+
+<p>논문의 실험은 다음 핵심 질문들에 답하고자 한다:</p>
+<ol>
+  <li>하나의 unified 모델이 이해 · 생성 · 편집을 모두 잘 수행할 수 있는가?</li>
+  <li>전문 모델(specialized models)과 비교하여 경쟁력이 있는가?</li>
+  <li>Frozen MLLM에서 어떤 emergent 능력이 전이되는가?</li>
+</ol>
+
+<h3>5.3.1 이해 (Understanding)</h3>
+
+<table>
+<caption><strong>Table 2</strong>: 멀티모달 이해 벤치마크 결과</caption>
+<tr><th>Methods</th><th>MMSU↑</th><th>MMAU↑</th></tr>
+<tr><td colspan="3"><em>Specialized Models</em></td></tr>
+<tr><td>Audio Flamingo3</td><td>61.40</td><td>72.42</td></tr>
+<tr><td>Qwen2-Audio-Instruct</td><td>53.27</td><td>57.40</td></tr>
+<tr><td>Qwen2.5-Omni-3B</td><td>56.83</td><td>63.30</td></tr>
+<tr><td colspan="3"><em>Unified Models</em></td></tr>
+<tr><td>Ming-Omni</td><td>47.53</td><td>70.80</td></tr>
+<tr><td>Unified-IO2</td><td>30.74</td><td>3.20</td></tr>
+<tr><td>MuMuLLaMA</td><td>6.32</td><td>12.87</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>56.83</strong></td><td><strong>63.30</strong></td></tr>
+</table>
+
+<p>Audio-Omni는 frozen MLLM(Qwen2.5-Omni-3B)의 이해 능력을 온전히 상속받아, unified model 중 최고 성능을 달성한다. 이는 decoupled 설계의 핵심 이점이다 — MLLM을 freeze하여 풍부한 멀티모달 지식이 손상되지 않는다.</p>
+
+<h3>5.3.2 생성 (Generation)</h3>
+
+<table>
+<caption><strong>Table 3</strong>: 멀티모달 생성 벤치마크 결과 (FAD↓ / WER↓)</caption>
+<tr><th>Methods</th><th>T2A_FAD↓</th><th>T2M_FAD↓</th><th>V2A_FAD↓</th><th>V2M_FAD↓</th><th>TTS_WER↓</th></tr>
+<tr><td colspan="6"><em>Specialized Models</em></td></tr>
+<tr><td>Tango2</td><td>3.20</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>Stable-Audio-Open</td><td>3.15</td><td>3.23</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>MMAudio</td><td>-</td><td>-</td><td>2.04</td><td>-</td><td>-</td></tr>
+<tr><td>AudioX</td><td><strong>1.86</strong></td><td><strong>1.53</strong></td><td><strong>1.19</strong></td><td>-</td><td>2.12</td></tr>
+<tr><td>F5-TTS</td><td>-</td><td>-</td><td>-</td><td>-</td><td>1.83</td></tr>
+<tr><td>CosyVoice3</td><td>-</td><td>-</td><td>-</td><td>-</td><td>2.46</td></tr>
+<tr><td colspan="6"><em>Unified Models</em></td></tr>
+<tr><td>Unified-IO2</td><td>7.81</td><td>3.17</td><td>-</td><td>-</td><td>21.63</td></tr>
+<tr><td>MuMuLLaMA</td><td>-</td><td>5.89</td><td>-</td><td>52.25</td><td>-</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>1.86</strong></td><td><strong>1.94</strong></td><td><strong>1.71</strong></td><td><strong>1.58</strong></td><td><strong>1.77</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>: ##Audio-Omni는 모든 unified model을 크게 앞서며, 일부 전문 모델도 능가##한다. 특히:</p>
+<ul>
+  <li><strong>T2A</strong>: AudioX와 동일한 1.86 FAD 달성, Tango2(3.20) 대비 42% 개선</li>
+  <li><strong>T2M</strong>: 전문 모델 AudioX(1.53) 대비 약간 뒤지지만, 다른 unified model(Unified-IO2 3.17) 대비 39% 우위</li>
+  <li><strong>TTS</strong>: ##WER 1.77로 전문 TTS 모델 F5-TTS(1.83)보다도 낮은 오류율## 달성</li>
+  <li><strong>V2A</strong>: 1.71 FAD로 MMAudio(2.04) 대비 16% 개선, 다만 전문 모델 AudioX(1.19) 대비는 아직 격차 존재</li>
+  <li><strong>V2M</strong>: 1.58 FAD로 MuMuLLaMA(52.25) 대비 극적인 개선</li>
+</ul>
+
+<h3>5.3.3 편집 (Editing)</h3>
+
+<table>
+<caption><strong>Table 4</strong>: 오디오 편집 벤치마크 결과</caption>
+<tr><th>Methods</th><th>AE_FAD↓</th><th>AE_LSD↓</th><th>CLAP↑</th></tr>
+<tr><td colspan="4"><em>Specialized Models</em></td></tr>
+<tr><td>ZETA</td><td>3.81</td><td>3.80</td><td>0.30</td></tr>
+<tr><td>SDEdit</td><td>3.51</td><td>4.40</td><td>0.22</td></tr>
+<tr><td>MMEDIT</td><td>3.95</td><td>4.05</td><td>0.15</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>3.27</strong></td><td><strong>2.27</strong></td><td><strong>0.32</strong></td></tr>
+</table>
+
+<p>Audio-Omni는 <strong>세 가지 편집 지표 모두에서 전문 편집 모델을 능가</strong>한다. 특히 LSD 2.27은 ZETA(3.80) 대비 40% 개선으로, 편집된 오디오가 원본에 더 충실함을 의미한다. CLAP 0.32는 편집 지시에 대한 높은 준수도를 나타낸다.</p>
+
+<h3>태스크별 편집 상세 결과 (Table A.3)</h3>
+
+<table>
+<tr><th>Method</th><th colspan="2">Add</th><th colspan="2">Remove</th><th colspan="2">Extract</th><th colspan="2">Style Transfer</th><th colspan="2">Avg.</th></tr>
+<tr><th></th><th>FAD↓</th><th>LSD↓</th><th>FAD↓</th><th>LSD↓</th><th>FAD↓</th><th>LSD↓</th><th>FAD↓</th><th>LSD↓</th><th>FAD↓</th><th>LSD↓</th></tr>
+<tr><td>ZETA</td><td>5.36</td><td>4.15</td><td>3.43</td><td>4.19</td><td>2.86</td><td>3.63</td><td>3.59</td><td>3.27</td><td>3.81</td><td>3.81</td></tr>
+<tr><td>SDEdit</td><td>4.22</td><td>4.18</td><td>2.16</td><td>4.46</td><td>4.51</td><td>4.31</td><td>3.14</td><td>4.63</td><td>3.51</td><td>4.40</td></tr>
+<tr><td>MMEDIT</td><td>5.30</td><td>3.55</td><td>2.08</td><td>4.41</td><td>4.54</td><td>3.88</td><td>3.88</td><td>4.35</td><td>3.95</td><td>4.05</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>2.78</strong></td><td><strong>2.32</strong></td><td><strong>3.68</strong></td><td><strong>1.91</strong></td><td><strong>3.52</strong></td><td><strong>2.04</strong></td><td><strong>3.11</strong></td><td><strong>2.82</strong></td><td><strong>3.27</strong></td><td><strong>2.27</strong></td></tr>
+</table>
+
+<p>Audio-Omni는 네 가지 편집 태스크 모두에서 평균적으로 최고 성능을 달성한다. Add와 Style Transfer에서 특히 강한 반면, Remove에서는 FAD가 다소 높다 (3.68 vs. MMEDIT 2.08). 그러나 LSD에서는 1.91로 모든 태스크에서 일관되게 최저를 기록한다.</p>
+
+<h3>5.3.4 Human Evaluation (Table A.6)</h3>
+
+<table>
+<caption>Human evaluation: OVL (Overall Quality, 1-100) / REL (Relevance, 1-100)</caption>
+<tr><th>Task</th><th>Method</th><th>OVL↑</th><th>REL↑</th></tr>
+<tr><td rowspan="3">T2A</td><td>Tango2</td><td>72.3</td><td>74.1</td></tr>
+<tr><td>AudioX</td><td>81.5</td><td>83.2</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>78.6</strong></td><td><strong>83.5</strong></td></tr>
+<tr><td rowspan="3">T2M</td><td>MusicGen</td><td>70.8</td><td>72.5</td></tr>
+<tr><td>AudioX</td><td>79.2</td><td>81.3</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>82.7</strong></td><td><strong>81.6</strong></td></tr>
+<tr><td rowspan="3">Editing</td><td>SDEdit</td><td>68.4</td><td>70.2</td></tr>
+<tr><td>ZETA</td><td>74.6</td><td>76.3</td></tr>
+<tr><td><strong>Audio-Omni</strong></td><td><strong>79.8</strong></td><td><strong>81.5</strong></td></tr>
+</table>
+
+<p>20명의 오디오 전문가에 의한 human evaluation에서도 Audio-Omni는 T2M, V2M, Editing에서 최고 점수를 달성하며, 객관 지표와 인간 평가 모두에서 일관된 품질을 입증한다.</p>
+
+<h3>5.3.5 Inherited Abilities and Zero-Shot Capabilities</h3>
+
+<p>Frozen MLLM에서 전이된 <strong>emergent 능력</strong>들:</p>
+
+<ul>
+  <li><strong>Knowledge-Augmented Generation</strong>: "Jimi Hendrix가 유명하게 연주한 악기의 사운드를 생성하라"는 프롬프트에 대해, MLLM이 해당 악기가 일렉트릭 기타임을 추론하여 대응하는 멜로디 합성</li>
+  <li><strong>In-Context Generation</strong>: 피아노 녹음과 "긴장감을 쌓아가는 dramatic cinematic chord progression을 생성하라"는 지시가 주어지면, 피아노의 timbre를 추출하여 새로운 작품에 적용</li>
+  <li><strong>Zero-Shot Voice Conversion / Speech Editing</strong>: Speech prompt masking 학습 덕분에, 태스크별 지도 없이도 화자 정체성 추론과 콘텐츠 편집이 가능</li>
+</ul>
+
+<h3>5.3.6 Zero-Shot Cross-Lingual Text-to-Audio Generation (Table A.2)</h3>
+
+<table>
+<tr><th>Method</th><th>Language</th><th>KL↓</th><th>IS↑</th><th>FD↓</th><th>FAD↓</th></tr>
+<tr><td>Audio-Omni</td><td>EN</td><td>1.15</td><td>11.64</td><td>11.97</td><td><strong>1.86</strong></td></tr>
+<tr><td>Audio-Omni</td><td>CN</td><td>1.65</td><td>11.10</td><td>15.05</td><td>2.26</td></tr>
+<tr><td>Audio-Omni</td><td>ES</td><td>2.36</td><td>9.16</td><td>25.26</td><td>4.32</td></tr>
+<tr><td>Audio-Omni</td><td>DE</td><td>2.39</td><td>9.13</td><td>23.51</td><td>2.92</td></tr>
+<tr><td>Audio-Omni</td><td>FR</td><td>2.47</td><td>8.80</td><td>28.63</td><td>4.21</td></tr>
+<tr><td>Audio-Omni</td><td>JP</td><td>2.27</td><td>8.67</td><td>19.82</td><td>3.13</td></tr>
+</table>
+
+<p>##거의 영어만으로 학습했음에도, 중국어, 스페인어, 독일어, 프랑스어, 일본어에서 영어 전용 전문 모델과 비교 가능한 품질##을 달성한다. 이는 decoupled 아키텍처가 frozen MLLM의 다국어 이해 능력을 생성 태스크에 효과적으로 전이함을 입증한다.</p>
+
+<h2>5.4 Ablation Studies</h2>
+
+<p>논문은 세 가지 핵심 설계 선택을 ablation으로 검증한다.</p>
+
+<h3>Ablation 1: Dataset Composition (Table 5)</h3>
+
+<table>
+<tr><th>Setting</th><th>KL↓</th><th>IS↑</th><th>FD↓</th><th>FAD↓</th><th>LSD↓</th></tr>
+<tr><td>Only Real</td><td><strong>1.27</strong></td><td>5.54</td><td>20.69</td><td>2.67</td><td>1.84</td></tr>
+<tr><td>Only Synthesis</td><td>1.93</td><td>5.04</td><td>37.96</td><td>3.80</td><td>5.17</td></tr>
+<tr><td><strong>Syn. + Real (Ours)</strong></td><td>1.30</td><td><strong>5.93</strong></td><td><strong>20.48</strong></td><td><strong>2.48</strong></td><td><strong>1.82</strong></td></tr>
+</table>
+
+<p><strong>인사이트</strong>: 합성 데이터만으로는 real-world 오디오의 음향적 복잡성에 대한 일반화가 부족하다 (FD 37.96, LSD 5.17). 실제 데이터는 음향 fidelity를 제공하고, 합성 데이터는 다양한 편집 연산의 커버리지를 제공하여, <strong>혼합 접근이 시너지를 발휘</strong>한다.</p>
+
+<h3>Ablation 2: Conditioning Injection Strategies (Table 6)</h3>
+
+<table>
+<tr><th>Context (cross-attn)</th><th>Cat. (concat)</th><th>T2A↓</th><th>V2A↓</th><th>TTS↓</th><th>AE↓</th></tr>
+<tr><td>mm, trans, sync, mel</td><td>none</td><td>40.91</td><td>25.61</td><td>32.46</td><td>5.47</td></tr>
+<tr><td>mm, trans, sync</td><td>mel</td><td>38.26</td><td>26.46</td><td>25.88</td><td>4.03</td></tr>
+<tr><td><strong>mm, trans</strong></td><td><strong>sync, mel</strong></td><td><strong>28.90</strong></td><td><strong>18.55</strong></td><td><strong>19.33</strong></td><td><strong>3.62</strong></td></tr>
+<tr><td>mm</td><td>trans, sync, mel</td><td>60.58</td><td>56.88</td><td>59.20</td><td>4.88</td></tr>
+</table>
+
+<p><strong>인사이트</strong>: ##mm+trans를 cross-attention(Context)으로, sync+mel을 concatenation(Cat.)으로 주입하는 구성이 모든 태스크에서 일관되게 최적##이다. 고차원 semantic은 유연한 참조(cross-attention)로, 저차원 signal은 정밀한 시간 정렬(concatenation)로 전달하는 것이 본질적으로 맞다. 모든 feature를 cross-attention으로만 주입하면 성능이 크게 하락한다 (T2A: 40.91 vs. 28.90).</p>
+
+<h3>Ablation 3: Feature Source Selection (Table 7)</h3>
+
+<table>
+<tr><th>Feature Source</th><th colspan="2">T2A</th><th colspan="2">T2M</th></tr>
+<tr><th></th><th>IS↑</th><th>FD↓</th><th>IS↑</th><th>FD↓</th></tr>
+<tr><td>Last Layer (~1)</td><td>9.36</td><td>4.21</td><td>2.90</td><td>3.26</td></tr>
+<tr><td><strong>Penultimate Layer (~2)</strong></td><td><strong>11.26</strong></td><td><strong>2.75</strong></td><td><strong>3.46</strong></td><td><strong>3.05</strong></td></tr>
+<tr><td>MetaQuery</td><td>7.44</td><td>8.34</td><td>2.38</td><td>8.15</td></tr>
+<tr><td>Query</td><td>8.55</td><td>5.31</td><td>2.69</td><td>4.22</td></tr>
+</table>
+
+<p><strong>인사이트</strong>: Penultimate layer가 가장 효과적이다. 최종 레이어는 텍스트 예측에 과도하게 특화되어 있어 semantic·acoustic 디테일이 압축되어 있는 반면, penultimate layer는 이들 정보를 더 풍부하게 유지한다. MetaQuery/Query 같은 복잡한 메커니즘은 오히려 해로운데, 이는 ##고충실도 오디오 합성이 information bottleneck에 민감하며 dense feature에 직접 접근하는 것이 최선##임을 시사한다.</p>
+
+<h3>Ablation 4: MLLM Encoder 선택 (Table A.1)</h3>
+
+<table>
+<tr><th>Task</th><th>Encoder</th><th>KL↓</th><th>IS↑</th><th>FD↓</th><th>FAD↓</th></tr>
+<tr><td rowspan="3">T2A</td><td>T5</td><td>1.51</td><td>11.27</td><td>15.78</td><td>2.75</td></tr>
+<tr><td>CLAP</td><td>1.81</td><td>9.64</td><td>16.58</td><td>1.84</td></tr>
+<tr><td><strong>Qwen (Ours)</strong></td><td><strong>1.25</strong></td><td><strong>11.65</strong></td><td><strong>12.21</strong></td><td><strong>2.14</strong></td></tr>
+<tr><td rowspan="3">V2A</td><td>CLIP</td><td>2.20</td><td>7.42</td><td>12.21</td><td>2.80</td></tr>
+<tr><td>VideoMAE</td><td>2.29</td><td>6.58</td><td>14.72</td><td>3.06</td></tr>
+<tr><td><strong>Qwen (Ours)</strong></td><td><strong>2.00</strong></td><td><strong>8.08</strong></td><td><strong>8.50</strong></td><td><strong>2.23</strong></td></tr>
+</table>
+
+<p><strong>인사이트</strong>: 통합 MLLM(Qwen)이 전문 단일-모달리티 인코더(T5, CLAP, CLIP, VideoMAE) 대비 모든 지표에서 우위를 보인다. 이는 MLLM이 더 풍부한 semantic 이해력과 cross-modal 관계 포착 능력을 가지고 있어, 전문 인코더가 놓치는 본질적인 멀티모달 맥락을 제공하기 때문이다.</p>
+
+<h2>6. Conclusion</h2>
+
+<p>Audio-Omni는 사운드 · 음악 · 음성 전 스펙트럼에 걸쳐 이해 · 생성 · 편집을 통합한 최초의 end-to-end 프레임워크이다. Frozen MLLM과 trainable DiT를 시너지하는 decoupled 아키텍처, high-level semantic과 low-level signal을 분리하는 hybrid conditioning, 그리고 100만 건 이상의 AudioEdit 데이터셋이 핵심 기술이다.</p>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>재현성</strong>: 코드, 모델, 데이터셋 공개 예정으로 재현성이 높을 것으로 기대. 학습 세팅(optimizer, lr, steps)도 상세히 기술되어 있다.</li>
+  <li><strong>공정한 비교?</strong>: Unified model 비교에서 Ming-Omni, Unified-IO2, MuMuLLaMA는 모두 7B 이하 규모이므로 파라미터 공정성은 적절하다 (Audio-Omni ~7.9B). 다만 전문 모델과의 비교에서 AudioX(같은 저자들의 선행 연구)가 많은 벤치마크에서 여전히 우위인 점은 unified 접근의 trade-off를 보여준다.</li>
+  <li><strong>표준편차 미보고</strong>: 실험 결과에 표준편차가 보고되지 않아 안정성 평가가 어렵다.</li>
+  <li><strong>편집 데이터 품질</strong>: Real Data Branch의 최종 retention율이 9.2%로 매우 낮다. 필터링 과정에서 대부분의 데이터가 제거되어, 실제로 real data의 다양성이 합성 데이터만큼 풍부한지 의문이다.</li>
+  <li><strong>Frozen MLLM 한계</strong>: MLLM이 frozen이므로 이해 성능은 기저 모델(Qwen2.5-Omni-3B)에 완전히 종속된다. 향후 더 강력한 MLLM으로 교체하면 성능 향상이 가능하겠지만, 동시에 아키텍처의 일반성도 검증이 필요하다.</li>
+  <li><strong>Inference 비용</strong>: 100-step ODE solver는 실시간 오디오 애플리케이션에는 부담이 될 수 있다. Few-step distillation 등의 가속 기법 적용 가능성이 언급되지 않았다.</li>
+  <li><strong>Ethics</strong>: 저자들은 voice conversion/speech synthesis의 deepfake 악용 가능성에 대한 Ethics Statement을 포함하며, responsible-use terms과 오디오 워터마킹/탐지 기법 개발을 촉구한다.</li>
+  <li><strong>코드/데이터 공개 여부</strong>: 공개 예정 (https://zeyuet.github.io/Audio-Omni)</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Decoupled design이 통합 오디오 AI의 열쇠</strong>: Frozen MLLM + trainable generator 구조가 이해 능력 보존과 생성 능력 학습을 동시에 달성하는 효과적인 패턴으로, 향후 다른 멀티모달 생성 시스템에도 적용 가능하다.</li>
+  <li><strong>Hybrid conditioning으로 semantic/signal 분리</strong>: 추상적 지시는 cross-attention으로, 정밀 시간 정렬은 concatenation으로 주입하는 설계가 다양한 오디오 태스크에 범용적으로 작동한다. 이는 생성 모델의 conditioning 설계에 대한 실용적 가이드라인이다.</li>
+  <li><strong>Penultimate layer feature가 생성에 최적</strong>: MLLM에서 feature를 추출할 때, 최종 레이어보다 penultimate layer가 더 풍부한 semantic 정보를 제공한다는 발견은 다른 MLLM-to-generator 아키텍처에도 적용 가능하다.</li>
+  <li><strong>Real+Synthetic 하이브리드 데이터가 편집에 핵심</strong>: 합성 데이터의 규모와 실제 데이터의 fidelity가 시너지를 발휘하며, 어느 한쪽만으로는 부족하다.</li>
+  <li><strong>Emergent abilities의 전이</strong>: Frozen MLLM의 세계 지식, 맥락 추론, 다국어 능력이 생성 모듈에 자연스럽게 전이되어, 학습 데이터에 없는 능력(knowledge-augmented generation, cross-lingual control)이 발현된다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

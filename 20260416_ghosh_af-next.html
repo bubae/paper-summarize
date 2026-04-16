@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audio Flamingo Next: Next-Generation Open Audio-Language Models for Speech, Sound, and Music</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Audio Flamingo Next: Next-Generation Open Audio-Language Models for Speech, Sound, and Music</h1>
+
+<p><a href="20260416_ghosh_af-next_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Sreyan Ghosh*, Arushi Goel*, Kaousheik Jayakumar, Lasha Koroshinadze, Nishit Anand, Zhifeng Kong, Siddharth Gururani, Sang-gil Lee, Jaehyeon Kim, Aya Aljafari, Chao-Han Huck Yang, Sungwon Kim, Ramani Duraiswami, Dinesh Manocha, Mohammad Shoeybi, Bryan Catanzaro, Ming-Yu Liu, Wei Ping (*Project Leads)</li>
+  <li><strong>소속</strong>: NVIDIA, University of Maryland</li>
+  <li><strong>학회/저널</strong>: arXiv Preprint (fully open: 가중치, 학습 데이터, 코드 모두 공개)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.10905">arXiv:2604.10905</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 오픈 Large Audio Language Model(LALM)의 발전은 시각 분야 대비 느리며, 대부분 (1) 소규모 학술 데이터셋에 과적합되어 실세계 긴 오디오에 취약하고, (2) 벤치마크 중심 학습으로 일반화 능력이 부족하며, (3) 긴 오디오에서의 추론 시 시간적 근거(temporal grounding)가 결여되어 hallucination이 발생한다.</li>
+  <li><strong>해결</strong>: Audio Flamingo Next (AF-Next) — 인터넷 규모 데이터(약 1억 8백만 샘플, ~100만 시간)로 학습하고, 4단계 curriculum training을 거치며, Temporal Audio Chain-of-Thought(시간-근거 추론) 패러다임을 도입한 fully open LALM. 세 가지 변형 모델(AF-Next-Instruct, AF-Next-Think, AF-Next-Captioner)을 오픈소스로 공개.</li>
+  <li><strong>왜 작동하는가</strong>: (1) RoTE(Rotary Time Embeddings)로 오디오 토큰에 절대 타임스탬프를 부여하여 시간적 추론의 물리적 기반 제공, (2) 인터넷 규모의 다양한 실세계 오디오로 학습하여 학술 데이터 편향 극복, (3) curriculum learning으로 단순 기술(분류, 인식) → 복잡 기술(추론, 긴 오디오) → 추론 최적화(GRPO) 순으로 점진적 능력 획득, (4) AF-Think-Time 데이터로 시간 근거가 있는 CoT 추론 학습.</li>
+  <li><strong>비유</strong>: 언어를 배우는 과정과 같다 — 먼저 발음과 단어를 배우고(pre-training), 문장과 문법을 익히고(mid-training), 대화와 논술을 연습하고(post-training), 마지막으로 논리적 사고력을 기르는(CoT-training) 4단계 교육 과정. 또한 "몇 시 몇 분에 어떤 소리가 났는지" 시간을 짚어가며 추론하는 것은, 형사가 CCTV 영상을 분석할 때 타임라인에 메모를 남기며 추리하는 것과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>최강의 오픈 LALM</strong>: ##20개 이상의 오디오 이해·추론 벤치마크에서 동급 오픈 모델을 큰 격차로 앞서며, 훨씬 큰 오픈웨이트 및 클로즈드 모델과도 경쟁적##. MMAU-v05.15.25에서 75.76 (AF3 대비 +3.34pp), LongAudioBench에서 73.9 (AF3 대비 +5.3pp, Gemini 2.5 Pro 대비 +13.5pp).</li>
+  <li><strong>확장 가능한 학습 레시피</strong>: 인터넷 규모 데이터 큐레이션(~108M 샘플, ~1M 시간), 능력별 확장, 시간-근거 추론을 아우르는 4단계 curriculum training. 학습 코드, 추론 코드, 기법 모두 오픈소스로 공개.</li>
+  <li><strong>Temporal Audio Chain-of-Thought</strong>: ##중간 추론 단계를 오디오의 타임스탬프에 명시적으로 근거(ground)하는 새로운 추론 패러다임##. 긴 오디오 QA에서 충실하고 간결한 증거 기반 추론을 가능케 한다.</li>
+  <li><strong>세 가지 모델 변형 오픈소스 공개</strong>: AF-Next-Instruct (일반 QA), AF-Next-Think (고급 추론), AF-Next-Captioner (상세 캡셔닝). 각 변형이 특화된 downstream 태스크에 최적화되어 있다.</li>
+</ol>
+
+<h2>1. Introduction — 배경과 동기</h2>
+
+<h3>오디오-언어 모델의 현주소</h3>
+<p>Large Audio Language Model(LALM)은 ASR(Automatic Speech Recognition), 오디오 캡셔닝, MIR(Music Information Retrieval) 등 기존에 분리되어 있던 오디오 태스크를 하나의 모델로 통합하는 추세이다. Audio Flamingo(Kong et al. 2024), Qwen-Audio(Chu et al. 2023a) 시리즈가 대표적이다.</p>
+
+<p>그러나 오픈 LALM 발전은 VLM(Vision-Language Model) 대비 현저히 느리다. 핵심 문제:</p>
+<ul>
+  <li><strong>벤치마크 과적합</strong>: 소수의 학술 데이터셋에 최적화되어, 긴/노이즈가 많은/다양한 실세계 오디오에 취약</li>
+  <li><strong>긴 오디오 이해 부재</strong>: 대부분 5~10분 이내의 짧은 클립에 한정. 30분 팟캐스트나 미팅 오디오 분석은 미탐색 영역</li>
+  <li><strong>CoT 추론의 한계</strong>: 기존 오디오 CoT(Step-Audio-R1 등)는 짧은 오디오에서 과도하게 긴 추론 trace 생성 (MMAU에서 >16K 토큰), 시간 근거 없이 부정확</li>
+</ul>
+
+<h3>AF-Next의 접근</h3>
+<p>AF-Next는 Audio Flamingo 시리즈의 차세대 모델로, 세 가지 핵심 전략을 채택한다:</p>
+<ol>
+  <li>학술 데이터를 넘어 인터넷 규모(~1M 시간)의 다양한 실세계 오디오로 학습</li>
+  <li>기존 능력 강화(ASR, 캡셔닝) + 새 능력 도입(multi-talker ASR, timestamped prediction, long-form captioning)</li>
+  <li>Temporal Audio CoT — 추론 단계를 타임스탬프에 근거하여 간결하고 충실한 추론</li>
+</ol>
+
+<h2>2. Related Works</h2>
+
+<h3>Large Audio-Language Models</h3>
+<p>LALM은 크게 두 아키텍처로 나뉜다:</p>
+<ul>
+  <li><strong>Encoder-only ALMs</strong>: 오디오-텍스트 joint embedding 학습. CLAP(Elizalde et al. 2023), Wav2CLIP, AudioCLIP 등. Cross-modal retrieval에 강점</li>
+  <li><strong>Encoder-decoder ALMs</strong>: 오디오 인코더 + decoder-only LLM 조합. LTU(Gong et al. 2023b), Audio Flamingo(Kong et al. 2024), Qwen-Audio(Chu et al. 2023a), GAMA(Ghosh et al. 2024) 등. 범용 QA와 추론이 가능</li>
+</ul>
+
+<h3>Chain-of-Thought Reasoning in LALMs</h3>
+<p>CoT 추론은 LALM의 post-training 패러다임으로 부상하고 있다. R1-AQA(Li et al. 2025a), Omni-R1(Rouditchenko et al. 2025), Mellow(Deshmukh et al. 2025) 등이 벤치마크에서 일관된 개선을 보인다. 그러나 이들은 주로 짧은 오디오에서의 단순 증거 로컬라이제이션에 특화되어 있어, <strong>긴 오디오에서 시간적으로 분산된 여러 증거를 집계하는 복잡한 추론</strong>에는 한계가 있다.</p>
+
+<p>AF-Next는 이 공백을 메우기 위해 ##추론 단계를 타임스탬프에 명시적으로 근거하는 Temporal Audio CoT##를 제안한다. 이는 (1) 시간적으로 탐색하고 추론하도록 모델을 가이드하고, (2) 타임스탬프 이벤트에 대한 조건부 추론으로 인식 성능까지 개선한다.</p>
+
+<h2>3. Methodology</h2>
+
+<h3>3.1 Audio Flamingo Next Architecture</h3>
+
+<p>AF-Next는 네 가지 주요 컴포넌트로 구성된다:</p>
+
+<div class="flow-diagram">Audio Input → [AF-Whisper Encoder] → h_a ∈ R^(N×d)
+              → [Audio Adaptor (2-layer MLP)] → a = A(h_a)
+              → [Qwen-2.5-7B LLM + RoTE] → Text Output
+                                            ↘ [Streaming TTS] → Audio Output</div>
+
+<h3>AF-Whisper Audio Encoder</h3>
+<p>Whisper 기반의 AF-Whisper 인코더를 사용하며, AF3 대비 더 크고 다양한 코퍼스(다국어 음성 + multi-talker ASR)로 추가 사전학습되었다.</p>
+
+<p><strong>Feature Extraction 과정</strong>:</p>
+<ol>
+  <li>오디오 입력 $A$ → 16 kHz mono로 리샘플링</li>
+  <li>128-channel log mel-spectrogram 변환 (25ms window, 10ms hop)</li>
+  <li>AF-Whisper로 hidden representation 추출: $h_a = f_a(A)$, $h_a \in \mathbb{R}^{N \times d}$ (d=1280)</li>
+  <li>비겹침 30초 청크 단위로 처리. AF-Whisper는 50Hz 해상도의 feature 출력</li>
+  <li>Stride-2 pooling 적용 (Chu et al. 2024 방식)</li>
+</ol>
+
+<h3>Audio Adaptor</h3>
+<p>2-layer MLP $A(\cdot)$로 AF-Whisper representation을 LLM의 텍스트 임베딩 공간에 매핑한다:</p>
+
+$$a = A(h_a)$$
+
+<p>매핑된 임베딩 $a$는 텍스트 instruction과 함께 LLM의 audio prompt로 제공된다.</p>
+
+<h3>Large Language Model — Qwen-2.5-7B + RoTE</h3>
+<p>Backbone LLM은 <strong>Qwen-2.5-7B</strong> (decoder-only causal model, 7B 파라미터, 36 transformer layers, 16 attention heads). 원래 32k 컨텍스트를 128k까지 확장한다 (Section 3.2.2).</p>
+
+<p>핵심 혁신: <strong>RoTE (Rotary Time Embeddings)</strong></p>
+<p>Music Flamingo에서 도입된 RoTE는 표준 RoPE의 위치 인코딩을 수정하여, 각 토큰의 <strong>절대 타임스탬프</strong> $\tau_i$를 기반으로 회전 각도를 정의한다:</p>
+
+$$\theta \leftarrow -\tau_i \cdot 2\pi$$
+
+<p>표준 RoPE가 이산적 토큰 인덱스 $i$를 사용하는 것($\theta \leftarrow -i \cdot 2\pi$)과 달리, RoTE는 오디오 토큰의 실제 시간 위치를 반영한다. 40ms 고정 stride로 생산되는 오디오 토큰의 이산 시간 위치 $\tau_i$를 보간하여 RoTE 모듈에 입력한다.</p>
+
+<p>직관적으로, RoTE는 "이 토큰이 오디오의 몇 초 시점에 해당하는지"를 위치 인코딩에 직접 새기는 것이다. ##이것이 Temporal Audio CoT의 물리적 기반##이 되어, 모델이 시간축을 따라 추론하고 특정 시점을 참조하는 능력을 부여한다.</p>
+
+<h3>Streaming TTS</h3>
+<p>AF3와 동일하게 voice-to-voice 상호작용을 위한 streaming TTS 모듈을 포함한다. LLM의 subword text token과 이전 생성된 audio token을 조건으로 다음 audio token을 예측하는 decoder-only transformer 구조이다.</p>
+
+<h3>3.2 Audio Flamingo Next Training</h3>
+
+<h3>3.2.1 Data Curation</h3>
+
+<p>AF-Next는 Audio Flamingo 시리즈의 한계를 체계적으로 분석한 뒤, 두 가지 소스(공개 데이터셋 + 인터넷 수집 오디오)에서 데이터를 큐레이션한다. 최종 데이터셋: <strong>~108M 샘플, ~1M 시간</strong>.</p>
+
+<p>10가지 데이터 축:</p>
+
+<h3>1. Music Understanding</h3>
+<p>Music Flamingo의 captioning + QA 데이터에 비영어권 music-to-lyrics 데이터 추가. 다문화 가사 이해 향상 목적.</p>
+
+<h3>2. Multi-talker Speech Understanding</h3>
+<p>다중 화자 음성의 ASR과 QA 데이터. Speaker Identification(화자 식별), Interruption Identification(끼어들기 감지), Target Speaker ASR(특정 화자 전사) 세 가지 핵심 기술에 초점. AF-Skills에 45K 샘플 추가.</p>
+
+<h3>3. Long Captioning for Real-World Audio</h3>
+<p>인터넷에서 <strong>~200K개의 5~30분 길이 긴 비디오</strong>를 수집. Agentic web search로 다양한 토픽과 음향 조건의 채널/웹사이트를 발굴. 각 비디오에 대해 10초 세그먼트별로 video caption, audio caption, speech transcript, spoken-language paralinguistic description 네 가지를 생성한 뒤, LLM으로 통합 캡션 합성. 추가로 needle-in-the-haystack QA, temporal understanding QA, subscene QA 생성.</p>
+
+<h3>4. Expanding Existing Skills with Real-World Data</h3>
+<p>기존 AudioSkills-XL이 학술 데이터(AudioSet 등)에서 파생되어 실세계 강건성이 부족한 문제 해결. 인터넷 수집 long-form 오디오에서 10~30초의 정보량이 높은 세그먼트를 샘플링하여 QA 생성. Informativeness 점수 기반 선별 → <strong>2M+ 샘플</strong>.</p>
+
+<h3>5. Multi-audio Data</h3>
+<p>여러 오디오 입력에 대한 추론. Kumar et al. (2025a) 데이터를 interleaved audio-text instruction following으로 확장. ~1M 샘플.</p>
+
+<h3>6. Multi-turn Chat Data</h3>
+<p>멀티턴 대화형 QA. 오디오 이해뿐 아니라 정보 추출과 세계 지식이 필요한 질문 포함. ~30K 샘플.</p>
+
+<h3>7. Safety and Instruction-Following Data</h3>
+<p>기존 LALM에서 간과된 안전성과 instruction-following 향상. 실세계 unsafe 오디오에서 QA + refusal-style 응답 생성. <strong>~386K 샘플</strong>.</p>
+
+<h3>8. Multi-lingual ASR and AST</h3>
+<p>AF3의 영어 ASR 데이터에 다국어 ASR + Audio Speech Translation 데이터 추가: Emilia, CoVoST, MUST, Amazon-SIFT, ALI meeting, aidatatang, aishell, Granary.</p>
+
+<h3>9. Text-only Data</h3>
+<p>과학, 수학, instruction-following, 일반 지식 SFT 데이터로 text-reasoning 능력 유지.</p>
+
+<h3>10. Time-Grounded CoT — AF-Think-Time</h3>
+<p>##Temporal Audio Chain-of-Thought의 핵심 학습 데이터##. 기존 오디오 CoT 데이터(AF-Think 등)는 짧은 클립 + 단순 QA에 한정되어, 확장 추론이 가장 유용한 <strong>긴 오디오의 복잡한 문제</strong>에는 부적합하다.</p>
+
+<p>AF-Think-Time의 핵심 특징:</p>
+<ul>
+  <li><strong>소스</strong>: 트레일러, 영화 요약, 미스터리 이야기, 긴 멀티파티 대화 등 확장 시간 추론이 필요한 challenging 오디오</li>
+  <li><strong>시간 근거</strong>: (1) 시간에 근거된 사고가 긴·복잡한 오디오의 탐색과 추론을 가이드, (2) 타임스탬프 이벤트에 대한 조건부 추론이 인식 성능도 개선</li>
+  <li><strong>구축 방법</strong>: 타임스탬프 캡션 생성(Kumar et al. 2026 방식) → LLM으로 question-answer-thinking-chain 트리플릿 합성</li>
+  <li><strong>규모</strong>: ~43K 샘플, 평균 thinking chain 446.3 단어, 총 3,954시간</li>
+</ul>
+
+<h3>3.2.2 Training Curriculum</h3>
+
+<p>AF-Next는 ##4단계 curriculum training##을 사용한다. 각 단계는 다른 데이터 혼합을 사용하며, 컨텍스트 길이를 점진적으로 늘린다. 기저 원리: <strong>기초 능력은 초기에, 복잡한 추론·긴 컨텍스트 능력은 후기에 획득된다.</strong></p>
+
+<div class="flow-diagram">Pre-training               Mid-training              Post-training   CoT-training
+┌──────────────────────┐   ┌──────────────────────┐  ┌───────────┐  ┌───────────┐
+│ Stage 1: Adaptor only│   │ Stage 1: Full FT     │  │ GRPO-based│  │ SFT + GRPO│
+│ AE+LLM frozen        │→ │ + AudioSkills-XL     │→│ RL         │→│ AF-Think  │
+│ Max 30s, 8K ctx     │   │ Max 10min, 24K ctx   │  │ Safety,    │  │ -Time data│
+├──────────────────────┤   ├──────────────────────┤  │ Chat, IF   │  └─────┬─────┘
+│ Stage 2: AE+Adaptor  │   │ Stage 2: + Long audio│  └─────┬─────┘        │
+│ LLM frozen            │   │ Max 30min, 128K ctx  │        │               │
+│ Max 1min, 8K ctx     │   └──────────┬───────────┘        │               │
+└──────────────────────┘              │                     │               │
+                               AF-Next-Captioner      AF-Next-Instruct  AF-Next-Think</div>
+
+<h3>Pre-training (2 stages)</h3>
+<ul>
+  <li><strong>Stage 1</strong>: Audio adaptor만 학습 (AF-Whisper + LLM frozen). 오디오 representation을 LLM 임베딩 공간에 정렬. Max audio 30초, Max context 8K 토큰</li>
+  <li><strong>Stage 2</strong>: Audio encoder + adaptor 학습 (LLM frozen). 인식 중심 데이터(분류, 캡셔닝, ASR). Max audio 1분, Max context 8K 토큰</li>
+</ul>
+
+<h3>Mid-training (2 stages)</h3>
+<ul>
+  <li><strong>Stage 1</strong>: 전체 모델 full fine-tuning. 기존 데이터 + 새 큐레이션 데이터 + AudioSkills-XL. 고품질 short-audio QA와 기초 기술 데이터 강조. Max audio 10분, Max context 24K 토큰</li>
+  <li><strong>Stage 2</strong>: Stage 1 혼합의 가중치를 절반으로 줄이고, 새 long-audio captioning/QA 데이터에 blend weight 1 부여. Max audio 30분, Max context 128K 토큰. 이 단계의 체크포인트를 Stage 1 중간 지점에서 초기화. 결과 모델: <strong>AF-Next-Captioner</strong></li>
+</ul>
+
+<h3>Post-training</h3>
+<p>GRPO 기반 강화학습. Multi-turn chat, safety, instruction-following, AudioSkills-XL 중 약한 기술에 초점. 결과 모델: <strong>AF-Next-Instruct</strong></p>
+
+<h3>CoT-training</h3>
+<p>AF-Next-Instruct에서 AF-Think-Time으로 SFT 수행 후, post-training 데이터 혼합으로 GRPO 학습. 결과 모델: <strong>AF-Next-Think</strong></p>
+
+<h3>학습 하이퍼파라미터 (Table 3)</h3>
+<table>
+<tr><th>설정</th><th>Pre-training</th><th>Mid-training</th><th>Post-training</th><th>CoT-training</th></tr>
+<tr><td>Global batch size</td><td>128</td><td>128</td><td>64</td><td>64</td></tr>
+<tr><td>Learning rate</td><td>1e-3</td><td>1e-5</td><td>1e-6</td><td>2e-5</td></tr>
+<tr><td>LR schedule</td><td colspan="4">Cosine decay</td></tr>
+<tr><td>Warmup ratio</td><td colspan="4">0.03</td></tr>
+<tr><td>Weight decay</td><td colspan="4">0.0</td></tr>
+<tr><td>Epoch</td><td>1</td><td>1</td><td>1</td><td>2</td></tr>
+<tr><td>Precision</td><td colspan="4">bf16</td></tr>
+<tr><td>Grad accumulate</td><td colspan="4">8</td></tr>
+<tr><td>Parallelism</td><td>Zero-3</td><td>Zero-3 + SP</td><td>DP</td><td>Zero-3 + SP</td></tr>
+<tr><td>GPUs</td><td colspan="4">128 × H100</td></tr>
+</table>
+
+<h3>3.3 Long-Context Training Pipeline</h3>
+
+<p>긴 오디오 학습의 두 가지 도전: (1) 오디오 토큰 확장으로 시퀀스 길이가 표준 컨텍스트 윈도우(32k)를 초과, (2) self-attention의 이차 메모리 요구량으로 128k 확장이 불가능.</p>
+
+<h3>Sequence Packing</h3>
+<p>3단계 패킹 전략:</p>
+<ul>
+  <li><strong>SP-Aware Sampling</strong>: DP 그룹 내에서 동일 샘플 인덱스를 보장하면서 SP 그룹 간 분산. 실효 DP replica를 $N_{\text{GPU}}/P$로 줄임</li>
+  <li><strong>Padding and Truncation</strong>: 배치 내 최장 시퀀스와 최대 컨텍스트의 최솟값으로 패딩. Binary attention mask + ignore index로 non-padding 위치만 연산</li>
+  <li><strong>Audio Token Expansion</strong>: 오디오 인코딩 단계에서 각 placeholder token을 클립의 duration-based embedding mask에 따라 가변 개수의 오디오 임베딩 토큰으로 교체</li>
+</ul>
+
+<h3>Hybrid Sequence Parallelism</h3>
+<p>$P$ GPU에 걸쳐 Unified Sequence Parallelism (USP) 사용: Ulysses degree $P_U$ (all-to-all based) × Ring degree $P_R$ (point-to-point based), $P = P_U \times P_R$.</p>
+<ul>
+  <li><strong>Ulysses attention</strong>: all-to-all collective로 시퀀스와 head 차원을 재분배. 각 GPU는 전체 시퀀스를 보지만 attention head의 일부만 처리. 고대역폭 노드 내부에 효율적</li>
+  <li><strong>Ring attention</strong>: KV 블록을 ring topology로 순환. 노드 간 확장이 용이하지만 ring 크기에 비례하는 순차 지연 발생</li>
+  <li><strong>Hybrid</strong>: Ulysses는 노드 내부(고대역폭), Ring은 노드 간(확장성). 양쪽 장점 결합</li>
+</ul>
+
+<h2>4. Experiments</h2>
+
+<h3>실험 설정</h3>
+<ul>
+  <li><strong>Hardware</strong>: 128 NVIDIA H100 GPU에서 전 단계 학습</li>
+  <li><strong>Baselines</strong>: GAMA, Audio Flamingo 1/2/3, Qwen-Audio 1/2, Qwen2.5-Omni, Qwen3-Omni, R1-AQA, Pengi, Baichun Audio, Phi-4-mm, Step-Audio-Chat, LTU/LTU-AS, SALMONN, AudioGPT, Gemini (2.0 Flash, 1.5 Pro, 2.5 Flash, 2.5 Pro), GPT-4o-audio</li>
+  <li><strong>AF-Next-Captioner 평가 방식</strong>: Captioner는 오디오에 대한 상세 캡션을 먼저 생성한 뒤, GPT-5.2를 text-only 모드로 호출하여 캡션과 질문을 함께 제공하는 2단계 파이프라인으로 평가. 이로 인해 더 풍부한 오디오 기술(description)이 추론의 기반이 됨</li>
+  <li><strong>통계</strong>: ##Table 1의 모든 결과는 3회 독립 실험의 평균##</li>
+</ul>
+
+<h3>평가 벤치마크 (20+ tasks)</h3>
+<ul>
+  <li><strong>Audio classification</strong>: NSynth (Source/Instrument), NonSpeech7k, LibriSQA</li>
+  <li><strong>Reasoning-focused Audio QA</strong>: MMAU-v05.15.25, MMAU-Pro, MuchoMusic, MMAR, MMSU, CompA-R-test</li>
+  <li><strong>Hallucination detection</strong>: CMM</li>
+  <li><strong>ASR</strong>: LibriSpeech, SPGISpeech, TEDLIUM, GigaSpeech, Common Voice 15, VoxPopuli</li>
+  <li><strong>Long audio</strong>: LongAudioBench (+Speech)</li>
+  <li><strong>Audio captioning</strong>: Clotho-v2, AudioCaps, SongCaps</li>
+  <li><strong>Voice understanding</strong>: VoiceBench (AlpacaEval, CommonEval, OpenBookQA)</li>
+  <li><strong>Speech translation</strong>: CoVoST2</li>
+</ul>
+
+<h2>5. Results — 주요 결과</h2>
+
+<p>논문이 답하려는 핵심 질문:</p>
+<ol>
+  <li>AF-Next가 동급 및 상위 모델 대비 얼마나 강력한가?</li>
+  <li>Captioner, Think, Instruct 변형의 상보적 이점은?</li>
+  <li>긴 오디오와 실세계 태스크에서의 강건성은?</li>
+</ol>
+
+<h3>Audio Understanding and Reasoning</h3>
+
+<table>
+<caption><strong>Table 1 (발췌)</strong>: 주요 이해·추론 벤치마크</caption>
+<tr><th>Dataset</th><th>Prior SOTA</th><th>AF-Next Variant</th><th>AF-Next Score</th></tr>
+<tr><td>MMAU-v05.15.25 (Avg)</td><td>AF3: 72.42</td><td>AF-Next-Captioner</td><td><strong>75.76</strong> (Sound 79.87 | Music 75.3 | Speech 72.13)</td></tr>
+<tr><td>MMAR</td><td>AF3: 58.5</td><td>AF-Next-Captioner</td><td><strong>63.0</strong></td></tr>
+<tr><td>MMSU</td><td>Gemini-2.5-Flash: 66.1</td><td>AF-Next-Captioner</td><td><strong>63.3</strong></td></tr>
+<tr><td>MMAU-Pro</td><td>Gemini-2.5-Pro: 57.4</td><td>AF-Next-Think</td><td><strong>58.7</strong></td></tr>
+<tr><td>CMM Hallucination</td><td>AF3: 86.5</td><td>AF-Next-Instruct</td><td><strong>87.0</strong></td></tr>
+<tr><td>CompA-R-test</td><td>AF3: 98.0</td><td>AF-Next-Instruct</td><td><strong>98.7</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Captioner 변형이 가장 높은 절대 점수</strong>: 풍부한 captioning 능력이 추론의 기반이 됨. MMAU에서 AF3 대비 +3.34pp</li>
+  <li><strong>Think 변형은 challenging 벤치마크에서 효과적</strong>: MMAU-Pro에서 Gemini-2.5-Pro(57.4)를 능가하는 58.7 달성. CoT 추론이 다단계 증거 집계가 필요한 문제에서 강점</li>
+  <li><strong>Instruct 변형은 범용적으로 강건</strong>: hallucination 감지(87.0), compositional reasoning(98.7) 등에서 일관된 개선</li>
+  <li>##세 변형이 상보적인 이점을 제공##: test-time compute 전략(CoT vs. captioner augmentation)에 따라 최적 변형이 다름</li>
+</ul>
+
+<h3>Audio Captioning, Entailment, Classification</h3>
+
+<table>
+<tr><th>Task</th><th>AF3</th><th>AF-Next-Instruct</th></tr>
+<tr><td>Clotho-v2 (CIDEr)</td><td>0.50</td><td><strong>0.52</strong></td></tr>
+<tr><td>AudioCaps (CIDEr)</td><td>0.70</td><td><strong>0.74</strong></td></tr>
+<tr><td>Audio Entailment - Clotho</td><td>93.3</td><td><strong>94.2</strong></td></tr>
+<tr><td>Audio Entailment - AudioCaps</td><td>95.0</td><td><strong>96.0</strong></td></tr>
+<tr><td>NonSpeech7k</td><td>85.7</td><td><strong>86.2</strong></td></tr>
+<tr><td>LibriSQA (GPT4o)</td><td>8.7</td><td><strong>9.3</strong></td></tr>
+</table>
+
+<h3>Music Understanding</h3>
+<p>AF-Next는 음악 벤치마크에서 특히 강한 개선을 보인다:</p>
+<ul>
+  <li><strong>NSynth</strong>: Source 66.7, Instrument 81.7 → Pengi(62.0), Qwen-Audio(78.8) 대비 큰 격차</li>
+  <li><strong>Medley-Solos-DB</strong>: 92.13 → AF2의 85.80 대비 +6.33pp</li>
+  <li><strong>MuchoMusic</strong>: 75.6 → Music Flamingo의 74.5 대비 소폭 개선</li>
+  <li><strong>SongCaps</strong>: GPT5 Coverage 8.8, Correctness 8.9 → AF3의 6.7, 6.2 대비 대폭 개선</li>
+</ul>
+
+<h3>Long Audio Understanding</h3>
+<p>##LongAudioBench에서 AF-Next-Instruct는 73.9를 달성하여, AF3(68.6)과 Gemini 2.5 Pro(60.4)를 큰 격차로 앞선다.## +Speech 변형에서는 81.2로, AF3의 72.9 및 Gemini 2.5 Pro의 66.2를 크게 능가한다. 이는 long-context audio reasoning에서 AF-Next의 강점을 명확히 보여준다.</p>
+
+<h3>Automatic Speech Recognition</h3>
+
+<table>
+<tr><th>Benchmark</th><th>Metric</th><th>Prior Best</th><th>AF3</th><th>AF-Next-Instruct</th></tr>
+<tr><td>LibriSpeech (test-clean / test-other)</td><td>WER↓</td><td>Phi-4-mm: 1.67/3.4</td><td>1.57/3.13</td><td><strong>1.54/2.76</strong></td></tr>
+<tr><td>SPGISpeech</td><td>WER↓</td><td>AF3: 1.86</td><td>1.86</td><td>1.91 (AF3보다 소폭 하락)</td></tr>
+<tr><td>TEDLIUM</td><td>WER↓</td><td>Phi-4-mm: 2.9</td><td>3.5</td><td><strong>3.3</strong></td></tr>
+<tr><td>GigaSpeech</td><td>WER↓</td><td>Phi-4-mm: 9.8</td><td>10.2</td><td><strong>9.8</strong></td></tr>
+<tr><td>Common Voice 15</td><td>WER↓</td><td>Phi-4-mm: 7.6</td><td>7.4</td><td><strong>7.2</strong></td></tr>
+<tr><td>VoxPopuli</td><td>WER↓</td><td>Phi-4-mm: 5.9</td><td>5.6</td><td><strong>5.4</strong></td></tr>
+</table>
+
+<p>##LibriSpeech에서 test-clean WER 1.54, test-other WER 2.76으로 LALM 중 신기록##을 수립. AF3과 Phi-4-mm, Qwen2.5-Omni 모두를 능가한다. Common Voice 15에서도 최고 WER 7.2를 달성.</p>
+
+<h3>Voice Understanding and Speech Translation (Table 2)</h3>
+
+<table>
+<tr><th>VoiceBench</th><th>Qwen2.5-O</th><th>AF3</th><th>AF-Next-Instruct</th></tr>
+<tr><td>AdvBench (Safety)</td><td>99.62</td><td>98.26</td><td><strong>98.84</strong></td></tr>
+<tr><td>AlpacaEval</td><td>4.33</td><td>4.19</td><td><strong>4.43</strong></td></tr>
+<tr><td>CommonEval</td><td>3.84</td><td>3.40</td><td><strong>3.96</strong></td></tr>
+<tr><td>OpenBookQA</td><td>79.12</td><td>66.81</td><td><strong>80.9</strong></td></tr>
+</table>
+
+<p>VoiceBench에서 AF-Next는 모든 subtask에서 최고 점수를 달성하며, ##OpenBookQA에서 AF3 대비 +14pp, Qwen2.5-Omni 대비 +1.8pp##의 개선을 보인다.</p>
+
+<p><strong>CoVoST2 Speech Translation</strong>: EN→X에서 중국어(38.2)와 아랍어(21.9)에서 최고 BLEU. X→EN에서도 중국어(25.6)와 아랍어(29.4)에서 최고 — 특히 아랍어는 EN→X에서 Phi-4-mm(9.9) 대비 +12pp, X→EN에서 Phi-4-mm(5.5) 대비 +23.9pp의 극적 개선으로, 저자원 언어에서 AF-Next의 강한 다국어 음성 이해 능력을 시사한다.</p>
+
+<h2>6. Conclusion and Limitations</h2>
+
+<p>AF-Next는 Audio Flamingo 시리즈의 가장 강력한 모델로, 20개 이상의 벤치마크에서 SOTA를 달성하면서 긴 오디오(최대 30분), 멀티턴 대화, timestamped captioning, 다국어 ASR 등 폭넓은 실세계 능력을 지원한다. Temporal Audio CoT는 시간적 증거에 근거한 추론 패러다임으로, 충실하고 강건한 추론을 가능케 한다.</p>
+
+<p><strong>한계점</strong>:</p>
+<ul>
+  <li><strong>데이터 분포 불균형</strong>: 인터넷 규모로 확장했음에도, 저자원 언어, 희귀 음향 이벤트, 특수 실세계 도메인이 여전히 과소표현</li>
+  <li><strong>시간적으로 분산된 증거의 추론</strong>: 30분 오디오에서 시간적으로 먼/희박한/분산된 증거를 집계하는 것은 여전히 도전적. Temporal CoT가 개선하지만 장기 메모리, 검색, 증거 집계의 추가 연구 필요</li>
+  <li><strong>평가의 불완전성</strong>: multi-talker ASR, speaker diarization, timestamped captioning, voice-to-voice interaction 등 지원 능력에 대한 정량적 평가를 향후 과제로 남김</li>
+</ul>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>재현성</strong>: "Fully open" 선언 — 가중치, 학습 데이터, 코드 모두 공개 예정 (research-only 라이센스). Table 1 결과는 3회 평균으로 통계적 안정성 확보. 학습 하이퍼파라미터도 모든 단계에 대해 상세 기술.</li>
+  <li><strong>Compute 비용</strong>: 128 × H100 GPU로 4단계 학습은 매우 높은 compute 요구. 연구 민주화 관점에서, 더 작은 규모의 변형(smaller LLM backbone 등)에 대한 실험이 부재.</li>
+  <li><strong>생성 능력 부재</strong>: Audio-Omni와 달리 AF-Next는 오디오 <strong>생성/편집</strong> 능력이 없다. Streaming TTS를 제외하면 오디오 출력은 텍스트에 한정된다.</li>
+  <li><strong>벤치마크 선택 편향</strong>: 다양한 벤치마크를 다루지만, multi-talker ASR, speaker diarization, timestamped captioning, voice-to-voice interaction 등 AF-Next가 지원한다고 주장하는 여러 능력에 대한 정량적 평가가 누락. "leave evaluation on these additional tasks to future work"로 미룸.</li>
+  <li><strong>MMSU에서의 격차</strong>: MMSU 63.3은 Gemini-2.5-Flash(66.1) 대비 약 3pp 뒤지며, 클로즈드 모델과의 격차가 여전히 존재함을 보여준다.</li>
+  <li><strong>인터넷 규모 데이터의 노이즈</strong>: Limitations에서 인정했듯이, 인터넷 규모 오디오는 도메인, 언어, 음향 조건에서 불균등하게 분포. 저자원 언어, 희귀 음향 이벤트의 과소표현 문제가 남아있다.</li>
+  <li><strong>Temporal CoT의 범용성</strong>: AF-Think-Time은 43K 샘플에 불과하며, 특정 유형의 오디오(트레일러, 미스터리 등)에 편향될 수 있다. 보다 다양한 도메인의 시간-근거 추론 데이터가 필요할 수 있다.</li>
+  <li><strong>코드/데이터 공개 여부</strong>: 공개 예정 (research-only license). 3가지 모델 체크포인트 + 학습/추론 코드 + 데이터.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>인터넷 규모 데이터 + Curriculum Learning이 핵심</strong>: 학술 데이터셋의 한계를 넘어 실세계 오디오로 확장하되, 단순→복잡→추론의 교육 과정을 따르는 것이 성능과 강건성 모두를 높이는 효과적 전략이다.</li>
+  <li><strong>RoTE는 시간적 추론의 물리적 기반</strong>: 표준 RoPE를 실제 타임스탬프 기반 RoTE로 교체하는 간단한 변경이, 시간적 추론과 long-form 오디오 이해에 중대한 영향을 미친다. 이는 다른 시간축이 중요한 모달리티(비디오 등)에도 적용 가능한 일반적 기법이다.</li>
+  <li><strong>Temporal Audio CoT는 긴 오디오 추론의 돌파구</strong>: 단순히 "더 길게 생각하라"가 아니라 "시간을 짚어가며 추론하라"는 패러다임 전환. hallucination 감소와 추론 효율성(짧은 reasoning trace)을 동시에 달성할 수 있다.</li>
+  <li><strong>세 변형 모델의 상보성</strong>: Instruct(범용), Think(추론), Captioner(설명력) 세 변형이 서로 다른 강점을 가지며, 태스크에 따라 최적 변형이 달라진다. 이는 단일 모델 최적화보다 변형별 특화 전략이 실용적임을 시사한다.</li>
+  <li><strong>Fully open 철학의 중요성</strong>: 가중치+데이터+코드 전면 공개는 재현성과 커뮤니티 발전에 크게 기여하며, 클로즈드 모델과의 격차를 좁히는 데 중요한 첫걸음이다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
