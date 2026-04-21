@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stabilizing MoE Reinforcement Learning by Aligning Training and Inference Routers</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Stabilizing MoE Reinforcement Learning by Aligning Training and Inference Routers (R3)</h1>
+<p style="text-align:right;"><a href="20260421_ma_r3-moe-rl_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Wenhan Ma, Hailin Zhang, Liang Zhao, Yifan Song, Yudong Wang, Zhifang Sui, Fuli Luo</li>
+  <li><strong>소속</strong>: Peking University (State Key Lab of Multimedia Information Processing), Xiaomi LLM-Core, Independent</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (v2, 2025-10-21), Xiaomi MiMo 기술 보고서 계열</li>
+  <li><strong>연도</strong>: 2025</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2510.11370">arxiv.org/abs/2510.11370</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: MoE(Mixture-of-Experts) 모델의 RL 포스트트레이닝에서, <strong>inference engine</strong>(rollout용, 예: SGLang)과 <strong>training engine</strong>(예: Megatron)이 같은 입력에 대해 ##서로 다른 expert를 선택##한다. 이 router inconsistency가 policy KL divergence를 키우고 심한 경우 <strong>catastrophic training collapse</strong>를 초래한다.</li>
+  <li><strong>해결</strong>: <strong>Rollout Routing Replay (R3)</strong> — inference 단계에서 산출된 routing mask $\mathbf{I}_{\mathrm{infer}}$를 기록(cache)해 두고, training forward pass에서 ##softmax의 gating weight는 training logits로 계산하되 어떤 expert를 고를지는 inference mask를 그대로 재사용##한다. 이로써 expert 선택의 불일치를 제거하는 동시에 logit에 대한 gradient flow는 유지된다.</li>
+  <li><strong>왜 작동하는가</strong>: MoE의 비선형성은 주로 <em>discrete한 expert top-K 선택</em>에서 온다. 두 engine이 사소한 numerical 차이로 top-K가 달라지면 expert 조합이 통째로 바뀌어 출력 분포가 크게 흔들린다. R3는 이 discrete 결정만 inference와 일치시켜 대부분의 divergence를 제거(KL $1.5 \times 10^{-3} \to 7.5 \times 10^{-4}$)하면서 gradient는 여전히 logit을 업데이트한다.</li>
+  <li><strong>비유</strong>: 두 명의 요리사(A: inference, B: training)가 같은 레시피 책을 보고 "어느 조수 3명을 부를지"를 각자 고르면 종종 서로 다른 팀을 만들어 맛이 달라진다. R3는 A가 고른 조수 명단을 그대로 B에게 넘겨서 매번 같은 팀으로 요리하되, "각 조수의 역할 비중(gating weight)"만 B가 다시 계산해 연습하도록 한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>MoE RL의 instability 원인 규명</strong>: Training-inference 간 routing 분포 불일치를 체계적으로 분석. Qwen3-30B-A3B 기준 router-level에서 ##10% router가 서로 다른 expert 선택##, token-level에서 94% token이 최소 하나의 layer에서 불일치.</li>
+  <li><strong>Rollout Routing Replay (R3)</strong>: Inference-time routing mask를 training forward pass에 재사용하는 간단하고 효과적인 방법. KL($\pi_{\mathrm{train}} \| \pi_{\mathrm{infer}}$)을 $1.535 \times 10^{-3}$ (MoE w/o R3) → $7.5 \times 10^{-4}$ (MoE w/ R3)로 낮춰 ##Dense 모델 수준에 근접##.</li>
+  <li><strong>Multi-turn/Agent 대응</strong>: Router mask를 KV cache와 함께 prefix caching. Agent tool-use, multi-turn RL 등에서도 re-prefill 없이 R3 적용 가능 (overhead &lt; 3%).</li>
+  <li><strong>체계적 실험 검증</strong>: Qwen3-30B-A3B-SFT/Base × GRPO/GSPO/TIS 조합에서 R3가 ##일관되게 outperform##. Mini-step=1 SFT 조건에서 GRPO+R3 평균점수 71.83, GRPO(붕괴 step 60), GRPO+TIS(붕괴 step 105) 대비 안정적.</li>
+  <li><strong>Multi-turn/Reasoning 확장</strong>: SWE-bench Verified에서 GRPO 31.80 → GRPO+R3 <strong>38.60</strong>(+6.8), Reasoning SFT model에서 GSPO는 90 step에 붕괴 vs GRPO+R3 평균 77.00으로 안정적으로 도달.</li>
+</ol>
+
+<h2>1. 배경 (Preliminaries)</h2>
+
+<h3>1.1 Mixture-of-Experts (MoE)</h3>
+<p>
+MoE[Jacobs et al. 1991, Jordan & Jacobs 1994]는 input을 여러 전문화된 sub-network(expert)로 <strong>sparse routing</strong>하는 아키텍처다. 각 token $t$에 대해 router가 top-$K$ expert만 활성화하므로 total 파라미터는 크지만 토큰당 계산은 작다. 최근 DeepSeek-V3[Liu et al. 2024], Mixtral[Jiang et al. 2024], Qwen3-MoE[Yang et al. 2025] 등 SOTA 모델이 이 구조를 채택. 그러나 <strong>gating network의 민감도</strong>(Dai et al. 2022, Thérien et al. 2025) 때문에 router robustness가 학습 수렴의 핵심 이슈.
+</p>
+<p>MoE layer의 표준 연산:</p>
+$$
+\mathbf{s} = \mathbf{x} \mathbf{W}_r \quad\text{(router logits)}
+$$
+$$
+\mathbf{I} = \mathrm{TopKMask}(\mathbf{s}, K) \in \{0,1\}^M,\ \sum_i I_i = K \quad\text{(expert selection)} \qquad (5)
+$$
+$$
+g_i = \frac{I_i \exp(s_i)}{\sum_{j=1}^{M} I_j \exp(s_j)} \quad (i=1,\dots,M) \qquad (6)
+$$
+$$
+\mathbf{y} = \sum_{i=1}^{M} g_i \mathcal{E}_i(\mathbf{x}) \qquad (7)
+$$
+<p>
+직관적으로: router logits $\mathbf{s}$로 top-$K$만 고른 뒤, 선택된 expert에 대해서만 softmax 정규화해 gating weight를 만들고, expert 출력의 가중합이 layer output. <strong>Discrete한 TopKMask이 모든 문제의 씨앗</strong>이다.
+</p>
+
+<h3>1.2 RLVR과 PPO의 Importance Sampling</h3>
+<p>
+PPO[Schulman et al. 2017]의 objective:
+</p>
+$$
+\mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\ y \sim \pi_{\mathrm{infer}}(\theta_{\mathrm{old}})(\cdot|x)}\left[\frac{1}{|y|} \sum_{t=1}^{|y|} \min\left(w_t(\theta) \hat{A}_t,\ \mathrm{clip}(w_t(\theta), 1-\varepsilon, 1+\varepsilon) \hat{A}_t\right)\right] \qquad (1)
+$$
+$$
+w_t(\theta) = \frac{\pi_{\mathrm{train}}(\theta)(y_t | x, y_{<t})}{\pi_{\mathrm{train}}(\theta_{\mathrm{old}})(y_t | x, y_{<t})}
+$$
+<p>
+핵심 관찰: 데이터는 <strong>inference engine의 policy $\pi_{\mathrm{infer}}$</strong>에서 샘플되지만, loss는 <strong>training policy $\pi_{\mathrm{train}}$</strong>로 계산된다. 두 engine의 구현·최적화 차이(Megatron vs SGLang, FP16 vs BF16 kernel, tensor-parallel layout 등)로 $\pi_{\mathrm{infer}} \ne \pi_{\mathrm{train}}$이 되면 PPO의 importance sampling 가정이 어긋나 gradient가 편향된다.
+</p>
+
+<h3>1.3 기존 완화 기법의 한계</h3>
+<ul>
+  <li><strong>TIS (Truncated Importance Sampling)</strong>[Yao et al. 2025]: $w_t$를 upper clipping. 하지만 MoE에서는 극단치 분포가 두꺼워 clipping이 ##부분적 완화에 그침##.</li>
+  <li><strong>GSPO</strong>[Zheng et al. 2025]: token-level 대신 sequence-level importance ratio를 사용해 variance 감소. MoE instability 원인(router)은 직접 건드리지 않음.</li>
+  <li><strong>Batch-invariant kernel</strong>[T. M. Lab 2025]: 비결정성 자체를 제거. Overhead가 크고 RL용 MoE에는 미적용.</li>
+  <li><strong>Recompute Routing Replay</strong>[Zheng et al. 2025]: Recompute 단계의 routing을 Update 단계에 replay. But rollout과 training framework 차이에서 오는 discrepancy는 해결 못 함. mini-step=1에서는 old/current policy가 동일해져 무효.</li>
+</ul>
+
+<h2>2. Training-Inference Discrepancies 분석</h2>
+
+<h3>2.1 Policy 확률 분포 불일치</h3>
+<p>
+Qwen3-30B-A3B (MoE) vs Qwen3-8B (Dense) 비교. 2,048개 수학 문제에 대해 SGLang으로 2천만 토큰 생성 후, 같은 시퀀스를 Megatron에 forward해 training engine 확률 획득.
+</p>
+
+<p>KL divergence estimator:</p>
+$$
+\mathcal{D}_{\mathrm{KL}}(\pi_{\mathrm{train}}(\theta) \| \pi_{\mathrm{infer}}(\theta)) \approx \frac{1}{|T|} \sum_{t \in T}\left[\frac{\pi_{\mathrm{train}}(\theta)(t)}{\pi_{\mathrm{infer}}(\theta)(t)} - 1 - \log \frac{\pi_{\mathrm{train}}(\theta)(t)}{\pi_{\mathrm{infer}}(\theta)(t)}\right] \qquad (2)
+$$
+
+<p>직관적으로: "같은 토큰에 대해 두 engine이 매기는 확률이 얼마나 다른가"의 일종의 Bregman 거리.</p>
+
+<table>
+<thead>
+  <tr><th>모델</th><th>KL(train‖infer)</th></tr>
+</thead>
+<tbody>
+  <tr><td>Qwen3-30B-A3B (MoE)</td><td>$1.535 \times 10^{-3}$</td></tr>
+  <tr><td>Qwen3-8B (Dense)</td><td>$6.4 \times 10^{-4}$</td></tr>
+  <tr><td>Qwen3-30B-A3B (MoE) + <strong>R3</strong></td><td>$7.5 \times 10^{-4}$ (Dense 수준)</td></tr>
+</tbody>
+</table>
+
+<p>
+관찰: MoE가 Dense보다 KL이 ##약 2.4배 큼##. R3 적용 후 Dense 근방까지 떨어짐.
+</p>
+
+<h3>2.2 Extreme Token Distribution</h3>
+<p>
+일반 KL 값만으로는 "얼마나 극단적 token이 있는지"가 안 보이므로 저자들은 Extreme Token Distribution Function을 정의:
+</p>
+$$
+F(\tau) = \frac{1}{|T|} \sum_{t \in T} \mathbb{1}\left[\max\left(\frac{\pi_{\mathrm{train}}(\theta)(t)}{\pi_{\mathrm{infer}}(\theta)(t)},\ \frac{\pi_{\mathrm{infer}}(\theta)(t)}{\pi_{\mathrm{train}}(\theta)(t)}\right) > \tau\right] \qquad (3)
+$$
+<p>
+직관적으로: "확률 비가 $\tau$배 이상 벌어진 token의 비율".
+</p>
+<blockquote>
+<strong>[Figure 2(d) 설명]</strong>: $\tau \ge 2$ 구간에서 Qwen3-30B-A3B MoE가 Qwen3-8B Dense 대비 ##한 자릿수(order-of-magnitude) 더 많은 extreme token## 보유. 즉, MoE는 "소수의 토큰에서 엄청나게 큰 policy 불일치"를 가진다. 이는 RL에서 importance ratio에 편향을 주는 치명적 영향.
+</blockquote>
+
+<h3>2.3 Router Discrepancies 분석</h3>
+<p>
+MoE의 특수성은 <strong>discrete router decision</strong>. 실험: 2,048개 응답 rollout을 SGLang에서 생성하고, 같은 시퀀스를 Megatron에 feed해 두 routing 분포를 비교.
+</p>
+
+<table>
+<thead>
+  <tr><th>수준</th><th>관찰 결과</th></tr>
+</thead>
+<tbody>
+  <tr><td>Router-level</td><td>약 <strong>10%</strong>의 (토큰,layer) pair에서 inference와 training이 서로 다른 expert 선택 (Figure 3a)</td></tr>
+  <tr><td>Token-level</td><td><strong>94%</strong> token이 forward pass의 최소 한 개 layer에서 router choice 차이 (Figure 3b)</td></tr>
+  <tr><td>Sequence-level</td><td>시퀀스당 토큰당 router 차이 평균 약 <strong>6 routers</strong> (Figure 3c, Qwen3-30B-A3B 기준)</td></tr>
+</tbody>
+</table>
+
+<p>
+해석: Dense 모델은 "function continuity" — input 섭동에 output이 연속적으로 움직인다. MoE router는 discrete argmax로 분기하므로 아주 작은 numerical 섭동이 <em>완전히 다른 expert 조합</em>을 유발해 layer output이 크게 튄다. 이것이 MoE KL이 Dense 대비 더 큰 근본 원인.
+</p>
+
+<h3>2.4 Same Framework, Different Forward Pass</h3>
+<p>
+더 놀라운 관찰: Megatron 한 framework 안에서 <em>같은 시퀀스를 두 번</em> forward해도 결과가 달라진다. KL $= 8.4 \times 10^{-4}$ (Figure 4). 즉, training engine 내부에도 비결정성(kernel non-determinism, reduction order 등)이 존재해 $\pi_{\mathrm{train}}(\theta_{\mathrm{old}})$가 단 한 run 내에서도 안정하지 않다. 이는 PPO의 old policy probability 계산에도 noise를 주입하며 $w_t$를 부정확하게 만든다. R3는 routing mask를 ##두 forward 모두에서 동일##하게 강제하므로 이 noise도 일부 흡수한다.
+</p>
+
+<h2>3. Rollout Routing Replay (R3)</h2>
+
+<h3>3.1 핵심 아이디어</h3>
+<p>
+MoE layer의 training forward pass를 다음과 같이 수정:
+</p>
+<ol>
+  <li>Inference 단계에서 각 token/layer의 <strong>routing mask</strong> $\mathbf{I}_{\mathrm{infer}}$를 캐시.</li>
+  <li>Training forward: router logits $\mathbf{s}_{\mathrm{train}} = \mathbf{x}_{\mathrm{train}} \mathbf{W}_r$를 <em>그대로</em> 계산.</li>
+  <li>Top-K 선택은 $\mathbf{I}_{\mathrm{infer}}$로 replace.</li>
+  <li>Softmax는 training logits 위에서 $\mathbf{I}_{\mathrm{infer}}$로 마스킹:</li>
+</ol>
+$$
+g_{\mathrm{replay},i} = \frac{I_{\mathrm{infer},i} \exp(s_{\mathrm{train},i})}{\sum_{j=1}^{M} I_{\mathrm{infer},j} \exp(s_{\mathrm{train},j})},\ i=1,\dots,M \qquad (8)
+$$
+$$
+\mathbf{y}_{\mathrm{replay}} = \sum_{i=1}^{M} g_{\mathrm{replay},i} \mathcal{E}_i(\mathbf{x}_{\mathrm{train}}) \qquad (9)
+$$
+
+<h3>3.2 왜 이 설계인가</h3>
+<ul>
+  <li><strong>(a) Expert selection alignment</strong>: $\mathbf{I}_{\mathrm{infer}}$를 쓰므로 rollout 때와 정확히 같은 expert 조합 활성화 → logit/출력 불일치 해소.</li>
+  <li><strong>(b) Gradient data flow 보존</strong>: Gating weight가 여전히 $\mathbf{s}_{\mathrm{train}}$의 함수이므로 router 파라미터 $\mathbf{W}_r$로 gradient 흘러간다 → router 학습이 죽지 않는다.</li>
+  <li><strong>간결성</strong>: 단 한 줄의 변경(topk mask를 cache에서 불러오기). 기존 RL framework(GRPO, GSPO, DAPO)에 orthogonal.</li>
+</ul>
+
+<h3>3.3 Multi-Turn Agent Support — Router Mask Caching</h3>
+<p>
+Prefix KV caching은 multi-turn(agent tool-use 등)에서 prefill 연산을 절약한다. 핵심 관찰: MoE router가 결정적(deterministic)이므로, <em>prefix 토큰</em>의 routing mask 역시 KV cache와 함께 저장·재사용 가능. 따라서 R3는 <strong>prefix caching과 자연 호환</strong>되고, agent RL 시 re-prefill overhead 없이 routing mask를 확보할 수 있다. 전체 rollout 대비 overhead는 &lt; 3%.
+</p>
+
+<h3>3.4 이전 방법과의 관계</h3>
+<table>
+<thead>
+  <tr><th></th><th>Recompute Routing Replay[Zheng et al. 2025]</th><th>Rollout Routing Replay (이 논문)</th></tr>
+</thead>
+<tbody>
+  <tr><td>어디서 routing 저장</td><td>Recompute 단계(training engine)</td><td><strong>Rollout 단계(inference engine)</strong></td></tr>
+  <tr><td>어디에 재사용</td><td>Update 단계</td><td>Recompute + Update 단계</td></tr>
+  <tr><td>해결하는 discrepancy</td><td>Model update로 인한 routing drift</td><td>##Framework 차이로 인한 routing discrepancy + update drift##</td></tr>
+  <tr><td>mini-step=1 setting</td><td>effective X (old=current policy)</td><td>여전히 효과</td></tr>
+</tbody>
+</table>
+
+<h2>4. 실험</h2>
+
+<h3>4.1 공통 세팅</h3>
+<ul>
+  <li>Training 수학 데이터: Big-Math-RL-Verified, ORZ-Math 등에서 필터링한 ~100K verifiable 수학 문제.</li>
+  <li>평가 벤치마크: AIME24, AIME25 (Avg@32), AMC23 (Avg@16), MATH500 Lv5 (Avg@4).</li>
+  <li>5 global step마다 평가, 최고 점수와 그 step을 기록. <strong>Crash Step</strong>: 학습이 collapse한 global step(공란 = 붕괴 없음).</li>
+  <li>모델: Qwen3-30B-A3B-Base, Qwen3-30B-A3B-SFT (general instruction-tuned), Qwen3-30B-A3B-ReasoningSFT (Mixture-of-Thoughts long reasoning fine-tuned).</li>
+  <li>Framework: VeRL + Megatron(training) + SGLang(inference). Batch 256, $n=8$ rollout = 2,048 samples/step. Max prompt len 2,048, max gen 30,720.</li>
+  <li>Baselines: <strong>GRPO</strong>(+Clip Higher from DAPO, $\varepsilon_{\mathrm{low}}=0.2$, $\varepsilon_{\mathrm{high}}=0.27$), <strong>TIS</strong>($C=2$), <strong>GSPO</strong>($\varepsilon_{\mathrm{low}}=3 \times 10^{-4}$, $\varepsilon_{\mathrm{high}}=4 \times 10^{-4}$).</li>
+</ul>
+
+<h3>4.2 Table 1: Main Math RL Results (Qwen3-30B-A3B)</h3>
+
+<p>실험 의도: 3가지 학습 구성(multi mini-step SFT, single mini-step SFT, single mini-step Base)에서 R3가 GSPO/TIS/GRPO 대비 stability와 performance 모두 개선하는지 확인.</p>
+
+<table>
+<caption style="text-align:left;font-weight:bold;">Table 1: Best scores (best global step), Crash Step</caption>
+<thead>
+  <tr><th colspan="7">Qwen3-30B-A3B-SFT, mini_step=8, max_global_step=180</th></tr>
+  <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>AMC23</th><th>MATH500 Lv5</th><th>Avg</th><th>Crash</th></tr>
+</thead>
+<tbody>
+  <tr><td>GRPO</td><td>32.81 (65)</td><td>20.73 (90)</td><td>74.84 (60)</td><td>71.83 (100)</td><td>48.84 (100)</td><td>120</td></tr>
+  <tr><td>GSPO</td><td>55.52 (165)</td><td>38.23 (160)</td><td>90.16 (125)</td><td>86.38 (125)</td><td>66.76 (125)</td><td>–</td></tr>
+  <tr><td>GRPO+R3</td><td>57.92 (180)</td><td>38.02 (155)</td><td>90.16 (155)</td><td>88.62 (170)</td><td>68.05 (180)</td><td>–</td></tr>
+  <tr><td><strong>GSPO+R3</strong></td><td><strong>58.44 (160)</strong></td><td><strong>39.17 (160)</strong></td><td><strong>92.50 (170)</strong></td><td>87.87 (165)</td><td><strong>69.00 (165)</strong></td><td>–</td></tr>
+</tbody>
+<thead>
+  <tr><th colspan="7">Qwen3-30B-A3B-SFT, mini_step=1, max_global_step=180</th></tr>
+</thead>
+<tbody>
+  <tr><td>GRPO</td><td>49.06 (45)</td><td>32.08 (50)</td><td>86.41 (55)</td><td>83.77 (55)</td><td>62.23 (55)</td><td>60</td></tr>
+  <tr><td>GRPO+TIS</td><td>54.90 (85)</td><td>36.67 (90)</td><td>88.59 (90)</td><td>85.63 (85)</td><td>66.24 (90)</td><td>105</td></tr>
+  <tr><td><strong>GRPO+R3</strong></td><td><strong>62.92 (165)</strong></td><td><strong>41.98 (170)</strong></td><td><strong>93.91 (165)</strong></td><td><strong>89.93 (155)</strong></td><td><strong>71.83 (165)</strong></td><td>–</td></tr>
+  <tr><td>GRPO+TIS+R3</td><td>58.75 (180)</td><td>41.15 (180)</td><td>91.87 (175)</td><td>88.99 (180)</td><td>70.14 (175)</td><td>–</td></tr>
+</tbody>
+<thead>
+  <tr><th colspan="7">Qwen3-30B-A3B-Base, mini_step=1, max_global_step=180</th></tr>
+</thead>
+<tbody>
+  <tr><td>GRPO</td><td>50.63 (100)</td><td>32.60 (100)</td><td>83.13 (100)</td><td>80.78 (90)</td><td>61.69 (100)</td><td>105</td></tr>
+  <tr><td>GRPO+TIS</td><td>56.77 (170)</td><td>40.10 (170)</td><td>92.50 (175)</td><td>89.37 (180)</td><td>69.22 (170)</td><td>–</td></tr>
+  <tr><td><strong>GRPO+R3</strong></td><td><strong>60.94 (180)</strong></td><td><strong>41.35 (180)</strong></td><td>92.81 (175)</td><td><strong>89.74 (175)</strong></td><td><strong>70.73 (180)</strong></td><td>–</td></tr>
+  <tr><td>GRPO+TIS+R3</td><td>56.67 (170)</td><td>40.42 (170)</td><td><strong>93.12 (175)</strong></td><td>88.99 (165)</td><td>69.17 (175)</td><td>–</td></tr>
+</tbody>
+</table>
+
+<p>이 실험이 뒷받침하는 주장:</p>
+<ul>
+  <li><strong>Multi mini-step (step=8)</strong>: GRPO는 120 step에서 crash. GRPO+R3는 <em>안정적으로 end까지 학습</em>하고 Avg 68.05로 GSPO(66.76) 능가. GSPO+R3는 69.00으로 최고치 — R3가 GSPO와 ##complementary##함을 시사.</li>
+  <li><strong>Single mini-step SFT</strong>: GRPO+R3가 Avg <strong>71.83</strong>으로 TIS(66.24) 대비 +5.58. 심지어 TIS+R3(70.14)보다 R3 단독이 더 높다는 역설적 관찰 — R3가 이미 discrepancy를 대부분 잡으므로 TIS의 추가 clipping이 오히려 유용한 gradient까지 잘라낸다는 해석.</li>
+  <li><strong>Base 모델</strong>: GRPO는 105 step crash. GRPO+R3 안정적이고 최고. R3는 SFT/Base 모두에서 general-purpose.</li>
+</ul>
+
+<h3>4.3 Figure 5–6: Training Dynamics</h3>
+
+<blockquote>
+<strong>[Figure 5 설명]</strong>: SFT & Base 모델 모두에서, R3 없이는 training-inference KL과 $F(\tau=2)$가 학습 진행에 따라 급격히 증가. Crash가 발생하는 조건(예: single mini-step SFT의 GRPO는 step ~60에서 붕괴)을 앞두고 KL과 $F$ 모두 비정상적으로 튀어오름. R3는 ##$F(\tau=2) \le 10^{-4}$ 수준을 학습 전체에 걸쳐 유지##.
+</blockquote>
+
+<blockquote>
+<strong>[Figure 6 설명]</strong>: Base 모델의 <em>sequence length / grad norm / entropy / val score</em> 추이.
+<ul>
+  <li>(a) Sequence length: R3는 초반부터 빠르게 상승 → R3가 올바른 최적화 방향을 즉시 포착. R3 없으면 step 80 이후에야 서서히 증가하고 변동성 큼.</li>
+  <li>(b) Grad norm: R3는 지속적으로 낮고 안정. 불필요한 gradient blow-up 억제.</li>
+  <li>(c) Entropy: R3는 step ~25부터 exploration 시작(entropy 서서히 상승), 나머지는 탐색을 훨씬 늦게 시작하고 진동 격함.</li>
+</ul>
+</blockquote>
+
+<h3>4.4 Reasoning SFT 확장 (Table 3)</h3>
+<p>
+Qwen3-30B-A3B-Base를 long reasoning dataset Mixture-of-Thoughts로 fine-tune한 ReasoningSFT 모델에 대해 학습.
+</p>
+
+<table>
+<thead>
+  <tr><th colspan="7">Qwen3-30B-A3B-ReasoningSFT, mini_step=4, max_global_step=180</th></tr>
+  <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>AMC23</th><th>MATH500 Lv5</th><th>Avg</th><th>Crash</th></tr>
+</thead>
+<tbody>
+  <tr><td>GSPO</td><td>67.50 (35)</td><td>48.33 (20)</td><td>94.21 (60)</td><td>91.79 (35)</td><td>74.62 (55)</td><td>90</td></tr>
+  <tr><td><strong>GRPO+R3</strong></td><td><strong>69.06 (165)</strong></td><td><strong>51.66 (155)</strong></td><td><strong>95.15 (160)</strong></td><td><strong>93.28 (145)</strong></td><td><strong>77.00 (165)</strong></td><td>–</td></tr>
+</tbody>
+<thead>
+  <tr><th colspan="7">Qwen3-30B-A3B-ReasoningSFT, mini_step=1, max_global_step=180</th></tr>
+</thead>
+<tbody>
+  <tr><td>GRPO</td><td>68.54 (25)</td><td>48.95 (25)</td><td>93.90 (30)</td><td>91.23 (20)</td><td>75.30 (25)</td><td>40</td></tr>
+  <tr><td><strong>GRPO+R3</strong></td><td><strong>69.47 (85)</strong></td><td><strong>53.12 (180)</strong></td><td><strong>95.46 (170)</strong></td><td><strong>93.28 (180)</strong></td><td>76.79 (180)</td><td>–</td></tr>
+</tbody>
+</table>
+
+<p>
+관찰: ReasoningSFT는 ##더 빠르게 붕괴##한다(GSPO: 90, GRPO/mini=1: 40). Reasoning 모델은 long CoT 생성으로 시퀀스가 길어 discrepancy 누적이 빠르게 발생. R3는 여기서도 안정을 확보.
+</p>
+
+<h3>4.5 Multi-Turn RL: SWE-bench Verified (Table 2)</h3>
+
+<table>
+<thead>
+  <tr><th>Method</th><th>SWE-bench Verified (Pass@1)</th><th>Best Global Step</th><th>Crash Step</th></tr>
+</thead>
+<tbody>
+  <tr><td>GRPO</td><td>31.80</td><td>70</td><td>90</td></tr>
+  <tr><td><strong>GRPO+R3</strong></td><td><strong>38.60</strong></td><td>160</td><td>–</td></tr>
+</tbody>
+</table>
+
+<ul>
+  <li>Training dataset: R2E-Gym-Lite, validation: SWE-bench Verified.</li>
+  <li>Max seq 65,536, max interaction steps 50, batch 64, lr $2 \times 10^{-6}$, mini_step=1.</li>
+  <li>Router Mask Caching 덕분에 re-prefill 없이 동작 — ##rollout 속도 저하 없음##.</li>
+</ul>
+
+<p>
+의의: R3가 단일 프롬프트/응답이 아니라 <strong>multi-turn tool-use agent</strong> RL에도 그대로 통한다. GRPO+R3 +6.8 점 절대값 상승은 software engineering agent의 큰 step.
+</p>
+
+<h3>4.6 Ablation — 조합 실험에서의 역설</h3>
+<p>
+Single mini-step SFT에서 TIS+R3(70.14) &lt; R3 단독(71.83). 저자 해석: R3가 이미 policy KL을 거의 제거해서 TIS의 추가 importance clipping은 <strong>유효 gradient까지 잘라내는 역효과</strong>를 일으킨다. 반면 multi mini-step + GSPO+R3(69.00)은 R3 단독보다 소폭 개선 — GSPO의 sequence-level IS가 off-policy gap을 추가 완화.
+</p>
+<p>
+이 관찰의 실천적 의미:
+</p>
+<ul>
+  <li>R3를 도입하면 TIS는 <strong>disable</strong>하는 편이 안전.</li>
+  <li>GSPO는 R3와 양립 가능. MoE RL의 표준 레시피로는 GSPO+R3 또는 GRPO+R3.</li>
+</ul>
+
+<h2>5. 구현 세부사항</h2>
+<ul>
+  <li><strong>Framework</strong>: VeRL[Sheng et al. 2024]. Megatron training + SGLang inference.</li>
+  <li><strong>Routing mask 저장</strong>: inference engine에서 각 MoE layer × token의 top-K mask를 캐시. layer당 $M$ expert 중 $K$개 index(보통 $K=8$ 중 top-2 또는 top-8 of 128 등)만 저장 → int8/int4로 압축 가능. 저자 보고 rollout 단 overhead &lt; 3%.</li>
+  <li><strong>Dynamic Sampling</strong>: DAPO 전략 채택. 부분적으로만 정답인 샘플만 유지 후 batch 채움.</li>
+  <li><strong>Expert balancing loss 없음</strong>: auxiliary balancing term을 넣지 않음(논문에 이유는 명시되지 않음).</li>
+</ul>
+
+<h2>6. 비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>6.1 Long-term 효과와 정착 스케일</h3>
+<ul>
+  <li>실험은 max_global_step=180으로 제한. Long-horizon(1,000+ step) 학습에서 R3가 여전히 유효한지는 open.</li>
+  <li>Model scale: 30B-A3B 하나에 집중. 100B+ 초대형 MoE(DeepSeek-V3급)에서의 메모리/대역폭 overhead와 mask caching의 확장성 검증이 필요.</li>
+  <li>More expert / deeper router(예: top-8 of 256): discrepancy의 절대 수치가 달라질 수 있음.</li>
+</ul>
+
+<h3>6.2 이론적 근거의 공백</h3>
+<ul>
+  <li>R3는 "inference 선택을 믿는다"는 디자인이나, 왜 inference routing을 <em>ground truth</em>로 삼아야 하는지(training engine을 믿지 않는지)에 대한 formal justification이 약함. PPO objective는 <em>sampling 분포</em>와의 importance sampling이 핵심이므로, "분포를 맞추기 위해 sampling 쪽에 training을 맞추는" 선택이 자연스럽긴 하다.</li>
+  <li>그러나 inference engine의 routing이 long tail에서 더 정확하다는 보장은 없다. 추후 "routing agreement rate"를 metric으로 두고 소수 consensus voting 등을 결합하는 것도 방향.</li>
+</ul>
+
+<h3>6.3 Compute / Memory Trade-off</h3>
+<ul>
+  <li>Rollout에서 mask 저장 + training에서 mask 로드가 추가 I/O. 저자는 &lt;3% 라고 보고하지만 구현·cluster에 의존적.</li>
+  <li>Prefix caching 의존 — cache invalidation policy, multi-turn에서 cross-turn context 재사용 시 routing mismatch 관리 등 production 세부사항은 언급 수준.</li>
+</ul>
+
+<h3>6.4 다른 문제와의 관계</h3>
+<ul>
+  <li>MoE의 또 다른 유명 문제인 <em>expert collapse</em>(몇 expert만 활성화)는 R3의 범위 바깥. R3는 선택을 inference에 맞추므로 inference 단에서 이미 collapse가 있다면 training도 그대로 따라간다.</li>
+  <li>Non-deterministic training(Figure 4의 same-framework variance)은 R3가 일부 억제하지만 완전히 해결하지는 않는다. T. M. Lab의 batch-invariant kernel과 병행하면 더 이득일 수 있다는 후속 아이디어.</li>
+</ul>
+
+<h3>6.5 코드/모델 공개</h3>
+<ul>
+  <li>논문에는 오픈소스 release 정보가 명시되지 않음(2025-10 버전). Xiaomi MiMo 계열 내부 이용 가능성이 크며, 재현성을 위해서는 VeRL 패치/예제 코드 공개가 유용.</li>
+</ul>
+
+</div>
+
+<h2>7. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>MoE RL의 근본 문제는 "router inconsistency"</strong>: Inference engine과 training engine이 같은 입력에 대해 서로 다른 expert를 활성화하면, importance sampling의 확률 비가 의미를 잃고 policy가 붕괴한다. Dense 모델은 function continuity 덕분에 이 문제가 훨씬 작다.</li>
+  <li><strong>R3는 "simple but deep"한 해결책</strong>: Inference routing mask를 training forward에 그대로 replay하는 단 한 줄 수정으로, KL을 Dense 수준까지 떨어뜨린다. Gradient는 softmax를 통해 유지되므로 router도 계속 학습된다.</li>
+  <li><strong>R3는 다른 optimizer technique과 orthogonal</strong>: GRPO, GSPO, DAPO 어디에든 꽂을 수 있다. 단, ##TIS와는 중복이거나 간섭##할 수 있으니 주의. Practical 레시피: GRPO+R3 (또는 GSPO+R3) on MoE.</li>
+  <li><strong>Agent/Multi-turn RL에도 적용 가능</strong>: Router mask caching으로 prefix KV cache와 호환. SWE-bench Verified에서 GRPO 31.80 → GRPO+R3 <strong>38.60</strong>(+6.8)로 실질적 software engineering agent 성능 향상.</li>
+  <li><strong>추후 연구 방향</strong>: (1) 더 큰 MoE(100B+)에서의 R3 스케일 검증, (2) same-framework non-determinism과 batch-invariant kernel과의 결합, (3) inference routing을 "진짜"로 쓸 때의 이론적 근거 정교화, (4) expert collapse와의 상호작용.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cascaded Conversational TTS — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #5b21b6, #7c3aed, #a855f7);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #5b21b6; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #7c3aed, #ec4899); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #7c3aed; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #7c3aed, #ec4899);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #7c3aed, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #5b21b6; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f5f3ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #7c3aed; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #7c3aed; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #7c3aed; padding: 0 0.4rem; }
+
+  /* ── Top link ── */
+  .top-link { text-align: center; margin: 1rem 0; }
+  .top-link a { color: #7c3aed; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+  .top-link a:hover { text-decoration: underline; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">Meta AI &middot; 2026 &middot; arXiv:2604.08709</div>
+  <h1>한 번만 들려주면 평생 따라 하는 AI 성우</h1>
+  <p class="subtitle">감정 라벨 데이터 10만 장이 아닌, "이런 스타일" 예시 녹음 1개<br>그리고 AI 스스로 자기 목소리를 평가·수정하는 실시간 강화학습</p>
+</div>
+
+<div class="container">
+
+<div class="top-link">
+  <a href="20260421_ouyang_cascaded-tts.html">← 전문가용 상세 요약 보기</a>
+</div>
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "문자 지시서(delightful) 한 줄 + 견본 녹음 한 개만으로<br>AI 성우가 감정을 살려 대사를 읽어낸다."
+</div>
+
+<!-- ===== 배경지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 몇 가지 배경 지식이 필요합니다. AI 음성합성(TTS)이 어떻게 동작하는지, 왜 감정을 담은 음성을 만드는 게 어려운지, 그리고 "예시 하나로 배우는 법(In-Context Learning)"과 강화학습이 어떻게 음성에 쓰이는지 — 총 여섯 가지 개념을 그림과 비유로 차례로 설명합니다.</p>
+  </div>
+
+  <!-- ── 개념 1: TTS의 기본 구조 ── -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5b21b6;">개념 1: TTS(Text-to-Speech)는 어떻게 동작하나?</h3>
+
+  <p style="margin:0.8rem 0;">TTS는 <strong>문자 → 음성 파형(waveform)</strong>을 만드는 시스템입니다. 최신 TTS는 보통 세 단계로 나뉩니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">TTS 파이프라인: 텍스트가 소리로 변하는 여정</text>
+
+      <!-- Step 1: Text -->
+      <rect x="30" y="60" width="130" height="80" rx="12" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="95" y="90" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">1. 입력 텍스트</text>
+      <text x="95" y="113" font-size="11" fill="#475569" text-anchor="middle">"안녕하세요"</text>
+      <text x="95" y="130" font-size="10" fill="#64748b" text-anchor="middle">문자열</text>
+
+      <!-- Arrow 1 -->
+      <path d="M165,100 L205,100" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+
+      <!-- Step 2: Prosody -->
+      <rect x="210" y="60" width="150" height="80" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="285" y="85" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">2. Prosody 모델</text>
+      <text x="285" y="104" font-size="10" fill="#475569" text-anchor="middle">"어떻게 읽을까?"</text>
+      <text x="285" y="120" font-size="9" fill="#64748b" text-anchor="middle">속도, 높낮이, 강세,</text>
+      <text x="285" y="133" font-size="9" fill="#64748b" text-anchor="middle">감정 패턴</text>
+
+      <path d="M365,100 L405,100" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#a2)"/>
+
+      <!-- Step 3: Acoustic -->
+      <rect x="410" y="60" width="150" height="80" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="485" y="85" font-size="12" font-weight="700" fill="#1e3a5f" text-anchor="middle">3. Acoustic 모델</text>
+      <text x="485" y="104" font-size="10" fill="#475569" text-anchor="middle">"누가 읽을까?"</text>
+      <text x="485" y="120" font-size="9" fill="#64748b" text-anchor="middle">음색(timbre),</text>
+      <text x="485" y="133" font-size="9" fill="#64748b" text-anchor="middle">목소리 주파수 스펙트럼</text>
+
+      <path d="M565,100 L605,100" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#a3)"/>
+
+      <!-- Step 4: Vocoder -->
+      <rect x="610" y="60" width="130" height="80" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="675" y="90" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">4. Vocoder</text>
+      <text x="675" y="113" font-size="10" fill="#475569" text-anchor="middle">최종 파형 생성</text>
+      <text x="675" y="130" font-size="10" fill="#64748b" text-anchor="middle">🔊</text>
+
+      <defs>
+        <marker id="a1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#7c3aed"/></marker>
+        <marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#d97706"/></marker>
+        <marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#2563eb"/></marker>
+      </defs>
+
+      <!-- 파형 일러스트 -->
+      <path d="M625 175 Q635 160 645 175 T665 175 T685 160 T705 175 T725 175" stroke="#059669" stroke-width="2" fill="none"/>
+
+      <!-- 설명 영역 -->
+      <rect x="30" y="205" width="710" height="140" rx="12" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="55" y="230" font-size="13" font-weight="700" fill="#5b21b6">왜 단계를 나누나?</text>
+      <text x="55" y="252" font-size="11" fill="#334155">· <tspan font-weight="700">Prosody(운율)</tspan>: "어느 부분을 강조할까? 속도는?" — 문장의 리듬과 감정을 결정</text>
+      <text x="55" y="272" font-size="11" fill="#334155">· <tspan font-weight="700">Acoustic(음향)</tspan>: "이 운율을 어떤 목소리로 낼까?" — 화자의 음색과 음질을 결정</text>
+      <text x="55" y="292" font-size="11" fill="#334155">· <tspan font-weight="700">Vocoder</tspan>: 추상적 음향 특징을 실제 음성 파형(.wav)으로 변환 (예: BigVGAN)</text>
+      <text x="55" y="315" font-size="11" fill="#64748b" font-style="italic">이 분리 덕분에 "감정은 바꾸되 목소리는 유지" 같은 유연한 제어가 가능합니다.</text>
+      <text x="55" y="332" font-size="11" fill="#64748b" font-style="italic">본 논문의 핵심 아이디어도 이 "Prosody-Acoustic 분리"를 한 단계 더 밀어붙인 것입니다.</text>
+    </svg>
+    <div class="diagram-caption">최신 TTS의 4단계 파이프라인: 텍스트 → 운율 → 음향 → 파형</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎼 비유: TTS는 연주회 준비와 같다</div>
+    <p>악보(<strong>텍스트</strong>)만 있다고 연주가 완성되지는 않습니다. 지휘자는 "여기서는 빠르게, 여기서 강하게"라는 <strong>연주 지시(Prosody)</strong>를 줍니다. 그 지시를 <strong>특정 악기 음색(Acoustic)</strong>으로 연주하고, 마이크·앰프 시스템(<strong>Vocoder</strong>)이 객석으로 전달합니다. 같은 악보라도 지휘와 악기 선택에 따라 완전히 다른 연주가 되죠. TTS도 똑같습니다.</p>
+  </div>
+
+  <!-- ── 개념 2: Conversational TTS vs 일반 TTS ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">개념 2: 왜 "대화형 TTS"가 어려운가?</h3>
+
+  <p style="margin:0.8rem 0;">일반 TTS는 오디오북 내레이터처럼 <strong>일정한 톤</strong>으로 읽으면 됩니다. 하지만 대화형(Conversational) TTS는 상황마다 <strong>다른 감정과 스타일</strong>을 실시간으로 맞춰야 합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">일반 TTS vs 대화형 TTS</text>
+
+      <!-- 일반 TTS -->
+      <rect x="40" y="60" width="320" height="230" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="200" y="85" font-size="13" font-weight="700" fill="#475569" text-anchor="middle">일반 TTS (오디오북)</text>
+
+      <rect x="60" y="105" width="280" height="45" rx="8" fill="#e2e8f0"/>
+      <text x="200" y="125" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">"옛날 옛적에 공주가 살았습니다."</text>
+      <text x="200" y="142" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">📖 일정한 내레이션 톤</text>
+
+      <rect x="60" y="165" width="280" height="45" rx="8" fill="#e2e8f0"/>
+      <text x="200" y="185" font-size="11" fill="#475569" text-anchor="middle" font-weight="600">"성 뒤편에는 큰 숲이 있었지요."</text>
+      <text x="200" y="202" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">📖 일정한 내레이션 톤</text>
+
+      <text x="200" y="240" font-size="11" fill="#64748b" text-anchor="middle">→ 같은 스타일 반복</text>
+      <text x="200" y="260" font-size="11" fill="#64748b" text-anchor="middle">→ 쉬움</text>
+      <text x="200" y="278" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">✓ 성공적</text>
+
+      <!-- 대화형 TTS -->
+      <rect x="400" y="60" width="320" height="230" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="560" y="85" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">대화형 TTS (AI 비서)</text>
+
+      <rect x="420" y="105" width="280" height="45" rx="8" fill="#fde68a"/>
+      <text x="560" y="125" font-size="11" fill="#92400e" text-anchor="middle" font-weight="600">User: "오늘 날씨 어때?"</text>
+      <text x="560" y="142" font-size="10" fill="#b45309" text-anchor="middle" font-style="italic">🙂 AI: 밝고 친절하게</text>
+
+      <rect x="420" y="165" width="280" height="45" rx="8" fill="#fde68a"/>
+      <text x="560" y="185" font-size="11" fill="#92400e" text-anchor="middle" font-weight="600">User: "시험 망쳤어..."</text>
+      <text x="560" y="202" font-size="10" fill="#b45309" text-anchor="middle" font-style="italic">😢 AI: 공감하며 부드럽게</text>
+
+      <text x="560" y="240" font-size="11" fill="#92400e" text-anchor="middle">→ 매 턴마다 감정·톤 변화</text>
+      <text x="560" y="260" font-size="11" fill="#92400e" text-anchor="middle">→ <tspan font-weight="700">어려움!</tspan></text>
+      <text x="560" y="278" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">✗ 기존 TTS의 약점</text>
+    </svg>
+    <div class="diagram-caption">대화형 TTS는 상황에 맞춰 fine-grained 스타일을 즉석에서 전환해야 한다</div>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>기존의 해결법</strong>: 감정별 음성 녹음을 수만~수십만 건 모아 AI에 학습시킨다.</p>
+    <p><strong>문제</strong>: 감정 라벨 음성은 매우 비싸고 느리다. "기쁨-중간강도-빠른속도"처럼 <em>fine-grained 조합</em>까지 다 커버하려면 <strong>수백만 건</strong>이 필요. 감정을 30개 x 강도 5단계 x 20개 화자 = 3,000개 조합인데, 각 조합당 충분한 샘플을 확보하는 건 현실적으로 어렵습니다.</p>
+  </div>
+
+  <!-- ── 개념 3: AR + Diffusion 2단계 구조 ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">개념 3: AR(Autoregressive) + Diffusion, 왜 두 단계?</h3>
+
+  <p style="margin:0.8rem 0;">최신 TTS는 보통 두 종류의 모델을 "직렬로" 연결합니다. 각자 잘하는 일이 다르기 때문입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 440" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">두 모델의 역할 분담</text>
+
+      <!-- AR -->
+      <rect x="40" y="60" width="320" height="350" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="200" y="90" font-size="15" font-weight="700" fill="#92400e" text-anchor="middle">AR Prosody 모델</text>
+      <text x="200" y="110" font-size="11" fill="#b45309" text-anchor="middle" font-style="italic">"한 단어씩 순차 생성"</text>
+
+      <!-- AR 동작 -->
+      <rect x="60" y="130" width="280" height="90" rx="8" fill="#fffbeb"/>
+      <text x="70" y="150" font-size="11" font-weight="700" fill="#92400e">어떻게 작동?</text>
+      <text x="200" y="172" font-size="11" fill="#334155" text-anchor="middle">[이전 단어들] → 다음 단어</text>
+      <text x="200" y="190" font-size="11" fill="#334155" text-anchor="middle">[안녕 하세요 오] → "늘"</text>
+      <text x="200" y="208" font-size="11" fill="#334155" text-anchor="middle">한 번에 <strong>하나씩</strong> 예측</text>
+
+      <!-- AR 장점 -->
+      <text x="70" y="245" font-size="11" font-weight="700" fill="#059669">✓ 잘하는 것</text>
+      <text x="70" y="265" font-size="11" fill="#334155">· 단어 간 <strong>리듬과 순서 의존성</strong></text>
+      <text x="70" y="285" font-size="11" fill="#334155">· 문장의 운율(강약, 빠르기) 패턴</text>
+      <text x="70" y="305" font-size="11" fill="#334155">· 감정의 점진적 변화</text>
+
+      <!-- AR 단점 -->
+      <text x="70" y="340" font-size="11" font-weight="700" fill="#dc2626">✗ 못하는 것</text>
+      <text x="70" y="360" font-size="11" fill="#334155">· 음색/음질의 정밀한 모델링</text>
+      <text x="70" y="380" font-size="11" fill="#334155">· 느림 (단어마다 한 번씩 forward)</text>
+
+      <!-- Diffusion -->
+      <rect x="400" y="60" width="320" height="350" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="560" y="90" font-size="15" font-weight="700" fill="#1e3a5f" text-anchor="middle">Diffusion Acoustic 모델</text>
+      <text x="560" y="110" font-size="11" fill="#2563eb" text-anchor="middle" font-style="italic">"노이즈를 점차 음성으로"</text>
+
+      <!-- Diffusion 동작 -->
+      <rect x="420" y="130" width="280" height="90" rx="8" fill="#eff6ff"/>
+      <text x="430" y="150" font-size="11" font-weight="700" fill="#1e3a5f">어떻게 작동?</text>
+      <text x="560" y="172" font-size="11" fill="#334155" text-anchor="middle">노이즈 → 조금씩 제거 → 음성</text>
+      <!-- diffusion visual -->
+      <rect x="430" y="180" width="30" height="20" rx="3" fill="#94a3b8"/>
+      <text x="445" y="193" font-size="8" fill="#fff" text-anchor="middle">🎲</text>
+      <text x="475" y="193" font-size="14" fill="#2563eb">→</text>
+      <rect x="490" y="180" width="30" height="20" rx="3" fill="#60a5fa"/>
+      <text x="505" y="193" font-size="8" fill="#fff" text-anchor="middle">∿</text>
+      <text x="535" y="193" font-size="14" fill="#2563eb">→</text>
+      <rect x="550" y="180" width="30" height="20" rx="3" fill="#3b82f6"/>
+      <text x="565" y="193" font-size="8" fill="#fff" text-anchor="middle">∿∿</text>
+      <text x="595" y="193" font-size="14" fill="#2563eb">→</text>
+      <rect x="610" y="180" width="60" height="20" rx="3" fill="#1e40af"/>
+      <text x="640" y="193" font-size="9" fill="#fff" text-anchor="middle">🎤 음성</text>
+
+      <!-- Diffusion 장점 -->
+      <text x="430" y="245" font-size="11" font-weight="700" fill="#059669">✓ 잘하는 것</text>
+      <text x="430" y="265" font-size="11" fill="#334155">· 고품질 <strong>음색·음질</strong> 합성</text>
+      <text x="430" y="285" font-size="11" fill="#334155">· 미세한 음향 디테일(숨소리 등)</text>
+      <text x="430" y="305" font-size="11" fill="#334155">· 병렬 생성 가능 (빠름)</text>
+
+      <!-- Diffusion 단점 -->
+      <text x="430" y="340" font-size="11" font-weight="700" fill="#dc2626">✗ 못하는 것</text>
+      <text x="430" y="360" font-size="11" fill="#334155">· 순차적 의미 흐름(운율 패턴)</text>
+      <text x="430" y="380" font-size="11" fill="#334155">· 장기 의존성 모델링</text>
+    </svg>
+    <div class="diagram-caption">AR(운율 전문가) + Diffusion(음색 전문가) 직렬 연결이 현재 SOTA 트렌드</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎬 비유: 영화 제작의 역할 분담</div>
+    <p>영화에서 <strong>연출(AR)</strong>은 "이 장면은 긴장감 있게, 저 장면은 느긋하게"라는 감독의 비전을 장면 순서에 따라 설계합니다. 한편 <strong>촬영감독(Diffusion)</strong>은 조명·색감·텍스처로 시각적 품질을 완성합니다. 둘은 각자의 전문 영역이 다르고, 협업해야 한 편의 영화가 완성됩니다. TTS도 마찬가지로 "운율 감독(AR) + 음색 촬영감독(Diffusion)"의 분업 덕에 품질이 올라갑니다.</p>
+  </div>
+
+  <!-- ── 개념 4: Prompt와 In-Context Learning ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">개념 4: "예시만 보여주면 따라 한다" — In-Context Learning</h3>
+
+  <p style="margin:0.8rem 0;">ChatGPT 같은 대형 언어모델이 <strong>예시 한 개</strong>만 보여줘도 새 태스크를 해내는 것을 본 적 있을 겁니다. 이걸 <strong>In-Context Learning(ICL)</strong>이라고 부릅니다. 모델의 파라미터는 전혀 업데이트되지 않지만, 입력에 예시를 포함시키면 모델이 그 패턴을 따라 동작합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">ICL: 파라미터 학습 없이 예시만으로 적응</text>
+
+      <!-- 학습 방식 비교 -->
+      <rect x="40" y="55" width="330" height="335" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="205" y="85" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">전통 방식: Fine-tuning</text>
+
+      <rect x="60" y="100" width="290" height="55" rx="8" fill="#fee2e2"/>
+      <text x="205" y="120" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="600">감정 음성 10,000건 수집</text>
+      <text x="205" y="140" font-size="10" fill="#7f1d1d" text-anchor="middle">→ AI 파라미터 재학습 (GPU 수백 시간)</text>
+
+      <text x="205" y="175" font-size="11" fill="#7f1d1d" text-anchor="middle" font-style="italic">매번 새 스타일 추가할 때마다</text>
+      <text x="205" y="193" font-size="11" fill="#7f1d1d" text-anchor="middle" font-style="italic">처음부터 다시 재학습</text>
+
+      <rect x="60" y="215" width="290" height="90" rx="8" fill="#fee2e2"/>
+      <text x="70" y="235" font-size="11" font-weight="700" fill="#991b1b">단점</text>
+      <text x="80" y="257" font-size="10" fill="#7f1d1d">· 비용: $$$, 시간: 수 일~수 주</text>
+      <text x="80" y="275" font-size="10" fill="#7f1d1d">· 새 스타일마다 데이터 수천 건 필요</text>
+      <text x="80" y="293" font-size="10" fill="#7f1d1d">· fine-grained 조합은 사실상 불가능</text>
+
+      <text x="205" y="340" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">✗ 스케일 안 됨</text>
+
+      <!-- ICL -->
+      <rect x="390" y="55" width="330" height="335" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="555" y="85" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">ICL: 예시만으로 적응</text>
+
+      <rect x="410" y="100" width="290" height="55" rx="8" fill="#d1fae5"/>
+      <text x="555" y="120" font-size="11" fill="#065f46" text-anchor="middle" font-weight="600">고품질 예시 음성 <strong>단 1개</strong></text>
+      <text x="555" y="140" font-size="10" fill="#047857" text-anchor="middle">→ AI에 "참고하세요" 하고 전달</text>
+
+      <text x="555" y="175" font-size="11" fill="#047857" text-anchor="middle" font-style="italic">파라미터 업데이트 <strong>없음</strong></text>
+      <text x="555" y="193" font-size="11" fill="#047857" text-anchor="middle" font-style="italic">즉시 해당 스타일을 따라 함</text>
+
+      <rect x="410" y="215" width="290" height="90" rx="8" fill="#d1fae5"/>
+      <text x="420" y="235" font-size="11" font-weight="700" fill="#065f46">장점</text>
+      <text x="430" y="257" font-size="10" fill="#047857">· 새 스타일 추가 = 예시 오디오 1개 추가</text>
+      <text x="430" y="275" font-size="10" fill="#047857">· 즉시 적용, GPU 재학습 불필요</text>
+      <text x="430" y="293" font-size="10" fill="#047857">· fine-grained 조합도 자유롭게 확장</text>
+
+      <text x="555" y="340" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">✓ 스케일 가능!</text>
+    </svg>
+    <div class="diagram-caption">ICL은 파라미터 변경 없이 예시만으로 새 태스크에 적응하는 강력한 방식</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎭 비유: 성우 오디션</div>
+    <p>감독이 성우에게 말합니다. <strong>"이 장면은 슬픈 톤으로 부탁해요. 참고로 이건 제가 원하는 분위기의 예시입니다."</strong> 감독이 참고용 녹음 1초짜리를 틀어주면, 숙련된 성우는 그 뉘앙스를 즉시 포착해 자기 대사에 녹여냅니다. 성우의 뇌를 고치는 게 아니라, "예시를 듣고 따라 하는" 행위입니다. ICL의 원리가 정확히 이렇습니다.</p>
+  </div>
+
+  <!-- ── 개념 5: Reinforcement Learning in Speech ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">개념 5: AI가 스스로 연습하기 — Reinforcement Learning</h3>
+
+  <p style="margin:0.8rem 0;">AI는 "정답 예시로 배우기(지도학습)"만으로는 한계가 있습니다. 사람의 주관적 선호(이 음성이 <em>자연스러운지</em>)에 맞추려면, AI가 생성한 결과물을 <strong>평가 후 보상</strong>받는 루프가 필요합니다. 이게 <strong>강화학습(Reinforcement Learning, RL)</strong>입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">강화학습 루프 in TTS</text>
+
+      <!-- 루프 중심 -->
+      <circle cx="380" cy="210" r="110" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6"/>
+
+      <!-- 1. 생성 -->
+      <rect x="80" y="100" width="180" height="70" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="170" y="125" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">1. 음성 생성</text>
+      <text x="170" y="145" font-size="10" fill="#475569" text-anchor="middle">AI가 문장을 읽어</text>
+      <text x="170" y="160" font-size="10" fill="#475569" text-anchor="middle">음성 샘플 6개 생성</text>
+
+      <!-- 2. 평가 -->
+      <rect x="500" y="100" width="180" height="70" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="590" y="125" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">2. 품질 평가</text>
+      <text x="590" y="145" font-size="10" fill="#475569" text-anchor="middle">AES-CE 리워드 계산</text>
+      <text x="590" y="160" font-size="10" fill="#475569" text-anchor="middle">"얼마나 듣기 좋은가?"</text>
+
+      <!-- 3. 업데이트 -->
+      <rect x="500" y="260" width="180" height="70" rx="10" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="590" y="285" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">3. AI 업데이트</text>
+      <text x="590" y="305" font-size="10" fill="#475569" text-anchor="middle">고득점 방향으로</text>
+      <text x="590" y="320" font-size="10" fill="#475569" text-anchor="middle">파라미터 미세조정</text>
+
+      <!-- 4. 반복 -->
+      <rect x="80" y="260" width="180" height="70" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="170" y="285" font-size="12" font-weight="700" fill="#1e3a5f" text-anchor="middle">4. 반복</text>
+      <text x="170" y="305" font-size="10" fill="#475569" text-anchor="middle">다음 문장으로</text>
+      <text x="170" y="320" font-size="10" fill="#475569" text-anchor="middle">루프 계속</text>
+
+      <!-- 화살표 -->
+      <defs>
+        <marker id="rla" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#7c3aed"/></marker>
+      </defs>
+      <path d="M262,135 Q380,100 498,135" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#rla)"/>
+      <path d="M590,170 L590,258" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#rla)"/>
+      <path d="M498,295 Q380,320 262,295" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#rla)"/>
+      <path d="M170,258 L170,170" stroke="#7c3aed" stroke-width="2" fill="none" marker-end="url(#rla)"/>
+
+      <!-- 중앙 라벨 -->
+      <text x="380" y="200" font-size="14" font-weight="700" fill="#5b21b6" text-anchor="middle">RL 루프</text>
+      <text x="380" y="220" font-size="11" fill="#64748b" text-anchor="middle">(Online)</text>
+
+      <!-- 아래 설명 -->
+      <text x="380" y="370" font-size="12" fill="#334155" text-anchor="middle">이 루프를 수천 번 반복하면 AI는 "듣기 좋은 음성"을 자연스럽게 만들도록 진화</text>
+    </svg>
+    <div class="diagram-caption">강화학습은 AI가 스스로 생성 → 평가 → 개선을 반복하는 자율 학습 루프</div>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>핵심 질문 — 무엇을 "보상"으로 삼을까?</strong></p>
+    <p>보상은 RL의 전부입니다. 본 논문은 <strong>AES-CE(Aesthetic Quality Score - Content Enjoyment)</strong>라는 "사람이 느끼는 음성 품질을 모방한 AI 평가자"를 보상으로 씁니다. 이는 수많은 사람 평가 데이터로 학습된 모델이며, "이 음성이 자연스럽고 듣기 좋은가?"에 대한 점수를 냅니다.</p>
+  </div>
+
+  <!-- ── 개념 6: Reward Hacking ── -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">개념 6: AI의 꼼수 — Reward Hacking</h3>
+
+  <p style="margin:0.8rem 0;">RL에는 악명 높은 함정이 있습니다. AI가 <strong>보상 점수는 올리되 실제 목적은 망치는 꼼수</strong>를 찾아내는 현상, <strong>Reward Hacking</strong>입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Reward Hacking: AI의 악의 없는 꼼수</text>
+
+      <!-- 시나리오 -->
+      <rect x="40" y="55" width="680" height="60" rx="10" fill="#fff7ed" stroke="#d97706" stroke-width="1.5"/>
+      <text x="380" y="80" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">지시: "감정 있는 음성을 만들어라. AES-CE 점수가 높으면 보상!"</text>
+      <text x="380" y="100" font-size="11" fill="#b45309" text-anchor="middle">원래 목적: 대본을 정확히 읽으면서도 자연스럽게 감정 표현</text>
+
+      <!-- 좋은 학습 -->
+      <rect x="40" y="140" width="330" height="220" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="205" y="165" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">이상적 학습</text>
+
+      <rect x="60" y="180" width="290" height="35" rx="6" fill="#d1fae5"/>
+      <text x="205" y="202" font-size="10" fill="#065f46" text-anchor="middle" font-weight="600">대본: "오늘 날씨가 정말 좋네요."</text>
+      <rect x="60" y="220" width="290" height="35" rx="6" fill="#d1fae5"/>
+      <text x="205" y="242" font-size="10" fill="#065f46" text-anchor="middle">AI 음성: "오늘 날씨가 정말 좋네요!" 🙂</text>
+
+      <text x="205" y="285" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">AES-CE: 4.8 ✓</text>
+      <text x="205" y="305" font-size="11" fill="#065f46" text-anchor="middle">대본 일치: 완벽 ✓</text>
+      <text x="205" y="340" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">✓ 제대로 된 개선</text>
+
+      <!-- Hacking -->
+      <rect x="390" y="140" width="330" height="220" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="555" y="165" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">Reward Hacking (꼼수)</text>
+
+      <rect x="410" y="180" width="290" height="35" rx="6" fill="#fee2e2"/>
+      <text x="555" y="202" font-size="10" fill="#991b1b" text-anchor="middle" font-weight="600">대본: "오늘 날씨가 정말 좋네요."</text>
+      <rect x="410" y="220" width="290" height="35" rx="6" fill="#fee2e2"/>
+      <text x="555" y="242" font-size="10" fill="#991b1b" text-anchor="middle">AI 음성: "와아아아 쉬익~ 음음~" 🎶</text>
+
+      <text x="555" y="285" font-size="11" fill="#991b1b" text-anchor="middle" font-weight="700">AES-CE: 5.0 ✓</text>
+      <text x="555" y="305" font-size="11" fill="#991b1b" text-anchor="middle">대본 일치: <tspan font-weight="700">0%</tspan> ✗</text>
+      <text x="555" y="340" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">✗ 음성은 안 듣기 좋은데 점수만 ↑</text>
+    </svg>
+    <div class="diagram-caption">AI는 보상 점수만 보고, "대본 무시하고 듣기 좋은 소리만 내기" 같은 꼼수를 발견한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">📏 비유: 시험 점수 최적화의 함정</div>
+    <p>선생님이 "시험 점수가 높으면 용돈 준다"고 했을 때, 아이가 공부 대신 <strong>답안 유출이나 커닝</strong>으로 점수만 올린다면? 보상(점수)은 달성됐지만 원래 목적(학습)은 전혀 달성되지 않았습니다. AI도 정확히 이런 식으로 학습하면 <strong>"리워드 해킹"</strong>을 저지릅니다. 본 논문은 이 문제를 해결하기 위해 <strong>CTC loss</strong>라는 "대본을 정확히 읽었는지 검사하는 감독관"을 추가합니다.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>CTC(Connectionist Temporal Classification)</strong>: 생성된 음성이 주어진 대본과 얼마나 잘 정렬되는지를 측정하는 손실 함수. CTC loss가 낮을수록 "제대로 발음하며 읽었다"는 뜻. 본 논문은 리워드를 <code>AES-CE 점수 − 3 × CTC loss</code>로 정의해 <strong>"듣기 좋게 + 정확히 읽기"</strong> 두 조건을 동시에 요구합니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>이 논문의 핵심 아이디어</h2>
+
+  <div class="card card-accent">
+    <p>본 논문은 대화형 TTS의 두 가지 병목(데이터 + 추론 비용)을 동시에 해결합니다. <strong>Cascaded Prompting</strong>으로 데이터 문제를, <strong>ICL-based Online RL</strong>로 추론 품질 문제를 풀어냅니다.</p>
+  </div>
+
+  <!-- 전체 파이프라인 -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5b21b6;">전체 그림: 대화에서 음성까지</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 820 540" xmlns="http://www.w3.org/2000/svg">
+      <text x="410" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Meta AI의 Cascaded Conversational TTS 전체 구조</text>
+
+      <!-- User -->
+      <circle cx="80" cy="90" r="35" fill="#7c3aed"/>
+      <text x="80" y="96" font-size="14" fill="#fff" text-anchor="middle">👤</text>
+      <text x="80" y="140" font-size="11" fill="#475569" text-anchor="middle">User</text>
+      <text x="80" y="158" font-size="10" fill="#64748b" text-anchor="middle">"오늘 기분 어때?"</text>
+
+      <!-- ASR -->
+      <rect x="155" y="65" width="110" height="60" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="210" y="88" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">ASR</text>
+      <text x="210" y="108" font-size="9" fill="#475569" text-anchor="middle">음성 → 텍스트</text>
+      <text x="210" y="120" font-size="9" fill="#475569" text-anchor="middle">변환</text>
+
+      <!-- LLM -->
+      <rect x="290" y="50" width="180" height="90" rx="10" fill="#ede9fe" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="380" y="72" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">LLM (LLaMA 3 70B)</text>
+      <text x="380" y="92" font-size="10" fill="#475569" text-anchor="middle">응답 생성 + 스타일 토큰 결정</text>
+      <rect x="305" y="102" width="75" height="22" rx="4" fill="#fff"/>
+      <text x="342" y="117" font-size="9" fill="#5b21b6" text-anchor="middle">[delightful]</text>
+      <rect x="385" y="102" width="80" height="22" rx="4" fill="#fff"/>
+      <text x="425" y="117" font-size="9" fill="#5b21b6" text-anchor="middle">응답 텍스트</text>
+
+      <!-- Audio Prompt Library -->
+      <rect x="495" y="50" width="150" height="90" rx="10" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="570" y="72" font-size="11" font-weight="700" fill="#1e3a5f" text-anchor="middle">Audio Prompt Lib</text>
+      <text x="570" y="92" font-size="9" fill="#475569" text-anchor="middle">각 스타일마다 1개</text>
+      <text x="570" y="105" font-size="9" fill="#475569" text-anchor="middle">고품질 예시 음성</text>
+      <text x="570" y="125" font-size="14" fill="#2563eb" text-anchor="middle">🎤 🎤 🎤</text>
+
+      <!-- Connect arrows -->
+      <defs>
+        <marker id="pa" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#64748b"/></marker>
+      </defs>
+      <path d="M115,90 L153,90" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#pa)"/>
+      <path d="M265,95 L288,95" stroke="#64748b" stroke-width="1.5" fill="none" marker-end="url(#pa)"/>
+
+      <!-- AR Prosody Model -->
+      <rect x="170" y="220" width="260" height="100" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="300" y="245" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">AR Prosody 모델</text>
+      <text x="300" y="265" font-size="10" fill="#475569" text-anchor="middle">입력: 스타일토큰 + 응답텍스트</text>
+      <text x="300" y="280" font-size="10" fill="#475569" text-anchor="middle">+ fine-grained 오디오 예시</text>
+      <text x="300" y="300" font-size="10" fill="#b45309" text-anchor="middle" font-weight="600">출력: 운율 토큰(어떻게 읽을지)</text>
+
+      <!-- Diffusion Acoustic Model -->
+      <rect x="470" y="220" width="260" height="100" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="600" y="245" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">Diffusion Acoustic 모델</text>
+      <text x="600" y="265" font-size="10" fill="#475569" text-anchor="middle">입력: 운율 토큰</text>
+      <text x="600" y="280" font-size="10" fill="#475569" text-anchor="middle">+ coarse-grained 오디오 예시</text>
+      <text x="600" y="300" font-size="10" fill="#1e40af" text-anchor="middle" font-weight="600">출력: 음향 피처(음색 + 세부음질)</text>
+
+      <!-- 연결 화살표: LLM -> AR -->
+      <path d="M360,140 Q360,180 300,218" stroke="#7c3aed" stroke-width="1.8" fill="none" marker-end="url(#pa)"/>
+      <!-- AudioPromptLib -> AR (fine-grained) -->
+      <path d="M530,140 Q420,180 340,218" stroke="#2563eb" stroke-width="1.5" fill="none" marker-end="url(#pa)" stroke-dasharray="5"/>
+      <text x="430" y="180" font-size="9" fill="#2563eb">fine prompt</text>
+      <!-- AudioPromptLib -> Diffusion (coarse-grained) -->
+      <path d="M600,140 Q600,180 600,218" stroke="#2563eb" stroke-width="1.5" fill="none" marker-end="url(#pa)" stroke-dasharray="5"/>
+      <text x="620" y="180" font-size="9" fill="#2563eb">coarse prompt</text>
+
+      <!-- AR -> Diffusion -->
+      <path d="M430,270 L468,270" stroke="#d97706" stroke-width="2" fill="none" marker-end="url(#pa)"/>
+
+      <!-- Vocoder -->
+      <rect x="320" y="380" width="180" height="70" rx="10" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="410" y="405" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">Vocoder (BigVGAN)</text>
+      <text x="410" y="425" font-size="10" fill="#475569" text-anchor="middle">음향 피처 → 파형(.wav)</text>
+      <text x="410" y="442" font-size="11" fill="#065f46" text-anchor="middle">🔊</text>
+
+      <path d="M600,320 Q600,360 500,400" stroke="#2563eb" stroke-width="2" fill="none" marker-end="url(#pa)"/>
+
+      <!-- RL -->
+      <rect x="40" y="380" width="220" height="100" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" stroke-dasharray="6"/>
+      <text x="150" y="405" font-size="12" font-weight="700" fill="#5b21b6" text-anchor="middle">ICL-based Online RL</text>
+      <text x="150" y="425" font-size="9" fill="#475569" text-anchor="middle">AES-CE 리워드 + CTC loss</text>
+      <text x="150" y="442" font-size="9" fill="#475569" text-anchor="middle">→ AR 모델만 업데이트</text>
+      <text x="150" y="462" font-size="9" fill="#7c3aed" text-anchor="middle" font-style="italic">Acoustic, Vocoder는 고정</text>
+
+      <!-- RL -> AR -->
+      <path d="M260,410 Q260,380 300,325" stroke="#7c3aed" stroke-width="1.8" fill="none" marker-end="url(#pa)" stroke-dasharray="4"/>
+
+      <!-- Output -->
+      <rect x="550" y="380" width="200" height="70" rx="10" fill="#f0f9ff" stroke="#0ea5e9" stroke-width="1.5"/>
+      <text x="650" y="405" font-size="12" font-weight="700" fill="#0c4a6e" text-anchor="middle">최종 음성 출력</text>
+      <text x="650" y="425" font-size="10" fill="#475569" text-anchor="middle">"네, 오늘 기분 좋아요!"</text>
+      <text x="650" y="442" font-size="11" fill="#0ea5e9" text-anchor="middle">😊 🔊</text>
+
+      <path d="M500,415 L548,415" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#pa)"/>
+
+      <!-- 설명 -->
+      <rect x="40" y="500" width="740" height="36" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+      <text x="410" y="524" font-size="11" fill="#475569" text-anchor="middle">핵심 두 가지: ① 두 단계에 다른 granularity의 오디오 프롬프트 투입  ② AR 모델만 RL로 업데이트</text>
+    </svg>
+    <div class="diagram-caption">User 발화 → ASR → LLM(응답 + 스타일토큰) → AR(운율) → Diffusion(음색) → Vocoder → 음성 출력. RL은 AR만 개선한다.</div>
+  </div>
+
+  <!-- Core Idea 1: Cascaded Prompting -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">핵심 1 — Cascaded Prompting: "두 단계에 다른 예시를 준다"</h3>
+
+  <p style="margin:0.8rem 0;">놀라운 실험적 발견: AR 모델과 Diffusion 모델에 <strong>서로 다른 granularity</strong>의 오디오 예시를 주면 성능이 크게 개선됩니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">왜 granularity를 다르게 하나?</text>
+
+      <!-- Fine-grained 설명 -->
+      <rect x="40" y="55" width="320" height="320" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="200" y="80" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">Fine-grained (AR용)</text>
+      <text x="200" y="98" font-size="10" fill="#b45309" text-anchor="middle" font-style="italic">세밀한 감정·스타일</text>
+
+      <text x="60" y="125" font-size="11" font-weight="700" fill="#92400e">스타일 예시:</text>
+      <rect x="70" y="135" width="260" height="22" rx="4" fill="#fde68a"/>
+      <text x="75" y="150" font-size="10" fill="#92400e">[delightful] (기쁨이 넘치는)</text>
+      <rect x="70" y="160" width="260" height="22" rx="4" fill="#fde68a"/>
+      <text x="75" y="175" font-size="10" fill="#92400e">[excited] (흥분한)</text>
+      <rect x="70" y="185" width="260" height="22" rx="4" fill="#fde68a"/>
+      <text x="75" y="200" font-size="10" fill="#92400e">[cheerful] (명랑한)</text>
+      <rect x="70" y="210" width="260" height="22" rx="4" fill="#fde68a"/>
+      <text x="75" y="225" font-size="10" fill="#92400e">[thrilled] (설레는)</text>
+      <text x="200" y="250" font-size="10" fill="#64748b" text-anchor="middle">... 총 20+ 개의 fine 스타일</text>
+
+      <rect x="60" y="275" width="280" height="88" rx="8" fill="#fffbeb"/>
+      <text x="70" y="295" font-size="11" font-weight="700" fill="#92400e">왜 AR에 fine?</text>
+      <text x="80" y="315" font-size="10" fill="#334155">운율(리듬, 강약)은 감정의 섬세한</text>
+      <text x="80" y="330" font-size="10" fill="#334155">차이를 표현해야 함. "기쁨"과 "설렘"의</text>
+      <text x="80" y="345" font-size="10" fill="#334155">리듬은 다름 → fine-grained prompt 필요</text>
+
+      <!-- Coarse-grained -->
+      <rect x="400" y="55" width="320" height="320" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="560" y="80" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">Coarse-grained (Acoustic용)</text>
+      <text x="560" y="98" font-size="10" fill="#2563eb" text-anchor="middle" font-style="italic">큰 카테고리로 그룹화</text>
+
+      <text x="420" y="125" font-size="11" font-weight="700" fill="#1e3a5f">카테고리 예시:</text>
+      <rect x="430" y="135" width="260" height="40" rx="4" fill="#bfdbfe"/>
+      <text x="440" y="152" font-size="10" fill="#1e3a5f" font-weight="600">긍정 톤 그룹</text>
+      <text x="440" y="168" font-size="9" fill="#475569">= delightful + excited + cheerful + thrilled</text>
+      <rect x="430" y="180" width="260" height="40" rx="4" fill="#bfdbfe"/>
+      <text x="440" y="197" font-size="10" fill="#1e3a5f" font-weight="600">차분 톤 그룹</text>
+      <text x="440" y="213" font-size="9" fill="#475569">= calm + thoughtful + sincere</text>
+      <rect x="430" y="225" width="260" height="40" rx="4" fill="#bfdbfe"/>
+      <text x="440" y="242" font-size="10" fill="#1e3a5f" font-weight="600">부정 톤 그룹</text>
+      <text x="440" y="258" font-size="9" fill="#475569">= sad + apologetic + worried</text>
+
+      <rect x="420" y="275" width="280" height="88" rx="8" fill="#eff6ff"/>
+      <text x="430" y="295" font-size="11" font-weight="700" fill="#1e3a5f">왜 Acoustic에 coarse?</text>
+      <text x="440" y="315" font-size="10" fill="#334155">음색(timbre)은 녹음 세션마다 미묘하게</text>
+      <text x="440" y="330" font-size="10" fill="#334155">변함. 매번 다른 prompt를 쓰면 화자가</text>
+      <text x="440" y="345" font-size="10" fill="#334155">"변한 것처럼" 들리는 drift 발생 → coarse로 안정</text>
+    </svg>
+    <div class="diagram-caption">AR은 fine으로 섬세한 운율, Acoustic은 coarse로 안정된 음색. 역할에 맞춘 정보량 조절.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎨 비유: 수채화와 유화 붓의 분업</div>
+    <p>세밀한 얼굴 표정을 그릴 때는 <strong>가는 세필붓(fine)</strong>이 필요합니다. 하지만 배경 하늘의 넓은 면적을 채색할 때 세필붓을 쓰면 ##브러시 자국이 얼룩지고 일관성이 떨어지죠. 대신 <strong>넓은 평붓(coarse)</strong>으로 한 번에 쓸면 고른 색면이 됩니다. TTS에서도 운율(표정)엔 fine을, 음색(배경)엔 coarse를 쓰는 것이 정답이었습니다.</p>
+  </div>
+
+  <!-- Speaker drift -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">Speaker Drift — 왜 granularity가 중요한가</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">세션별 음색 변화가 일으키는 "화자 표류(speaker drift)"</text>
+
+      <!-- 같은 성우의 다른 녹음 세션 -->
+      <rect x="40" y="55" width="330" height="160" rx="12" fill="#fff7ed" stroke="#d97706" stroke-width="1.5"/>
+      <text x="205" y="80" font-size="13" font-weight="700" fill="#92400e" text-anchor="middle">같은 성우, 다른 세션</text>
+
+      <rect x="55" y="95" width="60" height="55" rx="6" fill="#fde68a"/>
+      <text x="85" y="115" font-size="10" fill="#92400e" text-anchor="middle" font-weight="600">2024-03</text>
+      <text x="85" y="130" font-size="9" fill="#475569" text-anchor="middle">녹음실 A</text>
+      <text x="85" y="144" font-size="9" fill="#475569" text-anchor="middle">아침 8시</text>
+
+      <rect x="125" y="95" width="60" height="55" rx="6" fill="#fcd34d"/>
+      <text x="155" y="115" font-size="10" fill="#92400e" text-anchor="middle" font-weight="600">2024-07</text>
+      <text x="155" y="130" font-size="9" fill="#475569" text-anchor="middle">녹음실 B</text>
+      <text x="155" y="144" font-size="9" fill="#475569" text-anchor="middle">오후 3시</text>
+
+      <rect x="195" y="95" width="60" height="55" rx="6" fill="#fbbf24"/>
+      <text x="225" y="115" font-size="10" fill="#92400e" text-anchor="middle" font-weight="600">2024-10</text>
+      <text x="225" y="130" font-size="9" fill="#475569" text-anchor="middle">녹음실 A</text>
+      <text x="225" y="144" font-size="9" fill="#475569" text-anchor="middle">감기 기운</text>
+
+      <rect x="265" y="95" width="60" height="55" rx="6" fill="#f59e0b"/>
+      <text x="295" y="115" font-size="10" fill="#92400e" text-anchor="middle" font-weight="600">2025-01</text>
+      <text x="295" y="130" font-size="9" fill="#475569" text-anchor="middle">녹음실 C</text>
+      <text x="295" y="144" font-size="9" fill="#475569" text-anchor="middle">피곤</text>
+
+      <text x="205" y="180" font-size="11" fill="#92400e" text-anchor="middle">같은 사람이지만 매번 약간씩 다른 음색</text>
+      <text x="205" y="198" font-size="10" fill="#b45309" text-anchor="middle" font-style="italic">(컨디션, 녹음 환경, 마이크, 볼륨...)</text>
+
+      <!-- Drift 시각화 -->
+      <rect x="400" y="55" width="320" height="160" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="560" y="80" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">Drift 문제 (fine-grained Acoustic)</text>
+
+      <text x="420" y="105" font-size="10" fill="#991b1b">멀티턴 대화:</text>
+      <rect x="420" y="115" width="280" height="22" rx="4" fill="#fee2e2"/>
+      <text x="430" y="131" font-size="10" fill="#991b1b">Turn 1: [delightful] 프롬프트 사용 → 음색 A</text>
+      <rect x="420" y="140" width="280" height="22" rx="4" fill="#fee2e2"/>
+      <text x="430" y="156" font-size="10" fill="#991b1b">Turn 2: [excited] 프롬프트 사용 → 음색 A'</text>
+      <rect x="420" y="165" width="280" height="22" rx="4" fill="#fee2e2"/>
+      <text x="430" y="181" font-size="10" fill="#991b1b">Turn 3: [sad] 프롬프트 사용 → 음색 B (다름!)</text>
+
+      <text x="560" y="205" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">같은 "AI 화자"인데 점점 다른 사람처럼...</text>
+
+      <!-- 해결책 -->
+      <rect x="40" y="235" width="680" height="115" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="380" y="260" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">해결: Coarse-grained prompt</text>
+
+      <text x="70" y="285" font-size="11" fill="#065f46">Turn 1: [delightful] → <tspan font-weight="700">"긍정 톤 그룹" 오디오</tspan>로 acoustic 구동 → 음색 A</text>
+      <text x="70" y="305" font-size="11" fill="#065f46">Turn 2: [excited] → <tspan font-weight="700">"긍정 톤 그룹" 오디오</tspan>로 acoustic 구동 → 음색 A (동일!)</text>
+      <text x="70" y="325" font-size="11" fill="#065f46">Turn 3: [sad] → <tspan font-weight="700">"차분 톤 그룹" 오디오</tspan>로 acoustic 구동 → 음색 A'  (약간 변화)</text>
+
+      <text x="380" y="345" font-size="10" fill="#065f46" text-anchor="middle" font-style="italic">같은 그룹 내에서 음색 일관성 유지. 감정 운율은 fine-grained prompt가 담당.</text>
+    </svg>
+    <div class="diagram-caption">Fine-grained prompt를 두 단계에 모두 쓰면 drift 발생. Acoustic에 coarse를 쓰면 일관성 확보.</div>
+  </div>
+
+  <!-- Core Idea 2: ICL-based Online RL -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">핵심 2 — 추론 시 재랭킹 대신, 학습 중 자기개선</h3>
+
+  <p style="margin:0.8rem 0;">기존 방식은 "추론 시 여러 개 생성 → 점수 매겨 best 선택" (Posterior Sampling). 본 논문은 그 대신 "학습 중에 AI 스스로 보상을 보며 파라미터를 업데이트"(ICL-based Online RL)합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 460" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Posterior Sampling vs Online RL</text>
+
+      <!-- Posterior -->
+      <rect x="40" y="55" width="330" height="370" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="205" y="80" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">Posterior Sampling (기존)</text>
+
+      <text x="60" y="110" font-size="11" font-weight="700" fill="#991b1b">추론 시점에:</text>
+
+      <rect x="60" y="125" width="290" height="30" rx="6" fill="#fee2e2"/>
+      <text x="205" y="145" font-size="10" fill="#991b1b" text-anchor="middle">1. 같은 대본으로 <strong>N개(예:6개)</strong> 음성 생성</text>
+      <rect x="60" y="160" width="290" height="30" rx="6" fill="#fee2e2"/>
+      <text x="205" y="180" font-size="10" fill="#991b1b" text-anchor="middle">2. 각각 AES-CE로 점수 매김</text>
+      <rect x="60" y="195" width="290" height="30" rx="6" fill="#fee2e2"/>
+      <text x="205" y="215" font-size="10" fill="#991b1b" text-anchor="middle">3. 최고점 하나만 사용자에게 전달</text>
+
+      <text x="60" y="255" font-size="11" font-weight="700" fill="#991b1b">단점:</text>
+      <text x="75" y="275" font-size="10" fill="#7f1d1d">· 추론 시 <strong>N배 계산량</strong></text>
+      <text x="75" y="293" font-size="10" fill="#7f1d1d">· 모델 자체는 개선되지 않음</text>
+      <text x="75" y="311" font-size="10" fill="#7f1d1d">· 여전히 6번 중 1번이 좋을 확률</text>
+      <text x="75" y="329" font-size="10" fill="#7f1d1d">· 실시간 대화엔 너무 느림</text>
+
+      <text x="205" y="370" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">✗ Inference cost ↑</text>
+      <text x="205" y="395" font-size="11" fill="#991b1b" text-anchor="middle">모델 품질 정체</text>
+
+      <!-- Online RL -->
+      <rect x="390" y="55" width="330" height="370" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="555" y="80" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">ICL-based Online RL (제안)</text>
+
+      <text x="410" y="110" font-size="11" font-weight="700" fill="#065f46">학습 시점에:</text>
+
+      <rect x="410" y="125" width="290" height="30" rx="6" fill="#d1fae5"/>
+      <text x="555" y="145" font-size="10" fill="#065f46" text-anchor="middle">1. 훈련 중 N개 생성 → 리워드 계산</text>
+      <rect x="410" y="160" width="290" height="30" rx="6" fill="#d1fae5"/>
+      <text x="555" y="180" font-size="10" fill="#065f46" text-anchor="middle">2. 리워드로 <strong>AR 모델 자체를 업데이트</strong></text>
+      <rect x="410" y="195" width="290" height="30" rx="6" fill="#d1fae5"/>
+      <text x="555" y="215" font-size="10" fill="#065f46" text-anchor="middle">3. CTC loss로 대본 정렬 강제</text>
+
+      <text x="410" y="255" font-size="11" font-weight="700" fill="#065f46">추론 시점에:</text>
+      <text x="425" y="275" font-size="10" fill="#047857">· 단 <strong>1번</strong>만 생성 (cheap!)</text>
+      <text x="425" y="293" font-size="10" fill="#047857">· 모델이 이미 "best"를 만들도록 학습됨</text>
+      <text x="425" y="311" font-size="10" fill="#047857">· 추론 비용 ↓, 실시간 응답 가능</text>
+      <text x="425" y="329" font-size="10" fill="#047857">· 품질은 CMOS +7.1% 개선</text>
+
+      <text x="555" y="370" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">✓ Cheap inference + 고품질</text>
+      <text x="555" y="395" font-size="11" fill="#065f46" text-anchor="middle">모델 자체가 진화</text>
+    </svg>
+    <div class="diagram-caption">Posterior는 추론 비용을 N배로 키우고, Online RL은 학습에 그 비용을 몰아 넣고 추론은 1회로 끝낸다.</div>
+  </div>
+
+  <!-- Reward 설계 -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">Reward 설계 — AES-CE - 3 × CTC의 의미</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">두 목표를 균형 있게 최적화하는 합성 리워드</text>
+
+      <!-- 수식 비주얼 -->
+      <rect x="80" y="60" width="600" height="80" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2"/>
+      <text x="380" y="90" font-size="18" fill="#5b21b6" text-anchor="middle" font-weight="700">Reward = <tspan fill="#059669">AES-CE 점수</tspan> &minus; <tspan fill="#dc2626">3 × CTC loss</tspan></text>
+      <text x="380" y="118" font-size="11" fill="#64748b" text-anchor="middle">(α_AES = 1.0, α_CTC = 3.0)</text>
+
+      <!-- 항 1 -->
+      <rect x="40" y="170" width="330" height="150" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="205" y="195" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">AES-CE: "듣기 좋은가?"</text>
+      <rect x="55" y="210" width="300" height="30" rx="6" fill="#d1fae5"/>
+      <text x="205" y="230" font-size="10" fill="#065f46" text-anchor="middle">사람 선호를 학습한 AI 평가자</text>
+      <text x="205" y="258" font-size="10" fill="#047857" text-anchor="middle">높을수록 자연스럽고 표현력 있음</text>
+      <text x="205" y="280" font-size="10" fill="#047857" text-anchor="middle">주관적 aesthetic을 수치화</text>
+      <text x="205" y="305" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">→ 높일수록 Reward ↑</text>
+
+      <!-- 항 2 -->
+      <rect x="390" y="170" width="330" height="150" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="555" y="195" font-size="12" font-weight="700" fill="#991b1b" text-anchor="middle">CTC loss: "대본 읽었나?"</text>
+      <rect x="405" y="210" width="300" height="30" rx="6" fill="#fee2e2"/>
+      <text x="555" y="230" font-size="10" fill="#991b1b" text-anchor="middle">생성 음성 ↔ 대본 정렬 체크</text>
+      <text x="555" y="258" font-size="10" fill="#7f1d1d" text-anchor="middle">낮을수록 정확한 발음</text>
+      <text x="555" y="280" font-size="10" fill="#7f1d1d" text-anchor="middle">높으면 잘못 읽었거나 환각</text>
+      <text x="555" y="305" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">→ 낮출수록 Reward ↑ (3배 강하게!)</text>
+    </svg>
+    <div class="diagram-caption">AES는 "좋게 듣기", CTC는 "정확히 읽기". CTC의 3배 가중치로 reward hacking을 강하게 억제.</div>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>성과 — 얼마나 잘 되나?</h2>
+
+  <div class="card card-green">
+    <p>Meta AI의 인하우스 voice actor data와 10명 speaker(미국·영국 영어)에 대해 사람 평가를 수행한 결과, 모든 지표에서 개선이 확인되었습니다.</p>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">+7.5</div>
+      <div class="label">Naturalness CMOS (ICL vs Zero-shot)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+79.6</div>
+      <div class="label">CVAD CMOS (ICL vs Zero-shot)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+5.6</div>
+      <div class="label">CVAD CMOS (ICL vs GPT-4o)</div>
+    </div>
+  </div>
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">+7.1%</div>
+      <div class="label">RL 추가 시 winrate (vs SFT only)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1</div>
+      <div class="label">스타일당 필요한 audio prompt 개수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">6</div>
+      <div class="label">Monte Carlo 샘플 수</div>
+    </div>
+  </div>
+
+  <!-- Table 1 결과 -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5b21b6;">Table 1: Cascaded Prompting 효과</h3>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>Task</th><th>Model</th><th>Baseline</th><th>Net Win Rate</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Naturalness (자연스러움)</td><td>ICL</td><td>Zero-shot baseline</td><td>+7.5%</td></tr>
+      <tr class="highlight-row"><td>CVAD (감정 표현력)</td><td>ICL</td><td>Zero-shot baseline</td><td>+79.6%</td></tr>
+      <tr><td>CVAD (감정 표현력)</td><td>ICL</td><td>GPT-4o</td><td>+5.6%</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+  특히 주목할 점: 프롬프트 없이 zero-shot으로 TTS를 돌리면 감정 표현력(CVAD)이 거의 없어서 <strong>+79.6% net winrate</strong>라는 압도적 차이가 났습니다. 또한 GPT-4o의 external TTS API도 이기는 결과(+5.6)가 나와서 상용 강력 baseline 대비 우위가 입증되었습니다.
+  </p>
+
+  <!-- Table 2 결과 -->
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#5b21b6;">Table 2: Online RL 추가 효과</h3>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>Ablation</th><th>Average Winrate</th><th>95% Confidence Interval</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight-row"><td>RL-AES-CTC vs SFT Only</td><td>+7.1%</td><td>(3.97%, 10.23%)</td></tr>
+    </tbody>
+  </table>
+
+  <p>
+  SFT로 충분히 학습된 모델에 <strong>RL 한 단계를 얹기만 해도 +7.1% 추가 개선</strong>. 95% 신뢰구간이 0을 포함하지 않으므로 통계적으로 유의합니다.
+  </p>
+
+  <!-- CTC 효과 시각화 -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">CTC Regularizer는 정말 필요한가?</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Figure 3의 교훈: CTC 없으면 hallucination 발생</text>
+
+      <!-- With CTC -->
+      <rect x="40" y="55" width="340" height="290" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="210" y="80" font-size="13" font-weight="700" fill="#065f46" text-anchor="middle">CTC 역전파 O</text>
+
+      <!-- AES-CE chart -->
+      <text x="60" y="105" font-size="11" font-weight="700" fill="#065f46">AES-CE Training Score</text>
+      <rect x="60" y="110" width="300" height="80" fill="#fff" stroke="#e2e8f0"/>
+      <polyline points="65,170 120,160 175,140 230,125 285,115 355,110" fill="none" stroke="#059669" stroke-width="2"/>
+      <text x="60" y="200" font-size="9" fill="#64748b">↑ 5.2 → 5.8 꾸준히 상승</text>
+
+      <!-- CTC chart -->
+      <text x="60" y="225" font-size="11" font-weight="700" fill="#065f46">CTC Training Loss</text>
+      <rect x="60" y="230" width="300" height="80" fill="#fff" stroke="#e2e8f0"/>
+      <polyline points="65,245 110,258 170,275 230,285 290,293 355,295" fill="none" stroke="#d97706" stroke-width="2"/>
+      <text x="60" y="325" font-size="9" fill="#64748b">↓ 1.8 → 1.4 (안정적으로 하락)</text>
+
+      <text x="210" y="340" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">✓ 두 목표 동시 달성</text>
+
+      <!-- Without CTC backprop -->
+      <rect x="400" y="55" width="340" height="290" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="570" y="80" font-size="13" font-weight="700" fill="#991b1b" text-anchor="middle">CTC 역전파 X (비교군)</text>
+
+      <text x="420" y="105" font-size="11" font-weight="700" fill="#991b1b">AES-CE Training Score</text>
+      <rect x="420" y="110" width="300" height="80" fill="#fff" stroke="#e2e8f0"/>
+      <polyline points="425,170 480,155 535,135 590,120 645,112 715,110" fill="none" stroke="#059669" stroke-width="2"/>
+      <text x="420" y="200" font-size="9" fill="#64748b">↑ 여전히 상승 (보상은 달성됨)</text>
+
+      <text x="420" y="225" font-size="11" font-weight="700" fill="#991b1b">CTC Training Loss</text>
+      <rect x="420" y="230" width="300" height="80" fill="#fff" stroke="#e2e8f0"/>
+      <polyline points="425,250 480,260 535,260 590,255 645,265 715,260" fill="none" stroke="#dc2626" stroke-width="2"/>
+      <text x="420" y="325" font-size="9" fill="#64748b">↕ 더 높은 수준에 머물며 진동</text>
+
+      <text x="570" y="340" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">✗ 텍스트 환각 발생</text>
+    </svg>
+    <div class="diagram-caption">CTC를 역전파하지 않으면 AES는 오르지만 대본 정확도는 개선되지 않음 = Reward Hacking의 직접 증거</div>
+  </div>
+
+  <!-- Speaker similarity ablation -->
+  <h3 style="margin-top:2.5rem; font-size:1.2rem; color:#5b21b6;">Speaker Similarity — Granularity 선택의 검증</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Figure 2: 3가지 prompting 설정의 Speaker Similarity 비교</text>
+
+      <!-- Chart area -->
+      <rect x="60" y="60" width="640" height="220" fill="#fff" stroke="#e2e8f0"/>
+
+      <!-- Y axis -->
+      <text x="45" y="75" font-size="10" fill="#64748b">0.80</text>
+      <text x="45" y="120" font-size="10" fill="#64748b">0.60</text>
+      <text x="45" y="170" font-size="10" fill="#64748b">0.40</text>
+      <text x="45" y="220" font-size="10" fill="#64748b">0.20</text>
+      <text x="45" y="270" font-size="10" fill="#64748b">0.00</text>
+      <text x="30" y="170" font-size="10" fill="#5b21b6" font-weight="700" transform="rotate(-90 30 170)" text-anchor="middle">Similarity</text>
+
+      <!-- Grid lines -->
+      <line x1="60" y1="75" x2="700" y2="75" stroke="#e2e8f0" stroke-dasharray="2"/>
+      <line x1="60" y1="120" x2="700" y2="120" stroke="#e2e8f0" stroke-dasharray="2"/>
+      <line x1="60" y1="170" x2="700" y2="170" stroke="#e2e8f0" stroke-dasharray="2"/>
+      <line x1="60" y1="220" x2="700" y2="220" stroke="#e2e8f0" stroke-dasharray="2"/>
+
+      <!-- Default only (blue, lowest) -->
+      <polyline points="80,250 130,240 180,245 230,235 280,225 330,230 380,210 430,215 480,205 530,200 580,195 630,190 680,185" fill="none" stroke="#3b82f6" stroke-width="2.5"/>
+
+      <!-- Fine-grained (green, medium) -->
+      <polyline points="80,230 130,205 180,220 230,190 280,175 330,195 380,170 430,180 480,155 530,150 580,145 630,130 680,115" fill="none" stroke="#059669" stroke-width="2.5"/>
+
+      <!-- Coarse-grained (orange, highest) -->
+      <polyline points="80,170 130,140 180,125 230,110 280,120 330,125 380,110 430,100 480,95 530,92 580,88 630,85 680,78" fill="none" stroke="#d97706" stroke-width="3"/>
+
+      <!-- X axis labels -->
+      <text x="80" y="295" font-size="8" fill="#64748b" transform="rotate(-35 80 295)">reflective</text>
+      <text x="180" y="295" font-size="8" fill="#64748b" transform="rotate(-35 180 295)">sad</text>
+      <text x="280" y="295" font-size="8" fill="#64748b" transform="rotate(-35 280 295)">neutral</text>
+      <text x="380" y="295" font-size="8" fill="#64748b" transform="rotate(-35 380 295)">cheerful</text>
+      <text x="480" y="295" font-size="8" fill="#64748b" transform="rotate(-35 480 295)">delightful</text>
+      <text x="580" y="295" font-size="8" fill="#64748b" transform="rotate(-35 580 295)">thrilled</text>
+      <text x="680" y="295" font-size="8" fill="#64748b" transform="rotate(-35 680 295)">apologetic</text>
+
+      <text x="380" y="330" font-size="10" fill="#5b21b6" text-anchor="middle" font-weight="700">Style tokens (20여 개)</text>
+
+      <!-- Legend -->
+      <rect x="500" y="55" width="200" height="50" fill="#fff" stroke="#e2e8f0"/>
+      <line x1="510" y1="67" x2="530" y2="67" stroke="#d97706" stroke-width="3"/>
+      <text x="535" y="70" font-size="9" fill="#92400e" font-weight="700">coarse-grained</text>
+      <line x1="510" y1="82" x2="530" y2="82" stroke="#059669" stroke-width="2.5"/>
+      <text x="535" y="85" font-size="9" fill="#065f46">fine-grained</text>
+      <line x1="510" y1="97" x2="530" y2="97" stroke="#3b82f6" stroke-width="2.5"/>
+      <text x="535" y="100" font-size="9" fill="#1e3a5f">default only</text>
+    </svg>
+    <div class="diagram-caption">Coarse-grained prompt가 모든 스타일에서 speaker similarity 최상. Fine-grained이 중간, default가 최하.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎙 비유: 더빙 스튜디오의 두 계층</div>
+    <p>애니메이션 더빙에서 감독은 "이 장면은 분노로, 저 장면은 슬픔으로"라는 <strong>세부 연기 지시(fine)</strong>를 매 컷마다 내립니다. 하지만 <strong>음향 엔지니어</strong>는 장면마다 마이크와 EQ를 바꾸지 않습니다. 그러면 같은 캐릭터 목소리가 매번 조금씩 달라져 몰입이 깨집니다. 엔지니어는 "이 캐릭터의 톤 그룹" 수준의 <strong>개괄 설정(coarse)</strong>만 유지합니다. TTS의 Cascaded Prompting은 정확히 이 원칙입니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 기존 방법 대비 장점 ===== -->
+<section>
+  <h2>기존 방법 대비 장점</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>항목</th><th>기존 Fine-tuning</th><th>Posterior Sampling</th><th>본 논문 (ICL + Online RL)</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>새 스타일 추가</td>
+        <td>수천~수만 샘플 재학습</td>
+        <td>수만 샘플 재학습</td>
+        <td><strong>예시 음성 1개</strong> 추가</td>
+      </tr>
+      <tr>
+        <td>추론 비용</td>
+        <td>1× (정상)</td>
+        <td>N× (N개 생성 후 재랭킹)</td>
+        <td><strong>1×</strong></td>
+      </tr>
+      <tr>
+        <td>품질 향상 주체</td>
+        <td>파라미터 학습</td>
+        <td>추론 시 선별 (모델은 정체)</td>
+        <td><strong>모델 자체가 학습 중 진화</strong></td>
+      </tr>
+      <tr>
+        <td>Reward hacking 통제</td>
+        <td>없음 (학습만)</td>
+        <td>re-rank 단계에서만</td>
+        <td><strong>CTC loss 내재화</strong></td>
+      </tr>
+      <tr>
+        <td>Speaker drift</td>
+        <td>단일 프롬프트 쓰면 발생</td>
+        <td>발생 가능</td>
+        <td><strong>Granularity 분리로 구조적 완화</strong></td>
+      </tr>
+      <tr>
+        <td>실시간 AI 시스템 호환</td>
+        <td>가능 (정적 모델)</td>
+        <td>어려움 (비용)</td>
+        <td><strong>가능 (1× 추론, LLM과 직결)</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="analogy">
+    <div class="analogy-title">🏃 비유: 마라톤 선수 훈련</div>
+    <p><strong>Posterior Sampling</strong>은 "대회날 10번 뛰고 그중 가장 빠른 기록만 채택"하는 방식입니다. 순위는 좋아지지만 10배 힘들고 현실적으로 불가능합니다. <strong>Online RL</strong>은 "훈련 때 매일 10번씩 뛰며 기록을 측정하고 폼을 교정하되, 대회날엔 한 번만 뛰면 되는" 방식입니다. 훈련의 부담을 옮기고 대회(추론)에서는 절약합니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>어디에 쓰일 수 있나?</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg">
+      <text x="380" y="28" font-size="15" font-weight="700" fill="#5b21b6" text-anchor="middle">Cascaded TTS의 잠재적 활용</text>
+
+      <!-- 중심 -->
+      <circle cx="380" cy="210" r="65" fill="#5b21b6"/>
+      <text x="380" y="205" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">Cascaded TTS</text>
+      <text x="380" y="225" font-size="10" fill="#fff" text-anchor="middle">핵심 기술</text>
+
+      <!-- 7 apps -->
+      <!-- App 1: AI Assistant -->
+      <circle cx="120" cy="100" r="50" fill="#7c3aed"/>
+      <text x="120" y="95" font-size="14" fill="#fff" text-anchor="middle">🤖</text>
+      <text x="120" y="115" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">AI 음성 비서</text>
+      <path d="M165,130 L325,180" stroke="#7c3aed" stroke-width="2" fill="none"/>
+
+      <!-- App 2: Podcast -->
+      <circle cx="640" cy="100" r="50" fill="#a855f7"/>
+      <text x="640" y="95" font-size="14" fill="#fff" text-anchor="middle">🎙</text>
+      <text x="640" y="115" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">팟캐스트 생성</text>
+      <path d="M595,130 L435,180" stroke="#a855f7" stroke-width="2" fill="none"/>
+
+      <!-- App 3: Games -->
+      <circle cx="70" cy="240" r="50" fill="#ec4899"/>
+      <text x="70" y="235" font-size="14" fill="#fff" text-anchor="middle">🎮</text>
+      <text x="70" y="255" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">게임 NPC</text>
+      <path d="M120,230 L315,220" stroke="#ec4899" stroke-width="2" fill="none"/>
+
+      <!-- App 4: Audiobook -->
+      <circle cx="690" cy="240" r="50" fill="#f59e0b"/>
+      <text x="690" y="235" font-size="14" fill="#fff" text-anchor="middle">📖</text>
+      <text x="690" y="255" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">오디오북</text>
+      <path d="M640,235 L445,220" stroke="#f59e0b" stroke-width="2" fill="none"/>
+
+      <!-- App 5: Call Center -->
+      <circle cx="150" cy="370" r="50" fill="#06b6d4"/>
+      <text x="150" y="365" font-size="14" fill="#fff" text-anchor="middle">📞</text>
+      <text x="150" y="385" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">상담 콜봇</text>
+      <path d="M195,340 L330,260" stroke="#06b6d4" stroke-width="2" fill="none"/>
+
+      <!-- App 6: VR/AR -->
+      <circle cx="380" cy="380" r="50" fill="#10b981"/>
+      <text x="380" y="375" font-size="14" fill="#fff" text-anchor="middle">🥽</text>
+      <text x="380" y="395" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">VR/AR 캐릭터</text>
+      <path d="M380,330 L380,275" stroke="#10b981" stroke-width="2" fill="none"/>
+
+      <!-- App 7: Education -->
+      <circle cx="610" cy="370" r="50" fill="#8b5cf6"/>
+      <text x="610" y="365" font-size="14" fill="#fff" text-anchor="middle">🎓</text>
+      <text x="610" y="385" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">교육 튜터</text>
+      <path d="M565,340 L430,260" stroke="#8b5cf6" stroke-width="2" fill="none"/>
+    </svg>
+    <div class="diagram-caption">실시간 감정 표현이 필요한 거의 모든 음성 인터페이스에 응용 가능</div>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>특히 강력한 적용처</strong>: 1) Meta의 AI 비서(Meta AI, WhatsApp 음성 기능 등)에 자연스러운 응답 음성 제공. 2) 캐릭터가 여러 감정을 표현해야 하는 게임 및 VR 환경. 3) 다양한 목소리와 톤이 필요한 오디오 드라마/팟캐스트 자동 생성.</p>
+  </div>
+
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "텍스트 지시 + 짧은 예시 음성 + AI 자기평가"의 3종 세트로,<br>
+    감정 라벨링 없이도 자연스럽고 다채로운 AI 목소리를 만든다.
+  </div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점 — 아직 완벽하지 않은 부분</h2>
+
+  <div class="card card-orange">
+    <p><strong>1. 인하우스 데이터·인하우스 모델</strong></p>
+    <p>Meta의 voice actor 데이터와 인하우스 TTS 시스템을 사용. 논문은 "공개 데이터로도 재현 가능할 것"이라고 말하지만 실제 오픈소스 코드/모델은 공개되지 않음. 외부 연구자가 같은 품질을 재현하기는 어렵다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>2. Subjective 평가에 크게 의존</strong></p>
+    <p>AES-CE reward 자체가 사람 판단을 모방한 모델이고, 최종 평가도 CMOS(사람 비교 평가) 기반. 객관적 수치(예: Word Error Rate, F0 RMSE)는 공개되지 않아 일부 축에서의 개선이 숫자로 검증되지 않았다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>3. Human-in-the-Loop 병목</strong></p>
+    <p>각 style token당 candidate audio 10개+ 생성 후 사람이 청취해 1개를 선별. 스타일 수가 수백 개로 확장되면 큐레이션 비용이 다시 병목이 된다. 완전 자동화된 prompt 선별 방식은 추후 과제.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>4. KL 계수가 매우 크다 (β=50)</strong></p>
+    <p>SFT baseline에서 크게 벗어나지 못하는 보수적 탐색. 더 공격적인 탐색(β 작게)에서 모델이 어떤 행동을 보이는지(과장된 감정 표현이나 품질 저하 등) 분석이 없음.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>5. Ethics Statement 부재</strong></p>
+    <p>Voice cloning 기술은 deepfake 음성, 사칭 사기 등 오남용 위험이 크다. 논문은 인하우스 voice actor data를 썼다고 하나, 실제 배포 시 consent mechanism, 워터마킹, misuse 방지 가이드에 대한 논의가 없음.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p><strong>6. 평가 규모 제한</strong></p>
+    <p>CVAD 평가는 스타일당 50샘플, rater 5명. 분산이 적지 않을 수 있으며, 스타일별 차별적 효과(예: "기쁨"에서 효과 크고 "슬픔"에서 효과 작음) 같은 breakdown은 제공되지 않는다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 요약 ===== -->
+<section>
+  <h2>한눈에 보는 요약</h2>
+
+  <div class="card card-accent">
+    <ul style="padding-left: 1.2rem;">
+      <li><strong>문제</strong>: 감정 있는 대화형 TTS는 대규모 감정 라벨링 데이터가 필요 → 현실적으로 scale 안 됨</li>
+      <li><strong>아이디어 1 (Cascaded Prompting)</strong>: LLM이 만든 style token + 사람이 큐레이션한 1개 예시 음성 = ICL 기반 single-shot 스타일 전이</li>
+      <li><strong>아이디어 2 (Prosody-Timbre Decoupling)</strong>: AR(운율)에는 fine prompt, Diffusion(음색)에는 coarse prompt → speaker drift 방지</li>
+      <li><strong>아이디어 3 (ICL-based Online RL)</strong>: 추론 비용을 학습으로 옮기고, AR 모델을 AES-CE 리워드로 직접 학습. 추론은 1회만</li>
+      <li><strong>아이디어 4 (CTC Regularizer)</strong>: AES 단독 최적화는 reward hacking 유발. CTC loss를 3배 가중치로 결합해 대본 정렬 강제</li>
+      <li><strong>성과</strong>: ICL이 Zero-shot 대비 CVAD +79.6, GPT-4o 대비 +5.6. RL 추가로 CMOS +7.1% winrate</li>
+      <li><strong>가치</strong>: 실시간 AI 음성 비서·게임 NPC·오디오북 자동 생성 등 expressive TTS가 필요한 제품에 즉시 적용 가능</li>
+    </ul>
+  </div>
+</section>
+
+<div class="top-link" style="margin-top:2rem;">
+  <a href="20260421_ouyang_cascaded-tts.html">← 전문가용 상세 요약으로 돌아가기</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p>Zhicheng Ouyang et al. "Enhancing Conversational TTS with Cascaded Prompting and ICL-Based Online Reinforcement Learning"</p>
+  <p>Meta AI, 2026 &middot; arXiv:2604.08709 &middot; <a href="https://incontts.github.io/InConTTSDemo/" style="color:#7c3aed;">Demo</a></p>
+</div>
+
+</body>
+</html>

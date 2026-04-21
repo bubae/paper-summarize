@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enhancing Conversational TTS with Cascaded Prompting and ICL-Based Online RL</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Enhancing Conversational TTS with Cascaded Prompting and ICL-Based Online Reinforcement Learning</h1>
+<p style="text-align:right;"><a href="20260421_ouyang_cascaded-tts_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhicheng Ouyang, Seong-Gyun Leem, Bach Viet Do, Haibin Wu, Ariya Rastrow, Yuzong Liu, Florian Metze</li>
+  <li><strong>소속</strong>: Meta AI, USA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026-04-09)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.08709">arxiv.org/abs/2604.08709</a></li>
+  <li><strong>데모</strong>: <a href="https://incontts.github.io/InConTTSDemo/">incontts.github.io/InConTTSDemo</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 표현력 있는 conversational TTS는 fine-grained 음성 스타일·감정 제어를 위해 대규모로 감정 라벨링된 음성 데이터가 필요하지만, 이런 데이터는 확보·주석이 매우 비싸다.</li>
+  <li><strong>해결</strong>: LLM이 만드는 <strong>textual style token</strong>과 사람이 엄선한 <strong>audio prompt</strong>를 짝지어 cascaded AR-prosody + Diffusion-acoustic 파이프라인에 공급하는 <strong>In-Context Learning(ICL) 기반 프롬프트 프레임워크</strong>를 제안. 추가로, 추론 시점의 posterior sampling을 학습 시점으로 옮긴 <strong>ICL-based online RL</strong>에서 AES-CE(주관 미적 품질) 리워드와 CTC (Connectionist Temporal Classification) 정렬 loss를 결합해 AR prosody 모델을 직접 최적화한다.</li>
+  <li><strong>왜 작동하는가</strong>: 각 style token에 대응되는 한 개의 고품질 오디오 프롬프트가 ICL 컨텍스트 역할을 해서, 가중치 업데이트 없이 단일 샘플만으로도 세밀한 스타일이 TTS에 전이된다. AR 모델은 prosody를, Diffusion 모델은 timbre를 담당하도록 **prosody-timbre decoupling**을 도입해 speaker drift를 억제하고, CTC loss가 "reward hacking"(리워드만 높이려고 텍스트를 왜곡하는 현상)을 억제한다.</li>
+  <li><strong>비유</strong>: 외국어 성우 더빙을 한 마디씩 녹음해 두지 않고, "이 문장은 이런 뉘앙스로"라는 텍스트 지시서(textual style token)와 한 줄짜리 견본 녹음(audio prompt) 한 개씩만 주면 성우가 나머지를 즉석에서 해내는 것. 품질 평가는 AES-CE라는 "관객 만족도 계기판"이 실시간으로 체크하고, CTC는 "대본을 빼먹지 말 것"이라는 감독의 주의이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Cascaded Prompting Framework</strong>: Textual style token과 audio prompt를 함께 사용하는 2단계(AR prosody + Diffusion acoustic) cascaded TTS 파이프라인. 각 스타일 토큰마다 하나의 고품질 오디오 프롬프트만 있으면 fine-grained 스타일 적응이 가능해, 감정 라벨링 대규모 데이터 없이 ##single-shot 스타일 전이##를 실현한다.</li>
+  <li><strong>Prosody-Timbre Decoupling</strong>: AR prosody 모델은 fine-grained style prompt를 사용해 운율을 제어하고, Diffusion acoustic 모델은 coarse-grained style prompt만 사용해 음색을 제어한다. 두 단계의 audio prompt 화자가 서로 달라도 됨을 실증하며, speaker drift를 구조적으로 완화한다.</li>
+  <li><strong>ICL-based Online RL</strong>: 기존의 "여러 샘플을 뽑아 best 후보를 posterior로 고르기" 대신, 학습 중 AR prosody 모델 자체를 subjective aesthetic reward(AES-CE)로 직접 업데이트. 추론 시 동일한 audio prompt를 사용하므로 policy가 ICL 조건에 맞춰 정렬된다.</li>
+  <li><strong>CTC Regularizer로 Reward Hacking 억제</strong>: AES-CE만 보상하면 텍스트 환각이 유발되는 reward hacking이 발생. 이를 막기 위해 CTC alignment loss를 reward에 결합해 문자열 일치 제약을 유지한다.</li>
+  <li><strong>실증적 검증</strong>: Human CMOS 평가에서 ICL 모델이 Zero-shot 대비 Naturalness +7.5, CVAD +79.6, GPT-4o 대비 CVAD +5.6 net win rate. RL-AES-CTC가 SFT-only 대비 CMOS +7.1% winrate, 95% CI (3.97%, 10.23%)로 통계적 유의성 확보.</li>
+</ol>
+
+<h2>1. 배경과 Motivation</h2>
+
+<h3>1.1 Expressive TTS의 두 패러다임</h3>
+<p>
+Expressive conversational TTS 연구는 크게 두 흐름으로 나뉜다.
+</p>
+<ol>
+  <li><strong>2단계(Cascaded) 파이프라인</strong>: AR 모델이 텍스트로부터 semantic/prosody token을 예측하고, NAR(non-autoregressive) 모델이 이 token으로부터 acoustic feature를 생성. 대표적으로 MoonCast[6]와 CoVoMix[7]가 있다. Prosody와 timbre를 별도 단계에서 다루기에 각 축을 독립적으로 제어하기 쉽다.</li>
+  <li><strong>End-to-End Generative</strong>: Flow matching/diffusion 기반 단일 모델로 대화 waveform을 한번에 합성. ZipVoice-Dialog[8], CoVoMix2[9]가 이에 해당. 또 다른 방향으로 NotebookLM[10]·Sesame-CSM[11]은 hierarchical transformer가 token을 autoregressive하게 생성한 뒤 디코더가 waveform으로 변환.</li>
+</ol>
+
+<h3>1.2 Emotion 제어 방식의 진화</h3>
+<p>
+감정 제어는 크게 3세대로 진화해왔다.
+</p>
+<ul>
+  <li><strong>1세대 - Discrete 카테고리</strong>: happiness, sadness, anger 같은 mainstream emotion label로 코스한 감정 제어[1, 2].</li>
+  <li><strong>2세대 - Dimensional 모델</strong>: Valence(쾌-불쾌), Arousal(각성), 선택적 Dominance(지배성) 연속 축을 조절해 fine-grained 감정 제어[3, 4].</li>
+  <li><strong>3세대 - Natural Language Description</strong>: 자연어로 감정과 스타일을 자유롭게 기술. EmoVoice[5]가 LLM을 활용해 자유 텍스트 감정 prompting 가능.</li>
+</ul>
+<p>
+본 논문은 이 3세대 흐름에서 출발하지만, 자연어 description만으로는 aesthetic quality와 일관성 제어가 어렵다는 점을 지적하며, 텍스트 토큰 + 오디오 프롬프트의 하이브리드 접근을 취한다.
+</p>
+
+<h3>1.3 강화학습 기반 TTS 개선</h3>
+<p>
+TTS 품질 향상을 위한 RL은 크게 두 갈래다.
+</p>
+<ul>
+  <li><strong>Online RL</strong>: 모델이 생성 → reward 평가 → 업데이트 루프를 실시간으로 수행. Emotion detector[12], UTMOS predictor, diffusion-based perceptual loss 등으로 reward 설계[13].</li>
+  <li><strong>Offline RL / Preference Optimization</strong>: Gao et al. Emo-DPO[14] 같은 DPO 기반 접근으로 감정 선호도 정렬.</li>
+</ul>
+<p>
+기존 online RL은 감정 ##discriminability나 perceptual speech quality에 초점##을 맞추지만, aesthetic/naturalness에 대한 subjective human preference를 직접 reward로 쓰는 사례는 제한적이었다. 본 논문은 AES-CE(Aesthetic Quality Score - Content Enjoyment)를 reward로 삼고, 대표 prompting 파이프라인과 자연스럽게 결합되도록 설계했다.
+</p>
+
+<h3>1.4 왜 ICL인가</h3>
+<p>
+LLM의 ICL(In-Context Learning)은 가중치 업데이트 없이도 예시만으로 새 태스크에 적응한다. TTS 맥락에서도 audio prompt를 "예시"로 제공하면 모델이 paralinguistic 특성(prosody, valence, arousal, dominance)을 추출해 새로운 발화에 적용할 수 있다. 핵심 관찰: <em>fine-grained 스타일마다 단 하나의 high-quality audio prompt</em>만 큐레이션하면 수천 개의 감정 speech sample을 학습 데이터로 수집하는 것보다 훨씬 확장성이 좋다.
+</p>
+
+<h2>2. Proposed Approach</h2>
+
+<h3>2.1 전체 구조</h3>
+<div class="flow-diagram">[User 발화] → ASR → LLM(conversational context 관리)
+                                              │
+                                              ├─ textual style token 생성
+                                              │       (예: [excited], [cheerful], [thrilled])
+                                              │
+                                              └─ 문맥 텍스트 응답(text)
+                                                    │
+Audio Prompts Library (style↔audio 매핑)           │
+         │ (fine-grained prompt)                    │
+         ▼                                          ▼
+    [AR Prosody Model] ← textual style token + 응답 text
+         │ (prosody tokens)
+         │
+         │ (coarse-grained prompt)
+         ▼
+    [Acoustic Model (Diffusion)] ← prosody tokens
+         │
+         ▼
+    [Vocoder(BigVGAN)] → waveform
+
+        ▲
+        │ Online RL (AES-CE + CTC)
+        │ AR prosody만 업데이트         </div>
+
+<p>
+Figure 1에 따르면 전체 파이프라인은 ##ASR → LLM → AR prosody decoder → Acoustic model → Vocoder## 순서이다. LLM은 text 응답과 함께 textual style token을 생성해 TTS에 전달한다. 주목할 것은 cascaded 구조 안의 두 지점(AR, Acoustic)에서 audio prompt가 각각 ##granularity 다르게## 투입된다는 점이다.
+</p>
+
+<h3>2.2 Cascaded Prompting</h3>
+
+<h4>2.2.1 Textual Style Token</h4>
+<p>
+LLM이 expressive text prompt와 surrounding conversational context를 바탕으로 contextually 적합한 style token을 생성한다. 예시: <code>[delightful]</code>, <code>[excited]</code>, <code>[cheerful]</code>, <code>[thrilled]</code>. 이 토큰이 TTS의 1차 expressivity control signal이다. 중요한 설계 특징: <strong>fully compatible with real-time AI systems</strong>. 즉, LLM 생성 토큰을 그대로 downstream TTS가 소비하므로, 추가 intermediate 모듈 없이 실시간 음성 응답 시스템에 꽂을 수 있다.
+</p>
+
+<h4>2.2.2 Audio Prompt의 역할</h4>
+<p>
+Textual style token은 "어떤 스타일인지"를 나타내는 ##discrete 라벨##이지만, 모델이 그 라벨의 실제 paralinguistic 정취(prosody, valence, arousal, dominance)를 구체화하려면 참조 음성이 필요하다. Audio prompt가 이 역할을 한다. 각 스타일 토큰마다 10개 이상의 후보 오디오를 생성해 사람이 선별하며, 최종 한 개만 사용한다.
+</p>
+
+<h4>2.2.3 AR Prosody Prompting (Fine-grained)</h4>
+<p>
+AR prosody 모델은 대규모 인간 음성 코퍼스로 사전학습되어, 임의 voice style의 prosody를 capture하는 discrete acoustic token을 생성하도록 pretrained 되어 있다. <strong>Fine-grained</strong> audio prompt가 AR 모델에 투입된다. 선별 절차:
+</p>
+<ol>
+  <li>각 candidate audio prompt 당 ##AES-CE##(Aesthetic Quality Score on Content Enjoyment)를 Monte Carlo로 평가하고 lower-bound score를 계산.</li>
+  <li>Lower-bound가 threshold 이상인 후보만 살리고 최고 점수 후보를 선택.</li>
+  <li>Human-in-the-loop validation으로 artifact(hallucination, 부자연스러운 호흡 등) 필터링.</li>
+</ol>
+
+<h4>2.2.4 Diffusion-based Acoustic Prompting (Coarse-grained)</h4>
+<p>
+Acoustic 단계에서 동일한 fine-grained prompt를 쓰면 <strong>speaker drift</strong>가 발생한다. 같은 speaker라도 녹음 세션마다 volume, spatial characteristic, timbre가 달라져 multi-turn 대화 중에 화자가 "변한 것처럼" 들리는 문제다. 해결책:
+</p>
+<ul>
+  <li>Fine-grained style을 몇 개의 coarse category로 그룹화하고, 각 category의 prompt를 acoustic prompting에 사용.</li>
+  <li>Figure 2에서 세 가지 prompting 설정(no prompt / fine-grained / coarse-grained)을 비교한 결과, ##coarse-grained가 모든 스타일 토큰에 대해 speaker similarity를 일관되게 더 높게 유지##한다.</li>
+</ul>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: x축은 textual style token(delightful, thrilled, cheerful ... apologetic 등 20여 개), y축은 평균 speaker similarity(0.20 ~ 0.80). 세 곡선은 각각 (1) default only prompt, (2) fine-grained style prompt, (3) coarse-grained style prompt. Coarse-grained 곡선이 대부분 0.60 ~ 0.80 구간에 분포해 다른 두 조건을 지속적으로 상회. 이는 acoustic 단계에서 style granularity를 <em>낮춘</em> prompt가 timbre 일관성에 유리함을 직관적으로 보여준다.
+</blockquote>
+
+<h4>2.2.5 Decoupled Control의 핵심 발견</h4>
+<p>
+실험적으로 매우 흥미로운 관찰: <strong>AR prosody용 audio prompt 화자 ≠ Acoustic용 audio prompt 화자</strong>여도 품질이 유지된다. 이는 다음을 시사한다.
+</p>
+<ul>
+  <li>Voice timbre는 ##주로 acoustic 단계의 prompt##에서 결정된다.</li>
+  <li>AR 모델은 주로 prosody(운율)를 제어한다.</li>
+  <li>따라서 prosody style library와 timbre(speaker) library를 독립적으로 구성·혼합할 수 있다 → 소수 speaker × 다수 스타일 조합만으로 방대한 variation 가능.</li>
+</ul>
+
+<h3>2.3 Generation Quality Evaluation Protocol</h3>
+
+<p>평가 프로토콜은 subjective human listening의 체계화를 목표로 한다.</p>
+<ul>
+  <li><strong>CVAD</strong>: Clarity, Valence, Arousal, Dominance 4개 paralinguistic dimension을 5점 Likert로 평가. Rater는 각 dimension의 appropriateness와 overall expressivity를 판단.</li>
+  <li><strong>CMOS (Comparative MOS)</strong>: 동일 conversational context에서 서로 다른 시스템의 AI voice를 비교해 net win rate를 산출.</li>
+  <li><strong>Speaker Consistency</strong>: Multi-turn 대화에서는 ECAPA-TDNN speaker verification 모델로 각 샘플 embedding과 reference target embedding(큐레이션한 target speaker embedding pool의 평균)의 cosine similarity를 측정. threshold 0.7 이하이면 speaker drift로 판단.</li>
+</ul>
+
+<h3>2.4 ICL-based Online Reinforcement Learning</h3>
+
+<h4>2.4.1 설계 동기</h4>
+<p>
+전통적 posterior sampling 방식은 추론 시 여러 candidate를 뽑고 best를 후보 중에서 re-rank해 선택한다. 계산 비용이 크다. 대신 저자들은 ##reward를 학습 중에 직접 사용##해 "한 번에 best를 낳도록" AR prosody 모델을 업데이트한다. RL policy는 inference와 동일한 audio prompts에 조건부이므로 <strong>ICL-based</strong> online RL이다. 즉, 모델은 예시(prompt) 조건에서 더 나은 음성을 만드는 법을 학습한다.
+</p>
+
+<h4>2.4.2 Reward 함수</h4>
+<p>
+AES-CE는 human preference와 잘 correlate하는 perceptual metric이다. 그러나 AES-CE만 최적화하면 <strong>reward hacking</strong>이 발생: 모델이 aesthetic score를 올리려고 text content와 무관한 음성을 만들어내거나(text hallucination) 문자열을 왜곡한다. 해결로 <strong>CTC loss</strong>를 reward에 결합한다.
+</p>
+<p>결합 reward:</p>
+$$
+R(\tau) = \alpha_{\mathrm{AES}} \cdot \mathrm{AES}(\mathcal{F}(\tau)) - \alpha_{\mathrm{CTC}} \cdot \mathcal{L}_{\mathrm{CTC}}(\tau, w_0) \qquad (1)
+$$
+<p>
+여기서
+</p>
+<ul>
+  <li>$\tau$: AR prosody model이 transcript $w_0$에 대해 생성한 discrete audio token 시퀀스</li>
+  <li>$\mathcal{F}(\cdot)$: frozen acoustic model + vocoder pipeline. $\tau$를 실제 waveform으로 변환.</li>
+  <li>$\mathrm{AES}(\cdot)$: 합성된 waveform에 대한 AES-CE score</li>
+  <li>$\mathcal{L}_{\mathrm{CTC}}(\tau, w_0)$: 생성된 audio token과 ground-truth transcript의 CTC alignment loss</li>
+  <li>$\alpha_{\mathrm{AES}} = 1.0$, $\alpha_{\mathrm{CTC}} = 3.0$: 두 항의 balance</li>
+</ul>
+<p>
+직관적으로 말하면: "aesthetic은 올리되, 대본과 발음이 정렬되는 정도를 강하게 penalize"하는 정책을 학습한다. $\alpha_{\mathrm{CTC}}$가 $\alpha_{\mathrm{AES}}$보다 3배 크다는 점이 중요 — 저자들은 AES만 올리려는 drift를 실제로 강하게 억제해야 함을 보여준다.
+</p>
+
+<h4>2.4.3 RL Objective</h4>
+$$
+J(\theta) = \mathbb{E}_{\tau \sim \pi_\theta} [R(\tau)] - \beta \cdot \mathrm{KL}(\pi_\theta \| \pi^0) \qquad (2)
+$$
+<ul>
+  <li>$\pi_\theta$: AR prosody 모델의 online(trainable) policy</li>
+  <li>$\pi^0$: reference policy, ##SFT(Supervised Fine-Tuned) baseline##</li>
+  <li>$\beta = 50.0$: KL regularization 계수. 정책이 reference에서 너무 멀어지지 않도록 제한.</li>
+</ul>
+<p>
+직관적으로: <em>reward 최대화 + SFT baseline과의 KL 거리 최소화</em>. SFT만으로 학습된 안정적 policy를 anchor로 삼아 그 근방에서 reward를 개선하는 보수적 RL.
+</p>
+
+<h4>2.4.4 Training 세팅</h4>
+<ul>
+  <li>Monte Carlo estimation: $\mathbb{E}[R(\tau)]$ 추정을 위해 transcript 당 <strong>6 samples</strong> 사용.</li>
+  <li>Audio prompt는 학습과 추론 양쪽에서 동일한 것을 사용 → training efficiency 및 ICL 조건 재현.</li>
+  <li>Optimizer: Adam, learning rate $5.0 \times 10^{-7}$.</li>
+  <li>Acoustic model과 vocoder는 완전히 freeze, <strong>AR prosody model만 업데이트</strong>.</li>
+</ul>
+<p>
+Audio-conditioned transcript dataset: (audio prompt, target transcript) pair로 구성하되, <em>audio prompt의 내용과 target transcript는 독립</em>. 즉, "스타일만 audio prompt에서, 내용만 transcript에서"라는 ICL 구도를 정확히 학습 시그널로 구현.
+</p>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 실험 세팅</h3>
+<ul>
+  <li><strong>Baseline 모델</strong>: Meta LLaMA 3 70B[16] + 인하우스 TTS 시스템. TTS 구조는 Tortoise-TTS[17] 유사, vocoder는 BigVGAN.</li>
+  <li><strong>데이터셋</strong>: 인하우스 voice actor 데이터. Vendor가 coarse-grained voice style 제공. 그 후 청취 판단을 통해 fine-grained style audio로 re-map.</li>
+  <li><strong>평가 대상</strong>: 10 speakers (7명 미국 영어, 3명 영국 영어), 스타일당 400 샘플 생성.</li>
+  <li><strong>CVAD 평가</strong>: 스타일당 50 샘플, 5명의 전문 rater.</li>
+</ul>
+
+<h3>3.2 ICL Prompting 효과 (Cascaded Prompting vs Zero-shot)</h3>
+
+<p>
+실험 의도: Cascaded prompting(ICL)이 zero-shot baseline(decoder에 prompt 없음, acoustic model에 default prompt만 있음) 대비 실제로 naturalness와 expressivity를 개선하는가? 그리고 GPT-4o external TTS API[18]와 비교해 어떠한가?
+</p>
+
+<table>
+  <caption style="text-align:left;font-weight:bold;">Table 1: CMOS of ICL-setting TTS over Baselines Across Tasks</caption>
+  <thead>
+    <tr><th>Task</th><th>Model</th><th>Baseline</th><th>Net Win Rate (%)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>Naturalness</td><td>ICL</td><td>Zero-shot baseline</td><td>+7.5</td></tr>
+    <tr><td>CVAD</td><td>ICL</td><td>Zero-shot baseline</td><td>+79.6</td></tr>
+    <tr><td>CVAD</td><td>ICL</td><td>GPT-4o</td><td>+5.6</td></tr>
+  </tbody>
+</table>
+
+<p>이 실험이 뒷받침하는 주장:</p>
+<ul>
+  <li><strong>Naturalness +7.5</strong>: ICL은 이미 강한 zero-shot TTS baseline 대비 지각 naturalness에서 ##명확한 향상##을 보여준다.</li>
+  <li><strong>CVAD +79.6</strong>: Expressivity 차원에서는 차이가 지배적. Prompt가 없는 baseline은 emotion/valence/arousal을 거의 생성하지 못하는 반면, ICL은 fine-grained paralinguistic variation을 잘 살려낸다.</li>
+  <li><strong>CVAD +5.6 vs GPT-4o</strong>: 상용 강력 baseline 대비해서도 cascaded prompting이 우위를 보임. 특히 human-in-the-loop audio prompt 큐레이션이 기여한다는 해석.</li>
+</ul>
+
+<h3>3.3 ICL + Online RL 효과</h3>
+
+<p>실험 의도: SFT-only 모델 위에 ICL-based online RL(AES-CE + CTC)을 쌓으면 subjective 음성 품질이 얼마나 개선되는가? Reward hacking은 실제로 통제되는가?</p>
+
+<table>
+  <caption style="text-align:left;font-weight:bold;">Table 2: Human CMOS between RL-enhanced vs SFT-only baseline</caption>
+  <thead>
+    <tr><th>Ablation</th><th>Average Winrate</th><th>95% Confidence Interval</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>RL-AES-CTC vs SFT Only</td><td>+7.1%</td><td>(3.97%, 10.23%)</td></tr>
+  </tbody>
+</table>
+
+<p>
+##CMOS +7.1%가 95% CI 내에서 0을 포함하지 않으므로 통계적 유의##. 절대 값 +7%가 CMOS에서는 상당한 개선으로 해석된다.
+</p>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: RL training iteration에 따른 곡선. (a) AES-CE training score: 5.2 → 5.8 근처까지 꾸준히 상승. (b) CTC training loss(with CTC regularization): 1.8 근방에서 시작해 1.4 부근에서 안정. (c) CTC training loss <em>without</em> CTC backpropagation: 초반 감소 후 1.6 부근에서 진동하며 더 높은 수준에 머묾. 즉, CTC를 reward에 결합해 <em>실제로 역전파</em>해야만 hallucination이 억제된다는 증거.
+</blockquote>
+
+<p>
+정량 분석: <strong>CTC loss를 backprop하지 않은 설정</strong>에서는 AES-CE 리워드는 오르지만 CTC loss가 크게 유지되거나 오히려 나빠진다. 이는 reward hacking의 직접적 증거 — 모델이 텍스트 대본을 정확히 발음하지 않으면서 AES-CE만 올리는 생성을 학습한다. CTC regularization이 있을 때만 두 가지(품질↑, 정렬 유지) 목표가 동시에 달성된다.
+</p>
+
+<h3>3.4 기존 방법 대비 장점</h3>
+
+<table>
+  <thead>
+    <tr><th>항목</th><th>Posterior sampling (offline)</th><th>ICL-based Online RL (제안)</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>추론 비용</td><td>다수 샘플 생성 + re-ranking 필요</td><td>단일 샘플만 생성 (cheap inference)</td></tr>
+    <tr><td>품질 향상 지점</td><td>추론 후에만 작용</td><td>##policy 자체가 개선됨##</td></tr>
+    <tr><td>대규모 라벨링</td><td>필요</td><td>불필요 (single-shot prompt)</td></tr>
+    <tr><td>Reward hacking 통제</td><td>re-rank 단계에 의존</td><td>CTC loss를 reward에 내재화</td></tr>
+  </tbody>
+</table>
+
+<h2>4. 비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>4.1 실증 규모의 한계</h3>
+<ul>
+  <li>CVAD 평가는 스타일당 50샘플, rater 5명으로 수행. Variance가 적지 않을 수 있으며, 서로 다른 스타일 간 효과 차이에 대한 per-style 분해는 제공되지 않는다.</li>
+  <li>Subjective metric에 크게 의존: AES-CE 자체가 subjective 판단을 모방한 모델이고, 최종 평가도 CMOS 기반. 객관적 지표(예: WER, F0 RMSE, speaker similarity score)를 추가로 공개했다면 reproducibility가 개선됐을 것이다.</li>
+  <li>비교 대상 GPT-4o는 TTS 전용 모델이 아닌 multimodal system. "같은 조건 비교"는 아니지만 외부 참조로서 의미.</li>
+</ul>
+
+<h3>4.2 데이터·모델 공개 여부</h3>
+<ul>
+  <li>TTS 시스템, 데이터, LLaMA 3 70B 기반 인프라 모두 <strong>인하우스</strong>이며 코드/모델 공개 X. 저자들도 "유사한 구조 + 공개 expressive speech data로 대체 재현 가능할 것"이라고 언급하지만 이는 검증 불가능한 주장이다.</li>
+  <li>Audio prompt library 구성에 사람이 개입한 human-in-the-loop validation은 scale이 커질수록 병목이다. 스타일 수가 수백 개로 확장될 때의 경제성 검토가 필요.</li>
+</ul>
+
+<h3>4.3 방법론적 고려사항</h3>
+<ul>
+  <li>KL 계수 $\beta = 50$은 매우 큰 값으로, SFT 근방에서 작은 반경만 탐색하는 보수적 policy가 된다. 더 공격적 탐색(작은 $\beta$)에서의 행동(예: 지나친 감정 과장)에 대한 ablation이 없다.</li>
+  <li>Prosody-timbre decoupling은 ##매력적이지만 조건부 가정##이다. 특정 스타일(예: whisper)에서 prosody와 timbre를 완전히 분리할 수 있을지, 그리고 낯선 speaker/스타일 조합에서 fallback이 어떤지에 대한 논의 부재.</li>
+  <li>AES-CE가 "Content Enjoyment"를 모델링한다고는 하나, 음성 분야에서의 human preference는 다양한 축(감정 적합도, clarity, pacing 등)을 포함한다. 단일 reward로 축약된 것이 expressivity의 특정 축을 강조·억제했을 가능성.</li>
+</ul>
+
+<h3>4.4 Ethics와 Safety</h3>
+<ul>
+  <li>Voice cloning 관련 ethics statement가 본문에 명시되지 않았다. 인하우스 voice actor data 사용이라는 점은 긍정적이나, 실제 배포 시 consent mechanism과 misuse 방지(deepfake 음성) 가이드가 필요.</li>
+  <li>Audio prompt 큐레이션 시 rater들의 bias(연령, 문화권 등)가 "aesthetic" 선호에 반영되므로, 다양한 인구 집단에 대한 공정성 검증이 이상적이다.</li>
+</ul>
+
+</div>
+
+<h2>5. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Cascaded + ICL prompting</strong>: "Textual style token(LLM 생성) + audio prompt(사람 큐레이션)" 짝이 대규모 emotion speech 라벨링 없이 fine-grained expressive TTS를 single-shot으로 구현하는 강력한 레시피. Conversational AI 시스템에 바로 꽂기 쉬운 구조.</li>
+  <li><strong>Prosody-timbre decoupling</strong>: AR(prosody) 단계에는 fine-grained prompt, Acoustic(timbre) 단계에는 coarse-grained prompt를 쓰면 speaker drift를 억제하면서 expressivity를 살릴 수 있다. 각 단계의 prompt 화자가 달라도 된다는 점은 voice·style library의 독립적 확장을 허용한다.</li>
+  <li><strong>ICL-based Online RL</strong>: Posterior re-ranking 대신 policy를 직접 학습하면 <em>inference는 단일 샘플로 저렴</em>해지고 품질은 CMOS +7%로 향상. Reward를 AES-CE 같은 perceptual model로 설계하면 subjective naturalness와 정렬.</li>
+  <li><strong>CTC regularization의 중요성</strong>: Perceptual reward 단독 최적화는 ##text hallucination 형태의 reward hacking##을 유발한다. CTC loss를 $\alpha_{\mathrm{CTC}} = 3\alpha_{\mathrm{AES}}$ 비중으로 reward에 결합하면 이 drift가 실험적으로 제어된다.</li>
+  <li><strong>실무 적용</strong>: 실시간 음성 어시스턴트, 팟캐스트 생성, multi-character 대화 합성 등에 바로 응용 가능. Audio prompt library를 조직 내 성우 데이터로 구축하면 low-labeling-cost 고품질 expressive TTS를 얻을 수 있다는 point가 특히 실용적이다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
