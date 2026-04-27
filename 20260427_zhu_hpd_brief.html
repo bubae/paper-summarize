@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Policy Distillation — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+
+  .hero { background: linear-gradient(135deg, #0f766e, #0891b2, #0284c7); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.92; max-width: 680px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #0f766e; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #0891b2, #f97316); border-radius: 3px; }
+  section h3 { font-size: 1.15rem; margin: 1.5rem 0 0.6rem; color: #0e7490; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #0891b2; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner { background: linear-gradient(135deg, #0891b2, #f97316); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #0891b2, #f97316); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #0f766e; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #ecfeff; font-weight: 700; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #0891b2; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #0891b2; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #0891b2; padding: 0 0.4rem; }
+
+  .top-link { text-align: center; margin: 1rem 0; }
+  .top-link a { color: #0891b2; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+  .top-link a:hover { text-decoration: underline; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">SJTU · Tencent · 2026 · arXiv:2604.20244</div>
+  <h1>큰 모델의 지식을 작은 모델에 옮기는 새로운 방법</h1>
+  <p class="subtitle">"학생이 어디서 얼마나 틀렸는가"를 매 단어마다 측정해<br>가르침의 방향과 세기를 자동으로 조절하는 ##토큰 단위 하이브리드 증류##</p>
+</div>
+
+<div class="container">
+
+<div class="top-link"><a href="20260427_zhu_hpd.html">← 전문가용 상세 요약 보기</a></div>
+
+<div class="one-liner">"가르치는 방향을 바꾸는 게 아니라, ##학생이 모르는 곳에선 끌어당기고 / 너무 자신만만한 곳에선 살짝 눌러주는##, 매 단어마다 다른 가르침"</div>
+
+<!-- ===== 배경 지식 ===== -->
+<section>
+<h2>1. 먼저 알아둘 배경 지식</h2>
+
+<h3>1.1 LLM은 왜 "작게" 만들고 싶은가?</h3>
+<div class="card card-accent">
+<p>요즘 잘 작동하는 거대 언어 모델(LLM)은 보통 ##수십~수천억 파라미터## 규모이다. 단순히 "한 번 답하기"에도 GPU 메모리·전력·지연이 막대하게 든다. 그래서 ##작은 모델(student)에 큰 모델(teacher)의 지식을 옮기는 작업##이 매우 중요하다 — 이 과정을 <strong>지식 증류(Knowledge Distillation, KD)</strong>라 부른다.</p>
+<p>증류된 작은 모델이 잘 작동하면, 같은 답변 품질을 ##1/5~1/10의 비용##으로 서비스할 수 있다. 그래서 모든 LLM 회사가 KD에 진심이다.</p>
+</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="teach1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0891b2"/>
+      <stop offset="100%" stop-color="#0e7490"/>
+    </linearGradient>
+    <linearGradient id="stud1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f97316"/>
+      <stop offset="100%" stop-color="#dc2626"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="120" cy="110" rx="90" ry="70" fill="url(#teach1)" opacity="0.85"/>
+  <text x="120" y="105" text-anchor="middle" fill="#fff" font-size="18" font-weight="700">Teacher</text>
+  <text x="120" y="128" text-anchor="middle" fill="#fff" font-size="13">큰 LLM (7B~70B)</text>
+  <text x="120" y="200" text-anchor="middle" fill="#475569" font-size="12">파라미터 多, 지식 풍부, 비용↑</text>
+
+  <path d="M 220 110 Q 350 60 480 110" stroke="#0891b2" stroke-width="3" fill="none" marker-end="url(#a1)"/>
+  <text x="350" y="60" text-anchor="middle" fill="#0e7490" font-size="13" font-weight="600">지식 전달</text>
+  <text x="350" y="80" text-anchor="middle" fill="#64748b" font-size="11">(distillation)</text>
+
+  <ellipse cx="540" cy="110" rx="60" ry="48" fill="url(#stud1)" opacity="0.9"/>
+  <text x="540" y="108" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">Student</text>
+  <text x="540" y="128" text-anchor="middle" fill="#fff" font-size="11">작은 LLM (1B~3B)</text>
+  <text x="540" y="200" text-anchor="middle" fill="#475569" font-size="12">싸고 빠름, 비어있는 지식</text>
+
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0891b2"/>
+    </marker>
+  </defs>
+</svg>
+<div class="diagram-caption">큰 teacher → 작은 student로 "지식"을 옮기는 것이 KD</div>
+</div>
+
+<h3>1.2 지식 증류의 세 가지 흔한 방법</h3>
+<p>가르치는 방식이 ##세 갈래##로 나뉜다. 각각 장단점이 있다:</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <!-- SFT -->
+  <rect x="20" y="40" width="200" height="240" rx="14" fill="#f0f9ff" stroke="#0284c7" stroke-width="2"/>
+  <text x="120" y="70" text-anchor="middle" fill="#0c4a6e" font-size="16" font-weight="700">SFT</text>
+  <text x="120" y="90" text-anchor="middle" fill="#475569" font-size="11">정답만 외우기</text>
+  <circle cx="60" cy="130" r="12" fill="#0284c7"/>
+  <circle cx="100" cy="130" r="6" fill="#cbd5e1"/>
+  <circle cx="140" cy="130" r="6" fill="#cbd5e1"/>
+  <circle cx="180" cy="130" r="6" fill="#cbd5e1"/>
+  <text x="120" y="160" text-anchor="middle" fill="#64748b" font-size="11">정답 1개에만 신호</text>
+  <text x="120" y="200" text-anchor="middle" fill="#64748b" font-size="11">✅ 빠르고 단순</text>
+  <text x="120" y="220" text-anchor="middle" fill="#64748b" font-size="11">❌ 학습 신호 부족</text>
+  <text x="120" y="260" text-anchor="middle" fill="#0284c7" font-size="11" font-weight="600">"답안만 외워라"</text>
+
+  <!-- FKLD -->
+  <rect x="240" y="40" width="200" height="240" rx="14" fill="#ecfdf5" stroke="#059669" stroke-width="2"/>
+  <text x="340" y="70" text-anchor="middle" fill="#064e3b" font-size="16" font-weight="700">FKLD (Forward KL)</text>
+  <text x="340" y="90" text-anchor="middle" fill="#475569" font-size="11">선생 분포 통째로 따라가기</text>
+  <circle cx="280" cy="130" r="10" fill="#059669"/>
+  <circle cx="320" cy="130" r="9" fill="#10b981"/>
+  <circle cx="360" cy="130" r="8" fill="#34d399"/>
+  <circle cx="400" cy="130" r="7" fill="#6ee7b7"/>
+  <text x="340" y="160" text-anchor="middle" fill="#64748b" font-size="11">모든 답을 골고루 학습</text>
+  <text x="340" y="200" text-anchor="middle" fill="#64748b" font-size="11">✅ 다양성 보존</text>
+  <text x="340" y="220" text-anchor="middle" fill="#64748b" font-size="11">❌ 작은 모델이면 평균화</text>
+  <text x="340" y="260" text-anchor="middle" fill="#059669" font-size="11" font-weight="600">"전체 모드 다 덮어라"</text>
+
+  <!-- RKLD -->
+  <rect x="460" y="40" width="200" height="240" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text x="560" y="70" text-anchor="middle" fill="#7f1d1d" font-size="16" font-weight="700">RKLD (Reverse KL)</text>
+  <text x="560" y="90" text-anchor="middle" fill="#475569" font-size="11">선생이 자주 쓰는 답 따라가기</text>
+  <circle cx="540" cy="130" r="14" fill="#dc2626"/>
+  <circle cx="580" cy="130" r="4" fill="#fca5a5"/>
+  <circle cx="610" cy="130" r="4" fill="#fca5a5"/>
+  <text x="560" y="160" text-anchor="middle" fill="#64748b" font-size="11">메인 모드만 집중</text>
+  <text x="560" y="200" text-anchor="middle" fill="#64748b" font-size="11">✅ 답이 또렷</text>
+  <text x="560" y="220" text-anchor="middle" fill="#64748b" font-size="11">❌ 학습 불안정</text>
+  <text x="560" y="260" text-anchor="middle" fill="#dc2626" font-size="11" font-weight="600">"잘하는 한 가지만"</text>
+</svg>
+<div class="diagram-caption">기존 KD 방법 3가지: SFT(정답만) / FKLD(전체 모방) / RKLD(메인 모드만)</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">🎓 비유: 시험 공부 방식의 차이</div>
+<p><strong>SFT</strong>는 모범답안 한 개를 보고 "정답만 베껴 쓰는" 학생. 빠르지만 응용력이 부족.<br>
+<strong>FKLD</strong>는 선생님의 모든 풀이 스타일을 ##평균적으로 흉내##내는 학생. 다양한 문제는 풀지만 "어느 풀이도 깊지 못한" 흐릿한 답을 낸다.<br>
+<strong>RKLD</strong>는 선생님이 ##가장 자주 쓰는 풀이##만 집중적으로 따라하는 학생. 그 풀이로는 만점이지만 다른 유형이 나오면 무너진다.<br>
+HPD는 "##문제마다 어느 전략을 쓸지##"를 자동으로 결정하는 똑똑한 학생을 만들고 싶은 것이다.</p>
+</div>
+
+<h3>1.3 Off-policy vs On-policy: "어떤 데이터로 가르치나?"</h3>
+<div class="card card-accent">
+<p><strong>Off-policy</strong>: 미리 만들어둔 ##고정 데이터셋##(혹은 teacher가 만든 답)으로 학생을 가르침. 빠르고 싸지만, 학생이 ##실제로 사용할 때(inference)## 만나는 상황과 학습 상황이 어긋날 수 있다.</p>
+<p><strong>On-policy</strong>: 학생이 직접 답을 ##생성하고##, 그 답에 대해 선생이 평가·교정한다. 더 정확하지만 학생이 한 번 답할 때마다 ##teacher 추론까지 돌려야 하므로 연산 비용이 크게 든다##.</p>
+<p>HPD는 이 두 방식의 ##중간 길##을 택했다 — off-policy 데이터를 메인으로 쓰되, 한 토큰만 학생이 샘플하도록 해서 on-policy 신호를 ##저렴하게## 추가한다.</p>
+</div>
+
+<h3>1.4 KL 다이버전스 측정의 어려움</h3>
+<p>"학생과 선생의 분포가 얼마나 다른가?"를 정확히 계산하려면 ##모든 가능한 단어(vocab 5만~25만 개)에 대해 합##을 구해야 한다. 토큰마다, 시퀀스마다, 배치마다 이 합을 돌리면 메모리·계산이 폭발한다. 그래서 실무에선 ##Monte Carlo 추정##을 쓴다.</p>
+<p>가장 단순한 추정자가 $K_1$: "샘플 하나의 log 확률 비율"을 평균낸 것. 이는 ##비편향(unbiased)##이지만 분산이 크다. HPD의 핵심 아이디어 중 하나는 이 $K_1$ 값을 ##loss 항이 아닌 reward##(가중치)처럼 쓰는 것이다.</p>
+
+<h3>1.5 "Entropy collapse" — 흔한 함정</h3>
+<div class="card card-orange">
+<p>SFT만 오래 학습하면 학생 모델이 ##같은 답만 너무 자신있게 쓰는 상태##가 된다 — 이를 <strong>entropy collapse</strong>라 한다. 다양성이 죽고, ##추론(inference) 시 행동이 학습 시 행동과 달라져## 성능이 정체된다.</p>
+<p>HPD의 그래프(Figure 1a)에서 이 현상을 명확히 볼 수 있다 — SFT의 entropy가 0에 가까워지지만, HPD는 안정 유지된다.</p>
+</div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+<h2>2. HPD의 핵심 아이디어</h2>
+
+<h3>2.1 통합된 시각: 모든 KD는 "토큰별 가중치 곱하기"이다</h3>
+<p>이 논문의 첫 번째 통찰은 ##놀랍게 단순##하다 — SFT, FKLD, RKLD, JSD가 모두 다음 형태로 쓸 수 있다:</p>
+<div class="card card-accent" style="text-align:center; font-family:monospace; font-size:1.05rem;">
+손실 = 가중치 w(토큰) × −log(학생 확률)
+</div>
+<p>각 방법의 차이는 단지 ##가중치 $w$를 어떻게 정하느냐##일 뿐이다.</p>
+
+<table class="comp-table">
+<thead><tr><th>방법</th><th>가중치 $w(a_t|s_t)$</th><th>의미</th></tr></thead>
+<tbody>
+<tr><td>SFT</td><td>1 (정답이면), 0 (아니면)</td><td>정답 토큰만 학습</td></tr>
+<tr><td>FKLD</td><td>$p(a_t|s_t)$ — teacher 확률</td><td>teacher가 좋아하는 만큼 가중</td></tr>
+<tr><td>RKLD</td><td>$\log p - \log q$ — log 비율</td><td>차이가 클수록 강하게</td></tr>
+<tr class="highlight-row"><td>HPD (본 논문)</td><td>$k_1$ (reverse-KL gap) 기반 hybrid</td><td>토큰별로 자동 조절</td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<div class="analogy-title">📐 비유: 같은 요리법, 다른 재료 비율</div>
+<p>SFT/FKLD/RKLD는 모두 ##"−log(학생 확률) × 가중치"라는 같은 요리법##을 쓰는데, 가중치라는 ##재료 비율##만 다르다. 그러면 "재료를 똑똑하게 섞으면 더 좋은 요리가 나오지 않을까?"가 HPD의 발상이다.</p>
+</div>
+
+<h3>2.2 토큰마다 다른 가중치: "$k_1$ 부호로 방향 결정"</h3>
+<p>HPD의 두 번째 통찰은 ##각 토큰마다 학생이 얼마나 틀렸는지##를 측정하는 값 $k_1$을 핵심 신호로 삼는 것이다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" fill="#0f766e" font-size="16" font-weight="700">정답 토큰에서 측정한 k₁ = q · (log p − log q)</text>
+
+  <!-- positive case -->
+  <rect x="40" y="60" width="300" height="180" rx="14" fill="#ecfeff" stroke="#0891b2" stroke-width="2"/>
+  <text x="190" y="90" text-anchor="middle" fill="#0e7490" font-size="14" font-weight="700">k₁ &gt; 0 (학생이 과소추정)</text>
+  <text x="190" y="115" text-anchor="middle" fill="#475569" font-size="11">선생: "이 단어가 정답이야!" (높은 p)</text>
+  <text x="190" y="135" text-anchor="middle" fill="#475569" font-size="11">학생: "음… 잘 모르겠어" (낮은 q)</text>
+  <text x="190" y="170" text-anchor="middle" fill="#0891b2" font-size="13" font-weight="700">→ Forward-KL로 끌어올리기</text>
+  <text x="190" y="195" text-anchor="middle" fill="#475569" font-size="11">w = p + k₁ (positive 방향 학습)</text>
+  <text x="190" y="220" text-anchor="middle" fill="#0891b2" font-size="11">"이 토큰을 더 자신있게 말해라"</text>
+
+  <!-- negative case -->
+  <rect x="380" y="60" width="300" height="180" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text x="530" y="90" text-anchor="middle" fill="#7f1d1d" font-size="14" font-weight="700">k₁ ≤ 0 (이미 충분/과대)</text>
+  <text x="530" y="115" text-anchor="middle" fill="#475569" font-size="11">선생: "음, 그럭저럭" (낮은 p)</text>
+  <text x="530" y="135" text-anchor="middle" fill="#475569" font-size="11">학생: "이건 자신있어!" (높은 q)</text>
+  <text x="530" y="170" text-anchor="middle" fill="#dc2626" font-size="13" font-weight="700">→ Forward-KL을 꺼버림 (mask)</text>
+  <text x="530" y="195" text-anchor="middle" fill="#475569" font-size="11">w = k₁ (충돌 방지)</text>
+  <text x="530" y="220" text-anchor="middle" fill="#dc2626" font-size="11">"이미 잘 알고 있으니 그대로"</text>
+</svg>
+<div class="diagram-caption">$k_1$ 부호에 따라 학습 방향과 세기가 달라진다</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">🩺 비유: 의사의 진단</div>
+<p>"이 부위가 ##너무 약하면 보강 운동을##, 이미 충분히 강하면 ##건드리지 말기##." 똑같은 환자라도 부위마다 처방이 다르듯, HPD는 토큰마다 다른 가르침을 준다.</p>
+</div>
+
+<h3>2.3 학생도 한 단어씩 직접 만들어보기</h3>
+<p>또 다른 핵심은 ##학생이 직접 토큰을 한 개 샘플링##하게 하는 것이다. 정답 데이터의 prefix(앞부분)는 그대로 두되, "다음 토큰"만 학생이 자기 분포에서 뽑게 한다.</p>
+
+<div class="card card-accent">
+<p>왜 그럴까? 실제 ##사용 시 학생은 자기가 만든 prefix## 위에서 다음 토큰을 결정한다. 학습 시 항상 정답 prefix만 보면, 실제 사용 환경과 ##불일치(distribution shift)##가 생긴다. 학생 토큰을 추가로 평가함으로써 이 격차를 ##저렴하게## 메운다.</p>
+<p>그 학생 토큰에 대해서도 $k_1'$을 계산해 ##학생이 잘못된 토큰을 너무 자신있게 만들었으면 그 확률을 깎고##, 그렇지 않으면 그냥 둔다.</p>
+</div>
+
+<h3>2.4 두 신호를 합치는 Reinforce 연산</h3>
+<p>"학생이 정답 토큰은 과소추정($k_1&gt;0$)하면서 동시에 엉뚱한 토큰을 과대추정($k_1'&lt;0$)" 하는 ##최악의 경우##엔, 정답 토큰을 ##2배## 강하게 끌어올린다. 이를 reinforce라 부른다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+  <rect x="30" y="40" width="660" height="160" rx="16" fill="#f8fafc" stroke="#0891b2" stroke-width="2"/>
+  <text x="360" y="75" text-anchor="middle" fill="#0f766e" font-size="15" font-weight="700">상황별 정답 토큰 가중치 w*</text>
+
+  <!-- case 1 -->
+  <rect x="50" y="100" width="180" height="80" rx="10" fill="#ecfdf5" stroke="#059669"/>
+  <text x="140" y="125" text-anchor="middle" fill="#064e3b" font-size="12" font-weight="700">k₁&gt;0 &amp; k₁'&lt;0</text>
+  <text x="140" y="148" text-anchor="middle" fill="#475569" font-size="11">w* = 2p + k₁</text>
+  <text x="140" y="170" text-anchor="middle" fill="#059669" font-size="11">2배 강조 (reinforce)</text>
+
+  <!-- case 2 -->
+  <rect x="270" y="100" width="180" height="80" rx="10" fill="#fef9c3" stroke="#ca8a04"/>
+  <text x="360" y="125" text-anchor="middle" fill="#713f12" font-size="12" font-weight="700">기본 (k₁&gt;0만)</text>
+  <text x="360" y="148" text-anchor="middle" fill="#475569" font-size="11">w* = p + k₁</text>
+  <text x="360" y="170" text-anchor="middle" fill="#ca8a04" font-size="11">forward-KL 학습</text>
+
+  <!-- case 3 -->
+  <rect x="490" y="100" width="180" height="80" rx="10" fill="#fef2f2" stroke="#dc2626"/>
+  <text x="580" y="125" text-anchor="middle" fill="#7f1d1d" font-size="12" font-weight="700">k₁&lt;0 (학생이 충분)</text>
+  <text x="580" y="148" text-anchor="middle" fill="#475569" font-size="11">w* = k₁</text>
+  <text x="580" y="170" text-anchor="middle" fill="#dc2626" font-size="11">강제 X, 자연 진행</text>
+</svg>
+<div class="diagram-caption">3가지 경우에 대한 자동 가중치 결정</div>
+</div>
+
+<h3>2.5 전체 흐름</h3>
+
+<div class="step-flow">
+<div class="step-box"><div class="step-num">STEP 1</div><div class="step-title">데이터 준비</div><div class="step-desc">선생이 만든 정답 데이터 1개 골라옴</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 2</div><div class="step-title">k₁ 계산</div><div class="step-desc">정답 토큰에서 학생-선생 격차</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 3</div><div class="step-title">학생 샘플</div><div class="step-desc">한 토큰만 학생이 직접 뽑음</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 4</div><div class="step-title">가중치 결정</div><div class="step-desc">k₁, k₁' 부호로 자동 분기</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 5</div><div class="step-title">파라미터 업데이트</div><div class="step-desc">가중치 × −log q 합으로 학습</div></div>
+</div>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+<h2>3. 핵심 성과</h2>
+
+<div class="stat-row">
+<div class="stat-box"><div class="num">+41.0%</div><div class="label">Qwen2.5-3B 추론 평균<br>상대 개선 (28.25→39.83)</div></div>
+<div class="stat-box"><div class="num">+77.9%</div><div class="label">Llama3-3B 추론 평균<br>상대 개선 (19.43→34.56)</div></div>
+<div class="stat-box"><div class="num">5종</div><div class="label">전 분야에서 1등<br>(SFT/SeqKD/RKLD/JSD/KD 대비)</div></div>
+<div class="stat-box"><div class="num">3 도메인</div><div class="label">수학·대화·코드 모두에서<br>일관된 우위</div></div>
+</div>
+
+<h3>3.1 수학 추론에서의 비교</h3>
+<table class="comp-table">
+<thead><tr><th>방법</th><th>Qwen2.5 7B→3B (수학 6종 평균)</th><th>Llama3 8B→3B</th></tr></thead>
+<tbody>
+<tr><td>학생 그대로 (no train)</td><td>28.25</td><td>19.43</td></tr>
+<tr><td>SFT (정답만)</td><td>32.67</td><td>29.45</td></tr>
+<tr><td>SeqKD</td><td>35.55</td><td>31.84</td></tr>
+<tr><td>RKLD (mode-seeking)</td><td>32.39</td><td>30.41</td></tr>
+<tr><td>JSD (대칭형)</td><td>36.61</td><td>29.95</td></tr>
+<tr class="highlight-row"><td>HPD (본 논문)</td><td><strong>39.83</strong></td><td><strong>34.56</strong></td></tr>
+<tr><td>선생 (참고)</td><td>52.74</td><td>41.55</td></tr>
+</tbody>
+</table>
+
+<h3>3.2 대화·코드도 동시에 좋음</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#0f766e" font-size="14" font-weight="700">3개 도메인에서의 일관된 우위</text>
+
+  <!-- 수학 -->
+  <g>
+    <text x="60" y="65" fill="#475569" font-size="12" font-weight="700">수학 (Qwen 3B)</text>
+    <rect x="60" y="75" width="180" height="14" fill="#cbd5e1"/><text x="245" y="86" font-size="10" fill="#64748b">SFT 32.7</text>
+    <rect x="60" y="95" width="220" height="14" fill="#94a3b8"/><text x="285" y="106" font-size="10" fill="#64748b">JSD 36.6</text>
+    <rect x="60" y="115" width="245" height="14" fill="#0891b2"/><text x="310" y="126" font-size="10" fill="#0e7490" font-weight="700">HPD 39.8</text>
+  </g>
+
+  <!-- 대화 -->
+  <g transform="translate(0, 70)">
+    <text x="60" y="65" fill="#475569" font-size="12" font-weight="700">대화 Arena-WR (1.5B)</text>
+    <rect x="60" y="75" width="100" height="14" fill="#cbd5e1"/><text x="165" y="86" font-size="10" fill="#64748b">SFT 18.1</text>
+    <rect x="60" y="95" width="111" height="14" fill="#94a3b8"/><text x="176" y="106" font-size="10" fill="#64748b">JSD 20.2</text>
+    <rect x="60" y="115" width="120" height="14" fill="#0891b2"/><text x="185" y="126" font-size="10" fill="#0e7490" font-weight="700">HPD 21.8</text>
+  </g>
+
+  <!-- 코드 -->
+  <g transform="translate(360, 70)">
+    <text x="0" y="65" fill="#475569" font-size="12" font-weight="700">코드 Qwen-Coder (1.5B)</text>
+    <rect x="0" y="75" width="171" height="14" fill="#cbd5e1"/><text x="176" y="86" font-size="10" fill="#64748b">SFT 70.8</text>
+    <rect x="0" y="95" width="184" height="14" fill="#94a3b8"/><text x="189" y="106" font-size="10" fill="#64748b">RKLD 75.9</text>
+    <rect x="0" y="115" width="187" height="14" fill="#0891b2"/><text x="192" y="126" font-size="10" fill="#0e7490" font-weight="700">HPD 77.4</text>
+  </g>
+</svg>
+<div class="diagram-caption">3개 도메인 모두에서 HPD가 1등 (수학·대화·코드)</div>
+</div>
+
+<h3>3.3 학습 안정성: Entropy Collapse 방지</h3>
+<div class="card card-green">
+<p>HPD의 가장 ##시각적으로 인상적인 결과##는 entropy 그래프이다. SFT는 학습이 진행되며 entropy가 0에 가깝게 추락하지만, HPD는 ##선생 모델과 거의 같은 entropy 곡선##을 유지한다.</p>
+<p>이는 학생 모델이 ##추론 시에도 선생처럼 다양한 답을 낼 수 있다##는 뜻 — 단순히 정답 확률을 높이는 게 아니라 ##행동(behavior)을 옮긴## 것이다.</p>
+</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#0f766e" font-size="14" font-weight="700">학습 step에 따른 Training Entropy</text>
+
+  <line x1="60" y1="200" x2="660" y2="200" stroke="#94a3b8" stroke-width="1"/>
+  <line x1="60" y1="60" x2="60" y2="200" stroke="#94a3b8" stroke-width="1"/>
+  <text x="40" y="65" text-anchor="end" fill="#64748b" font-size="10">1.6</text>
+  <text x="40" y="205" text-anchor="end" fill="#64748b" font-size="10">0</text>
+  <text x="60" y="220" text-anchor="middle" fill="#64748b" font-size="10">0</text>
+  <text x="660" y="220" text-anchor="middle" fill="#64748b" font-size="10">2500 step</text>
+
+  <!-- SFT (red, collapses) -->
+  <path d="M 60 80 Q 100 110 150 150 Q 200 175 300 195 Q 400 200 660 200" stroke="#dc2626" stroke-width="3" fill="none"/>
+  <circle cx="660" cy="200" r="4" fill="#dc2626"/>
+  <text x="630" y="190" fill="#dc2626" font-size="11" font-weight="700">SFT (collapse)</text>
+
+  <!-- HPD (cyan, stable) -->
+  <path d="M 60 75 Q 200 90 400 100 Q 550 105 660 110" stroke="#0891b2" stroke-width="3" fill="none"/>
+  <circle cx="660" cy="110" r="4" fill="#0891b2"/>
+  <text x="600" y="100" fill="#0891b2" font-size="11" font-weight="700">HPD (stable)</text>
+</svg>
+<div class="diagram-caption">SFT는 entropy 추락, HPD는 안정 유지 → 다양한 답변 능력 보존</div>
+</div>
+
+<h3>3.4 후속 단계의 디딤돌</h3>
+<p>HPD로 학습된 모델은 ##다음 단계 학습(DPO, GRPO)을 더 잘 받는다##. SFT+DPO보다 HPD+DPO가 ##8.85배 큰 향상##을 가져온다 (Δ +1.81 vs +11.92).</p>
+
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+<h2>4. 기존 방법 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>구분</th><th>기존 KD (FKLD/RKLD/JSD)</th><th>HPD</th></tr></thead>
+<tbody>
+<tr><td>가르침 방향</td><td>한 방향 고정</td><td>토큰별 자동 결정</td></tr>
+<tr><td>안정성</td><td>RKLD는 unstable, FKLD는 over-smooth</td><td>masking으로 conflict 차단</td></tr>
+<tr><td>On-policy 비용</td><td>full rollout 필요 (비쌈)</td><td>한 토큰만 학생이 샘플 (저렴)</td></tr>
+<tr><td>Entropy collapse</td><td>SFT는 흔히 발생</td><td>방지 (선생 entropy 유지)</td></tr>
+<tr><td>후속 학습</td><td>제한적</td><td>DPO/OPD 강한 출발점</td></tr>
+<tr><td>구현 복잡도</td><td>간단</td><td>거의 동일 (loss 한 줄 차이)</td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<div class="analogy-title">🎯 비유: 자동 줌 카메라</div>
+<p>일반 카메라는 ##줌 배율을 미리 정해야##(FKLD = 광각 고정, RKLD = 망원 고정) 한다. HPD는 ##피사체의 거리에 따라 자동으로 줌##을 바꾸는 카메라 같다 — 가까우면(k₁ 큼) 더 당기고, 멀면(k₁ 작음) 그대로 둔다.</p>
+</div>
+
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+<h2>5. 어디에 쓸 수 있을까?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="360" cy="190" rx="80" ry="50" fill="#0891b2"/>
+  <text x="360" y="185" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">HPD</text>
+  <text x="360" y="205" text-anchor="middle" fill="#fff" font-size="11">압축 LLM</text>
+
+  <!-- branches -->
+  <line x1="320" y1="155" x2="200" y2="80" stroke="#0891b2" stroke-width="2"/>
+  <rect x="80" y="50" width="240" height="60" rx="10" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="200" y="78" text-anchor="middle" fill="#0e7490" font-size="13" font-weight="700">엣지 디바이스 LLM</text>
+  <text x="200" y="98" text-anchor="middle" fill="#475569" font-size="11">스마트폰·차량·IoT 온디바이스</text>
+
+  <line x1="400" y1="155" x2="520" y2="80" stroke="#0891b2" stroke-width="2"/>
+  <rect x="400" y="50" width="240" height="60" rx="10" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="520" y="78" text-anchor="middle" fill="#0e7490" font-size="13" font-weight="700">서비스 비용 절감</text>
+  <text x="520" y="98" text-anchor="middle" fill="#475569" font-size="11">동일 품질 1/5~1/10 비용</text>
+
+  <line x1="320" y1="225" x2="200" y2="300" stroke="#0891b2" stroke-width="2"/>
+  <rect x="80" y="280" width="240" height="60" rx="10" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="200" y="308" text-anchor="middle" fill="#0e7490" font-size="13" font-weight="700">전문가 분야 특화 모델</text>
+  <text x="200" y="328" text-anchor="middle" fill="#475569" font-size="11">의료·법률·금융 도메인 압축</text>
+
+  <line x1="400" y1="225" x2="520" y2="300" stroke="#0891b2" stroke-width="2"/>
+  <rect x="400" y="280" width="240" height="60" rx="10" fill="#ecfeff" stroke="#0891b2"/>
+  <text x="520" y="308" text-anchor="middle" fill="#0e7490" font-size="13" font-weight="700">RL 사전 단계</text>
+  <text x="520" y="328" text-anchor="middle" fill="#475569" font-size="11">DPO/GRPO 더 빠르게 수렴</text>
+</svg>
+<div class="diagram-caption">HPD가 가치를 발휘하는 네 가지 시나리오</div>
+</div>
+
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+<div class="one-liner">
+"##KD를 더 똑똑하게## — 같은 데이터, 같은 모델 크기에서 ##토큰 단위 가중치 자동 결정##만으로 41~78%의 추론 성능 개선"
+</div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+<h2>6. 한계점 (균형 잡힌 시각)</h2>
+
+<div class="card card-orange">
+<p><strong>① Tokenizer 동일성 제약</strong>: 학생과 선생이 ##같은 tokenizer##를 써야 한다. Qwen→Llama 같은 ##cross-family 증류는 그대로 적용 불가##.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>② 이론적 정당화 부족</strong>: "왜 ##masking + switching##이 weighted-sum hybrid보다 나은가"에 대한 ##수학적 증명이 아니라 실험적 발견##이다. 다른 데이터·도메인에서 같은 임계값(0)이 최적인지는 확인되지 않음.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>③ Single-token student sampling의 한계</strong>: 한 토큰만 학생이 뽑으므로, ##긴 시퀀스에서의 누적 drift##는 여전히 다 잡지 못한다. 진짜 inference 환경의 정확한 distribution은 full rollout (OPD)이 필요.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>④ Coding 도메인의 mixed 결과</strong>: 평균은 1등이지만 DS-Coder MBPP 같은 ##개별 벤치마크에선 KD(FKLD)에 진다##. Code generation의 long-tail 분포에 HPD가 덜 강할 수 있다는 시사.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>⑤ 통계 검증의 깊이 부족</strong>: $p&lt;0.01$ t-test 표시는 있지만 seed 수·구체적 산출 방법은 본문에 없음. LLM 평가는 seed에 따라 변동이 큰데 표준편차 보고가 부족하다.</p>
+</div>
+
+</section>
+
+<div class="top-link"><a href="20260427_zhu_hpd.html">← 전문가용 상세 요약 보기</a></div>
+
+</div>
+
+<div class="footer">
+Hybrid Policy Distillation for LLMs · Zhu et al. (SJTU·Tencent) · arXiv:2604.20244 · 2026-04-22<br>
+이 브리핑은 비전문가용 개요입니다 — 전문가용 상세 요약은 별도 페이지를 참고하세요.
+</div>
+
+</body>
+</html>

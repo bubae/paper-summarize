@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Context Unrolling in Omni Models</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { background: #eef2ff; padding: 0.6rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #6366f1; }
+  .brief-link a { color: #4338ca; font-weight: bold; text-decoration: none; }
+  .brief-link a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Context Unrolling in Omni Models</h1>
+
+<div class="brief-link">
+📄 비전문가용 개요를 찾으신다면 → <a href="20260427_yang_omni-unroll_brief.html">개요 브리핑 버전 보기 →</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Ceyuan Yang*, Zhijie Lin*, Yang Zhao*, Fei Xiao*, Hao He*, Qi Zhao*, Chaorui Deng, Kunchang Li, Zihan Ding, Yuwei Guo, Fuyun Wang, Fangqi Zhu, Xiaonan Nie, Shenhan Zhu, Shanchuan Lin, Hongsheng Li, Weiling Huang, Guang Shi†, Haoqi Fan† (* 공동기여, † 교신)</li>
+  <li><strong>소속</strong>: ByteDance Seed</li>
+  <li><strong>학회/저널</strong>: Preprint (arXiv)</li>
+  <li><strong>연도</strong>: 2026-04-24 (arXiv stamp 23 Apr 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.21921">arXiv:2604.21921</a> · <a href="https://omni-model.com/">Project Page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 통합 멀티모달 모델은 보통 "여러 modality를 같이 처리한다"는 ##multi-task container## 수준에 머물러 있다. 각 modality가 가진 ##상보적 정보##를 활용해 예측 전 단계에서 더 풍부한 context를 만들 수는 없을까?</li>
+  <li><strong>해결</strong>: ByteDance Seed의 ##Omni## 모델은 BAGEL을 확장하여 text·image·video·3D geometry·hidden representation을 ##atomic primitive##로 다루고, 이들을 호출·합성하여 풍부한 context를 만든 뒤 예측한다. 이를 ##Context Unrolling##이라 명명.</li>
+  <li><strong>왜 작동하는가</strong>: 각 modality는 공유된 multimodal manifold의 ##부분 projection##일 뿐이다. 여러 projection을 한 workspace에 모으면 모호성(ambiguity)이 줄고 ##downstream prediction이 더 잘 constrained##된다. text-think + visual token rollout + camera pose + novel view synthesis 같은 atomic 동작들이 ##context-conditioned decoding##의 재료가 된다.</li>
+  <li><strong>비유</strong>: 시험을 보기 전에 공책에 ##본인이 알고 있는 모든 관련 그림·표·메모를 펼쳐놓고## 답을 적는 학생. 단순히 머리만 굴려 답하는 것이 아니라 ##스스로 worksheet를 만들어## 그 위에서 결정한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Context Unrolling 개념 정립</strong>: 통합 multimodal 모델의 본질이 ##multi-task share가 아니라 atomic primitive를 invoke·compose해서 context를 키우는 것##이라는 framing. 수식 $C_{t+1}=C_t \oplus \phi_t(x,C_t),\ y=\psi(x|C_T)$로 통합.</li>
+  <li><strong>Omni 모델</strong>: BAGEL 위에 text·image·video·##3D geometry##·##hidden visual representation##을 native로 학습한 ##3B active params##의 MoE 통합 모델. 단일 아키텍처에서 understanding·generation·editing 모두 처리.</li>
+  <li><strong>네 가지 capability 영역에서 unrolling 효과 입증</strong>: (i) Visual understanding(think CoT) +6.6 GenEval2 점수, (ii) T2I generation(text-think + visual tokens) GenEval2 ##29.25→53.4##, (iii) Spatial understanding(camera pose / NVS) MMSI ##27.14→34.17##, (iv) Monocular depth(depth caption + visual tokens) δ₁ 83.21→84.01.</li>
+  <li><strong>오픈 모델 대비 SOTA 또는 동급</strong>: GenEval2 54.12로 Qwen-Image, Z-Image, Flux 능가; RealEstate10K camera pose AUC@30 88.32 (VGGT 88.23 능가); NYU 단안 깊이 δ₁ 96.22 (VGGT 96.10 능가).</li>
+  <li><strong>Oracle context 분석</strong>: Gemini-3 Pro의 zero-shot 텍스트 + 자기-rollout visual token을 함께 줄 때 GenEval2 +27.96 추가 향상 → ##unified context unrolling이 multimodal "chain-of-thought"의 새 연구 방향##임을 시사.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 Native Multimodal vs Multi-task Container</h3>
+<p>통합 멀티모달 모델(Unified Multimodal Models, UMM)은 ##single backbone##으로 텍스트·이미지·비디오·3D 등을 다 처리한다. 대표적 사례로 BAGEL, UniVal, AnyGPT, Ming-Omni, Emu3.5 등이 있다. 그러나 대부분은 ##각 modality의 task head를 한 모델 안에 모아둔## 형태에 가깝다 — "이미지 입력이면 image branch, 텍스트면 text branch."</p>
+<p>이 논문은 그 framing이 통합 모델의 ##진짜 가치를 가린다##고 주장한다. 통합 모델의 본질적 이점은 ##각 capability를 atomic primitive처럼 호출##할 수 있고, 그 출력을 ##context로 누적##해 다음 단계가 더 잘 constrained되게 만든다는 점이다.</p>
+
+<h3>1.2 BAGEL: Omni의 직접적 전신</h3>
+<p>Omni는 BAGEL [Deng et al. 2025, arXiv:2505.14683] 위에 세워졌다. BAGEL은 image-text 쌍을 ##interleaved data##로 처리하면서 understanding과 generation을 하나의 sequence model로 통합한 시도. Omni는 BAGEL의 design philosophy를 따르되 modality 풀을 ##video, 3D geometry, hidden visual representation##으로 확장하고, ##reasoning-oriented multimodal interleaved content##를 학습 데이터에 추가했다.</p>
+
+<h3>1.3 Test-Time Reasoning과 Multimodal CoT</h3>
+<p>최근 LLM에서 ##self-thinking / Chain-of-Thought (CoT)##가 표준이 되었다. 이미지 생성에서도 think-then-generate (BAGEL의 think mode)가 등장했고, X-Omni 등은 ##discrete autoregressive image generation에 RL##을 결합했다. 이 논문은 ##reasoning을 텍스트뿐 아니라 visual token, 3D pose, novel view rendering 등 multimodal primitive로 확장##하는 시도이다.</p>
+
+<h3>1.4 비교 대상 expertise 모델</h3>
+<table>
+<thead><tr><th>분야</th><th>전문 모델</th><th>주요 비교 점</th></tr></thead>
+<tbody>
+<tr><td>이미지 생성</td><td>Qwen-Image, Z-Image, Flux, Flux-Kontext</td><td>GenEval2, DPG, LongText, Inhouse, GEdit</td></tr>
+<tr><td>비디오 생성</td><td>Wan2.1, Hunyuan Video</td><td>VBench Total/Quality/Semantic</td></tr>
+<tr><td>비디오 편집</td><td>TokenFlow, DMT, VidToMe, AnyV2V, VideoGrain, Pyramid-Edit, Wan-Edit</td><td>FiVE 벤치마크 7-축</td></tr>
+<tr><td>VLM</td><td>Qwen3-VL-30B-A3B, InternVL3.5-30B-A3B</td><td>BLINK, MMStar, MMBench-V11, …, Video-MME</td></tr>
+<tr><td>Camera Pose</td><td>Flare, Cut3r, VGGT</td><td>RealEstate10K, CO3Dv2 — AUC@30, RPE trans/rot</td></tr>
+<tr><td>Depth</td><td>Marigold, Cut3r, DA3 giant, VGGT</td><td>NYU/KITTI/SINTEL/ETH3D/DIODE δ₁, AbsRel</td></tr>
+</tbody>
+</table>
+
+<h2>2. Context Unrolling 핵심 framing</h2>
+
+<h3>2.1 Iterative Context Construction</h3>
+<p>논문이 제안하는 inference 모델은 다음과 같다:</p>
+$$C_{t+1}=C_t \oplus \phi_t(x, C_t), \qquad y=\psi(x \mid C_T) \quad (1)$$
+<p>여기서:</p>
+<ul>
+  <li>$x$ = 멀티모달 입력</li>
+  <li>$\phi_t$ = atomic primitive — 예: "describe", "predict pose", "roll out visual tokens", "synthesize a novel view", "estimate depth"</li>
+  <li>$\oplus$ = context 합성 연산자 (sequence concatenation 또는 modality interleave)</li>
+  <li>$\psi(x|C_T)$ = 최종 context 위에서의 prediction</li>
+</ul>
+<p>직관: ##unification이 단순히 length만 늘리는 게 아니라 structure와 utility를 함께 늘리는 메커니즘이라는 재해석##. context는 "텍스트 길이"가 아니라 "구조화된 작업장(workspace)".</p>
+
+<h3>2.2 네 갈래의 context unrolling</h3>
+
+<div class="flow-diagram">[입력 x: 텍스트/이미지/비디오/3D 질의]
+    ↓
+[Context Unrolling Workspace]
+    ├─ 2.1 Visual Understanding   : "think" CoT 텍스트 rollout
+    ├─ 2.2 Visual Generation     : text-think + visual token rollout
+    ├─ 2.3 Spatial Understanding : camera pose 추정 + novel view 합성
+    └─ 2.4 3D Geometry           : depth caption + 자기-visual token
+    ↓
+[ψ context-conditioned decoding] → 최종 출력 y</div>
+
+<h2>3. Visual Understanding</h2>
+
+<p>표 1: ##self-thinking (CoT)##만 추가해도 모든 understanding 벤치마크에서 향상된다.</p>
+
+<table>
+<thead><tr><th>Context</th><th>BLINK</th><th>MMStar</th><th>MMBench-V11</th><th>SimpleVQA</th><th>AI2D</th><th>Chartqa</th><th>Docvqa</th><th>Hallusion</th><th>Erqa</th><th>MMSI</th></tr></thead>
+<tbody>
+<tr><td>Omni</td><td>60.8</td><td>59.4</td><td>76.2</td><td>50.4</td><td>90.2</td><td>85.6</td><td>93.5</td><td>69.6</td><td>41.5</td><td>31.5</td></tr>
+<tr><td>+thinking</td><td><strong>61.6</strong></td><td><strong>66.5</strong></td><td><strong>77.1</strong></td><td><strong>51.4</strong></td><td><strong>92.3</strong></td><td><strong>88.0</strong></td><td><strong>94.0</strong></td><td><strong>71.3</strong></td><td><strong>44.5</strong></td><td><strong>32.6</strong></td></tr>
+</tbody>
+</table>
+
+<p>의도: 표준 VLM 태스크에서도 think 단계를 도입하면 latent workspace가 finer semantic decomposition으로 enrich됨을 검증. 결과: ##MMStar는 +7.1, Erqa는 +3.0, MMSI는 +1.1## — compositional reasoning이 강한 벤치마크에서 효과가 크다. 이 실험은 "context unrolling이 표준 VLM에도 즉시 가치를 더한다"는 주장을 뒷받침.</p>
+
+<h2>4. Visual Generation (T2I)</h2>
+
+<h3>4.1 Self-Unrolling Contexts (Table 2)</h3>
+<p>T2I는 ##언어→이미지 매핑의 본질적 모호성## 때문에 multi-granularity context로부터 큰 이득을 본다. 짧은 think(~100 tok)·긴 think(~250 tok)·visual token rollout 세 종류를 조합:</p>
+
+<table>
+<thead><tr><th>Context</th><th>TIFA<sub>GM</sub></th><th>Object</th><th>Attribute</th><th>Count</th><th>Position</th><th>Verb</th><th>Inhouse Overall</th></tr></thead>
+<tbody>
+<tr><td>Omni (baseline)</td><td>29.25</td><td>91.64</td><td>90.00</td><td>52.03</td><td>77.67</td><td>26.25</td><td>0.56</td></tr>
+<tr><td>+ short text</td><td>37.35</td><td>93.18</td><td>92.45</td><td>60.14</td><td>76.92</td><td>38.83</td><td>0.59</td></tr>
+<tr><td>+ long text</td><td>43.94</td><td>91.86</td><td>91.13</td><td>67.03</td><td>77.03</td><td>38.31</td><td>0.61</td></tr>
+<tr><td>+ visual tokens</td><td>48.02</td><td>94.42</td><td>92.96</td><td>66.92</td><td>79.28</td><td>53.96</td><td>0.61</td></tr>
+<tr><td>+ short &amp; visual</td><td>49.16</td><td>93.13</td><td>92.68</td><td>68.36</td><td>76.83</td><td>43.34</td><td>0.64</td></tr>
+<tr><td>+ long &amp; visual</td><td><strong>53.44</strong></td><td>92.34</td><td>92.32</td><td>72.98</td><td>80.23</td><td>42.81</td><td><strong>0.66</strong></td></tr>
+<tr><td>+ oracle (Gemini-3)</td><td>52.20</td><td>95.72</td><td>87.35</td><td>67.91</td><td>91.69</td><td>43.31</td><td>0.71</td></tr>
+<tr><td>+ oracle &amp; visual</td><td>57.21</td><td>94.77</td><td>97.89</td><td>69.47</td><td>90.64</td><td>56.00</td><td>0.73</td></tr>
+</tbody>
+</table>
+
+<p>패턴 분석:</p>
+<ul>
+  <li>##visual token rollout은 verb·count·position처럼 "구조적 단서"가 필요한 항목에서 가장 큰 향상## (Verb 26.25→53.96).</li>
+  <li>Atomicity (atomic 요구가 여러 개일 때의 robustness)는 단순 long text보다 ##visual token 조합##일 때 더 높음 → 통합 모델의 capability composition이 효과적임.</li>
+  <li>Oracle Gemini-3 Pro 텍스트는 self-rollout보다 강하지만, visual token을 더 더하면 또 +5.01 → ##visual token이 텍스트와 다른 구조적 채널을 보탠다##는 증거.</li>
+</ul>
+
+<p>이 실험이 뒷받침하는 주장: <em>unified model의 generation gain은 본질적으로 "context 풍부화"에서 온다 — context 품질·구조가 핵심 driver.</em></p>
+
+<h2>5. Spatial Understanding</h2>
+
+<h3>5.1 3D Textual Context: Geometry-as-Context</h3>
+<p>Spatial QA(여러 view 사이의 객체 위치)에서 free-form 텍스트 reasoning은 viewpoint 변화·foreshortening·occlusion 같은 ##geometric ambiguity##에 약하다. Omni는 ##먼저 camera pose를 추정##해 geometry-grounded 텍스트 context를 만들고, 그 위에서 답한다.</p>
+
+<h3>5.2 3D Visual Context: Imagination-as-Context</h3>
+<p>한 단계 더 나아가, 주어진 view 주변의 ##novel view synthesis (NVS) — 위/아래/좌/우 새 시점 합성##으로 visual context를 키운다. 이는 모델이 "마음으로 환경을 둘러보는" 효과 — geometric ambiguity를 더 강하게 해소.</p>
+
+<table>
+<thead><tr><th>Context</th><th>MMSI Overall</th><th>MSR</th><th>Motion</th><th>Positional Relationship</th></tr></thead>
+<tbody>
+<tr><td>Omni</td><td>27.14</td><td>17.65</td><td>0.0</td><td>19.63</td></tr>
+<tr><td>+ thinking</td><td>28.15</td><td>17.65</td><td>33.33</td><td>30.25</td></tr>
+<tr><td>+ textual contexts (pose)</td><td>30.15</td><td>11.76</td><td>33.33</td><td>33.95</td></tr>
+<tr><td>+ visual contexts (NVS)</td><td><strong>34.17</strong></td><td><strong>26.47</strong></td><td>33.33</td><td><strong>35.80</strong></td></tr>
+</tbody>
+</table>
+
+<p>주장 매핑: ##text-only CoT는 geometric ambiguity를 풀 수 없지만, 3D primitive(pose) 또는 imagination(NVS)을 invoke하면 가능##해진다는 것. Figure 3의 정성적 예시(소파의 좌/우 판단)는 baseline과 text-CoT가 모두 틀리고, pose / NVS context가 정답을 만든다.</p>
+
+<h2>6. 3D Geometry — Monocular Depth</h2>
+
+<p>Depth estimation을 ##depth map generation##(RGB conditional)으로 reformulate. Diffusion 기반 (Marigold)와 같은 결을 따르되, 통합 모델의 강점은 ##textual + visual context를 먼저 만들고 그 다음 depth를 decode##하는 데 있다.</p>
+
+<table>
+<thead><tr><th>Context</th><th>δ₁ ↑</th><th>AbsRel ↓</th></tr></thead>
+<tbody>
+<tr><td>Omni</td><td>83.21%</td><td>0.2028</td></tr>
+<tr><td>+ detailed caption</td><td>83.27%</td><td>0.2029</td></tr>
+<tr><td>+ depth caption</td><td>83.88%</td><td>0.1988</td></tr>
+<tr><td>+ visual contexts</td><td><strong>84.01%</strong></td><td><strong>0.1970</strong></td></tr>
+</tbody>
+</table>
+
+<p>패턴: ##generic detailed caption은 거의 도움이 안 되지만, 공간 단서(전후 관계·occlusion·support/contact)에 집중한 "depth caption"은 향상##. 이 실험이 뒷받침하는 주장: <em>context는 단순히 verbose하다고 좋은 것이 아니라 "task-relevant constraint-like"일 때 가장 효과적이다.</em></p>
+
+<h3>Figure 4 정성 분석 (서술)</h3>
+<blockquote><strong>[Figure 4 설명]</strong>: 6개의 실내·실외 RGB 이미지(꽃병, 화병, 천장 조명, 천장 모서리, 로마식 분수, 정원 의자)에 대해 4가지 조건의 depth 결과를 비교. caption 없는 베이스는 식물의 잎을 분리하지 못하고 천장 조명을 놓침. depth caption은 객체를 식별하지만 벽의 좌우 깊이 차이를 무시. visual context(자기-rollout token)는 ##벽 부분의 깊이 차이까지 구분##하여 가장 일관된 결과.</blockquote>
+
+<h2>7. 모델 아키텍처와 학습</h2>
+
+<h3>7.1 아키텍처 핵심</h3>
+<ul>
+  <li>BAGEL 기반, Mixture-of-Experts (MoE) 구조, ##3B active parameters##.</li>
+  <li>Modality 풀: text · image · video · 3D geometry · ##hidden visual representation## (latent reasoning space).</li>
+  <li>Native multimodal pretraining — image-text pair에 머물지 않고 video, 3D 데이터, 결합 데이터 모두 native input/output.</li>
+  <li>Reasoning-oriented multimodal interleaved data(CoT-style 텍스트 + dense visual descriptions + spatial grounding + camera pose 등)를 학습 시 포함.</li>
+</ul>
+
+<h3>7.2 학습 / inference 흐름</h3>
+<div class="flow-diagram">Training:
+  - native interleaved data: [text]-[image]-[video frame]-[depth]-[pose]-[hidden token]-[text]…
+  - reasoning data: 질문 → think CoT → visual token rollout → 답
+  - 5종 modality 동시 학습, primary head shared (MoE expert routing)
+
+Inference:
+  x → φ_1(describe / think) → C_1
+  C_1 → φ_2(roll out visual tokens / pose / NVS) → C_2
+  …
+  C_T → ψ(decode 답)</div>
+
+<p>핵심 디자인 선택:</p>
+<ul>
+  <li>##Hidden representation##을 dedicated latent reasoning space로 두어, 텍스트·시각이 아닌 latent token 형태로 reasoning을 수행할 수 있도록 함.</li>
+  <li>video는 480×640, 12s까지 (현재 한계). 더 긴 영상은 future work.</li>
+</ul>
+
+<h2>8. 종합 벤치마크 결과</h2>
+
+<h3>8.1 Multimodal Understanding (Table 5)</h3>
+<table>
+<thead><tr><th>Benchmark</th><th>Qwen3-VL-30B-A3B</th><th>InternVL3.5-30B-A3B</th><th>Omni</th></tr></thead>
+<tbody>
+<tr><td>BLINK</td><td>67.7</td><td>60.4</td><td>63.0</td></tr>
+<tr><td>MMStar</td><td>78.4</td><td>72.0</td><td>63.8</td></tr>
+<tr><td>MMBench-V11</td><td>78.4</td><td><strong>84.8</strong></td><td>75.3</td></tr>
+<tr><td>VlmsAreBlind</td><td>67.5</td><td>—</td><td><strong>76.4</strong></td></tr>
+<tr><td>SimpleVQA</td><td>52.7</td><td>—</td><td>53.3</td></tr>
+<tr><td>RealWorldQA</td><td>73.7</td><td>72.3</td><td><strong>76.0</strong></td></tr>
+<tr><td>Textvqa</td><td>—</td><td>80.5</td><td><strong>81.0</strong></td></tr>
+<tr><td>AI2D</td><td>85.0</td><td>86.8</td><td><strong>91.5</strong></td></tr>
+<tr><td>Chartqa</td><td>86.8</td><td><strong>87.4</strong></td><td>86.9</td></tr>
+<tr><td>Docvqa</td><td><strong>95.0</strong></td><td>94.2</td><td>92.8</td></tr>
+<tr><td>Hallusion</td><td>61.5</td><td>53.8</td><td><strong>70.1</strong></td></tr>
+<tr><td>MuirBench</td><td>73.0</td><td>53.1</td><td>64.2</td></tr>
+<tr><td>Erqa</td><td>51.3</td><td>41.5</td><td>45.0</td></tr>
+<tr><td>MMSI-Bench</td><td>30.3</td><td>27.5</td><td><strong>31.5</strong></td></tr>
+<tr><td>MVBench</td><td><strong>72.3</strong></td><td>72.1</td><td>68.4</td></tr>
+<tr><td>Video-MME</td><td><strong>74.5</strong></td><td>68.7</td><td>67.2</td></tr>
+</tbody>
+</table>
+
+<p>관찰: ##heavy post-training/distillation 없이##도 비슷한 active parameter 규모의 expert VLM에 ##comparable## 수준. 특히 spatial(MMSI), illusion(Hallusion), AI2D, RealWorldQA에서 우위. 단점: video understanding(MVBench, Video-MME)은 다소 뒤짐 — 학습 데이터/스케일 한계.</p>
+
+<h3>8.2 Image Generation (Table 6)</h3>
+<table>
+<thead><tr><th>Models</th><th>GenEval2</th><th>DPG</th><th>LongText-EN</th><th>LongText-CN</th><th>Inhouse</th></tr></thead>
+<tbody>
+<tr><td>Qwen-Image</td><td>30.67</td><td>88.32</td><td>94.3</td><td>94.6</td><td>55.16</td></tr>
+<tr><td>Z-Image</td><td>41.83</td><td>88.14</td><td>93.5</td><td>93.6</td><td>55.19</td></tr>
+<tr><td>Flux</td><td>34.59</td><td>83.84</td><td>60.7</td><td>0.5</td><td>49.91</td></tr>
+<tr><td><strong>Omni</strong></td><td><strong>54.12</strong></td><td><strong>88.55</strong></td><td><strong>97.5</strong></td><td><strong>96.8</strong></td><td><strong>63.87</strong></td></tr>
+</tbody>
+</table>
+
+<p>GEdit-Bench-EN (Image Editing):</p>
+<table>
+<thead><tr><th>Models</th><th>G_SC</th><th>G_PQ</th><th>G_O</th></tr></thead>
+<tbody>
+<tr><td>Flux-Kontext-dev</td><td>7.16</td><td>7.37</td><td>6.51</td></tr>
+<tr><td>Step1X-Edit-v1</td><td>7.66</td><td>7.35</td><td>6.97</td></tr>
+<tr><td>Z-Image-Edit</td><td>8.11</td><td>7.72</td><td>7.57</td></tr>
+<tr><td>Qwen-Image-Edit</td><td>8.15</td><td>7.86</td><td>7.54</td></tr>
+<tr><td><strong>Omni</strong></td><td><strong>8.42</strong></td><td>7.85</td><td><strong>7.75</strong></td></tr>
+</tbody>
+</table>
+
+<p>주장: ##3B active param의 통합 모델이 task-specific expert(특히 Flux-Kontext, Step1X-Edit)를 능가##할 수 있는 이유는 context unrolling이 expert에 없는 추가 신호(자기-think + visual token)를 주기 때문.</p>
+
+<h3>8.3 Video Generation (Table 7) &amp; Editing (Table 8)</h3>
+<table>
+<thead><tr><th>Models</th><th>Total Score</th><th>Quality</th><th>Semantic</th></tr></thead>
+<tbody>
+<tr><td>Wan2.1</td><td><strong>83.69</strong></td><td><strong>85.59</strong></td><td>76.11</td></tr>
+<tr><td>Hunyuan Video</td><td>83.43</td><td>85.07</td><td>76.88</td></tr>
+<tr><td><strong>Omni</strong></td><td>83.35</td><td>83.11</td><td><strong>84.29</strong></td></tr>
+</tbody>
+</table>
+<p>VBench Total은 근소 열세지만 ##Semantic은 +7~8 우위## — instruction following과 의미 정렬에서 강점. 한계: 480×640, 12s.</p>
+
+<p>FiVE 비디오 편집에선 instruction-following 핵심 지표(MC, U_, ↻_, Acc)에서 ##대부분 1등## (Acc 72.41 vs 차순위 DMT 48.42).</p>
+
+<h3>8.4 Camera Pose &amp; Depth (Tables 9-10)</h3>
+<table>
+<thead><tr><th>Method</th><th>RealEstate10K AUC@30↑</th><th>RealEstate10K RPE rot↓</th><th>CO3Dv2 AUC@30↑</th></tr></thead>
+<tbody>
+<tr><td>Flare</td><td>84.42</td><td>0.0532</td><td>72.23</td></tr>
+<tr><td>Cut3r</td><td>85.32</td><td>0.0424</td><td>75.62</td></tr>
+<tr><td>VGGT</td><td>88.23</td><td>0.0285</td><td><strong>86.23</strong></td></tr>
+<tr><td><strong>Omni</strong></td><td><strong>88.32</strong></td><td><strong>0.0269</strong></td><td>75.21</td></tr>
+</tbody>
+</table>
+
+<p>Depth (NYU 대표):</p>
+<table>
+<thead><tr><th>Method</th><th>NYU δ₁↑</th><th>NYU AbsRel↓</th><th>KITTI δ₁↑</th><th>SINTEL δ₁↑</th><th>ETH3D δ₁↑</th></tr></thead>
+<tbody>
+<tr><td>Marigold</td><td>92.75</td><td>0.0781</td><td>87.87</td><td>62.24</td><td>97.12</td></tr>
+<tr><td>VGGT</td><td>96.10</td><td>0.0499</td><td>94.29</td><td>66.11</td><td>98.35</td></tr>
+<tr><td><strong>Omni</strong></td><td><strong>96.22</strong></td><td>0.0542</td><td><strong>96.92</strong></td><td><strong>74.27</strong></td><td><strong>98.91</strong></td></tr>
+</tbody>
+</table>
+
+<p>관찰: ##특화된 3D feed-forward 모델 VGGT를 RealEstate10K, NYU, KITTI, SINTEL, ETH3D에서 능가하거나 동등##. CO3Dv2(객체 중심)는 학습 데이터 커버리지 한계로 뒤짐 — 솔직한 자기진단.</p>
+
+<h2>9. 비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>이론적 framing의 추상성</strong>: Eq. (1) $C_{t+1}=C_t \oplus \phi_t(x,C_t)$는 직관적이지만, $\oplus$의 구체적 구현(token concatenation? cross-attention?)이나 stopping criterion (언제 $\psi$를 호출할지)이 명시되지 않는다. 시스템 디자인보다는 high-level conceptualization.</li>
+  <li><strong>Inference cost 미공개</strong>: visual token rollout, NVS, camera pose 추정을 매번 부르면 ##latency·메모리 cost##가 크게 증가할 텐데, 실제 inference 비용 비교가 없음. "용도에 따라 어떤 primitive를 부를지"의 정책 학습은 future work로 미룸.</li>
+  <li><strong>Post-training 부재의 양면성</strong>: heavy distillation이 없는데도 좋다는 점은 강점이지만, 동시에 expert 모델이 RL/post-train을 추가했을 때 격차가 더 벌어질지는 알 수 없음. 단편적 비교의 해석을 조심해야.</li>
+  <li><strong>Video 한계</strong>: 480×640, 12s는 SOTA T2V와 격차가 크다. unified 모델이라는 개념 검증을 위해 유용하지만 실용 video 생성은 아직.</li>
+  <li><strong>Oracle gap</strong>: Gemini-3 Pro 텍스트를 oracle로 줄 때 +27.96의 추가 향상은 ##self-rollout context 품질이 여전히 큰 병목##임을 의미. 모델 스케일·post-training이 필요한 영역.</li>
+  <li><strong>벤치마크 일부의 cherry-picking 우려</strong>: VLM 비교(Table 5)에서 1등 항목과 뒤지는 항목이 섞여있는데, 종합 ranking은 제시되지 않는다. "comparable"이라는 결론은 정성적.</li>
+  <li><strong>NVS의 시각적 품질 미공개</strong>: novel view synthesis를 reasoning에 쓴다면 합성 이미지의 시각적 fidelity가 중요한데, 정량 평가가 없음. spatial QA 성능 향상이 NVS 품질 덕인지 단순 multi-view bias 효과인지 분리되지 않음.</li>
+  <li><strong>Reproducibility</strong>: 학습 데이터·구체적 hyperparameter·MoE 라우팅 디테일이 paper에 거의 없음. Project page는 있지만 weight/code 공개 여부 불명.</li>
+  <li><strong>Atomic primitive의 closed list</strong>: 5개 modality + thinking은 고정. 새로운 primitive(예: audio, point cloud, force feedback)로 확장하려면 어떻게 학습해야 하는지의 일반화 가능성이 미해결.</li>
+</ul>
+</div>
+
+<h2>10. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Unification = Context Composition</strong>: 통합 multimodal 모델의 진짜 가치를 ##multi-task share가 아니라 atomic primitive composition##으로 재정의한 framing이 인상적이다. "통합 모델은 왜 좋아야 하나?"의 답을 구체화.</li>
+  <li>##Multimodal CoT## 개념의 자연스러운 일반화 — 텍스트 thinking에 머무르지 않고 ##visual token rollout, camera pose, novel view synthesis##까지 reasoning step으로 사용 가능. 향후 RL post-training의 결합 자연스러움.</li>
+  <li>##Visual token rollout이 verb/count/spatial 같은 구조적 단서를 텍스트가 줄 수 없는 방식으로 전달##한다는 실증. T2I·spatial QA 양쪽에서 textual context와 ##비중복(non-redundant) 신호##임이 확인됨.</li>
+  <li>3B active param의 unified MoE가 task-specific 30B-active VLM이나 수십B 규모 expert generator/depth 모델과 ##competitive##. 통합 학습이 inductive bias 절약·multi-task synergy를 제공한다는 가설을 보강.</li>
+  <li>Oracle context 결과는 "##더 좋은 context가 있으면 모델은 그만큼 더 잘한다##"는 명확한 메시지. post-training의 다음 frontier는 ##언제·무엇을 unroll할지의 policy 학습##일 가능성.</li>
+  <li>실무 함의: 통합 멀티모달 stack을 설계할 때, modality 채널을 늘리는 것보다 ##각 modality 출력을 atomic하게 호출 가능한 형태로 설계##하는 것이 production reasoning quality에 더 큰 영향을 줄 수 있다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

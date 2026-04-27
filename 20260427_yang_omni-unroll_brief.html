@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Context Unrolling in Omni Models — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+
+  .hero { background: linear-gradient(135deg, #f59e0b, #ea580c, #be123c); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.92; max-width: 680px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #be123c; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #ea580c, #be123c); border-radius: 3px; }
+  section h3 { font-size: 1.15rem; margin: 1.5rem 0 0.6rem; color: #c2410c; }
+
+  .card { background: #fffbf5; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #fed7aa; }
+  .card-accent { border-left: 5px solid #ea580c; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner { background: linear-gradient(135deg, #ea580c, #be123c); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #fffbf5; border-radius: 12px; border: 1px solid #fed7aa; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #fffbf5; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #fed7aa; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #ea580c, #be123c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #fed7aa; }
+  .comp-table th { background: #be123c; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #fed7aa; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fff7ed; font-weight: 700; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #ea580c; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #ea580c; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #ea580c; padding: 0 0.4rem; }
+
+  .top-link { text-align: center; margin: 1rem 0; }
+  .top-link a { color: #ea580c; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+  .top-link a:hover { text-decoration: underline; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">ByteDance Seed · 2026 · arXiv:2604.21921</div>
+  <h1>답하기 전에 ##스스로 작업장을 차려##두는 멀티모달 AI</h1>
+  <p class="subtitle">텍스트·이미지·비디오·3D를 하나의 모델로 처리할 뿐 아니라,<br>각 modality를 ##도구처럼 호출##해 풍부한 context를 만든 뒤 결정한다</p>
+</div>
+
+<div class="container">
+
+<div class="top-link"><a href="20260427_yang_omni-unroll.html">← 전문가용 상세 요약 보기</a></div>
+
+<div class="one-liner">"여러 modality를 ##단순히 같이 다루는 것##이 아니라, ##서로를 도구로 호출##해서 ##생각의 작업장(context)##을 키운 뒤 답한다"</div>
+
+<!-- ===== 배경 지식 ===== -->
+<section>
+<h2>1. 먼저 알아둘 배경 지식</h2>
+
+<h3>1.1 멀티모달 AI란?</h3>
+<div class="card card-accent">
+<p>요즘 화제가 되는 AI 모델들은 ##텍스트만##이 아니라 ##이미지·비디오·3D 데이터##까지 함께 처리한다. ChatGPT가 그림을 보고 답하거나, 그림을 그려주거나, 영상을 만드는 식이다. 이렇게 여러 형태의 데이터(##모달리티##)를 함께 다루는 AI를 <strong>멀티모달 모델</strong>이라 부른다.</p>
+<p>한 단계 더 나아가, ##하나의 모델로 모든 modality를 처리##하는 것을 <strong>통합 멀티모달 모델(Unified Multimodal Model, UMM)</strong>이라 한다. BAGEL, Emu3, AnyGPT, Ming-Omni 등이 대표적이다.</p>
+</div>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" fill="#be123c" font-size="16" font-weight="700">통합 멀티모달 모델: 한 모델, 여러 modality</text>
+
+  <!-- inputs -->
+  <rect x="20" y="80" width="100" height="40" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="70" y="105" text-anchor="middle" fill="#1e3a8a" font-size="13">텍스트</text>
+  <rect x="20" y="130" width="100" height="40" rx="8" fill="#fce7f3" stroke="#db2777"/>
+  <text x="70" y="155" text-anchor="middle" fill="#831843" font-size="13">이미지</text>
+  <rect x="20" y="180" width="100" height="40" rx="8" fill="#fef3c7" stroke="#ca8a04"/>
+  <text x="70" y="205" text-anchor="middle" fill="#713f12" font-size="13">비디오</text>
+  <rect x="20" y="230" width="100" height="40" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="70" y="255" text-anchor="middle" fill="#14532d" font-size="13">3D 데이터</text>
+
+  <!-- model -->
+  <rect x="220" y="120" width="280" height="120" rx="20" fill="url(#omniGrad)" stroke="#be123c" stroke-width="2"/>
+  <defs>
+    <linearGradient id="omniGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#fdba74"/>
+    </linearGradient>
+  </defs>
+  <text x="360" y="160" text-anchor="middle" fill="#7f1d1d" font-size="20" font-weight="900">Omni</text>
+  <text x="360" y="185" text-anchor="middle" fill="#7c2d12" font-size="13">통합 멀티모달 모델</text>
+  <text x="360" y="210" text-anchor="middle" fill="#7c2d12" font-size="11">3B active params (MoE)</text>
+
+  <!-- outputs -->
+  <rect x="600" y="80" width="100" height="40" rx="8" fill="#dbeafe" stroke="#2563eb"/>
+  <text x="650" y="105" text-anchor="middle" fill="#1e3a8a" font-size="13">텍스트 답변</text>
+  <rect x="600" y="130" width="100" height="40" rx="8" fill="#fce7f3" stroke="#db2777"/>
+  <text x="650" y="155" text-anchor="middle" fill="#831843" font-size="13">이미지 생성</text>
+  <rect x="600" y="180" width="100" height="40" rx="8" fill="#fef3c7" stroke="#ca8a04"/>
+  <text x="650" y="205" text-anchor="middle" fill="#713f12" font-size="13">비디오 생성</text>
+  <rect x="600" y="230" width="100" height="40" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="650" y="255" text-anchor="middle" fill="#14532d" font-size="13">깊이/포즈</text>
+
+  <!-- arrows -->
+  <line x1="120" y1="100" x2="220" y2="160" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="120" y1="150" x2="220" y2="170" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="120" y1="200" x2="220" y2="190" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="120" y1="250" x2="220" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="500" y1="160" x2="600" y2="100" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="500" y1="170" x2="600" y2="150" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="500" y1="190" x2="600" y2="200" stroke="#94a3b8" stroke-width="1.5"/>
+  <line x1="500" y1="200" x2="600" y2="250" stroke="#94a3b8" stroke-width="1.5"/>
+</svg>
+<div class="diagram-caption">하나의 Omni 모델이 4종 modality 입력을 받고 4종 출력을 생성</div>
+</div>
+
+<h3>1.2 기존 통합 모델의 한계</h3>
+<div class="card card-orange">
+<p>지금까지 통합 모델들은 ##"한 모델 안에 여러 task head를 모아둔" 정도##였다. 이미지 입력이면 image branch, 텍스트면 text branch — 사실상 ##task-specific 모델 여러 개를 한 backbone에 묶은## 형태다.</p>
+<p>이 논문은 그 framing이 통합 모델의 ##진짜 가치를 가린다##고 주장한다. 통합 모델이 좋은 진짜 이유는 따로 있다는 것이다.</p>
+</div>
+
+<h3>1.3 "Chain-of-Thought" 한 발 더</h3>
+<p>요즘 LLM에서 ##생각의 사슬(Chain-of-Thought, CoT)##이 표준이 되었다. 모델이 답하기 전에 ##스스로 단계별로 생각##을 적으면 정답률이 올라간다는 것. 그런데 이 "생각"이 ##꼭 텍스트일 필요는 없다##.</p>
+
+<div class="analogy">
+<div class="analogy-title">📓 비유: 시험 전 노트 정리</div>
+<p>수학 시험 직전, 어떤 학생은 머릿속으로만 풀고 답을 적는다. 다른 학생은 ##공책에 도형을 그리고 표를 만들고 메모를 적은 뒤## 그 위에서 답을 결정한다. 두 번째 학생이 보통 더 정확하다 — ##생각의 ##작업장(workspace)##을 만들었기 때문이다.</p>
+<p>Omni가 하는 일은 두 번째 학생을 ##멀티모달 버전으로 일반화##한 것이다. 텍스트 생각뿐 아니라 ##스스로 그림을 그리고, 카메라 각도를 추정하고, 깊이를 캡션하고##, 그 모든 출력을 작업장에 펼친 뒤에 답을 만든다.</p>
+</div>
+
+<h3>1.4 Modality는 같은 실체의 다른 그림자</h3>
+<p>이 논문의 핵심 직관: ##세상에는 하나의 통합된 의미 공간##이 있고, 각 modality는 그 공간을 다른 각도에서 바라본 그림자다. 텍스트는 ##추상적 의미##를, 이미지는 ##시각적 외형##을, 깊이맵은 ##공간적 구조##를 보여준다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" fill="#be123c" font-size="16" font-weight="700">하나의 의미 공간을 여러 modality가 비추다</text>
+
+  <!-- center sphere -->
+  <circle cx="360" cy="170" r="60" fill="url(#sphereGrad)" stroke="#7c2d12" stroke-width="2"/>
+  <defs>
+    <radialGradient id="sphereGrad">
+      <stop offset="0%" stop-color="#fed7aa"/>
+      <stop offset="100%" stop-color="#ea580c"/>
+    </radialGradient>
+  </defs>
+  <text x="360" y="165" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">통합 의미</text>
+  <text x="360" y="185" text-anchor="middle" fill="#fff" font-size="11">latent manifold</text>
+
+  <!-- shadows -->
+  <g>
+    <line x1="360" y1="110" x2="200" y2="60" stroke="#94a3b8" stroke-dasharray="3 3"/>
+    <ellipse cx="180" cy="60" rx="80" ry="20" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="180" y="65" text-anchor="middle" fill="#1e3a8a" font-size="12">텍스트 (의미 추상)</text>
+  </g>
+  <g>
+    <line x1="420" y1="130" x2="580" y2="60" stroke="#94a3b8" stroke-dasharray="3 3"/>
+    <ellipse cx="600" cy="60" rx="80" ry="20" fill="#fce7f3" stroke="#db2777"/>
+    <text x="600" y="65" text-anchor="middle" fill="#831843" font-size="12">이미지 (시각 외형)</text>
+  </g>
+  <g>
+    <line x1="420" y1="210" x2="580" y2="280" stroke="#94a3b8" stroke-dasharray="3 3"/>
+    <ellipse cx="600" cy="280" rx="80" ry="20" fill="#fef3c7" stroke="#ca8a04"/>
+    <text x="600" y="285" text-anchor="middle" fill="#713f12" font-size="12">비디오 (시간 변화)</text>
+  </g>
+  <g>
+    <line x1="360" y1="230" x2="200" y2="280" stroke="#94a3b8" stroke-dasharray="3 3"/>
+    <ellipse cx="180" cy="280" rx="80" ry="20" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="180" y="285" text-anchor="middle" fill="#14532d" font-size="12">3D (공간 구조)</text>
+  </g>
+</svg>
+<div class="diagram-caption">각 modality는 통합 의미 공간의 부분 projection — 모두 모으면 더 완전한 그림</div>
+</div>
+
+<h3>1.5 BAGEL — Omni의 직접적 전신</h3>
+<p>Omni는 ByteDance의 이전 모델 ##BAGEL## 위에서 시작되었다. BAGEL은 image-text 쌍을 ##순차적으로 섞은(interleaved)## 데이터로 학습해서, 이해(understanding)와 생성(generation)을 한 sequence model에 통합했다. Omni는 이 발상을 ##비디오·3D·hidden 표현##까지 확장한 것.</p>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+<h2>2. 핵심 아이디어 — Context Unrolling</h2>
+
+<h3>2.1 "Atomic Primitive"로 다시 보기</h3>
+<p>Omni 논문이 제안하는 새 시각: 통합 모델 안의 각 능력은 ##task가 아니라 atomic primitive##다. 즉 "이미지 생성"은 결과가 아니라 ##다른 작업 중에 호출할 수 있는 부분 도구##이다.</p>
+
+<div class="card card-accent">
+<p>구체적으로 다음과 같은 atomic primitive들을 호출할 수 있다:</p>
+<ul>
+<li><strong>describe</strong>: 입력에 대해 텍스트 설명을 만든다 (think CoT)</li>
+<li><strong>roll out visual tokens</strong>: 이미지의 ##저화질 토큰 시퀀스##를 생성한다 (구조 단서)</li>
+<li><strong>predict camera pose</strong>: 입력 이미지 사이의 카메라 위치를 추정한다</li>
+<li><strong>synthesize novel view</strong>: 다른 시점에서 본 모습을 합성한다</li>
+<li><strong>estimate depth</strong>: 깊이맵을 만든다</li>
+</ul>
+<p>이 ##5개 primitive##를 입력에 따라 ##선택적으로 invoke##해서 ##context(작업장)##를 채운다.</p>
+</div>
+
+<h3>2.2 Context를 누적하는 수식</h3>
+<div class="card card-accent" style="text-align:center; font-family:monospace; font-size:1rem;">
+C<sub>t+1</sub> = C<sub>t</sub> ⊕ φ<sub>t</sub>(x, C<sub>t</sub>) <br>
+y = ψ(x | C<sub>T</sub>)
+</div>
+<p>풀어 쓰면: ##기존 context## C<sub>t</sub>에, ##새 primitive 호출## φ<sub>t</sub>의 결과를 ##더해서## 새 context C<sub>t+1</sub>을 만든다. 마지막에 ψ로 ##최종 답을 디코드##한다.</p>
+
+<h3>2.3 Context Unrolling의 4갈래 사례</h3>
+
+<div class="step-flow">
+<div class="step-box"><div class="step-num">CASE 1</div><div class="step-title">Visual Understanding</div><div class="step-desc">"think" 텍스트 CoT</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">CASE 2</div><div class="step-title">Visual Generation</div><div class="step-desc">텍스트 think + visual token rollout</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">CASE 3</div><div class="step-title">Spatial Understanding</div><div class="step-desc">camera pose + novel view 합성</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">CASE 4</div><div class="step-title">3D Geometry</div><div class="step-desc">depth caption + 자기-visual token</div></div>
+</div>
+
+<h3>2.4 Spatial QA 예시 (Figure 3 재구성)</h3>
+<p>"두 장의 사진에서 검은 소파는 당신 기준 어디에 있나요?"라는 질문이 있다고 하자.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <!-- header -->
+  <text x="360" y="25" text-anchor="middle" fill="#be123c" font-size="14" font-weight="700">같은 질문, 4가지 reasoning 경로</text>
+
+  <!-- Path 1: baseline -->
+  <rect x="20" y="50" width="320" height="60" rx="10" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="40" y="73" fill="#7f1d1d" font-size="12" font-weight="700">① Direct (no thinking)</text>
+  <text x="40" y="93" fill="#7f1d1d" font-size="11">두 사진 → 직접 예측 → ##C❌ 오답##</text>
+
+  <!-- Path 2: text CoT -->
+  <rect x="380" y="50" width="320" height="60" rx="10" fill="#fef3c7" stroke="#ca8a04"/>
+  <text x="400" y="73" fill="#713f12" font-size="12" font-weight="700">② Text CoT (생각만 텍스트로)</text>
+  <text x="400" y="93" fill="#713f12" font-size="11">"소파가 앞에 있어 보임" → ##C❌ 오답## (각도 모호)</text>
+
+  <!-- Path 3: 3D textual -->
+  <rect x="20" y="160" width="320" height="100" rx="10" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="40" y="183" fill="#14532d" font-size="12" font-weight="700">③ 3D Textual (camera pose)</text>
+  <text x="40" y="203" fill="#14532d" font-size="11">먼저 카메라 좌표 계산:</text>
+  <text x="40" y="218" fill="#14532d" font-size="10" font-family="monospace">&lt;campose&gt; 1.04 0.07 0.32 ...</text>
+  <text x="40" y="240" fill="#14532d" font-size="11">"카메라가 우측 + 좌향 회전 → 첫 사진에선</text>
+  <text x="40" y="252" fill="#14532d" font-size="11">소파가 ##우측에 있어야 함## → A✅ 정답"</text>
+
+  <!-- Path 4: 3D visual -->
+  <rect x="380" y="160" width="320" height="100" rx="10" fill="#bbf7d0" stroke="#15803d"/>
+  <text x="400" y="183" fill="#14532d" font-size="12" font-weight="700">④ 3D Visual (Novel View Synthesis)</text>
+  <text x="400" y="203" fill="#14532d" font-size="11">"좌/우/위/아래에서 봤을 때 어떻게 보일까?"</text>
+  <text x="400" y="220" fill="#14532d" font-size="11">→ 4방향 합성 이미지 생성</text>
+  <text x="400" y="240" fill="#14532d" font-size="11">"##우측 합성 이미지에 소파 일치## →</text>
+  <text x="400" y="252" fill="#14532d" font-size="11">카메라가 우로 갔음 → A✅ 정답"</text>
+
+  <!-- conclusion -->
+  <rect x="120" y="290" width="480" height="70" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="360" y="315" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">텍스트 only로는 풀 수 없는 spatial 문제도</text>
+  <text x="360" y="338" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">##3D primitive를 invoke##하면 풀린다</text>
+</svg>
+<div class="diagram-caption">같은 spatial QA에 대해 다른 context unrolling 방법별 결과</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">🗺️ 비유: 길을 묻는 두 가지 방식</div>
+<p>"여기서 학교가 어디 있죠?"라는 질문에:<br>
+방법 ①: "음… 저쪽 같은데" (text only) → 자주 틀린다.<br>
+방법 ②: ##주변 사진을 보고##, ##카메라 각도를 가늠하고##, ##그 자리에서 둘러봤을 때 어떻게 보일지 상상한 뒤## "오른쪽으로 100m" — 정확하다.<br>
+Omni가 하는 게 정확히 이거다. ##3D 도구들을 스스로 호출##해서 답한다.</p>
+</div>
+
+<h3>2.5 T2I에서 Visual Token이 주는 효과</h3>
+<p>이미지 생성에서도 같은 원리. 텍스트 프롬프트만으로 그리는 대신, 모델이 ##스스로 저화질 visual token을 먼저 생성##하고 그 위에서 최종 이미지를 합성한다. 이는 ##구조적 단서##(객체 개수·위치·동사 행위)를 명시화한다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#be123c" font-size="14" font-weight="700">"빨간 풍선 3개를 들고 점프하는 강아지"</text>
+
+  <!-- baseline -->
+  <rect x="40" y="50" width="180" height="120" rx="10" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="130" y="80" text-anchor="middle" fill="#7f1d1d" font-size="12" font-weight="700">Baseline (텍스트만)</text>
+  <text x="130" y="105" text-anchor="middle" fill="#475569" font-size="11">강아지 1마리</text>
+  <text x="130" y="125" text-anchor="middle" fill="#475569" font-size="11">풍선 2개 (count 오류)</text>
+  <text x="130" y="145" text-anchor="middle" fill="#475569" font-size="11">서있음 (verb 오류)</text>
+
+  <!-- + text think -->
+  <rect x="270" y="50" width="180" height="120" rx="10" fill="#fef3c7" stroke="#ca8a04"/>
+  <text x="360" y="80" text-anchor="middle" fill="#713f12" font-size="12" font-weight="700">+ Text Think</text>
+  <text x="360" y="105" text-anchor="middle" fill="#475569" font-size="11">강아지 1, 풍선 3개 ✅</text>
+  <text x="360" y="125" text-anchor="middle" fill="#475569" font-size="11">색상 맞음 ✅</text>
+  <text x="360" y="145" text-anchor="middle" fill="#475569" font-size="11">자세는 어색</text>
+
+  <!-- + visual token -->
+  <rect x="500" y="50" width="180" height="120" rx="10" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="590" y="80" text-anchor="middle" fill="#14532d" font-size="12" font-weight="700">+ Visual Token</text>
+  <text x="590" y="105" text-anchor="middle" fill="#475569" font-size="11">강아지·풍선 위치 ✅</text>
+  <text x="590" y="125" text-anchor="middle" fill="#475569" font-size="11">점프 자세 ✅</text>
+  <text x="590" y="145" text-anchor="middle" fill="#475569" font-size="11">전체 구도 일관 ✅</text>
+</svg>
+<div class="diagram-caption">visual token rollout이 verb·count·구도를 안정화</div>
+</div>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+<h2>3. 핵심 성과</h2>
+
+<div class="stat-row">
+<div class="stat-box"><div class="num">3B</div><div class="label">active params (MoE)<br>30B-active VLM과 동등</div></div>
+<div class="stat-box"><div class="num">+24</div><div class="label">GenEval2 점수<br>(29.25→53.4 with unrolling)</div></div>
+<div class="stat-box"><div class="num">+7.0</div><div class="label">MMSI spatial 점수<br>(27.14→34.17)</div></div>
+<div class="stat-box"><div class="num">SOTA</div><div class="label">RealEstate10K 카메라 추정<br>(VGGT 능가)</div></div>
+</div>
+
+<h3>3.1 이미지 생성에서의 우위</h3>
+<table class="comp-table">
+<thead><tr><th>모델</th><th>GenEval2</th><th>DPG</th><th>LongText-EN</th><th>Inhouse</th></tr></thead>
+<tbody>
+<tr><td>Qwen-Image</td><td>30.67</td><td>88.32</td><td>94.3</td><td>55.16</td></tr>
+<tr><td>Z-Image</td><td>41.83</td><td>88.14</td><td>93.5</td><td>55.19</td></tr>
+<tr><td>Flux</td><td>34.59</td><td>83.84</td><td>60.7</td><td>49.91</td></tr>
+<tr class="highlight-row"><td>Omni</td><td><strong>54.12</strong></td><td><strong>88.55</strong></td><td><strong>97.5</strong></td><td><strong>63.87</strong></td></tr>
+</tbody>
+</table>
+
+<h3>3.2 3D Geometry — VGGT를 능가하다</h3>
+<table class="comp-table">
+<thead><tr><th>방법</th><th>NYU 깊이 δ₁↑</th><th>KITTI δ₁↑</th><th>SINTEL δ₁↑</th><th>RealEstate10K AUC@30↑</th></tr></thead>
+<tbody>
+<tr><td>Marigold (전문)</td><td>92.75</td><td>87.87</td><td>62.24</td><td>—</td></tr>
+<tr><td>VGGT (전문 3D 모델)</td><td>96.10</td><td>94.29</td><td>66.11</td><td>88.23</td></tr>
+<tr class="highlight-row"><td>Omni (통합 모델)</td><td><strong>96.22</strong></td><td><strong>96.92</strong></td><td><strong>74.27</strong></td><td><strong>88.32</strong></td></tr>
+</tbody>
+</table>
+
+<div class="card card-green">
+<p>##통합 모델이 전문(specialized) 모델을 능가##한다는 점이 매우 인상적이다. VGGT는 3D geometry 전용으로 설계된 SOTA인데, Omni는 ##더 적은 active param##으로 NYU·KITTI·SINTEL·ETH3D에서 모두 동등하거나 우위.</p>
+<p>이 논문의 메시지: ##unified pretraining이 단순한 multi-task share가 아니라 capability composition을 통해 단일 task expertise보다 더 잘하게 만들 수 있다##.</p>
+</div>
+
+<h3>3.3 Self-Unrolling이 가져다주는 향상폭 (Generation)</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#be123c" font-size="14" font-weight="700">GenEval2 — context unrolling별 점수</text>
+
+  <line x1="80" y1="250" x2="700" y2="250" stroke="#94a3b8"/>
+  <line x1="80" y1="60" x2="80" y2="250" stroke="#94a3b8"/>
+  <text x="60" y="65" text-anchor="end" fill="#64748b" font-size="10">60</text>
+  <text x="60" y="255" text-anchor="end" fill="#64748b" font-size="10">0</text>
+
+  <!-- bars: 29.25, 37.6, 43.94, 48.02, 49.16, 53.44 -->
+  <rect x="100" y="158" width="80" height="92" fill="#94a3b8"/>
+  <text x="140" y="270" text-anchor="middle" fill="#64748b" font-size="10">Base</text>
+  <text x="140" y="153" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">29.25</text>
+
+  <rect x="200" y="129" width="80" height="121" fill="#fed7aa"/>
+  <text x="240" y="270" text-anchor="middle" fill="#64748b" font-size="10">+ short text</text>
+  <text x="240" y="124" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">37.35</text>
+
+  <rect x="300" y="106" width="80" height="144" fill="#fdba74"/>
+  <text x="340" y="270" text-anchor="middle" fill="#64748b" font-size="10">+ long text</text>
+  <text x="340" y="101" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">43.94</text>
+
+  <rect x="400" y="92" width="80" height="158" fill="#fb923c"/>
+  <text x="440" y="270" text-anchor="middle" fill="#64748b" font-size="10">+ visual</text>
+  <text x="440" y="87" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">48.02</text>
+
+  <rect x="500" y="89" width="80" height="161" fill="#f97316"/>
+  <text x="540" y="270" text-anchor="middle" fill="#64748b" font-size="10">+ short&amp;visual</text>
+  <text x="540" y="84" text-anchor="middle" fill="#1e293b" font-size="11" font-weight="700">49.16</text>
+
+  <rect x="600" y="74" width="80" height="176" fill="#ea580c"/>
+  <text x="640" y="270" text-anchor="middle" fill="#64748b" font-size="10">+ long&amp;visual</text>
+  <text x="640" y="69" text-anchor="middle" fill="#fff" font-size="11" font-weight="700">53.44</text>
+</svg>
+<div class="diagram-caption">context를 풍부히 할수록 일관되게 점수가 오른다 — 베이스 대비 +24.2점</div>
+</div>
+
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+<h2>4. 기존 통합 모델 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>구분</th><th>기존 통합 모델 (BAGEL, Emu3 등)</th><th>Omni</th></tr></thead>
+<tbody>
+<tr><td>Modality 풀</td><td>주로 text + image</td><td>+ video, 3D geometry, hidden representation</td></tr>
+<tr><td>Reasoning</td><td>text CoT 정도</td><td>visual token, pose, novel view까지 reasoning step</td></tr>
+<tr><td>Cross-modal 호출</td><td>제한적</td><td>atomic primitive 자유 invoke·compose</td></tr>
+<tr><td>Spatial QA</td><td>geometric ambiguity에 약함</td><td>3D primitive로 ambiguity 해소</td></tr>
+<tr><td>Image generation</td><td>30~88점</td><td>54점 (3B param으로 SOTA)</td></tr>
+<tr><td>Depth estimation</td><td>대부분 미지원</td><td>VGGT급 또는 능가</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+<h2>5. 어디에 쓸 수 있을까?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="360" cy="190" rx="80" ry="50" fill="#ea580c"/>
+  <text x="360" y="185" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">Omni</text>
+  <text x="360" y="205" text-anchor="middle" fill="#fff" font-size="11">통합 어시스턴트</text>
+
+  <line x1="320" y1="155" x2="200" y2="80" stroke="#ea580c" stroke-width="2"/>
+  <rect x="80" y="50" width="240" height="60" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="200" y="78" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">크리에이티브 도구</text>
+  <text x="200" y="98" text-anchor="middle" fill="#475569" font-size="11">광고·이미지·영상 생성/편집</text>
+
+  <line x1="400" y1="155" x2="520" y2="80" stroke="#ea580c" stroke-width="2"/>
+  <rect x="400" y="50" width="240" height="60" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="520" y="78" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">로보틱스·embodied AI</text>
+  <text x="520" y="98" text-anchor="middle" fill="#475569" font-size="11">3D spatial reasoning + 명령 이해</text>
+
+  <line x1="320" y1="225" x2="200" y2="300" stroke="#ea580c" stroke-width="2"/>
+  <rect x="80" y="280" width="240" height="60" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="200" y="308" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">AR/VR 콘텐츠</text>
+  <text x="200" y="328" text-anchor="middle" fill="#475569" font-size="11">novel view 합성·깊이 정합</text>
+
+  <line x1="400" y1="225" x2="520" y2="300" stroke="#ea580c" stroke-width="2"/>
+  <rect x="400" y="280" width="240" height="60" rx="10" fill="#fff7ed" stroke="#ea580c"/>
+  <text x="520" y="308" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">멀티모달 검색·QA</text>
+  <text x="520" y="328" text-anchor="middle" fill="#475569" font-size="11">이미지+텍스트 복합 질의</text>
+</svg>
+<div class="diagram-caption">Omni가 가치를 발휘하는 네 가지 시나리오</div>
+</div>
+
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+<div class="one-liner">
+"통합 멀티모달 모델의 진짜 가치는 ##capability를 atomic 도구처럼 호출##해서 ##context를 키우는 것## — 답하기 전에 작업장을 차리는 것"
+</div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+<h2>6. 한계점 (균형 잡힌 시각)</h2>
+
+<div class="card card-orange">
+<p><strong>① 추론 비용 미공개</strong>: visual token rollout, novel view synthesis 등을 매번 호출하면 ##추론 시간·메모리 비용이 크게 늘어난다##. 논문에는 정확한 latency 비교가 없어, 실용 환경에서의 trade-off가 불투명.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>② 비디오 한계</strong>: 480×640 해상도, 12초 길이가 한계. SOTA T2V (Wan2.1, Hunyuan)와 ##비디오 quality 점수에서 뒤짐##(83.11 vs 85.59). "통합 모델 가능성 입증"이지 ##실용 비디오 생성 도구는 아직 아님##.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>③ Oracle gap</strong>: Gemini-3 Pro 텍스트를 ##oracle context##로 줄 때 GenEval2 +57.21 (vs self-rollout 53.44). ##context 품질이 여전히 큰 병목##이라는 것 — 모델 자체가 만드는 context가 완벽하지 않다.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>④ 언제 unroll할지의 정책 미학습</strong>: 모든 task에서 항상 unroll하는 게 아니라 ##선택적으로 호출##하는 게 이상적인데, "어떤 입력엔 어떤 primitive를 부를지" 학습하는 RL post-training은 ##미래 과제##로 미뤘다.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>⑤ Atomic primitive가 5개로 고정</strong>: 새로운 modality(audio, point cloud 등) 추가 시 어떻게 통합해야 하는지 ##일반화 가이드라인이 부재##.</p>
+</div>
+
+<div class="card card-orange">
+<p><strong>⑥ 재현 가능성</strong>: 학습 데이터 구성·하이퍼파라미터·MoE 라우팅 디테일 등 ##대부분의 실무 정보가 paper에 없다##. 가중치/코드 공개 여부도 불명.</p>
+</div>
+
+</section>
+
+<div class="top-link"><a href="20260427_yang_omni-unroll.html">← 전문가용 상세 요약 보기</a></div>
+
+</div>
+
+<div class="footer">
+Context Unrolling in Omni Models · Yang et al. (ByteDance Seed) · arXiv:2604.21921 · 2026-04-23<br>
+이 브리핑은 비전문가용 개요입니다 — 전문가용 상세 요약은 별도 페이지를 참고하세요.
+</div>
+
+</body>
+</html>

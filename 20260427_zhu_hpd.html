@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hybrid Policy Distillation for LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { background: #eef2ff; padding: 0.6rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #6366f1; }
+  .brief-link a { color: #4338ca; font-weight: bold; text-decoration: none; }
+  .brief-link a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Hybrid Policy Distillation for LLMs</h1>
+
+<div class="brief-link">
+📄 비전문가용 개요를 찾으신다면 → <a href="20260427_zhu_hpd_brief.html">개요 브리핑 버전 보기 →</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Wenhong Zhu, Ruobing Xie, Rui Wang, Pengfei Liu</li>
+  <li><strong>소속</strong>: Shanghai Jiao Tong University · Shanghai Innovation Institute · Tencent LLM Department</li>
+  <li><strong>학회/저널</strong>: Preprint (arXiv)</li>
+  <li><strong>연도</strong>: 2026-04-22</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.20244">arXiv:2604.20244</a> · <a href="https://github.com/zwhong714/Hybrid-Policy-Distillation">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM 지식증류(Knowledge Distillation, KD)는 (i) 다이버전스 방향 (FKLD mode-covering vs RKLD mode-seeking), (ii) 최적화 전략 (loss vs reward), (iii) 데이터 regime (on-policy vs off-policy)이라는 세 축이 얽혀 있어, 선택이 어렵고 최적화가 불안정하다.</li>
+  <li><strong>해결</strong>: SFT/FKLD/RKLD를 모두 ##reweighted log-likelihood##라는 하나의 관점으로 통합한 뒤, ##Hybrid Policy Distillation (HPD)##을 제안. 각 토큰에 대해 negative $K_1$ reverse-KL estimator를 계산하여, 학생이 expert 토큰을 과소추정하면 forward-KL 학습을, 과대추정하면 억제를 수행한다. Off-policy 데이터에 student-sampled 토큰을 가볍게 섞어 on-policy 시그널도 함께 활용.</li>
+  <li><strong>왜 작동하는가</strong>: reverse-KL gap $k_1$의 부호가 "forward 쪽으로 끌어당길지 / 억제할지"를 자연스럽게 결정한다. SFT처럼 one-hot 효율성을 유지하면서도 FKLD·RKLD 양쪽의 inductive bias(coverage + mode-seeking)를 모두 확보하며, 학생 샘플링이 entropy collapse를 막아 train–inference 분포 정합을 개선.</li>
+  <li><strong>비유</strong>: 선생(teacher)의 정답을 따라 쓰는 학생(SFT) → 선생의 답안 전체를 흉내 내는 학생(FKLD) → 선생이 자주 쓰는 표현만 고집하는 학생(RKLD)을 넘어서, "내가 얼마나 틀렸는가"(k1 gap)를 매 토큰 측정해 ##그 방향과 세기를 자동 조절##하는 학생을 만든 셈.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>통합 뷰 (Unified Reweighted Log-Likelihood)</strong>: SFT, FKLD, RKLD, JSD 등 다양한 KD 목적함수를 모두 $\mathcal{L}(\theta)=-\mathbb{E}_{(s_t,a_t)\sim \mathcal{D}^\pi}[w(a_t|s_t)\log q_\theta(a_t|s_t)]$ 라는 단일 token-level reweighted NLL로 재해석. $w$의 선택이 방법을 결정한다.</li>
+  <li><strong>HPD 알고리즘</strong>: negative $K_1$ reverse-KL estimator로 얻은 per-token gap을 reward-style 가중치로 사용. Expert 토큰에는 $k_1$ 부호에 따라 forward-KL (p+k1) 혹은 mask를, student-sampled 토큰에는 negative $k_1$일 때만 suppression을 적용하는 ##asymmetric token-level hybridization##.</li>
+  <li><strong>경량 On-Policy 샘플링</strong>: 전체 rollout 없이 token 단위의 student sample 1개만 추가로 뽑아 on-policy signal을 얻음. Full rollout(OPD, GRPO) 대비 계산비용 낮음.</li>
+  <li><strong>광범위한 실증</strong>: Qwen2.5 (1.5B·3B·7B)와 Llama3 (1B·3B·8B) 두 모델 패밀리, long-CoT 수학, short-CoT 대화·코드 세 가지 태스크에서 SFT/SeqKD/RKLD/JSD를 모두 뛰어넘음. Qwen2.5-3B가 AIME24+AIME25+AMC 평균에서 ##41.0% 상대 개선, Llama3-3B는 77.9% 개선##.</li>
+  <li><strong>후속 단계의 강한 초기화</strong>: HPD 이후 GRPO on-policy 학습(OPD)을 올리면 SFT+OPD 대비 일관된 추가 gain을 얻으며, DPO 선호 정렬 단계에서도 SFT 대비 더 큰 개선을 제공(HPD+DPO: AE-LC 17.68 vs SFT+DPO 10.42).</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 지식증류(KD)의 세 가지 설계 축</h3>
+<p>LLM 압축을 위한 KD는 작은 student $q_\theta$가 큰 teacher $p$의 동작을 따라가도록 학습한다. 설계는 세 축이 얽혀 있다:</p>
+<ul>
+  <li><strong>다이버전스 방향</strong>: Forward KL $\mathbb{D}_{\mathrm{KL}}(p\Vert q_\theta)$는 <em>mode-covering</em> (teacher가 높은 확률을 주는 모든 모드를 학생이 커버하도록 강제) — 그러나 용량이 부족하면 <em>over-smoothing</em>. Reverse KL $\mathbb{D}_{\mathrm{KL}}(q_\theta\Vert p)$은 <em>mode-seeking</em> (teacher의 dominant mode에 집중) — 학생-교사 간 격차가 크면 gradient 분산이 커지고 <em>unstable</em>.</li>
+  <li><strong>최적화 전략</strong>: divergence를 loss 항에 직접 넣을지(KD loss), 아니면 PPO의 KL-penalty처럼 ##token-level reward##로 다룰지. Amini et al. 2025, Shah et al. 2025는 reward 방식이 gradient bias가 다름을 지적.</li>
+  <li><strong>데이터 regime</strong>: Off-policy (고정 데이터 $\mathcal{D}$ 또는 teacher rollout $\mathcal{D}^{\pi_T}$) vs On-policy (student rollout $\mathcal{D}^{\pi_\theta}$, OPD). Off-policy는 저렴하지만 train–inference mismatch, On-policy는 distribution shift를 해소하지만 계산 부담이 크다.</li>
+</ul>
+
+<h3>1.2 SFT/KD를 한 식으로 묶는 기호</h3>
+<p>자기회귀 LLM을 다음 토큰 생성 MDP로 모델링한다. 궤적 $\tau=(s_1,a^*_1,\ldots,s_T,a^*_T)$은 offline 데이터셋 $\mathcal{D}$에서 뽑히고, $s_t=\mathbf{a}^*_{<t}$는 ground-truth prefix, $a^*_t\in\mathcal{V}$는 expert token. Student는 $q_\theta(\tau)=\prod_t q_\theta(a^*_t|s_t)$를 사전학습한다.</p>
+
+<p><strong>SFT</strong>는 one-hot supervision:</p>
+$$\min_\theta -\mathbb{E}_{s,a\sim \mathcal{D}}[\log q_\theta(a|s)] \quad (2)$$
+<p>직관: 정답 토큰 하나에만 신호를 주므로 ##희소(sparse) 학습##이지만 one-hot이라 효율적이다.</p>
+
+<p><strong>FKLD</strong>는 teacher 분포 전체를 학생이 덮도록:</p>
+$$\min_\theta \mathbb{E}_{s}\mathbb{E}_{a\sim p(\cdot|s)}\left[\log\frac{p(a|s)}{q_\theta(a|s)}\right] \quad (3)$$
+<p>token-wise 분해 후 gradient: $\nabla_\theta \mathbb{D}_{\mathrm{KL}}(p\Vert q_\theta)=-\mathbb{E}_a\left[\nabla_\theta \log q_\theta(a|s)\right]$, 즉 teacher 분포 하에 log-likelihood 최대화. 직관: ##teacher가 확률을 주는 모든 토큰을 빠짐없이 학습##하므로 mode coverage가 보장되지만 student 용량이 부족하면 답을 뭉뚱그린다.</p>
+
+<p><strong>RKLD</strong>는 student 분포 하에서:</p>
+$$\min_\theta \mathbb{E}_{a\sim q_\theta(\cdot|s)}\left[\log\frac{q_\theta(a|s)}{p(a|s)}\right] \quad (6)$$
+<p>gradient (Eq. 7)는 $\log q - \log p$를 score function weight처럼 사용. 직관: ##high-probability mode만 집중##해서 따라가므로 low-probability valid 출력을 잃고, log-ratio가 unbounded라 학생-교사 괴리 시 gradient variance가 크다.</p>
+
+<h3>1.3 Monte Carlo KLD Approximation: $K_1, K_2, K_3$</h3>
+<p>대규모 vocabulary·긴 sequence에서 full $\sum_a$는 intractable. Schulman 2020의 $K_1, K_2, K_3$ estimator가 자주 쓰인다. 가장 단순한 것은</p>
+$$K_1 \triangleq \frac{1}{N}\sum_{i=1}^{N}\log\frac{q_\theta(a^{(i)}|s_t)}{p(a^{(i)}|s_t)},\quad a^{(i)}\sim q_\theta(\cdot|s_t) \quad (8)$$
+<p>이는 $\mathbb{D}_{\mathrm{KL}}(q_\theta\Vert p)$의 unbiased estimator이지만 negative log-ratio 때문에 variance가 높다.</p>
+
+<h3>1.4 $K_1$을 reward로 쓰는 OPD 흐름</h3>
+<p>최근 OPD (Lu &amp; Lab 2025)는 ##$K_1$을 loss 항이 아닌 token-level reward penalty##로 삽입, student-sampled 토큰에 대해 teacher log-prob을 써서 $K_1 = \log q - \log p$ 형태로 사용. 이것이 gradient를 unbiased로 유지하면서 training stability를 개선함을 보였다. HPD는 이 reward 관점을 일반화하여 expert 토큰과 student 토큰에 각각 asymmetric하게 적용한다.</p>
+
+<h3>1.5 Background 비교 요약</h3>
+<table>
+<thead>
+<tr><th>방법</th><th>Data source</th><th>Reweight $w(a_t|s_t)$</th><th>특성</th></tr>
+</thead>
+<tbody>
+<tr><td>SFT</td><td>$\mathcal{D}$ or $\mathcal{D}^{\pi_T}$</td><td>$\mathbf{1}[a_t=a^*_t]$</td><td>One-hot, 효율적, 희소</td></tr>
+<tr><td>FKLD</td><td>$\mathcal{D}$ or $\mathcal{D}^{\pi_T}$</td><td>$p(a_t|s_t)$</td><td>Mode coverage, over-smooth 위험</td></tr>
+<tr><td>RKLD</td><td>$\mathcal{D}^{\pi_\theta}$</td><td>$\log q_\theta - \log p$ (Eq. 7 기준; 부호는 표기 관행에 따라 반전 가능)</td><td>Mode-seeking, unstable</td></tr>
+<tr><td>HPD (본 논문)</td><td>$\mathcal{D}$ + 부분 $\pi_\theta$</td><td>$k_1$에 의존한 hybrid weight</td><td>Forward+Reverse 혼합, 토큰별 자동 조절</td></tr>
+</tbody>
+</table>
+
+<h2>2. Unified View — 하나의 reweighted NLL</h2>
+
+<p>논문의 핵심 framing은:</p>
+$$\mathcal{L}(\theta)=\min_\theta -\mathbb{E}_{(s_t,a_t)\sim \mathcal{D}^\pi}\Big[w(a_t|s_t)\log q_\theta(a_t|s_t)\Big] \quad (9)$$
+<p>$\mathcal{D}^\pi$는 데이터 소스(off-policy면 $\mathcal{D}$ 혹은 $\mathcal{D}^{\pi_T}$; on-policy면 $\mathcal{D}^{\pi_\theta}$), $w(a_t|s_t)$는 student–teacher 로컬 discrepancy. 표 1의 선택으로 SFT/FKLD/RKLD가 모두 회수된다.</p>
+
+<h3>2.1 Positive vs Negative optimization</h3>
+<p>Eq. (9)의 logit $z_v$에 대한 gradient는:</p>
+$$-\frac{\partial \mathcal{L}(\theta)}{\partial z_v} \propto \begin{cases} \hat w_t \cdot q_v (1-q_v), &amp; v=a_t \\ -\hat w_t \cdot q_{a_t}\cdot q_v, &amp; v\ne a_t \end{cases} \quad (10)$$
+<p>직관: ##$\hat w&gt;0$이면 sampled token의 확률을 올리고 그 외를 내림; $\hat w&lt;0$이면 정반대##. 특히 $\hat w&lt;0$일 때 확률 mass는 남은 토큰들에게 ##현재 확률에 비례해 재분배##되는데, 이것이 reverse-$K_1$ estimator가 자연스럽게 수행하는 억제(suppression) 메커니즘이다.</p>
+
+<h2>3. HPD 방법</h2>
+
+<h3>3.1 Expert 토큰에 대한 Hybrid Forward-Reverse KL</h3>
+<p>Offline expert dataset $\mathcal{D}=\{(s_t,a^*_t)\}$만 먼저 생각하자. Expert 토큰 $a^*_t$에 대해 negative $K_1$ estimator를 정의:</p>
+$$k_1 = q_\theta(a^*_t|s_t)\big[\log p(a^*_t|s_t)-\log q_\theta(a^*_t|s_t)\big] \quad (11)$$
+<p>직관: $k_1&gt;0$이면 ##학생이 expert 토큰을 과소추정##(teacher가 높다고 보는데 학생은 낮음) → forward-KL로 끌어당겨야 함. $k_1\le 0$이면 학생이 이미 충분히 expert 토큰을 부풀리고 있으므로 ##추가 강제는 conflicting gradient를 만든다##. 수식 그대로 쓰면 reverse-KL 학습 효과이지만, positive $k_1$일 때 $p(a^*_t|s_t)$를 더해주면 forward-KL 성분도 섞인다:</p>
+$$w^*_t = \begin{cases} p(a^*_t|s_t)+k_1, &amp; k_1&gt;0 \\ k_1, &amp; k_1\le 0 \end{cases} \quad (12)$$
+<p>Fixed-coefficient weighted-sum (예: $\alpha$FKLD + $(1-\alpha)$RKLD)와 달리 ##masking + token-level signing##으로 방향을 자동 결정한다.</p>
+
+<h3>3.2 Student-Sampled 토큰의 역할</h3>
+<p>Auto-regressive prefix $s_t$가 ground-truth이긴 하지만, inference 시엔 학생 스스로 생성한 prefix 하에서 동작한다. 이 mismatch를 일부라도 메우기 위해 ##한 토큰만 학생에서 샘플##한다: $a_t\sim q_\theta(\cdot|s_t)$, $a_t\ne a^*_t$. 그 토큰에 대해서도 $k_1$ gap을 계산:</p>
+$$k'_1 = q_\theta(a_t|s_t)\big[\log p(a_t|s_t)-\log q_\theta(a_t|s_t)\big]$$
+<p>$k'_1&gt;0$이면 해당 토큰 역시 teacher가 선호하는 valid alternative일 가능성이 있으므로 ##reinforce하면 안 되는 신호##는 아니다. 그러나 expert 대신 non-expert를 강화하는 conflict를 피하기 위해 positive 값을 mask:</p>
+$$w_t \leftarrow \begin{cases} 0, &amp; k'_1\ge 0 \\ k'_1, &amp; k'_1&lt;0 \end{cases} \quad (13)$$
+<p>$k'_1&lt;0$ (학생이 non-expert token을 과대추정) 일 때만 negative weight로 확률을 깎는다. 이 masking이 ##training instability의 주 원인인 conflicting gradient를 체계적으로 차단##한다.</p>
+
+<h3>3.3 두 weight를 결합 — Reinforce 연산</h3>
+<p>Student가 non-expert token을 과대추정하는 경우($k'_1&lt;0$)엔 expert token 쪽에 ##이중 가중치##를 얹어 expert 재분배를 강화한다:</p>
+$$w^*_t \leftarrow \begin{cases} 2p(a^*_t|s_t)+k_1, &amp; k_1&gt;0 \text{ and } k'_1&lt;0 \\ k_1, &amp; k_1&lt;0 \\ p(a^*_t|s_t)+k_1, &amp; \text{otherwise} \end{cases} \quad (14)$$
+
+<p>최종 HPD 손실:</p>
+$$\mathcal{L}_{\text{HPD}}=\min_\theta \mathbb{E}_{(s_t,a^*_t)\sim \mathcal{D},\,a_t\sim q_\theta(\cdot|s_t)}\Big[-w^*_t\log q_\theta(a^*_t|s_t)-w_t\log q_\theta(a_t|s_t)\Big] \quad (15)$$
+<p>직관: "expert 토큰은 주로 끌어올리고(positive), non-expert 중 학생이 너무 부풀린 토큰만 깎고(negative), ##양쪽이 동시에 일어날 때는 expert 당기기를 2배##로"라는 asymmetric token-level 설계.</p>
+
+<h3>3.4 알고리즘 1 (HPD) 흐름도</h3>
+
+<div class="flow-diagram">입력: student q_θ, teacher p, offline dataset 𝒟
+
+  for each offline trajectory (s_t, a*_t) ∈ 𝒟:
+      log q*, log p*  ← (log q_θ, log p)(a*_t | s_t)
+      k_1  ← q_θ(a*_t|s_t) · (log p* − log q*)        # expert reverse-KL gap
+
+      a_t ~ q_θ(· | s_t)                                # single student sample
+      k'_1 ← q_θ(a_t|s_t) · (log p(a_t|s_t) − log q_θ(a_t|s_t))  # non-expert gap
+
+      expert weight:
+          w*_t ← 2 p(a*_t|s_t) + k_1   if k_1>0 and k'_1<0
+          w*_t ← k_1                    if k_1<0
+          w*_t ← p(a*_t|s_t) + k_1      otherwise
+
+      student-token weight:
+          w_t  ← 𝟙[a_t≠a*_t] · 𝟙[k'_1<0] · k'_1
+
+      loss contribution: −w*_t · log q_θ(a*_t|s_t) − w_t · log q_θ(a_t|s_t)
+
+  θ ← θ − α · ∇_θ 𝓛_HPD</div>
+
+<p>요점 한 줄: ##reverse-KL의 부호를 "토큰별 학습 방향 결정기"로 재활용##한다.</p>
+
+<h2>4. 실험 (Experiments)</h2>
+
+<h3>4.1 실험이 답하려는 질문</h3>
+<ol>
+  <li>HPD가 off-policy data만으로도 SFT/FKLD/RKLD/JSD 대비 더 강한가?</li>
+  <li>task·모델 패밀리·파라미터 스케일에 걸쳐 범용적인가?</li>
+  <li>student sampling과 reinforce 연산 각각이 정말 필요한가?</li>
+  <li>HPD 결과가 이후 on-policy OPD/DPO 단계의 더 좋은 출발점이 되는가?</li>
+</ol>
+
+<h3>4.2 공통 설정</h3>
+<ul>
+  <li>모델 패밀리: Qwen2.5 (1.5B·3B; teacher 7B), Llama3 (1B·3B; teacher 8B). Instruct가 아닌 base 모델도 포함.</li>
+  <li>Teacher 준비: Qwen2.5-7B, Llama3.1-8B를 OpenR1-Math-8192로 SFT한 뒤 DAPO RL (clip-higher 0.28, GPPO variant)로 보강. RL이 상대적으로 좁은 sub-network만 미세조정하고 KL deviation이 작기에 teacher 품질이 더 올라감.</li>
+  <li>Distillation batch size 256, 최대 context 10,240, 약 2k step (≈10 epoch, 40k 데이터) 학습.</li>
+  <li>Learning rate: Qwen2.5-1.5B $10^{-4}$, Qwen2.5-3B $8\times 10^{-5}$, Llama3.2-1B $8\times 10^{-5}$, Llama3.2-3B $5\times 10^{-5}$. cosine decay, min_ratio 0.1.</li>
+  <li>평가: in-domain (AIME24, AIME25, AMC, MATH-500, OlympidBench) + out-of-domain (GPQA). top-p 0.95, temp 0.7, max 10,240. AIME/AMC는 avg@32, 그 외 avg@8.</li>
+</ul>
+
+<h3>4.3 Off-policy Data — Reasoning (Table 2)</h3>
+
+<p>Qwen2.5 및 Llama3 student에서 HPD가 모든 baseline을 상회. 대표 행만 발췌:</p>
+
+<table>
+<thead>
+<tr><th>Setup</th><th>Method</th><th>AIME24</th><th>AIME25</th><th>AMC</th><th>Math</th><th>Obly.</th><th>GPQA</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="6">Qwen2.5 7B→1.5B</td><td>Teacher $\mathcal{M}_T$</td><td>28.13</td><td>27.19</td><td>71.72</td><td>87.48</td><td>58.50</td><td>43.43</td><td>52.74</td></tr>
+<tr><td>Student $\mathcal{M}_S$</td><td>2.19</td><td>1.04</td><td>21.17</td><td>46.78</td><td>16.52</td><td>23.04</td><td>18.46</td></tr>
+<tr><td>SFT</td><td>2.81</td><td>6.04</td><td>28.83</td><td>55.25</td><td>24.87</td><td>19.02</td><td>22.80</td></tr>
+<tr><td>SeqKD</td><td>5.31</td><td>5.31</td><td>33.83</td><td>60.28</td><td>29.48</td><td>23.42</td><td>26.27</td></tr>
+<tr><td>RKLD</td><td>5.00</td><td>3.85</td><td>34.45</td><td>58.78</td><td>27.41</td><td>27.40</td><td>26.15</td></tr>
+<tr><td><strong>HPD</strong></td><td><strong>7.71</strong></td><td><strong>9.89</strong></td><td><strong>39.84</strong></td><td><strong>63.40</strong></td><td><strong>32.53</strong></td><td><strong>28.09</strong></td><td><strong>30.24</strong></td></tr>
+<tr><td rowspan="5">Qwen2.5 7B→3B</td><td>SFT</td><td>10.10</td><td>12.60</td><td>46.33</td><td>69.78</td><td>36.89</td><td>20.33</td><td>32.67</td></tr>
+<tr><td>SeqKD</td><td>11.56</td><td>14.48</td><td>47.66</td><td>74.48</td><td>40.48</td><td>24.62</td><td>35.55</td></tr>
+<tr><td>RKLD</td><td>9.38</td><td>12.29</td><td>46.25</td><td>69.58</td><td>37.35</td><td>19.51</td><td>32.39</td></tr>
+<tr><td>JSD</td><td>10.31</td><td>14.90</td><td>50.70</td><td>73.88</td><td>40.69</td><td>29.17</td><td>36.61</td></tr>
+<tr><td><strong>HPD</strong></td><td><strong>13.75</strong></td><td><strong>18.13</strong></td><td><strong>54.14</strong></td><td><strong>76.30</strong></td><td><strong>45.33</strong></td><td><strong>31.31</strong></td><td><strong>39.83</strong></td></tr>
+<tr><td rowspan="3">Llama3 8B→3B</td><td>SFT</td><td>8.13</td><td>10.73</td><td>41.25</td><td>65.23</td><td>33.69</td><td>17.67</td><td>29.45</td></tr>
+<tr><td>RKLD</td><td>7.19</td><td>6.56</td><td>42.66</td><td>65.63</td><td>33.48</td><td>26.96</td><td>30.41</td></tr>
+<tr><td><strong>HPD</strong></td><td><strong>10.94</strong></td><td>12.71</td><td><strong>48.28</strong></td><td><strong>69.25</strong></td><td><strong>39.02</strong></td><td>27.15</td><td><strong>34.56</strong></td></tr>
+</tbody>
+</table>
+
+<p>패턴 분석:</p>
+<ul>
+  <li>##Qwen2.5-3B는 student 베이스 대비 41.0%, Llama3-3B는 77.9% 상대개선##. Base 모델이 약할수록 상대 gain이 더 크다 → HPD는 "약한 student에 강함".</li>
+  <li>GPQA (out-of-domain)에서도 개선 유지 → teacher 특정 행동의 단순 모방이 아니라 일반화 가능한 decision signal을 얻음을 시사.</li>
+  <li>대표적으로 JSD가 두 번째로 강한 경쟁자이지만 HPD가 여전히 2~3점 우위.</li>
+</ul>
+
+<p><strong>훈련 다이내믹스 (Figure 1)</strong>:</p>
+<ul>
+  <li>(a) SFT는 training-time entropy가 급격히 줄어 ##entropy collapse##, HPD는 안정 유지.</li>
+  <li>(b) HPD는 teacher와의 KL이 step 수에 따라 steady하게 감소, SFT는 정체.</li>
+  <li>(c) AIME24-25 평균이 SFT는 saturation, HPD는 계속 향상.</li>
+  <li>(d) Test-time mean entropy(토큰 position별)는 HPD가 ##teacher(Qwen2.5-7B)와 거의 일치##, SFT는 훨씬 낮음 → train/test behavior alignment.</li>
+</ul>
+<p>이 실험의 주장: <em>HPD는 "continual distillation" 특성을 보인다</em> — 데이터 증가에 따라 꾸준히 teacher로 수렴.</p>
+
+<h3>4.4 Off-policy — Personalization (Table 3, Qwen2.5 7B→1.5B)</h3>
+
+<table>
+<thead>
+<tr><th>Method</th><th>AE-LC(%)</th><th>AE-WR(%)</th><th>Arena-WR(%)</th><th>MT-1T</th><th>MT-2T</th></tr>
+</thead>
+<tbody>
+<tr><td>$\mathcal{M}_T$ (7B teacher)</td><td>36.04</td><td>34.95</td><td>60.00</td><td>9.00</td><td>7.44</td></tr>
+<tr><td>$\mathcal{M}_S$ (1.5B base)</td><td>8.67</td><td>7.47</td><td>9.90</td><td>6.64</td><td>5.00</td></tr>
+<tr><td>SFT</td><td>12.74</td><td>13.72</td><td>18.10</td><td>6.80</td><td>4.81</td></tr>
+<tr><td>SeqKD</td><td>7.83</td><td>9.51</td><td>15.40</td><td>6.24</td><td>4.15</td></tr>
+<tr><td>RKLD</td><td>11.26</td><td>12.00</td><td>17.80</td><td>6.96</td><td>5.19</td></tr>
+<tr><td>JSD</td><td>13.48</td><td>13.89</td><td>20.20</td><td>6.96</td><td>5.21</td></tr>
+<tr><td><strong>HPD</strong></td><td><strong>13.75</strong></td><td><strong>14.25</strong></td><td><strong>21.80</strong></td><td><strong>7.23</strong></td><td><strong>5.84</strong></td></tr>
+</tbody>
+</table>
+
+<p>의도: short-CoT alignment도 개선되는가? UltraFeedback(4k token)으로 teacher-generated data 생성 후 학습. 결과: ##multi-turn 대화 능력에서 HPD가 가장 강한 우위##(MT-2T +0.63 vs SFT). AE-LC, AE-WR, Arena-WR 동시 향상 → 단순 overfit이 아니라 "대화 일관성"도 보존됨을 시사.</p>
+
+<h3>4.5 Off-policy — Coding (Table 4)</h3>
+
+<table>
+<thead>
+<tr><th></th><th colspan="3">DS-Coder 6.7B→1.3B</th><th colspan="3">Qwen-Coder 7B→1.5B</th></tr>
+<tr><th>Method</th><th>HEval</th><th>MBPP</th><th>AVG</th><th>HEval</th><th>MBPP</th><th>AVG</th></tr>
+</thead>
+<tbody>
+<tr><td>$\mathcal{M}_T$</td><td>76.20</td><td>74.90</td><td>75.55</td><td>91.50</td><td>82.30</td><td>86.90</td></tr>
+<tr><td>$\mathcal{M}_S$</td><td>62.80</td><td>61.10</td><td>61.95</td><td>71.30</td><td>68.50</td><td>69.90</td></tr>
+<tr><td>SFT</td><td>61.00</td><td>61.90</td><td>61.45</td><td>73.80</td><td>67.70</td><td>70.75</td></tr>
+<tr><td>KD (FKLD)</td><td>65.20</td><td><strong>64.00</strong></td><td>64.60</td><td>77.40</td><td>67.50</td><td>72.45</td></tr>
+<tr><td>RKLD</td><td>61.60</td><td>61.60</td><td>61.60</td><td>76.80</td><td>74.90</td><td>75.85</td></tr>
+<tr><td>JSD</td><td>67.10</td><td>61.10</td><td>64.10</td><td>77.40</td><td>74.60</td><td>76.00</td></tr>
+<tr><td><strong>HPD</strong></td><td><strong>69.50</strong></td><td>63.20</td><td><strong>66.35</strong></td><td><strong>79.30</strong></td><td><strong>75.40</strong></td><td><strong>77.35</strong></td></tr>
+</tbody>
+</table>
+
+<p>Coding에선 HPD가 ##매 벤치마크마다 1등은 아니지만 평균은 가장 안정적##. KD/JSD는 패밀리에 따라 variance가 큰 반면 HPD는 consistently strong → "robust 선택지"로서의 가치.</p>
+
+<h3>4.6 On-policy Data — Reasoning (Table 5, Figure 2)</h3>
+
+<p>의도: HPD가 전통적 SFT+OPD 파이프라인을 대체하는 ##강한 초기화##를 제공하는가? Batch 256 = 64 prompts × 4 rollouts. MiniLLM/GKD와 같은 OPD 프레임 안에서 비교.</p>
+
+<table>
+<thead>
+<tr><th>Setup</th><th>Method</th><th>AIME24</th><th>AIME25</th><th>AMC</th><th>Math</th><th>Obly.</th><th>GPQA</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="4">Qwen2.5 7B→1.5B</td><td>SFT</td><td>2.81</td><td>6.04</td><td>28.83</td><td>55.25</td><td>24.87</td><td>19.02</td><td>22.80</td></tr>
+<tr><td>↳ + OPD</td><td>6.98</td><td>8.33</td><td>39.30</td><td>63.88</td><td>32.94</td><td>25.95</td><td>29.56</td></tr>
+<tr><td>HPD</td><td>7.71</td><td>9.89</td><td>39.84</td><td>63.40</td><td>32.53</td><td>28.09</td><td>30.24</td></tr>
+<tr><td>↳ + OPD</td><td><strong>10.63</strong></td><td><strong>10.10</strong></td><td><strong>43.98</strong></td><td><strong>69.83</strong></td><td><strong>38.59</strong></td><td>27.21</td><td><strong>33.41</strong></td></tr>
+<tr><td rowspan="4">Llama3 8B→1B</td><td>SFT</td><td>0.83</td><td>1.04</td><td>17.34</td><td>33.30</td><td>12.52</td><td>18.24</td><td>13.88</td></tr>
+<tr><td>↳ + OPD</td><td>0.63</td><td>1.67</td><td>22.89</td><td>40.93</td><td>15.83</td><td>20.45</td><td>17.06</td></tr>
+<tr><td>HPD</td><td>1.25</td><td>2.08</td><td>21.80</td><td>41.73</td><td>17.24</td><td>23.93</td><td>18.01</td></tr>
+<tr><td>↳ + OPD</td><td>1.04</td><td><strong>2.60</strong></td><td><strong>28.68</strong></td><td><strong>46.50</strong></td><td><strong>19.93</strong></td><td>23.67</td><td><strong>20.40</strong></td></tr>
+</tbody>
+</table>
+
+<p>훈련 다이내믹스 (Figure 2):</p>
+<ul>
+  <li>(a) HPD+OPD의 reward curve가 SFT+OPD보다 일관되게 위.</li>
+  <li>(b) Mean advantage가 ##less negative + more stable## — 학생-교사 정렬이 더 나음.</li>
+  <li>(c) KL divergence loss가 낮게 유지됨 — distribution mismatch 교정이 효율적.</li>
+  <li>(d) Test-time entropy도 excessive collapse 없이 유지 → inference behavior가 teacher와 가까움.</li>
+</ul>
+<p>주장 매핑: "HPD는 단순 초기화 개선을 넘어 on-policy phase의 optimization dynamics 자체를 안정화한다."</p>
+
+<h3>4.7 Ablation (Figure 3)</h3>
+
+<p>HPD의 두 구성요소: (A) student sampling, (B) reinforce operation (positive $k_1$ + negative $k'_1$일 때 $p$ 이중 가중치). 각각 제거해 봄:</p>
+<ul>
+  <li><strong>Student sampling 제거</strong>: 빠르게 plateau, 지속적인 improvement 실패 → ##teacher 분포만 붙잡고 있으면 exploration이 부족##, premature convergence.</li>
+  <li><strong>Reinforce 연산 제거</strong>: KL loss reduction이 느려짐 → expert token 강화가 ##교사 분포 정렬 속도를 가속##하는 직접 동력.</li>
+</ul>
+<p>결론: 두 요소는 서로 다른 축(exploration vs convergence speed)을 담당하며 상호보완적.</p>
+
+<h3>4.8 Broader Impacts — DPO (Table 6)</h3>
+
+<table>
+<thead>
+<tr><th>Method</th><th>AE-LC</th><th>AE-WR</th><th>Arena-WR</th><th>Δ</th></tr>
+</thead>
+<tbody>
+<tr><td>$\mathcal{M}_T$ (3B ref)</td><td>18.46</td><td>14.35</td><td>26.80</td><td>–</td></tr>
+<tr><td>SFT → +DPO</td><td>10.42</td><td>9.27</td><td>10.40</td><td>+1.81</td></tr>
+<tr><td>RKLD → +DPO</td><td>15.45</td><td>16.78</td><td>21.80</td><td>+9.74</td></tr>
+<tr><td>HPD → +DPO</td><td><strong>17.68</strong></td><td>10.88</td><td>25.10</td><td><strong>+11.92</strong></td></tr>
+</tbody>
+</table>
+<p>실험 의도: SFT 대신 HPD를 alignment pipeline의 초기 stage로 쓰면 후속 DPO도 함께 향상되는가? 결과: ##HPD는 entropy collapse를 방지##하므로 DPO 단계에서 학습 여지가 크고, teacher 수준(18.46)에 근접.</p>
+
+<h3>4.9 Iterative Self-Distillation (Table 7)</h3>
+<p>DPO-SFT 교대 반복(HPD-iter1, iter2)도 가능. Teacher를 이전 DPO 모델로 교체하면서 HPD를 반복 적용 → iter1 +6.38, iter2 +7.94. Gain은 포화하지만 ##strong-to-weak distillation의 연속 적용##이 가능함을 보임.</p>
+
+<h2>5. 비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>이론적 정당화의 한계</strong>: Eq. (12)에서 "positive $k_1$일 때 $p$를 더해 forward-KL 성분을 섞는다"는 선택은 직관적이지만 유도된 것이 아니라 design choice다. Weighted-sum divergence와 비교해 왜 masking + switching이 우월한지에 대한 이론적 증명은 없다.</li>
+  <li><strong>Single-token student sample</strong>: 경량이지만 full sequence-level on-policy와 달리 context drift를 모사하지 못한다. Figure 1d에서 token position이 길어질수록 entropy 차이가 벌어질 수 있는데 깊은 분석은 없음.</li>
+  <li><strong>Teacher 의존성</strong>: Teacher가 DAPO RL로 SFT 위에서 추가 훈련된 모델이므로 일반 teacher 대비 모델 품질이 높다. "보통의 open-source teacher"로 썼을 때 재현 가능성은 appendix A/B에서만 언급.</li>
+  <li><strong>Tokenizer 공유 제약</strong> (Appendix B): student/teacher가 같은 tokenizer여야 함. Cross-family 증류(예: Qwen→Llama)에서 적용이 제한된다.</li>
+  <li><strong>하이퍼파라미터 노출 부족</strong>: Masking threshold(0 기준)와 doubling factor(2)는 고정값. 실제로 학습률·데이터 도메인에 따라 이 임계값이 민감한지 sensitivity study 미포함.</li>
+  <li><strong>Coding 결과의 mixed 패턴</strong>: Table 4에서 HPD가 개별 HEval/MBPP에서 매번 최고가 아니며 DS-Coder MBPP에서는 KD(FKLD)가 더 높음. "평균적으로 안정"이라는 해석은 맞지만 code-generation distribution의 long-tail에 HPD가 덜 강할 수 있다.</li>
+  <li><strong>통계 검증</strong>: $p&lt;0.01$ t-test를 표시하지만 seed 수/정확한 방법은 본문에 없음(appendix 참조 필요). LLM 평가에서 multiple runs의 표준편차는 매우 중요함에도 깊이 다루지 않음.</li>
+  <li><strong>Entropy collapse 관찰의 일반성</strong>: Figure 1(a)의 entropy collapse는 SFT에서 관측되지만, data가 충분한 FKLD/JSD에서도 같은 현상이 일어나는지 비교 없음.</li>
+</ul>
+</div>
+
+<h2>6. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Unified reweighted log-likelihood view</strong>는 KD 레시피를 이해·확장하는 실전적 렌즈다. 새 distillation loss를 설계할 때 "내 $w(a_t|s_t)$는 무엇인가?"로 정리하면 SFT/FKLD/RKLD/JSD 모두 수평 비교가 된다.</li>
+  <li>##$K_1$ reverse-KL estimator를 token-level reward로 사용##하면, 전체 KL을 계산하지 않고도 forward/reverse 혼합 signal을 값싸게 얻을 수 있다. Policy optimization 쪽의 "KL penalty as reward" 기법이 KD에도 자연스럽게 이식된다는 사실은 연구 확장의 디딤돌이다.</li>
+  <li>##Masking에 의한 gradient direction 결정##이 weighted-sum hybrid보다 더 안정적일 수 있다는 실증. 충돌 gradient를 zero-out하는 단순한 게이팅이 훈련 안정성에 기여.</li>
+  <li>Entropy collapse와 train/test mismatch는 long-CoT KD의 실질적 병목이다. HPD의 Figure 1d는 ##token position별 mean entropy curve##를 teacher와 맞춰가는 것이 inference quality의 직접적 지표라는 점을 보여준다.</li>
+  <li>HPD는 SFT의 drop-in replacement로 설계됨 — DPO·OPD·GRPO 등 ##downstream alignment pipeline의 초기 stage## 대체재로 유망. 특히 small base 모델에서 상대 gain이 크다.</li>
+  <li>한계 인지: tokenizer 동일성 요구, single-token student sampling의 한계. 향후 mid-training / pre-training 단계로의 이식, cross-tokenizer extension, 더 많은 student sample과의 trade-off가 연구 여지.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
