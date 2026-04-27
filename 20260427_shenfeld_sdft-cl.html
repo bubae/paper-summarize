@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Distillation Enables Continual Learning (SDFT)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { background: #eef2ff; padding: 0.6rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #6366f1; }
+  .brief-link a { color: #4338ca; font-weight: bold; text-decoration: none; }
+  .name-warning { background: #fff3cd; padding: 0.7rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #f59e0b; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Self-Distillation Fine-Tuning Enables Continual Learning (SDFT)</h1>
+
+<div class="brief-link">
+📄 비전문가용 개요를 찾으신다면 → <a href="20260427_shenfeld_sdft-cl_brief.html">개요 브리핑 버전 보기 →</a>
+</div>
+
+<div class="name-warning">
+⚠️ <strong>이름 충돌 주의</strong>: 본 논문(Shenfeld et al. 2026, MIT/ETH)의 SDFT는 <em>demonstration-conditioned teacher 기반 on-policy distillation</em>이며, 동명 약어를 쓰는 별도 논문 <a href="20260427_yang_sdft.html">Yang et al. 2024 (Self-Distillation Bridges Distribution Gap)</a>은 <em>response rewriting 기반</em>이다. 두 방법은 메커니즘이 다르므로 혼동에 주의할 것.
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Idan Shenfeld, Mehul Damani, Jonas Hübotter, Pulkit Agrawal</li>
+  <li><strong>소속</strong>: MIT · Improbable AI Lab · ETH Zurich</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (Jan 2026)</li>
+  <li><strong>연도</strong>: 2026-01-27</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2601.19897">arXiv:2601.19897</a> · <a href="http://idanshenfeld.com/SDFT">Project Page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Continual learning에서 ##on-policy RL은 catastrophic forgetting을 줄이지만 명시적 reward function이 필요##하다. 반면 expert demonstration만 있을 때 표준 SFT는 ##off-policy##라 sequential fine-tune 시 망각이 심하다.</li>
+  <li><strong>해결</strong>: ##Self-Distillation Fine-Tuning (SDFT)##. 동일 모델 한 본을 두 역할로 사용 — ##student는 query만 조건##(P=π(·|x))으로, ##teacher는 query + demonstration을 조건##(Q=π(·|x,c))으로. student가 생성한 trajectory에서 reverse KL $\mathrm{KL}(P\Vert Q)$를 최소화 → ##reward 없이 demonstration만으로 on-policy 학습##.</li>
+  <li><strong>왜 작동하는가</strong>: 모델의 ##in-context learning (ICL) 능력##이 demonstration-conditioned 분포를 ##trust-region IRL의 optimal policy 근사##로 만든다 — base 분포와 가까이 머물면서도 task 성능을 회복하는 균형점을 자연스럽게 찾는다.</li>
+  <li><strong>비유</strong>: 같은 사람의 ##"두 자아"##를 가르침에 활용 — 답을 보고 푸는 자아(teacher)와 보지 않고 푸는 자아(student) 사이의 차이를 학생이 따라가게 함. 외부 코치(reward function) 없이 ##자기 자신이 자기에게 코치##가 된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SDFT 알고리즘</strong>: same-model dual-role distillation에서 reverse KL을 PG로 최적화. demonstration 조건만 다른 두 분포 사이의 차이가 ##implicit reward##로 작동.</li>
+  <li><strong>이론적 framing — Self-Distillation as IRL</strong>: trust-region regularized RL의 closed-form solution과 ICL 가정 $\pi^*_{k+1}(y|x)\approx \pi(y|x,c)$를 결합해, SDFT의 reverse KL이 ##implicit reward $r(y,x,c)=\log\pi(y|x,c)-\log\pi(y|x)$##를 최대화하는 PG와 동등함을 증명.</li>
+  <li><strong>Continual Learning 검증</strong>: skill learning(Tool Use, Science Q&A, Medical) + knowledge acquisition(2025 자연재해 Wikipedia)에서 SFT, DFT, Re-invoke, CPT, RAG 대비 ##Pareto-superior## (new task 정확도 ↑ + prior task 보존 ↑).</li>
+  <li><strong>Sequential 3-task 실험</strong>: Tool Use → Science → Medical 순차 학습에서 ##single 모델이 모든 skill을 누적 보존## (Figure 3) — SFT는 task 전환 시 이전 skill이 무너짐.</li>
+  <li><strong>Reasoning models without reasoning data</strong> (Table 2): Olmo-3-7B-Think를 ##short answer-only data##로 학습할 때 SFT는 chain-of-thought를 무너뜨리지만 SDFT는 reasoning behavior를 보존하면서 정확도 향상 (31.2 → 43.7%).</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 Continual Learning의 두 갈래</h3>
+<p>Foundation model을 배포 후에도 새 skill·지식을 누적시키려면 ##sequential fine-tune##이 필수. 두 종류:</p>
+<ul>
+  <li><strong>Skill Learning</strong>: 새 task(예: tool API 호출, 의료 추론)에 적응. demonstration이 풍부.</li>
+  <li><strong>Knowledge Acquisition</strong>: 사전학습 cutoff 이후의 ##새 사실##(예: 2025 미얀마 지진)을 통합.</li>
+</ul>
+<p>두 경우 모두 ##기존 능력을 망가뜨리지 않으면서## 새 데이터를 흡수하는 것이 핵심.</p>
+
+<h3>1.2 Off-policy SFT의 한계</h3>
+<p>Demonstration $c$로 SFT하면 fine-tuned 모델이 demonstration의 ##짧고 건조한 분포##에 정렬되며, 그 과정에서 reasoning style·alignment·prior knowledge가 무너진다. Ross et al. 2011의 imitation learning 분석: ##off-policy training에서는 inference시 학생이 자기가 만든 trajectory에 들어가면 compounding error##가 누적.</p>
+
+<h3>1.3 On-Policy RL의 강점과 한계</h3>
+<p>RLHF·GRPO 같은 on-policy RL은 ##catastrophic forgetting을 낮춘다##(Shenfeld 2025; Chu 2025; Lai 2025). 그러나:</p>
+<ul>
+  <li>RLHF: preference pair 필요</li>
+  <li>RLVR/GRPO: ##explicit reward function 필요##</li>
+  <li>대부분의 실세계 demonstration 데이터에는 reward가 없다.</li>
+</ul>
+
+<h3>1.4 IRL의 어려움</h3>
+<p>Inverse RL은 demonstration에서 reward를 ##추정##한 뒤 RL을 돌릴 수 있게 한다. 그러나 reward가 본질적으로 ill-posed라 ##strong structural prior##(Maximum entropy, adversarial, preference-based)가 필요. SDFT는 ##explicit IRL을 우회하고 ICL을 reward의 implicit 표현##으로 사용한다는 새 발상.</p>
+
+<h3>1.5 Context Distillation</h3>
+<p>기존 context distillation (Bai 2022, Snell 2022)는 fixed context(few-shot examples, behavioral guideline)에서 student를 학습. SDFT의 차이:</p>
+<ul>
+  <li>##Per-query specific demonstration##을 teacher에 조건 — global behavioral prior가 아닌 instance-wise IRL.</li>
+  <li>##On-policy##: student의 자기 분포 위에서 학습 (compounding error 완화).</li>
+</ul>
+
+<h2>2. 방법: SDFT</h2>
+
+<h3>2.1 Dual-Role 모델</h3>
+<p>Foundation model $\pi$ 한 본을 다음 두 분포로 사용:</p>
+<ul>
+  <li><strong>Student</strong>: $\pi_\theta(\cdot|x)$ — query $x$만 조건. 학습 대상.</li>
+  <li><strong>Teacher</strong>: $\pi(\cdot|x, c)$ — query $x$ + demonstration $c$ 조건. ##학습되지 않음## (또는 EMA로 천천히 업데이트).</li>
+</ul>
+
+<p>Teacher 구성용 prompt는 단순 형식:</p>
+<div class="flow-diagram">&lt;Question&gt;
+This is an example for a response to the question:
+&lt;Demonstration&gt;
+Now answer with a response of your own, including the thinking process:</div>
+<p>이 prompt가 ##demonstration을 verbatim 복사하지 않고 ICL로 task 의도를 추출##하도록 유도.</p>
+
+<h3>2.2 Reverse KL 손실</h3>
+$$\mathcal{L}(\theta) = D_{\mathrm{KL}}(\pi_\theta(\cdot|x) \,\Vert\, \pi(\cdot|x,c)) = \mathbb{E}_{y\sim \pi_\theta(\cdot|x)}\left[\log\frac{\pi_\theta(y|x)}{\pi(y|x,c)}\right] \quad (1)$$
+
+<p>Token-level decomposition (Tang & Munos 2025):</p>
+$$\nabla_\theta \mathcal{L} = \mathbb{E}_{y\sim \pi_\theta}\left[\sum_t\sum_{y_t\in V}\log\frac{\pi_\theta(y_t|y_{<t},x)}{\pi(y_t|y_{<t},x,c)}\nabla_\theta \log \pi_\theta(y_t|y_{<t},x)\right] \quad (2)$$
+<p>EMA-updated teacher 파라미터를 fixed로 두고 student parameter $\theta$로만 backprop.</p>
+
+<h3>2.3 Self-Distillation as Inverse RL (Section 3.1)</h3>
+
+<p>Trust-region regularized RL update:</p>
+$$\pi_{k+1} = \arg\max_\pi \mathbb{E}_{y\sim \pi}[r(y,x)] - \beta D_{\mathrm{KL}}(\pi(\cdot|x)\Vert \pi_k(\cdot|x)) \quad (3)$$
+<p>Closed-form optimal policy (Korbak 2022, Rafailov 2023):</p>
+$$\pi^*_{k+1}(y|x) \propto \pi_k(y|x)\exp\left(\frac{1}{\beta}r(y,x)\right)$$
+
+<p>이 식을 reward에 대해 정리하면:</p>
+$$r(y,x) = \beta\left[\log\pi^*_{k+1}(y|x) - \log\pi_k(y|x)\right] + C$$
+
+<p>핵심 가정 (##In-Context Assumption##): ICL 능력이 충분한 모델은</p>
+$$\pi^*_{k+1}(y|x) \approx \pi(y|x,c) \quad (4)$$
+<p>즉 demonstration-conditioned policy가 unknown optimal next policy를 근사. 그러면 implicit reward는</p>
+$$r(y,x,c) = \log\pi(y|x,c) - \log\pi(y|x) \quad (5)$$
+
+<p>Token-level reward $r_t(y_t|y_{<t},x,c) = \log\frac{\pi(y_t|y_{<t},x,c)}{\pi_k(y_t|y_{<t},x)}$로 분해. PG로 최대화하면:</p>
+$$\nabla_\theta J(\pi_k) = \mathbb{E}_{y\sim \pi_k}\left[\log\frac{\pi(y|x,c)}{\pi_k(y|x)}\nabla_\theta\log\pi_k(y|x)\right] \quad (6)$$
+<p>이는 정확히 Eq.(2) reverse KL gradient와 ##expectation 차원에서 동등##. 직관적으로 SDFT는 "##자기 자신의 더 wiser한 demonstration-aware 버전##"을 비교 기준으로 한 implicit IRL.</p>
+
+<h3>2.4 ICL 가정의 경험적 검증 (Section 3.2)</h3>
+
+<p>Qwen-2.5-7B-Instruct + ToolAlpaca:</p>
+<ol>
+  <li><strong>Optimality</strong>: demonstration-conditioned teacher가 ##100% test reward##(tool call success). 50개 reasoning trace 수동 검토 — chain-of-thought 모두 valid + grounded.</li>
+  <li><strong>Minimal Deviation</strong>: SFT 모델은 base 대비 KL 1.26 nats 떨어짐, demonstration-conditioned teacher는 0.68 nats — ##거의 절반의 deviation##. trust-region 형태 그대로 유지.</li>
+</ol>
+
+<h3>2.5 알고리즘 흐름</h3>
+<div class="flow-diagram">[Demonstration set {(x, c)}, base policy π]
+        ↓
+EMA-updated teacher π_teacher (initialized from π)
+
+For each (x, c):
+    1. Sample y ~ π_θ(·|x)                        # student rollout
+    2. Token-level log ratios:
+         r_t = log π_teacher(y_t | y_<t, x, c) - log π_θ(y_t | y_<t, x)
+    3. Reverse KL gradient (Eq. 2):
+         ∇𝓛 = Σ_t Σ_y' [log π_θ(y'|x) - log π_teacher(y'|x,c)] · ∇log π_θ(y'|x)
+    4. θ ← θ - η · ∇𝓛
+    5. Update π_teacher via EMA (slow tracking of θ)</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 Setup</h3>
+<ul>
+  <li>Base model: <strong>Qwen-2.5-7B-Instruct</strong> (대부분 실험), Olmo-3-7B-Think (Section 4.5), Qwen 3B/14B (scaling).</li>
+  <li>Skill Learning task 3종:
+    <ul>
+      <li><strong>Science Q&A</strong>: SciKnowEval Chemistry L-3 (학부 화학)</li>
+      <li><strong>Tool Use</strong>: ToolAlpaca</li>
+      <li><strong>Medical</strong>: HuatuoGPT-o1 stage1 train, stage2 eval</li>
+    </ul>
+  </li>
+  <li>Knowledge Acquisition: 2025 자연재해 Wikipedia (~200K token), GPT-4가 5× 합성 Q&A pair.</li>
+  <li>Baselines:
+    <ul>
+      <li>SFT (표준)</li>
+      <li>DFT (Wu 2025b): importance sampling으로 offline data를 on-policy로 다룸</li>
+      <li>Re-invoke (Lu & Lab 2025): SFT 후 추가 on-policy distillation</li>
+      <li>CPT (continual pre-training, knowledge only)</li>
+      <li>RAG with oracle retriever (knowledge only)</li>
+    </ul>
+  </li>
+  <li>평가: in-distribution accuracy, OOD accuracy(knowledge), prior capabilities(HellaSwag, TruthfulQA, MMLU, IFEval, Winogrande, HumanEval).</li>
+</ul>
+
+<h3>3.2 Skill Learning Pareto (Figure 4)</h3>
+<p>3개 skill task에서 점은 (new task accuracy, prior tasks performance). 이상점: 우상단(둘 다 높음).</p>
+
+<table>
+<thead><tr><th>Setting (대표)</th><th>Method</th><th>New-task↑</th><th>Prior↑</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">Science Q&A</td><td>Base</td><td>~30</td><td>66</td></tr>
+<tr><td>SFT</td><td>~70</td><td>56 (↓10)</td></tr>
+<tr><td>DFT</td><td>~58</td><td>62</td></tr>
+<tr><td><strong>SDFT</strong></td><td><strong>72</strong></td><td><strong>65</strong></td></tr>
+<tr><td rowspan="4">Tool Use</td><td>SFT</td><td>~70</td><td>57 (↓9)</td></tr>
+<tr><td>Re-invoke</td><td>~58</td><td>64</td></tr>
+<tr><td>DFT</td><td>~70</td><td>62</td></tr>
+<tr><td><strong>SDFT</strong></td><td><strong>~70</strong></td><td><strong>65</strong></td></tr>
+<tr><td rowspan="3">Medical</td><td>SFT</td><td>~37</td><td>60 (↓6)</td></tr>
+<tr><td>Re-invoke</td><td>~36</td><td>64</td></tr>
+<tr><td><strong>SDFT</strong></td><td><strong>~38</strong></td><td><strong>65</strong></td></tr>
+</tbody>
+</table>
+<p>패턴: ##SDFT는 모든 3 task에서 Pareto-frontier 우상단##. SFT는 new task 잘하지만 prior 폭락. DFT/Re-invoke는 균형 시도하지만 SDFT 대비 한 axis 손해.</p>
+
+<h3>3.3 Knowledge Acquisition (Table 1)</h3>
+
+<table>
+<thead><tr><th>Method</th><th>Strict Acc</th><th>Lenient Acc</th><th>OOD Acc</th></tr></thead>
+<tbody>
+<tr><td>Base</td><td>0</td><td>0</td><td>0</td></tr>
+<tr><td>Oracle RAG</td><td>91</td><td>100</td><td>100</td></tr>
+<tr><td>CPT</td><td>9</td><td>37</td><td>7</td></tr>
+<tr><td>SFT</td><td>80</td><td>95</td><td>80</td></tr>
+<tr><td><strong>SDFT</strong></td><td><strong>89</strong></td><td><strong>100</strong></td><td><strong>98</strong></td></tr>
+</tbody>
+</table>
+
+<p>의도: parametric memory에 새 사실을 ##진정으로 통합##되는가? 표면 답만 외우는지 확인. OOD ("Which countries required international humanitarian aid in 2025?" 등 indirect question) 차이가 결정적: SFT 80 vs SDFT 98 — ##사실의 broader integration##이 일어남. RAG에 거의 근접.</p>
+
+<h3>3.4 Sequential Continual Learning (Figure 3)</h3>
+<p>같은 모델이 ##Tool Use → Science → Medical 순서##로 700 step씩 학습:</p>
+<ul>
+  <li><strong>SDFT</strong>: 새 task에 들어갈 때마다 새 task 정확도 ↑, ##이전 task 정확도 평탄 유지##.</li>
+  <li><strong>SFT</strong>: 새 task로 전환하면 ##이전 task가 즉시 0 또는 음수##까지 추락. oscillatory.</li>
+</ul>
+<p>이 실험이 뒷받침하는 주장: <em>SDFT는 single 모델로 누적 skill acquisition이 가능한 첫 demonstration-only 방법.</em></p>
+
+<h3>3.5 Effect of Model Size (Figure 5 left)</h3>
+<table>
+<thead><tr><th>Model</th><th>SFT Acc</th><th>SDFT Acc</th><th>Δ</th></tr></thead>
+<tbody>
+<tr><td>Qwen 3B</td><td>~62</td><td>~58</td><td>−3.3 (역전)</td></tr>
+<tr><td>Qwen 7B</td><td>~66</td><td>~70</td><td>+4.0</td></tr>
+<tr><td>Qwen 14B</td><td>~70</td><td>~77</td><td>+6.9</td></tr>
+</tbody>
+</table>
+<p>패턴 분석: ##model scale이 커질수록 SDFT의 우위가 monotonic 증가##. ICL 능력이 커야 demonstration-conditioned teacher가 valid signal을 줌. 3B에서는 ICL이 약해 SDFT가 SFT에 졌으나 7B+에서는 우월. ##더 큰 base 모델에서 격차가 더 커진다##는 scaling rule — open future-proof.</p>
+
+<h3>3.6 Pass@k 분석 (Figure 5 right)</h3>
+<p>distillation pass@k를 k=1~128까지: SDFT는 ##모든 k에서 SFT/Base를 일관 능가## → 단순 entropy collapse가 아닌 ##genuine skill acquisition##임을 증명.</p>
+
+<h3>3.7 Reasoning Models without Reasoning Data (Table 2)</h3>
+
+<table>
+<thead><tr><th>Method</th><th>Accuracy (Medical)</th><th>Avg # of tokens</th></tr></thead>
+<tbody>
+<tr><td>Olmo-3-7B-Think (base)</td><td>31.2</td><td>4612</td></tr>
+<tr><td>+ SFT (answer-only)</td><td>23.5 (↓7.7)</td><td>3273 (↓1339)</td></tr>
+<tr><td>+ <strong>SDFT</strong></td><td><strong>43.7 (+12.5)</strong></td><td><strong>4180</strong></td></tr>
+</tbody>
+</table>
+<p>의도: ##chain-of-thought annotation이 없는 short answer 데이터로 reasoning 모델을 fine-tune##할 수 있는가? SFT는 short answer를 따라가다가 reasoning 행동 자체를 ##봉인##(token 수 1339개 감소 = CoT 붕괴). SDFT는 ##CoT 길이를 거의 유지##하면서 정확도 +12.5 — teacher의 demonstration-conditioned 분포가 ##원본 reasoning style을 유지##시키기 때문.</p>
+
+<h3>3.8 무엇이 성능을 결정하는가? (Figure 6)</h3>
+<p>두 ablation:</p>
+<ul>
+  <li>SFT from teacher: teacher가 만든 응답을 student가 imitate (offline)</li>
+  <li>Offline distillation from teacher: teacher 응답에 KL loss 적용 (offline)</li>
+</ul>
+<p>둘 다 SFT보다 낫지만 SDFT보다 ##일관 underperform##. 결론: ##teacher quality 자체보다 on-policy 학습이 결정적##. 이 실험이 뒷받침하는 주장: <em>SDFT의 gain은 단순히 더 좋은 supervision이 아니라 ##학생 자기 분포 위에서 학습한다는 사실 자체##에서 온다.</em></p>
+
+<h3>3.9 Computational Cost</h3>
+<p>SDFT는 표준 SFT 대비 ##~2.5× FLOPs / ~4× wall-clock## (on-policy rollout 필요). 그러나 Re-invoke 같은 기존 continual learning은 ##multi-stage##(SFT + on-policy training to restore)이므로 ##총 학습 시간 기준으로는 SDFT가 더 빠르다##.</p>
+
+<h2>4. 비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>ICL 가정의 경계</strong>: $\pi^*_{k+1}\approx\pi(\cdot|x,c)$가 핵심 — small model에서 ICL이 약하면 깨진다(Qwen 3B 실패가 직접 증거). ##SDFT의 효과는 base 모델의 ICL 강도와 강하게 결합##.</li>
+  <li><strong>Optimality 검증의 일반성 부족</strong>: "100% test reward, 50 trace 수동 검토"는 ToolAlpaca 한 datapoint. open-ended·subjective task(예: 글쓰기)에서 같은 검증이 가능한지 미검토.</li>
+  <li><strong>Trust-region $\beta$의 implicit성</strong>: trust-region RL framing에서 $\beta$가 명시적이지만 SDFT에서는 ICL이 그 역할을 ##암묵적##으로 한다 — controllability 손실. 더 강한 deviation을 원할 때(behavioral pivot) 어떻게 조정할지 미해결.</li>
+  <li><strong>EMA hyperparameter sensitivity</strong>: teacher를 EMA update — decay rate 영향 분석은 4.6 ablation 수준에서만, sweep 부족.</li>
+  <li><strong>Spurious linguistic patterns</strong> (논문 자체 인정): "Based on the text..." 같은 demonstration-prompt artifact를 학생이 흡수. ##첫 몇 토큰 masking##이라는 휴리스틱 해법만 제시 — principled solution은 open.</li>
+  <li><strong>Behavioral pivot 한계</strong>: "non-reasoning model을 reasoning 모델로 transform"은 어렵다고 명시. SDFT는 ##기존 capability 보존##엔 강하지만 ##새 generation pattern 강요##엔 약함.</li>
+  <li><strong>Knowledge Acquisition의 RAG 비교 한계</strong>: oracle retriever를 사용하므로 RAG 우위가 unfair. real RAG의 noisy retrieval에선 SDFT가 더 강할 가능성.</li>
+  <li><strong>Computational overhead 측정의 실용성</strong>: 2.5× FLOPs는 무시할 수 없는 수준. continual learning을 자주 돌려야 하는 setting에서 비용-효과 분석 부족.</li>
+  <li><strong>RL과의 비교 부재</strong>: "RL은 reward 필요"라고 motivate하지만, ##reward를 얻기 쉬운 task##에서 SDFT vs RL 직접 비교는 없음. RL이 가능할 때 SDFT가 여전히 가치 있는지 미해결.</li>
+  <li><strong>Tokenizer/architecture mismatch</strong>: Yang 2024 SDFT처럼 같은 모델 두 역할이라 ##cross-architecture distillation은 불가능##.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##ICL을 implicit reward signal로 활용##하는 IRL framing은 demonstration-only continual learning에 강력한 도구. 외부 reward function 없이도 RL의 안정성·일반화 이점을 얻는다.</li>
+  <li>##Same-model dual-role distillation##(student=query, teacher=query+demonstration)은 추가 모델·데이터 없이 ##self-distillation을 self-supervision으로 변환##하는 elegant 메커니즘. 후속 연구의 framework로 활용 가능.</li>
+  <li>Continual learning의 ##sequential 시나리오##(여러 task 누적)는 single fine-tune보다 forgetting이 훨씬 심한데, SDFT는 ##sequential 환경 자체에서 검증된 첫 demonstration-only 방법##.</li>
+  <li>##Reasoning behavior 보존##(Olmo-3 결과)은 매우 실용적 함의 — answer-only 데이터로 reasoning 모델을 fine-tune할 때의 표준 함정을 SDFT가 회피.</li>
+  <li>##Scaling rule##: model size가 커질수록 ICL이 강해지고 SDFT의 격차가 커진다. open-source 7B+ era에서 점점 valuable해지는 방법.</li>
+  <li>한계 인식: ICL이 약한 small model에선 효과 없음, behavioral pivot 한계, computational overhead 2.5×, EMA hyperparameter 민감도 — design 시 trade-off 인지 필요.</li>
+  <li>Yang 2024 "SDFT (rewriting)"와 ##이름은 같지만 메커니즘이 정반대##. Yang 2024는 데이터 전처리 (offline), Shenfeld 2026은 on-policy distillation. 독립적으로 쓸 수도, 조합할 수도 있을 것이라는 흥미로운 연구 방향.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

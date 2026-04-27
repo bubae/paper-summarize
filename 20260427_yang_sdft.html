@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Distillation Bridges Distribution Gap (SDFT)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { background: #eef2ff; padding: 0.6rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #6366f1; }
+  .brief-link a { color: #4338ca; font-weight: bold; text-decoration: none; }
+  .name-warning { background: #fff3cd; padding: 0.7rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #f59e0b; font-size: 0.95em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Self-Distillation Bridges Distribution Gap in LLM Fine-Tuning (SDFT)</h1>
+
+<div class="brief-link">
+📄 비전문가용 개요를 찾으신다면 → <a href="20260427_yang_sdft_brief.html">개요 브리핑 버전 보기 →</a>
+</div>
+
+<div class="name-warning">
+⚠️ <strong>이름 충돌 주의</strong>: 본 논문(Zhaorui Yang et al., 2024)의 SDFT는 <em>response rewriting 기반</em> 방법이며, 동시에 같은 약어 "SDFT"를 쓰는 별도 논문 <a href="20260427_shenfeld_sdft-cl.html">Shenfeld et al. 2026 (Self-Distillation Enables Continual Learning)</a>은 <em>on-policy demonstration-conditioned distillation</em> 기반이다. 두 방법은 메커니즘이 다르므로 혼동에 주의할 것.
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhaorui Yang, Tianyu Pang, Haozhe Feng, Han Wang, Wei Chen, Minfeng Zhu, Qian Liu</li>
+  <li><strong>소속</strong>: Zhejiang University · Sea AI Lab · Tencent TEG</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (v2 May 2024)</li>
+  <li><strong>연도</strong>: 2024-02-21 (v1) / 2024-05-28 (v2)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2402.13669">arXiv:2402.13669</a> · <a href="https://github.com/sail-sg/sdft">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Llama-2-chat 같은 ##aligned LLM##을 다운스트림 task에 vanilla fine-tune하면 task 정확도는 오르지만 ##general instruction-following, safety alignment, helpfulness가 무너지는 catastrophic forgetting##이 흔히 발생한다.</li>
+  <li><strong>해결</strong>: Catastrophic forgetting의 근본 원인이 ##task dataset과 seed LM의 출력 분포 사이의 distribution gap##이라고 진단. ##Self-Distillation Fine-Tuning (SDFT)##은 학습 전에 seed LM이 ##직접 task의 reference answer를 자기 스타일로 rewriting##하여 distilled dataset을 만들고, 이 위에서 fine-tune한다.</li>
+  <li><strong>왜 작동하는가</strong>: distilled response는 의미는 동일하지만 ##seed LM의 분포에 가까운 표면 형태##라 fine-tune이 만들어내는 parameter shift가 작아진다 → 기존 능력 보존 + 새 task 학습이 양립.</li>
+  <li><strong>비유</strong>: 외국어 시험 답안을 ##한국어 화자가 자기 말투로 다시 적은 모범 답안##으로 공부하는 학생. 의미는 같지만 자기 어법이라 외국어 학습 후에도 한국어가 망가지지 않는다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Distribution Gap as Root Cause</strong>: catastrophic forgetting을 task dataset과 seed LM 분포 차이로 환원하는 framing. BLEU-4, ROUGE-L, embedding similarity, $\|\Delta\theta\|_2$ 4축으로 distribution shift를 정량화.</li>
+  <li><strong>SDFT Method</strong>: 단순한 distillation template으로 seed LM이 reference answer를 self-rewriting → 한 줄 변경으로 vanilla SFT를 대체. ##LoRA / full fine-tune / Llama-2-7B / 13B / Llama-3-8B-Instruct에 모두 적용 가능##.</li>
+  <li><strong>광범위한 검증</strong>: 단일 task (GSM8K, OpenFunctions, MagiCoder), 멀티 task (Alpaca, Dolly, LIMA, OpenHermes), safety (Advbench raw/jailbreak), helpfulness (AlpacaEval), general knowledge (MMLU, TruthfulQA, ARC, HellaSwag, Winogrande) 5개 영역에서 일관되게 vanilla FT 대비 우위.</li>
+  <li><strong>Distribution Shift × Forgetting 인과 검증</strong>: sample size 변화·mix ratio (vanilla:SDFT) 조작 실험으로 ##distribution shift 지표(BLEU-4, ROUGE-L, embedding sim 감소 / parameter shift 증가)와 forgetting이 동행##함을 보임.</li>
+  <li><strong>Plug-and-Play 호환성</strong>: 특정 모델·하이퍼파라미터·아키텍처에 종속되지 않는 단순 데이터 전처리 단계로, 어떤 SFT 파이프라인에도 ##즉시 삽입 가능##.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 Vanilla Fine-Tuning과 Catastrophic Forgetting</h3>
+<p>SFT 손실은 task dataset $\{(c^t,x^t,y^t)\}$에서:</p>
+$$L_{\mathrm{FT}}(\theta) = -\log f_\theta(y^t \mid c^t, x^t) \quad (2)$$
+<p>$L_{\mathrm{FT}}$가 수렴하면 fine-tuned LM의 분포가 task dataset 분포와 정렬된다. 그러나 task dataset의 reference response가 seed LM의 출력 스타일과 ##크게 다른 경우##, 정렬을 위해 parameter가 크게 움직여야 하고, 이 과정에서 ##general instruction-following, safety, helpfulness가 무너진다##. 예: OpenFunctions로 fine-tune하면 HumanEval pass@1이 13.4 → 9.8 (−27%).</p>
+
+<h3>1.2 기존 방법의 한계</h3>
+<ul>
+  <li><strong>Continual Learning</strong> (EWC, PackNet, replay): 원본 학습 데이터·파라미터 importance·distinct neuron 할당 등이 필요하나 LLM은 ##원본 학습 데이터 비공개·태스크 공간 광대##라 적용이 어렵다.</li>
+  <li><strong>Self-Play Fine-Tuning</strong> (Chen 2024): 같은 LLM을 generator+discriminator로 사용하지만 결국 task data의 log-likelihood를 최대화하므로 분포 정렬 자체는 그대로 → forgetting 미해소.</li>
+  <li><strong>Self-Refine / Self-Reward</strong>: 생성된 응답을 iteratively 개선하나 distribution gap 해소가 목적이 아님.</li>
+</ul>
+
+<h2>2. 방법: SDFT</h2>
+
+<h3>2.1 핵심 아이디어 — Response Rewriting</h3>
+<p>seed LM $f_\theta$를 사용해 task dataset의 원래 response $y^t$를 다음과 같이 다시 쓴다:</p>
+$$\tilde y \sim f_\theta(y \mid c^t, x^t, y^t) \quad (3)$$
+<p>여기서 prompt는 ##distillation template## (Figure 3): "Below are an instruction that describes a task along with a reference answer. Using the reference answer as a guide, write your own response." 형식. seed LM은 의미 등가성을 유지하면서 자기 분포에 맞는 표현으로 rewrite한다.</p>
+
+<h3>2.2 Quality Filter (Reasoning task)</h3>
+<p>수학 추론 등 정답 추출이 가능한 경우 conditional selection:</p>
+$$\tilde y' = \begin{cases} \tilde y & \text{if Extract}(\tilde y) = y^t \\ y^t & \text{otherwise} \end{cases} \quad (4)$$
+<p>최종 답이 reference와 일치할 때만 distilled response 채택, 그렇지 않으면 원본 유지. 이 단순한 휴리스틱이 자기-rewriting의 ##정답 오염 위험을 차단##한다.</p>
+
+<h3>2.3 SDFT 손실</h3>
+$$L_{\mathrm{SDFT}}(\theta) = -\log f_\theta(\tilde y' \mid c_t, x_t) \quad (5)$$
+<p>구조적으로 vanilla SFT와 동일 — ##데이터를 distilled으로 교체했을 뿐##. LoRA·full fine-tune 모두 호환.</p>
+
+<h3>2.4 알고리즘 흐름도</h3>
+<div class="flow-diagram">[Task dataset {(c^t, x^t, y^t)}]
+        ↓
+[Seed LM]  ──(distillation template + reference answer)→  ỹ
+        ↓
+[Quality filter (Eq.4)] — 수학 task에서만 → ỹ'
+        ↓
+[Distilled dataset {(c^t, x^t, ỹ')}]
+        ↓
+[Standard SFT loss on distilled set] → fine-tuned LM</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 공통 설정</h3>
+<ul>
+  <li>Seed LM: Llama-2-7b-chat (메인). 추가: Llama-2-13b-chat, Llama-3-8B-Instruct.</li>
+  <li>Fine-tuning: LoRA (rank=8 on Q,V), lr=$10^{-4}$ cosine→0, batch 8, 2 epoch (대부분).</li>
+  <li>샘플: 2k(소형 데이터셋), 20k(OpenHermes). LIMA 2 epoch, OpenFunctions 5 epoch.</li>
+  <li>Distillation template: Alpaca 표준 + 수학용 변형 (Figure 11/12).</li>
+</ul>
+
+<h3>3.2 Single-Task 실험 (Table 1)</h3>
+
+<table>
+<thead>
+<tr><th>Method</th><th>Dataset</th><th>OpenFunctions</th><th>GSM8K</th><th>HumanEval</th><th>Average</th></tr>
+</thead>
+<tbody>
+<tr><td>Seed LM</td><td>—</td><td>19.6</td><td>29.4</td><td>13.4</td><td>20.8</td></tr>
+<tr><td rowspan="3">Vanilla FT</td><td>OpenFunctions</td><td>34.8</td><td>21.5</td><td>9.8</td><td>22.0</td></tr>
+<tr><td>GSM8K</td><td>17.9</td><td>31.9</td><td>12.2</td><td>20.7</td></tr>
+<tr><td>MagiCoder</td><td>3.6</td><td>23.2</td><td>18.9</td><td>15.2</td></tr>
+<tr><td rowspan="3"><strong>SDFT</strong></td><td>OpenFunctions</td><td><strong>36.6 ↑1.8</strong></td><td>29.1 ↑7.6</td><td>15.2 ↑5.4</td><td><strong>27.0 ↑5.0</strong></td></tr>
+<tr><td>GSM8K</td><td>17.9</td><td><strong>34.4 ↑2.5</strong></td><td>14.6 ↑2.4</td><td><strong>22.3 ↑1.6</strong></td></tr>
+<tr><td>MagiCoder</td><td>8.0 ↑5.4</td><td>24.9 ↑1.7</td><td><strong>18.3 ↓0.6</strong></td><td><strong>17.1 ↑1.9</strong></td></tr>
+</tbody>
+</table>
+
+<p>패턴: ##Vanilla FT는 target task만 올리고 다른 task를 깎는 zero-sum## (예: MagiCoder fine-tune이 OpenFunctions를 19.6→3.6로 추락). SDFT는 ##target 성능 유지 + 다른 task 보존##이라는 Pareto 개선.</p>
+
+<h3>3.3 Safety / Helpfulness (Table 2)</h3>
+
+<table>
+<thead>
+<tr><th>Dataset for FT</th><th>Raw Safe Rate (Vanilla → SDFT)</th><th>Jailbreak Safe Rate</th><th>AlpacaEval Win Rate</th></tr>
+</thead>
+<tbody>
+<tr><td>Seed LM</td><td>99.81</td><td>88.85</td><td>66.04</td></tr>
+<tr><td>OpenFunctions</td><td>98.27 → 99.23 (↑0.96)</td><td>87.31 → 94.42 (↑7.11)</td><td>35.49 → 67.66 (↑32.17)</td></tr>
+<tr><td>GSM8K</td><td>82.12 → 87.12 (↑5.00)</td><td>54.81 → 65.58 (↑10.77)</td><td>23.38 → 66.73 (↑43.35)</td></tr>
+<tr><td>MagiCoder</td><td>96.73 → 97.88 (↑1.15)</td><td>83.65 → 88.65 (↑5.00)</td><td>76.52 → 76.09 (↓0.43)</td></tr>
+</tbody>
+</table>
+<p>의도: forgetting의 가장 위험한 형태인 ##safety degradation##을 SDFT가 막는가? 결과: GSM8K vanilla FT의 ##Win Rate 23.38##이 SDFT에서 ##66.73##으로 회복 — seed LM 수준에 근접. ##GPT-4 jailbreak attack 안전율도 모든 케이스에서 ↑##.</p>
+
+<h3>3.4 Multi-Task Instruction (Table 3)</h3>
+
+<table>
+<thead>
+<tr><th>Method</th><th>Dataset</th><th>Raw Safe</th><th>Jailbreak Safe</th><th>Win Rate</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="4">Vanilla FT</td><td>Alpaca</td><td>86.54</td><td>52.69</td><td>27.62</td></tr>
+<tr><td>Dolly</td><td>81.73</td><td>26.54</td><td>22.09</td></tr>
+<tr><td>LIMA</td><td>81.35</td><td>58.08</td><td>41.34</td></tr>
+<tr><td>OpenHermes</td><td>91.54</td><td>61.54</td><td>65.28</td></tr>
+<tr><td rowspan="4"><strong>SDFT</strong></td><td>Alpaca</td><td>96.15 ↑9.6</td><td>86.15 ↑33.5</td><td>65.07 ↑37.5</td></tr>
+<tr><td>Dolly</td><td>96.35 ↑14.6</td><td>72.69 ↑46.2</td><td>61.60 ↑39.5</td></tr>
+<tr><td>LIMA</td><td>94.42 ↑13.1</td><td>78.08 ↑20.0</td><td>59.38 ↑18.0</td></tr>
+<tr><td>OpenHermes</td><td>95.96 ↑4.42</td><td>87.50 ↑25.96</td><td>72.91 ↑7.63</td></tr>
+</tbody>
+</table>
+
+<p>패턴: ##Dolly에서 jailbreak safe rate가 26.54 → 72.69##로 +46.2pt 회복 — 가장 큰 gain은 vanilla FT가 가장 망가뜨린 데이터셋에서 발생. SDFT는 "##데이터셋이 distillation에 더 친화적일수록 보존 효과가 크다##"는 일관 패턴.</p>
+
+<h3>3.5 General Knowledge 보존 (Figure 4)</h3>
+<p>OpenLLM Leaderboard 5개 (MMLU, TruthfulQA, ARC, HellaSwag, Winogrande)는 ##fine-tune 어떻게 해도 거의 변동 없음## — vanilla와 SDFT 모두 marginal. 이 결과의 주장: forgetting은 주로 ##general knowledge가 아니라 instruction-following + safety/helpfulness 영역##에서 일어난다.</p>
+
+<h3>3.6 Distribution Shift × Forgetting 인과 (Figures 5–9)</h3>
+<ul>
+  <li>Sample size ↑ (500→2000): BLEU-4·ROUGE-L·embedding sim ↓, $\|\Delta\theta\|_2$ ↑, MultiArith·Win Rate·Safe Rate 모두 ↓ → 학습 데이터가 많을수록 ##distribution shift 심화 = forgetting 심화##.</li>
+  <li>Mix ratio (vanilla:SDFT 비율 1.0→0.0): SDFT 비율이 높을수록 BLEU-4·ROUGE-L·embedding sim ↑, parameter shift ↓, downstream score ↑.</li>
+  <li>Figure 9: SDFT 모델이 seed model embedding과 ##더 높은 cosine similarity (0.85 vs 0.75)## — distribution shift가 작음을 직접 검증.</li>
+</ul>
+<p>주장 매핑: <em>distribution gap이 forgetting의 통제 가능한 원인이며, SDFT가 그 gap을 직접 줄인다.</em></p>
+
+<h3>3.7 Template Robustness (Table 4)</h3>
+<p>"Using the reference answer as a guide" vs "Refer to the reference answer" 두 distillation prompt template을 비교. 두 템플릿 모두 vanilla FT를 outperform — ##template wording에 robust##.</p>
+
+<h3>3.8 모델·아키텍처 호환성 (Table 5)</h3>
+
+<table>
+<thead>
+<tr><th>Setup</th><th>Method</th><th>GSM8K</th><th>OpenFunctions</th><th>HumanEval</th><th>Win Rate</th></tr>
+</thead>
+<tbody>
+<tr><td rowspan="2">Llama-2-7B full FT (GSM8K)</td><td>Vanilla</td><td>34.87</td><td>5.36</td><td>13.41</td><td>23.04</td></tr>
+<tr><td>SDFT</td><td><strong>35.03</strong></td><td>16.07 ↑10.71</td><td>15.85 ↑2.44</td><td><strong>61.19 ↑38.15</strong></td></tr>
+<tr><td rowspan="2">Llama-2-13B LoRA (GSM8K)</td><td>Vanilla</td><td>44.12</td><td>19.64</td><td>17.68</td><td>40.27</td></tr>
+<tr><td>SDFT</td><td><strong>45.59 ↑1.47</strong></td><td>24.11 ↑4.47</td><td>18.28 ↑0.61</td><td><strong>75.93 ↑35.66</strong></td></tr>
+<tr><td rowspan="2">Llama-3-8B-Instruct LoRA (OpenFunctions)</td><td>Vanilla</td><td>77.79</td><td>42.86</td><td>54.27</td><td>79.75</td></tr>
+<tr><td>SDFT</td><td><strong>79.45 ↑1.66</strong></td><td>43.75 ↑0.89</td><td>56.10 ↑1.83</td><td><strong>82.24 ↑2.49</strong></td></tr>
+</tbody>
+</table>
+<p>주장: SDFT는 ##LoRA, full fine-tuning, 다양한 모델 패밀리·크기에서 모두 작동## — fine-tuning 기법이나 모델 아키텍처에 종속되지 않는 plug-and-play.</p>
+
+<h2>4. 비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Self-rewriting의 정확성 보장 부재</strong>: Eq. (4) extract-and-compare는 수학에서만 작동. 코드·tool-calling·자유 형식 task에서는 ##rewrite가 의미를 변형해도 검출되지 않는다##. OpenFunctions에서 distilled response가 추가 explanation을 붙이는 케이스(Figure 17)는 의미 일치 검증 불가.</li>
+  <li><strong>이론적 frame이 약하다</strong>: "distribution gap → forgetting"은 실증적 상관일 뿐 인과 증명이 아니다. Catastrophic forgetting의 이론적 분해(예: Fisher information, NTK 분석)와의 연결 없음.</li>
+  <li><strong>모델 의존성</strong>: rewrite 품질은 seed LM의 instruction-following 능력에 강하게 의존 → ##weak base model에서는 distillation이 오히려 noisy##. Shenfeld et al. 2026과 같은 결론을 (역으로) 뒷받침.</li>
+  <li><strong>LoRA 편중</strong>: 메인 결과는 거의 LoRA, full fine-tune은 보조 실험만. fully fine-tuned의 distribution shift 동력이 다를 수 있는데 분석 없음.</li>
+  <li><strong>General knowledge가 안 변하는 이유 미분석</strong>: Figure 4에서 MMLU 등이 거의 변하지 않는 점이 "이 영역은 robust"인지 "fine-tune이 영향이 적은 영역"인지 구분 안 됨. 실제 catastrophic forgetting의 표적은 좁다는 시사.</li>
+  <li><strong>Continual learning sequential 비교 부재</strong>: 논문의 framing은 single-task fine-tune에 대한 forgetting 방지 — ##Shenfeld et al. 2026이 다루는 sequential multi-task 환경에서의 우월성은 검증되지 않음##.</li>
+  <li><strong>Compute overhead</strong>: rewriting은 학습 데이터 전체에 대해 추론 1회 필요. 20k OpenHermes 데이터에 대한 wall-clock 비용·token 길이 변화가 보고되지 않음.</li>
+  <li><strong>Distillation template이 reference answer를 노출</strong>: "Using the reference answer as a guide" prompt가 seed LM에게 정답을 보여주므로 ##content-level diversity가 좁을 수 있다## — 다만 이게 forgetting 방지에는 도움.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Distribution alignment first</strong>: instruction-tuned LLM을 추가 fine-tune할 때 ##데이터의 표면 형태를 seed LM 분포에 맞추는 것##만으로 forgetting의 큰 부분을 제거할 수 있다는 실용적 인사이트.</li>
+  <li>##단순한 데이터 전처리##로 SFT pipeline에 즉시 삽입 가능 — 하이퍼파라미터·옵티마이저 변경 없이 vanilla SFT 코드의 데이터 로딩만 교체하면 된다.</li>
+  <li>Catastrophic forgetting의 가장 큰 표적은 ##general knowledge가 아니라 instruction-following + safety + helpfulness##라는 점 (Figure 4 vs Tables 2-3). post-training 평가는 MMLU만으로는 부족.</li>
+  <li>Distribution shift 지표(BLEU-4, ROUGE-L, embedding similarity, parameter shift norm)는 forgetting의 ##조기 경보 metric##으로 사용 가능. 학습 중 monitoring하면 위험한 fine-tune을 사전 진단할 수 있다.</li>
+  <li>Mix ratio 실험은 ##distillation 비율을 hyperparameter로## 사용할 수 있음을 시사. target task 성능 vs 기존 능력 보존의 trade-off curve를 그려 적절한 비율 선택 가능.</li>
+  <li>한계 인식: rewriting의 의미 보존은 task-specific 검증이 필요하며, weak base model이나 매우 다른 task domain (예: novel tool API)에서는 self-rewriting의 한계가 있다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

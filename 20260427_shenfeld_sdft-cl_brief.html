@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SDFT for Continual Learning — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+
+  .hero { background: linear-gradient(135deg, #047857, #059669, #10b981); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.92; max-width: 680px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #047857; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #059669, #10b981); border-radius: 3px; }
+  section h3 { font-size: 1.15rem; margin: 1.5rem 0 0.6rem; color: #065f46; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #059669; }
+  .card-green  { border-left: 5px solid #10b981; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner { background: linear-gradient(135deg, #059669, #10b981); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #059669, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #047857; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #d1fae5; font-weight: 700; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #059669; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #059669; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #059669; padding: 0 0.4rem; }
+
+  .top-link { text-align: center; margin: 1rem 0; }
+  .top-link a { color: #059669; text-decoration: none; font-size: 0.9rem; font-weight: 600; }
+  .top-link a:hover { text-decoration: underline; }
+
+  .name-warning { background: #fef3c7; padding: 1rem 1.5rem; border-radius: 12px; margin: 1rem 0; border-left: 5px solid #f59e0b; font-size: 0.95rem; line-height: 1.7; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">MIT · Improbable AI · ETH · 2026 · arXiv:2601.19897</div>
+  <h1>"##두 자아##"가 서로 가르치는 ##망각 없는## 평생 학습</h1>
+  <p class="subtitle">같은 모델을 두 역할로 분리 — query만 아는 student vs 정답 예시도 아는 teacher.<br>둘 사이의 차이를 student가 따라가게 하면 ##보상 함수 없이##도 RL 같은 안정성을 얻는다</p>
+</div>
+
+<div class="container">
+
+<div class="top-link"><a href="20260427_shenfeld_sdft-cl.html">← 전문가용 상세 요약 보기</a></div>
+
+<div class="name-warning">
+⚠️ <strong>이름 충돌 주의</strong>: 본 논문(MIT, 2026)의 SDFT는 ##on-policy demonstration-conditioned 증류## 기반이며, 동명 약어를 쓰는 별도 논문 <a href="20260427_yang_sdft.html">Yang et al. 2024 SDFT (Distribution Gap)</a>는 ##response rewriting## 기반입니다. 메커니즘이 정반대.
+</div>
+
+<div class="one-liner">"##모델 자신의 두 자아 사이의 차이##가 보상 함수 역할을 한다 — RL의 안정성을 reward 없이 얻는 길"</div>
+
+<!-- ===== 배경 지식 ===== -->
+<section>
+<h2>1. 먼저 알아둘 배경 지식</h2>
+
+<h3>1.1 Continual Learning이란?</h3>
+<div class="card card-accent">
+<p>AI 모델을 ##배포 후에도 계속 새로운 능력과 지식을 추가##하고 싶다. 이를 <strong>continual learning(평생 학습)</strong>이라 한다. 인간이 평생 새 기술을 배우는 것처럼.</p>
+<p>그러나 보통의 fine-tune은 ##새 task를 배우면 옛 task를 잊는다##(catastrophic forgetting). 평생 학습의 가장 큰 적.</p>
+</div>
+
+<h3>1.2 두 가지 학습 방식</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#047857" font-size="14" font-weight="700">Off-policy SFT vs On-policy RL</text>
+
+  <!-- SFT -->
+  <rect x="40" y="60" width="300" height="240" rx="14" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="190" y="85" text-anchor="middle" fill="#7f1d1d" font-size="14" font-weight="700">Off-policy SFT</text>
+  <text x="190" y="115" text-anchor="middle" fill="#475569" font-size="11">정답 데이터를 그대로 외움</text>
+  <text x="190" y="135" text-anchor="middle" fill="#475569" font-size="11">(off-policy = 자기 분포 밖)</text>
+  <line x1="80" y1="160" x2="300" y2="160" stroke="#94a3b8" stroke-dasharray="3 3"/>
+  <text x="190" y="180" text-anchor="middle" fill="#059669" font-size="11">✅ 단순, 데이터만 있으면 됨</text>
+  <text x="190" y="200" text-anchor="middle" fill="#dc2626" font-size="11">❌ 망각 심함</text>
+  <text x="190" y="220" text-anchor="middle" fill="#dc2626" font-size="11">❌ exposure bias</text>
+  <text x="190" y="260" text-anchor="middle" fill="#7f1d1d" font-size="11" font-weight="700">예: GSM8K 1 task 학습 후</text>
+  <text x="190" y="280" text-anchor="middle" fill="#7f1d1d" font-size="11" font-weight="700">코딩 능력 27% 추락</text>
+
+  <!-- RL -->
+  <rect x="380" y="60" width="300" height="240" rx="14" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="530" y="85" text-anchor="middle" fill="#14532d" font-size="14" font-weight="700">On-policy RL</text>
+  <text x="530" y="115" text-anchor="middle" fill="#475569" font-size="11">자기가 만든 답에 보상 받음</text>
+  <text x="530" y="135" text-anchor="middle" fill="#475569" font-size="11">(on-policy = 자기 분포 위)</text>
+  <line x1="420" y1="160" x2="640" y2="160" stroke="#94a3b8" stroke-dasharray="3 3"/>
+  <text x="530" y="180" text-anchor="middle" fill="#059669" font-size="11">✅ 망각 적음</text>
+  <text x="530" y="200" text-anchor="middle" fill="#059669" font-size="11">✅ 일반화 좋음</text>
+  <text x="530" y="220" text-anchor="middle" fill="#dc2626" font-size="11">❌ ##보상 함수 필요##</text>
+  <text x="530" y="260" text-anchor="middle" fill="#14532d" font-size="11" font-weight="700">예: RLHF/GRPO</text>
+  <text x="530" y="280" text-anchor="middle" fill="#14532d" font-size="11" font-weight="700">하지만 보상 없는 task엔 적용 불가</text>
+</svg>
+<div class="diagram-caption">SFT는 망각, RL은 보상 필요 — 둘 다 한계</div>
+</div>
+
+<h3>1.3 Reward 없이 RL 같은 학습은 가능할까?</h3>
+<div class="card card-accent">
+<p>대부분의 실세계 데이터는 ##정답 예시(demonstration)는 있지만 명시적 보상 함수는 없다##. 의료·법률·창작 같은 영역에서 "얼마나 잘했는지"를 자동 점수로 매기기 어렵다.</p>
+<p>SDFT의 발상: ##모델 자신의 ICL(In-Context Learning) 능력##을 implicit 보상으로 활용. demonstration을 prompt에 넣으면 모델이 ##자기 자신의 더 나은 버전##이 된다는 점을 이용.</p>
+</div>
+
+<h3>1.4 ICL이 뭔가?</h3>
+<p>현대 LLM은 ##few-shot 예시를 prompt에 넣으면 그 task를 즉석에서 익히는 능력##이 있다. 이를 <strong>In-Context Learning (ICL)</strong>이라 한다. SDFT의 핵심 가정: "##demonstration이 prompt에 있을 때의 모델 분포 ≈ 그 task의 optimal policy##".</p>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+<h2>2. SDFT의 핵심 아이디어</h2>
+
+<h3>2.1 같은 모델, 두 자아</h3>
+<p>SDFT는 ##하나의 모델을 두 역할로 동시에 사용##한다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#047857" font-size="14" font-weight="700">SDFT의 두 자아 구조</text>
+
+  <!-- single model -->
+  <rect x="280" y="60" width="160" height="60" rx="10" fill="#10b981"/>
+  <text x="360" y="88" text-anchor="middle" fill="#fff" font-size="14" font-weight="700">하나의 LLM π</text>
+  <text x="360" y="108" text-anchor="middle" fill="#fff" font-size="11">(예: Qwen-2.5-7B)</text>
+
+  <!-- branch -->
+  <line x1="320" y1="120" x2="180" y2="170" stroke="#94a3b8"/>
+  <line x1="400" y1="120" x2="540" y2="170" stroke="#94a3b8"/>
+
+  <!-- student -->
+  <rect x="60" y="170" width="240" height="180" rx="14" fill="#fef3c7" stroke="#d97706"/>
+  <text x="180" y="195" text-anchor="middle" fill="#7c2d12" font-size="13" font-weight="700">Student 자아</text>
+  <text x="180" y="220" text-anchor="middle" fill="#475569" font-size="11">조건: query x만</text>
+  <text x="180" y="240" text-anchor="middle" fill="#475569" font-size="11">P = π(·|x)</text>
+  <text x="180" y="270" text-anchor="middle" fill="#94a3b8" font-size="10">"문제만 보고 답해"</text>
+  <text x="180" y="305" text-anchor="middle" fill="#7c2d12" font-size="11" font-weight="700">학습 대상</text>
+  <text x="180" y="325" text-anchor="middle" fill="#7c2d12" font-size="11" font-weight="700">(파라미터 업데이트)</text>
+
+  <!-- teacher -->
+  <rect x="420" y="170" width="240" height="180" rx="14" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="540" y="195" text-anchor="middle" fill="#14532d" font-size="13" font-weight="700">Teacher 자아</text>
+  <text x="540" y="220" text-anchor="middle" fill="#475569" font-size="11">조건: query x + demo c</text>
+  <text x="540" y="240" text-anchor="middle" fill="#475569" font-size="11">Q = π(·|x, c)</text>
+  <text x="540" y="270" text-anchor="middle" fill="#94a3b8" font-size="10">"이 예시 보고 답해"</text>
+  <text x="540" y="305" text-anchor="middle" fill="#14532d" font-size="11" font-weight="700">학습 안 함 (EMA)</text>
+  <text x="540" y="325" text-anchor="middle" fill="#14532d" font-size="11" font-weight="700">파라미터 고정</text>
+</svg>
+<div class="diagram-caption">같은 모델이 query만 아는 ##student##와 demonstration도 아는 ##teacher## 역할을 동시에 함</div>
+</div>
+
+<h3>2.2 학습 흐름</h3>
+
+<div class="step-flow">
+<div class="step-box"><div class="step-num">STEP 1</div><div class="step-title">Student 답 생성</div><div class="step-desc">query x만 보고 답 y 샘플</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 2</div><div class="step-title">두 자아 평가</div><div class="step-desc">student/teacher 각각 y에 대한 확률</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 3</div><div class="step-title">차이 계산</div><div class="step-desc">log Q − log P (token별)</div></div>
+<div class="step-arrow">→</div>
+<div class="step-box"><div class="step-num">STEP 4</div><div class="step-title">Reverse KL 최소화</div><div class="step-desc">student를 teacher 쪽으로</div></div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">🎓 비유: 자기 자신의 더 wiser한 버전</div>
+<p>"내가 정답 예시를 보고 풀었으면 어떻게 답할까?"를 ##내가 그 예시를 안 보고 풀 때##와 비교한다. 두 답의 차이가 ##내가 학습해야 할 방향##.<br>
+외부 코치 없이 ##자기 자신의 두 모드를 비교##해서 학습한다 — 그래서 self-distillation.</p>
+</div>
+
+<h3>2.3 왜 평생 학습이 가능한가?</h3>
+<div class="card card-accent">
+<p>핵심: teacher 분포 Q는 ##base 모델에서 거의 벗어나지 않는다##(0.68 nats, SFT의 절반). 따라서 student를 Q 쪽으로 끌어당겨도 ##원래 모델 분포에서 크게 멀어지지 않는다##.</p>
+<p>이것이 trust-region RL의 핵심 — "##새 능력 얻기 + 원래 분포에 가까이 머물기##"의 균형점을 ICL이 자동으로 찾아준다.</p>
+</div>
+
+<h3>2.4 이론적 증명: SDFT는 implicit IRL이다</h3>
+<p>(상세는 전문가용에서) trust-region regularized RL의 closed-form optimal policy를 reward에 대해 정리하면:</p>
+<div class="card card-accent" style="text-align:center; font-family:monospace; font-size:1rem;">
+implicit reward r(y, x, c) = log π(y|x, c) − log π(y|x)
+</div>
+<p>즉 ##teacher 자아가 student보다 더 좋아하는 정도##가 곧 implicit reward. 이 reward를 PG로 최대화하면 SDFT의 reverse KL gradient와 ##expectation 차원에서 정확히 동등##.</p>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+<h2>3. 핵심 성과</h2>
+
+<div class="stat-row">
+<div class="stat-box"><div class="num">+12.5</div><div class="label">Olmo-3 Reasoning<br>정확도 (31.2 → 43.7)</div></div>
+<div class="stat-box"><div class="num">98%</div><div class="label">신지식 OOD 정확도<br>(SFT 80% 대비)</div></div>
+<div class="stat-box"><div class="num">3 task</div><div class="label">순차 학습 후<br>모두 보존</div></div>
+<div class="stat-box"><div class="num">+6.9</div><div class="label">14B에서 SFT 대비<br>정확도 향상</div></div>
+</div>
+
+<h3>3.1 새 task와 기존 능력의 동시 보존 (Skill Learning)</h3>
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#047857" font-size="14" font-weight="700">Pareto Frontier — 새 task vs 기존 능력</text>
+
+  <line x1="80" y1="240" x2="660" y2="240" stroke="#94a3b8"/>
+  <line x1="80" y1="60" x2="80" y2="240" stroke="#94a3b8"/>
+  <text x="60" y="65" text-anchor="end" fill="#64748b" font-size="10">Prior 능력</text>
+  <text x="60" y="245" text-anchor="end" fill="#64748b" font-size="10">↓</text>
+  <text x="80" y="260" text-anchor="middle" fill="#64748b" font-size="10">낮음</text>
+  <text x="660" y="260" text-anchor="middle" fill="#64748b" font-size="10">새 task 정확도 →</text>
+
+  <!-- ideal -->
+  <text x="600" y="80" fill="#16a34a" font-size="11" font-weight="700">▲ 이상점</text>
+
+  <!-- Base -->
+  <circle cx="200" cy="80" r="6" fill="#94a3b8"/>
+  <text x="170" y="80" text-anchor="end" fill="#475569" font-size="10">Base</text>
+
+  <!-- SFT (high new, low prior) -->
+  <circle cx="550" cy="200" r="6" fill="#dc2626"/>
+  <text x="540" y="220" text-anchor="end" fill="#dc2626" font-size="10" font-weight="700">SFT (망각!)</text>
+
+  <!-- DFT -->
+  <circle cx="450" cy="120" r="6" fill="#f59e0b"/>
+  <text x="445" y="115" text-anchor="end" fill="#d97706" font-size="10">DFT</text>
+
+  <!-- SDFT -->
+  <circle cx="560" cy="90" r="8" fill="#10b981"/>
+  <text x="595" y="90" fill="#047857" font-size="11" font-weight="700">SDFT (Pareto best)</text>
+
+  <!-- arrows -->
+  <path d="M 200 80 L 540 195" stroke="#dc2626" stroke-width="2" stroke-dasharray="3 3" fill="none" marker-end="url(#arrR)"/>
+  <text x="370" y="155" fill="#dc2626" font-size="10">SFT는 새 task↑하면서 prior↓</text>
+
+  <path d="M 200 80 L 555 90" stroke="#10b981" stroke-width="2" fill="none" marker-end="url(#arrG)"/>
+  <text x="370" y="75" fill="#10b981" font-size="10" font-weight="700">SDFT: 둘 다 향상</text>
+
+  <defs>
+    <marker id="arrR" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="arrG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#10b981"/>
+    </marker>
+  </defs>
+</svg>
+<div class="diagram-caption">SFT는 trade-off, SDFT는 Pareto 우상단으로 직접 이동</div>
+</div>
+
+<h3>3.2 신지식을 모델 메모리에 통합</h3>
+<table class="comp-table">
+<thead><tr><th>방법</th><th>Strict 정확도</th><th>OOD (간접 질문)</th></tr></thead>
+<tbody>
+<tr><td>Base 모델 (학습 전)</td><td>0</td><td>0</td></tr>
+<tr><td>Oracle RAG (참고용 상한)</td><td>91</td><td>100</td></tr>
+<tr><td>CPT (continual pre-training)</td><td>9</td><td>7</td></tr>
+<tr><td>SFT</td><td>80</td><td>80</td></tr>
+<tr class="highlight-row"><td>SDFT</td><td><strong>89</strong></td><td><strong>98</strong></td></tr>
+</tbody>
+</table>
+<p>SFT는 ##직접 질문은 외우지만 우회적 질문(OOD)에서 약함##. SDFT는 ##사실을 더 깊이 통합##해 OOD에서도 RAG급 성능.</p>
+
+<h3>3.3 순차 평생 학습 (Tool → Science → Medical)</h3>
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#047857" font-size="14" font-weight="700">3개 task 순차 학습 후 각 task 성능</text>
+
+  <line x1="80" y1="200" x2="660" y2="200" stroke="#94a3b8"/>
+  <line x1="80" y1="60" x2="80" y2="200" stroke="#94a3b8"/>
+  <text x="60" y="65" text-anchor="end" fill="#64748b" font-size="10">1.0</text>
+  <text x="60" y="205" text-anchor="end" fill="#64748b" font-size="10">0</text>
+
+  <text x="240" y="220" text-anchor="middle" fill="#64748b" font-size="10">Tool</text>
+  <text x="380" y="220" text-anchor="middle" fill="#64748b" font-size="10">Science</text>
+  <text x="520" y="220" text-anchor="middle" fill="#64748b" font-size="10">Medical</text>
+
+  <!-- SFT (oscillating, drops) -->
+  <path d="M 80 200 Q 200 80 240 80 Q 280 200 380 80 Q 420 200 460 200 Q 480 80 520 80 Q 560 200 600 200" stroke="#dc2626" stroke-width="2" fill="none"/>
+  <text x="500" y="195" fill="#dc2626" font-size="10" font-weight="700">SFT (oscillating)</text>
+
+  <!-- SDFT (stable accumulation) -->
+  <path d="M 80 200 Q 150 100 240 80 Q 320 70 380 70 Q 460 70 520 70 Q 600 70 660 70" stroke="#10b981" stroke-width="3" fill="none"/>
+  <text x="600" y="65" fill="#10b981" font-size="10" font-weight="700">SDFT (누적)</text>
+
+  <line x1="240" y1="60" x2="240" y2="200" stroke="#94a3b8" stroke-dasharray="2 2"/>
+  <line x1="380" y1="60" x2="380" y2="200" stroke="#94a3b8" stroke-dasharray="2 2"/>
+  <line x1="520" y1="60" x2="520" y2="200" stroke="#94a3b8" stroke-dasharray="2 2"/>
+
+  <text x="160" y="50" text-anchor="middle" fill="#64748b" font-size="10">Tool 학습</text>
+  <text x="310" y="50" text-anchor="middle" fill="#64748b" font-size="10">Science 학습</text>
+  <text x="450" y="50" text-anchor="middle" fill="#64748b" font-size="10">Medical 학습</text>
+</svg>
+<div class="diagram-caption">SDFT는 새 task 학습 중에도 이전 task 성능을 유지, SFT는 task 전환 시 무너짐</div>
+</div>
+
+<h3>3.4 추론 모델의 reasoning 행동 보존</h3>
+<table class="comp-table">
+<thead><tr><th>방법 (Olmo-3-7B-Think)</th><th>의료 정확도</th><th>평균 토큰 수 (CoT 길이)</th></tr></thead>
+<tbody>
+<tr><td>학습 전</td><td>31.2</td><td>4612</td></tr>
+<tr><td>SFT (answer-only data)</td><td>23.5 (↓)</td><td>3273 (CoT 봉쇄)</td></tr>
+<tr class="highlight-row"><td>SDFT</td><td><strong>43.7 (+12.5)</strong></td><td><strong>4180 (CoT 유지)</strong></td></tr>
+</tbody>
+</table>
+<div class="card card-green">
+<p>매우 실용적인 결과: 정답만 적힌 데이터로 reasoning 모델을 fine-tune할 때 ##SFT는 chain-of-thought를 무너뜨려 오히려 정확도가 떨어진다##. SDFT는 ##기존 reasoning 행동을 유지하면서 정확도를 +12.5 향상##.</p>
+</div>
+
+<h3>3.5 모델 크기에 따른 성능 (Figure 5)</h3>
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="25" text-anchor="middle" fill="#047857" font-size="14" font-weight="700">모델 크기 vs SDFT - SFT gap</text>
+
+  <line x1="100" y1="180" x2="640" y2="180" stroke="#94a3b8"/>
+  <line x1="100" y1="60" x2="100" y2="180" stroke="#94a3b8"/>
+  <text x="100" y="200" text-anchor="middle" fill="#64748b" font-size="10">3B</text>
+  <text x="370" y="200" text-anchor="middle" fill="#64748b" font-size="10">7B</text>
+  <text x="640" y="200" text-anchor="middle" fill="#64748b" font-size="10">14B</text>
+
+  <circle cx="100" cy="160" r="6" fill="#dc2626"/>
+  <text x="125" y="160" fill="#dc2626" font-size="10">−3.3 (SDFT 패배)</text>
+  <circle cx="370" cy="100" r="6" fill="#f59e0b"/>
+  <text x="395" y="100" fill="#d97706" font-size="10">+4.0</text>
+  <circle cx="640" cy="70" r="8" fill="#10b981"/>
+  <text x="600" y="65" fill="#10b981" font-size="11" font-weight="700">+6.9</text>
+
+  <path d="M 100 160 L 370 100 L 640 70" stroke="#10b981" stroke-width="2" fill="none"/>
+</svg>
+<div class="diagram-caption">큰 모델일수록 ICL이 강해져 SDFT 효과가 커진다</div>
+</div>
+<div class="card card-orange">
+<p>중요한 한계: ##3B 모델에선 SDFT가 SFT에 졌다##(−3.3). ICL 능력이 약하면 demonstration-conditioned teacher가 제대로 작동하지 않는다. ##SDFT는 7B+ 모델에서 가치를 발휘##.</p>
+</div>
+
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+<h2>4. 기존 방법 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>구분</th><th>기존 방법</th><th>SDFT</th></tr></thead>
+<tbody>
+<tr><td>SFT</td><td>망각, exposure bias</td><td>on-policy로 망각 ↓</td></tr>
+<tr><td>RL (RLHF/GRPO)</td><td>보상 함수 필요</td><td>ICL 기반 implicit 보상</td></tr>
+<tr><td>IRL</td><td>strong prior 필요, 비실용적</td><td>ICL이 prior 대체</td></tr>
+<tr><td>Re-invoke</td><td>multi-stage 학습</td><td>single stage</td></tr>
+<tr><td>Context distillation 기존</td><td>fixed context, off-policy</td><td>per-query specific + on-policy</td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<div class="analogy-title">🪞 비유: 거울에 비친 더 wiser한 자신</div>
+<p>외부 코치 대신 ##거울 속의 자신##(예시를 본 더 wiser한 자아)을 보고 학습. 거울이 너무 멀리 가지 않으니(##base 분포에 가까이##) 원래의 자신(이전 능력)도 잃지 않는다.</p>
+</div>
+
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+<h2>5. 활용 분야</h2>
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <ellipse cx="360" cy="160" rx="80" ry="50" fill="#10b981"/>
+  <text x="360" y="155" text-anchor="middle" fill="#fff" font-size="16" font-weight="700">SDFT</text>
+  <text x="360" y="175" text-anchor="middle" fill="#fff" font-size="11">평생 학습</text>
+
+  <line x1="320" y1="125" x2="200" y2="60" stroke="#10b981" stroke-width="2"/>
+  <rect x="80" y="40" width="240" height="60" rx="10" fill="#d1fae5" stroke="#10b981"/>
+  <text x="200" y="68" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">에이전트 평생 학습</text>
+  <text x="200" y="88" text-anchor="middle" fill="#475569" font-size="11">새 도구·API를 누적 보존</text>
+
+  <line x1="400" y1="125" x2="520" y2="60" stroke="#10b981" stroke-width="2"/>
+  <rect x="400" y="40" width="240" height="60" rx="10" fill="#d1fae5" stroke="#10b981"/>
+  <text x="520" y="68" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">시간 정보 업데이트</text>
+  <text x="520" y="88" text-anchor="middle" fill="#475569" font-size="11">cutoff 이후 새 사실 통합</text>
+
+  <line x1="320" y1="195" x2="200" y2="260" stroke="#10b981" stroke-width="2"/>
+  <rect x="80" y="240" width="240" height="60" rx="10" fill="#d1fae5" stroke="#10b981"/>
+  <text x="200" y="268" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">Reasoning 모델 적응</text>
+  <text x="200" y="288" text-anchor="middle" fill="#475569" font-size="11">CoT 능력 보존하며 fine-tune</text>
+
+  <line x1="400" y1="195" x2="520" y2="260" stroke="#10b981" stroke-width="2"/>
+  <rect x="400" y="240" width="240" height="60" rx="10" fill="#d1fae5" stroke="#10b981"/>
+  <text x="520" y="268" text-anchor="middle" fill="#065f46" font-size="13" font-weight="700">RL 사전 단계</text>
+  <text x="520" y="288" text-anchor="middle" fill="#475569" font-size="11">RL이 가능한 task의 더 좋은 출발점</text>
+</svg>
+</div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+<div class="one-liner">
+"##모델 자신의 두 자아 차이##를 보상으로 활용하면, demonstration만으로도 ##평생 학습이 가능한 안정적 fine-tune##이 된다"
+</div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+<h2>6. 한계점</h2>
+
+<div class="card card-orange">
+<p><strong>① 작은 모델에선 작동 안 함</strong>: 3B 이하 모델은 ICL이 약해 SDFT가 SFT에 진다. ##7B+ 모델에서만 가치##.</p>
+</div>
+<div class="card card-orange">
+<p><strong>② 추가 계산 비용</strong>: SFT 대비 ##2.5× FLOPs##, 4× wall-clock. 대규모 데이터에선 부담.</p>
+</div>
+<div class="card card-orange">
+<p><strong>③ Behavioral pivot 한계</strong>: ##기존 행동 보존엔 강하지만, 모델의 generation 패턴을 크게 바꾸는 적응(예: non-reasoning → reasoning)엔 약하다##.</p>
+</div>
+<div class="card card-orange">
+<p><strong>④ Demonstration prompt artifact</strong>: "Based on the text..." 같은 prompt 흔적이 student에 흡수됨. ##첫 몇 토큰 masking##이라는 휴리스틱 해법뿐.</p>
+</div>
+<div class="card card-orange">
+<p><strong>⑤ 같은 모델 두 역할 제약</strong>: cross-architecture 증류 불가능. 다른 family로 지식 옮기기엔 부적합.</p>
+</div>
+
+</section>
+
+<div class="top-link"><a href="20260427_shenfeld_sdft-cl.html">← 전문가용 상세 요약 보기</a></div>
+
+</div>
+
+<div class="footer">
+Self-Distillation Enables Continual Learning · Shenfeld et al. (MIT / ETH) · arXiv:2601.19897 · 2026<br>
+이 브리핑은 비전문가용 개요입니다 — 전문가용 상세 요약은 별도 페이지를 참고하세요.
+</div>
+
+</body>
+</html>

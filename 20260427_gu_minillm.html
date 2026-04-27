@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MiniLLM: On-Policy Distillation of LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { background: #eef2ff; padding: 0.6rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #6366f1; }
+  .brief-link a { color: #4338ca; font-weight: bold; text-decoration: none; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MiniLLM: On-Policy Distillation of Large Language Models</h1>
+
+<div class="brief-link">
+📄 비전문가용 개요를 찾으신다면 → <a href="20260427_gu_minillm_brief.html">개요 브리핑 버전 보기 →</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuxian Gu, Li Dong, Furu Wei, Minlie Huang</li>
+  <li><strong>소속</strong>: Tsinghua University CoAI Group · Microsoft Research</li>
+  <li><strong>학회/저널</strong>: ICLR (v6 latest revision Jan 2026)</li>
+  <li><strong>연도</strong>: 2023-06-14 (v1) / 2026-01-31 (v6)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2306.08543">arXiv:2306.08543</a> · <a href="https://github.com/microsoft/LMOps/tree/main/minillm">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 표준 white-box KD는 ##forward KL $\mathrm{KL}[p\Vert q_\theta]$##로 student를 teacher 분포의 모든 mode에 펼치도록 강제한다. LLM 같은 ##open-ended generation##에선 student capacity가 부족해 결국 teacher의 ##void region##에까지 큰 확률을 줘 hallucination·저품질 생성을 유발.</li>
+  <li><strong>해결</strong>: ##Reverse KL $\mathrm{KL}[q_\theta\Vert p]$##를 최소화. mode-seeking이라 teacher의 ##major mode에 집중##하고 long-tail variant를 무시. Policy gradient + on-policy student rollout으로 학습.</li>
+  <li><strong>왜 작동하는가</strong>: 텍스트 생성에서 ##정확성·신뢰도가 다양성보다 중요##한 경우 reverse KL이 더 적합. 추가로 ##single-step decomposition / teacher-mixed sampling / length normalization## 세 안정화 기법으로 reward hacking을 막음.</li>
+  <li><strong>비유</strong>: forward KL은 "선생님이 했던 ##모든 풀이##를 흉내 내려는" 학생, reverse KL은 "선생님이 ##가장 자주 쓰는 풀이##를 익히는" 학생. 시험에서 한 가지를 정확히 하는 게 중요할 땐 후자가 낫다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Reverse KLD for Generative LLM Distillation</strong>: white-box LLM KD에 reverse KL을 처음 체계적으로 적용. forward KL의 mode-covering이 ##LLM의 large output space에서는 void-region overestimation##으로 이어진다는 진단.</li>
+  <li><strong>On-Policy Optimization via Policy Gradient</strong>: $\nabla \mathcal{L}(\theta)$를 PG로 도출, student rollout 위에서 $R_t = \sum_{t'=t}^T \log\frac{p}{q_\theta}$를 reward로 사용. RLHF와 유사한 파이프라인.</li>
+  <li><strong>3가지 안정화 기법</strong>: (i) ##Single-Step Decomposition## (단일 토큰 reward 분리로 분산↓), (ii) ##Teacher-Mixed Sampling## $\tilde p = \alpha p + (1-\alpha) q_\theta$ (degenerate 문장 억제 + reward hacking 방지), (iii) ##Length Normalization## $R^{\text{Norm}} = \frac{1}{T-t-1}\sum \log\frac{p}{q_\theta}$ (긴 문장 빈약 reward 보정).</li>
+  <li><strong>120M~13B 스케일에서 검증</strong>: GPT-2 (120M/340M/760M with 1.5B teacher), GPT-J 6B teacher, OPT (1.3B/2.7B/6.7B with 13B), LLaMA-7B with 13B 모두에서 SFT/KD/SeqKD를 일관 능가. Rouge-L과 GPT-4 평가 모두 우위.</li>
+  <li><strong>분포적 부수효과 분석</strong>: lower exposure bias (ExAccErr metric), better calibration (ECE), no significant loss of generation diversity (Dist-4), longer generation에 강함 — reverse KL의 ##mode-seeking이 hallucinated mode 회피에도 도움##.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 White-box vs Black-box KD</h3>
+<p>대형 LLM(teacher) → 작은 LLM(student)으로 지식을 옮기는 KD는 두 갈래로 나뉜다:</p>
+<ul>
+  <li><strong>Black-box KD</strong>: API로 얻은 prompt-response pair만 사용 (예: ChatGPT API → student SFT). teacher 분포에 직접 접근 불가.</li>
+  <li><strong>White-box KD</strong>: teacher의 출력 분포(또는 hidden state)에 직접 접근 — open-source LLM에서 가능. ##본 논문이 다루는 영역##.</li>
+</ul>
+
+<h3>1.2 Forward KL의 한계 — Mode Covering</h3>
+<p>표준 KD 손실은 forward KL을 최소화한다:</p>
+$$\min_\theta \mathrm{KL}[p\Vert q_\theta] = \mathbb{E}_{x\sim p_x, y\sim p'} \log\frac{p(y|x)}{q_\theta(y|x)}$$
+<p>$p'$는 teacher 분포(sequence-level KD) 또는 실제 데이터(word-level KD). 이는 ##mode-covering##: $p$가 확률을 주는 모든 영역을 $q_\theta$가 0이 되지 않도록 강제. ##class label 예측##처럼 출력 공간이 작고 mode 수가 적으면 문제 없음.</p>
+
+<p>그러나 LLM의 출력 공간은 ##수십만 vocab × 수천 토큰##으로 천문학적이다. teacher는 학생보다 훨씬 풍부한 mode를 가지므로 mode-covering을 강요하면 student는 ##teacher가 거의 0인 영역에도 확률을 분산##하게 된다 — 이 void region에서 free-run generation 시 비현실적·반복적·환각 토큰이 나온다.</p>
+
+<h3>1.3 Toy Example (Figure 2)</h3>
+<p>3-mode Gaussian mixture를 단일 Gaussian으로 fitting:</p>
+<ul>
+  <li>Forward KL: 세 mode의 ##평균 위치에 넓게 퍼진 Gaussian##. 어떤 mode도 정확히 못 맞춤.</li>
+  <li>Reverse KL: ##가장 큰 mode 위에 집중##. 다른 두 mode는 무시하지만 fitting된 mode는 정확.</li>
+</ul>
+
+<h2>2. 방법: MiniLLM</h2>
+
+<h3>2.1 Reverse KL 목적함수</h3>
+$$\theta = \arg\min_\theta \mathcal{L}(\theta) = \arg\min_\theta \mathrm{KL}[q_\theta\Vert p] = \arg\min_\theta \mathbb{E}_{x\sim p_x, y\sim q_\theta}\log\frac{q_\theta(y|x)}{p(y|x)} \quad (1)$$
+<p>직관: ##student 자신이 생성한 trajectory##에서 teacher가 거의 0인 토큰에 큰 페널티를 줘서 ##teacher의 dominant mode로 끌어들인다##. forward KL과 달리 student가 generate하지 않는 영역은 학습 신호 없음.</p>
+
+<h3>2.2 Policy Gradient 도출</h3>
+<p>Eq.(1)의 gradient는 PG 정리로:</p>
+$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim q_\theta(\cdot|x)}\sum_{t=1}^{T}(R_t - 1)\nabla \log q_\theta(y_t|y_{<t}, x) \quad (2)$$
+<p>여기서 $T=|y|$, $R_t = \sum_{t'=t}^{T}\log\frac{p(y_{t'}|y_{<t'},x)}{q_\theta(y_{t'}|y_{<t'},x)}$는 ##timestep $t$ 이후 누적 log-ratio reward##. 직관: 각 토큰에서 ##teacher가 student보다 더 좋아하는 정도##를 reward로 받아 reinforcement learning 형태로 정책을 업데이트.</p>
+
+<h3>2.3 안정화 1 — Single-Step Decomposition</h3>
+<p>$R_t$를 $r_t$ (당시 토큰의 single-step reward)와 $R_{t+1}$로 분해:</p>
+$$\nabla \mathcal{L}(\theta) = \mathbb{E}\left[-\sum_t \nabla_\theta \mathbb{E}_{y_t\sim q_\theta(t)}[r_t]\right] + \mathbb{E}\left[-\sum_t R_{t+1}\nabla \log q_\theta(y_t|y_{<t},x)\right] \quad (3)$$
+<p>= $(\nabla \mathcal{L})_{\text{Single}} + (\nabla \mathcal{L})_{\text{Long}}$. ##Single 부분은 vocab 전체 합으로 직접 계산 가능 → MC 샘플링 분산 제거, 수렴 가속##. 직관: 앞 token의 noise가 뒤로 전파되는 variance 누적을 끊는다.</p>
+
+<h3>2.4 안정화 2 — Teacher-Mixed Sampling</h3>
+<p>Reward hacking — student가 ##반복 phrase 같은 degenerate한 문장##에 teacher 분포가 우연히 높은 확률을 줘서 reward를 받는 현상 — 을 막기 위해 sampling distribution을 teacher와 mix:</p>
+$$\tilde p(y_t|y_{<t},x) = \alpha\cdot p(y_t|y_{<t},x) + (1-\alpha)\cdot q_\theta(y_t|y_{<t},x) \quad (4)$$
+<p>$\alpha=0.2$. teacher mix-in이 ##low-quality generation을 사전 차단##. importance sampling으로 unbiased gradient 유지:</p>
+$$(\nabla \mathcal{L})_{\text{Single}} = -\mathbb{E}_{y\sim \tilde p}\left[\sum_t w_t \nabla \mathbb{E}_{y_t\sim q_\theta(t)}[r_t]\right] \quad (5)$$
+<p>$w_t = \prod_{t'=1}^{t} \frac{q_\theta}{\tilde p}$가 high-variance하므로 ##per-step approximation $w_t \approx \frac{q_\theta(y_t|y_{<t},x)}{\tilde p(y_t|y_{<t},x)}$##로 안정화.</p>
+
+<h3>2.5 안정화 3 — Length Normalization</h3>
+<p>긴 시퀀스는 $R_{t+1}$이 작아 student가 짧은 응답을 생성하도록 편향. 길이 정규화:</p>
+$$R^{\text{Norm}}_{t+1} = \frac{1}{T-t-1}\sum_{t'=t+1}^{T}\log\frac{p(y_{t'}|y_{<t'},x)}{q_\theta(y_{t'}|y_{<t'},x)} \quad (6)$$
+<p>이 단순한 평균이 ##짧은 응답으로 도망가는 reward hacking##을 차단.</p>
+
+<h3>2.6 최종 Gradient</h3>
+$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim \tilde p(\cdot|x)}\left[\sum_t w_t \left[\nabla\sum_{y'\in V} q_\theta(y'|y_{<t},x)\log\frac{p(y'|y_{<t},x)}{q_\theta(y'|y_{<t},x)}\,\, +\,\, R^{\text{Norm}}_{t+1}\frac{\nabla q_\theta(y_t|y_{<t},x)}{q_\theta(y_t|y_{<t},x)}\right]\right] \quad (7)$$
+<p>주의: Single 부분은 vocab 전체 sum, Long 부분은 정규화된 reward × score function. 학습 시 ##언어 모델링 보존 손실 $\mathcal{L}_{\text{PT}}$도 같이 최적화##해 canonical NLP 벤치마크 성능 유지.</p>
+
+<h3>2.7 알고리즘 흐름도</h3>
+<div class="flow-diagram">초기화: 𝒟에서 student를 SFT, 가장 낮은 validation loss 체크포인트 선택
+반복:
+  1. teacher-mixed 분포 p̃에서 prompt 미니배치 샘플링 → student response 𝒮
+  2. (∇𝓛)_Single = -1/M Σ Σ_t w_t Σ_y' q_θ ∇log(p/q_θ)        # vocab full sum
+  3. (∇𝓛)_Long^Norm = -1/M Σ Σ_t R^Norm_{t+1} ∇ρ_t(θ),
+       ρ_t(θ) = q_θ/p̃ ratio, clipped (PPO-style)
+  4. 𝒟'_PT 미니배치에서 ∇𝓛_PT (LM loss) 계산
+  5. θ ← θ - η · [(∇𝓛)_Single + (∇𝓛)_Long^Norm + ∇𝓛_PT]
+until 수렴</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 공통 설정</h3>
+<ul>
+  <li>Task: instruction-following text generation. 학습 데이터: ##databricks-dolly-15K## (12.5K train / 1K val / 0.5K test). pretraining corpus는 OpenWebText (GPT-2) 또는 RoBERTa data (others), $\alpha=0.2$.</li>
+  <li>Student/Teacher: GPT-2 120M~760M ↔ GPT-2-1.5B; OPT 1.3B/2.7B/6.7B ↔ OPT-13B; LLaMA-7B ↔ LLaMA-13B. Teacher는 미리 𝒟로 fine-tune.</li>
+  <li>Evaluation: 5개 instruction set (DollyEval, SelfInst, VicunaEval, S-NI, UnNI). 5 seed 평균.</li>
+  <li>Metric: Rouge-L, GPT-4 feedback (1-10), human eval (Win/Tie/Loss).</li>
+  <li>Baselines: SFT w/o KD, KD (word-level), SeqKD (sequence-level).</li>
+</ul>
+
+<h3>3.2 Main Results (Table 1, GPT-4 / Rouge-L)</h3>
+
+<table>
+<thead><tr><th>Family</th><th>Size</th><th>Method</th><th>Dolly GPT4</th><th>SelfInst GPT4</th><th>Vicuna GPT4</th><th>S-NI R-L</th><th>UnNI R-L</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">GPT-2 120M</td><td>—</td><td>Teacher (1.5B)</td><td>58.4</td><td>42.9</td><td>48.6</td><td>27.6</td><td>31.8</td></tr>
+<tr><td>—</td><td>SFT</td><td>38.6</td><td>26.3</td><td>32.8</td><td>16.3</td><td>18.5</td></tr>
+<tr><td>—</td><td>SeqKD</td><td>41.2</td><td>26.2</td><td>31.0</td><td>16.4</td><td>18.8</td></tr>
+<tr><td>—</td><td><strong>MiniLLM</strong></td><td><strong>44.7</strong></td><td><strong>29.2</strong></td><td><strong>34.1</strong></td><td><strong>25.3</strong></td><td><strong>26.6</strong></td></tr>
+<tr><td rowspan="4">GPT-2 760M</td><td>—</td><td>SFT</td><td>50.7</td><td>38.3</td><td>43.1</td><td>21.5</td><td>27.1</td></tr>
+<tr><td>—</td><td>SeqKD</td><td>52.0</td><td>38.9</td><td>44.0</td><td>26.1</td><td>31.7</td></tr>
+<tr><td>—</td><td><strong>MiniLLM</strong></td><td><strong>54.7</strong></td><td><strong>44.6</strong></td><td><strong>45.7</strong></td><td><strong>29.3*</strong></td><td><strong>37.7*</strong></td></tr>
+<tr><td rowspan="3">OPT 6.7B</td><td>—</td><td>SFT</td><td>67.9</td><td>56.4</td><td>57.3</td><td>30.3</td><td>28.6</td></tr>
+<tr><td>—</td><td>SeqKD</td><td>69.6</td><td>54.0</td><td>57.6</td><td>30.4</td><td>28.2</td></tr>
+<tr><td>—</td><td><strong>MiniLLM</strong></td><td><strong>70.8*</strong></td><td><strong>58.5*</strong></td><td><strong>60.1*</strong></td><td><strong>32.5*</strong></td><td><strong>36.7*</strong></td></tr>
+<tr><td>LLaMA 7B</td><td>—</td><td><strong>MiniLLM</strong></td><td><strong>76.4</strong></td><td><strong>73.1</strong></td><td><strong>64.1</strong></td><td>35.5</td><td><strong>40.2*</strong></td></tr>
+</tbody>
+</table>
+
+<p>* = student가 teacher를 능가. 패턴 분석:</p>
+<ul>
+  <li>##모든 model family·크기에서 SFT/KD/SeqKD를 일관 능가##. scaling이 깨끗함.</li>
+  <li>##Out-of-distribution generalization##(Dolly로 학습 후 SelfInst, Vicuna, S-NI, UnNI 평가)에서 더 큰 격차 — reverse KL이 over-fitting을 줄이는 효과로 해석.</li>
+  <li>일부 setup(GPT-2 760M S-NI/UnNI, OPT 2.7B/6.7B 등)에서 ##student가 teacher를 능가## — exposure bias 감소의 부수효과.</li>
+</ul>
+
+<h3>3.3 Human Evaluation (Figure 4, LLaMA-7B)</h3>
+<p>SelfInst에서 인간 평가자가 비교: MiniLLM > SFT/KD/SeqKD 모든 baseline. teacher와 ##비등##(comparable)한 선호도.</p>
+
+<h3>3.4 Scaling Law of Teacher (Figure 5)</h3>
+<p>GPT-2-125M student를 ##340M·760M·1.5B teacher##에서 distill. MiniLLM은 ##teacher가 커질수록 student 성능 단조 향상##; SeqKD는 정체. ##더 큰 teacher의 추가 모드를 활용할 수 있다##는 시사.</p>
+
+<h3>3.5 Exposure Bias (Figure 6)</h3>
+<p>ExAccErr metric: 길이가 길수록 누적 오차. SFT/KD/SeqKD는 generation 길이 250까지 ##단조 증가##, MiniLLM은 ##150 토큰 이후 plateau## — student rollout 위에서 학습한 효과로 train-inference mismatch가 약화.</p>
+
+<h3>3.6 Calibration (Table 2)</h3>
+<table>
+<thead><tr><th>Method</th><th>SST2 ECE</th><th>SST2 Acc</th><th>BoolQ ECE</th><th>BoolQ Acc</th></tr></thead>
+<tbody>
+<tr><td>Teacher</td><td>0.025</td><td>93.0</td><td>0.356</td><td>74.5</td></tr>
+<tr><td>KD</td><td>0.191</td><td>84.7</td><td>0.682</td><td>63.5</td></tr>
+<tr><td>SeqKD</td><td>0.243</td><td>66.5</td><td>0.681</td><td>62.8</td></tr>
+<tr><td><strong>MiniLLM</strong></td><td><strong>0.099</strong></td><td><strong>89.7</strong></td><td><strong>0.502</strong></td><td><strong>67.8</strong></td></tr>
+</tbody>
+</table>
+<p>##forward KL은 void region에 확률을 흘려 calibration을 깨고##, reverse KL은 major mode에 집중하므로 ECE↓ acc↑. zero-shot classification에 직접적 함의.</p>
+
+<h3>3.7 Long Response Performance (Figure 7)</h3>
+<p>S-NI를 ground-truth 길이로 분할 ([0,5], [6,10], [11,+∞]):</p>
+<ul>
+  <li>짧은 응답(≤5): MiniLLM·KD·SeqKD 성능 비슷.</li>
+  <li>중간(6-10): MiniLLM 우위 시작.</li>
+  <li>긴 응답(11+): MiniLLM이 ##KD/SeqKD를 압도## — teacher가 가진 다수 mode 중 핵심을 정확히 잡는 reverse KL의 강점.</li>
+</ul>
+
+<h3>3.8 Generation Diversity (Table 3)</h3>
+<table>
+<thead><tr><th>Method</th><th>Dolly Dist-4</th><th>Dolly Loss</th><th>SelfInst Dist-4</th><th>Loss</th></tr></thead>
+<tbody>
+<tr><td>Teacher</td><td>99.3</td><td>3.55</td><td>99.1</td><td>4.44</td></tr>
+<tr><td>SFT</td><td>99.5</td><td>3.89</td><td>99.0</td><td>5.28</td></tr>
+<tr><td>MiniLLM</td><td>99.0</td><td>3.95</td><td>98.6</td><td>5.33</td></tr>
+</tbody>
+</table>
+<p>##distinct 4-gram 비율은 거의 동일## (99.0 vs 99.5) — 우려와 달리 reverse KL의 mode-seeking이 ##generation diversity를 크게 손상시키지 않는다##. 한 prompt에 대한 ##옳은 답 하나의 신뢰성##이 더 중요한 LLM 사용 사례에 적합.</p>
+
+<h3>3.9 Ablation (Table 4, Figure 8)</h3>
+
+<table>
+<thead><tr><th>Variant</th><th>Valid R-L</th><th>Dolly R-L</th></tr></thead>
+<tbody>
+<tr><td>MiniLLM (full)</td><td><strong>27.4</strong></td><td><strong>24.6</strong></td></tr>
+<tr><td>w/o Length Norm</td><td>17.4</td><td>14.7</td></tr>
+<tr><td>w/o Teacher-Mixed</td><td>22.3</td><td>20.4</td></tr>
+<tr><td>w/o Single-Step</td><td>27.0</td><td>23.7</td></tr>
+</tbody>
+</table>
+
+<p>패턴:</p>
+<ul>
+  <li>Length Norm 제거가 ##가장 큰 영향##: 짧은 응답으로 도망가는 reward hacking이 가장 위험한 실패 모드.</li>
+  <li>Teacher-Mixed Sampling 제거: degenerate string에 reward hacking → reverse KL은 떨어지지만 Rouge-L이 크게 하락.</li>
+  <li>Single-Step Decomposition 제거: convergence 속도/안정성에 작용 (Rouge는 미미하지만 학습 곡선이 noisy).</li>
+</ul>
+<p>이 실험이 뒷받침하는 주장: <em>reverse KL 자체로는 부족하며, ##세 안정화 trick이 reward hacking을 막아 실용적 학습 가능##.</em></p>
+
+<h2>4. 비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>다양성 손실의 task-dependence</strong>: Dist-4가 보존된다는 결과는 instruction-following 영역. ##창의적 작문, 시·소설 생성##처럼 "다양한 출력"이 본질인 task에선 mode-seeking이 ##출력의 풍부함을 제한##할 수 있다.</li>
+  <li><strong>Reward hacking의 잔존 위험</strong>: 세 trick이 막더라도 ##unseen prompt에서 reward hacking pattern이 다시 나타날 가능성##은 본 평가셋 안에서만 확인.</li>
+  <li><strong>Teacher 의존성</strong>: $\alpha=0.2$로 teacher-mix를 쓰므로 ##teacher 분포 자체에 결함이 있으면 student가 그 결함도 따라간다##. 안전성 ablation은 없음.</li>
+  <li><strong>Importance sampling의 single-step 근사</strong>: $w_t \approx q_\theta/\tilde p$로 per-step 근사한 점에서 ##trajectory-level bias##가 있을 수 있음. 이 근사가 정확도를 얼마나 해치는지 ablation 없음.</li>
+  <li><strong>비교군 부재</strong>: GKD (Agarwal 2024), DistiLLM-2 (Ko 2025), HPD (Zhu 2026) 등 ##최신 후속 방법들과의 직접 비교가 v6에서도 미포함##(2024-2026 시점 기준 outdated).</li>
+  <li><strong>Pre-training corpus 의존</strong>: PT loss를 함께 최적화 — corpus가 다른 도메인이면 효과가 달라질 수 있는데 sensitivity 미분석.</li>
+  <li><strong>Calibration result의 domain</strong>: SST2/BoolQ 같은 ##classification proxy task##에서 측정 — 실제 generation 환경의 calibration은 측정 어려우므로 직접 일반화는 한계.</li>
+  <li><strong>LLaMA-7B의 partial reporting</strong>: 다른 family는 3 size grid이지만 LLaMA는 7B 한 점만 보고. scaling claim이 family별로 일관되지 않음.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##KL의 방향이 KD에서 본질적이다##: forward는 mode-covering, reverse는 mode-seeking. LLM 같은 ##low-capacity student + huge output space##에서는 reverse KL이 hallucination 회피의 정공법.</li>
+  <li>##Reverse KL을 PG로 풀고 RLHF-style on-policy로 학습##하는 framework은 후속 연구(GKD, DistiLLM, HPD)가 모두 변주하는 출발점이 되었다.</li>
+  <li>3가지 안정화 trick — single-step decomposition, teacher-mixed sampling, length normalization — 은 ##policy gradient 기반 KD의 표준 안전장치##로 이식 가능. 특히 length normalization은 거의 모든 sequence-level RL이 직면하는 ##짧은 응답 hacking##에 대한 일반 해법.</li>
+  <li>Reverse KL의 부수효과: ##낮은 exposure bias, 좋은 calibration, long-text generation 강함## — 단순 metric 향상 이상의 systematic improvement.</li>
+  <li>Diversity 우려는 instruction-following 영역에선 거의 무효. dist-4 99% 유지. 단, ##창작 task에서는 사전 검증 필요##.</li>
+  <li>##Scaling rule##: teacher가 클수록 MiniLLM의 gain이 늘어난다 — open-source LLM 시대에 ##대형 teacher → 소형 student## 압축의 가치가 점점 커진다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
