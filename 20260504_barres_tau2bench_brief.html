@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>τ²-Bench — 비전문가용 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Inter', 'Pretendard', -apple-system, sans-serif; line-height: 1.7; color: #1a1a1a; background: #fafafa; }
+  .container { max-width: 980px; margin: 0 auto; padding: 0 1rem; }
+  .hero { background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%); color: white; padding: 4rem 2rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.4rem 1rem; border-radius: 999px; font-size: 0.85rem; margin: 0 0.3rem 1rem; }
+  .hero h1 { font-size: 2.4rem; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero p { font-size: 1.1rem; opacity: 0.95; max-width: 760px; margin: 0 auto; }
+  .toggle-link { display: inline-block; margin-top: 1.4rem; background: white; color: #ee0979; padding: 0.6rem 1.4rem; border-radius: 999px; text-decoration: none; font-weight: 600; }
+  .one-liner { background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%); padding: 2rem; border-radius: 16px; margin: 2.5rem 0; text-align: center; }
+  .one-liner .quote { font-size: 1.5rem; line-height: 1.5; color: #2c3e50; font-weight: 600; }
+  section { margin: 3rem 0; }
+  h2 { font-size: 1.8rem; margin-bottom: 1rem; color: #2c3e50; padding-bottom: 0.5rem; border-bottom: 3px solid #ee0979; display: inline-block; }
+  h3 { font-size: 1.3rem; margin: 1.5rem 0 0.6rem; color: #34495e; }
+  p { margin: 0.8rem 0; }
+  .card { background: white; padding: 1.5rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 1rem 0; }
+  .card-accent { background: linear-gradient(135deg, #fff5f7 0%, #fff0e6 100%); border-left: 5px solid #ee0979; }
+  .card-green { background: linear-gradient(135deg, #f0fff4 0%, #e6ffe6 100%); border-left: 5px solid #27ae60; }
+  .card-orange { background: linear-gradient(135deg, #fff8f0 0%, #ffeed1 100%); border-left: 5px solid #e67e22; }
+  .card-red { background: linear-gradient(135deg, #fff0f0 0%, #ffe0e0 100%); border-left: 5px solid #e74c3c; }
+  .analogy { background: #fffbe6; border-left: 5px solid #f1c40f; padding: 1.2rem; margin: 1.4rem 0; border-radius: 8px; }
+  .analogy::before { content: "💡 비유"; display: block; font-weight: 700; color: #b8860b; margin-bottom: 0.4rem; }
+  .step-flow { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.4rem 0; }
+  .step { flex: 1 1 200px; background: white; padding: 1rem; border-radius: 10px; box-shadow: 0 1px 6px rgba(0,0,0,0.06); border-top: 4px solid #ee0979; }
+  .step-num { color: #ee0979; font-weight: 700; font-size: 0.9rem; }
+  .step-title { font-weight: 700; margin: 0.3rem 0; }
+  .stat-row { display: flex; flex-wrap: wrap; gap: 1rem; margin: 1.5rem 0; }
+  .stat { flex: 1 1 200px; background: white; padding: 1.4rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .stat .num { font-size: 2.4rem; font-weight: 800; color: #ee0979; }
+  .stat .label { font-size: 0.95rem; color: #555; margin-top: 0.4rem; }
+  .comp-table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin: 1.4rem 0; }
+  .comp-table th { background: #ee0979; color: white; padding: 0.9rem; text-align: left; }
+  .comp-table td { padding: 0.8rem 0.9rem; border-bottom: 1px solid #eee; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight { background: #fff5f7; font-weight: 700; }
+  svg { display: block; margin: 1rem auto; max-width: 100%; height: auto; }
+  footer { background: #2c3e50; color: #ddd; padding: 2rem; text-align: center; margin-top: 4rem; }
+  footer a { color: #82c4ff; }
+  @media (max-width: 600px) {
+    .step-flow, .stat-row { flex-direction: column; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div>
+    <span class="badge">Sierra · U Toronto</span>
+    <span class="badge">2025년 6월</span>
+    <span class="badge">Conversational Agents</span>
+  </div>
+  <h1>"고객이 직접 폰을 만지면서 AI와 협업한다"</h1>
+  <p>τ²-Bench — 사용자도 도구를 가지고 환경을 조작하는 dual-control 환경에서 대화형 AI 에이전트를 평가하는 새로운 벤치마크</p>
+  <a class="toggle-link" href="20260504_barres_tau2bench.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  <div class="quote">"콜센터 직원이 모든 일을 다 하는 시뮬레이션은 끝났다.<br>이제는 고객도 함께 행동해야 한다."</div>
+</div>
+
+<section>
+  <h2>왜 이 벤치마크가 중요한가</h2>
+  <div class="card card-accent">
+    <p>요즘 AI 챗봇은 고객 지원, 항공권 예약, 쇼핑 등 <strong>task-oriented 대화</strong>에 사용됩니다. 이걸 평가하는 대표적 벤치마크가 τ-bench (Sierra, 2024)인데, 이 벤치마크는 <strong>single-control 환경</strong>—오직 AI만이 도구를 사용해 환경을 조작하고, 사용자는 정보만 제공하는 수동적 역할입니다.</p>
+    <p>그런데 실세계 <strong>기술 고객 지원</strong>은 다릅니다. "비행기 모드 꺼주세요", "라우터 재부팅하세요"처럼 <strong>사용자도 직접 행동</strong>해야 하죠. AI는 사용자를 가이드만 하고, 실제 손은 사용자가 움직입니다. 이런 시나리오를 기존 벤치마크는 평가하지 못했습니다.</p>
+    <p>τ²-Bench는 <strong>agent와 user 둘 다 도구를 가진 dual-control</strong> 환경을 만들었습니다. 그리고 SOTA LLM들이 이 환경에서 <strong>단일 제어 대비 20%p 성능 하락</strong>을 겪는다는 것을 입증했습니다. AI 에이전트의 진짜 약점이 reasoning이 아니라 <strong>사용자와의 coordination</strong>일 수 있다는 발견입니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>배경 지식 — 5가지 개념을 차근차근</h2>
+
+  <h3>① Conversational AI Agent란?</h3>
+  <div class="card">
+    <p>다중 turn 대화를 통해 사용자의 task를 해결하는 AI입니다. 단순 챗봇과 달리 <strong>도구를 호출</strong>할 수 있어 실제로 데이터베이스를 조회하거나 변경합니다. ChatGPT의 GPT, Anthropic의 Claude 같은 모델이 이런 agent로 동작할 수 있죠.</p>
+  </div>
+
+  <h3>② τ-bench (이 논문이 확장하는 baseline)</h3>
+  <div class="card">
+    <p>Sierra가 2024년 발표한 task-oriented 대화 벤치마크입니다. retail (쇼핑)과 airline (항공) 두 도메인에서 <strong>사용자의 요청을 도메인 정책에 따라 해결</strong>하는 능력을 측정합니다.</p>
+    <p>핵심 metric: <strong>pass^k</strong>—같은 task를 k번 독립 실행했을 때 모두 성공하는 비율. 즉 <strong>일관성·신뢰성</strong> 측정.</p>
+  </div>
+
+  <h3>③ Single-control vs Dual-control의 차이</h3>
+  <div class="card">
+    <p>가장 중요한 개념입니다.</p>
+    <ul style="margin-left:1.5rem;">
+      <li><strong>Single-control</strong>: AI만 도구로 환경을 조작. 사용자는 정보 제공만.</li>
+      <li><strong>Dual-control</strong>: <strong>AI와 사용자 모두</strong> 각자의 도구로 환경을 조작.</li>
+    </ul>
+  </div>
+
+  <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="700" height="280" fill="#fafbff"/>
+    <g font-family="Arial" font-size="13">
+      <text x="180" y="25" text-anchor="middle" font-size="14" font-weight="bold">Single-control (기존)</text>
+      <rect x="40" y="50" width="100" height="50" rx="8" fill="#fce8f5" stroke="#c2185b"/>
+      <text x="90" y="75" text-anchor="middle" font-weight="bold">User</text>
+      <text x="90" y="92" text-anchor="middle" font-size="10">정보 제공만</text>
+
+      <rect x="220" y="50" width="100" height="50" rx="8" fill="#e8eafd" stroke="#0066cc"/>
+      <text x="270" y="75" text-anchor="middle" font-weight="bold">AI Agent</text>
+      <text x="270" y="92" text-anchor="middle" font-size="10">도구 사용</text>
+
+      <path d="M140 75 L220 75" stroke="#888" stroke-width="2" marker-end="url(#arr_t1)"/>
+
+      <rect x="40" y="130" width="280" height="60" rx="8" fill="#e8fcef" stroke="#27ae60"/>
+      <text x="180" y="155" text-anchor="middle" font-weight="bold">공유 환경</text>
+      <text x="180" y="175" text-anchor="middle" font-size="11">(AI만 조작 가능)</text>
+
+      <path d="M270 105 L240 130" stroke="#27ae60" stroke-width="2" marker-end="url(#arr_t2)"/>
+
+      <text x="540" y="25" text-anchor="middle" font-size="14" font-weight="bold">Dual-control (τ²-bench)</text>
+      <rect x="380" y="50" width="100" height="50" rx="8" fill="#fce8f5" stroke="#c2185b" stroke-width="2"/>
+      <text x="430" y="75" text-anchor="middle" font-weight="bold">User</text>
+      <text x="430" y="92" text-anchor="middle" font-size="10">도구 사용 ✓</text>
+
+      <rect x="560" y="50" width="100" height="50" rx="8" fill="#e8eafd" stroke="#0066cc" stroke-width="2"/>
+      <text x="610" y="75" text-anchor="middle" font-weight="bold">AI Agent</text>
+      <text x="610" y="92" text-anchor="middle" font-size="10">도구 사용 ✓</text>
+
+      <path d="M480 75 L560 75" stroke="#888" stroke-width="2" marker-end="url(#arr_t1)"/>
+      <path d="M560 75 L480 75" stroke="#888" stroke-width="2" marker-end="url(#arr_t1)"/>
+
+      <rect x="380" y="130" width="280" height="60" rx="8" fill="#e8fcef" stroke="#27ae60" stroke-width="2"/>
+      <text x="520" y="155" text-anchor="middle" font-weight="bold">공유 환경</text>
+      <text x="520" y="175" text-anchor="middle" font-size="11">(둘 다 조작)</text>
+
+      <path d="M430 105 L460 130" stroke="#27ae60" stroke-width="2" marker-end="url(#arr_t2)"/>
+      <path d="M610 105 L580 130" stroke="#27ae60" stroke-width="2" marker-end="url(#arr_t2)"/>
+
+      <text x="350" y="240" text-anchor="middle" font-size="12" fill="#666">↑ 핵심 차이: 사용자도 자기 환경(폰 등)을 직접 조작</text>
+    </g>
+    <defs>
+      <marker id="arr_t1" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10" fill="#888"/>
+      </marker>
+      <marker id="arr_t2" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+        <path d="M0,0 L10,5 L0,10" fill="#27ae60"/>
+      </marker>
+    </defs>
+  </svg>
+
+  <div class="analogy">
+    Single-control은 <strong>"콜센터 상담사가 사용자 대신 모든 걸 처리"</strong>하는 상황입니다. 마치 IT 부서에서 원격으로 컴퓨터에 접속해 모든 걸 고쳐주는 식이죠. Dual-control은 <strong>"전화로 사용자를 가이드하면서, 사용자가 직접 폰 설정을 만지게 하는"</strong> 일상적 트러블슈팅에 가깝습니다.
+  </div>
+
+  <h3>④ Dec-POMDP (Decentralized POMDP)</h3>
+  <div class="card">
+    <p>여러 의사결정자가 <strong>일부 정보만 관측하면서</strong> 함께 환경을 조작하는 수학적 framework입니다. POMDP를 멀티 에이전트로 확장한 것이죠. τ²-bench는 이 framework로 dual-control 환경을 형식화했습니다—모호함을 없애기 위한 엄밀한 정의.</p>
+  </div>
+
+  <h3>⑤ User Simulator란?</h3>
+  <div class="card">
+    <p>벤치마크에서 <strong>진짜 사람 대신 사용자 역할을 하는 AI</strong>입니다. 시나리오 (예: "내 폰이 No Service 상태")를 받아 자연스럽게 대화하며, 에이전트의 가이드에 따라 행동합니다.</p>
+    <p>문제: user simulator도 LLM이라 <strong>40-47% 비율로 오류</strong> 발생 (기존 τ-bench). 한 명이 평가하기 위해 만든 user simulator의 오류가 실제 evaluation 결과를 망치죠. τ²-bench의 큰 기여 중 하나가 <strong>이 오류율을 16%로 떨어뜨림</strong>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>핵심 아이디어 — 4가지 기여</h2>
+
+  <div class="step-flow">
+    <div class="step">
+      <div class="step-num">기여 1</div>
+      <div class="step-title">Telecom dual-control 도메인</div>
+      <p>전화 트러블슈팅 시나리오. <strong>agent와 user 각자</strong> 별도 DB와 도구. SOTA LLM들이 retail의 ~74%에서 telecom의 ~34-49%로 큰 성능 하락.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">기여 2</div>
+      <div class="step-title">Compositional task generator</div>
+      <p>atomic subtask 빌딩 블록 조합으로 <strong>2,285개 task 자동 생성</strong>. 손으로 만드는 brittleness 회피, complexity 명시적 제어.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">기여 3</div>
+      <div class="step-title">Reliable user simulator</div>
+      <p>user behavior를 <strong>도구·환경으로 제약</strong>. 자연어 prompt 의존 줄여 user simulator 오류율 <strong>40-47% → 16%</strong>.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">기여 4</div>
+      <div class="step-title">Fine-grained ablation</div>
+      <p>No-User vs Default vs Oracle Plan으로 reasoning과 communication 실패를 분리. <strong>coordination이 별도 bottleneck임을 입증</strong>.</p>
+    </div>
+  </div>
+
+  <h3>예시 흐름 (Telecom 트러블슈팅)</h3>
+  <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="700" height="360" fill="#fafbff"/>
+    <g font-family="Arial" font-size="12">
+      <text x="350" y="25" text-anchor="middle" font-size="15" font-weight="bold">User & Agent의 협업 trace 예시</text>
+
+      <rect x="40" y="60" width="280" height="40" rx="8" fill="#fce8f5"/>
+      <text x="180" y="85" text-anchor="middle">User: "My mobile data is not working."</text>
+
+      <rect x="380" y="115" width="280" height="40" rx="8" fill="#e8eafd"/>
+      <text x="520" y="140" text-anchor="middle">Agent: "Could you check your status bar?"</text>
+
+      <rect x="40" y="170" width="280" height="40" rx="8" fill="#fff5e0" stroke="#e67e22" stroke-dasharray="4 2"/>
+      <text x="180" y="195" text-anchor="middle" font-style="italic">User Tool: get_status_bar()</text>
+
+      <rect x="40" y="220" width="280" height="40" rx="8" fill="#fce8f5"/>
+      <text x="180" y="245" text-anchor="middle">User: "Data is disabled."</text>
+
+      <rect x="380" y="275" width="280" height="40" rx="8" fill="#e8eafd"/>
+      <text x="520" y="300" text-anchor="middle">Agent: "Could you toggle data?"</text>
+
+      <rect x="40" y="330" width="280" height="20" rx="6" fill="#fff5e0" stroke="#e67e22" stroke-dasharray="4 2"/>
+      <text x="180" y="345" text-anchor="middle" font-size="11" font-style="italic">User Tool: toggle_data() → "Mobile Data ON"</text>
+
+      <text x="500" y="60" text-anchor="middle" font-size="11" fill="#666" font-weight="bold">[기존 벤치마크는 이 부분 불가능]</text>
+    </g>
+  </svg>
+
+  <p>위 예시에서 사용자가 <strong>실제로 폰을 조작</strong>합니다 (status bar 확인, data 토글). 기존 벤치마크는 사용자가 정보만 말할 뿐 직접 행동할 수 없었습니다.</p>
+</section>
+
+<section>
+  <h2>핵심 성과 — 숫자로 보는 결과</h2>
+
+  <div class="stat-row">
+    <div class="stat">
+      <div class="num">34%</div>
+      <div class="label">gpt-4.1 telecom pass^1<br>(retail은 74%)</div>
+    </div>
+    <div class="stat">
+      <div class="num">49%</div>
+      <div class="label">claude-3.7-sonnet<br>telecom pass^1 (1위)</div>
+    </div>
+    <div class="stat">
+      <div class="num">-20%p</div>
+      <div class="label">No-User → Default<br>전환 시 평균 하락</div>
+    </div>
+    <div class="stat">
+      <div class="num">16%</div>
+      <div class="label">User simulator 오류<br>(기존 40-47%)</div>
+    </div>
+  </div>
+
+  <h3>도메인별 SOTA 모델 성능 (pass^1)</h3>
+  <table class="comp-table">
+    <tr><th>모델</th><th>retail</th><th>airline</th><th>telecom (dual-control)</th></tr>
+    <tr><td>gpt-4.1</td><td>0.74</td><td>0.56</td><td class="highlight">0.34 ↓40%p</td></tr>
+    <tr><td>gpt-4.1-mini</td><td>0.66</td><td>0.51</td><td class="highlight">0.44</td></tr>
+    <tr><td>o4-mini</td><td>0.71</td><td>0.59</td><td class="highlight">0.42</td></tr>
+    <tr><td>claude-3.7-sonnet</td><td>0.79</td><td>0.50</td><td class="highlight">0.49</td></tr>
+  </table>
+
+  <p>모든 모델이 <strong>telecom에서 최저</strong>. claude-3.7-sonnet이 telecom에서 1위인데 airline과 거의 동일—다른 모델들은 airline보다 더 큰 폭으로 하락.</p>
+
+  <h3>Ablation: 정확히 어디서 무너지는가? (gpt-4.1 / o4-mini)</h3>
+  <table class="comp-table">
+    <tr><th>모드</th><th>설명</th><th>gpt-4.1</th><th>o4-mini</th></tr>
+    <tr><td>Default</td><td>기본 dual-control</td><td>0.34</td><td>0.42</td></tr>
+    <tr><td>No-User</td><td>agent가 모든 도구 운영<br>(사용자 없음)</td><td class="highlight">0.52 (+18%p)</td><td class="highlight">0.67 (+25%p)</td></tr>
+    <tr><td>Oracle Plan</td><td>정답 도구 sequence 제공</td><td>0.73</td><td><strong>0.96</strong></td></tr>
+  </table>
+
+  <p><strong>결정적 발견</strong>: No-User vs Default 차이가 <strong>사용자와 collaborate하는 비용</strong>—reasoning 자체가 아닌 <strong>coordination 부담</strong>. o4-mini는 Oracle Plan에서 96% 달성 (즉 ground truth만 있으면 거의 다 풀 수 있음)이지만, Default에서 42%로 떨어짐. <strong>사용자 가이드가 진짜 어려운 부분</strong>.</p>
+</section>
+
+<section>
+  <h2>왜 dual-control이 더 어려운가?</h2>
+
+  <div class="card card-accent">
+    <p>τ²-bench가 밝힌 어려움의 4가지 원인:</p>
+    <ol style="margin-left:1.5rem;">
+      <li><strong>Communication overhead</strong>: 도구 호출 1번이면 끝날 일을 사용자에게 설명·요청·결과 확인 — 다중 turn 필요.</li>
+      <li><strong>Conditional reasoning</strong>: 사용자 응답에 따라 다음 행동 분기. mms_issue 같은 multi-stage는 service_issue를 먼저 체크해야 함.</li>
+      <li><strong>Persona 불확실성</strong>: Hard persona (64세 사서, 기술 무서워함)는 친절한 explanation 필요.</li>
+      <li><strong>Long-horizon reliability</strong>: 7개 이상 action 필요한 task에서 거의 0% 성공.</li>
+    </ol>
+  </div>
+
+  <div class="analogy">
+    이메일로 컴퓨터를 고쳐주는 IT 헬프데스크를 생각해 보세요. "재부팅하세요" → "어떻게요?" → "전원 버튼을 5초간..." → "껐는데 안 켜져요" → ... 전화 한 통이면 끝날 일이 이메일로는 7~8번 왔다갔다 합니다. 그 모든 다중 turn 코디네이션이 dual-control의 어려움이죠.
+  </div>
+
+  <h3>이슈 종류별 난이도 (gpt-4.1 pass^1)</h3>
+  <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="700" height="220" fill="#fafbff"/>
+    <g font-family="Arial" font-size="13">
+      <text x="350" y="25" text-anchor="middle" font-size="15" font-weight="bold">단순 → 복합 multi-stage 갈수록 가파른 하락</text>
+
+      <line x1="80" y1="190" x2="640" y2="190" stroke="#333" stroke-width="2"/>
+      <line x1="80" y1="60" x2="80" y2="190" stroke="#333" stroke-width="2"/>
+
+      <rect x="120" y="70" width="100" height="120" fill="#27ae60"/>
+      <text x="170" y="60" text-anchor="middle" font-size="12" font-weight="bold" fill="#27ae60">66%</text>
+      <text x="170" y="210" text-anchor="middle" font-size="11">service_issue</text>
+      <text x="170" y="225" text-anchor="middle" font-size="9" fill="#666">(가장 쉬움)</text>
+
+      <rect x="290" y="135" width="100" height="55" fill="#e67e22"/>
+      <text x="340" y="125" text-anchor="middle" font-size="12" font-weight="bold" fill="#e67e22">30%</text>
+      <text x="340" y="210" text-anchor="middle" font-size="11">mobile_data_issue</text>
+      <text x="340" y="225" text-anchor="middle" font-size="9" fill="#666">(중간)</text>
+
+      <rect x="460" y="158" width="100" height="32" fill="#c2185b"/>
+      <text x="510" y="148" text-anchor="middle" font-size="12" font-weight="bold" fill="#c2185b">18%</text>
+      <text x="510" y="210" text-anchor="middle" font-size="11">mms_issue</text>
+      <text x="510" y="225" text-anchor="middle" font-size="9" fill="#666">(가장 어려움)</text>
+
+      <text x="60" y="195" text-anchor="end" font-size="10">0%</text>
+      <text x="60" y="75" text-anchor="end" font-size="10">100%</text>
+    </g>
+  </svg>
+</section>
+
+<section>
+  <h2>User Simulator 신뢰성 향상</h2>
+
+  <div class="card card-green">
+    <p>벤치마크가 제대로 작동하려면 user simulator도 정확해야 합니다. 기존 τ-bench에서는 user simulator가 <strong>40-47% 오류율</strong>을 보였습니다 (그 중 12-13%는 critical—task 실패 유발).</p>
+    <p>τ²-bench의 해결: <strong>사용자 행동을 도구와 환경으로 제약</strong>. 자연어 prompt에 매달리지 않고 도구 호출의 affordance가 자연스러운 행동 패턴을 만들어냄.</p>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>도메인</th><th>총 오류율</th><th>Critical 오류</th><th>특징</th></tr>
+    <tr><td>airline</td><td>47%</td><td>13%</td><td>자연어 prompt 의존</td></tr>
+    <tr><td>retail</td><td>40%</td><td>12%</td><td>자연어 prompt 의존</td></tr>
+    <tr class="highlight"><td>telecom (τ²)</td><td><strong>16%</strong></td><td><strong>6%</strong></td><td>도구 + 환경 제약</td></tr>
+  </table>
+
+  <div class="analogy">
+    영화 촬영에서 배우에게 "자연스럽게 슬픈 표정을 지어주세요"라고 말로 지시하는 것보다, 슬픈 음악과 비 오는 환경에 두는 것이 더 일관된 연기를 끌어냅니다. τ²-bench의 user simulator도 마찬가지—prompt가 아니라 <strong>환경의 도구와 affordance</strong>가 일관된 행동을 유도합니다.
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <div class="quote">"AI 에이전트의 진짜 약점은 reasoning이 아니라<br>사용자와 함께 일하는 능력일지 모른다."</div>
+  </div>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+  <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+    <rect x="0" y="0" width="700" height="320" fill="#fafbff"/>
+    <g font-family="Arial" font-size="13">
+      <circle cx="350" cy="160" r="65" fill="#ee0979" opacity="0.85"/>
+      <text x="350" y="155" text-anchor="middle" fill="white" font-weight="bold" font-size="14">τ²-Bench</text>
+      <text x="350" y="175" text-anchor="middle" fill="white" font-size="11">Dual-control</text>
+
+      <g>
+        <rect x="40" y="40" width="160" height="60" rx="10" fill="#fff5f7" stroke="#ee0979"/>
+        <text x="120" y="65" text-anchor="middle" font-weight="bold">기술 고객 지원</text>
+        <text x="120" y="85" text-anchor="middle" font-size="11">Telecom troubleshooting</text>
+        <line x1="200" y1="80" x2="290" y2="140" stroke="#ee0979"/>
+      </g>
+
+      <g>
+        <rect x="500" y="40" width="160" height="60" rx="10" fill="#e8fcef" stroke="#27ae60"/>
+        <text x="580" y="65" text-anchor="middle" font-weight="bold">의료 코디네이션</text>
+        <text x="580" y="85" text-anchor="middle" font-size="11">의사·환자 dual-tool</text>
+        <line x1="500" y1="80" x2="410" y2="140" stroke="#27ae60"/>
+      </g>
+
+      <g>
+        <rect x="40" y="160" width="160" height="60" rx="10" fill="#fff5e0" stroke="#e67e22"/>
+        <text x="120" y="185" text-anchor="middle" font-weight="bold">교육 튜터</text>
+        <text x="120" y="205" text-anchor="middle" font-size="11">학생도 도구로 풀이</text>
+        <line x1="200" y1="190" x2="280" y2="190" stroke="#e67e22"/>
+      </g>
+
+      <g>
+        <rect x="500" y="160" width="160" height="60" rx="10" fill="#fce8f5" stroke="#c2185b"/>
+        <text x="580" y="185" text-anchor="middle" font-weight="bold">재무 어드바이저</text>
+        <text x="580" y="205" text-anchor="middle" font-size="11">고객도 계좌 조작</text>
+        <line x1="500" y1="190" x2="420" y2="190" stroke="#c2185b"/>
+      </g>
+
+      <g>
+        <rect x="270" y="270" width="160" height="40" rx="10" fill="#e0f4ff" stroke="#0066cc"/>
+        <text x="350" y="295" text-anchor="middle" font-weight="bold">기타 task-oriented dialog</text>
+      </g>
+    </g>
+  </svg>
+</section>
+
+<section>
+  <h2>한계 및 주의점</h2>
+
+  <div class="card card-orange">
+    <h3>① Telecom 한 도메인만 dual-control</h3>
+    <p>Retail/airline은 그대로 single-control이라 <strong>cross-domain 비교가 불공정</strong>. dual-control이 다른 도메인에서도 비슷한 양상인지 일반화 어려움.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>② User simulator도 결국 LLM</h3>
+    <p>gpt-4.1 고정. user simulator 자체의 <strong>capability ceiling</strong>이 결과를 좌우할 수 있음. 더 약한 user simulator 사용 시 결과가 어떻게 변하는지 분석 부재.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>③ 작은 DB 크기</h3>
+    <p>Telecom DB가 5 plans, 9 lines, 4 customers로 retail/airline보다 훨씬 작음. <strong>DB scale의 효과를 분리 측정 못함</strong>.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3>④ Expert-novice gap의 명시적 모델링 없음</h3>
+    <p>실제 customer support의 핵심은 expert가 <strong>사용자의 mental model을 추론</strong>해 설명을 적응시키는 것. τ²-bench는 이 측면을 직접 다루지 않는다고 저자도 인정. (논문이 limitation으로 명시)</p>
+  </div>
+</section>
+
+<section>
+  <h2>실무자/연구자가 가져갈 인사이트</h2>
+  <div class="card card-accent">
+    <ol style="margin-left: 1.5rem;">
+      <li><strong>"Communication ≠ Reasoning"</strong>: ablation으로 입증된 핵심 통찰. 좋은 reasoning 모델이 자동으로 좋은 user-collaboration 모델은 아님.</li>
+      <li><strong>"환경으로 user simulator 제약"</strong>: prompt engineering이 아니라 <strong>도구 affordance</strong>가 일관된 user behavior를 만듦. 40-47% → 16% 오류 감소가 입증.</li>
+      <li><strong>Compositional task generator</strong>: atomic subtask × init/sol/assert 조합으로 <strong>2,285 task 자동 생성</strong>. 손으로 만든 벤치마크의 brittleness 회피, 다른 도메인 적용 가능.</li>
+      <li><strong>Workflow guidance의 미묘함</strong>: 더 자세한 workflow가 항상 좋은 게 아니다. Oracle Plan일 때 <strong>혼란 가중</strong>. agent capability에 맞춘 prompt design.</li>
+      <li><strong>Pass^k의 의미</strong>: pass^1은 "한 번 잘함", pass^k는 "여러 번 일관되게 잘함". 실세계 deploy에는 <strong>pass^k가 더 중요</strong>.</li>
+      <li><strong>Customer support agent 평가 시 dual-control 필수 고려</strong>: 사용자 측 도구가 필요한 시나리오인지 명시적으로 점검.</li>
+    </ol>
+  </div>
+</section>
+
+<a class="toggle-link" href="20260504_barres_tau2bench.html" style="background:#ee0979; color:white;">전문가용 상세 요약 보기 →</a>
+</div>
+
+<footer>
+  <p><strong>τ²-Bench: Evaluating Conversational Agents in a Dual-Control Environment</strong></p>
+  <p>Victor Barres, Honghua Dong, Soham Ray, Xujie Si, Karthik Narasimhan — Sierra · U Toronto (2025)</p>
+  <p><a href="https://arxiv.org/abs/2506.07982">arXiv:2506.07982</a> · <a href="https://github.com/sierra-research/tau2-bench">github.com/sierra-research/tau2-bench</a></p>
+</footer>
+
+</body>
+</html>
