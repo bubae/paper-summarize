@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GLM-5V-Turbo: 멀티모달 에이전트를 위한 네이티브 파운데이션 모델</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #f0f4ff; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #3498db; text-decoration: none; color: #1565c0; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>GLM-5V-Turbo: 네이티브 멀티모달 에이전트를 향한 한 걸음</h1>
+
+<a class="brief-link" href="20260504_glm5v_turbo_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>제목</strong>: GLM-5V-Turbo: Toward a Native Foundation Model for Multimodal Agents</li>
+  <li><strong>저자</strong>: GLM-5V-Turbo Team (Tech Leads: Wenyi Hong, Xiaotao Gu / Academic Advisors: Peng Zhang, Debing Liu, Bin Xu, Juanzi Li, Minlie Huang, Yuxiao Dong, Jie Tang)</li>
+  <li><strong>소속</strong>: Z.ai & Tsinghua University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (technical report)</li>
+  <li><strong>연도</strong>: 2026 (29 Apr 2026, v1)</li>
+  <li><strong>분량</strong>: 본문 12쪽 + 부록 (Demo cases A.1–A.4)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.26752">arXiv:2604.26752</a> · <a href="https://chat.z.ai">chat.z.ai</a> · <a href="https://github.com/zai-org/ImageMining">ImageMining repo</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 멀티모달 모델은 ##비전 능력을 LLM에 부착한 형태##—agentic task에서 perception이 reasoning, planning, tool use, execution과 분리되어 있어 실세계 환경(이미지·비디오·웹·문서·GUI)에서 자율적 행동에 한계.</li>
+  <li><strong>해결</strong>: ##멀티모달 perception을 reasoning의 보조 인터페이스가 아니라 핵심 컴포넌트##로 통합. CogViT(403M) 새 인코더 + Multimodal Multi-Token Prediction(MMTP) 새 학습법 + 30+ task category에 걸친 joint RL + 전용 toolchain.</li>
+  <li><strong>왜 작동하는가</strong>: ##visual understanding이 perception → reasoning → action 전체 loop의 첫 단추##라는 통찰을 architecture·training·toolchain 세 층에 일관되게 반영. 약점 perception이 하류 reasoning 실패를 만들기 때문.</li>
+  <li><strong>비유</strong>: 사람이 일을 할 때 "보고 → 생각하고 → 행동"하듯, 모델이 ##스크린·문서를 직접 보고 결정##하는 능력을 자연스럽게 갖춘 것.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>CogViT 비전 인코더 (403M)</strong>: dual-teacher distillation (SigLIP2 + DINOv3) + Muon optimizer + QK-Norm으로 ##ImageNet-1K Zero-shot 83.5%, 38 CLIP Bench mean 70.4, 14 General Object Bench 45.1## 달성. SigLIP2-SO(427M)와 DFN-H(632M)를 능가.</li>
+  <li><strong>Multimodal Multi-Token Prediction (MMTP)</strong>: 비전 입력에서도 multi-token prediction을 가능하게 함. ##<code>&lt;|image|&gt;</code> placeholder## 방식이 직접 visual embedding 전달 또는 vision token masking 대비 더 낮은 학습 손실과 안정적 수렴.</li>
+  <li><strong>30+ task category joint RL</strong>: perceptual (RefCOCO +4.8%, PointBench +3.2%), reasoning (MMMU +1.8%), agentic (OSWorld +4.9%) 등 multi-task 동시 RL이 single-task보다 안정적이며 ##cross-task transfer## (예: UI-to-code RL이 multi-turn coding 향상).</li>
+  <li><strong>외부 에이전트 프레임워크 통합</strong>: Claude Code, AutoClaw 통합으로 GLM-5V-Turbo가 ##Vision-Language controller##, Claude Code가 logic, AutoClaw가 GUI 자동화 역할로 정착.</li>
+  <li><strong>ImageMining 벤치마크 + 5개 design lens</strong>: ##217개 vision-centric multi-step tool-use 테스트 케이스##. 7개 도메인×5개 reasoning 카테고리. "Visual Jump"로 모델이 텍스트 대신 이미지를 직접 파싱하도록 강제. 그리고 4개의 design lens (perception 우선, 계층 최적화, 명세된 task, 협업 RL).</li>
+</ol>
+
+<h2>1. Background — 왜 native multimodal 모델인가</h2>
+
+<h3>1.1 단일 모달 LLM의 한계</h3>
+<p>최근 foundation model은 텍스트 이해에서 ##agentic real-world interaction##으로 이동: 지식 작업, 소프트웨어 엔지니어링, GUI와 상호작용. 하지만 일반 목적의 agentic 모델은 단순한 지능을 넘어 ##이미지·비디오·웹·문서·GUI 같은 복합 멀티모달 컨텍스트##를 perceive, interpret, act할 수 있어야 한다.</p>
+
+<h3>1.2 비전을 "부착"하는 기존 접근의 문제</h3>
+<p>대표적 VLM (Vision-Language Model)은 LLM에 비전 인코더를 후착(post-attached) 형태로 붙임. 이 경우:</p>
+<ul>
+  <li>perception이 reasoning과 분리되어 ##세부 디테일 손실##.</li>
+  <li>fine-grained perception 오류가 high-level planning까지 propagate.</li>
+  <li>multimodal coding, visual tool use 같은 ##복합 task에서 성능 ceiling##.</li>
+</ul>
+
+<h3>1.3 GLM-5V-Turbo의 설계 철학</h3>
+<p>"Multimodal perception is integrated as a ##core component of reasoning, planning, tool use, and execution##, rather than an auxiliary interface to a language model." 즉 보고 이해하는 능력을 모델 design의 가장 깊은 곳부터 박는다.</p>
+
+<h2>2. 아키텍처 — 모델·학습·인프라</h2>
+
+<h3>2.1 CogViT 비전 인코더</h3>
+
+<p><strong>두 단계 학습 레시피</strong>:</p>
+
+<p><strong>Stage 1 — Distillation-based masked image modeling</strong>:</p>
+<ul>
+  <li>Student ViT (403M)가 ##35% mask ratio + 224×224## resolution로 마스킹된 영역 reconstruction.</li>
+  <li>Dual teacher: ##SigLIP2 (semantic) + DINOv3 (texture)## — 두 보완적 표현을 동시 흡수.</li>
+  <li>Quality-aware mixture: ##80% high-quality natural images + 10% instruction-following data + 10% scientific imagery##.</li>
+  <li>Optimizer: ##Muon## (cosine decay schedule), ##QK-Norm##으로 attention computation 전 query/key normalization → logit explosion 완화, 대규모 학습 안정성.</li>
+</ul>
+
+<p><strong>Stage 2 — Contrastive image-text pretraining</strong>:</p>
+<ul>
+  <li>고정 224×224 → ##NaFlex (variable-size, aspect ratio 보존)##.</li>
+  <li>Global batch size 64K, ##sigmoid-based SigLIP loss + bidirectional distributed##.</li>
+  <li>##8B bilingual (Chinese-English) image-text corpus## — cross-lingual understanding 강화.</li>
+  <li>Muon이 모듈별 LR과 decay schedule을 차별화.</li>
+</ul>
+
+<p><strong>성능 (Figure 1)</strong>:</p>
+<table>
+  <tr><th>Bench</th><th>CogViT (403M)</th><th>SigLIP2-SO (427M)</th><th>DFN-H (632M)</th><th>MetaCLIP2-H (632M)</th></tr>
+  <tr><td>ImageNet-1K Zero-shot</td><td><strong>83.5</strong></td><td>83.3</td><td>83.4</td><td>79.8</td></tr>
+  <tr><td>38 CLIP Bench (mean)</td><td><strong>70.4</strong></td><td>69.1</td><td>69.6</td><td>67.7</td></tr>
+  <tr><td>14 General Obj Bench (mean)</td><td><strong>45.1</strong></td><td>41.5</td><td>43.9</td><td>45.0</td></tr>
+</table>
+
+<p>패턴: ##더 적은 파라미터(403M)로 더 큰 모델 능가##. 특히 fine-grained tasks (38 CLIP, 14 General Obj)에서 격차가 크다.</p>
+
+<h3>2.2 Multimodal Multi-Token Prediction (MMTP)</h3>
+
+<p>Multi-Token Prediction (MTP, [11])은 텍스트에서 효율과 품질을 동시 향상시키는 기법. 본 논문의 도전: ##multimodal 입력에서도 MTP 헤드가 작동해야 한다##.</p>
+
+<p>저자들은 비전 token을 MTP head에 어떻게 전달할지 ##3가지 옵션##을 비교 (Figure 2):</p>
+<ol>
+  <li><strong>Option 1</strong>: LLM backbone의 visual embedding을 MTP head에 직접 전달.</li>
+  <li><strong>Option 2</strong>: 모든 visual token을 MTP head 입력에서 mask out (텍스트-only MTP).</li>
+  <li><strong>Option 3 (채택)</strong>: visual positional 정보는 보존, ##모든 visual token을 학습 가능한 <code>&lt;|image|&gt;</code> placeholder##로 대체.</li>
+</ol>
+
+<p>왜 Option 3이 이기는가:</p>
+<ul>
+  <li>0.5B ablation에서 ##더 낮은 training loss + 더 안정적 수렴##.</li>
+  <li>MTP head는 lightweight라 visual embedding을 직접 받기에 capacity 부족 가능. <code>&lt;|image|&gt;</code> placeholder는 ##더 균일한 입력 형태##.</li>
+  <li>sequence/context parallelism과 자연스럽게 호환—visual embedding을 pipeline-parallel stage 간 전송할 필요 없음.</li>
+</ul>
+
+<p>요약: MMTP는 ##멀티모달 입력에서도 MTP의 효율을 살리면서, 인프라 복잡도를 줄이는 디자인 절충##.</p>
+
+<h3>2.3 알고리즘 흐름도</h3>
+
+<div class="flow-diagram">[입력]
+  Visual Input ──► CogViT + MLP Adapter ──┐
+                                            ├─► [|image|] placeholder ─┐
+  Text Input ────► Embedding Layer ──┐                                  │
+                                       └────► Transformer Block × L ────► MTP Module 1, 2, 3
+                                                                            │
+                                                                       (multi-token prediction)
+                                                                            │
+                                                                            ▼
+                                                                       [출력 텍스트/액션]</div>
+
+<h2>3. 학습 — Pretraining → SFT → Joint RL</h2>
+
+<h3>3.1 Pretraining (Section 2.3)</h3>
+<p>Vision과 Language를 ##사전학습 단계부터 깊게 통합##:</p>
+<ul>
+  <li>혼합 데이터: plain text + multimodal data.</li>
+  <li>커버리지: world knowledge, interleaved image-text, OCR, coding, GUI, video, multimodal tool-use, spatial perception, grounding, academic problem-solving.</li>
+  <li>특히 ##multimodal coding data##에 emphasis—visual understanding과 code generation의 alignment 강화.</li>
+</ul>
+
+<h3>3.2 SFT (Supervised Fine-Tuning)</h3>
+<p>본문에서 자세히 다루지 않지만 Joint RL stage 이전 단계로 묘사. perception → reasoning → action loop 데이터로 학습.</p>
+
+<h3>3.3 Joint RL across 30+ task categories</h3>
+
+<p>이것이 GLM-5V-Turbo의 ##가장 차별적인 학습 단계##. 30+ task category로 동시 RL.</p>
+
+<table>
+  <tr><th>차원</th><th>SFT 대비 개선</th><th>벤치마크</th></tr>
+  <tr><td>Perceptual (Grounding/Pointing)</td><td>+4.8% / +3.2%</td><td>RefCOCO-avg / PointBench</td></tr>
+  <tr><td>Video understanding</td><td>+5.6%</td><td>MVBench</td></tr>
+  <tr><td>3D Grounding</td><td>+7.7%</td><td>SUNRGBD</td></tr>
+  <tr><td>OCR</td><td>+4.2%</td><td>OCRBench</td></tr>
+  <tr><td>Chart understanding</td><td>+7.7%</td><td>CharXiv</td></tr>
+  <tr><td>Reasoning (STEM)</td><td>+1.8%</td><td>MMMU_Val</td></tr>
+  <tr><td>Agentic (GUI)</td><td>+4.9%</td><td>OSWorld</td></tr>
+  <tr><td>Coding</td><td>+0.2%</td><td>CC-Backend</td></tr>
+  <tr><td>Tool use</td><td>+3.5%</td><td>MMSearch</td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: 단일 task RL이 안정적이지 않을 때 multi-task collaborative training이 ##더 풍부한 strategy 분포##를 노출시켜 robust solution으로 steering할 수 있는지.</p>
+
+<p><strong>중요한 관찰</strong>:</p>
+<ul>
+  <li>SFT의 cross-domain trade-off가 RL에서 약화 — 여러 도메인이 ##동시에## 안정 향상.</li>
+  <li>narrow distribution (single-task RL)에서 자주 보이는 oscillation이 multi-task collaborative training에서 ##안정화##됨.</li>
+  <li>Cross-task transfer 발견: ##한 도메인의 thinking pattern이 다른 도메인으로 전이##—ex. UI-to-code RL이 multi-turn coding 능력 향상.</li>
+</ul>
+
+<p>이는 multi-task RL이 단순한 coverage 향상 도구가 아니라 ##strategy pattern level에서 unification##을 유도하는 path임을 시사한다.</p>
+
+<p>그러나 한계도 명시: RL이 sampled task distribution에 ##집중되면서 under-represented domain에서 capability decline##이 발생할 수 있음. 그래서 proxy task design이 미묘하게 중요해진다 (예: single-turn UI-to-code RL이 더 복잡한 multi-turn coding 능력을 키운다).</p>
+
+<h3>3.4 Multimodal RL at scale (Section 2.4)</h3>
+
+<p>VLM RL Gym이라는 통합 환경 인터페이스를 구축. 4가지 dimension의 인프라 재설계:</p>
+
+<ol>
+  <li><strong>Unified task and reward abstraction</strong>: rule-based verifier (local/sync) + model-based judges (async via API). data-source tag로 reward와 pass@k를 parallel group별로 보고.</li>
+  <li><strong>Full-pipeline decoupling, asynchrony, stage overlap</strong>: rollout inference, reward eval, batch construction, weight transfer를 decouple. 각 inference request에 ##completion callback##을 등록해 reward 연산을 trigger—long-tail batch 대기 비용 제거. CPU↔GPU async pre-fetch.</li>
+  <li><strong>Fine-grained runtime memory management</strong>: vision-side ViT/projector 모듈에 ##targeted recomputation + CPU offloading##—여러 이미지로 activation memory가 linear scaling하는 것을 방지.</li>
+  <li><strong>Topology-aware partitioning + dynamic load balancing</strong>: data-loading 단계에서 CP/TP partitioning을 align—rank별로 필요한 partition만 receive. visual input partitioning을 GPU communication path에서 ##CPU path로 이동##해 communication buffer overhead ##~7GB 감소##. variable-length sequence는 ##sequence length × ViT token count##로 joint bin-packing.</li>
+</ol>
+
+<h2>4. Multimodal Toolchain Expansion</h2>
+
+<h3>4.1 도구 카테고리 (Table 1)</h3>
+<p>GLM-5V-Turbo의 ##proprietary <code>zai_</code> tools##:</p>
+
+<table>
+  <tr><th>Scenario</th><th>Tool Set</th><th>예시</th></tr>
+  <tr><td rowspan="4">General</td><td>Recognition</td><td><code>zai_recognize_plant/location/person</code></td></tr>
+  <tr><td>Multimodal Search</td><td><code>zai_search_web_text/by_image/similar/scholar</code></td></tr>
+  <tr><td>Browser</td><td><code>zai_load_image_from_url</code>, <code>zai_read_webpage</code></td></tr>
+  <tr><td>Image Processing</td><td><code>zai_crop_image</code>, <code>zai_draw_image_bounding_boxes/3d_bounding_boxes</code></td></tr>
+  <tr><td rowspan="2">Creation</td><td>Web</td><td><code>submit_plan</code>, <code>zai_generate_web_html</code></td></tr>
+  <tr><td>Slide</td><td><code>zai_generate_slide_html</code>, <code>zai_generate_outline_ppt</code></td></tr>
+  <tr><td>Deep Research</td><td>Multimodal DR</td><td><code>zai_dr_python</code>, <code>zai_dr_visit_img</code>, <code>zai_dr_images_search</code>, <code>zai_dr_images_lens</code></td></tr>
+</table>
+
+<h3>4.2 Claude Code & AutoClaw 통합</h3>
+<p>GLM-5V-Turbo가 ##cognitive core##:</p>
+<ul>
+  <li><strong>Claude Code</strong>: 터미널·로컬 파일시스템 logic 핸들링.</li>
+  <li><strong>AutoClaw</strong>: 브라우저·GUI 자동화의 "hands".</li>
+  <li><strong>GLM-5V-Turbo</strong>: vision-language controller — ##스크린·문서를 직접 보고 결정##.</li>
+</ul>
+
+<p>이로써 ##perception → planning → execution 풀 loop##가 닫힌다.</p>
+
+<h3>4.3 ImageMining 벤치마크</h3>
+<p>"Think with image, deep search with image" 패러다임 평가용 자체 제작 벤치마크:</p>
+<ul>
+  <li>##217개 curated test case## (수작업 trace에서 도출)</li>
+  <li>7개 도메인: Social, Entertainment, Products, Places, Rich Text, Nature, Science</li>
+  <li>5개 reasoning 카테고리:
+    <ol>
+      <li><strong>Universal Recognition</strong>: 동·식물·인공물의 fine-grained 식별</li>
+      <li><strong>Spatio-Temporal Reasoning</strong>: 시각 단서로 지리·시간 추론</li>
+      <li><strong>Event Reasoning</strong>: 뉴스 이벤트·제품 출시 이해</li>
+      <li><strong>Text-based Reasoning</strong>: rich text (논문·리포트) 추론</li>
+      <li><strong>Visual Search</strong>: 시각 입력 cross-reference로 특정 작품·이미지 검색</li>
+    </ol>
+  </li>
+  <li>##"Visual Jump" (WEB_VISUAL) 제약##: 중간 reasoning hop이 visual transition 포함하도록 강제—텍스트 shortcut 차단.</li>
+</ul>
+
+<h2>5. Official Skills</h2>
+
+<p>5개 specialized model (GLM-OCR, GLM-Image)에 기반한 skill 모음, 두 카테고리:</p>
+<ul>
+  <li><strong>Native skills</strong>: GLM-5V-Turbo의 native capability 위에 구축. PDF-to-Web, PDF-to-PPT, Web Replication, PRD-to-App, Stock Analyst.</li>
+  <li><strong>External tool skills</strong>: GLM-5V-Turbo를 외부 도구(MaaS API)로 wrap—OpenClaw/AutoClaw/Claude Code가 invoke 가능. Image Captioning, Visual Grounding, Doc-based Writing, Resume Screening, Prompt Generation.</li>
+  <li><strong>Specialized</strong>: GLM-OCR (general/table/handwriting/formula), GLM-Image-Gen.</li>
+</ul>
+
+<p>Master skill: <a href="https://clawhub.ai/jaredforreal/glm-master-skill">https://clawhub.ai/jaredforreal/glm-master-skill</a></p>
+
+<h2>6. 평가 결과</h2>
+
+<h3>6.1 Multimodal Coding (Figure 4)</h3>
+<table>
+  <tr><th>Benchmark</th><th>GLM-5V-Turbo</th><th>Kimi K2.5</th><th>Claude Opus 4.6</th></tr>
+  <tr><td>Design2Code</td><td><strong>94.8</strong></td><td>91.3</td><td>77.3</td></tr>
+  <tr><td>Flame-VLM-Code</td><td><strong>93.8</strong></td><td>88.8</td><td>98.8</td></tr>
+  <tr><td>Vision2Web</td><td>31.0</td><td>33.2</td><td><strong>43.5</strong></td></tr>
+</table>
+
+<h3>6.2 Multimodal Tool Use</h3>
+<table>
+  <tr><th>Benchmark</th><th>GLM-5V-Turbo</th><th>Kimi K2.5</th><th>Claude Opus 4.6</th></tr>
+  <tr><td>ImageMining</td><td><strong>30.7</strong></td><td>24.4</td><td>—</td></tr>
+  <tr><td>BrowseComp-VL</td><td><strong>51.9</strong></td><td>42.9</td><td>35.9</td></tr>
+  <tr><td>MMSearch</td><td><strong>72.9</strong></td><td>58.7</td><td>63.8</td></tr>
+  <tr><td>MMSearch-Plus</td><td><strong>30.0</strong></td><td>25.6</td><td>25.6</td></tr>
+  <tr><td>SimpleVQA</td><td><strong>78.2</strong></td><td>71.5</td><td>63.2</td></tr>
+  <tr><td>Facts</td><td><strong>58.6</strong></td><td>57.8</td><td>—</td></tr>
+  <tr><td>V*</td><td><strong>89.0</strong></td><td>84.3</td><td>66.5</td></tr>
+</table>
+
+<p>패턴: ##search·tool-use에서 압도적 우위##—multi-step visual tool composition이 본 모델의 강점. 특히 MMSearch-Plus +4.4%, BrowseComp-VL +9.0%은 ##multimodal-aware deep research가 본질적으로 강함##.</p>
+
+<h3>6.3 GUI Agent</h3>
+<table>
+  <tr><th>Benchmark</th><th>GLM-5V-Turbo</th><th>Kimi K2.5</th><th>Claude Opus 4.6</th></tr>
+  <tr><td>OSWorld</td><td>62.3</td><td>63.3</td><td><strong>72.2</strong></td></tr>
+  <tr><td>AndroidWorld</td><td><strong>75.7</strong></td><td>43.1</td><td>62.0</td></tr>
+  <tr><td>WebVoyager</td><td><strong>88.5</strong></td><td>84.3</td><td>88.0</td></tr>
+</table>
+
+<p>OSWorld에서는 Claude에 밀리지만 ##모바일·웹 시나리오에서 강세##. AndroidWorld 75.7%는 next-best 대비 +12.7%.</p>
+
+<h3>6.4 Text-only Coding (Figure 5)</h3>
+<table>
+  <tr><th>Benchmark</th><th>GLM-5V-Turbo</th><th>GLM-5-Turbo</th><th>Kimi K2.5</th><th>Claude Opus 4.6</th></tr>
+  <tr><td>CC-Backend</td><td>22.8</td><td>20.5</td><td>25.3</td><td><strong>26.9</strong></td></tr>
+  <tr><td>CC-Frontend</td><td>68.4</td><td>69.6</td><td>62.3</td><td><strong>75.9</strong></td></tr>
+  <tr><td>CC-Repo-Exploration</td><td>72.2</td><td>66.7</td><td>66.7</td><td><strong>74.4</strong></td></tr>
+  <tr><td>PinchBench (Best/Avg)</td><td>87.0/80.7</td><td>86.5/81.1</td><td>84.8/79.2</td><td><strong>93.3/82.9</strong></td></tr>
+  <tr><td>ClawEval (Pass^3/Pass@3)</td><td>57.7/75.0</td><td>51.0/72.1</td><td>52.9/73.1</td><td><strong>66.3/77.9</strong></td></tr>
+  <tr><td>ZClawBench</td><td>57.6</td><td>60.6</td><td>49.1</td><td><strong>62.3</strong></td></tr>
+</table>
+
+<p>패턴: ##비전 추가가 텍스트-only coding을 손상시키지 않음##—기본 GLM-5-Turbo와 비슷하거나 일부에서 향상 (CC-Backend +2.3, CC-Repo +5.5). multimodal capability addition이 underlying coding을 erode하지 않는다는 것은 native multimodal foundation에 매우 critical한 결과.</p>
+
+<h2>7. Design Lenses (Section 4)</h2>
+
+<p>저자들이 개발 과정에서 도출한 4가지 design 관점:</p>
+
+<h3>Lens 1: Perception remains foundational</h3>
+<p>최근 연구가 planning, reasoning, reflection 같은 ##higher-level abilities에 강조##를 두고 있지만, 저자들의 관찰은 fine-grained perception 오류가 downstream 전체에 propagate한다는 것. ##multimodal coding과 grounding이 perceptual learning의 좋은 proxy task##임을 발견 (frontend/SVG coding이 layout/structure/local detail capture를 강제). Critic 데이터로 ##모델이 자기 perception을 비판##하도록 학습—GUI-agent의 instruction tuning에 효과적.</p>
+
+<h3>Lens 2: Hierarchical optimization</h3>
+<p>Agent 능력은 ##capability hierarchy의 multiple level에 분산##되어 학습할 때 더 효율적. 즉 high-level long-horizon task에만 집중하지 말고:</p>
+<ul>
+  <li>Element perception</li>
+  <li>GUI grounding</li>
+  <li>Single-step action prediction</li>
+  <li>Trajectory-level action prediction</li>
+</ul>
+<p>각 level이 더 안정적으로 학습되며, low-level이 underdeveloped일 때 high-level training은 ##unstable##해진다.</p>
+
+<h3>Lens 3: Clear specification + reliable verification</h3>
+<p>End-to-end long-horizon task의 진짜 어려움은 horizon이 아니라 ##stable enough specification, verification, evaluation##. Vision2Web을 예시로 — task를 단순 텍스트 instruction이 아니라 ##PRD + mockup + reference page + resource asset##의 풍부한 specification으로 정의. workflow-based verification으로 controlled comparison.</p>
+
+<h3>Lens 4: Critic + self-evaluation</h3>
+<p>(implicit, GUI-agent 경험에서) 모델이 reasoning 중 자기 perception 오류를 비판하면 hallucination 감소.</p>
+
+<h2>8. Remaining Challenges</h2>
+
+<ul>
+  <li><strong>Better agentic strategy emergence</strong>: cold-start trajectory가 narrow → ##trajectory diversity 증가##가 RL이 nearby variant를 발견하도록 도움. 그러나 단일 starting pattern의 variation에 머무름. 진짜 도전은 ##sub-agent decomposition, multi-agent collaboration##을 모델 스스로 발견하게 하는 것.</li>
+  <li><strong>Multimodal context management</strong>: 이미지·비디오는 텍스트보다 ##context budget을 훨씬 더 aggressively 소비##. 많은 시스템이 long trajectory 시 earlier visual observation을 drop. 텍스트는 compaction이 효과적이지만 ##multimodal 압축은 layout, spatial relations, temporal change를 보존해야 해 어렵다##.</li>
+  <li><strong>Model & harness가 capability boundary를 co-shape</strong>: agentic system에서 effective capability boundary는 ##model alone이 아니라 task decomposition, tool-use, memory, verification loop가 함께## 결정. 같은 모델이 다른 harness 하에서 매우 다르게 행동. 따라서 model improvement만으로는 progress 측정 불가능.</li>
+</ul>
+
+<h2>9. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<ul>
+  <li><strong>30+ task category RL의 정확한 구성 미공개</strong>: "30+"라고만 명시. 어떤 task가 weight를 얼마나 받았는지, sampling strategy가 무엇인지 부족. 재현이 어렵고, 결과의 "어느 부분이 RL에서 왔는지"의 attribution도 불분명.</li>
+  <li><strong>벤치마크 cherry-picking 가능성</strong>: 저자가 만든 ImageMining에서 +30.7%로 1위지만, OSWorld(Claude 우위)·CC-Backend(Claude 우위)에서는 밀린다. ##GLM-5V-Turbo가 잘하는 영역에서 더 많은 벤치마크 표시##되어 있음. fair comparison을 위해 weighted-average score가 필요해 보임.</li>
+  <li><strong>비교 모델의 동시대성</strong>: Kimi K2.5와 Claude Opus 4.6 vs GLM-5V-Turbo의 정확한 release date 정렬이 필요. 모델 세대가 다르면 단순 점수 비교는 misleading.</li>
+  <li><strong>MMTP의 ablation 부족</strong>: 0.5B 모델에서만 비교되었고 full-scale에서 옵션 1/2/3의 차이가 어떻게 변하는지 알 수 없음. scale-dependent behavior가 반전될 가능성.</li>
+  <li><strong>Pre-training data composition 80/10/10의 근거 부재</strong>: high-quality natural / instruction / scientific 비율이 quality-aware라 하지만 ablation은 없음. 다른 비율(예: 70/20/10)에서의 성능 검증이 누락.</li>
+  <li><strong>"Native multimodal"의 정의 모호</strong>: 본 논문이 native라 자칭하지만 결국 vision encoder + LLM 결합. 진짜 native (단일 transformer가 multimodal 토큰을 모두 처리)와의 비교가 필요.</li>
+  <li><strong>Tool ecosystem의 lock-in</strong>: <code>zai_</code> 도구들은 proprietary—재현 불가. 외부 사용자가 Claude Code/AutoClaw 통합이라는 vendor 조합에 lock-in됨.</li>
+  <li><strong>Reasoning gain (+1.8% MMMU)이 perceptual gain (+4.8% RefCOCO)에 비해 작음</strong>: 본 모델의 강점은 perception/grounding이지 reasoning이 아님. "agent reasoning"을 강조하지만 실제 수치는 less convincing.</li>
+  <li><strong>Vision2Web에서 Claude에 패배 (31.0 vs 43.5)</strong>: full-stack web replication은 진짜 challenging task인데, 여기서 Claude에 12.5pt 차이로 밀린다. 이는 multimodal coding의 ##highest-level integration##에서 GLM-5V-Turbo가 약점이 있음을 시사.</li>
+</ul>
+</div>
+
+<h2>10. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>"Perception이 가장 underlying한 capability"</strong>: high-level RL이나 fancy reasoning보다 ##fine-grained visual perception##이 agentic 성능의 ceiling을 결정한다는 관찰이 중요. perceptual learning을 위해 SVG/frontend coding을 proxy로 사용하는 idea가 영리하다.</li>
+  <li><strong>Hierarchical optimization across capability levels</strong>: long-horizon task에만 RL을 적용하면 unstable. ##element perception → grounding → single-step → trajectory## 계층 분해가 더 안정적.</li>
+  <li><strong>Multi-task collaborative RL의 cross-domain transfer</strong>: 한 도메인의 thinking pattern이 다른 도메인으로 전이된다는 발견. Single-task RL보다 multi-task가 ##oscillation 방지 + strategy unification## 효과.</li>
+  <li><strong><code>&lt;|image|&gt;</code> placeholder for MMTP</strong>: 직접 visual embedding 전달보다 균일한 placeholder가 ##학습 안정성 + 인프라 호환성## 양쪽에서 우월. multi-token prediction을 multimodal로 확장하는 실용적 방법.</li>
+  <li><strong>Agent harness가 capability boundary의 일부</strong>: model 만 개선하지 말고 ##도구 ecosystem, memory, verification##도 함께 설계. Claude Code + AutoClaw 통합 패턴이 좋은 예.</li>
+  <li><strong>Visual context management의 새로운 도전</strong>: 텍스트 compaction과 달리 multimodal 압축은 layout/spatial/temporal을 보존해야 해 본질적으로 어렵다 — 향후 long-horizon multimodal agent의 큰 병목.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p>(추후 Q&A 및 메모 누적 예정)</p>
+</div>
+
+</div>
+</body>
+</html>

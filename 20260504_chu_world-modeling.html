@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic World Modeling: Foundations, Capabilities, Laws, and Beyond</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #f0f4ff; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #3498db; text-decoration: none; color: #1565c0; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Agentic World Modeling: 능력 계층(L1/L2/L3) × 지배 법칙 4영역 통합 서베이</h1>
+
+<a class="brief-link" href="20260504_chu_world-modeling_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>제목</strong>: Agentic World Modeling: Foundations, Capabilities, Laws, and Beyond</li>
+  <li><strong>제1저자</strong>: Meng Chu (HKUST), Xuan Billy Zhang (NUS, Project Lead), Kevin Qinghong Lin (Oxford)</li>
+  <li><strong>저자 소속</strong>: HKUST, NUS, Oxford, NTU, CUHK, HKU, U.Washington, HKUST(Guangzhou), SUTD, SMU 등 10개 기관 협업</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (early-access)</li>
+  <li><strong>연도</strong>: 2026 (24 Apr 2026, v1)</li>
+  <li><strong>분량</strong>: 본문 50쪽 + 참고문헌 등 부록</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.22748">arXiv:2604.22748</a> · <a href="https://agentic-world-modeling.xyz">홈페이지</a> · <a href="https://github.com/matrix-agent/awesome-agentic-world-modeling">Repo</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: "world model"이라는 용어가 RL, 비전, NLP, 로보틱스, AI for science 등 다양한 분야에서 ##서로 다른 의미##로 쓰이고 있어, 같은 시스템을 한 분야의 기준으로는 호평하고 다른 분야의 기준으로는 실패라 평가하는 단절(fragmentation)이 발생.</li>
+  <li><strong>해결</strong>: ##두 축의 통합 분류체계##—(i) 능력 계층 L1 Predictor → L2 Simulator → L3 Evolver 와 (ii) 4가지 지배 법칙 regime (Physical / Digital / Social / Scientific). 두 축이 직교하므로 모든 기존 시스템을 셀에 매핑할 수 있다.</li>
+  <li><strong>왜 작동하는가</strong>: 각 계층 전환에 ##testable boundary conditions##를 부여하여 (예: L1→L2는 long-horizon coherence + intervention sensitivity + constraint consistency) 모호한 "더 나은 world model"을 측정 가능한 기준으로 환원.</li>
+  <li><strong>비유</strong>: 의학에서 진단을 정리하기 위해 "ICD 코드 + 증상 axis"를 도입한 것처럼, 흩어진 world-model 연구를 공통 좌표계로 매핑.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Capability-based 로드맵 (L1→L2→L3)</strong>: 단일 계층 분류 대신 ##세 가지 능력 단계##를 testable boundary 와 함께 정의. L1 = one-step prediction, L2 = action-conditioned multi-step rollout under constraints, L3 = evidence-driven model revision.</li>
+  <li><strong>Cross-domain synthesis via governing laws</strong>: ##Physical / Digital / Social / Scientific## 4 regime 도입. 각 regime이 어떤 형식의 transition을 강제하는지(접촉·운동학·보존, API·상태기계, 신념·규범, 인과·증거)를 정리해 단절된 분야의 비교를 가능하게 함.</li>
+  <li><strong>L3을 별도 capability level로 격상</strong>: 기존 서베이가 prediction/simulation 중심이었던 데 비해, ##모델 자체가 deployment evidence로 진화##하는 능력을 고유한 단계로 형식화. closed-loop autonomous discovery (CAMEO, A-Lab 등)가 L3의 가장 성숙한 사례.</li>
+  <li><strong>의사결정 중심 평가 + MREP</strong>: 단일-step 정확도가 아닌 ##Action Success Rate(ASR)와 Counterfactual Outcome Deviation(COD)##로 능력 검증. Minimal Reproducible Evaluation Package을 제안.</li>
+  <li><strong>10개 open problems와 design roadmap</strong>: representation/dynamics/control 3축 × L1/L2/L3 × 4 regime의 design space를 정리한 Table 13 매트릭스로 다음 5–10년 연구 방향 제시.</li>
+</ol>
+
+<h2>1. 동기와 분류 체계</h2>
+
+<h3>1.1 왜 통합 분류가 필요한가</h3>
+<p>"world model"이라는 용어는 분야마다 의미가 다르다:</p>
+<ul>
+  <li><strong>RL</strong> (Sutton 1991): 행동 결정을 위해 미래를 상상하는 transition model.</li>
+  <li><strong>비전</strong> (Sora, Cosmos 등): 시각적·시간적 일관성을 가진 video/3D generator.</li>
+  <li><strong>언어</strong> (WebDreamer, CodeWM): 웹·툴 환경의 text-grounded simulation.</li>
+  <li><strong>로보틱스</strong>: 안전한 planning과 sim-to-real을 위한 dynamics model.</li>
+  <li><strong>AI for science</strong>: 가설 기반 실험을 위한 surrogate.</li>
+</ul>
+
+<p>그 결과 ##"같은 system이 한 커뮤니티에서는 강한 진보로, 다른 커뮤니티에서는 실패로 보고된다"##. 본 서베이는 이 단절을 해소하기 위해 modality·application 중심 분류 대신 capability-based 분류를 제안.</p>
+
+<h3>1.2 두 직교 축</h3>
+<p><strong>축 1 — Capability Level (L1 / L2 / L3)</strong>: 모델이 무엇을 할 수 있는가.<br>
+<strong>축 2 — Governing-law Regime (4가지)</strong>: 모델이 어떤 형식의 transition을 강제 받는가.</p>
+
+<table>
+  <tr><th>Regime</th><th>Constraints</th><th>Common Failures</th></tr>
+  <tr><td>Physical</td><td>Geometry, kinematics, conservation</td><td>Contact instability, sim-to-real gap</td></tr>
+  <tr><td>Digital</td><td>API contracts, state machines</td><td>Grounding breaks, async races</td></tr>
+  <tr><td>Social</td><td>Beliefs, norms, ToM</td><td>Role drift, goal forgetting</td></tr>
+  <tr><td>Scientific</td><td>Causal mechanisms, evidence chains</td><td>Hallucinated mechanisms</td></tr>
+</table>
+
+<p>두 축이 직교한다는 의미는, 같은 capability level 안에서도 regime마다 ##평가 기준이 달라야 한다##는 것. 예를 들어 L2 simulator는 physical에서는 충돌·관통이 없어야 하고, social에서는 약속·규범 위반이 없어야 한다.</p>
+
+<h2>2. 형식적 토대 — POMDP 위에서 정의되는 능력</h2>
+
+<h3>2.1 통합 표기법 (Notation)</h3>
+<p>환경 $\mathcal{E} = (\mathcal{X}, \mathcal{A}, \Omega, T, O, R, \gamma)$ — POMDP 튜플. learned world-model components:</p>
+
+<ul>
+  <li>$z_t$: latent / internal state</li>
+  <li>$q_\phi(z_t \mid o_{\leq t}, a_{\leq t-1})$: state inference (encoder)</li>
+  <li>$p_\theta(z_t \mid z_{t-1}, a_t)$: forward dynamics (one-step latent transition)</li>
+  <li>$p_\psi(o_t \mid z_t)$: observation decoder</li>
+  <li>$\pi_\eta(a_t \mid z_{t-1}, z_t)$: inverse dynamics</li>
+  <li>$\hat{p}(\tau \mid z_0, a_{1:H}, c)$: trajectory-level rollout (앵커, 액션 시퀀스, 제약 조건부)</li>
+  <li>$\mathcal{M}_t \to \mathcal{M}_{t+1}$: world-modeling stack의 revision step</li>
+</ul>
+
+<h3>2.2 L1 Predictor — 정의 및 boundary</h3>
+<blockquote>
+L1 world model은 4개의 local predictive operator로 분해된다:<br>
+$$\text{Inference: } q_\phi(z_t \mid o_{\leq t}, a_{\leq t-1}) \tag{1}$$
+$$\text{Forward dynamics: } p_\theta(z_t \mid z_{t-1}, a_t) \tag{2}$$
+$$\text{Observation decoder: } p_\psi(o_t \mid z_t) \tag{3}$$
+$$\text{Inverse dynamics: } \pi_\eta(a_t \mid z_{t-1}, z_t) \tag{4}$$
+이들은 ##one-step (또는 short-horizon) 정확도##를 학습 분포 위에서 보장한다. 다단계 합성에 대한 보장은 없음.
+</blockquote>
+
+<p>직관적으로 말하면, L1은 "내일 날씨를 잘 맞추는 모델"—한 step 미래 예측에 충실. 하지만 한 달 뒤를 알기는 어렵다.</p>
+
+<h3>2.3 L2 Simulator — 3가지 boundary conditions</h3>
+<p>L1 operator를 합성해 trajectory $\hat{p}(\tau \mid z_0, a_{1:H}, c)$, $\tau = (z_1, \ldots, z_H)$ 를 만들어내는 능력. L2가 되려면 다음 3가지를 동시에 만족해야 한다:</p>
+
+<ol>
+  <li><strong>Long-horizon coherence</strong>: rollout이 $H$ step 후에도 즉시 무너지지 않고 사용 가능해야 한다 (compounding error 제어).</li>
+  <li><strong>Intervention sensitivity</strong>: counterfactual edit (action 또는 premise 변경)이 ##방향성 있고 안정적인## trajectory 변화를 유도해야 한다.</li>
+  <li><strong>Constraint consistency</strong>: 생성된 미래가 target regime의 지배 법칙을 위반하지 않아야 한다 (충돌, API contract violation, 약속 파기, 보존 법칙 등).</li>
+</ol>
+
+<p>핵심 차이: L1과 L2의 차이는 "한 step 정확도"가 아니라 ##"composition 하 rollout fidelity"##. 한 단계 잘 맞춰도 합성에서 무너지면 L1에 머문다.</p>
+
+<h3>2.4 L3 Evolver — 모델 자체의 revision</h3>
+
+<p>L2가 ##고정된 scaffold 위 rollout##을 다룬다면, L3는 ##모델 stack 자체를 evidence로 갱신##:</p>
+
+<p>$$(\mathcal{M}_t, d_t) \xrightarrow{\text{diagnose+distill+validate}} \mathcal{M}_{t+1},$$</p>
+
+<p>여기서 $d_t$ 는 deployment evidence (trajectory, error, counterexample, test). 3가지 boundary conditions:</p>
+
+<ol>
+  <li><strong>Evidence-grounded diagnosis</strong>: 실패가 replayable evidence를 통해 actionable cause로 귀속되어야 한다.</li>
+  <li><strong>Persistent asset update</strong>: 수정이 ##재사용 가능한 자산##(skill, rule, parser, test)으로 승격되어야 한다 — ephemeral in-context patch가 아니라.</li>
+  <li><strong>Governed validation</strong>: 업데이트가 regression/robustness gate (rollback, canary 정책 포함)를 통과해야 default enable.</li>
+</ol>
+
+<p>핵심 차이: L2와의 차이는 ##모델 자체가 revision의 대상이 된다는 것##. 단순한 데이터 buffer 갱신이 아니라 architecture/hypothesis-space까지 변경 가능.</p>
+
+<p>이를 시각화한 design-execute-observe-reflect loop (Figure 9): $\mathcal{M}_t \xrightarrow{\text{design}} a_t \xrightarrow{\text{execute}} o_t \xrightarrow{\text{observe}} d_t \xrightarrow{\text{reflect}} \mathcal{M}_{t+1}$.</p>
+
+<h2>3. L1 Predictor 상세 — 4가지 operator</h2>
+
+<h3>3.1 State Inference</h3>
+<p>관측 시퀀스를 latent belief로 압축. 주요 계열:</p>
+<ul>
+  <li><strong>Contrastive (CPC, SimCLR, MoCo, CURL, SPR)</strong>: 시간적 인접성을 positive pair로 사용. CURL이 control-relevant info 보존을 강조.</li>
+  <li><strong>JEPA (I-JEPA, V-JEPA, V-JEPA2, DINOv2)</strong>: 픽셀 reconstruction 없이 ##masked region embedding##을 직접 예측.</li>
+  <li><strong>RSSM (Dreamer 계열)</strong>: deterministic + stochastic 분기로 belief state $h_t = f(h_{t-1}, z_{t-1}, a_{t-1})$, $z_t \sim q_\phi(z_t \mid h_t, o_t)$.</li>
+  <li><strong>Object-centric / Programmatic (Thinking with Blueprints)</strong>: 이미지를 JSON-style 객체 기록으로 변환해 디시전 가능한 scene description으로.</li>
+</ul>
+
+<h3>3.2 Forward Dynamics — L1의 핵심</h3>
+<p>$p_\theta(z_t \mid z_{t-1}, a_t)$ 의 정확도가 L2 elevation의 핵심. 주요 흐름:</p>
+<ul>
+  <li><strong>Continuous latent</strong>: PILCO (GP), MuZero (deterministic), RSSM (stochastic), TD-MPC2 (317M unified).</li>
+  <li><strong>Token-based</strong>: IRIS (VQ-VAE codebook), TransDreamer (Transformer-XL), Delta-IRIS (delta coding).</li>
+  <li><strong>Diffusion</strong>: DIAMOND (pixel-level), Latent Diffusion, DiT.</li>
+</ul>
+
+<p>주요 발견: ##stochastic latent + Transformer 백본## 조합이 long-horizon에서 안정적이지만, 다단계 정확도는 여전히 큰 격차.</p>
+
+<h3>3.3 Observation Decoding & Inverse Dynamics</h3>
+<p>Decoder $p_\psi(o_t\mid z_t)$ 는 학습 신호 + dreaming의 rendering 엔진. VAE/β-VAE/VQ-VAE/Latent Diffusion이 representative. Inverse dynamics $\pi_\eta(a_t\mid z_{t-1}, z_t)$ 는 representation shaping (Pathak curiosity)이나 action labeling (VPT — Minecraft 비디오로부터 action 추론)에 활용. ##Action label quality##가 retrospective inference의 약점.</p>
+
+<h2>4. L2 Simulator 상세 — 4 regime별 instantiation</h2>
+
+<h3>4.1 Physical World</h3>
+<ul>
+  <li><strong>Rigid-body simulators</strong>: MuJoCo, Brax, Isaac Gym/Lab, Genesis (학습 simulator 아닌 explicit law executor).</li>
+  <li><strong>Video world models</strong>: Sora, Lumiere, VideoPoet → appearance-first; Genie/GAIA-1 → action-conditioned; FramePack/Self-Forcing → long-horizon drift 완화.</li>
+  <li><strong>Decision-oriented</strong>: SimPLe, DIAMOND, DreamZero (zero-shot policy), DreamDojo, FutureVLA.</li>
+  <li><strong>3D structured</strong>: RoboOccWorld, PointWorld; PIN-WM (differentiable physics + visual).</li>
+</ul>
+
+<p>핵심 question: ##visual plausibility ≠ decision-usability##. PhyWorldBench는 12개 frontier 모델의 conservation/object-permanence success rate가 0.262에 불과함을 보고.</p>
+
+<h3>4.2 Digital World</h3>
+<p>구분 특징: ##transitions are specifiable and verifiable## (formal artifact이므로 mechanically check 가능).</p>
+<ul>
+  <li><strong>Code worlds</strong>: CodeWM (LLM + MCTS), WorldCoder (incremental), CWM (32B open-weights, ##65.8% on SWE-bench Verified##).</li>
+  <li><strong>Web Models</strong>: WebDreamer, DreamGym (>30% improvement on WebArena), WebSynthesis, WebWorld (1M trajectories).</li>
+  <li><strong>GUI/OS</strong>: MobileDreamer, MobileWorldBench (1.4M state-action triplets), gWorld (renderable web code as state).</li>
+</ul>
+
+<h3>4.3 Social World</h3>
+<p>3가지 distinctive properties: ##opacity (mental state 직접 관측 불가), reflexivity (belief가 state를 바꿈), normativity (norm 기반 transitions)##.</p>
+<ul>
+  <li><strong>ToM</strong>: BToM (Bayesian inverse planning), ToMnet, LaBToM. FANToM은 ##모든 SOTA LLM에서 illusory ToM##; ExploreToM은 GPT-4o 9% 정확도.</li>
+  <li><strong>Strategic</strong>: CICERO (Diplomacy, >2× human score), Werewolf/Avalon (deception testbeds).</li>
+  <li><strong>Sandbox</strong>: Generative Agents (25 agents), Sotopia, Project Sid (1,000 agents), OASIS (1M agents).</li>
+</ul>
+
+<p>주요 한계: 2nd-order belief 너머에서 sharp 성능 저하; role drift, goal forgetting; commitment tracking 미흡.</p>
+
+<h3>4.4 Scientific World</h3>
+<p>핵심: ##governing equations이 a priori 알려져 있지 않다## — 데이터로 학습하고 실험으로 검증.</p>
+<ul>
+  <li><strong>Forward simulation</strong>: GNS (mesh particles), FNO (1000× speedup), Pangu-Weather/GraphCast (90% target에서 ECMWF 능가), GenCast (97.2%), NeuralGCM, Aurora (Earth foundation model).</li>
+  <li><strong>Decision simulation</strong>: ChemBO, P3BO, BAX (active material discovery).</li>
+</ul>
+
+<h3>4.5 5가지 공통 failure mode</h3>
+<ol>
+  <li><strong>Compounding error</strong>: per-step 작은 편차가 누적.</li>
+  <li><strong>State aliasing/drift</strong>: 비슷해 보이는 다른 state를 같다고 합쳐 잘못된 action.</li>
+  <li><strong>Controllability failure</strong>: action에 둔감한 model은 planning에 무용지물.</li>
+  <li><strong>Exploitability/simulator escape</strong>: planner가 simulator의 loophole을 탐색.</li>
+  <li><strong>Calibration failure under distribution shift</strong>: ##overconfident wrong이 강한 evolution 신호##로 다뤄져야 함.</li>
+</ol>
+
+<h2>5. L3 Evolver 상세 — Evidence-Driven Revision</h2>
+
+<h3>5.1 Modes of growth</h3>
+<ul>
+  <li><strong>Parameter update</strong>: gradient descent / Bayesian update on new evidence (online learning, continual fine-tuning).</li>
+  <li><strong>Architecture update</strong>: 새 module/expert/capacity 추가 (context window 확장, memory slot 할당).</li>
+  <li><strong>Hypothesis-space expansion</strong>: 표현 가능한 explanation의 class를 확장 — ##abduction과 진정한 scientific discovery##에 가장 가까운 모드.</li>
+</ul>
+
+<h3>5.2 Domain별 maturity</h3>
+<table>
+  <tr><th>Regime</th><th>Maturity</th><th>대표 시스템</th><th>Bottleneck</th></tr>
+  <tr><td>Scientific</td><td><strong>Established</strong></td><td>CAMEO, A-Lab (17일 동안 353 실험·36 화합물), BacterAI, Self-Driving Lab, AI Scientist v2</td><td>Instrument access, real-data budget</td></tr>
+  <tr><td>Digital</td><td>Partial</td><td>FunSearch, AlphaEvolve (Strassen 56년 만에 개선), CodeIt, SWE-agent</td><td>Active experiment design 부재</td></tr>
+  <tr><td>Physical</td><td>Emerging</td><td>AdaptSim, Self-Modeling (egocentric self-model)</td><td>Failure attribution across perception/dynamics/actuation</td></tr>
+  <tr><td>Social</td><td>Aspirational</td><td>Evolving Constitutions (LLM genetic prog., +123% over hand-designed rules)</td><td>Attribution ambiguity, ethical constraints</td></tr>
+</table>
+
+<h3>5.3 Revision triggers</h3>
+<ul>
+  <li><strong>Anomaly</strong>: prediction ≠ observation. 작으면 parameter update; persistent하면 epistemic gap.</li>
+  <li><strong>Epistemic gap</strong>: 현재 model class로는 설명 불가. ##hard core (architecture, inductive bias)## 변경 필요 (Lakatos's protective belt vs hard core 비유).</li>
+</ul>
+
+<h3>5.4 Governance challenges</h3>
+<ul>
+  <li><strong>Benchmark overfitting</strong>: regression gate가 학습 분포에 너무 가까우면 "test 통과만" 학습.</li>
+  <li><strong>Knowledge contamination</strong>: revision loop가 biased evidence로 OOD에서 silent degradation.</li>
+  <li><strong>Misattribution cascades</strong>: 한 fix가 다른 component를 망가뜨림.</li>
+</ul>
+<p>완화: held-out probe, canary deployment, causal ablations.</p>
+
+<h2>6. Decision-centric Evaluation</h2>
+
+<h3>6.1 Prediction → Decision-centric 전환</h3>
+<p>FID/FVD/SSIM 같은 generative metric은 perceptual quality만 측정 — agentic capability와 약한 상관. 진짜 측정해야 할 것은 ##trajectory-level rollout이 planner가 행동에 사용할 정도로 신뢰할 만한가##.</p>
+
+<h3>6.2 두 핵심 메트릭</h3>
+<p><strong>Action Success Rate (ASR)</strong>:</p>
+<p>$$\text{ASR} = \frac{1}{N}\sum_{i=1}^{N}\mathbf{1}[\text{task}_i \text{ succeeds under policy derived from }\hat{p}].$$</p>
+<p>직관: world model이 만든 rollout으로 학습된 정책이 실제 환경에서 task를 풀어내는 비율.</p>
+
+<p><strong>Counterfactual Outcome Deviation (COD)</strong>: intervention sensitivity 측정.</p>
+<p>$$\text{COD}(k) = \mathbb{E}\bigl[d(\hat{z}_H^{(1)}, \hat{z}_H^{(2)})\bigr],$$</p>
+<p>$d$ 는 task-relevant distance (goal-state distance, edit distance 등). step $k$에서 단일 intervention만 다른 두 정책의 결과를 비교. ##COD가 낮으면 모델이 action에 unresponsive## → counterfactual planning 불가.</p>
+
+<h3>6.3 Boundary 별 benchmark anchor (Table 10)</h3>
+<table>
+  <tr><th>Regime</th><th>Benchmark</th><th>L1/L2/L3 지원</th><th>Core metric</th></tr>
+  <tr><td>Physical</td><td>Atari 100k, Meta-World, CALVIN, RoboCasa, nuScenes</td><td>L1·L2 (대부분 L3 미지원)</td><td>Success rate, mAP/NDS</td></tr>
+  <tr><td>Digital</td><td>OSWorld, SWE-bench, WebArena</td><td>L1·L2, ##SWE-bench는 L3 지원##</td><td>Resolve rate, task success</td></tr>
+  <tr><td>Social</td><td>Sotopia, FANToM, Hi-ToM</td><td>L1·L2 (ToM은 L1)</td><td>Social score, false-belief acc.</td></tr>
+  <tr><td>Scientific</td><td>ScienceWorld, DiscoveryBench</td><td>전부 (DiscoveryBench L3)</td><td>Hypothesis acc., Task completion</td></tr>
+</table>
+
+<h3>6.4 Evaluation gaps</h3>
+<p>현재 ##대부분의 시스템이 L1-style accuracy만 평가##되고 있다. L2 protocol (counterfactual injection, degradation curves, constraint-violation detection)은 일부 benchmark에서만; L3 infrastructure (regression suite, asset validation, cross-episode improvement)는 ##autonomous science 외에는 거의 부재##. Minimal Reproducible Evaluation Package (MREP)을 제안하여 version-locking + trace logging + boundary-condition mapping 표준화.</p>
+
+<h2>7. 아키텍처와 디자인 트레이드오프 (Section 7)</h2>
+
+<h3>7.1 3축의 design space</h3>
+<table>
+  <tr><th>Axis</th><th>옵션</th><th>강점</th><th>실패 모드</th></tr>
+  <tr><td>Representation</td><td>Symbolic, Latent continuous, Structured 3D, Discrete tokens</td><td>각기 다름</td><td>Manual eng. burden / semantic drift / reconstruction cost / codebook collapse</td></tr>
+  <tr><td>Dynamics</td><td>Stochastic latent, Deterministic value-aware, Autoregressive token, Diffusion</td><td>각기 다름</td><td>Miscalibration / brittle / weak logical / weak action control</td></tr>
+  <tr><td>Control</td><td>Online MPC, Tree search, Imagined-rollout policy, Offline distillation, Replayable env</td><td>각기 다름</td><td>Latency / model error amplify / dynamics fidelity 요구 / dist. shift / grounding break</td></tr>
+</table>
+
+<h3>7.2 Latency budget by regime (Table 12)</h3>
+<ul>
+  <li><strong>Real-time robotics</strong>: &lt;100ms — RSSM/neural ODE.</li>
+  <li><strong>Web/GUI agents</strong>: ~1–5s — LLM-as-WM.</li>
+  <li><strong>Software engineering</strong>: 5–30s — LLM + MCTS.</li>
+  <li><strong>Game AI real-time</strong>: &lt;50ms — tree search + value-aware latent.</li>
+  <li><strong>Social/multi-agent</strong>: 1–10s — ToM network, $O(n^2)$ pairwise update가 병목.</li>
+  <li><strong>Scientific planning</strong>: minutes-to-hours — diffusion ensemble, Bayesian surrogate.</li>
+</ul>
+
+<h3>7.3 3 cross-cutting principles</h3>
+<ol>
+  <li><strong>Separate what is learned from what is enforced</strong>: hard constraint layer (collision checker, state-machine validator)는 ##inference-time에 적용##해야 한다 — training loss로는 zero-violation을 보장 못함.</li>
+  <li><strong>Instrument before you iterate</strong>: logging, replay, failure attribution을 시스템 시작부터 내장. replay 없으면 L3 revision은 "anecdotal & ungovernable".</li>
+  <li><strong>Match representation to planner's query</strong>: planner가 필요로 하는 변수를 노출하지 못하는 표현은 ##아무리 사실적이어도## 더 단순한 표현보다 못하다.</li>
+</ol>
+
+<h2>8. 역사적 발전과 10가지 Open Problems</h2>
+
+<h3>8.1 4 시대 (Figure 6)</h3>
+<ul>
+  <li><strong>Mathematical Principles (–1956)</strong>: Newton, Laplace, Turing.</li>
+  <li><strong>Symbolic Intelligence (1956–1986)</strong>: STRIPS, Frame Problem, Lighthill (1차 AI winter).</li>
+  <li><strong>Connectionist Resurgence (1986–2020)</strong>: Backprop, AlexNet, Transformer, World Models 2018, GraphCast.</li>
+  <li><strong>Generative Revolution (2020–현재)</strong>: GPT, Diffusion, Sora, DreamerV3, AlphaEvolve. ##neuro-symbolic frontier##로 수렴 중.</li>
+</ul>
+
+<h3>8.2 10가지 open problems</h3>
+
+<p><strong>Representation & local prediction</strong>:</p>
+<ol>
+  <li><strong>Physical faithfulness beyond visual plausibility</strong>: PhyWorldBench 0.262 success — pixel fidelity ≠ physical consistency.</li>
+  <li><strong>Metric-aware video world modeling</strong>: 시간적 일관성 + identity preservation을 동시 달성.</li>
+  <li><strong>Programmable visual representation</strong>: VCode (SVG), Code2Video (Manim script), VIGA (3D Blender) — ##code-based representation##이 pixel보다 editable.</li>
+</ol>
+
+<p><strong>Simulation fidelity & intervention</strong>:</p>
+<ol start="4">
+  <li><strong>Partially observable software as a POMDP</strong>: 백엔드 hidden state, async transition을 belief state로 모델링.</li>
+  <li><strong>Concurrent multi-user state</strong>: Dec-POMDP 위 conflict-free replicated data type.</li>
+  <li><strong>Agent-human behavioral alignment at scale</strong>: LLM의 ##mode collapse## + alignment inadequacy in multi-turn.</li>
+</ol>
+
+<p><strong>Evidence-driven revision</strong>:</p>
+<ol start="7">
+  <li><strong>Continual learning of societal transitions</strong>: 1만+ agents에서 norm shift detection without catastrophic forgetting.</li>
+  <li><strong>Closing the surrogate-to-reality gap</strong>: 시뮬레이터 데이터로 학습한 surrogate는 real measurement에서 plateau.</li>
+  <li><strong>Modeling laws that themselves evolve</strong>: viral fitness, climate forcing 등 second-order dynamics.</li>
+  <li><strong>Harness designs for agentic world modeling</strong>: ##prompt → context → harness## (tools, memory, feedback loops, inter-agent topology) 진보. harness 자체를 학습 대상으로.</li>
+</ol>
+
+<h3>8.3 Beyond L3: Meta-world Modeling</h3>
+<p>L1→L2→L3는 fixed governing law를 가정. 그 다음은 ##transition function의 space 자체를 추론##하는 meta-world modeling — alternative rule system 탐색. symbolic representation이 자연스러운 interface가 된다는 가설.</p>
+
+<h2>9. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<ul>
+  <li><strong>분류의 testability vs over-fitting 위험</strong>: L1/L2/L3 boundary가 testable하다고 주장하지만, 실제로 "long-horizon coherence가 실패했다"의 정량 기준 (몇 step? 몇 % degradation?)이 regime마다 달라 ambiguous. 저자도 "schematic, not metric"이라며 인정하지만, taxonomy의 실용성이 약화될 위험.</li>
+  <li><strong>L3의 maturity 단계 비대칭</strong>: Scientific을 "established"라고 분류하지만 A-Lab (17일·353 실험)을 제외하면 cross-domain reproduction이 적음. 한두 flagship system을 generalization으로 보는 것은 편향 가능성.</li>
+  <li><strong>Capability-based vs Application 분류의 trade-off</strong>: capability 중심은 학술적으로 깔끔하지만, ##실무자가 "내 task에는 어떤 모델을 써야 하는가"##의 답을 찾기 어렵다. application-domain 분류 (autonomous driving, GUI, drug discovery)와의 ##병행이 필요##해 보임.</li>
+  <li><strong>4 regime의 완전성 의문</strong>: physical/digital/social/scientific 4개를 representative라 하지만 economic/financial regime, biological(scientific 안에 포함되지만 별도 dynamics), legal regime 등 명시적 처리 없음. ##"non-exhaustive"이라 명시하지만## taxonomy 일관성 약점.</li>
+  <li><strong>Gov regime의 coupling</strong>: 자율주행이 physical+social, Diplomacy가 social+digital — multi-regime system이 오히려 일반적인데, 본 서베이는 cross-regime 분석이 짧다 (4.2.5 한 페이지).</li>
+  <li><strong>인용 작품의 자가 인용 편향</strong>: 저자 그룹이 multi-institution이지만 HKUST 계열 작품 (Zhang, Lin, Chen 등)이 다수 인용되어 selection bias 가능성.</li>
+  <li><strong>L1→L2→L3 hierarchy의 implicit linearity</strong>: 실제로 어떤 시스템 (예: closed-loop autonomous lab)은 ##weak L1을 가지고도 강한 L3##일 수 있다. capability 단계가 strict containment라는 묵시적 가정이 약점일 수 있음.</li>
+  <li><strong>Decision-usability와 학습 비용의 trade-off 분석 부족</strong>: ASR/COD가 좋은 metric이라 하지만 측정 비용이 매우 높다. proxy metric 추천 또는 cost-aware evaluation이 더 다뤄지면 좋았을 것.</li>
+</ul>
+</div>
+
+<h2>10. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>"world model"을 말하기 전에 어느 capability level과 어느 regime인지 명시</strong>: 같은 system이 L1/Physical에서는 SOTA지만 L2/Social에서는 부족할 수 있다. 분야 간 비교 시 ##capability × regime 좌표##를 먼저 합의해야 한다.</li>
+  <li><strong>L1→L2 elevation의 진짜 시험은 boundary conditions</strong>: 한 step 정확도가 아무리 높아도 long-horizon coherence + intervention sensitivity + constraint consistency 셋 모두 만족해야 simulator. 실험 설계 시 이 3가지를 별도 측정.</li>
+  <li><strong>L3는 "online learning"이 아니라 "model의 hypothesis space evolution"</strong>: 단순 fine-tuning은 L3 아님. ##persistent reusable asset + governed validation##이 핵심.</li>
+  <li><strong>"separate learned from enforced"</strong>: 충돌 검사, state machine validator, regression gate를 inference-time에 적용. soft training loss로는 zero-violation 불가.</li>
+  <li><strong>Decision-centric metric (ASR + COD)</strong>: 자체 시스템 평가 시 perception loss나 FID 대신 "downstream policy success rate"와 "intervention 반응성"을 같이 측정.</li>
+  <li><strong>Code as world model</strong>이라는 흐름 (CodeWM, gWorld, Code2World): ##executable한 code가 latent dynamics보다## interpretable·composable·verifiable. 디지털 regime에서 강력한 새 패러다임.</li>
+  <li><strong>Harness가 capability boundary의 일부</strong>: tools, memory, feedback loop가 model capability를 본질적으로 변화시킨다. harness 설계 자체가 world modeling research의 한 axis.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p>(추후 Q&A 및 메모 누적 예정)</p>
+</div>
+
+</div>
+</body>
+</html>
