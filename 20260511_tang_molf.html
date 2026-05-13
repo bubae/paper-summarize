@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MoLF: Gradient-Guided Optimizer Routing for LLM Adaptation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #f0f4ff; padding: 0.5rem 1rem; border-radius: 6px; border: 1px solid #3498db; text-decoration: none; color: #1565c0; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MoLF: 그래디언트 기반 옵티마이저 라우팅으로 LoRA vs Full Fine-Tuning을 넘어서기</h1>
+
+<a class="brief-link" href="20260511_tang_molf_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>제목</strong>: Beyond LoRA vs. Full Fine-Tuning: Gradient-Guided Optimizer Routing for LLM Adaptation</li>
+  <li><strong>저자</strong>: Haozhan Tang (CMU·Tsinghua), Xiuqi Zhu (CMU), Xinyin Zhang (CMU), Boxun Li (Infinigence AI), Virginia Smith (CMU), Kevin Kuo (CMU)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (8 May 2026, v1)</li>
+  <li><strong>분량</strong>: 본문 9쪽 + 부록</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.07111">arXiv:2605.07111</a></li>
+  <li><strong>주요 문의자</strong>: hztang801@gmail.com, kkuo2@andrew.cmu.edu</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM fine-tuning에서 Full Fine-Tuning(FFT)과 LoRA 중 무엇이 좋은가 — 답은 ##task에 따라 다르다##. Fact(고엔트로피 지식 주입)는 FFT 우위, Med(추론 보존)는 LoRA 우위, SQL은 비슷. 정적 architecture 선택은 ##구조적 한계##.</li>
+  <li><strong>해결</strong>: ##Mixture of LoRA and Full (MoLF)## — FFT 전문가와 LoRA 전문가를 동시에 학습하되, ##forward는 모두 통과하고 sparsity는 optimizer level에서만## 적용. 매 step EPD(Expected Preconditioned Descent) score로 한 전문가만 실제 weight 업데이트.</li>
+  <li><strong>왜 작동하는가</strong>: 모든 전문가가 ##full-batch gradient를 받기 때문에## AdamW의 momentum/variance가 항상 fresh — adaptive LoRA의 cold-start 문제 회피. 그러면서 update만 sparse라 ##FFT와 LoRA가 같은 layer를 두고 경쟁##해도 진동 없음.</li>
+  <li><strong>비유</strong>: 두 전문가에게 ##항상 같은 자료(gradient)를 공유##하지만, 매 결정마다 더 적합한 한 명에게만 ##발언권(weight update)##을 주는 것.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>FFT vs LoRA의 세 regime 식별</strong>: 9개 setting (3 모델 × 3 task)에서 (1) ##Fact = Capacity Bottleneck## ("LoRA Learns Less"), (2) ##Med = Spectral Regularization## ("LoRA Forgets Less"), (3) ##SQL = Low Intrinsic Dim## ("LoRA Without Regret")로 분류. Eckart-Young-Mirsky 정리로 ##수학적 근거## 제시.</li>
+  <li><strong>MoLF 프레임워크</strong>: FFT 전문가 + N개 LoRA 전문가를 mixture로 두되 ##sparsity를 optimizer pass에 한정##. 모든 전문가가 forward/backward를 통과 → ##fresh AdamW moments## 유지.</li>
+  <li><strong>EPD(Expected Preconditioned Descent) routing</strong>: AdamW의 preconditioned step direction을 1차 Taylor 전개해 ##예상 loss reduction##을 expert별로 계산. PFN(Preconditioned Frobenius Norm) 대비 scale-invariance 미포함—오히려 ##각 전문가의 learning rate $\eta$를 반영##해 큰/작은 expert 비교 공정.</li>
+  <li><strong>MoLF-Efficient (MoLF-E)</strong>: FFT 전문가를 ##freeze하고 LoRA 전문가 2개##(rank $r$ + 128)만 routing. 메모리 제약 환경. AdaLoRA, AdaMix 대비 ##Fact +20%p, Med·SQL +9%p## 향상.</li>
+  <li><strong>Zero-overhead inference</strong>: 학습 끝나면 $W_{\text{final}} = W_{\text{base}} + \sum_i (\alpha_i/\sqrt{r_i})(B_iA_i)$로 ##single dense matrix로 collapse##—추론 시 LoRA의 latency penalty조차 없음.</li>
+</ol>
+
+<h2>1. Background — FFT vs LoRA의 오랜 논쟁</h2>
+
+<h3>1.1 두 가지 시각의 대립</h3>
+<p>최근 문헌은 LLM fine-tuning dynamics에 대해 ##정반대 두 시각##을 제시:</p>
+<ul>
+  <li><strong>"LoRA는 충분하다" (Hu et al. 2022, Aghajanyan 2021)</strong>: meaningful weight update가 ##low-dimensional subspace##에 거주. LoRA는 단순한 efficient approximation이 아니라 ##over-parameterization을 피하는## theoretically optimal한 선택.</li>
+  <li><strong>"LoRA Learns Less" (Biderman et al. 2024)</strong>: 제약 없는 FFT가 strict하게 더 powerful. complex task에서는 ##LoRA가 capacity bottleneck##에 부딪힘. 다만 low-rank 제약은 FFT의 destructive high-rank update에 대한 ##protective regularizer##.</li>
+</ul>
+
+<h3>1.2 LoRA (Low-Rank Adaptation)</h3>
+<p>LoRA는 pre-trained $W_{\text{base}} \in \mathbb{R}^{d_{\text{out}} \times d_{\text{in}}}$를 freeze하고 trainable low-rank matrices $A \in \mathbb{R}^{r \times d_{\text{in}}}, B \in \mathbb{R}^{d_{\text{out}} \times r}$만 학습:</p>
+<p>$$y = W_{\text{base}} x + \frac{\alpha}{\sqrt{r}} BA x$$</p>
+<p>RS-LoRA scaling $\alpha/\sqrt{r}$ (Kalajdzievski 2023)을 적용. ##고정 bottleneck $r$##이 global structural capacity를 제한—high-entropy factual learning에서 관찰된 bottleneck의 원인.</p>
+
+<h3>1.3 Mixture-of-Experts (MoE)</h3>
+<p>MoE 아키텍처는 ##다수의 sub-network (expert)##를 유지하고 conditional gating으로 일부만 활성. capacity를 키우지만 (1) ##gradient statistic 단편화##, (2) ##load-balancing collapse##, (3) ##training instability##의 문제. 기존 MoE+PEFT는 ##low-rank 제약을 그대로 받아들이고## expert 간 routing만 다룬다.</p>
+
+<h3>1.4 Adaptive LoRA</h3>
+<p>AdaLoRA (Zhang et al. 2023), AdaMix (Wang et al. 2022) 등은 ##rank를 dynamically promote/prune##해 효과적 rank를 키움. 한계: rank가 promote될 때 새 차원의 AdamW moment는 ##cold-start (0)##, 즉 mature gradient statistic 없이 활성화 → 불안정.</p>
+
+<h2>2. 세 가지 Fine-Tuning Regime의 실증 분석</h2>
+
+<h3>2.1 실험 설계</h3>
+<p>3 LLM (Gemma-3-1B, Qwen2.5-1.5B, Qwen2.5-3B) × 3 task (Fact·Med·SQL) × 5 rank ($r \in \{8,16,32,64,128\}$) = 45 cells. 각각 learning rate / scheduler / rank sweep. 최적 결과만 Table 1에 기록.</p>
+
+<p>Datasets:</p>
+<ul>
+  <li><strong>Fact (CounterFact)</strong>: Factual Knowledge injection. Efficacy Score (ES) — counterfactual target에 원본 object보다 높은 prob를 부여하는 비율.</li>
+  <li><strong>Med (MedMCQA)</strong>: Medical QA. 4-way multiple choice accuracy.</li>
+  <li><strong>SQL (Gretel Synthetic Text-to-SQL)</strong>: NL → SQL. Exact-match accuracy.</li>
+</ul>
+
+<h3>2.2 Table 1 핵심 결과</h3>
+<table>
+  <tr><th>Benchmark</th><th>Model</th><th>FFT</th><th>LoRA r=8</th><th>r=16</th><th>r=32</th><th>r=64</th><th>r=128</th></tr>
+  <tr><td rowspan="3"><strong>Fact</strong></td><td>Gemma-1B</td><td><strong>65.50</strong></td><td>60.05</td><td>60.77</td><td>60.49</td><td>54.43</td><td>54.63</td></tr>
+  <tr><td>Qwen-1.5B</td><td><strong>74.95</strong></td><td>68.39</td><td>69.05</td><td>65.89</td><td>65.34</td><td>70.78</td></tr>
+  <tr><td>Qwen-3B</td><td><strong>76.54</strong></td><td>70.56</td><td>66.88</td><td>61.32</td><td>65.08</td><td>70.85</td></tr>
+  <tr><td rowspan="3"><strong>Med</strong></td><td>Gemma-1B</td><td>42.15</td><td>40.90</td><td>42.10</td><td>43.65</td><td>46.09</td><td><strong>46.19</strong></td></tr>
+  <tr><td>Qwen-1.5B</td><td>55.39</td><td>54.03</td><td>54.48</td><td>54.46</td><td>55.99</td><td><strong>57.66</strong></td></tr>
+  <tr><td>Qwen-3B</td><td>59.55</td><td>58.95</td><td>59.96</td><td>60.67</td><td>60.84</td><td><strong>61.85</strong></td></tr>
+  <tr><td rowspan="3"><strong>SQL</strong></td><td>Gemma-1B</td><td><strong>72.76</strong></td><td>71.82</td><td>71.93</td><td>71.77</td><td>71.68</td><td>71.26</td></tr>
+  <tr><td>Qwen-1.5B</td><td><strong>74.81</strong></td><td>73.95</td><td>74.20</td><td>74.39</td><td>74.02</td><td>73.98</td></tr>
+  <tr><td>Qwen-3B</td><td>75.06</td><td><strong>75.23</strong></td><td>74.97</td><td>74.97</td><td>74.17</td><td>74.42</td></tr>
+</table>
+
+<p><strong>패턴</strong>: ##Fact = FFT 압승, Med = LoRA 압승, SQL = 비슷##. 단일 정적 architecture로는 모든 regime을 cover 불가.</p>
+
+<h3>2.3 수학적 근거</h3>
+
+<p>$\Delta W^* = \sum_{i=1}^{\min(d,k)} \sigma_i u_i v_i^\top$ — optimal weight update의 SVD.</p>
+
+<p><strong>Fact (Capacity Bottleneck)</strong>: Factual injection은 nearly orthogonal entity association을 memorize. $\Delta W^*$의 singular value distribution이 ##heavy-tailed##. Eckart-Young-Mirsky 정리에 의해 rank-$r$ approximation $BA$의 error lower bound:</p>
+<p>$$\|\Delta W^* - BA\|_F^2 \geq \sum_{i > r} \sigma_i^2,$$</p>
+<p>heavy tail에선 이 ##truncated tail energy##가 크다. FFT는 $\Delta W^*$를 exact 표현.</p>
+
+<p><strong>Med (Spectral Regularization)</strong>: $G = G_{\text{task}} + G_{\text{noise}}$, $G_{\text{noise}}$는 high-rank approximately isotropic. FFT는 $-\eta G$ 직접 적용 → orthogonal dimension에 aggressive perturbation → ##catastrophic forgetting##. Vanilla SGD on LoRA factors는:</p>
+<p>$$\Delta W_{\text{eff}} \approx -\eta(BB^\top G + GA^\top A) + O(\eta^2),$$</p>
+<p>$\text{col}(B)$와 $\text{row}(A)$로 ##effective update를 confine##—rank-bounded linear map. orthonormal columns이면 ##orthogonal projection##으로 축소. 즉 ##subspace confinement##가 pre-trained logic 보호.</p>
+
+<p><strong>SQL (Low Intrinsic Dim)</strong>: Text-to-SQL은 ##structural/syntactic alignment##. optimal update의 singular spectrum이 concentrated ($\sigma_i \approx 0$ for $i > r$). truncated tail energy 무시 가능 → LoRA가 ##최소 representation loss##로 optimal update 포착.</p>
+
+<h2>3. MoLF 방법론</h2>
+
+<h3>3.1 아키텍처 (Eq. 1)</h3>
+<p>각 linear projection을 ##unconditional superposition of N+1 experts##로 표현:</p>
+<p>$$y = W_{\text{base}} x + \sum_{i=1}^{N} \frac{\alpha_i}{\sqrt{r_i}} B_i(A_i(\text{Dropout}(x))). \tag{1}$$</p>
+<p>$W_{\text{base}}$가 FFT expert, 각 $(A_i, B_i)$가 LoRA expert (다른 rank 가능). ##모든 token이 모든 expert를 통과##. 직관적으로 말하면, "조건부 gating 없이 forward는 dense, 단지 update만 sparse".</p>
+
+<h3>3.2 알고리즘 흐름도</h3>
+<div class="flow-diagram">[Forward]   x → W_base x + Σ (α_i/√r_i) B_i A_i x → y
+                    (all experts active, no gating)
+[Backward]  ∇_W L, ∇_A L, ∇_B L 모두 계산 (full-batch gradient)
+
+[MoLF Optimizer, per layer]
+  Phase 1: 모든 expert의 momentum (m, v) EMA 업데이트
+  Phase 2: 각 expert의 EPD score S_i 계산
+  Phase 3: Top-K (K=1) winner만 실제 AdamW step
+           나머지는 weight 유지 (m, v는 계속 누적)</div>
+
+<h3>3.3 Phase 1 — Universal Momentum Tracking (Eq. 2-3)</h3>
+<p>모든 expert $i \in \{0, 1, \ldots, N\}$ (0은 FFT, $\geq 1$은 LoRA)에 대해 매 step:</p>
+<p>$$m_t^{(i)} = \beta_1 m_{t-1}^{(i)} + (1-\beta_1) g_t^{(i)}, \tag{2}$$</p>
+<p>$$v_t^{(i)} = \beta_2 v_{t-1}^{(i)} + (1-\beta_2)(g_t^{(i)})^2. \tag{3}$$</p>
+<p>핵심: ##선택 여부와 무관하게 모든 expert가 moment 갱신##. 따라서 dormant expert가 ##later activation 시에도 mature, debiased momentum## 보유. bias correction $(1-\beta_1^t, 1-\beta_2^t)$도 모든 expert에 synchronized.</p>
+
+<h3>3.4 Phase 2 — EPD Scoring (Eq. 4)</h3>
+
+<p>핵심 통찰: AdamW는 raw gradient $g_t$ 방향이 아니라 ##preconditioned direction $m_t/(\sqrt{v_t}+\epsilon)$## 방향으로 내려간다. raw gradient norm으로 expert를 평가하면 AdamW의 ##per-coordinate adaptive scaling##을 무시.</p>
+
+<p><strong>Expected Preconditioned Descent (EPD) score</strong>:</p>
+<p>$$\mathcal{S}_t^{(i)} = \frac{\eta_t^{(i)}}{N_{\text{params}}^{(i)}} \sum_{\theta \in \Theta_i} \frac{(m_t^{(i)})^2}{\sqrt{v_t^{(i)}} + \epsilon}. \tag{4}$$</p>
+
+<p>유도 (Appendix A.1): $\Delta L \approx (\nabla L)^\top \Delta \theta$. AdamW step $\Delta \theta_t \approx -\eta_t m_t/(\sqrt{v_t}+\epsilon)$. $g_t \approx m_t$ smoothness 가정으로 $-\Delta L \approx \eta_t \sum_\theta m_t^2/\sqrt{v_t+\epsilon}$. parameter 수 $N_{\text{params}}$로 normalize → ##per-parameter expected loss reduction##.</p>
+
+<p><strong>PFN과의 차이</strong>: Preconditioned Frobenius Norm (PFN)은 단순히 update direction의 RMS — scale-invariant이지만 ##(i) 학습률 $\eta$ 무시##, ##(ii) LoRA 전문가의 RS-LoRA scaling $1/\sqrt{r}$ 효과 미반영##. EPD는 두 정보 모두 보존. ablation (Table 3)에서 ##Med 정확도 +2.58/+1.46##.</p>
+
+<p>EPD의 두 scaling property (의도적 비대칭):</p>
+<ol>
+  <li>rank-invariance ##없음##: RS-LoRA scaling 하 per-element gradient $\propto 1/\sqrt{r_i}$, $m_t^2/\sqrt{v_t} \propto 1/\sqrt{r_i}$. parameter count $N_{\text{params}} \propto r_i$로 나누면 aggregate score $\propto \eta_t^{(i)}/\sqrt{r_i}$. ##effective step size 큰 expert가 선호##됨 (correct economic quantity for Top-K).</li>
+  <li>per-expert $\eta^{(i)}$ 보존: scoring 같아도 ##실제 step size가 다른 두 expert를 구별##.</li>
+</ol>
+
+<h3>3.5 Phase 3 — Top-K Sparse AdamW Update (Eq. 5)</h3>
+<p>$\mathcal{S}_t^{(i)}$로 정렬해 Top-K winner만 update:</p>
+<p>$$\theta_t^{(i)} \leftarrow \theta_{t-1}^{(i)}(1-\eta_t^{(i)} \lambda_i) - \frac{\eta_t^{(i)}}{1-\beta_1^t} \cdot \frac{m_t^{(i)}}{\sqrt{v_t^{(i)}/(1-\beta_2^t)}+\epsilon} \text{ for } i \in \text{Winners}. \tag{5}$$</p>
+
+<p>Losing expert는 ##weight 그대로 유지 ($\theta_t^{(i)} = \theta_{t-1}^{(i)}$)##—단, moment는 계속 업데이트. 실험에서는 $K=1$.</p>
+
+<p>중요: routing은 ##local module level##—같은 transformer layer의 다른 projection matrix가 ##독립적으로 다른 expert를 선택## 가능.</p>
+
+<h3>3.6 MoLF-Efficient</h3>
+<p>FFT expert를 ##permanently freeze, optimizer state tracking에서 제외##. 대신 $W_{\text{base}}$ + 2개 LoRA expert (different rank, 기본 $r$와 128) 구성. routing은 ##gradient-aware subspace search##—parallel LoRA가 독립적으로 init되므로 divergent optimization trajectory 가지며, optimizer가 steepest expected loss reduction을 주는 subspace로 routing.</p>
+
+<h3>3.7 Post-Training Fusion (Eq. 6)</h3>
+<p>학습 끝나면:</p>
+<p>$$W_{\text{final}} = W_{\text{base}} + \sum_{i=1}^{N} \frac{\alpha_i}{\sqrt{r_i}}(B_i A_i). \tag{6}$$</p>
+<p>multi-expert graph가 ##single dense matrix로 algebraically collapse##—standard inference engine과 호환, LoRA의 latency penalty 없음, downstream fine-tuning 시 architectural drift 없음.</p>
+
+<h2>4. 실험</h2>
+
+<h3>4.1 Setup (Section 5.1)</h3>
+<ul>
+  <li>3 LLM × 3 benchmark × LoRA rank $\in \{8,16,32,64,128\}$.</li>
+  <li>Baseline: FFT, LoRA (best rank), AdaLoRA, AdaMix.</li>
+  <li>모두 AdamW, matched compute budget.</li>
+  <li>Hardware: single NVIDIA H100 Tensor Core 또는 RTX PRO 6000 Blackwell GPU.</li>
+  <li>MoLF settings: $\lambda_{\text{FFT}} = 0.1$, $\lambda_{\text{LoRA}} = 0.01$, $\epsilon = 10^{-8}$, $K=1$, cosine scheduler, warmup ratio 0.05, $(\beta_1, \beta_2) = (0.9, 0.999)$.</li>
+</ul>
+
+<h3>4.2 MoLF vs FFT/LoRA (Table 2)</h3>
+
+<p><strong>실험 의도</strong>: MoLF가 ##task별 manual choice 없이## 최선의 baseline에 도달하는가?</p>
+
+<table>
+  <tr><th>Method</th><th>Fact Gemma-1B</th><th>Fact Qwen-1.5B</th><th>Fact Qwen-3B</th><th>Med G-1B</th><th>Med Q-1.5B</th><th>Med Q-3B</th><th>SQL G-1B</th><th>SQL Q-1.5B</th><th>SQL Q-3B</th></tr>
+  <tr><td>Best of FFT/LoRA</td><td>65.50</td><td>74.95</td><td>76.54</td><td>46.19</td><td>57.66</td><td>61.85</td><td>72.76</td><td>74.81</td><td>75.23</td></tr>
+  <tr><td>FFT</td><td>65.50 ✓</td><td>74.95 ✓</td><td>76.54 ✓</td><td>42.15</td><td>55.39</td><td>59.55</td><td>72.76 ✓</td><td>74.81 ✓</td><td>75.06 ✓</td></tr>
+  <tr><td>LoRA (best)</td><td>60.77</td><td>70.78</td><td>70.85</td><td>46.19 ✓</td><td>57.66 ✓</td><td>61.85 ✓</td><td>71.93</td><td>74.39</td><td>75.23 ✓</td></tr>
+  <tr><td><strong>MoLF</strong></td><td>64.88 ✓</td><td><strong>75.15 ✓</strong></td><td>76.15 ✓</td><td>45.40 ✓</td><td>56.28 ✓</td><td>60.60 ✓</td><td>73.09 ✓</td><td>74.44 ✓</td><td>75.41 ✓</td></tr>
+</table>
+
+<p>✓는 best baseline 대비 1.5% 이내. <strong>패턴</strong>:</p>
+<ul>
+  <li>9/9 setting에서 MoLF가 best baseline의 1.5% 이내.</li>
+  <li>##3 setting에서 best baseline을 outright 능가## (Qwen-1.5B Fact +0.20%p, Gemma-1B SQL +0.33%p, Qwen-3B SQL +0.18%p).</li>
+  <li>FFT는 ##Med Gemma-1B에서 -4.04%p## (catastrophic forgetting), best-tuned LoRA는 ##Fact Qwen-3B에서 -5.69%p## (capacity bottleneck) — 정적 선택의 위험.</li>
+</ul>
+
+<p>가장 중요한 함의: ##task-specific hyperparameter sweep 없이## 자동으로 두 regime의 ##balance##를 찾음.</p>
+
+<h3>4.3 MoLF-E vs Adaptive Baselines (Figure 3)</h3>
+<p>MoLF-E (rank 64 + rank 128 LoRA) vs AdaLoRA, AdaMix.</p>
+
+<p><strong>9개 task-model setting 중 8개에서 MoLF-E가 1위</strong>:</p>
+<ul>
+  <li>Fact: AdaLoRA 대비 ##최대 +11.70%p##, AdaMix 대비 ##+20.01%p##.</li>
+  <li>Med·SQL은 작은 margin이지만 일관된 우위.</li>
+</ul>
+
+<p>이유: heavy-tailed singular spectrum (Fact)에서 AdaLoRA의 importance-based pruning과 AdaMix의 stochastic routing은 ##single low-rank subspace에 갇혀## high-rank tail을 흡수 못함. MoLF-E는 ##다른 rank의 LoRA expert를 parallel로 유지##해 EPD가 missing capacity를 보충.</p>
+
+<h3>4.4 Ablation 1 — Sparse Update의 필요성 (Table 3)</h3>
+
+<p><strong>실험 의도</strong>: sparse routing이 정말 필요한가? 모든 expert를 dense update하면 어떨까?</p>
+
+<table>
+  <tr><th>Method</th><th>Qwen-3B SQL</th><th>Qwen-3B Med</th><th>Qwen-1.5B SQL</th><th>Qwen-1.5B Med</th><th>Gemma-1B SQL</th><th>Gemma-1B Med</th></tr>
+  <tr><td>MoLF w/ no routing (dense)</td><td>75.06</td><td>31.08</td><td>74.90</td><td>55.27</td><td>72.54</td><td>39.73</td></tr>
+  <tr><td>MoLF w/ PFN routing</td><td>75.03</td><td>59.14</td><td><strong>74.92</strong></td><td>55.77</td><td>73.09</td><td>42.31</td></tr>
+  <tr><td><strong>MoLF w/ EPD routing</strong></td><td><strong>75.41</strong></td><td><strong>60.60</strong></td><td>74.44</td><td><strong>56.28</strong></td><td><strong>73.09</strong></td><td><strong>45.40</strong></td></tr>
+</table>
+
+<p><strong>패턴</strong>: dense update는 Med에서 ##치명적 (60.60 → 31.08, 45.40 → 39.73)##. 가설: unrestricted FFT pathway와 bottlenecked LoRA adapter가 ##identical feature를 두고 경쟁##해 oscillation 유발. ##Sparse update가 conflict 해결##. Qwen-1.5B SQL은 task가 intrinsically low-rank라 어느 regime이든 OK.</p>
+
+<h3>4.5 Ablation 2 — EPD vs PFN (Table 3 같은 표)</h3>
+<p>EPD가 6/6 (model, task) cell에서 PFN과 같거나 우수. ##Med에서 가장 큰 gain (Gemma-1B +3.09, Qwen-3B +1.46)##. SQL/Fact는 task가 intrinsically low-rank이거나 어느 scoring으로도 작동 → tie. ##Med에서는 massive (FFT) vs lightweight (LoRA) expert의 균형을 위해 learning rate $\eta_t$ 정보가 결정적##.</p>
+
+<h3>4.6 Router 행동 분석 (Figure 4, Appendix B.1)</h3>
+<p>EPD router가 각 module을 어디로 보내는지 시각화 (FFT vs LoRA, optimizer step별 heatmap):</p>
+<ul>
+  <li>각 module은 ##학습 초기에 빠르게 한 방향으로 commit##—FFT 또는 LoRA에 persistent하게 specialize.</li>
+  <li>optimizer step 사이 ##oscillation 거의 없음##—structural assignment가 안정적.</li>
+  <li>이는 EPD가 ##task-conditional fine-tuning mixture##를 자동으로 찾아냄을 의미.</li>
+</ul>
+
+<h2>5. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<ul>
+  <li><strong>3개 LLM × 3개 task는 좁은 범위</strong>: Gemma-1B, Qwen-1.5B, Qwen-3B는 모두 소형 (≤3B). 7B, 13B, 70B의 frontier 모델 (Llama-3, Qwen2.5-72B 등)에서 같은 conclusion이 유지되는지 불확실. compute budget 한계로 보이지만 실용성 평가에 약점.</li>
+  <li><strong>SQL이 "intrinsically low-rank"라는 주장의 약점</strong>: Gretel synthetic dataset 한 종류만 사용. real-world SQL은 schema 복잡도, JOIN 깊이가 다양해 더 high-rank일 가능성. ##task selection bias## 가능.</li>
+  <li><strong>Top-K=1 고정의 의미</strong>: ablation에서 K 값 변화 실험 부재. K=2 (예: FFT + best LoRA 동시 update) 또는 K=N (dense)와 K=1 사이의 sweet spot 탐색 누락.</li>
+  <li><strong>메모리 비용의 정확한 보고 부재</strong>: MoLF가 FFT의 dense Adam state ($m, v$ 둘 다 $d_{\text{out}} \times d_{\text{in}}$)을 추적. ##FFT 단독 대비 LoRA expert 수만큼 추가 memory##. "memory-constrained는 MoLF-E"라 하지만 정확한 memory footprint 비교 표가 누락.</li>
+  <li><strong>EPD의 first-order Taylor 가정</strong>: $\Delta L \approx (\nabla L)^\top \Delta \theta$는 ##loss landscape가 locally linear##할 때 정확. high curvature 영역 (early training, sharp minima)에서는 ##overestimate## 가능. higher-order term을 무시한 효과 분석 부재.</li>
+  <li><strong>Med 47% → 60% 점프의 source</strong>: 명확히 어디서 오는지 분리 분석 부재. (i) LoRA expert 자체의 효과인지, (ii) FFT expert가 ##capacity reserve##로 작용하는지, (iii) routing 자체의 효과인지 분리 ablation 필요.</li>
+  <li><strong>Router commitment의 함의</strong>: Figure 4가 router가 일찍 stable하다고 보여주지만, 이는 ##다른 시각에서 보면 "초기 ~1000 step만 학습해도 결정 가능"##—그렇다면 expensive multi-expert tracking 전체가 필요한가? warm-start MoLF + single-expert continued training으로 단순화 가능한지 미탐색.</li>
+  <li><strong>Counterfact의 한계</strong>: factual injection은 narrow domain. instruction tuning, RLHF, multimodal fine-tuning 같은 더 일반적인 fine-tuning scenario에서 MoLF의 행동은 알 수 없음.</li>
+</ul>
+</div>
+
+<h2>6. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>FFT vs LoRA는 false dichotomy</strong>: task에 따라 ##capacity bottleneck (Fact) / spectral regularization (Med) / low intrinsic dim (SQL)## 세 regime이 존재. 모든 task에 한 답이 있는 게 아니라 ##task-conditional##.</li>
+  <li><strong>"Sparsity in optimizer pass, density in forward pass"</strong>: 전통적 MoE는 forward에서 sparsity (gating). MoLF의 진짜 새로움은 ##forward는 dense하게, optimizer만 sparse##. 이로써 (i) cold-start AdamW state 회피, (ii) load-balancing collapse 없음, (iii) Post-Training Fusion 가능.</li>
+  <li><strong>EPD score는 PFN보다 우월</strong>: AdamW의 preconditioned step에서 raw gradient norm은 misleading. ##expected loss reduction##을 직접 계산하면 learning rate와 RS-LoRA scaling을 자연스럽게 포함. 다른 PEFT routing 연구에도 도입 고려.</li>
+  <li><strong>MoLF-E는 실용적 default</strong>: FFT 메모리 부담 없이 adaptive LoRA 대비 큰 향상. AdaLoRA/AdaMix 대신 ##2개 다른 rank의 LoRA를 병렬로 두고 EPD 라우팅##이 더 단순하고 효과적.</li>
+  <li><strong>Post-training fusion = zero-overhead inference</strong>: routing 메커니즘이 학습 시에만 작동. 배포 모델은 standard dense matrix → ##추론 latency penalty 없음##. 실무 deployment에 매우 매력적.</li>
+  <li><strong>Router commit의 의미</strong>: module별로 FFT/LoRA가 ##task-conditionally 갈리고, 일찍 안정화##된다는 사실은 future work에서 ##router decision을 task별로 pre-compute해 더 가볍게 만들 수 있음##을 시사.</li>
+  <li><strong>실험 인사이트</strong>: factual injection에 LoRA 쓰지 마라. Domain-specific reasoning preservation에 FFT 쓰지 마라. 어느 쪽인지 모르겠으면 MoLF를 써라.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p>(추후 Q&A 및 메모 누적 예정)</p>
+</div>
+
+</div>
+</body>
+</html>
