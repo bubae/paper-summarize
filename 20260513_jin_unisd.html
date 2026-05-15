@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UniSD: Unified Self-Distillation Framework for LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>UniSD: Towards a Unified Self-Distillation Framework for Large Language Models</h1>
+
+<a href="20260513_jin_unisd_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yiqiao Jin (Georgia Tech), Yiyang Wang (Georgia Tech), Lucheng Fu (Georgia Tech), Yijia Xiao (UCLA), Yinyi Luo (CMU), Haoxin Liu (Georgia Tech), B. Aditya Prakash (Georgia Tech), Josiah Hester (Georgia Tech), Jindong Wang (William & Mary), Srijan Kumar</li>
+  <li><strong>소속</strong>: Georgia Tech, UCLA, CMU, William & Mary</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (May)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.06597">arXiv:2605.06597</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 강한 외부 teacher가 없거나 사용 불가할 때 LLM을 self-distillation으로 개선하려는 시도들(SDFT, OPSD, GKD)이 ##개별 레시피로 단편화##되어 있고, "어떤 요소가 정말로 효과적인가"가 비교 불가능하게 산재되어 있다.</li>
+  <li><strong>해결</strong>: 세 가지 축 ##(공급 신뢰성, 표현 정렬, 학습 안정성)##으로 self-distillation을 분해하고, 각 축에 대응하는 5개 컴포넌트(Multi-Teacher Agreement / Token-Level Contrastive / Feature Matching / EMA Teacher / Divergence Clipping)를 통일된 loss로 결합한 UniSD를 제안.</li>
+  <li><strong>왜 작동하는가</strong>: 단일 self-teacher가 만드는 신호는 noisy/biased/unstable한데, 세 축이 각자 보완: agreement는 noise 필터, EMA는 temporal smoothing, contrastive는 token discrimination, feature matching은 representation regularizer, clipping은 outlier gradient 차단. ##5개를 합친 UniSD*가 모든 단일 컴포넌트를 초과한다##.</li>
+  <li><strong>비유</strong>: 혼자 공부하는 학생이 (1) 여러 시점의 자기 답을 교차검증하고, (2) 며칠 전 안정된 자신을 멘토로 삼고, (3) 잘된 토큰과 잘못된 토큰을 대조하고, (4) 답의 의미 구조를 정렬하고, (5) 너무 튀는 자기 의견은 무시하는 5중 자기훈련.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Self-distillation의 3-axis taxonomy</strong>: 기존 SD 방법들을 ##supervision reliability, representation alignment, training stability##라는 직교 축으로 정리. 각 방법이 어떤 축에서 작동하는지를 명시.</li>
+  <li><strong>5-component unified framework</strong>: Multi-Teacher Agreement, Token-Level Contrastive Learning, Feature Matching, EMA Teacher, Divergence Clipping — 5개 컴포넌트를 단일 loss로 결합. UniSD*는 이 5개를 모두 활성화한 full configuration.</li>
+  <li><strong>광범위한 실증 검증</strong>: ##6개 벤치마크 (ScienceQA, MBPP, CoS-E, ToolAlpaca, GPQA, HumanEval) × 6개 모델 (Qwen2.5 0.5/1.5/3/7B, Llama-3.1-8B, Gemma-3-4B)##로 18개 model-dataset pair에서 평가. UniSD*는 15개에서 raw 모델을 개선, 2개 tie, 1개 OOD에서만 회귀.</li>
+  <li><strong>Distributional retention 분석</strong>: SFT가 base 분포를 ##망가뜨리는 catastrophic drift (retention PPL 1.14 → 1.68)##를 측정하고, UniSD가 이를 1.09–1.13으로 유지함을 보임. EMA가 retention 보존에 가장 큰 기여 (-33.9%).</li>
+  <li><strong>Auxiliary context construction trade-off</strong>: Retrieval / Random / Induction 3가지 보조 컨텍스트 생성 전략의 task-specific 효과를 분석. 더 많은 context (K↑)가 항상 좋은 게 아니라 ##non-monotonic##임을 sensitivity analysis로 입증.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Self-Distillation의 동기</h3>
+<p>Knowledge Distillation(KD)은 강한 teacher의 지식을 약한 student로 전이한다. ##Self-Distillation(SD)은 외부 teacher 없이 자기 자신(또는 자신의 변종)을 teacher로 사용##하는 변형이다. SD가 매력적인 경우:</p>
+<ul>
+  <li>외부 teacher가 너무 비싸거나 inaccessible (proprietary API).</li>
+  <li>외부 teacher가 도메인에 적합하지 않음 (예: 의료 데이터로 fine-tune된 모델을 일반 teacher로 distill하면 의료 정보 손실).</li>
+  <li>Continual learning: 새 skill 습득 시 기존 capability 유지.</li>
+</ul>
+
+<h3>주요 선행 self-distillation 방법</h3>
+<ul>
+  <li><strong>SDFT (Self-Distillation Fine-Tuning)</strong>: base 모델이 demonstration을 자기 스타일로 rewrite한 뒤 그걸로 SFT.</li>
+  <li><strong>OPSD (On-Policy Self-Distillation)</strong>: student-generated trajectory에 self-teacher의 분포로 dense supervision.</li>
+  <li><strong>GKD (Generalized KD)</strong>: on-policy sampling + KL-style objective의 일반화.</li>
+  <li><strong>SDPO</strong>: 환경 피드백을 이용한 self-improvement.</li>
+</ul>
+<p>이들은 각자 effective하지만 ##비교 가능한 framework가 부재##. UniSD는 이들을 동일한 framework 안에서 분해/결합한다.</p>
+
+<h3>Self-Distillation의 3대 도전</h3>
+<ol>
+  <li><strong>Supervision reliability</strong>: 자기 자신이 teacher이므로 ##틀린 곳에서 자신감 있게 틀린다##. Noise가 student로 그대로 전달.</li>
+  <li><strong>Representation alignment</strong>: token-level distribution만 맞춰선 deeper feature가 어긋날 수 있음.</li>
+  <li><strong>Training stability</strong>: self-teacher가 학습 중에 같이 변하면 target이 움직이는 ##moving target 문제##.</li>
+</ol>
+
+<h2>방법 (Method): UniSD</h2>
+
+<h3>전체 Loss 구조 (Equation 1)</h3>
+<p>UniSD의 통합 objective:</p>
+<p>$$\mathcal{L} = \mathbb{E}_{x} \mathbb{E}_{y \sim \pi_\theta(\cdot|x)} \left[ \sum_{t} m_t \, w_t \, D\big(\pi_\theta(\cdot|x, \hat y_{<t}) \,\|\, \pi^*_T(\cdot|x, c^*, \hat y_{<t})\big) \right] + \lambda_{\text{aux}} \mathcal{L}_{\text{aux}} \quad (1)$$</p>
+<p>각 항의 의미:</p>
+<ul>
+  <li>$y \sim \pi_\theta$: ##student가 직접 생성한 sequence##에 대해 학습 (on-policy).</li>
+  <li>$m_t \in \{0, 1\}$: token mask (multi-teacher agreement에서 결정).</li>
+  <li>$w_t \in [0, 1]$: token weight (divergence clipping에서 결정).</li>
+  <li>$D$: divergence (forward/reverse KL or JSD).</li>
+  <li>$\pi^*_T$: teacher 분포. EMA teacher 또는 multi-teacher의 통합 분포.</li>
+  <li>$c^*$: auxiliary context (Retrieval / Random / Induction).</li>
+  <li>$\mathcal{L}_{\text{aux}}$: token-level contrastive + feature matching의 합.</li>
+</ul>
+<p>직관적으로 말하면, UniSD는 "각 token 위치에서, 어느 신호를 믿을지(m_t), 얼마나 강하게 따를지(w_t), 어떤 teacher 버전을 따를지($\pi^*_T$), 그리고 representation 차원에서 어떤 부가 정렬을 가할지($\mathcal{L}_{aux}$)"를 모두 한 식에 결합한다.</p>
+
+<h3>Component 1: Multi-Teacher Agreement (Reliability Axis)</h3>
+<p><strong>아이디어</strong>: 같은 prompt에 대해 K개의 보조 context $c_1, ..., c_K$를 만들어 self-teacher에 각각 forward pass → K개의 분포를 얻음. ##K개 분포가 일치하는 위치만 신뢰##하고 그렇지 않은 위치는 mask out.</p>
+<p>Token-level agreement: token $t$에서 모든 K개 분포의 top-1 prediction이 일치 → $m_t = 1$, 아니면 0.<br>
+Sequence-level agreement: 전체 sequence에 대해 일치 비율이 threshold $\gamma$ 이상 → 전체 sequence를 keep, 아니면 drop.</p>
+<p><strong>Auxiliary context 생성 전략</strong>:</p>
+<ul>
+  <li><strong>Retrieval</strong>: corpus에서 nearest neighbor 예시들.</li>
+  <li><strong>Random</strong>: 무작위 예시 (diversity 확보).</li>
+  <li><strong>Induction</strong>: instruction induction (Honovich 2023)로 task description을 생성.</li>
+</ul>
+
+<h3>Component 2: EMA Teacher (Stability Axis)</h3>
+<p>학습 step $n$에서 self-teacher의 weight를 EMA로 smoothing (Equation 3):</p>
+<p>$$\bar\theta_n = \beta \bar\theta_{n-1} + (1 - \beta) \theta_n \quad (3)$$</p>
+<p>$\bar\theta$를 teacher로 사용. 직관적으로 말하면, ##student의 "수일 전 자기"## (smoothly moving average)를 멘토로 삼아 moving-target 문제를 완화. $\beta \in [0.99, 0.999]$ 권장.</p>
+
+<h3>Component 3: Token-Level Contrastive Learning (Reliability Axis)</h3>
+<p>Auxiliary loss 형태로 margin-based contrastive (Equation 5):</p>
+<p>$$\mathcal{L}_{\text{aux,contrast}} = \sum_t m_t \max(0, \gamma_c + d_t^+ - d_t^-) \quad (5)$$</p>
+<p>여기서 $d_t^+$는 positive (현재 student 출력의 teacher와의 거리), $d_t^-$는 negative (잘못된 alternative와의 거리). ##잘된 token은 가깝게, 잘못된 token은 멀게##.</p>
+
+<h3>Component 4: Feature Matching (Alignment Axis)</h3>
+<p>Hidden state 정렬 (Equation 6):</p>
+<p>$$\mathcal{L}_{\text{feat}} = \sum_t m_t \| f_t^\theta - f_t^* \|_2^2 \quad (6)$$</p>
+<p>$f_t^\theta$는 student의 (특정 layer의) hidden representation, $f_t^*$는 teacher의 동일 위치 representation. Token-level distribution 외에 ##내부 표현##의 정렬을 직접 부과.</p>
+
+<h3>Component 5: Divergence Clipping (Stability Axis)</h3>
+<p>Weighted JSD with threshold $\kappa$ (Equation 9):</p>
+<p>$$\mathcal{L}_{\text{clip}} = \sum_t m_t \cdot w_t \cdot \text{JSD}\big(\pi_\theta(\cdot|x,\hat y_{<t}) \,\|\, \pi^*_T\big), \quad w_t = \min\left(1, \frac{\kappa}{\text{JSD}_t}\right) \quad (9)$$</p>
+<p>JSD가 threshold $\kappa$를 초과하는 token에서는 gradient 크기를 cap. ##대규모 distribution mismatch가 한 token에서 학습 전체를 흔드는 것을 방지##.</p>
+
+<h3>UniSD*: Full Configuration</h3>
+<p>모든 5개 컴포넌트를 동시 활성화. 전체 loss:</p>
+<p>$$\mathcal{L}_{\text{UniSD*}} = \mathcal{L}_{\text{clip(agreement, EMA)}} + \lambda_c \mathcal{L}_{\text{contrast}} + \lambda_f \mathcal{L}_{\text{feat}}$$</p>
+<p>where teacher distribution은 EMA teacher의 K-context 평균, agreement mask $m_t$ 적용, weight $w_t$로 clip.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 setup</h3>
+<ul>
+  <li><strong>벤치마크 (6개)</strong>: ScienceQA, MBPP, CoS-E, ToolAlpaca, GPQA, HumanEval. In-domain (ScienceQA, MBPP, CoS-E, ToolAlpaca) + OOD (GPQA, HumanEval).</li>
+  <li><strong>모델 (6개)</strong>: Qwen2.5-Instruct (0.5B / 1.5B / 3B / 7B), Llama-3.1-8B-Instruct, Gemma-3-4B-it.</li>
+  <li><strong>학습</strong>: LoRA fine-tuning이 주력, 일부 FFT 비교 포함.</li>
+  <li><strong>베이스라인</strong>: Raw (no training), SFT, SDFT, GKD, OPSD 등.</li>
+</ul>
+
+<h3>핵심 결과 (Table 1, Qwen2.5-7B 발췌)</h3>
+<p>실험 질문: "5개 컴포넌트를 모두 결합하면 단일 컴포넌트 / 기존 baseline을 능가하는가?"</p>
+<table>
+<thead><tr><th>Method</th><th>ScienceQA</th><th>MBPP</th><th>CoS-E</th><th>ToolAlpaca</th><th>GPQA</th><th>HumanEval</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Raw (Qwen2.5-7B)</td><td>83.1</td><td>73.4</td><td>78.6</td><td>72.0</td><td>33.8</td><td>72.6</td><td>67.9</td></tr>
+<tr><td>SFT</td><td>83.7</td><td>72.8</td><td>79.0</td><td>74.0</td><td>32.7</td><td>67.7</td><td>68.3</td></tr>
+<tr><td>SDFT</td><td>84.2</td><td>74.1</td><td>78.9</td><td>74.6</td><td>34.4</td><td>72.0</td><td>69.7</td></tr>
+<tr><td>GKD (best baseline)</td><td>84.6</td><td>74.8</td><td>79.5</td><td>75.0</td><td>35.4</td><td>73.5</td><td>70.5</td></tr>
+<tr><td>##UniSD*##</td><td>##85.2##</td><td>##77.9##</td><td>##80.1##</td><td>##77.9##</td><td>##36.8##</td><td>##82.2##</td><td>##73.3##</td></tr>
+</tbody>
+</table>
+<p><strong>이 결과가 뒷받침하는 주장</strong>: 5-component 통합이 ##단일 컴포넌트의 단순 합이 아니라 진짜 시너지##임을 입증. UniSD*가 Raw 대비 +5.4, GKD 대비 +2.8. 특히 HumanEval(OOD)에서 +9.6 (Raw 대비)는 ##distribution retention 효과##와 함께 OOD 성능 향상을 보여줌.</p>
+
+<h3>Component Effectiveness (Figure 5 middle)</h3>
+<p>실험 의도: 어떤 컴포넌트가 단독 효과가 가장 큰가?</p>
+<table>
+<thead><tr><th>Component</th><th>Gain over Base (%)</th></tr></thead>
+<tbody>
+<tr><td>Match (Feature Matching)</td><td>~3.7</td></tr>
+<tr><td>EMA Teacher</td><td>~4.5</td></tr>
+<tr><td>Agreement</td><td>~4.3</td></tr>
+<tr><td>Contrast</td><td>~4.0</td></tr>
+<tr><td>Clip</td><td>~2.5</td></tr>
+<tr><td><strong>UniSD* (all)</strong></td><td><strong>~5.4</strong></td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>: ##EMA와 Multi-Teacher Agreement가 가장 강한 단일 컴포넌트##. Clip은 단독 효과는 작지만 다른 컴포넌트와 결합 시 안정성을 제공. 전체 통합(UniSD*)이 가장 강한 개별 컴포넌트(EMA)를 능가하므로 ##5개가 직교적으로 보완##됨을 시사.</p>
+
+<h3>Effects of Agreement Strategies (Figure 4)</h3>
+<p>실험 의도: K (보조 context 수)와 $\gamma$ (agreement strength)의 sensitivity는?</p>
+<ul>
+  <li><strong>K의 non-monotonicity</strong>: ScienceQA의 sequence-level agreement에서 K=3, γ=0.01일 때 85.2 (peak). K=4, γ=0.01 GPQA peak. token-level은 K=7 ScienceQA peak. ##더 많은 context가 항상 좋은 것은 아니다##.</li>
+  <li><strong>γ의 stability–adaptivity trade-off</strong>: 작은 γ → 약한 disagreement penalty, context별 변동성 증가 (ScienceQA에서 K에 따라 ±2.20 변동). γ=1.0 → 강한 filter, 변동 ±0.85로 평탄화. <strong>"flexibility vs robustness"</strong>의 명시적 trade-off.</li>
+  <li><strong>Auxiliary context type</strong>: token-level agreement 하에서 retrieval-based가 ScienceQA(85.2)/GPQA(36.2)/HumanEval(83.5)에서 최강. 그러나 ToolAlpaca 같은 ##format-sensitive task에서는 induced context (77.9)##가 더 적합. nearest neighbor가 surface form은 같고 implementation detail이 달라 cross-context agreement의 이득을 깎아먹는 경우 발생.</li>
+</ul>
+
+<h3>Agreement Granularity 비교</h3>
+<p>실험 의도: token-level vs sequence-level agreement가 어떤 trade-off를 가지는가?</p>
+<p>Token-level: ##local 신뢰성## 평가 — completion의 일부만 teacher들이 일치해도 그 부분은 유지. → peak performance가 더 높음.<br>
+Sequence-level: ##전체 sequence 단위##로 reliability 부여 — teacher들의 reasoning path가 다르면 sequence 전체가 drop. → peak는 낮지만 retrieved-context 설정에서 overall score가 약간 더 안정.</p>
+
+<h3>Generalization Across Models (Figure 7)</h3>
+<p>실험 의도: UniSD*가 단일 모델 family에 특화된 것인가?</p>
+<p>Qwen2.5 family +5.4, Llama-3.1 family +3.1, Gemma-3 family +2.2의 Raw 대비 개선. ##18 model-dataset pair 중 15개에서 raw 능가, 2 tie, 1 회귀(OOD 1건)##. GKD를 모든 family의 overall score에서 능가. CoS-E에서 gain이 작은 이유는 instruction-tuned 모델이 이미 commonsense를 잘 인코딩해 추가 여지가 적기 때문 — 분석이 ##negative result도 explainable## 형태로 제시됨.</p>
+
+<h3>Completion Likelihood & Distribution Retention (Table 2)</h3>
+<p>실험 의도: task accuracy 외에 ##모델 분포가 어떻게 변형되는가##?</p>
+<ul>
+  <li><strong>Gold-completion fit (PPL_fit)</strong>: Qwen2.5-7B Raw 20.74 → SFT 7.56 → Agreement(Token-Random) ##5.43##, Contrast 4.93, Match 6.04. Gemma-3-4B Raw 47.07 → SFT 18.55 → Agreement 10.95. ##self-distillation이 reference-completion likelihood 대폭 향상##.</li>
+  <li><strong>Distribution retention (PPL_ret, Table 5)</strong>: Qwen2.5-7B에서 SFT가 ##base PPL을 1.14 → 1.68로 망가뜨림## (catastrophic drift). EMA teacher는 retention PPL을 SFT 대비 -33.9% 감소. UniSD 변형들이 1.09–1.13 유지 → ##base 분포 보존성 우수##.</li>
+  <li><strong>Token-level JSD to Base (Figure 6)</strong>: UniSD* JSD 0.041 vs SFT 0.054. 70.3% example에서 UniSD*의 JSD가 SFT보다 낮음. 단순히 정확도만 높이는 게 아니라 ##base 모델이 plausible하다고 보는 출력##을 생성.</li>
+</ul>
+
+<h3>Training Efficiency (Appendix B.1)</h3>
+<ul>
+  <li>Sequence-level agreement on Qwen2.5-7B: 약 100분/epoch (SFT는 18.6분). Agreement는 multi-context teacher scoring 때문에 가장 비싼 컴포넌트.</li>
+  <li>설계 trade-off: clipping/feature matching은 가벼움, agreement는 무거움. ##future work: 신호 noise level에 따라 비용을 adaptive 할당##.</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>5-component 결합의 hyper-parameter 폭증</strong>: $\beta$ (EMA), $\gamma_c$ (contrast margin), $\kappa$ (JSD clip threshold), $\lambda_c, \lambda_f$ (aux weights), K (#auxiliary context), $\gamma$ (agreement strength)까지 합치면 6+개 hyper-parameter. UniSD*가 task별로 ##진짜 unified##인지, 아니면 task별로 다른 sweet spot을 fine-tune한 결과인지 불명확.</li>
+  <li><strong>Agreement의 cost intensity</strong>: K-fold forward pass는 sample당 K배 cost. 7B 모델에서 SFT 대비 5.4× wall-clock. ##production 비용 측면에서 가성비 의문##.</li>
+  <li><strong>OOD에서의 회귀</strong>: 18 pair 중 1개에서 raw보다 나빠짐. 어떤 조건에서 OOD harm이 발생하는지 분석이 더 필요 (CoS-E에서 commonsense overwrite 가능성?).</li>
+  <li><strong>Feature matching의 layer 선택</strong>: 어느 layer의 hidden state를 매칭할지에 따라 효과가 크게 달라질 수 있음. 논문은 default choice만 보고 ablation 미흡.</li>
+  <li><strong>비교 baseline의 동일 compute 가정</strong>: GKD가 1 forward pass per step, UniSD*가 K+ forward → ##fair comparison에서는 GKD에 더 많은 step을 허용해야 할 수도##.</li>
+  <li><strong>3-axis taxonomy의 임의성</strong>: reliability / alignment / stability가 직교 axis라는 주장은 conceptual하지만 mathematical하게 입증되지 않음. 다른 분류 (e.g., signal vs noise)도 가능할 것.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"하나의 컴포넌트가 SD를 정의하지 않는다"</strong>: SDFT나 GKD가 강조한 단일 idea보다, ##세 축을 동시에 다루는 통합이 약 +2.8 단위로 더 효과적##임을 정량적으로 입증.</li>
+  <li><strong>EMA teacher의 회복력</strong>: 단일 가장 강한 컴포넌트. 외부 teacher가 없거나 비용이 부담되는 환경에서 ##구현 5줄로 +4.5 gain##을 얻는 가성비 옵션.</li>
+  <li><strong>Agreement granularity가 task-specific</strong>: format-sensitive task → induced context + sequence-level, reasoning-heavy → retrieved + token-level. 실무 적용 시 task type을 먼저 분류할 것.</li>
+  <li><strong>Distribution retention이 명시적 평가 차원이 되어야</strong>: accuracy만 보면 SFT도 좋아 보이지만 base 분포가 1.14→1.68로 망가지는 retention 손실은 OOD/downstream에 치명적. UniSD가 명시적으로 이를 측정한 점이 frame-shifting.</li>
+  <li><strong>외부 teacher가 없는 시대를 위한 baseline</strong>: 점점 더 많은 도메인에서 적절한 teacher가 없음 (의료, 법률, proprietary domain). UniSD는 ##self-supervised post-training##의 reusable backbone으로 작동.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

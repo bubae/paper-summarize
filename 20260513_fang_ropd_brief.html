@@ -1,0 +1,580 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROPD 개요 브리핑 — Rubric으로 가르치는 LLM 증류</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #ff6e7f 0%, #bfe9ff 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.95; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #d23a55; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #d23a55; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #fff5f5 0%, #f0f9ff 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #ffd8d8; box-shadow: 0 4px 18px rgba(210,58,85,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #c5304a; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #d23a55; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #d23a55; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #d23a55; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #f8f9fa 0%, #ffe6ec 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #ffd0d8; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #c5304a; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #d23a55; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #fff5f7; }
+  .highlight-row { background: #ffe6ec !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #d23a55 0%, #ff6e7f 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(210,58,85,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #ffb4c1; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">NUS · USTC · Tencent</span>
+      <span class="badge">2026.05</span>
+      <span class="badge">On-policy Distillation</span>
+      <span class="badge">arXiv 2605.07396</span>
+    </div>
+    <h1>ROPD — "선생의 답을 베끼지 말고, 채점 기준을 배워라"</h1>
+    <p class="sub">Rubric으로 가르치는 흑상자(black-box) LLM 증류. 10배 적은 샘플, 6.3배 빠른 학습으로 LOPD를 능가.</p>
+    <a href="20260513_fang_ropd.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"Teacher가 출력한 토큰 시퀀스를 따라하지 말고, 그 답을 '채점 기준'(rubric)으로 추출한 다음, 학생의 답을 그 기준으로 채점한다 — 그게 ROPD다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>① 거대 모델은 점점 "닫혀(closed)" 간다</h3>
+    <p>GPT-5, Claude, Gemini 같은 최신 frontier 모델은 <strong>응답 텍스트만 받을 수 있고 내부 확률(logit)은 볼 수 없다</strong>. 그러나 기존 On-policy Distillation(OPD)의 표준은 teacher의 토큰별 확률 분포를 학생이 따라가도록 하는 방식이라, frontier teacher를 사용할 수 없었다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0" x2="1">
+            <stop offset="0" stop-color="#ff6e7f"/>
+            <stop offset="1" stop-color="#bfe9ff"/>
+          </linearGradient>
+        </defs>
+        <rect x="20" y="40" width="200" height="140" rx="12" fill="#fff5f5" stroke="#d23a55" stroke-width="2"/>
+        <text x="120" y="75" text-anchor="middle" font-size="16" font-weight="700" fill="#c5304a">GPT-5 / Claude</text>
+        <text x="120" y="100" text-anchor="middle" font-size="13" fill="#444">API teacher</text>
+        <text x="120" y="125" text-anchor="middle" font-size="12" fill="#666">텍스트만 출력</text>
+        <text x="120" y="145" text-anchor="middle" font-size="12" fill="#666">(logit 접근 ✗)</text>
+        <text x="120" y="170" font-size="26" text-anchor="middle">🔒</text>
+
+        <path d="M230 110 L300 110" stroke="#999" stroke-width="2" stroke-dasharray="5"/>
+        <text x="265" y="100" text-anchor="middle" font-size="12" fill="#999">LOPD</text>
+        <text x="265" y="130" text-anchor="middle" font-size="14" fill="#e74c3c" font-weight="700">✗ 불가능</text>
+
+        <rect x="320" y="40" width="200" height="140" rx="12" fill="#f0f9ff" stroke="#3498db" stroke-width="2"/>
+        <text x="420" y="75" text-anchor="middle" font-size="16" font-weight="700" fill="#2c7cb0">학생 모델</text>
+        <text x="420" y="100" text-anchor="middle" font-size="13" fill="#444">Qwen3-4B</text>
+        <text x="420" y="170" font-size="26" text-anchor="middle">📚</text>
+
+        <path d="M530 110 L640 110" stroke="#27ae60" stroke-width="3" marker-end="url(#arr)"/>
+        <text x="585" y="100" text-anchor="middle" font-size="12" fill="#27ae60">ROPD</text>
+        <text x="585" y="130" text-anchor="middle" font-size="14" fill="#27ae60" font-weight="700">✓ 가능</text>
+
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#27ae60"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ Black-box teacher는 LOPD를 막지만 ROPD는 텍스트만으로 작동.</div>
+    </div>
+
+    <h3>② Teacher의 토큰 확률이 정답성과 거의 무관하다</h3>
+    <p>저자들의 가장 놀라운 발견 중 하나: <strong>teacher의 토큰별 logit은 그 답이 옳은지 판별하는 능력이 거의 0</strong>이다. ROC 곡선의 AUC로 측정했을 때:</p>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">0.50</div>
+        <div class="stat-label">Teacher logit의 정답성 AUC<br>(랜덤 수준)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0.90</div>
+        <div class="stat-label">Rubric reward의 정답성 AUC<br>(매우 강한 신호)</div>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎯 비유</strong>: 선생님이 답을 적을 때 어떤 단어를 강하게 강조했는지(굵게 썼는지)는, 그 풀이가 옳은지와 거의 무관하다. 그건 그 선생님의 글쓰기 습관일 뿐. 진짜 정답성을 측정하려면 풀이의 <strong>구조</strong>를 봐야 한다 — "변수를 먼저 정의했는가", "단위 변환이 맞는가" 같은 기준을. Rubric은 바로 그 구조를 뽑아낸다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 5가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) 지식 증류 (Knowledge Distillation, KD)</h3>
+      <p>큰 선생 모델의 지식을 작은 학생 모델로 옮기는 기법. 1세대(Hinton, 2015)는 teacher의 출력 확률을 학생에게 흉내내게 하는 방식. <strong>정해진 데이터셋으로만 학습하므로 학생이 실전에서 만나는 자기 분포와 어긋나는 문제</strong>(exposure bias)가 있었다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) On-policy Distillation (OPD)</h3>
+      <p>학생이 <strong>자기 분포에서 직접 답안을 생성</strong>하고, 그 위에서 teacher가 어떻게 답했을지를 가르치는 방식. exposure bias를 해결. 그러나 기존 OPD(LOPD)는 teacher의 <strong>토큰별 확률(logit)</strong>을 그대로 학생에 정렬시킨다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) White-box vs Black-box</h3>
+      <p><strong>White-box</strong>: teacher의 내부(확률, 가중치)에 접근 가능. <strong>Black-box</strong>: 텍스트 응답만 받을 수 있음. GPT, Claude 같은 API 모델은 black-box. <strong>기존 LOPD는 white-box 가정</strong>, ROPD는 <strong>black-box 환경에서도 작동</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) Rubric (채점 기준표)</h3>
+      <p>학습 평가에서 쓰는 "이 답이 좋은지 판단하는 criterion 목록". 예: "최종 답이 박스 안에 명시되어 있는가?", "단위 변환이 올바른가?" ROPD는 이 일상적 개념을 <strong>LLM 학습 신호</strong>로 재정의한다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) GRPO (Group Relative Policy Optimization)</h3>
+      <p>한 문제에 대해 학생이 여러 답안(group)을 만들고, 그 group 안에서 <strong>상대적인 우수성</strong>을 reward로 계산해 학습. ROPD는 이 reward 자리에 "rubric 만족도"를 넣는다.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>핵심 아이디어: 두 단계 파이프라인</h2>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>Rubricator</h4>
+        <p>여러 명의 teacher 답안과 학생의 현재 답안을 <strong>대조</strong>하여, "이 문제를 잘 푼다는 건 무엇을 의미하는가?"를 <strong>rubric 항목 K개로 induce</strong>한다.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>Verifier</h4>
+        <p>학생의 답안만 보고(<strong>blind</strong>) rubric의 각 항목을 채점. 가중 통과율이 <strong>단일 reward 점수</strong>가 된다.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>GRPO 학습</h4>
+        <p>여러 학생 답안의 reward를 group 내에서 비교 → 더 높은 reward 답안의 확률이 올라가도록 <strong>정책 업데이트</strong>.</p>
+      </div>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg">
+        <!-- Input -->
+        <rect x="20" y="20" width="120" height="50" rx="8" fill="#f0f4ff" stroke="#3498db"/>
+        <text x="80" y="50" text-anchor="middle" font-size="13" font-weight="700">문제 q</text>
+
+        <!-- Teacher rollouts -->
+        <rect x="180" y="20" width="160" height="50" rx="8" fill="#fff5f5" stroke="#d23a55"/>
+        <text x="260" y="42" text-anchor="middle" font-size="12" font-weight="700">Teacher 답안 4개</text>
+        <text x="260" y="60" text-anchor="middle" font-size="10" fill="#777">t1, t2, t3, t4</text>
+
+        <!-- Student rollouts -->
+        <rect x="180" y="90" width="160" height="50" rx="8" fill="#f0f9ff" stroke="#3498db"/>
+        <text x="260" y="112" text-anchor="middle" font-size="12" font-weight="700">학생 답안 G개</text>
+        <text x="260" y="130" text-anchor="middle" font-size="10" fill="#777">s1, s2, ..., sG</text>
+
+        <path d="M140 45 L180 45" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+        <path d="M140 50 L180 115" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+
+        <!-- Rubricator -->
+        <rect x="380" y="50" width="160" height="60" rx="10" fill="#fff9c4" stroke="#fbc02d" stroke-width="2"/>
+        <text x="460" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#c97f00">Rubricator</text>
+        <text x="460" y="95" text-anchor="middle" font-size="11" fill="#7c5b00">teacher–student 대조</text>
+
+        <path d="M340 45 L380 70" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+        <path d="M340 115 L380 90" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+
+        <!-- Rubric -->
+        <rect x="580" y="40" width="200" height="80" rx="10" fill="#fff5f5" stroke="#d23a55" stroke-width="2"/>
+        <text x="680" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#c5304a">Rubric R = {(r_k, w_k)}</text>
+        <text x="680" y="78" text-anchor="middle" font-size="10" fill="#555">• 변수가 정의되었는가</text>
+        <text x="680" y="92" text-anchor="middle" font-size="10" fill="#555">• 중간 단계가 정당화되는가</text>
+        <text x="680" y="106" text-anchor="middle" font-size="10" fill="#555">• 답이 박스 안에 있는가 ...</text>
+
+        <path d="M540 80 L580 80" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+
+        <!-- Verifier -->
+        <rect x="380" y="180" width="160" height="60" rx="10" fill="#f0faf3" stroke="#27ae60" stroke-width="2"/>
+        <text x="460" y="205" text-anchor="middle" font-size="14" font-weight="700" fill="#1e8449">Verifier (blind)</text>
+        <text x="460" y="225" text-anchor="middle" font-size="11" fill="#1e8449">학생 답안만 채점</text>
+
+        <path d="M260 140 L260 200 L380 210" stroke="#999" stroke-width="2" fill="none" marker-end="url(#arrow1)"/>
+        <path d="M680 120 L680 210 L540 210" stroke="#999" stroke-width="2" fill="none" marker-end="url(#arrow1)"/>
+
+        <!-- Reward -->
+        <rect x="580" y="180" width="200" height="60" rx="10" fill="#fff5f5" stroke="#d23a55" stroke-width="2"/>
+        <text x="680" y="205" text-anchor="middle" font-size="13" font-weight="700" fill="#c5304a">s_i = Σ w_k v_ik / Σ w_k</text>
+        <text x="680" y="225" text-anchor="middle" font-size="11" fill="#666">가중 통과율</text>
+
+        <path d="M540 210 L580 210" stroke="#999" stroke-width="2" marker-end="url(#arrow1)"/>
+
+        <!-- GRPO -->
+        <rect x="280" y="290" width="240" height="50" rx="10" fill="#f0f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="400" y="312" text-anchor="middle" font-size="14" font-weight="700" fill="#2c7cb0">GRPO 정책 업데이트</text>
+        <text x="400" y="330" text-anchor="middle" font-size="11" fill="#555">A_i = (s_i − mean) / std</text>
+
+        <path d="M680 240 L680 315 L520 315" stroke="#999" stroke-width="2" fill="none" marker-end="url(#arrow1)"/>
+
+        <defs>
+          <marker id="arrow1" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#999"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ ROPD 전체 파이프라인. Rubricator가 채점 기준을 만들고, Verifier가 학생 답안만 보고 채점, GRPO로 학습.</div>
+    </div>
+
+    <h3>왜 학생 답안까지 Rubricator에 보여주는가?</h3>
+    <p>Teacher 답안만 보여주면 <strong>teacher의 풀이 스타일에 편향된 추상적 rubric</strong>만 나온다. 학생의 <strong>현재 실수</strong>와 teacher의 정답을 <strong>나란히 대조</strong>하면, "지금 학생이 부족한 지점"을 정확히 가리키는 criterion이 induce된다. 논문은 이 cross-rollout sharing이 <strong>+3.75점</strong>의 추가 효과가 있음을 검증.</p>
+
+    <div class="analogy">
+      <strong>📝 비유</strong>: 시험 답안지 채점 기준을 만들 때, "만점 답안"만 보고 만든 기준은 추상적이다. 반면 만점 답안과 "학생들이 흔히 틀린 답"을 함께 비교하면 "어느 단계에서 가장 많이 실수하는지" 보이는 <strong>실용적 기준</strong>이 나온다.
+    </div>
+
+    <h3>왜 Verifier는 학생 신원을 가리는가? (Blind scoring)</h3>
+    <p>Verifier가 "이건 teacher의 답이다"라고 알게 되면 <strong>내용 무관하게 좋게 점수를 준다</strong>. Identity를 가리면 그 bias가 사라진다. 단, <strong>teacher 답안 자체는 비교 풀(pool)에 남겨두는 게 중요</strong> — 그래야 verifier가 난이도 anchor를 가진다. 이 디자인이 +3.25점.</p>
+
+    <div class="analogy">
+      <strong>🎓 비유</strong>: 대학 입학 시험에서 채점관이 지원자의 학교를 알면 점수가 편향된다 (실제 연구가 있다). 그래서 <strong>응시번호만 보고 채점</strong>한다. 그러나 채점 기준 자체는 명문 학교의 모범답안에서 도출됐을 수 있다 — 그 사실은 채점에 도움이 된다.
+    </div>
+
+    <h3>왜 여러 명의 Teacher가 필수인가?</h3>
+    <p>Teacher 한 명만 쓰면(m=1) rubric이 그 한 답안의 풀이 경로에 <strong>over-anchor</strong>된다. 학생이 다른 좋은 풀이 경로를 시도해도 점수를 못 받는다. m=4로 바꾸면 다양한 풀이 경로를 <strong>generalizable criterion</strong>으로 추상화할 수 있다. 이 차이가 <strong>17.9점</strong>(가장 큰 효과)이다.</p>
+
+    <div class="analogy">
+      <strong>👥 비유</strong>: 수학 문제의 "좋은 풀이"는 한 가지가 아니다. 4명의 수학자에게 풀라고 하면 4가지 접근이 나올 수 있다. 그 4개에서 <strong>공통적으로 만족되는 원리</strong>(예: "변수를 정의했는가")만 rubric으로 남기면, 학생은 자기만의 풀이 경로로도 그 원리를 만족시킬 수 있다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">+15.4</div>
+        <div class="stat-label">AIME24 정확도<br>(ROPD vs LOPD, Qwen3-4B)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">~10×</div>
+        <div class="stat-label">샘플 효율<br>(동일 성능 도달까지)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">~6.3×</div>
+        <div class="stat-label">학습 wall-clock<br>속도</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+40.85</div>
+        <div class="stat-label">AIME24 base 대비<br>Full ROPD 개선폭</div>
+      </div>
+    </div>
+
+    <h3>벤치마크 별 성능 (Qwen3-4B 학생, non-thinking)</h3>
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>GPQA-D</th><th>IFEval</th></tr></thead>
+      <tbody>
+        <tr><td>Base (학습 전)</td><td>24.17</td><td>17.81</td><td>11.46</td><td>40.05</td><td>72.6</td></tr>
+        <tr><td>LOPD (기존)</td><td>47.92</td><td>38.13</td><td>23.96</td><td>49.49</td><td>74.1</td></tr>
+        <tr class="highlight-row"><td>ROPD (제안)</td><td>63.33</td><td>52.50</td><td>37.50</td><td>52.53</td><td>76.3</td></tr>
+      </tbody>
+    </table>
+    <p>모든 벤치마크에서 LOPD보다 우수. 특히 <strong>추론이 깊을수록 격차가 커진다</strong> — AIME 같은 hard math에서 +15점 차.</p>
+
+    <h3>왜 빨리 학습되는가 (Figure 3 시각화)</h3>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+        <!-- Axes -->
+        <line x1="60" y1="240" x2="650" y2="240" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="40" x2="60" y2="240" stroke="#333" stroke-width="2"/>
+
+        <!-- Labels -->
+        <text x="350" y="270" text-anchor="middle" font-size="13" fill="#444">학습 step</text>
+        <text x="25" y="140" text-anchor="middle" font-size="13" fill="#444" transform="rotate(-90 25 140)">AIME24 정확도</text>
+
+        <!-- x-axis ticks -->
+        <text x="60" y="258" text-anchor="middle" font-size="11" fill="#666">0</text>
+        <text x="180" y="258" text-anchor="middle" font-size="11" fill="#666">500</text>
+        <text x="300" y="258" text-anchor="middle" font-size="11" fill="#666">1k</text>
+        <text x="420" y="258" text-anchor="middle" font-size="11" fill="#666">2k</text>
+        <text x="540" y="258" text-anchor="middle" font-size="11" fill="#666">3k</text>
+        <text x="640" y="258" text-anchor="middle" font-size="11" fill="#666">5k</text>
+
+        <!-- y-axis ticks -->
+        <text x="50" y="245" text-anchor="end" font-size="11" fill="#666">24</text>
+        <text x="50" y="170" text-anchor="end" font-size="11" fill="#666">47</text>
+        <text x="50" y="100" text-anchor="end" font-size="11" fill="#666">63</text>
+
+        <!-- LOPD curve (slow) -->
+        <path d="M60,235 Q180,225 300,210 Q420,195 540,180 Q600,175 640,170" stroke="#3498db" stroke-width="3" fill="none"/>
+        <text x="640" y="160" font-size="12" fill="#3498db" font-weight="700">LOPD</text>
+
+        <!-- ROPD curve (fast) -->
+        <path d="M60,235 Q120,200 180,170 Q280,130 380,120 Q500,110 640,100" stroke="#d23a55" stroke-width="3" fill="none"/>
+        <text x="640" y="92" font-size="12" fill="#d23a55" font-weight="700">ROPD</text>
+
+        <!-- Annotation arrow -->
+        <line x1="180" y1="170" x2="180" y2="170" stroke="#000" stroke-width="1"/>
+        <circle cx="180" cy="170" r="5" fill="#d23a55"/>
+        <circle cx="640" cy="170" r="5" fill="#3498db"/>
+        <line x1="180" y1="170" x2="640" y2="170" stroke="#fbc02d" stroke-width="2" stroke-dasharray="4"/>
+        <text x="410" y="158" text-anchor="middle" font-size="12" fill="#c97f00" font-weight="700">동일 47점 도달: ROPD 500step vs LOPD 5000step ⇒ ~10×</text>
+      </svg>
+      <div class="svg-caption">▲ ROPD는 같은 성능에 도달하는 데 ~10배 적은 step. Rubric 신호가 토큰 logit보다 단위 sample당 정보량이 크기 때문.</div>
+    </div>
+
+    <h3>Cross-Architecture: 다른 아키텍처 학생에도 작동</h3>
+    <p>Qwen3-32B teacher → Gemma3-4B 학생 (tokenizer가 달라 LOPD <strong>원천 불가</strong>) 조합에서, ROPD는 AIME24를 <strong>+27.3점</strong> 개선. <strong>LOPD로는 시도조차 못 하는 영역에서 ROPD는 자연스럽게 작동</strong>한다.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>가장 중요한 발견: "Mimicry vs Correctness"</h2>
+
+    <p>저자들은 LOPD가 학생을 어떻게 <strong>teacher의 그림자</strong>로 만드는지를 시각화했다. 학습 checkpoint마다 학생 출력과 teacher 출력의 상위 24개 토큰 분포 일치도(top-24 overlap)를 측정:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+        <line x1="60" y1="240" x2="650" y2="240" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="40" x2="60" y2="240" stroke="#333" stroke-width="2"/>
+
+        <text x="350" y="270" text-anchor="middle" font-size="13" fill="#444">학습 checkpoint</text>
+        <text x="25" y="140" text-anchor="middle" font-size="13" fill="#444" transform="rotate(-90 25 140)">Teacher와의 토큰 분포 일치도</text>
+
+        <!-- LOPD: monotonic increase -->
+        <path d="M60,210 Q150,180 250,150 Q350,125 450,100 Q550,80 640,70" stroke="#3498db" stroke-width="3" fill="none"/>
+        <text x="640" y="62" font-size="12" fill="#3498db" font-weight="700">LOPD (계속 흉내)</text>
+
+        <!-- ROPD: rapid plateau -->
+        <path d="M60,210 Q90,150 130,130 Q200,128 300,130 Q450,135 640,140" stroke="#d23a55" stroke-width="3" fill="none"/>
+        <text x="640" y="155" font-size="12" fill="#d23a55" font-weight="700">ROPD (포화 후 plateau)</text>
+
+        <text x="350" y="50" text-anchor="middle" font-size="13" fill="#c5304a" font-weight="700">ROPD는 빨리 stylistic mimicry를 멈추고 reasoning correctness로 pivot</text>
+
+        <line x1="130" y1="130" x2="130" y2="240" stroke="#fbc02d" stroke-width="1" stroke-dasharray="3"/>
+        <text x="130" y="252" text-anchor="middle" font-size="11" fill="#c97f00">~50 step</text>
+      </svg>
+      <div class="svg-caption">▲ LOPD는 학습 내내 teacher 스타일을 계속 모사(monotonic). ROPD는 약 50 step 만에 mimicry를 멈추고 정답 자체로 학습 방향을 전환.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎨 비유</strong>: 그림을 잘 그리는 법을 배우는 두 학생이 있다. <br>
+      <strong>학생 A (LOPD)</strong>: 선생의 그림을 한 획 한 획 정확히 베낀다. 점점 선생과 똑같이 그리게 된다. 그러나 새로운 주제를 그리라고 하면 선생의 스타일에 갇혀있다.<br>
+      <strong>학생 B (ROPD)</strong>: 선생의 그림에서 "구도 균형", "명암 대비", "원근법" 같은 원리를 추출한다. 자기만의 스타일로 그리지만 그 원리는 모두 만족한다. 새 주제에도 그 원리를 적용할 수 있다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 디자인 결정 (Ablation)</h2>
+
+    <p>"ROPD의 어떤 요소가 진짜 효과적인가?"를 분리한 실험:</p>
+
+    <table class="comp-table">
+      <thead><tr><th>요소</th><th>AIME24</th><th>Base 대비 개선</th></tr></thead>
+      <tbody>
+        <tr><td>Base (학습 전)</td><td>24.17</td><td>—</td></tr>
+        <tr><td>Teacher 1명만 사용 (m=1)</td><td>47.08</td><td>+22.91</td></tr>
+        <tr><td>per-pair rubric (sharing 없음)</td><td>61.25</td><td>+37.08</td></tr>
+        <tr><td>학생 신원 공개 (blind scoring 없음)</td><td>61.75</td><td>+37.58</td></tr>
+        <tr class="highlight-row"><td><strong>Full ROPD (모든 디자인 활성화)</strong></td><td><strong>65.02</strong></td><td><strong>+40.85</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>3가지 디자인의 기여</strong>:</p>
+    <ul>
+      <li>① <strong>Multi-teacher (m=4)</strong>: +17.9점 — 가장 큰 단일 driver. Rubric을 generalizable하게 만든다.</li>
+      <li>② <strong>Cross-rollout sharing</strong>: +3.75점 — group level의 reasoning gap을 포착.</li>
+      <li>③ <strong>Blind scoring</strong>: +3.25점 — identity bias를 차단.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>기존 방법과의 비교</h2>
+
+    <table class="comp-table">
+      <thead><tr><th>차원</th><th>LOPD (기존)</th><th>ROPD (제안)</th></tr></thead>
+      <tbody>
+        <tr><td>Teacher 종류</td><td>White-box (logit 필요)</td><td>Black-box (텍스트만)</td></tr>
+        <tr><td>Vocabulary 호환</td><td>같은 tokenizer 필수</td><td>제한 없음 (cross-arch 가능)</td></tr>
+        <tr><td>신호 종류</td><td>토큰별 분포</td><td>구조화된 채점 기준</td></tr>
+        <tr><td>정답성 상관 AUC</td><td>0.50 (랜덤)</td><td><strong>0.90</strong></td></tr>
+        <tr><td>Stylistic mimicry</td><td>monotonic 증가</td><td>~50 step 후 plateau</td></tr>
+        <tr><td>샘플 효율</td><td>기준</td><td><strong>~10×</strong></td></tr>
+        <tr><td>학습 시간</td><td>기준</td><td><strong>~6.3×</strong></td></tr>
+        <tr><td>AIME24 성능 (Qwen3-4B)</td><td>47.92</td><td><strong>63.33</strong></td></tr>
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>실용적 활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+        <!-- Center -->
+        <circle cx="350" cy="180" r="60" fill="#d23a55"/>
+        <text x="350" y="175" text-anchor="middle" font-size="14" font-weight="700" fill="white">ROPD</text>
+        <text x="350" y="195" text-anchor="middle" font-size="11" fill="white">Rubric-based OPD</text>
+
+        <!-- Branches -->
+        <line x1="350" y1="120" x2="200" y2="60" stroke="#999" stroke-width="2"/>
+        <rect x="80" y="30" width="180" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="170" y="55" text-anchor="middle" font-size="12" font-weight="700">Frontier API 증류</text>
+        <text x="170" y="75" text-anchor="middle" font-size="10" fill="#555">GPT-5 → 작은 학생</text>
+
+        <line x1="350" y1="120" x2="500" y2="60" stroke="#999" stroke-width="2"/>
+        <rect x="440" y="30" width="180" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="530" y="55" text-anchor="middle" font-size="12" font-weight="700">Cross-architecture</text>
+        <text x="530" y="75" text-anchor="middle" font-size="10" fill="#555">다른 vocabulary 모델 간</text>
+
+        <line x1="290" y1="180" x2="170" y2="180" stroke="#999" stroke-width="2"/>
+        <rect x="20" y="150" width="160" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="100" y="175" text-anchor="middle" font-size="12" font-weight="700">의료/법률 도메인</text>
+        <text x="100" y="195" text-anchor="middle" font-size="10" fill="#555">검증 가능 기준 명확</text>
+
+        <line x1="410" y1="180" x2="540" y2="180" stroke="#999" stroke-width="2"/>
+        <rect x="540" y="150" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="620" y="175" text-anchor="middle" font-size="12" font-weight="700">수학/과학 reasoning</text>
+        <text x="620" y="195" text-anchor="middle" font-size="10" fill="#555">단계별 평가 적합</text>
+
+        <line x1="350" y1="240" x2="200" y2="310" stroke="#999" stroke-width="2"/>
+        <rect x="80" y="280" width="180" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="170" y="305" text-anchor="middle" font-size="12" font-weight="700">제한된 컴퓨팅 환경</text>
+        <text x="170" y="325" text-anchor="middle" font-size="10" fill="#555">10× 적은 sample로 충분</text>
+
+        <line x1="350" y1="240" x2="500" y2="310" stroke="#999" stroke-width="2"/>
+        <rect x="440" y="280" width="180" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="530" y="305" text-anchor="middle" font-size="12" font-weight="700">Interpretable distillation</text>
+        <text x="530" y="325" text-anchor="middle" font-size="10" fill="#555">rubric으로 학습 과정 투명</text>
+      </svg>
+      <div class="svg-caption">▲ ROPD의 활용 가능 도메인 마인드맵.</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한계점 (저자가 인정한 부분과 비판적 시각)</h2>
+
+    <div class="card card-orange">
+      <h3>① 평가가 formal reasoning에 편중</h3>
+      <p>수학, 과학, 의학처럼 <strong>기준이 명확한 도메인</strong>에서만 검증. 창의적/주관적 task (창작, 토론 작성)에서 rubric이 잘 작동할지는 미검증.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Rubricator/Verifier 자체에 좋은 모델이 필요</h3>
+      <p>Rubric을 생성하고 채점하는 컴포넌트가 <strong>instruction-following을 잘하는 별도 모델</strong>을 가정. 약한 base 모델이 Rubricator일 경우 rubric 품질이 떨어져 <strong>순환 의존성</strong>이 발생할 수 있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Verifier 호출 비용</h3>
+      <p>각 학생 답안마다 K개 항목 채점 → API 호출량 증가. <strong>rubric API가 거의 무료여야 6.3× wall-clock 이득이 성립</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Rubric exploitation</h3>
+      <p>초반 학습에서 <strong>약 2% rollout이 keyword stuffing 같은 트릭</strong>으로 rubric만 만족시키는 사례 관찰. Verifier에 explicit correctness check를 넣으면 self-correct되지만, production에선 더 강력한 anti-gaming이 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ 강한 teacher에 묶인 일반화</h3>
+      <p>GPT-5.2 teacher의 응답이 너무 깨끗해서 ROPD가 잘 작동했을 가능성. 약한 teacher (예: 7B class)로도 같은 효과가 나오는지는 <strong>추가 검증 필요</strong>.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Teacher의 logit은 noise(AUC 0.50), Rubric은 signal(AUC 0.90).<br>
+        <strong>ROPD는 frontier 모델을 black-box로 증류하는 새 표준이 될 가능성이 크다.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"신호의 dense함이 곧 quality는 아니다"</strong>: 토큰별 logit은 매 토큰마다 신호를 주지만 그중 진짜 정답성 신호는 거의 없다. <strong>정답성과 상관된 거친 신호</strong>가 dense한 noise보다 낫다.</li>
+      <li><strong>"Teacher의 어떻게(how)를 가르치지 말고 무엇(what)을 가르쳐라"</strong>: 토큰 분포는 "어떻게 답했는가", rubric은 "어떤 조건이 만족되어야 옳은가". 후자가 <strong>학생의 자율성을 살리면서 정답성을 끌어올린다</strong>.</li>
+      <li><strong>"Black-box 환경은 한계가 아니라 더 좋은 inductive bias의 기회"</strong>: logit을 못 보는 것이 ROPD를 가능하게 했다. 제약이 디자인을 강제한 좋은 사례.</li>
+    </ul>
+
+    <a href="20260513_fang_ropd.html" class="nav-link" style="background: #d23a55; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>ROPD: Rubric-based On-policy Distillation</strong></p>
+    <p>Junfeng Fang et al. · arXiv 2605.07396 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260513_fang_ropd.html">전문가용 보기</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROPD: Rubric-based On-policy Distillation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>ROPD: Rubric-based On-policy Distillation</h1>
+
+<a href="20260513_fang_ropd_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Junfeng Fang (NUS), Zhepei Hong (USTC), Mao Zheng (Tencent), Mingyang Song (Tencent), Linfeng Song (Tencent) 외</li>
+  <li><strong>소속</strong>: National University of Singapore, USTC, Tencent</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (under review)</li>
+  <li><strong>연도</strong>: 2026 (May)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.07396">arXiv:2605.07396</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-policy Distillation (OPD)의 주류 방법은 teacher의 token-level logit을 student에 직접 정렬시키는데, ##이는 proprietary teacher(GPT-5 등)나 다른 vocabulary를 가진 모델에는 적용 불가하며, logit 자체가 정답성과의 상관(AUC 0.50)이 거의 없음에도 student를 끌어당기는 noise##다.</li>
+  <li><strong>해결</strong>: ROPD는 (1) Rubricator가 teacher와 student rollout 간 차이를 보고 prompt-specific rubric을 생성하고, (2) Verifier가 student rollout만 보고 blind scoring을 수행하여 가중 통과율을 GRPO reward로 사용한다. <strong>Teacher를 mirror가 아닌 springboard로 사용</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: rubric reward는 정답성과 AUC 0.90으로 강한 상관을 가지는 반면 token logit은 AUC 0.50. logit이 갖는 stylistic noise를 buffer로 거르고 "왜 옳은가"의 semantic principle만 전달한다.</li>
+  <li><strong>비유</strong>: 선생의 답안을 글자 한 자 한 자 베끼는(LOPD) 대신, 선생의 답안에서 채점 기준(rubric)을 뽑아내 그 기준으로 학생의 풀이를 채점한다. 학생은 자기 풀이 스타일을 유지하면서 "옳은 풀이가 되기 위한 조건"을 학습한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Black-box OPD 패러다임 제시</strong>: teacher logit 접근이 필요 없는 최초의 rubric 기반 OPD 프레임워크. ##proprietary API teacher와 cross-architecture distillation을 모두 지원##한다.</li>
+  <li><strong>두-단계 파이프라인 (Rubricator + Verifier)</strong>: teacher–student contrast로 prompt-specific rubric을 induce하고, blind scoring으로 reward를 계산. Reward는 GRPO advantage로 곧바로 사용된다.</li>
+  <li><strong>Logit-as-misaligned-proxy 분석</strong>: teacher logit이 student의 정답성과 거의 무관함(AUC 0.50)을 ROC 분석으로 정량화. 반면 rubric reward는 AUC 0.90으로 ##진짜 정답성을 측정하는 신호##임을 보임.</li>
+  <li><strong>샘플/시간 효율성</strong>: 동일 성능을 ##LOPD 대비 ~10배 적은 sample, ~6.3배 빠른 wall-clock##으로 달성. AIME24에서 비-thinking 모드 기준 ROPD 63.33 vs LOPD 47.92 (Qwen3-4B).</li>
+  <li><strong>Stylistic mimicry 회피</strong>: per-checkpoint top-24 token overlap 분석으로 LOPD가 teacher 스타일을 지속적으로 모사하는 반면 ROPD는 초반에 빠르게 saturate한 뒤 정답성으로 전환함을 시각화.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>On-policy Distillation의 표준 정식화</h3>
+<p>고전 KD (Hinton 2015)는 fixed dataset에서 teacher의 soft target과 student logit의 KL을 최소화한다. 이는 <em>off-policy</em>이므로 inference 시점의 student trajectory와 training trajectory가 다른 <strong>exposure bias</strong>가 발생한다. On-policy Distillation은 이를 해결하기 위해 ##student가 직접 생성한 sequence 위에서 teacher의 토큰 분포를 따라가도록 KL을 minimize한다##:</p>
+<p>$$\mathcal{L}_{\text{LOPD}} = \mathbb{E}_{y \sim \pi_\theta(\cdot|x)} \sum_{t} \text{KL}\big(\pi_\theta(\cdot | x, y_{<t}) \,\|\, \pi_T(\cdot | x, y_{<t})\big)$$</p>
+<p>직관적으로 말하면, student가 자기 분포에서 sampling한 sequence의 각 토큰 위치에서, "이 위치에서 teacher라면 어떤 분포를 두었을까?"를 학습한다.</p>
+
+<h3>LOPD의 세 가지 한계</h3>
+<ul>
+  <li><strong>White-box 요구</strong>: teacher의 token-level logit이 필요. GPT-5나 Claude 같은 API teacher에는 사용 불가.</li>
+  <li><strong>Vocabulary 정렬 가정</strong>: teacher와 student가 같은 tokenizer를 써야 함. Cross-architecture distillation 불가.</li>
+  <li><strong>Logit-correctness misalignment</strong>: 후술하듯, 토큰별 teacher logit은 정답성과 거의 상관이 없다. 즉 student는 "옳은 풀이"가 아니라 "teacher 스타일"을 학습하게 된다.</li>
+</ul>
+
+<h3>Rubric-based Reinforcement Learning</h3>
+<p>RLVR(verifiable reward 기반 RL)은 math/code 같은 정답 가능 도메인에서 강력하지만 open-ended task로의 확장이 어렵다. Rubric-as-Rewards(RaR)는 instance-specific rubric을 RL reward로 쓰는 일반화를 제시했고, OpenRubrics, Rubicon, RLER, SibylSense 등이 rubric을 평가 도구로 사용해왔다. ##ROPD의 차별점은 rubric을 평가가 아닌 distillation interface로 재해석##한다는 점이다 — 즉 teacher의 응답을 token sequence가 아니라 structured semantic principle로 변환하는 매개체로 사용한다.</p>
+
+<h3>GRPO (Group Relative Policy Optimization)</h3>
+<p>같은 prompt에 대해 G개의 rollout을 받아 reward를 group 내 normalize한 advantage를 사용하는 RL. ROPD는 GRPO를 그대로 차용하되 reward 함수만 rubric pass rate로 대체한다.</p>
+
+<h2>방법 (Method)</h2>
+
+<h3>전체 파이프라인</h3>
+<div class="flow-diagram">prompt q
+    ↓
+[1] Teacher rollouts {t_1,...,t_m}  +  Student rollouts {s_1,...,s_G}
+    ↓
+[2] Rubricator: contrast(teacher vs student) → rubric R = {(r_k, w_k)} (K개 criteria, 가중치)
+    ↓
+[3] Verifier: 각 s_i를 R에 대해 blind scoring → v_{i,k} ∈ [0,1]
+    ↓
+[4] Score   s_i = (Σ_k w_k · v_{i,k}) / (Σ_k w_k + ε)
+    ↓
+[5] GRPO advantage: A_i = (s_i - mean) / std → policy gradient update</div>
+
+<h3>Stage 1: Rubricator (Rubric Induction)</h3>
+<p>Rubricator는 prompt $q$, m개 teacher rollout, G개 student rollout을 입력으로 받아 prompt-specific rubric set $\mathcal{R} = \{(r_k, w_k)\}_{k=1}^{K}$를 생성한다. 여기서 $r_k$는 자연어 criterion (예: "The final answer is boxed and matches the required format"), $w_k$는 importance weight이다.</p>
+
+<p><strong>왜 teacher만이 아니라 student rollout도 함께 보여주는가?</strong> Rubricator가 teacher 답안만 보면 추상적이거나 teacher 스타일에 편향된 criterion을 만들기 쉽다. ##Student의 현재 실수와 teacher의 정답을 대조하면 "지금 student가 부족한 지점"을 직접 가리키는 criterion이 induce된다##.</p>
+
+<p>Paper의 분석에 따르면 cross-rollout sharing (모든 {teacher, student} pair에서 공통 rubric을 만드는 방식)이 per-pair rubric 대비 +3.75 점 우위. 이는 group-level reasoning gap이 individual pair에 묻혀버리지 않게 하는 효과.</p>
+
+<h3>Stage 2: Verifier (Rubric-based Verification)</h3>
+<p>Verifier는 각 student rollout $s_i$를 rubric $\mathcal{R}$에 대해 채점하여 $v_{i,k} \in [0,1]$ (criterion $k$에 대한 pass probability)를 출력한다. <strong>Blind scoring 원칙</strong>: Verifier는 student rollout만 본다 (teacher rollout은 score 시점에 가리지 않음 — 단 student 답의 identity는 가린다). 이는 verifier가 "이 답이 teacher 것이라면 무조건 좋게 본다"는 identity-driven bias를 막는다.</p>
+
+<p>가중 통과율(weighted pass rate)이 최종 reward:</p>
+<p>$$s_i = \frac{\sum_{k=1}^{K} w_k \cdot v_{i,k}}{\sum_{k=1}^{K} w_k + \epsilon} \quad (4)$$</p>
+<p>직관적으로 말하면, "이 student 답이 만족한 criterion의 가중평균". criterion이 골고루 만족되면 1에 가까운 점수, 일부만 만족하면 부분점수.</p>
+
+<h3>Stage 3: GRPO update</h3>
+<p>Group 내 reward를 normalize하여 advantage 계산:</p>
+<p>$$A_i = \frac{s_i - \text{mean}(\{s_j\}_{j=1}^{G})}{\text{std}(\{s_j\}_{j=1}^{G}) + \epsilon}$$</p>
+<p>이후 PPO-style clipped objective로 policy update. K ∈ [4,12] rubric items, m=4 teacher rollouts, G개 student rollouts per prompt.</p>
+
+<h3>왜 Rubric 신호가 Logit 신호보다 정답성을 더 잘 측정하는가</h3>
+<p>저자들은 "correctness ROC"를 측정한다 — 각 token (혹은 rollout)이 정답에 도달하는지/도달하지 못하는지를 ground-truth로 두고, teacher logit의 confidence vs rubric reward가 그 정답성을 얼마나 잘 separate하는지를 AUC로 계산:</p>
+<table>
+<thead><tr><th>Signal</th><th>Correctness AUC</th></tr></thead>
+<tbody>
+<tr><td>Teacher token logit</td><td>0.50 (랜덤 수준)</td></tr>
+<tr><td>Rubric reward</td><td>##0.90##</td></tr>
+</tbody>
+</table>
+<p>즉 teacher logit은 ##대부분 stylistic / formatting noise##고, 정답에 기여하는 신호가 묻혀있다. Rubric은 이 noise를 explicit criterion으로 분리해 noise만 빼고 signal을 전달한다.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 setup</h3>
+<ul>
+  <li><strong>Student</strong>: Qwen3-4B (주력), Gemma3-4B-it (cross-architecture).</li>
+  <li><strong>Teacher</strong>: GPT-5.2 (text-only API; black-box), 그리고 white-box 비교용 Qwen3-32B.</li>
+  <li><strong>벤치마크</strong>: AIME24/25, HMMT25 (수학), GPQA-D (과학), HealthBench (의학), IFEval (instruction following).</li>
+  <li><strong>설정</strong>: K ∈ [4,12] rubric items per instance, m=4 teacher rollouts per prompt, GRPO group size 8, blind scoring 활성화.</li>
+</ul>
+
+<h3>핵심 결과 (Table 1, non-thinking, Qwen3-4B student)</h3>
+<p>실험이 답하려는 질문: "rubric reward가 logit-based supervision을 대체할 수 있는가, 그리고 어느 정도까지?"</p>
+<table>
+<thead><tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>GPQA-D</th><th>IFEval</th></tr></thead>
+<tbody>
+<tr><td>Base (Qwen3-4B)</td><td>24.17</td><td>17.81</td><td>11.46</td><td>40.05</td><td>72.6</td></tr>
+<tr><td>LOPD (white-box)</td><td>47.92</td><td>38.13</td><td>23.96</td><td>49.49</td><td>74.1</td></tr>
+<tr><td>##ROPD (black-box)##</td><td>##63.33##</td><td>##52.50##</td><td>##37.50##</td><td>##52.53##</td><td>76.3</td></tr>
+</tbody>
+</table>
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ROPD는 더 약한 가정(black-box) 하에서도 LOPD를 ##전 벤치마크에서 상회##한다. 특히 reasoning-heavy task에서 격차가 가장 크다 (AIME24 +15.4점).</p>
+
+<h3>샘플/시간 효율성 (Figure 3)</h3>
+<p>실험 의도: ROPD의 gain이 단순히 더 많은 compute를 쓴 결과인지, 아니면 더 dense하고 학습 가능한 신호인지 확인.</p>
+<ul>
+  <li><strong>Sample efficiency</strong>: LOPD가 5,000 step에 도달하는 AIME24 47점을 ROPD는 ##~500 step (~10×)##에 도달.</li>
+  <li><strong>Wall-clock</strong>: 동일 성능까지 ##~6.3× 빠름## (Verifier 호출 overhead를 포함한 측정).</li>
+</ul>
+<p>결과 뒷받침: rubric reward는 token-level noise를 거르므로 단위 sample당 학습 정보량이 훨씬 크다.</p>
+
+<h3>Stylistic Mimicry 분석 (Figure 5)</h3>
+<p>실험 의도: LOPD가 정말 "teacher 스타일을 흉내"내고 있는지, ROPD가 정답성으로 pivot하는지 시각화.</p>
+<p>Per-checkpoint top-24 token overlap (학생 출력과 teacher 출력의 토큰 분포 유사도):</p>
+<ul>
+  <li><strong>LOPD</strong>: checkpoint 진행에 따라 ##단조롭게 mimicry 증가##. 끝까지 teacher의 stylistic distribution을 따라간다.</li>
+  <li><strong>ROPD</strong>: 초반 50 step 안에 mimicry가 빠르게 saturate한 뒤 ##plateau / 약간 감소##. 이후의 성능 향상은 mimicry가 아닌 reasoning correctness에서 온다.</li>
+</ul>
+<p>Direction breakdown: ROPD가 AIME24의 ##53%## prompt에서 LOPD보다 더 정확한 답을, ##60%## prompt에서 더 높은 rubric 만족도를 보임. 반면 LOPD가 우위인 영역은 logit 분포 모사 (83%)에 한정.</p>
+
+<h3>Ablation: Reward Design (Table 6)</h3>
+<p>실험 의도: ROPD의 어떤 컴포넌트가 진짜 기여하는가?</p>
+<table>
+<thead><tr><th>Reward Design</th><th>m (teacher rollouts)</th><th>AIME24</th><th>Δ vs Base</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-4B (base)</td><td>–</td><td>24.17</td><td>–</td></tr>
+<tr><td>w/o multi-teacher (m=1)</td><td>1</td><td>47.08</td><td>+22.91</td></tr>
+<tr><td>w/o sharing (per-pair rubrics)</td><td>4</td><td>61.25</td><td>+37.08</td></tr>
+<tr><td>w/o blind scoring (verifier sees teacher)</td><td>4</td><td>61.75</td><td>+37.58</td></tr>
+<tr><td><strong>Full ROPD</strong></td><td>4</td><td><strong>65.02</strong></td><td>+40.85</td></tr>
+</tbody>
+</table>
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Multi-teacher coverage가 1차 driver</strong>: m=4→m=1에서 ##17.9점 catastrophic drop##. 단일 teacher 답은 rubric을 그 특정 풀이 trajectory에 over-anchor시켜 "path-matching"으로 collapse.</li>
+  <li><strong>Sharing</strong>: per-pair → shared로 가면 +3.75. Group level의 systematic gap이 보이게 됨.</li>
+  <li><strong>Blind scoring</strong>: identity 노출 시 -3.25. ##단, teacher response 자체는 verifier scoring pool에 남겨두는 것이 중요## (난이도 anchor 역할).</li>
+</ul>
+
+<h3>Rubric-level Pass Rate (Table 5)</h3>
+<p>실험 의도: ROPD의 학습 신호가 실제로 어떤 차원의 능력을 개선하는가?</p>
+<table>
+<thead><tr><th>Rubric Category</th><th>ROPD Early</th><th>ROPD Final</th><th>Δ</th><th>LOPD Early</th><th>LOPD Final</th><th>Δ</th></tr></thead>
+<tbody>
+<tr><td>Task Completion</td><td>54.0</td><td>67.6</td><td>+13.6</td><td>48.0</td><td>53.3</td><td>+5.3</td></tr>
+<tr><td>Observable Quality</td><td>53.5</td><td>66.1</td><td>+12.6</td><td>45.2</td><td>54.7</td><td>+9.5</td></tr>
+<tr><td>General Reasoning</td><td>44.6</td><td>58.9</td><td>+14.3</td><td>33.9</td><td>45.1</td><td>+11.2</td></tr>
+<tr><td><strong>Overall</strong></td><td><strong>52.5</strong></td><td><strong>65.6</strong></td><td><strong>+13.1</strong></td><td><strong>44.7</strong></td><td><strong>53.0</strong></td><td><strong>+8.3</strong></td></tr>
+</tbody>
+</table>
+<p>모든 rubric 카테고리에서 ROPD의 final pass rate와 improvement Δ가 LOPD를 상회. 특히 ##General Reasoning category에서 +14.3 vs +11.2##로 격차가 크다 — rubric supervision이 추론 능력 자체를 더 깊게 개선.</p>
+
+<h3>Cross-Architecture: Gemma3-4B-it</h3>
+<p>실험 의도: ROPD의 black-box 특성이 다른 아키텍처 student에도 효과적인가?</p>
+<p>Qwen3-32B teacher → Gemma3-4B student (tokenizer 불일치로 LOPD 적용 불가). ROPD는 AIME24에서 base 대비 +27.3점 개선. ##Cross-architecture distillation은 LOPD로는 원천적으로 불가능한 영역##이므로 ROPD의 unique applicability를 입증.</p>
+
+<h3>Rubric 예시 (Table A1)</h3>
+<p>Rubricator가 induce하는 criterion의 실제 모양:</p>
+<ul>
+  <li><strong>Math (AIME)</strong>: "The solution defines all variables before computation", "Intermediate steps are explicitly justified by theorems or algebraic rules", "The final answer is boxed and matches the required format".</li>
+  <li><strong>Science (GPQA)</strong>: "The answer identifies the relevant physical/chemical principle", "Quantitative reasoning includes correct unit conversions", "Alternative hypotheses are considered and ruled out".</li>
+  <li><strong>Medicine (HealthBench)</strong>: "Diagnosis is supported by specific findings from the case description", "Differential diagnosis lists at least 2 alternative conditions".</li>
+</ul>
+
+<h3>Failure Mode 사례 연구</h3>
+<ul>
+  <li><strong>Rubric exploitation</strong>: 초반 학습(<1k step)에서 ##2% 미만의 rollout이 형식 트릭이나 keyword stuffing으로 rubric을 만족##시키는 사례 관찰. Verifier prompt에 explicit correctness check를 추가하면 self-correct됨.</li>
+  <li><strong>Rubric disagreement</strong>: 4개 teacher가 같은 rubric에 다른 판단을 내릴 때, Rubricator가 이를 explicit하게 표기 ("2/4 use induction proof, 2/4 use direct computation"). Student가 한 teacher 스타일에 overfit하는 것을 막는 자연스러운 regularizer.</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>도메인 편향</strong>: 모든 평가가 formal reasoning (수학/과학/의학). ##Open-ended creative/subjective task에서 rubric의 효과는 검증되지 않음##. IFEval에서 instruction-following은 유지되지만 generative quality 자체에 대한 평가는 부족.</li>
+  <li><strong>Rubricator/Verifier 의존성</strong>: 강한 instruction-following 모델을 reward generator로 가정. 저자들은 alternative model로도 robust함을 preliminary 결과로 제시하지만, 작은 base 모델이 Rubricator일 때 rubric 품질이 ##순환 의존성##을 만들 수 있다.</li>
+  <li><strong>Verifier 호출 cost</strong>: GRPO group size G에 각 rollout마다 K-item scoring → per-step cost가 LOPD의 단일 forward pass보다 비싸다. 6.3× wall-clock 이득은 sample efficiency가 cost premium을 압도하기 때문이지만, ##rubric API cost가 거의 0에 수렴해야 성립##.</li>
+  <li><strong>Reward hacking 잠재성</strong>: <2% rate라 하더라도 production 적용 시 keyword stuffing exploit이 발견되면 신뢰도 손상. Verifier-side 강화(adversarial rubric, contradiction checking)가 필요.</li>
+  <li><strong>실험 seed/표준편차 미보고</strong>: 표 수치들이 single-run인지 multi-seed average인지 명확하지 않음. 17.9 vs 3.25 같은 ablation 격차는 충분히 크지만, 작은 Δ(+0.50)는 noise level일 수 있다.</li>
+  <li><strong>Teacher의 영향 격리 어려움</strong>: GPT-5.2 teacher의 ##응답 분포 자체가 매우 깨끗##할 가능성이 있어, ROPD의 gain 일부는 teacher의 quality에 묶여있을 수 있다. 약한 teacher (예: 7B class)로 같은 효과가 재현되는지 추가 검증이 필요.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Logit은 noise, rubric은 signal</strong>: AUC 0.50 vs 0.90 비교는 distillation 신호 디자인에 강한 교훈을 준다. 더 dense하다고 더 좋은 신호가 아니다 — ##정답성과 상관된 신호##만이 진짜 신호다.</li>
+  <li><strong>Black-box OPD는 가능하다</strong>: API-only teacher에서도 on-policy training이 가능해진 첫 명확한 demonstration. 향후 frontier 모델 distillation의 default가 될 가능성.</li>
+  <li><strong>Cross-rollout contrast가 핵심 디자인 결정</strong>: Rubricator에 student rollout을 함께 보여주는 것, 그리고 group-level shared rubric을 만드는 것이 17.9점 vs 3.75점의 차이를 만든다.</li>
+  <li><strong>실용 적용 시 점검 포인트</strong>: (1) m≥4 teacher rollouts, (2) shared rubric, (3) blind student identity, (4) verifier에 explicit correctness criterion 포함.</li>
+  <li><strong>차세대 distillation의 방향성</strong>: token logit imitation → structured semantic principle transfer. Teacher가 점점 opaque/heterogeneous해질수록 이 trade가 더 유리해진다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
