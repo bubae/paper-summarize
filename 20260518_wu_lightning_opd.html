@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightning OPD: Efficient Post-Training for Large Reasoning Models</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Lightning OPD: Efficient Post-Training for Large Reasoning Models with Offline On-Policy Distillation</h1>
+
+<a href="20260518_wu_lightning_opd_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yecheng Wu, Song Han, Han Cai</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (under review)</li>
+  <li><strong>연도</strong>: 2026 (May)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.13010">arXiv:2604.13010</a> · <a href="https://github.com/jet-ai-projects/Lightning-OPD">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-policy Distillation (OPD)는 효과적이지만 ##학습 내내 live teacher server를 함께 띄워야## 해서 GPU 자원이 크게 분할되고, 학원 연구 규모에서는 실질적으로 적용하기 어렵다 (8B 모델 OPD = 120 GPU hours, 그중 상당이 teacher serving overhead).</li>
+  <li><strong>해결</strong>: ##teacher의 log-probability를 SFT rollout에 대해 한 번만 precompute하고 학습 동안 재사용##하는 offline 방식 Lightning OPD. 단, 단순 offline化는 실패한다 — 그 실패 원인을 분석한 결과 ##teacher consistency## (SFT teacher와 OPD teacher가 동일해야 함)라는 새로운 design principle을 발견.</li>
+  <li><strong>왜 작동하는가</strong>: Teacher consistency가 성립하면 (1) online/offline OPD가 같은 optimum(공유 fixed point)을 가지고, (2) gradient 차이가 $G \sigma_A \sqrt{\chi^2(\pi_\theta\|\pi_\text{ref})}$로 bounded되며, (3) covariance term이 ##KL penalty 없이도 policy drift를 막는 implicit regularizer##로 작동한다.</li>
+  <li><strong>비유</strong>: 매 수업마다 멘토를 옆에 두고 첨삭받지 말고, ##학습 시작 전에 멘토에게 한 번 모든 문제의 모범 풀이를 받아둔 다음## 그것만 보며 혼자 공부하라. 단, 그 모범풀이를 만든 멘토와 평소 가르치는 멘토가 같은 사람일 때만 통한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Teacher Consistency 원칙 발견</strong>: SFT 단계 teacher와 OPD 단계 teacher가 ##다르면 online/offline OPD 모두 gradient bias가 생긴다##는 점을 이론적으로 증명. 기존 관행 (예: Thinking Machines Lab이 OpenThoughts-3 = QwQ-32B 생성 데이터로 SFT하고 Qwen3-32B를 OPD teacher로 사용)이 이 원칙을 위반하고 있음을 지적.</li>
+  <li><strong>Lightning OPD 프레임워크</strong>: SFT rollout에 대해 teacher log-prob를 ##사전 1회 precompute##한 뒤 학습 동안 재사용. Live teacher server 제거로 ##모든 GPU를 student 학습에 할당##할 수 있어 대형 MoE도 가능.</li>
+  <li><strong>이론 분석 4종</strong>: (i) Theorem 3.5 gradient discrepancy bound, (ii) Theorem 3.6 shared fixed point, (iii) Theorem 3.7 implicit regularization via covariance, (iv) Theorem 3.8–3.9 teacher inconsistency bias.</li>
+  <li><strong>실증 성과</strong>: Qwen3-8B-Base + Qwen3-32B teacher로 ##AIME 2024 69.9%를 30 GPU hours로 달성## (vs OPD 120 GPU hours, ##4.0× 가속##). Qwen3-30B-A3B MoE를 ##single 8×H100 node에서 학습##해 AIME 2024 71.0%, LCB v5 60.8% — 학계 접근성 대폭 향상.</li>
+  <li><strong>Teacher Inconsistency 실증</strong>: 8B 스케일에서 SFT teacher Qwen3-32B → OPD teacher QwQ-32B로 바꾸면 Lightning OPD는 ##6.8점 하락##, 표준 OPD는 3.7점 하락 — offline 방식이 inconsistency에 더 취약함을 정량화.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>OPD가 RLVR보다 매력적인 이유</h3>
+<p>LLM 후처리(post-training)는 일반적으로 SFT → RL의 두 단계로 진행된다. RL 단계는 (1) RLVR (verifiable reward, 예: 수학 정답 일치) 혹은 (2) On-Policy Distillation (OPD)로 구성. OPD는 RLVR 대비:</p>
+<ul>
+  <li><strong>Dense supervision</strong>: 매 토큰마다 teacher의 log-prob 차이를 advantage로 사용 (vs RLVR의 sparse 종단 reward).</li>
+  <li><strong>학습 안정성</strong>: KL gradient 형태이므로 reward hacking 위험이 낮음.</li>
+  <li><strong>비용 효율</strong>: RL이 수천 step의 rollout/scoring을 요구하는 데 비해 OPD는 ##수십 ~ 수백 step에서 수렴##.</li>
+</ul>
+
+<h3>표준 OPD의 정식화</h3>
+<p>Teacher $\pi_T$ (fixed), student $\pi_\theta$. 응답 $x = (a_1, ..., a_T)$는 autoregressive하게 생성되며 $\pi_\theta(x|q) = \prod_t \pi_\theta(a_t|s_t)$. Per-token OPD advantage:</p>
+<p>$$A_t(\theta) = \log \pi_T(a_t | s_t) - \log \pi_\theta(a_t | s_t) \quad (2)$$</p>
+<p>직관적으로 말하면, ##teacher가 student보다 이 토큰을 더 확신하면 positive (학생이 따라가야 함), 반대면 negative##. 표준 OPD objective:</p>
+<p>$$J_\text{on}(\theta) = \mathbb{E}_{q\sim p,\, x\sim\pi_\theta}\left[\sum_{t=1}^{T} A_t(\theta)\right] \quad (3)$$</p>
+<p>여기서 $x \sim \pi_\theta$가 핵심 — student의 ##현재 정책##에서 rollout이 sampling되므로, 매 gradient step마다 teacher가 새로운 rollout에 대한 log-prob을 줘야 한다 → ##live teacher server 필수##.</p>
+
+<h3>Live Teacher Server의 비용</h3>
+<p>구체적 예: Qwen3-8B student + Qwen3-32B teacher → 32B teacher를 추가로 multi-GPU에 띄워야 함. 8×H100 한 노드를 student와 teacher가 share → ##GPU memory fragmentation, scheduling 복잡도, 그리고 학계 접근성 저하##.</p>
+
+<h3>Offline 가능성에 대한 선행 관찰</h3>
+<p>두 가지 empirical observation이 offline化의 motivation:</p>
+<ul>
+  <li><strong>Yue et al. (2025)</strong>: RL-trained 모델의 reasoning trajectory는 ##SFT 모델 분포의 reweighted subset##일 뿐, 새 trajectory를 거의 발굴하지 않는다.</li>
+  <li><strong>Shenfeld et al. (RL's Razor)</strong>: On-policy 업데이트는 본질적으로 ##reference policy로부터의 KL을 최소화하는 방향##으로 biased되어 있다.</li>
+</ul>
+<p>이 두 사실은 "student 분포가 학습 내내 SFT 분포 근처에 머무른다"는 직관을 뒷받침하고, 따라서 ##rollout을 SFT 모델에서 한 번 뽑아두고 재사용해도 큰 문제가 없을 수 있다##는 가설로 이어진다.</p>
+
+<h3>왜 단순 offline化가 실패하는가</h3>
+<p>저자들은 naive offline OPD (SFT rollout에 teacher log-prob 한 번 precompute → 학습 중 재사용)를 시도하고, 표준 OPD 대비 ##성능이 일관되게 하락##함을 관찰. 근본 원인 분석 결과 offline approximation 자체가 아니라 ##teacher inconsistency##가 진짜 범인임을 밝힌다.</p>
+
+<h2>방법 (Method)</h2>
+
+<h3>Lightning OPD 파이프라인</h3>
+<div class="flow-diagram">[Stage 1: SFT]
+  Base model π_base + Teacher π_T + Prompt set Q_SFT
+    ↓ teacher가 생성한 trajectory로 SFT
+  Reference policy π_ref
+
+[Stage 2: Offline OPD]
+  Preprocessing phase (한 번만):
+    ∀ q ∈ Q_OPD:
+      sample x ~ π_ref(·|q)
+      precompute and store {log π_T(a_t | s_t)} for all t
+    → Offline dataset D_OPD
+
+  Training phase:
+    Initialize π_θ ← π_ref
+    Repeat (≈150 steps):
+      mini-batch from D_OPD
+      A_t(θ) = log π_T(a_t|s_t) [read from disk] - log π_θ(a_t|s_t) [computed online]
+      clip A_t to [-τ, τ]
+      θ ← θ + η · ∇J_off(θ)
+    end</div>
+
+<p>핵심 차이: 표준 OPD가 $x \sim \pi_\theta$로 매 step에 rollout을 새로 뽑는 반면, Lightning OPD는 ##$x \sim \pi_\text{ref}$로 고정한 rollout과 사전 계산된 teacher log-prob을 사용##.</p>
+
+<p>$$J_\text{off}(\theta) = \mathbb{E}_{q\sim p,\, x\sim\pi_\text{ref}}\left[\sum_{t=1}^{T} A_t(\theta)\right] \quad (4)$$</p>
+
+<h3>Teacher Consistency: 핵심 design principle</h3>
+<p>Lightning OPD가 작동하려면 두 stage의 teacher가 같아야 한다:</p>
+<ul>
+  <li><strong>SFT-stage teacher</strong> $\pi_T^\text{SFT}$: $\mathcal{D}_\text{SFT}$의 trajectory를 만드는 teacher.</li>
+  <li><strong>OPD-stage teacher</strong> $\pi_T^\text{OPD}$: log-prob을 precompute하는 teacher.</li>
+</ul>
+<p>이 두 teacher가 같지 않으면 (예: $\mathcal{D}_\text{SFT}$가 QwQ-32B 생성 trajectory, OPD teacher는 Qwen3-32B) $\pi_\text{ref}$는 ##$\pi_T^\text{SFT}$ trajectory에 집중##해 있는데 advantage가 $\pi_T^\text{OPD}$를 기준으로 계산되어 ##irreducible bias##가 발생한다.</p>
+
+<h3>이론 1: Gradient Discrepancy Bound (Theorem 3.5)</h3>
+<p>3가지 표준 가정 (bounded advantage, support coverage, bounded score) 하에서:</p>
+<p>$$\|\nabla J_\text{on}(\theta) - \nabla J_\text{off}(\theta)\|_2 \le G \cdot \sigma_A \cdot \sqrt{\chi^2(\pi_\theta \| \pi_\text{ref})} \quad (8)$$</p>
+<p>여기서 $\chi^2(\pi_\theta\|\pi_\text{ref}) = \mathbb{E}_{x\sim\pi_\text{ref}}[w(x;\theta)^2] - 1$, $w = \pi_\theta/\pi_\text{ref}$. 직관적으로 말하면, ##online과 offline gradient의 차이는 student가 reference로부터 얼마나 멀리 drift했는지에 비례##한다. Initialization에서 $\pi_\theta = \pi_\text{ref}$이므로 $\chi^2 = 0$, gradient가 ##정확히 일치##.</p>
+
+<p>저자들은 Pinsker inequality를 통한 KL bound를 의도적으로 피한다 (이유: KL bound는 $\max |A_t|$를 포함하는데 이 값은 $\pi_\theta(a_t|s_t) \to 0$이면 발산. $\chi^2$ bound는 advantage clipping과 KL regularization을 통해 작게 유지 가능).</p>
+
+<h3>이론 2: Shared Fixed Point (Theorem 3.6)</h3>
+<p>$J_\text{on}(\theta) = -\text{KL}(\pi_\theta \| \pi_T) \le 0$, 최대점은 $\theta^* \in \arg\min_\theta \text{KL}(\pi_\theta\|\pi_T)$. Teacher가 model class 안에 representable ($\pi_T \in \Pi_\Theta$)이라면 $A_t(\theta^*) = 0$ almost surely → ##online과 offline gradient 모두 0##이 되는 ##공유 fixed point##.</p>
+<p>이 시점에서 student는 teacher를 정확히 재현. 이 결과의 함의: Lightning OPD는 표준 OPD와 ##같은 곳으로 수렴## (capacity limit 안에서).</p>
+
+<h3>이론 3: Implicit Regularization (Theorem 3.7)</h3>
+<p>Importance-sampling decomposition으로부터:</p>
+<p>$$\nabla J_\text{off}(\theta) = \nabla J_\text{on}(\theta) - \text{Cov}_{\pi_\text{ref}}[w(x;\theta), f(x;\theta)] \quad (\text{Thm 3.7})$$</p>
+<p>여기서 $f(x;\theta) = \sum_t A_t(\theta) \cdot \nabla \log \pi_\theta(a_t|s_t)$. 직관적으로 말하면, offline gradient는 online gradient에서 ##covariance term을 빼는 형태##.</p>
+<p>이 covariance term의 효과:</p>
+<ul>
+  <li>$\pi_\theta = \pi_\text{ref}$에서 $w \equiv 1$이므로 $\text{Cov} = 0$ → 차이 없음.</li>
+  <li>Student가 $\pi_\text{ref}$로부터 drift하면 $w$가 일부 trajectory에서 커지고, 같은 trajectory에서 $f$도 큰 norm을 가지는 경향. ##두 벡터 모두 drift 방향과 정렬##되어 $\text{Cov}[w, f]$가 drift 방향으로 커짐.</li>
+  <li>이를 빼는 것은 ##drift 방향에서 gradient의 한 component를 제거##하는 것 = ##implicit KL-like regularization##.</li>
+</ul>
+<p>중요: ##explicit KL term을 추가하지 않아도## policy drift가 자연스럽게 억제된다. trust-region effect.</p>
+
+<h3>이론 4: Teacher Consistency Bias (Theorem 3.8, 3.9)</h3>
+<p>SFT-stage teacher $\pi_T^\text{SFT}$와 OPD-stage teacher $\pi_T^\text{OPD}$가 다르면, $\Delta_t := \log \pi_T^\text{SFT}(a_t|s_t) - \log \pi_T^\text{OPD}(a_t|s_t)$. Bounded mismatch $\mathbb{E}_{x\sim\pi_\text{ref}}[(\sum_t |\Delta_t|)^2] \le \sigma_\Delta^2$ 하에서:</p>
+<p>$$\|\nabla J_\text{on}(\theta) - \nabla J_\text{off}(\theta)\|_2 \le G(\sigma_A + \sigma_\Delta) \sqrt{\chi^2(\pi_\theta\|\pi_\text{ref})} \quad (9)$$</p>
+<p>또한 offline gradient가 consistent offline gradient (mismatch가 없을 때) 대비 ##$G \sigma_\Delta$의 persistent bias##를 가진다.</p>
+<p>표준 OPD에 대한 영향 (Theorem 3.9): initialization에서 $\theta = \theta_\text{ref}$일 때 $\|\nabla J_\text{on}(\theta_\text{ref}) - \nabla J_\text{on}^{\delta=0}(\theta_\text{ref})\|_2 \le G \sigma_\Delta$. ##online OPD도 inconsistency의 영향을 받지만 offline OPD가 더 크게 받는다## (왜? offline은 rollout 자체도 mismatched teacher의 trajectory를 따르므로 ##bias가 두 번 누적##).</p>
+
+<h3>Algorithm 1: Lightning OPD pseudo-code</h3>
+<div class="flow-diagram">// Stage 1: SFT
+1. Collect D_SFT = {(q, x) | q ∈ Q_SFT, x ~ π_T(·|q)}
+2. Fine-tune π_base on D_SFT → π_ref
+
+// Stage 2 Phase 1: Preprocessing (한 번)
+3. for each prompt q ∈ Q_OPD:
+4.    sample x ~ π_ref(·|q); store log π_T(a_t|s_t) for all t
+5. end for
+6. Form D_OPD = {(q, x, {log π_T(a_t|s_t)})}
+
+// Stage 2 Phase 2: Training
+7. Initialize π_θ ← π_ref
+8. for each training step:
+9.    Sample mini-batch from D_OPD
+10.   Compute A_t(θ) = log π_T(a_t|s_t) - log π_θ(a_t|s_t), clip to [-τ, τ]
+11.   Update θ ← θ + η · ∇J_off(θ)
+12. end for</div>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 setup</h3>
+<ul>
+  <li><strong>Models</strong>: (i) Qwen3-4B-Base student + Qwen3-8B teacher, (ii) Qwen3-8B-Base student + Qwen3-32B teacher, (iii) Qwen3-30B-A3B-Base student + Qwen3-30B-A3B-Thinking-2507 teacher (MoE).</li>
+  <li><strong>SFT data</strong>: OpenThoughts-3 prompts, 응답은 ##해당 teacher가 생성## (teacher consistency 유지).</li>
+  <li><strong>OPD data</strong>: 수학은 DAPO-Math-17k, 코드는 EpiCoder-func-380k의 30K subset.</li>
+  <li><strong>벤치마크</strong>: AIME 2024/2025, HMMT 2025 (수학); LiveCodeBench v5/v6 (코드). Temperature 0.6, top-p 0.95, max length 32K (math) / 40K (code). 수학 32 samples, 코드 4 samples, pass@1 평균.</li>
+  <li><strong>학습</strong>: SFT는 LlamaFactory, OPD는 slime. OPD 150 step에서 수렴. 표준 OPD와 hyperparameter 동일 (rollout source만 다름).</li>
+</ul>
+
+<h3>핵심 결과 (Table 1)</h3>
+<p>실험 질문: Lightning OPD가 표준 OPD와 동등한 성능을 ##더 적은 GPU hour##로 달성하는가?</p>
+
+<p><strong>Qwen3-4B-Base student / Qwen3-8B teacher</strong>:</p>
+<table>
+<thead><tr><th>Method</th><th>AIME 2024</th><th>AIME 2025</th><th>HMMT 2025</th><th>Math Avg</th><th>LCB v5</th><th>LCB v6</th><th>Code Avg</th></tr></thead>
+<tbody>
+<tr><td>SFT</td><td>56.7</td><td>52.1</td><td>34.0</td><td>47.6</td><td>33.8</td><td>31.5</td><td>32.6</td></tr>
+<tr><td>ExOPD [10]</td><td>61.0</td><td>56.0</td><td>34.4</td><td>50.5</td><td>—</td><td>29.0</td><td>—</td></tr>
+<tr><td>OPD (표준)</td><td>65.4</td><td>57.9</td><td><strong>39.9</strong></td><td>54.4</td><td><strong>44.2</strong></td><td>39.3</td><td><strong>41.8</strong></td></tr>
+<tr><td>Lightning OPD</td><td><strong>68.1</strong></td><td><strong>58.4</strong></td><td>39.8</td><td><strong>55.4</strong></td><td>42.8</td><td><strong>40.3</strong></td><td>41.5</td></tr>
+</tbody>
+</table>
+
+<p><strong>Qwen3-8B-Base student / Qwen3-32B teacher</strong>:</p>
+<table>
+<thead><tr><th>Method</th><th>AIME 2024</th><th>AIME 2025</th><th>HMMT 2025</th><th>Math Avg</th><th>LCB v5</th><th>LCB v6</th><th>Code Avg</th></tr></thead>
+<tbody>
+<tr><td>SFT</td><td>63.7</td><td>51.7</td><td>36.9</td><td>50.8</td><td>44.7</td><td>36.8</td><td>40.8</td></tr>
+<tr><td>OPD</td><td>68.5</td><td>59.0</td><td>39.4</td><td>55.6</td><td>47.3</td><td>41.2</td><td>44.2</td></tr>
+<tr><td>Lightning OPD</td><td>##<strong>69.9</strong>##</td><td><strong>59.2</strong></td><td><strong>41.9</strong></td><td><strong>57.0</strong></td><td><strong>49.5</strong></td><td><strong>43.9</strong></td><td><strong>46.7</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: Lightning OPD가 ##모든 벤치마크에서 표준 OPD와 동등 혹은 약간 상회##. ExOPD (offline OPD baseline) 대비는 ##AIME24 +7.1점##으로 크게 우위 — teacher consistency 원칙 덕분.</p>
+
+<h3>학습 비용 비교 (Table 2)</h3>
+<table>
+<thead><tr><th>Method</th><th>Qwen3-4B-Base</th><th>Qwen3-8B-Base</th></tr></thead>
+<tbody>
+<tr><td>표준 OPD</td><td>72 GPU hours</td><td>120 GPU hours</td></tr>
+<tr><td>##Lightning OPD##</td><td>##20 GPU hours##</td><td>##30 GPU hours##</td></tr>
+<tr><td><strong>Speedup</strong></td><td><strong>3.6×</strong></td><td><strong>4.0×</strong></td></tr>
+</tbody>
+</table>
+
+<p>Lightning OPD 내부 분해 (Qwen3-8B 기준): Rollout collection 10h + Teacher logprob precompute 4h + OPD training 16h = 30h. ##Precompute는 one-time offline operation, 전용 인프라 불필요##.</p>
+
+<h3>MoE Scaling (Table 3)</h3>
+<p>실험 의도: Lightning OPD가 ##단일 노드에서 30B MoE 학습이라는 새로운 영역##을 열 수 있는가?</p>
+<table>
+<thead><tr><th>Method</th><th>AIME 2024</th><th>AIME 2025</th><th>HMMT 2025</th><th>Math Avg</th><th>LCB v5</th><th>LCB v6</th><th>Code Avg</th></tr></thead>
+<tbody>
+<tr><td>SFT</td><td>66.8</td><td>63.2</td><td>44.6</td><td>58.2</td><td>39.4</td><td>33.0</td><td>36.2</td></tr>
+<tr><td>OPD (표준)</td><td colspan="7" style="text-align:center;color:#c00">✗ OOM (30B teacher + 30B student co-host 불가)</td></tr>
+<tr><td>##Lightning OPD##</td><td>##<strong>71.0</strong>##</td><td><strong>66.3</strong></td><td><strong>48.3</strong></td><td><strong>61.9</strong></td><td><strong>60.8</strong></td><td><strong>54.4</strong></td><td><strong>57.6</strong></td></tr>
+</tbody>
+</table>
+<p><strong>결과 뒷받침</strong>: 표준 OPD는 8×H100 단일 노드에서 30B teacher + 30B student 공존이 불가능 → OOM. Lightning OPD는 teacher가 학습 시점에 메모리에 없으므로 student에 전체 GPU 할당 → ##academic-scale에서 SOTA-급 MoE 학습 가능##.</p>
+
+<h3>Teacher Consistency Ablation (Table 4)</h3>
+<p>실험 의도: teacher inconsistency가 정말로 핵심 문제인가? Online vs offline 어느 쪽이 더 취약한가?</p>
+<p>SFT-stage teacher와 OPD-stage teacher를 cross하여 grid 실험. Qwen3-8B-Base student, OPD teacher = {Qwen3-32B, QwQ-32B}, SFT teacher = {Qwen3-32B, QwQ-32B}.</p>
+
+<p><strong>Standard OPD (Qwen3-8B-Base)</strong>:</p>
+<table>
+<thead><tr><th>SFT teacher \ OPD teacher</th><th>Qwen3-32B</th><th>QwQ-32B</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-32B</td><td><strong>68.5</strong></td><td>64.8</td></tr>
+<tr><td>QwQ-32B</td><td>65.0</td><td><strong>66.5</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>Lightning OPD (Qwen3-8B-Base)</strong>:</p>
+<table>
+<thead><tr><th>SFT teacher \ OPD teacher</th><th>Qwen3-32B</th><th>QwQ-32B</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-32B</td><td><strong>69.9</strong></td><td>63.1</td></tr>
+<tr><td>QwQ-32B</td><td>62.1</td><td><strong>68.7</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Consistent diagonal이 항상 최강</strong>: 두 패러다임 모두에서 SFT teacher = OPD teacher일 때 최고 성능. Theorem 3.8–3.9의 실증적 검증.</li>
+  <li><strong>Lightning OPD가 inconsistency에 더 취약</strong>: Qwen3-32B SFT → QwQ-32B OPD로 mismatch 시 Lightning OPD는 ##6.8점## 하락, 표준 OPD는 ##3.7점## 하락. ##차이의 원인##: standard OPD는 매 step student의 fresh rollout을 받아 부분 보정이 가능하지만, Lightning OPD는 fixed $\pi_\text{ref}$ rollout을 사용하므로 ##bias가 reference와 rollout 두 군데에 동시에 누적##.</li>
+  <li><strong>Teacher consistency는 Lightning OPD에 더 critical한 design requirement</strong>: 저자들의 핵심 design principle을 정량적으로 입증.</li>
+</ul>
+
+<h3>Off-Policy RL과의 관계</h3>
+<p>저자들은 Appendix D에서 Lightning OPD를 conventional off-policy RL과 구분: off-policy RL은 sparse reward와 fixed dataset 두 가지 문제를 모두 다루어야 하므로 OOD value estimation이 challenge. 반면 Lightning OPD는 ##dense per-token teacher supervision##을 받으므로 OOD value estimation 문제가 없고, ##teacher consistency가 unique한 challenge##.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>도메인 좁음 (math/code only)</strong>: 모든 평가가 verifiable reasoning task에 집중. ##open-ended writing이나 instruction following에서의 효과##는 미검증. SFT trajectory가 다양한 도메인을 cover하지 못할 때 $\pi_\text{ref}$ 분포가 좁아져 $\chi^2$이 더 빨리 커질 수 있다.</li>
+  <li><strong>$\chi^2$이 작게 유지된다는 가정의 의존성</strong>: Theorem 3.5의 bound는 $\chi^2$이 작을 때만 의미가 있다. 저자들은 advantage clipping과 짧은 학습(150 step)으로 이를 보장한다고 주장하지만, ##더 긴 학습이나 더 어려운 task에서 $\chi^2$이 폭발하면## bound가 vacuous해진다. 학습 step 수 sensitivity에 대한 추가 분석이 필요.</li>
+  <li><strong>Teacher consistency의 실용적 비용</strong>: SFT 데이터를 OPD teacher가 직접 생성해야 한다는 요구는 ##OpenThoughts-3 같은 기존 SFT corpus를 그대로 활용 불가##. 좋은 기존 SFT dataset (QwQ-32B 생성)이 있어도 OPD teacher를 그것에 맞춰 바꿔야 하거나, SFT를 새로 해야 함. 이 ##실용 비용 vs 4.0× speedup## trade-off가 어느 쪽이 우세한지는 도메인마다 다를 수 있다.</li>
+  <li><strong>Implicit regularization 주장의 정확한 강도</strong>: Theorem 3.7의 covariance term이 KL penalty를 ##정확히 대체##하는지, 아니면 일부만 흉내내는지 명확히 구분되지 않음. Figure 3a에서 empirical하게 trust-region 효과를 보였다고 하나, 명시적 KL과의 직접 비교 실험은 부족.</li>
+  <li><strong>Capacity-limited case의 모호함</strong>: Theorem 3.6은 $\pi_T \in \Pi_\Theta$ (teacher가 representable)일 때만 shared fixed point가 정확히 성립. 실제 환경 (Qwen3-32B teacher가 Qwen3-8B student class에 representable이 아닐 가능성 높음)에서 어떤 분포로 수렴하는지는 ##empirical 주장에 의존##.</li>
+  <li><strong>Rollout collection 비용 측정 누락 가능성</strong>: 30 GPU hours에 rollout collection 10h가 포함되지만, ##precompute phase의 teacher inference 비용##이 hardware-dependent. 저자들은 4h라 보고하나 다른 환경에서의 일반화는 불명확.</li>
+  <li><strong>표준편차/seed 미보고</strong>: AIME24 0.5점 차이 같은 소량 격차들이 noise level인지 확인 불가. 특히 inconsistency ablation (3.7점 vs 6.8점)도 multi-seed 검증이 필요.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Teacher consistency를 디자인 원칙으로"</strong>: 기존 OPD/RL 파이프라인 (Thinking Machines 등)이 이를 위반하고 있던 점이 가장 인상적. ##SFT data와 OPD teacher가 동일 모델 출신##인지를 ablation으로 반드시 확인할 것.</li>
+  <li><strong>"Live teacher serving은 필수가 아니다"</strong>: 학원/소규모 lab에서도 30B MoE 학습이 가능한 새 default. 8×H100 한 노드로 SOTA-급 reasoning 모델 학습.</li>
+  <li><strong>"$\chi^2$ vs KL bound 선택의 중요성"</strong>: 이론 derivation에서 KL bound가 vacuous해지는 상황 ($\pi_\theta \to 0$)을 피하려면 $\chi^2$ bound + advantage clipping 조합이 안전. 다른 RL/distillation 분석에도 응용 가능.</li>
+  <li><strong>"Implicit regularization via covariance"</strong>: KL penalty 없이 trust-region 효과를 얻는 메커니즘. Theorem 3.7의 covariance decomposition은 ##다른 offline RL/distillation 알고리즘 설계에도 transferable##.</li>
+  <li><strong>"Offline OPD가 inconsistency에 더 취약한 비대칭성"</strong>: bias가 reference policy와 rollout 두 곳에 동시 누적되기 때문. 실무 적용 시 teacher 변경은 SFT 단계부터 일관되게 적용해야 함.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

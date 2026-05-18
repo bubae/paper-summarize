@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lightning OPD 개요 브리핑 — Teacher 서버 없이 4배 빠른 LLM 증류</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #b56a00; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #f7971e; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #fff8e1 0%, #fffde7 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #ffe082; box-shadow: 0 4px 18px rgba(247,151,30,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #b56a00; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #f7971e; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #f7971e; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #f7971e; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #fff8e1 0%, #fff3c4 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #ffe082; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #b56a00; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #f7971e; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #fff8e1; }
+  .highlight-row { background: #fff3c4 !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #f7971e 0%, #ffd200 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(247,151,30,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #ffd07a; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">NVIDIA</span>
+      <span class="badge">2026.05</span>
+      <span class="badge">On-policy Distillation</span>
+      <span class="badge">Offline / Teacher-free serving</span>
+      <span class="badge">arXiv 2604.13010</span>
+    </div>
+    <h1>Lightning OPD — "선생을 24시간 곁에 둘 필요가 없다"</h1>
+    <p class="sub">Teacher의 log-prob를 학습 시작 전에 한 번만 계산해두고 재사용. 4× 빠른 학습으로 8B 모델이 AIME 2024에서 69.9% 달성. 30B MoE도 8×H100 한 노드에서 학습 가능.</p>
+    <a href="20260518_wu_lightning_opd.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"학습 내내 선생 서버를 띄워두지 말고, 시작 전에 선생에게 모든 문제의 정답 확률을 한 번 받아두자 — 단, 그 선생이 SFT 데이터를 만든 선생과 같은 사람일 때만 통한다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>On-policy Distillation의 숨은 비용: 선생 서버</h3>
+    <p>표준 On-policy Distillation (OPD)은 학습 동안 <strong>학생이 만든 답을 매 step 선생이 채점</strong>해줘야 한다. 그래서 선생 모델이 학습 내내 다른 GPU 위에서 돌아가야 한다. 8B 학생을 32B 선생으로 가르치려면 <strong>8×H100 한 노드 안에 두 모델을 모두 띄워야</strong> 한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#444">표준 OPD: 학습 내내 선생 서버 운영</text>
+
+        <!-- Teacher Server -->
+        <rect x="40" y="50" width="280" height="220" rx="12" fill="#ffe6e6" stroke="#e74c3c" stroke-width="2"/>
+        <text x="180" y="80" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">Teacher Server</text>
+        <text x="180" y="100" text-anchor="middle" font-size="11" fill="#666">(Qwen3-32B, 4 GPUs)</text>
+
+        <!-- GPUs in Teacher -->
+        <rect x="60" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="85" y="150" text-anchor="middle" font-size="10">GPU0</text>
+        <rect x="120" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="145" y="150" text-anchor="middle" font-size="10">GPU1</text>
+        <rect x="180" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="205" y="150" text-anchor="middle" font-size="10">GPU2</text>
+        <rect x="240" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#e74c3c"/>
+        <text x="265" y="150" text-anchor="middle" font-size="10">GPU3</text>
+
+        <text x="180" y="200" text-anchor="middle" font-size="11" fill="#666">매 step 학생 rollout 받아 log-prob 계산</text>
+        <text x="180" y="220" text-anchor="middle" font-size="11" fill="#666">⏰ 학습 내내 운영</text>
+        <text x="180" y="250" text-anchor="middle" font-size="20">⚡ 비싼 운영</text>
+
+        <!-- Communication -->
+        <path d="M320 160 L400 160" stroke="#fbc02d" stroke-width="3" marker-end="url(#a1)"/>
+        <path d="M400 180 L320 180" stroke="#fbc02d" stroke-width="3" marker-end="url(#a1)"/>
+        <text x="360" y="155" text-anchor="middle" font-size="10" fill="#b56a00">rollout</text>
+        <text x="360" y="195" text-anchor="middle" font-size="10" fill="#b56a00">log-prob</text>
+
+        <!-- Student Server -->
+        <rect x="400" y="50" width="280" height="220" rx="12" fill="#e6f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="540" y="80" text-anchor="middle" font-size="14" font-weight="700" fill="#2c7cb0">Student Training</text>
+        <text x="540" y="100" text-anchor="middle" font-size="11" fill="#666">(Qwen3-8B, 4 GPUs)</text>
+
+        <rect x="420" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#3498db"/>
+        <text x="445" y="150" text-anchor="middle" font-size="10">GPU4</text>
+        <rect x="480" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#3498db"/>
+        <text x="505" y="150" text-anchor="middle" font-size="10">GPU5</text>
+        <rect x="540" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#3498db"/>
+        <text x="565" y="150" text-anchor="middle" font-size="10">GPU6</text>
+        <rect x="600" y="120" width="50" height="50" rx="6" fill="#fff" stroke="#3498db"/>
+        <text x="625" y="150" text-anchor="middle" font-size="10">GPU7</text>
+
+        <text x="540" y="220" text-anchor="middle" font-size="11" fill="#666">GPU의 절반만 학습에 사용</text>
+
+        <text x="360" y="300" text-anchor="middle" font-size="12" font-weight="700" fill="#c00">⏱ 120 GPU hours · GPU 자원 분할로 비효율</text>
+
+        <defs>
+          <marker id="a1" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#fbc02d"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ 기존 OPD는 학습과 별도로 teacher 서버를 띄우느라 GPU 자원이 분할된다.</div>
+    </div>
+
+    <h3>Lightning OPD: 한 번만 계산하고 끝</h3>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#444">Lightning OPD: 사전 1회 계산 → 학습은 GPU 전부 사용</text>
+
+        <!-- Phase 1: precompute (small) -->
+        <rect x="20" y="55" width="220" height="100" rx="10" fill="#fff8e1" stroke="#f7971e" stroke-width="2" stroke-dasharray="5"/>
+        <text x="130" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#b56a00">Phase 1: 사전 계산 (1회)</text>
+        <text x="130" y="103" text-anchor="middle" font-size="10" fill="#666">선생이 학생의 SFT rollout에 대해</text>
+        <text x="130" y="118" text-anchor="middle" font-size="10" fill="#666">log-prob을 한 번 출력 → 디스크에 저장</text>
+        <text x="130" y="143" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">⏱ 4 GPU hours만</text>
+
+        <!-- Arrow -->
+        <path d="M250 105 L290 105" stroke="#f7971e" stroke-width="3" marker-end="url(#a2)"/>
+        <text x="270" y="100" text-anchor="middle" font-size="10" fill="#b56a00">→ 저장</text>
+
+        <!-- Dataset -->
+        <ellipse cx="340" cy="105" rx="50" ry="35" fill="#f0f8f0" stroke="#27ae60" stroke-width="2"/>
+        <text x="340" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#1e8449">📁 D_OPD</text>
+        <text x="340" y="118" text-anchor="middle" font-size="10" fill="#1e8449">log-probs</text>
+
+        <!-- Arrow to training -->
+        <path d="M390 105 L430 105" stroke="#f7971e" stroke-width="3" marker-end="url(#a2)"/>
+
+        <!-- Training: full node -->
+        <rect x="440" y="55" width="260" height="220" rx="12" fill="#e6f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="570" y="80" text-anchor="middle" font-size="14" font-weight="700" fill="#2c7cb0">Phase 2: 학생 학습</text>
+        <text x="570" y="100" text-anchor="middle" font-size="11" fill="#666">8×H100 전체를 학생에 할당</text>
+
+        <rect x="450" y="115" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="470" y="140" text-anchor="middle" font-size="9">GPU0</text>
+        <rect x="495" y="115" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="515" y="140" text-anchor="middle" font-size="9">GPU1</text>
+        <rect x="540" y="115" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="560" y="140" text-anchor="middle" font-size="9">GPU2</text>
+        <rect x="585" y="115" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="605" y="140" text-anchor="middle" font-size="9">GPU3</text>
+        <rect x="630" y="115" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="650" y="140" text-anchor="middle" font-size="9">GPU4</text>
+
+        <rect x="450" y="160" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="470" y="185" text-anchor="middle" font-size="9">GPU5</text>
+        <rect x="495" y="160" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="515" y="185" text-anchor="middle" font-size="9">GPU6</text>
+        <rect x="540" y="160" width="40" height="40" rx="5" fill="#fff" stroke="#3498db"/>
+        <text x="560" y="185" text-anchor="middle" font-size="9">GPU7</text>
+
+        <text x="570" y="230" text-anchor="middle" font-size="11" fill="#1e8449" font-weight="700">전체 GPU를 학생 학습에만 사용</text>
+        <text x="570" y="250" text-anchor="middle" font-size="11" fill="#666">disk에서 log-prob 읽기만</text>
+        <text x="570" y="270" text-anchor="middle" font-size="20">⚡ 빠름</text>
+
+        <text x="360" y="305" text-anchor="middle" font-size="12" font-weight="700" fill="#27ae60">⏱ 30 GPU hours (4.0× 가속) · 단일 8×H100 노드로 30B MoE도 가능</text>
+
+        <defs>
+          <marker id="a2" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#f7971e"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ Lightning OPD는 teacher 서버 없이 disk에서 log-prob을 읽는다. 모든 GPU가 학생 학습에 집중.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎓 비유</strong>: 매 시험마다 과외 선생을 옆에 두고 채점받는(<strong>표준 OPD</strong>) 대신, 시험 전에 <strong>선생에게 모든 문제의 모범답안과 채점 기준을 한 번 받아두고</strong>(<strong>Lightning OPD</strong>) 공부 내내 그것만 보면서 혼자 연습한다. 과외비를 4분의 1로 줄였지만, 결과는 동일하다 — <strong>단, 그 선생이 평소 자기 답안지에 쓰던 그 선생이어야 한다</strong>.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) LLM 후처리 (Post-Training)</h3>
+      <p>Pretrain된 LLM에 (1) SFT (Supervised Fine-Tuning, 좋은 demonstration으로 학습) + (2) RL 또는 OPD 같은 추가 학습. <strong>수학/코드 reasoning 모델이 SOTA를 달성하려면 이 단계가 핵심</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Knowledge Distillation (KD)</h3>
+      <p>강한 선생(teacher) 모델의 지식을 약한 학생(student) 모델로 옮기는 기법. 1세대(Hinton, 2015)는 <strong>고정 데이터셋</strong>의 teacher 출력을 흉내내게 했다 (off-policy).</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) On-policy Distillation (OPD)</h3>
+      <p>학생이 <strong>자기 분포에서 직접 답안을 sampling</strong>하고, 그 위에서 선생이 알려주는 dense per-token 신호로 학습. RLVR (sparse reward) 대비 <strong>단위 sample당 정보량이 크고 학습이 안정적</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) Live Teacher Server</h3>
+      <p>OPD에서 매 학습 step마다 학생 답을 받아 선생이 채점해야 하므로, <strong>학습 동안 선생 모델이 계속 GPU에 떠 있어야 한다</strong>. 32B 선생이면 GPU 4장 이상 추가로 필요.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) Log-probability (log-prob)</h3>
+      <p>모델이 특정 토큰을 출력할 확률의 로그값. OPD는 <strong>선생과 학생의 log-prob 차이</strong>를 토큰별 advantage로 사용. Teacher가 student보다 이 토큰을 더 확신하면 positive (학생이 따라가야 함).</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) MoE (Mixture-of-Experts)</h3>
+      <p>전체 파라미터 일부만 활성화하는 효율적 아키텍처. Qwen3-30B-A3B는 <strong>총 30B 중 3B만 활성</strong>. 그러나 학습 시에는 모든 expert가 메모리에 있어야 해 <strong>standard OPD에선 teacher와 함께 OOM</strong>.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>가장 중요한 발견: Teacher Consistency</h2>
+
+    <p>저자들은 단순 offline化가 왜 실패하는지를 추적하다가 <strong>기존 OPD 관행에 숨어있던 design flaw</strong>를 찾아냈다. SFT 단계와 OPD 단계에 <strong>서로 다른 선생</strong>을 쓰는 관행이 그것이다.</p>
+
+    <div class="card card-orange">
+      <h3>현재의 잘못된 관행</h3>
+      <p>Thinking Machines Lab의 예시: <strong>SFT data</strong>는 OpenThoughts-3 (QwQ-32B가 만든 데이터) → <strong>OPD teacher</strong>는 Qwen3-32B. "SFT는 좋은 데이터셋, OPD는 좋은 선생"이라는 <strong>개별 최적화</strong>가 일반적이었다. RLVR (verifiable reward) 패러다임에선 reward만 중요하니 teacher가 누구든 상관없었기 때문.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>Teacher Consistency 원칙</h3>
+      <p>OPD에는 <strong>두 명의 선생</strong>이 존재한다: SFT trajectory를 만든 선생, OPD에서 점수를 매기는 선생. 이 둘이 다르면 <strong>gradient bias</strong>가 발생해서 online OPD도 offline OPD도 성능이 떨어진다. <strong>특히 offline OPD가 더 큰 타격</strong>을 받는다.</p>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">SFT teacher와 OPD teacher가 같을 때만 학생이 최고 성능</text>
+
+        <!-- Grid header -->
+        <text x="180" y="65" text-anchor="middle" font-size="12" font-weight="700">SFT teacher</text>
+        <text x="540" y="65" text-anchor="middle" font-size="12" font-weight="700">OPD teacher</text>
+
+        <!-- SFT teacher options -->
+        <rect x="80" y="85" width="200" height="50" rx="10" fill="#fff5f5" stroke="#e74c3c" stroke-width="2"/>
+        <text x="180" y="105" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">Qwen3-32B</text>
+        <text x="180" y="125" text-anchor="middle" font-size="10" fill="#666">SFT data 생성</text>
+
+        <rect x="80" y="155" width="200" height="50" rx="10" fill="#f0f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="180" y="175" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">QwQ-32B</text>
+        <text x="180" y="195" text-anchor="middle" font-size="10" fill="#666">SFT data 생성</text>
+
+        <!-- OPD teacher options -->
+        <rect x="440" y="85" width="200" height="50" rx="10" fill="#fff5f5" stroke="#e74c3c" stroke-width="2"/>
+        <text x="540" y="105" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">Qwen3-32B</text>
+        <text x="540" y="125" text-anchor="middle" font-size="10" fill="#666">log-prob 제공</text>
+
+        <rect x="440" y="155" width="200" height="50" rx="10" fill="#f0f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="540" y="175" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">QwQ-32B</text>
+        <text x="540" y="195" text-anchor="middle" font-size="10" fill="#666">log-prob 제공</text>
+
+        <!-- Same color = consistent -->
+        <path d="M280 110 L440 110" stroke="#27ae60" stroke-width="4"/>
+        <text x="360" y="100" text-anchor="middle" font-size="12" font-weight="700" fill="#27ae60">✓ 일치 69.9</text>
+
+        <path d="M280 180 L440 180" stroke="#27ae60" stroke-width="4"/>
+        <text x="360" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="#27ae60">✓ 일치 68.7</text>
+
+        <!-- Cross = inconsistent -->
+        <path d="M280 110 L440 180" stroke="#e74c3c" stroke-width="3" stroke-dasharray="6"/>
+        <text x="360" y="155" text-anchor="middle" font-size="11" fill="#e74c3c" font-weight="700">✗ 불일치 63.1 (-6.8)</text>
+
+        <path d="M280 180 L440 110" stroke="#e74c3c" stroke-width="3" stroke-dasharray="6"/>
+        <text x="360" y="135" text-anchor="middle" font-size="11" fill="#e74c3c" font-weight="700">✗ 불일치 62.1 (-7.8)</text>
+
+        <text x="360" y="265" text-anchor="middle" font-size="11" fill="#444">AIME 2024 pass@1, Qwen3-8B-Base student · 일치할 때만 우수 성능</text>
+      </svg>
+      <div class="svg-caption">▲ Lightning OPD의 <strong>teacher consistency 입증 실험</strong>. 같은 선생을 SFT와 OPD에 사용하면 69.9점, 다른 선생을 섞으면 6~8점 하락.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>👨‍🏫 비유</strong>: 한 학원에서 <strong>수학 강의는 A 선생님</strong>이 하고 <strong>모의고사 채점은 B 선생님</strong>이 한다면? A의 풀이 스타일로 공부한 학생이 B의 채점 기준으로 평가받게 되어 <strong>둘 사이의 미세한 차이가 누적</strong>된다. SFT와 OPD도 같은 원리. 한 명의 선생으로 통일해야 한다.
+    </div>
+
+    <h3>왜 Lightning OPD가 inconsistency에 더 취약한가</h3>
+    <p>표준 OPD는 매 step마다 <strong>학생이 자기 분포에서 fresh rollout</strong>을 뽑는다. 그래서 mismatch가 발생해도 매 step rollout이 갱신되어 <strong>부분적으로 보정</strong>된다. Lightning OPD는 <strong>시작 때 한 번 뽑은 SFT rollout만 사용</strong>하므로 mismatch가 <strong>reference policy와 rollout 양쪽에 동시에 박혀</strong> bias가 두 배로 누적된다. 이래서 8B 모델에서 표준 OPD는 -3.7점, Lightning OPD는 -6.8점.</p>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>왜 작동하는가: 4가지 이론적 보장</h2>
+
+    <div class="card card-accent">
+      <h3>① Gradient Discrepancy Bound (Theorem 3.5)</h3>
+      <p>Online OPD와 offline OPD의 gradient 차이는 <strong>학생이 reference로부터 얼마나 멀리 갔는지(drift)</strong>에 비례한다. 학습 시작 시 학생 = reference 이므로 <strong>차이는 0</strong>. 학습이 길어져도 KL 정규화가 작용해 차이가 작게 유지된다.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>② Shared Fixed Point (Theorem 3.6)</h3>
+      <p>두 방법은 <strong>같은 최적해</strong>를 가진다. 학생이 결국 도달하는 곳은 teacher를 잘 흉내내는 모델. 따라서 Lightning OPD가 표준 OPD와 <strong>같은 목적지</strong>로 가는 것이 보장.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>③ Implicit Regularization (Theorem 3.7)</h3>
+      <p>Offline gradient는 online gradient에서 <strong>covariance term</strong>을 뺀 형태. 이 항이 <strong>explicit KL penalty 없이도</strong> 학생이 reference로부터 너무 멀어지는 것을 자동으로 막는다. <strong>trust-region 효과</strong>.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>④ Teacher Mismatch Bias (Theorem 3.8–3.9)</h3>
+      <p>SFT teacher ≠ OPD teacher면 <strong>gradient에 persistent bias</strong>가 발생. 두 방법 모두 영향받지만 <strong>offline이 더 크게 영향받는다</strong>. 따라서 teacher consistency는 Lightning OPD의 필수 조건.</p>
+    </div>
+
+    <div class="analogy">
+      <strong>🧭 비유</strong>: 길을 찾는 데 <strong>나침반(online)</strong>과 <strong>미리 그린 지도(offline)</strong>가 있다. 출발점에선 두 정보가 정확히 일치. 멀리 갈수록 지도와 실제 지형의 차이가 생기지만, <strong>KL 정규화</strong>라는 "출발지에서 너무 멀리 가지 마라"는 규칙이 자동으로 작동해 둘이 거의 같은 결과를 낸다. 단, <strong>지도를 그린 사람</strong>과 <strong>나침반을 만든 사람</strong>이 다르면 작은 오차가 누적되어 큰 차이가 난다 — 그게 teacher consistency.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">4.0×</div>
+        <div class="stat-label">8B 모델 학습 가속<br>(120 → 30 GPU hours)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">69.9%</div>
+        <div class="stat-label">AIME 2024 정확도<br>(Qwen3-8B-Base 학생)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">71.0%</div>
+        <div class="stat-label">AIME 2024 (30B MoE)<br>단일 8×H100 노드</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">3.6×</div>
+        <div class="stat-label">4B 모델 가속<br>(72 → 20 GPU hours)</div>
+      </div>
+    </div>
+
+    <h3>벤치마크 별 성능 (Qwen3-8B-Base 학생, Qwen3-32B 선생)</h3>
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>AIME 2024</th><th>AIME 2025</th><th>HMMT 2025</th><th>LCB v5</th><th>LCB v6</th></tr></thead>
+      <tbody>
+        <tr><td>SFT</td><td>63.7</td><td>51.7</td><td>36.9</td><td>44.7</td><td>36.8</td></tr>
+        <tr><td>표준 OPD (선생 서버 필요)</td><td>68.5</td><td>59.0</td><td>39.4</td><td>47.3</td><td>41.2</td></tr>
+        <tr class="highlight-row"><td>Lightning OPD (선생 서버 ✗)</td><td>69.9</td><td>59.2</td><td>41.9</td><td>49.5</td><td>43.9</td></tr>
+      </tbody>
+    </table>
+    <p>Lightning OPD는 <strong>전 벤치마크에서 표준 OPD와 동등 혹은 약간 상회</strong>. 그러면서도 학습 시간은 1/4.</p>
+
+    <h3>학습 비용 분해 (Qwen3-8B-Base)</h3>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+        <!-- Standard OPD -->
+        <text x="50" y="50" font-size="13" font-weight="700" fill="#444">표준 OPD</text>
+        <rect x="160" y="35" width="500" height="35" fill="#e74c3c" stroke="#c0392b" stroke-width="1"/>
+        <text x="410" y="58" text-anchor="middle" font-size="13" font-weight="700" fill="white">120 GPU hours (Teacher serving 포함)</text>
+
+        <!-- Lightning OPD -->
+        <text x="50" y="125" font-size="13" font-weight="700" fill="#444">Lightning OPD</text>
+        <rect x="160" y="110" width="42" height="35" fill="#3498db" stroke="#2c7cb0" stroke-width="1"/>
+        <text x="181" y="105" text-anchor="middle" font-size="9" fill="#2c7cb0">Rollout</text>
+        <text x="181" y="132" text-anchor="middle" font-size="11" font-weight="700" fill="white">10h</text>
+
+        <rect x="202" y="110" width="17" height="35" fill="#f7971e" stroke="#b56a00" stroke-width="1"/>
+        <text x="210" y="105" text-anchor="middle" font-size="9" fill="#b56a00">log-prob</text>
+        <text x="210" y="132" text-anchor="middle" font-size="9" font-weight="700" fill="white">4h</text>
+
+        <rect x="219" y="110" width="67" height="35" fill="#27ae60" stroke="#1e8449" stroke-width="1"/>
+        <text x="252" y="105" text-anchor="middle" font-size="9" fill="#1e8449">Training</text>
+        <text x="252" y="132" text-anchor="middle" font-size="11" font-weight="700" fill="white">16h</text>
+
+        <text x="290" y="132" font-size="11" font-weight="700" fill="#27ae60">= 30 GPU hours (4.0× 가속)</text>
+
+        <text x="370" y="180" text-anchor="middle" font-size="11" fill="#666">표준 OPD는 학습 내내 teacher serving 비용이 누적되지만, Lightning OPD는 사전 4시간만 소요</text>
+      </svg>
+      <div class="svg-caption">▲ Lightning OPD의 비용 분해. 실제 학습은 16시간이고 사전 작업이 14시간 — 전용 인프라 없이 가능.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>가장 놀라운 결과: 30B MoE를 단일 노드에서</h2>
+
+    <p>Qwen3-30B-A3B (30B 총 파라미터, 3B 활성)는 현존 reasoning 모델 중 강력한 MoE 아키텍처. 표준 OPD로 학습하려면 <strong>30B 학생 + 30B 선생을 동시에 GPU에 로드</strong>해야 하는데 <strong>8×H100 한 노드로는 메모리 부족 (OOM)</strong>.</p>
+
+    <p>Lightning OPD는 학습 중 선생이 메모리에 없으므로 <strong>전체 GPU 메모리를 학생에 할당</strong>. 결과:</p>
+
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>AIME 2024</th><th>AIME 2025</th><th>HMMT 2025</th><th>LCB v5</th><th>LCB v6</th></tr></thead>
+      <tbody>
+        <tr><td>SFT</td><td>66.8</td><td>63.2</td><td>44.6</td><td>39.4</td><td>33.0</td></tr>
+        <tr><td>OPD (표준)</td><td colspan="5" style="text-align:center;color:#c00;font-weight:700">✗ OOM — 단일 노드에서 학습 불가</td></tr>
+        <tr class="highlight-row"><td>Lightning OPD</td><td><strong>71.0</strong></td><td><strong>66.3</strong></td><td><strong>48.3</strong></td><td><strong>60.8</strong></td><td><strong>54.4</strong></td></tr>
+      </tbody>
+    </table>
+
+    <p>코드 영역(LCB)에서 <strong>SFT 대비 +20점</strong> 이상 개선. <strong>대학/소규모 lab에서도 SOTA-급 30B reasoning 모델을 학습할 수 있는 길</strong>을 열었다.</p>
+
+    <div class="analogy">
+      <strong>🏫 비유</strong>: 좋은 강의를 듣고 싶어도 강사가 매주 직접 와야 하면 비용이 부담스럽다. <strong>Lightning OPD는 강사가 한 번 와서 모든 강의를 녹음하고 가는 셈</strong>. 학생은 그 녹화본만 가지고 충분히 잘 배운다. 강사 한 명 모실 자원밖에 없는 동네 학원에서도 SOTA 교육이 가능해진다.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>기존 방법과의 비교</h2>
+
+    <table class="comp-table">
+      <thead><tr><th>차원</th><th>표준 OPD</th><th>Lightning OPD (제안)</th></tr></thead>
+      <tbody>
+        <tr><td>Live teacher server 필요</td><td>✓ (학습 내내)</td><td>✗ (사전 1회만)</td></tr>
+        <tr><td>GPU 자원 분할</td><td>student와 teacher가 share</td><td>전체 GPU를 student에</td></tr>
+        <tr><td>30B MoE on 8×H100</td><td>✗ OOM</td><td><strong>✓ 가능</strong></td></tr>
+        <tr><td>학습 시간 (8B)</td><td>120 GPU hours</td><td><strong>30 GPU hours</strong></td></tr>
+        <tr><td>AIME 2024 (Qwen3-8B)</td><td>68.5</td><td><strong>69.9</strong></td></tr>
+        <tr><td>Teacher consistency 민감도</td><td>중간 (-3.7점)</td><td>높음 (-6.8점)</td></tr>
+        <tr><td>이론적 보장</td><td>—</td><td>Shared fixed point, bounded gradient, implicit regularization</td></tr>
+      </tbody>
+    </table>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>실용적 활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="180" r="70" fill="#f7971e"/>
+        <text x="360" y="175" text-anchor="middle" font-size="15" font-weight="700" fill="white">Lightning</text>
+        <text x="360" y="195" text-anchor="middle" font-size="13" fill="white">OPD</text>
+
+        <line x1="360" y1="110" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">학원 규모 lab</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">8×H100 노드 1개로 SOTA</text>
+
+        <line x1="360" y1="110" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">대형 MoE 학습</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">30B+ 모델 단일 노드 가능</text>
+
+        <line x1="290" y1="180" x2="170" y2="180" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="150" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="175" text-anchor="middle" font-size="12" font-weight="700">수학/코드 reasoning</text>
+        <text x="85" y="195" text-anchor="middle" font-size="10" fill="#555">AIME/LCB 등</text>
+
+        <line x1="430" y1="180" x2="560" y2="180" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="150" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="175" text-anchor="middle" font-size="12" font-weight="700">재현 가능 연구</text>
+        <text x="640" y="195" text-anchor="middle" font-size="10" fill="#555">데이터 + 모델만 공유</text>
+
+        <line x1="360" y1="250" x2="180" y2="310" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="280" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="305" text-anchor="middle" font-size="12" font-weight="700">반복 실험/ablation</text>
+        <text x="160" y="325" text-anchor="middle" font-size="10" fill="#555">4배 빠른 iteration</text>
+
+        <line x1="360" y1="250" x2="540" y2="310" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="280" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="305" text-anchor="middle" font-size="12" font-weight="700">SFT + OPD co-design</text>
+        <text x="560" y="325" text-anchor="middle" font-size="10" fill="#555">teacher consistency 원칙</text>
+      </svg>
+      <div class="svg-caption">▲ Lightning OPD의 활용 가능 시나리오 마인드맵.</div>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① 검증 도메인이 좁다</h3>
+      <p>수학·코드 reasoning에 집중. <strong>creative writing이나 multi-turn conversation</strong>에서 SFT trajectory가 분포를 잘 cover하지 못하면 학생 분포의 drift($\chi^2$)가 빨라져 offline approximation이 깨질 수 있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Teacher consistency의 실용 비용</h3>
+      <p>기존의 좋은 SFT dataset (예: OpenThoughts-3, QwQ-32B 생성)을 그대로 쓸 수 없다. <strong>OPD teacher와 같은 모델로 SFT data를 새로 생성</strong>해야 함. 데이터 재생성 비용이 4배 가속 이득을 일부 상쇄.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ 긴 학습 시 drift 위험</h3>
+      <p>이론적 bound는 학생이 reference에서 <strong>너무 멀어지지 않는 한</strong> 유효. 150 step 학습에선 안전하지만 <strong>수천 step</strong> 학습이 필요한 더 어려운 task에선 미검증.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Capacity-limited 케이스의 모호함</h3>
+      <p>Theorem 3.6의 "공유 최적해"는 <strong>teacher를 student class가 표현할 수 있을 때</strong>만 정확. 실제론 32B teacher → 8B student로 capacity gap이 큰데, 어떤 분포로 수렴하는지는 <strong>empirical 주장에 의존</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Seed/표준편차 미보고</h3>
+      <p>AIME24 0.5점 차이가 noise인지 신호인지 확인 불가. inconsistency ablation의 6.8 vs 3.7도 multi-seed 검증이 필요.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Live teacher serving 없이도 표준 OPD와 동등하게 학습할 수 있다.<br>
+        <strong>단, SFT teacher와 OPD teacher가 같을 때만.</strong><br>
+        Lightning OPD는 대형 reasoning 모델을 <strong>학계 자원</strong>으로도 학습 가능하게 한다.
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"숨겨진 design principle을 찾는 안목"</strong>: 기존 관행(다른 teacher를 SFT와 OPD에 사용)이 RLVR 시대의 습관이었다는 것을 추적해 <strong>teacher consistency</strong>라는 새 원칙을 정립. 분야 전환기에 발견할 만한 가치 높은 통찰.</li>
+      <li><strong>"Online vs offline의 본질은 인프라가 아니라 분포의 drift"</strong>: 이론적으로 둘은 <strong>$\chi^2$ divergence로 연결</strong>. KL 정규화 + 짧은 학습 step이라는 두 조건만 만족하면 둘은 거의 동등.</li>
+      <li><strong>"Implicit regularization은 free lunch가 아니다"</strong>: covariance term이 KL penalty 역할을 하지만, <strong>teacher consistency가 깨지면 그 효과보다 bias가 더 빠르게 누적</strong>된다. 이론적 보장은 항상 가정의 정확함과 함께 평가해야 한다.</li>
+    </ul>
+
+    <a href="20260518_wu_lightning_opd.html" class="nav-link" style="background: #f7971e; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>Lightning OPD: Efficient Post-Training for Large Reasoning Models with Offline On-Policy Distillation</strong></p>
+    <p>Yecheng Wu, Song Han, Han Cai · NVIDIA · arXiv 2604.13010 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260518_wu_lightning_opd.html">전문가용 보기</a> · <a href="https://github.com/jet-ai-projects/Lightning-OPD">GitHub</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
