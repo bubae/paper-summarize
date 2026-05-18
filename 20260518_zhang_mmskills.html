@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMSkills: Multimodal Skills for General Visual Agents</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MMSkills: Towards Multimodal Skills for General Visual Agents</h1>
+
+<a href="20260518_zhang_mmskills_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Kangning Zhang, Shuai Shao (equal contribution), Qingyao Li, Jianghao Lin, Lingyue Fu, Shijian Wang, Wenxiang Jiao, Yuan Lu, Weiwen Liu, Weinan Zhang, Yong Yu</li>
+  <li><strong>소속</strong>: Shanghai Jiao Tong University, Xiaohongshu Inc., Southeast University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (May 14)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.13527">arXiv:2605.13527</a> · <a href="https://github.com/DeepExperience/MMSkills">GitHub</a> · <a href="https://deepexperience.github.io/MMSkills/">Project Page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 agent skill library는 ##재사용 가능한 지식을 텍스트(prompt, code, routine)로만## 표현한다. 그러나 visual agent는 desktop GUI/게임 같은 ##시각 환경##에서 동작하며, "언제 그 절차를 써야 하는가"는 ##관찰 가능한 시각 단서##에 의존한다. 텍스트만으로는 "다이얼로그가 준비되지 않았다", "차트가 잘못된 시트에 만들어졌다" 같은 결정이 불가능.</li>
+  <li><strong>해결</strong>: MMSkill = ##(D, P, S, K)## — descriptor + textual procedure + runtime state cards + multi-view keyframes. State card는 when-to-use/when-not-to-use/visible-cues/verification-cue/available-views를 ##agent-facing schema##로 명시. Keyframe은 full_frame, focus_crop, before, after의 multi-view bundle.</li>
+  <li><strong>왜 작동하는가</strong>: (1) public non-evaluation trajectory에서 ##Generator##가 5-phase pipeline으로 skill 추출, (2) 추론 시 ##branch loading##이 보조 trajectory에서 state card와 view를 align 후 ##distilled guidance##만 main agent에 전달, (3) reference image가 live observation을 over-anchor하는 것을 방지.</li>
+  <li><strong>비유</strong>: 텍스트 매뉴얼만 든 신입사원과, ##사진 첨부 매뉴얼 + 체크포인트 + 비포어/애프터 예시##를 든 신입사원의 차이. 후자는 "지금 화면이 이 단계 맞나?"를 ##스스로 시각적으로 확인##한 뒤 행동한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Multimodal Procedural Knowledge 정식화</strong>: 재사용 가능한 시각 agent skill을 처음으로 ##state-conditioned multimodal package##로 정의. text 절차 + visual evidence + 사용 조건을 하나의 reusable unit으로 묶음.</li>
+  <li><strong>Agentic Trajectory-to-Skill Generator</strong>: ##5-phase pipeline## — (Phase 0) task embedding & clustering, (1) cluster-level skill planning, (2) skill merging, (3) text-first drafting, (4) image grounding & audit. Meta-skill-guided LLM agent가 control. ##Evaluation task와 분리된 public trajectory##만 사용.</li>
+  <li><strong>Branch-Loaded Multimodal Skill Agent</strong>: 메인 trajectory에 전체 skill package를 주입하지 않고, ##temporary branch##에서 state card/view selection을 수행해 structured guidance tuple $G_t$만 반환. Stage 1 (gated view selection) + Stage 2 (branch planning)의 2단계.</li>
+  <li><strong>4개 벤치마크에서 검증</strong>: OSWorld (desktop GUI), macOSWorld, VAB-Minecraft (open-world game), Super Mario (LMGame-Bench). ##frontier model과 smaller model 모두에서 일관된 향상##. 특히 약한 모델 (Qwen3-VL-8B-Instruct)에서 OSWorld 10.78% → 25.40%, VAB-Minecraft 23.28% → 38.79%.</li>
+  <li><strong>Behavioral Shift 정량화</strong>: skill 사용 시 agent의 click 비율 75.8% → 63.7% (Qwen3-VL-235B), ##exact repeated actions 21.8% → 6.2%##. ##exploratory trial-and-error를 grounded, state-aware execution으로 전환##함을 입증.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Skill 추상화의 발전</h3>
+<p>Agent를 위한 skill 개념은 robotics의 motor primitive (Ijspeert et al., 2013)에서 출발해 LLM agent로 옮겨오면서:</p>
+<ul>
+  <li><strong>Voyager, AutoGen 계열</strong>: skill = ##실행 가능 코드##.</li>
+  <li><strong>ReAct, Plan-and-Solve 계열</strong>: skill = ##자연어 절차 (planning template)##.</li>
+  <li><strong>AgentS, Mind2Web 계열</strong>: skill = ##학습된 routine library##.</li>
+</ul>
+<p>이들 모두 ##"관련 state는 텍스트로 충분히 추상화 가능"##이라는 암묵적 가정. 그러나 시각 agent는 다음 같은 실패 모드를 보인다:</p>
+<ul>
+  <li>Desktop agent가 ##다이얼로그가 아직 안 떴는데 다음 단계로 진행##.</li>
+  <li>Game agent가 ##목표는 알지만 progress vs completion 구분 실패##.</li>
+  <li>GUI agent가 ##wrong sheet에 chart 생성##.</li>
+</ul>
+
+<h3>핵심 통찰: Visual Procedural Knowledge의 필요성</h3>
+<p>Mayer (2009)의 multimedia learning 연구에 따르면 ##시각 정보는 절차 학습에서 verbal 설명을 보완##한다. 텍스트 skill은 너무 verbose하면서도 underspecified, demonstration은 visual context를 보존하지만 lengthy하고 instance-specific이며 adapt하기 어렵다. MMSkills는 이 양극단 사이의 ##중간 추상화##를 목표.</p>
+
+<h3>Reusable Multimodal Knowledge가 만족해야 할 3가지 challenge</h3>
+<ul>
+  <li><strong>Representation</strong>: skill package가 어떤 내용을 담아야 하고, 절차/시각/검증 단서를 어떻게 binding할 것인가?</li>
+  <li><strong>Generation</strong>: hand-written이나 raw demonstration replay가 아닌 ##public non-evaluation interaction##에서 어떻게 자동 derive할 것인가?</li>
+  <li><strong>Utilization</strong>: 추론 시 ##과도한 image context, distracting state description, reference screenshot over-anchoring## 없이 어떻게 consult할 것인가?</li>
+</ul>
+
+<h2>방법 (Method)</h2>
+
+<h3>전체 시스템 개요</h3>
+<div class="flow-diagram">[Skill Library M]               [Generator F]              [Branch-Loaded Agent]
+  Public trajectories  →  5-phase pipeline  →  Multimodal Skill Library
+                                                        ↓
+                              Pre-recall: I → candidate set C_I ⊂ M
+                                                        ↓
+                              At step t:
+                                Observe O_t, history H_t
+                                  Direct: A_t = π_main(O_t, H_t, C_I)
+                                  Branch: G_t = Branch(O_t, H_t, M_t)
+                                          A_t = π_main(O_t, H_t, C_I, G_t)</div>
+
+<h3>MMSkill 데이터 구조 (Equations 3–6)</h3>
+<p>각 MMSkill은 state-conditioned procedure package:</p>
+<p>$$M = (D, P, S, K) \quad (3)$$</p>
+<p>여기서:</p>
+<ul>
+  <li>$D$: compact descriptor (when_to_use 요약).</li>
+  <li>$P$: reusable textual procedure.</li>
+  <li>$S = \{S_j\}_{j=1}^{m}$: runtime state cards.</li>
+  <li>$K = \{K_j\}_{j=1}^{m}$: $S_j$와 aligned된 keyframe bundle.</li>
+</ul>
+
+<h4>Runtime State Card $S_j$ (Equation 4)</h4>
+<p>$$S_j = (\text{when\_to\_use}_j, \text{when\_not\_to\_use}_j, \text{visible\_cues}_j, \text{verification\_cue}_j, \mathcal{V}_j)$$</p>
+<p>각 필드의 역할:</p>
+<ul>
+  <li><strong>when_to_use</strong>: 이 단계 절차가 follow되어야 하는 조건.</li>
+  <li><strong>when_not_to_use</strong>: skip되어야 하는 조건 (## 매우 중요한 negative constraint##).</li>
+  <li><strong>visible_cues</strong>: 현재 state임을 판정할 시각 단서.</li>
+  <li><strong>verification_cue</strong>: 진행/완료 확인 단서.</li>
+  <li><strong>available_views</strong>: 어떤 view를 load할 수 있는가.</li>
+</ul>
+
+<h4>Multi-View Keyframes (Equations 5–6)</h4>
+<p>View 집합:</p>
+<p>$$\mathcal{V} = \{\text{full\_frame}, \text{focus\_crop}, \text{before}, \text{after}\} \quad (5)$$</p>
+<p>각 state의 keyframe bundle:</p>
+<p>$$K_j = \{K_j^v : v \in \mathcal{V}_j, v \in \mathcal{V}\} \quad (6)$$</p>
+
+<p><strong>왜 4종류 view인가</strong>:</p>
+<ul>
+  <li>##full_frame##: global context — 어떤 application인지, layout이 어떤지.</li>
+  <li>##focus_crop##: visual cue localization — 작은 button, status indicator.</li>
+  <li>##before/after##: transition evidence — "이 단계가 완료되면 이렇게 변한다"를 보여줌.</li>
+</ul>
+<p>이 design은 reference image가 ##coordinate를 복사하기 위한 것이 아니라 평가 evidence##임을 명시. Text-only skill은 degenerate case $(D, P, \emptyset, \emptyset)$.</p>
+
+<h3>Skill Generator from Public Trajectories</h3>
+<p>Trajectory $\tau_i = (I_i, O_{i,1:T_i}, A_{i,1:T_i})$ (instruction, observations, actions). Generator는 multimodal-skill-factory meta-skill $\mathcal{F}$로 control:</p>
+<p>$$\mathcal{G}_\mathcal{F}: \mathcal{T}_d \mapsto \mathcal{M}_d \quad (8)$$</p>
+<p>$$\mathcal{T}_d \xrightarrow{\text{Phase 0: embed+cluster}} \mathcal{C}_d \xrightarrow{\text{Phase 1: cluster plan}} \mathcal{A}_d \xrightarrow{\text{Phase 2: merge}} \mathcal{R}_d \xrightarrow{\text{Phase 3: text draft}} \widehat{\mathcal{M}}_d \xrightarrow{\text{Phase 4: ground+audit}} \mathcal{M}_d \quad (9)$$</p>
+
+<h4>5-Phase Pipeline 상세</h4>
+<ol>
+  <li><strong>Phase 0: Task Embedding & Clustering</strong>: instruction과 trajectory metadata를 embed → semantic cluster $\mathcal{C}_d$.</li>
+  <li><strong>Phase 1: Cluster-Level Skill Planning</strong>: 각 cluster마다 LLM-based agent가 atomic skill 후보 제안 (workflow boundary, completion condition, covered task ids).</li>
+  <li><strong>Phase 2: Skill Merging</strong>: cluster-level plan을 deduplicate, merge, generalize → $\mathcal{R}_d$. 너무 broad한 umbrella skill은 reject.</li>
+  <li><strong>Phase 3: Text-First Drafting</strong>: ##image 보지 않고## reference task 선택하여 $(D, P, \widehat{S}_r)$ 초안 작성. ##text rationale을 먼저 고정##해 이후 visual grounding이 그 rationale에 anchor되도록.</li>
+  <li><strong>Phase 4: Image Grounding & Audit</strong>: keyframe 읽어 focus region 결정, multi-view bundle 구성, ##final package audit##:
+    $$\widehat{M}_r = (D_r, P_r, \widehat{S}_r, \widehat{K}_r) \xrightarrow{\text{ground+audit}} M_r = (D_r, P_r, S_r, K_r) \quad (10)$$
+  </li>
+</ol>
+
+<p><strong>핵심 design 결정</strong>: visual grounding policy가 ##conservative##. View는 state 인식 / transition 비교 / completion 검증 같은 ##진단적 목적##에만 추가됨. demonstration replay는 저장하지 않음. 즉 ##skill = diagnostic state library##.</p>
+
+<h3>Branch-Loaded Multimodal Skills Agent</h3>
+<p>Direct loading의 문제: state card + multi-view keyframe + transition example을 main context에 넣으면 ##(i) substantial context pressure, (ii) reference image가 live observation과 경쟁, (iii) main agent가 visually anchored##되어 reference scenario를 따라하려 함.</p>
+
+<h4>Stage 1: Gated View Selection (Equation 11)</h4>
+<p>Main agent가 $M_t = (D_t, P_t, S_t, K_t) \in C_I$를 호출하면:</p>
+<p>$$(J_t, R_t) = \text{SelectViews}(O_t, H_{t-1}, P_t, S_t), \quad V_t = \{K_j^v : j \in J_t, v \in R_{t,j}\} \quad (11)$$</p>
+<p>$J_t$는 선택된 state card index, $R_{t,j} \subseteq \mathcal{V}_j$는 state $j$에 대해 load할 view 집합. ##Text와 state card만으로 충분하면## $R_{t,j}$가 empty.</p>
+
+<h4>Stage 2: Branch Planning (Equation 12)</h4>
+<p>$$G_t = \text{PlanBranch}(O_t, H_{t-1}, P_t, \{S_j : j \in J_t\}, V_t) \quad (12)$$</p>
+<p>Branch는 selected evidence를 live state와 align하여 ##structured guidance tuple##:</p>
+<p>$$G_t = (\text{applicable}_t, \text{subgoal}_t, \text{plan}_t, \text{do\_not\_do}_t, \text{verify}_t) \quad (2)$$</p>
+<ul>
+  <li><strong>applicable</strong>: 이 skill이 현재 state에 적용 가능한가?</li>
+  <li><strong>subgoal</strong>: local target.</li>
+  <li><strong>plan</strong>: skill-conditioned action plan.</li>
+  <li><strong>do_not_do</strong>: ##negative constraint## (가장 중요!).</li>
+  <li><strong>verify</strong>: completion check.</li>
+</ul>
+
+<p>핵심: $G_t$는 ##planning signal##이고, main agent는 이를 ##mechanically execute하지 않고 grounded action을 현재 screenshot에서 선택##. Reference image가 live observation을 override하지 못하게 보장.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 setup</h3>
+<ul>
+  <li><strong>벤치마크</strong>: OSWorld (Ubuntu desktop), macOSWorld, VAB-Minecraft, Super Mario Bros (LMGame-Bench).</li>
+  <li><strong>모델</strong>: frontier — Gemini 3.1 Pro, Gemini 3 Flash, Qwen3-VL-235B, GLM-5V, Kimi-K2.6; smaller — Qwen3-VL-8B-Instruct.</li>
+  <li><strong>Skill source</strong>: ##non-test data##에서 추출. dataset-specific skill source와 source statistics는 Appendix B.</li>
+  <li><strong>비교 조건</strong>: no-skill / text-only skill / MMSkills (full). Gemini 3.1 Pro와 Kimi-K2.6은 inference cost 높아 ##3-condition만 보고##.</li>
+</ul>
+
+<h3>RQ1: Overall Performance on GUI & Game (Table 1, 2)</h3>
+<p>실험 의도: external multimodal procedural knowledge가 ##model-internal prior를 보완하는가?</p>
+
+<h4>OSWorld application-level success rates (Table 1)</h4>
+<table>
+<thead><tr><th>Base model</th><th>Skill condition</th><th>Chrome</th><th>GIMP</th><th>Calc</th><th>Impress</th><th>Writer</th><th>OS</th><th>Mail</th><th>VLC</th><th>VS Code</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Gemini 3.1 Pro</td><td>No skill</td><td>53.47</td><td>34.62</td><td>57.45</td><td>40.43</td><td>47.82</td><td>54.17</td><td>40.00</td><td>35.29</td><td>56.52</td><td>44.08</td></tr>
+<tr><td>Text-only</td><td>44.35</td><td>34.62</td><td>38.30</td><td>40.34</td><td>56.52</td><td>70.83</td><td>66.67</td><td>41.18</td><td>56.52</td><td>40.76</td></tr>
+<tr><td>##MMSkills##</td><td>##59.91##</td><td>50.00</td><td>53.19</td><td>53.19</td><td>60.86</td><td>70.83</td><td>66.67</td><td>70.59</td><td>65.22</td><td>##50.11##</td></tr>
+<tr><td rowspan="3">Gemini 3 Flash</td><td>No skill</td><td>37.78</td><td>50.00</td><td>38.30</td><td>29.73</td><td>52.17</td><td>54.17</td><td>66.67</td><td>52.39</td><td>47.83</td><td>36.65</td></tr>
+<tr><td>Text-only</td><td>51.02</td><td>23.08</td><td>38.30</td><td>34.00</td><td>56.52</td><td>54.17</td><td>60.00</td><td>58.82</td><td>52.17</td><td>40.27</td></tr>
+<tr><td>##MMSkills##</td><td>55.37</td><td>42.31</td><td>53.19</td><td>40.34</td><td>56.52</td><td>75.00</td><td>66.67</td><td>52.94</td><td>60.87</td><td>##47.97##</td></tr>
+<tr><td rowspan="3">Qwen3-VL-235B</td><td>No skill</td><td>15.56</td><td>38.46</td><td>17.02</td><td>25.53</td><td>43.48</td><td>25.00</td><td>26.67</td><td>17.65</td><td>34.78</td><td>21.34</td></tr>
+<tr><td>Text-only</td><td>42.22</td><td>50.00</td><td>10.64</td><td>21.31</td><td>34.78</td><td>33.33</td><td>60.00</td><td>35.29</td><td>47.83</td><td>28.57</td></tr>
+<tr><td>##MMSkills##</td><td>51.02</td><td>##69.23##</td><td>23.40</td><td>32.01</td><td>47.82</td><td>41.67</td><td>73.33</td><td>47.83</td><td>56.52</td><td>##39.17##</td></tr>
+<tr><td rowspan="3">Qwen3-VL-8B-Instruct (weak)</td><td>No skill</td><td>15.47</td><td>7.69</td><td>2.13</td><td>8.59</td><td>4.34</td><td>25.00</td><td>13.33</td><td>29.41</td><td>17.39</td><td>10.78</td></tr>
+<tr><td>Text-only</td><td>19.91</td><td>11.54</td><td>6.38</td><td>16.99</td><td>17.39</td><td>16.67</td><td>33.33</td><td>17.65</td><td>34.78</td><td>14.93</td></tr>
+<tr><td>##MMSkills##</td><td>39.91</td><td>42.31</td><td>8.51</td><td>23.37</td><td>17.39</td><td>13.43</td><td>25.00</td><td>60.00</td><td>29.41</td><td>##25.40 (+14.6)##</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>모든 모델에서 일관된 향상</strong>: Gemini 3.1 Pro 44.08% → 50.11%, Gemini 3 Flash 36.65% → 47.97%, Qwen3-VL-235B ##21.34% → 39.17% (+17.83)##.</li>
+  <li><strong>약한 모델에서 가장 큰 gain</strong>: Qwen3-VL-8B-Instruct ##10.78% → 25.40% (+14.6점, 2.4×)##. ##External multimodal procedural knowledge가 limited internal prior를 compensate##.</li>
+  <li><strong>Text-only는 일관성 낮음</strong>: Gemini 3.1 Pro에서 ##text-only가 40.76% (no-skill 44.08%보다 낮음)##. Procedure만으로는 visual state matching을 도와주지 못함 → ##text는 distractor가 될 수도 있음##.</li>
+  <li><strong>Domain-specific 차이</strong>: GIMP (이미지 편집)에서 Qwen3-VL-235B가 ##38.46 → 69.23 (+30.77)##. visual cue가 절대적인 도메인에서 효과 극대.</li>
+</ul>
+
+<h4>macOSWorld & Game (Table 2)</h4>
+<table>
+<thead><tr><th>Base model</th><th>Skill condition</th><th>macOSWorld Overall</th><th>VAB-Minecraft Success</th><th>VAB-Minecraft Avg score</th><th>Super Mario Total perf.</th><th>Super Mario Total reward</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Gemini 3 Flash</td><td>No skill</td><td>55.94</td><td>67.24</td><td>0.7462</td><td>411.00</td><td>766.67</td></tr>
+<tr><td>Text-only</td><td>53.85</td><td>68.96</td><td>0.7541</td><td>548.00</td><td>912.00</td></tr>
+<tr><td>MMSkills</td><td>##65.73##</td><td>##73.28##</td><td>##0.7884##</td><td>##624.00##</td><td>##1081.33##</td></tr>
+<tr><td rowspan="3">Qwen3-VL-235B</td><td>No skill</td><td>47.55</td><td>52.59</td><td>0.6308</td><td>454.50</td><td>955.50</td></tr>
+<tr><td>Text-only</td><td>43.36</td><td>55.17</td><td>0.6634</td><td>610.50</td><td>1138.25</td></tr>
+<tr><td>MMSkills</td><td>##51.75##</td><td>##62.07##</td><td>##0.7114##</td><td>##788.00##</td><td>##1514.25##</td></tr>
+<tr><td rowspan="3">Qwen3-VL-8B-Instruct</td><td>No skill</td><td>6.29</td><td>23.28</td><td>0.3017</td><td>415.25</td><td>928.75</td></tr>
+<tr><td>Text-only</td><td>4.90</td><td>29.31</td><td>0.3754</td><td>596.50</td><td>997.25</td></tr>
+<tr><td>MMSkills</td><td>6.29</td><td>##38.79##</td><td>##0.4668##</td><td>##764.00##</td><td>##1128.75##</td></tr>
+</tbody>
+</table>
+
+<p><strong>핵심 패턴</strong>: gain이 ##GUI desktop만이 아니라 게임 환경에도 transfer##. Super Mario에서 reward가 일관되게 향상 — ##recurring state + action strategy가 있는 시각 environment 일반에 적용 가능##.</p>
+
+<h3>RQ2: Ablation of Skill Content and Branch Loading (Figure 3)</h3>
+<p>실험 의도: ##어떤 component가 진짜 중요##한가?</p>
+<table>
+<thead><tr><th>조건</th><th>설명</th><th>Cards</th><th>Images</th></tr></thead>
+<tbody>
+<tr><td>Direct load</td><td>전체 skill을 main context에 inject</td><td>✓</td><td>✓</td></tr>
+<tr><td>Branch load (text-only)</td><td>state card, image 없음</td><td>✗</td><td>✗</td></tr>
+<tr><td>w/o Cards</td><td>state card 제거</td><td>✗</td><td>✓</td></tr>
+<tr><td>w/o Images</td><td>keyframe image 제거</td><td>✓</td><td>✗</td></tr>
+<tr><td>Full MMSkills</td><td>모두 포함</td><td>✓</td><td>✓</td></tr>
+</tbody>
+</table>
+
+<p><strong>발견</strong>:</p>
+<ul>
+  <li><strong>State card와 keyframe 모두 필요</strong>: 둘 중 어느 하나를 제거해도 OSWorld와 VAB-Minecraft 모두에서 성능 하락. 보완적 역할 — state card는 state discrimination, keyframe은 visual grounding.</li>
+  <li><strong>Branch loading은 text-only에도 도움</strong>: branch-loaded text-only이 ##direct text loading보다 거의 모든 model-benchmark pair에서 강함##. ##multimodal evidence 없이도 temporary branch가 skill interpretation을 개선##.</li>
+  <li><strong>Direct-full loading이 가장 약함</strong>: unfiltered image + state description이 main context를 pollute. ##view selection alone## (Stage 1만)도 어느 정도 해결하지만 branch loading이 결정적.</li>
+  <li><strong>Stage 1 + Stage 2의 시너지</strong>: separated evidence inspection과 filtered visual evidence가 ##둘 다 필요##.</li>
+</ul>
+
+<h3>RQ3: Skill Usage and Interaction Dynamics (Table 3)</h3>
+<table>
+<thead><tr><th>Benchmark</th><th>Model</th><th>Skill</th><th>Invoked (%)</th><th>Calls/case</th><th>Steps</th><th>Step Δ</th><th>Views (Full/Focus/Before/After)</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">OSWorld</td><td rowspan="3">Gemini 3 Flash</td><td>No skill</td><td>—</td><td>—</td><td>13.11</td><td>0</td><td>—</td></tr>
+<tr><td>Text-only</td><td>41.11</td><td>0.7139</td><td>15.64</td><td>##+2.53##</td><td>—</td></tr>
+<tr><td>##MMSkills##</td><td>##62.50##</td><td>0.9556</td><td>##11.86##</td><td>##−1.25##</td><td>79 / 241 / 8 / 24</td></tr>
+<tr><td rowspan="3">OSWorld</td><td rowspan="3">Qwen3-VL-235B</td><td>No skill</td><td>—</td><td>—</td><td>15.22</td><td>0</td><td>—</td></tr>
+<tr><td>Text-only</td><td>37.50</td><td>0.4917</td><td>13.34</td><td>−1.88</td><td>—</td></tr>
+<tr><td>##MMSkills##</td><td>##65.28##</td><td>0.9222</td><td>9.87</td><td>##−5.35##</td><td>40 / 27 / 17 / 13</td></tr>
+<tr><td rowspan="3">VAB-Minecraft</td><td rowspan="3">Qwen3-VL-235B</td><td>No skill</td><td>—</td><td>—</td><td>34.74</td><td>0</td><td>—</td></tr>
+<tr><td>Text-only</td><td>54.31</td><td>1.5776</td><td>31.36</td><td>−3.38</td><td>—</td></tr>
+<tr><td>MMSkills</td><td>64.66</td><td>2.3534</td><td>27.07</td><td>##−7.67##</td><td>98 / 196 / 13 / 10</td></tr>
+</tbody>
+</table>
+
+<p><strong>핵심 패턴</strong>:</p>
+<ul>
+  <li><strong>Invocation rate 대폭 증가</strong>: OSWorld에서 Qwen3-VL-235B의 skill 호출이 ##37.50% → 65.28%##. ##multimodal cue가 "이 skill을 써야 하는가"의 판정을 더 쉽게 만든다##.</li>
+  <li><strong>Step 수 감소</strong>: text-only는 step을 늘리기도 하는데(Gemini Flash +2.53) ##MMSkills는 일관되게 줄임##. VAB-Minecraft에서 Qwen3-VL-235B 평균 ##-7.67 step##. ##shorter task-solving path## 발견.</li>
+  <li><strong>Focus crop이 압도적</strong>: 4종 view 중 ##focus crop이 3/4 setting에서 가장 자주 selected## (OSWorld Gemini 241, VAB 196). visual cue localization이 가장 자주 필요한 use case. full_frame은 global context, before/after는 transition evidence — local crop이 부족할 때 보조 역할.</li>
+</ul>
+
+<h3>RQ4: Behavioral Shift Analysis (Figure 4)</h3>
+<p>실험 의도: MMSkills가 단순히 success rate만 올리는 게 아니라 ##agent의 행동 패턴 자체를 바꾸는가?</p>
+
+<h4>Action-mode distribution (Panel A)</h4>
+<table>
+<thead><tr><th>설정</th><th>Click 비율</th><th>Keyboard 비율</th><th>기타</th></tr></thead>
+<tbody>
+<tr><td>Gemini / No skill</td><td>52%</td><td>37%</td><td>11%</td></tr>
+<tr><td>Gemini / MMSkills</td><td>54%</td><td>35%</td><td>11%</td></tr>
+<tr><td>Qwen / No skill</td><td>76%</td><td>14%</td><td>10%</td></tr>
+<tr><td>##Qwen / MMSkills##</td><td>##64%##</td><td>##21%##</td><td>15%</td></tr>
+</tbody>
+</table>
+<p>Qwen3-VL-235B의 click 비율이 ##75.8% → 63.7%##, keyboard와 DONE이 증가. ##click-heavy exploratory behavior가 structured input + stronger completion judgment##로 전환됨.</p>
+
+<h4>Repetitive trajectory 감소 (Panel C)</h4>
+<ul>
+  <li><strong>Exact repeated actions</strong>: Qwen3-VL-235B ##21.8% → 6.2%##.</li>
+  <li><strong>Same-mode repeats</strong>: 일관되게 감소.</li>
+  <li><strong>Longest same-mode run / 20-step budget</strong>: 줄어듦 — ##loops에 갇히는 횟수 감소##.</li>
+</ul>
+
+<p><strong>해석</strong>: MMSkills는 agent를 ##exploratory trial-and-error에서 grounded, state-aware execution##으로 전환. 이는 결국 success rate 향상의 근본 메커니즘.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Skill generation cost가 측정되지 않음</strong>: 5-phase Generator는 LLM agent를 반복 호출하므로 ##비용이 trajectory 개수에 비례##. Per-skill generation cost (API tokens, compute hours)가 보고되지 않아 ##scale up 가능성을 정량 평가 어려움##.</li>
+  <li><strong>Branch loading의 inference overhead</strong>: 매 step skill을 invoke할 때마다 ##추가 LLM/VLM call이 branch에서 발생##. Table 3에서 step 수는 감소했지만 ##wall-clock latency 또는 token cost##는 보고되지 않음. Production에서 step 감소가 token 증가를 상쇄할지 불명.</li>
+  <li><strong>weak model에서의 Qwen-VL-8B 한계</strong>: OSWorld는 10.78 → 25.40 (+14.6)이지만 ##GIMP/Calc/Writer 같은 일부 도메인에서는 marginal##. 일부 도메인에서 text-only가 MMSkills보다 더 좋은 경우 (OS: 13.43 vs text 16.67) — ##weak VLM이 multimodal cue를 잘 활용하지 못하는 영역##도 존재.</li>
+  <li><strong>State card의 generation quality 의존성</strong>: when_to_use / when_not_to_use가 잘못 generate되면 ##skill 자체가 wrong-state에서 invoked##. Generator의 audit phase가 이를 방지한다고 주장하지만, audit 자체도 LLM 기반이라 ##circular validation##.</li>
+  <li><strong>Public trajectory의 quality 가정</strong>: trajectory가 ##non-evaluation##임을 가정하지만, public dataset이 모든 task variant를 cover하지 못하면 skill library가 incomplete. domain transfer (다른 OS, 다른 game)에서의 skill reusability는 미검증.</li>
+  <li><strong>Reference image의 over-anchoring 회피 메커니즘 모호</strong>: branch loading이 reference image를 main context에서 분리한다고 주장하지만, ##branch agent가 결정한 plan이 본질적으로 그 reference에 anchored##되어 있을 수 있음. plan의 visual specificity를 정량 측정하지 않음.</li>
+  <li><strong>Focus crop의 위치 결정 자동화</strong>: skill package가 focus_crop region을 미리 정의하지만, ##새로운 UI layout이나 다른 해상도##에서는 그 region이 적용 불가. adaptive crop이 필요한 시나리오가 미고려.</li>
+  <li><strong>Safety/Error mode 분석 부재</strong>: agent가 ##misapplied skill로 destructive action## (예: 잘못된 파일 삭제)을 할 수 있는 시나리오가 GUI/desktop 환경에 잠재. error recovery나 verification fail 시 행동은 미정의.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Text-only skill은 일관성 없는 향상을 준다"</strong>: 일부 case (Calc 38.30 vs 57.45)에서 ##오히려 성능 저하##. visual state matching이 결정적인 도메인에서는 procedure만으론 부족. ##multimodal skill이 standard가 되어야 한다##.</li>
+  <li><strong>"State card가 visible cue보다 더 중요한 경우가 있다"</strong>: when_not_to_use 같은 ##negative constraint##가 agent의 exploration을 줄임. text 절차에서 흔히 누락되는 정보.</li>
+  <li><strong>"Branch loading은 distillation의 새 모드"</strong>: 전체 skill package를 inject하지 않고 ##distilled guidance tuple##만 전달. context pressure를 줄이면서 reference image over-anchoring을 동시에 해결.</li>
+  <li><strong>"약한 VLM이 가장 큰 이득을 본다"</strong>: Qwen3-VL-8B-Instruct에서 OSWorld 2.4× 향상. external procedural knowledge가 ##internal prior가 약한 모델의 cognitive aid##로 작동.</li>
+  <li><strong>"Action mode distribution이 agent 품질의 진짜 지표"</strong>: click-heavy → structured input의 전환은 success rate보다 더 근본적인 quality signal. ##exploratory trial-and-error를 grounded execution으로 바꾸는 것##이 multimodal skill의 본질적 기여.</li>
+  <li><strong>"Focus crop이 가장 자주 사용된다"</strong>: 4종 view 중 focus crop이 압도적. visual agent 시스템 설계 시 ##local crop 자동 생성 메커니즘에 우선 투자##.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

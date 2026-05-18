@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MinT: Managed Infrastructure for Training and Serving Millions of LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MinT: Managed Infrastructure for Training and Serving Millions of LLMs</h1>
+
+<a href="20260518_mindlab_mint_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Mind Lab (저자 익명, 단체 발행)</li>
+  <li><strong>소속</strong>: Mind Lab Ltd.</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (technical report)</li>
+  <li><strong>연도</strong>: 2026 (May 13)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.13779">arXiv:2605.13779</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 현대 LLM post-training은 더 이상 1회성 SFT가 아니라 ##수많은 정책(policy) 변종이 소수의 비싼 base 모델 위에서 공존하는 long-running workload##다. 기존 인프라는 매 변종마다 full checkpoint를 복사·서빙해서 ##GPU 메모리와 storage가 폭발##하고, 그 결과 LoRA RL 같은 핵심 워크로드를 운영하기가 사실상 불가능하다.</li>
+  <li><strong>해결</strong>: MinT는 ##base 모델 deployment는 resident(상주)##시키고 LoRA adapter revision만 학습/서빙/롤백/평가의 단위로 삼는 ##managed 서비스##다. 학습-서빙 boundary를 가로지르는 artifact가 ##full checkpoint(GB급)에서 LoRA adapter(<1% MB급)##로 줄어든다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Scale Up — Megatron-style 모델병렬과 sparse routing(MoE/DSA) 위로 LoRA를 매핑해 1T+ 모델까지 지원, (2) Scale Down — adapter-only handoff가 base checkpoint materialization 단계를 ##통째로 제거##, (3) Scale Out — durable catalog(10^6)을 CPU/GPU hot working set과 ##분리##해 cold load를 scheduled work로 격상.</li>
+  <li><strong>비유</strong>: 매 학생마다 학교 건물을 새로 짓던(full fine-tune) 시대에서, 한 캠퍼스 위에 ##여러 강좌(adapter)가 시간을 나눠 쓰는## 운영체제로 전환. 강좌 등록부(policy record)는 학사 행정이, 강의(adapter revision)는 강의실(resident base)이 따로 맡는다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Adapter Revision = Policy Unit</strong>: ##trained behavior를 carrying하는 payload##인 LoRA adapter revision과, 그 payload를 ##schedulable/durable하게 만드는 service state##인 policy record를 분리. 학습-서빙 boundary를 가로지르는 artifact가 full checkpoint가 아니라 fixed adapter revision이 되도록 system property 자체를 재정의.</li>
+  <li><strong>Time-sliced Multi-LoRA RL Training</strong>: 한 resident base 위에서 여러 LoRA 정책을 ##gradient step 단위로 time-slice##. 동일한 base 메모리 할당으로 ##concurrent GRPO가 wall time을 4B에서 1.77×, 30B MoE에서 1.45× 단축##하면서도 peak memory를 늘리지 않음. Single-worker PEFT와 distributed Megatron 양쪽 경로 모두 지원.</li>
+  <li><strong>Three-tier Adapter Cache</strong>: ##(addressable catalog 10^3–10^6 entries · CPU adapter cache hundreds · GPU batch ≤64)##의 3-tier 분리. 각 tier는 lifetime, promotion/eviction 규칙, 측정 가능한 latency 특성이 다르며 ##durable policy addressability를 hot working set과 분리##해 first-touch 비용을 scheduled work로 다룬다.</li>
+  <li><strong>Packed MoE LoRA Representation</strong>: MoE LoRA adapter가 만드는 ##37,248개 tiny tensor object##를 ##672개로 패킹(55.4×)##하여 file size는 1.05× 변동에 그치면서 live engine loading을 ##8.5–8.7× 가속##(N=4/8/16 모두에서 0.2초 미만의 live-load 중앙값).</li>
+  <li><strong>Adapter-Only Handoff 측정</strong>: Qwen3-4B rank-32에서 adapter ##252 MiB vs merged full checkpoint 8.061 GB## — adapter 경로가 4B에서 ##18.3×##, 30B MoE에서 ##2.85×## 빠른 step time. 4-billion parameter bf16 base의 ##3.3%##, rank-1 설정에서는 ##0.10%## 미만.</li>
+  <li><strong>Scale 검증</strong>: Qwen3 series (4B dense, 30B-A3B, 235B-A22B), Moonlight-16B-A3B & Kimi K2 1.04T countdown-task LoRA RL, GLM-5/GLM-5.1 (MLA, DSA, MTP) — ##LoRA RL을 1T+ 파라미터 스케일까지 실증##.</li>
+  <li><strong>AutoResearch Pipeline</strong>: LawBench 사례에서 ##28개 실험 candidate를 proxy로 screening, 6개를 kept candidate로 promote, full-benchmark confirmation##까지 같은 adapter lifecycle로 처리. proxy vs full divergence가 명시적 신호로 활용됨.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Post-training의 워크로드 변화</h3>
+<p>2024년까지의 post-training은 "SFT 한 번, RL 한 번"의 ##선형 파이프라인##이었다. 2025–26년의 frontier 모델들(DeepSeek-V4, Kimi K2 1T, GLM-5, Qwen3, MiniMax M1 등)이 등장하면서 post-training은 다음과 같이 변형되었다:</p>
+<ul>
+  <li><strong>지속적 fine-tuning</strong>: agentic tool-use, executable environment, multi-turn evaluation을 위한 task-specific 변종이 ##수십에서 수백 개##.</li>
+  <li><strong>Multi-tenant policy populations</strong>: 한 frontier base 위에 product branch, experimental version, rollback point, 사용자별 personal adapter가 누적.</li>
+  <li><strong>Asynchronous agent RL</strong>: rollout과 update가 비동기 진행되며 각 policy variant가 ##고유한 rollout record/checkpoint/exported revision##을 가짐.</li>
+</ul>
+
+<h3>기존 Multi-LoRA 시스템의 한계</h3>
+<p>LoRA 자체는 Hu et al. (2022)의 표준 기법이지만, ##학습+서빙 lifecycle을 통합 관리##하는 인프라는 부재했다:</p>
+<table>
+<thead><tr><th>시스템</th><th>주력 측면</th><th>한계</th></tr></thead>
+<tbody>
+<tr><td>Punica, S-LoRA, dLoRA</td><td>Multi-LoRA serving</td><td>training-side state(optimizer, gradient) 미관리</td></tr>
+<tr><td>vLLM LoRA</td><td>Inference batching</td><td>adapter lifecycle 정책 없음</td></tr>
+<tr><td>mLoRA</td><td>Multi-adapter training</td><td>RL/rollout 경로 미고려, SFT-only</td></tr>
+<tr><td>HybridFlow/verl, ROLL, AReaL, OpenRLHF, ROLL</td><td>RL execution</td><td>full checkpoint 단위, adapter-revision 추상화 없음</td></tr>
+<tr><td>Tinker (Thinking Machines)</td><td>Service interface</td><td>API spec만 제공, ##LoRA-specific service path##는 미구현</td></tr>
+</tbody>
+</table>
+
+<h3>"왜 Full-Checkpoint 모델이 깨지는가"</h3>
+<p>Full fine-tuning 워크플로우는 모든 trained variant에 대해 ##independent base checkpoint##를 학습-서빙 사이로 옮긴다 (예: 30B 모델이면 ##60+ GB per variant##). Merge-based LoRA는 학습 단계의 메모리는 줄이지만 ##merged full checkpoint를 inference worker로 이동##해야 하므로 같은 storage/bandwidth 비용이 든다. 이는:</p>
+<ul>
+  <li>매 task variant마다 ##별도 full-model server##가 필요 — agentic 워크로드에서는 수백 개의 server를 띄워야 함.</li>
+  <li>Rollback / personalization branch가 storage cost를 곱셈으로 누적.</li>
+  <li>Frontier-class MoE/MLA 모델은 base가 너무 커서 ##variant 하나 더 띄우는 것조차 GPU pool에 부담##.</li>
+</ul>
+
+<h2>방법: System Design</h2>
+
+<h3>구조 개요</h3>
+<div class="flow-diagram">User Intent  →  MinT API / Queue / Policy State / Revisions
+                ↓
+       [Policy Population over Shared Base Deployments]
+       Resident Base Deployments  +  {r_1, r_2, r_3, r_4, r_5, ...}
+                ↓
+       [Infrastructure Complexity Hidden Underneath]
+       Scheduler | Fault Tolerance | Adapter Lifecycle | Serving Residency
+
+3-plane 분리:
+  Service / control plane  →  policy record resolution, scheduling, queue admission
+  Compute plane            →  PEFT/Megatron trainers, vLLM samplers (resident)
+  Durable storage          →  policy records, checkpoints, rollout records, exported adapters</div>
+
+<h3>Adapter Revision vs Policy Record</h3>
+<p>MinT의 가장 핵심적 추상화 분리:</p>
+
+<h4>Adapter revision</h4>
+<ul>
+  <li>##특정 training step에서 frozen된 LoRA adapter##의 serving-tensor-layout snapshot.</li>
+  <li>Rollout, evaluation, serving, rollback이 ##consume하는 executable payload##.</li>
+  <li>Inference engine이 이미 holding하고 있는 base와 ##compatibility metadata##로 binding.</li>
+</ul>
+
+<h4>Policy record</h4>
+<ul>
+  <li>##Lifecycle state##를 담는 service-owned entity.</li>
+  <li>다음 정보 포함: compatible base version, LoRA rank, target modules, latest training checkpoint, rollout records (for later updates), exported adapter revisions (fixed behaviors available).</li>
+  <li>Live training session은 ##하나의 worker에 그 record를 temporary restoration##한 상태.</li>
+</ul>
+
+<p>이 분리가 가능하게 하는 것:</p>
+<ul>
+  <li>같은 policy record가 ##여러 cache tier에 동시에 존재##할 수 있다 (durable storage / CPU cache / GPU batch).</li>
+  <li>Worker가 ##exited되거나 cache가 evicted된 후##에도 나중 요청이 같은 adapter revision을 selectable.</li>
+  <li>학습 도중 export된 revision이 서빙되는 동안 ##trainer는 계속 진행 가능##.</li>
+</ul>
+
+<h3>Time-Sliced Multi-LoRA Training</h3>
+<p>핵심 통찰: ##RL request는 보통 충분한 rollout token을 포함##하므로 한 trainer에서 efficient per-policy batch를 형성할 수 있다 (mLoRA의 multi-adapter same-batch와 다른 접근).</p>
+
+<div class="flow-diagram">한 trainer actor의 lifecycle:
+  t_1: LoRA A 활성 (base는 항상 resident)
+        ↓ switch (save A / load B)
+  t_2: LoRA B 활성
+        ↓ switch (save B / load A)
+  t_3: LoRA A 활성
+
+Switch 시점에 옮기는 state:
+  LoRA tensors / optimizer moments / scheduler position
+  / accumulated gradients / unconsumed rollout records
+
+Base weights: 상주 → 옮기지 않음</div>
+
+<p><strong>왜 mLoRA가 아닌 time-slicing인가</strong>: mLoRA-style fused multi-LoRA kernel은 ##fine-tuning 워크로드##(여러 small adapter를 동시 update)에 최적화되어 있지만, RL에서는 한 rollout이 수천 토큰이므로 ##single-policy batch가 이미 충분히 크고##, kernel fusion gain보다 ##policy 간 schedule overlap gain##이 더 크다.</p>
+
+<h3>Distributed (Megatron) LoRA Training</h3>
+<p>MoE/MLA/DSA base에서 base 모델 자체가 multi-GPU에 sharding됨:</p>
+<ul>
+  <li><strong>Tensor parallel (TP)</strong>: dense module의 LoRA tensor가 base shard와 같은 partition을 따름.</li>
+  <li><strong>Expert parallel (EP)</strong>: per-expert LoRA tensor는 ##expert id로 keyed##; EP shard가 자기 expert의 LoRA를 owns.</li>
+  <li><strong>Shared-expert LoRA</strong>: EP shard마다 deduplicate, export 시 single copy로 materialize.</li>
+  <li><strong>Policy switching</strong>: base shard는 resident, adapter tensor와 optimizer moment만 다음 update를 실행할 rank로 restore.</li>
+</ul>
+
+<h3>MoE Router Replay & DSA Provenance</h3>
+<p>R3 (Ma et al., 2025)가 보인 문제: rollout에서 token이 expert A로 routed되었는데 training에서 ##implementation/precision 차이로 expert B로 routed##되면 gradient가 wrong path를 따라간다.</p>
+<p>MinT는 ##rollout record에 selected expert ids를 저장##하고, training backend가 expert-parallel layout으로 그 id를 map할 수 있을 때 expert path를 ##replay##한다. 매핑 불가능한 token은 policy-gradient term에서 ##mask##.</p>
+<p>DSA(Dynamic Sparse Attention, GLM-5)에는 ##router replay가 더 어렵다##: indexer top-k 결정이 small numerical difference로 token set을 바꿀 수 있음. MinT는 IcePop-style correction (Ling Team 2025) 사용 — training/rollout probability ratio가 trusted band를 벗어난 token은 ##importance weight을 0##으로. 이는 model을 mask out하는 것이지 정확한 sparse-attention token set을 reconstruct하지 않음.</p>
+
+<h3>Three-Tier Adapter Cache (Section 4.3)</h3>
+<table>
+<thead><tr><th>Tier</th><th>Scale</th><th>Lifetime</th><th>Promotion / Eviction</th><th>측정값</th></tr></thead>
+<tbody>
+<tr><td><strong>Addressable catalog</strong></td><td>10^3 – 10^6 entries</td><td>Durable (control plane)</td><td>Adapter export로 promoted; manual retire</td><td>1k–100k sweep (Table 6)</td></tr>
+<tr><td><strong>CPU adapter cache</strong></td><td>Hundreds per engine</td><td>Per actor run</td><td>Router/cache-miss load; LRU memory pressure</td><td>369 loaded @ 512-hotset; 550 @ 2048-target</td></tr>
+<tr><td><strong>GPU batch</strong></td><td>≤ 64 distinct adapters</td><td>One decoding step</td><td>Batch scheduler 결정; step 끝에 release</td><td>Same-batch frontier N=64</td></tr>
+</tbody>
+</table>
+
+<p><strong>Cold-load staircase</strong>: 16 distinct cache-miss policies에서 ##load time이 1.375s → 23.267s로 staircase##를 형성 (~1.36 s/adapter). 즉 cache miss는 단순 file read가 아니라 ##loader object materialization + engine registration + adapter activation##까지 직렬화되는 service work.</p>
+
+<h3>Packed MoE LoRA Representation</h3>
+<p>가장 흥미로운 system-level engineering trick:</p>
+<table>
+<thead><tr><th>Metric</th><th>Original</th><th>Packed</th><th>Effect</th></tr></thead>
+<tbody>
+<tr><td>File size</td><td>110.75 MB</td><td>105.58 MB</td><td>1.05× smaller (거의 변화 없음)</td></tr>
+<tr><td>##Tensor objects##</td><td>##37,248##</td><td>##672##</td><td>##55.4× fewer##</td></tr>
+<tr><td>Read tensors</td><td>0.3669 s</td><td>0.0067 s</td><td>54.8× faster</td></tr>
+<tr><td>Build loader objects</td><td>0.7540 s</td><td>0.0256 s</td><td>29.5× faster</td></tr>
+<tr><td>N=4 live load</td><td>1.363 s</td><td>0.156 s</td><td>8.7× faster</td></tr>
+<tr><td>N=8 live load</td><td>1.361 s</td><td>0.159 s</td><td>8.6× faster</td></tr>
+<tr><td>N=16 live load</td><td>1.388 s</td><td>0.164 s</td><td>8.5× faster</td></tr>
+</tbody>
+</table>
+<p><strong>핵심 통찰</strong>: MoE LoRA가 ##expert별로 tiny tensor를 분리##해서 저장하면 byte 수는 같아도 ##Python object/loader 등록 cost가 N×##로 비례 증가. MinT는 이를 ##serving representation으로 pack##하여 declared bytes는 거의 그대로 두고 ##object fanout만 제거##.</p>
+
+<h2>실험 (Evaluation)</h2>
+
+<h3>Scale Down: Adapter Handoff (Section 5.1, Figure 8, Table 4)</h3>
+<p>실험 질문: ##adapter-only handoff가 merge-and-load path를 실제로 얼마나 단축하는가?</p>
+<table>
+<thead><tr><th>Model</th><th>Path</th><th>Checkpoint params</th><th>File size</th><th>Materialization</th><th>Cold first sample</th><th>Sample speed (warm)</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-4B</td><td>Adapter</td><td>rank-32 LoRA</td><td>252 MiB</td><td>##0.036 s##</td><td>4.114 s</td><td>15.567 tok/s</td></tr>
+<tr><td>Qwen3-4B</td><td>Merge</td><td>full model</td><td>8.061 GB</td><td>71.820 s</td><td>55.704 s</td><td>20.595 tok/s</td></tr>
+<tr><td>Qwen3-30B</td><td>Adapter</td><td>rank-16 LoRA</td><td>1.692 GB</td><td>##46.455 s##</td><td>117.304 s</td><td>5.700 tok/s</td></tr>
+<tr><td>Qwen3-30B</td><td>Merge</td><td>full model</td><td>61.084 GB</td><td>402.245 s</td><td>156.074 s</td><td>6.904 tok/s</td></tr>
+</tbody>
+</table>
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>4B에서 adapter step이 ##18.3× 빠름## (4.1s vs 74.9s).</li>
+  <li>30B에서는 ##2.9× 빠름## (208.7s vs 595.5s) — adapter도 1.7GB라 절대 비용이 0이 아님.</li>
+  <li>Merge path의 warm sample speed가 약간 더 높음 (20.6 vs 15.6 tok/s) — merged checkpoint가 별도 LoRA 곱셈 없이 inference하기 때문. ##end-to-end trade-off는 transfer cost와 sampling throughput 사이##.</li>
+  <li>여기 측정의 의미: ##short-lived experimental run##에서는 adapter가 압도적, ##long-lived deployment##에서는 merge path가 inference cost에서 회복할 수도 있음. MinT의 design choice는 multi-tenant scenario이므로 transfer cost를 최소화하는 쪽.</li>
+</ul>
+
+<h3>Scale Up: Concurrent Multi-Policy GRPO (Figure 7, Table 3)</h3>
+<p>실험 질문: ##같은 resident-base allocation 하에서 concurrent GRPO scheduling이 sequential 대비 얼마나 단축##?</p>
+<table>
+<thead><tr><th>Model</th><th>Schedule</th><th>Workloads</th><th>Wall time</th><th>Time saved</th><th>Speedup</th><th>Peak memory</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-4B</td><td>Sequential</td><td>3 GRPO policies</td><td>3081.2 s</td><td>—</td><td>1.00×</td><td>65.6 GiB</td></tr>
+<tr><td>Qwen3-4B</td><td>Concurrent MinT</td><td>3 GRPO policies</td><td>1736.1 s</td><td>1345.1 s / 43.7%</td><td>##1.77×##</td><td>65.6 GiB</td></tr>
+<tr><td>Qwen3-30B</td><td>Sequential</td><td>3 GRPO policies</td><td>10130.0 s</td><td>—</td><td>1.00×</td><td>68.0 GiB</td></tr>
+<tr><td>Qwen3-30B</td><td>Concurrent MinT</td><td>3 GRPO policies</td><td>7008.4 s</td><td>3121.6 s / 30.8%</td><td>##1.45×##</td><td>68.0 GiB</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Peak memory가 동일</strong>: MinT는 ##base만 resident, adapter만 time-slice##이므로 추가 메모리 0.</li>
+  <li><strong>4B에서 더 큰 gain (1.77× vs 1.45×)</strong>: 4B의 GPU utilization은 ##sequential에서 5.1%, concurrent에서 6.6%##로 절대값이 작아 fill-cross-policy-gap 효과가 큼. 30B는 ##32.7% → 37.3%##로 이미 utilization이 어느 정도 채워져 있어 marginal gain이 작음.</li>
+  <li><strong>Idle samples (GPU util <10%)</strong>: 4B 88.3% → 88.5% (변화 미미), 30B 58.1% → 50.8% (감소). 이는 30B의 ##scheduling gap이 더 크고 그것을 채울 여지가 더 많았다##는 의미.</li>
+</ul>
+
+<h3>SFT/DPO/GRPO Learning Traces (Figure 9, Table 5)</h3>
+<p>실험 의도: 같은 adapter lifecycle이 ##다양한 training paradigm##을 carry할 수 있는가?</p>
+<table>
+<thead><tr><th>Paradigm</th><th>Benchmark</th><th>Metric</th><th>Result</th></tr></thead>
+<tbody>
+<tr><td rowspan="5">SFT (Qwen3-4B + FinGPT suite)</td><td>FinEval</td><td>accuracy</td><td>0.4226 → ##0.7811## (+35.85)</td></tr>
+<tr><td>FPB</td><td>accuracy</td><td>0.6906 → 0.8804 (+18.98)</td></tr>
+<tr><td>FiQA-SA</td><td>accuracy</td><td>0.8255 → 0.8473</td></tr>
+<tr><td>TFNS</td><td>accuracy</td><td>0.5959 → 0.9095 (+31.36)</td></tr>
+<tr><td>NWGI</td><td>accuracy</td><td>0.4954 → 0.5925</td></tr>
+<tr><td>DPO (Qwen3-4B + chat pairs)</td><td>chat-DPO</td><td>reward margin</td><td>-0.03 → 30.88</td></tr>
+<tr><td>GRPO (Qwen3-8B + DAPO-AIME24)</td><td>AIME24 train EMA</td><td>train accuracy</td><td>0.11 → 0.47; raw best 0.568 @ step 76</td></tr>
+</tbody>
+</table>
+<p>핵심 메시지: ##paradigm-agnostic##. 같은 adapter export format이 SFT loss, DPO reward margin, GRPO train accuracy를 모두 carry하며 per-paradigm checkpoint surgery 불필요.</p>
+
+<h3>MoE Scale-up: 30B/235B/1.04T (Figure 10)</h3>
+<ul>
+  <li>Qwen3-30B-A3B AIME24 curve: noisy near-zero → ##stable mid-band## by end of logged window.</li>
+  <li>Qwen3-235B-A22B AIME24 (Hopper-class profile, TP=4, EP=8, 32-GPU Megatron trainer + 16-GPU TP=16 serving): peak mean@1 ##0.967##.</li>
+  <li>Kimi K2 ##1.04T countdown-task LoRA RL## (64-GPU H800, 32.6B active parameters): same rollout-update-export-evaluate loop. ##LoRA RL이 trillion-parameter base 위에서 동작##함을 입증.</li>
+  <li>R3 활성 vs 비활성 routes counter: Qwen3-30B에서 ##R3 0.0013% out-of-route, no-R3 0.0097%## (87 vs 50 logged steps). 235B는 R3 0.0253% across 88 steps. small absolute but identifies exact failure channel R3 controls.</li>
+</ul>
+
+<h3>Scale Out: Policy-Population Serving (Section 5.3, Table 6)</h3>
+<table>
+<thead><tr><th>Resource tier</th><th>Question</th><th>Measured bound</th><th>Takeaway</th></tr></thead>
+<tbody>
+<tr><td>Addressable catalog</td><td>How many policy revisions can requests select from?</td><td>Catalog sweep from 1k to ##100k## adapters</td><td>Catalog size = name resolution scale</td></tr>
+<tr><td>CPU adapter cache</td><td>How many adapters can one actor keep resident?</td><td>##369 loaded @ 512-hotset##; ##550 loaded @ 2048-target weak-locality##</td><td>Hundreds of adapters cached near one engine</td></tr>
+<tr><td>GPU batch</td><td>How many adapters can decoding use?</td><td>##64 distinct## in tested same-batch window</td><td>Batch has smallest adapter-diversity window</td></tr>
+<tr><td>Cold loading</td><td>What happens on cache misses?</td><td>Warm N=64 p95 21.35s; cold-cache p95 199.81s; N=16 staircase ##1.375–23.267s##</td><td>Loaded one at a time before decoding</td></tr>
+<tr><td>Adapter representation</td><td>How costly is tensor fanout?</td><td>37,248 → 672 tensors; 1.05× byte; ##8.5–8.7× faster live load##</td><td>Packing speeds cache-miss load by removing small-object fanout</td></tr>
+</tbody>
+</table>
+
+<h3>AutoResearch on LawBench (Figure 11)</h3>
+<p>실험 의도: 같은 adapter lifecycle이 ##proxy-screened → full-benchmark confirmed## research workflow를 carry할 수 있는가?</p>
+<ul>
+  <li>##28 experiment candidates##, ##6 kept## (blue-outlined), ##v23 (weighted mix + longer run)##이 maintained recipe set으로 입성.</li>
+  <li>Base Qwen3-4B LawBench score: 0.4628. v10 = 0.4889. ##v11 candidate가 proxy high##였으나 full LawBench 0.4858로 v10보다 낮아 ##rejected## (proxy-full divergence가 unsupervised proxy의 distribution shift를 expose).</li>
+  <li>v23: proxy 0.5554 @ step 100, full 0.5079. ##best full eval## 0.539. Full-manifest control 0.4712 (later data manifest alone로는 부족 — recipe effect가 진짜 신호).</li>
+  <li>핵심: AutoResearch는 ##single high point가 아니라 running-best line + kept-candidate filter##로 progress를 기록. 같은 adapter lifecycle이 train → freeze as revision → evaluate → decide의 4단계를 자연스럽게 carry.</li>
+</ul>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>저자/소속 익명성</strong>: "Mind Lab"으로만 명시되며 individual authorship 미공개. 기업 백서 형태로, ##peer review를 통한 method scrutiny가 어렵다##. 코드는 mint-cookbook으로 일부 공개되지만 ##management plane의 핵심 구현##은 closed.</li>
+  <li><strong>학습-서빙 latency trade-off의 단편적 측정</strong>: adapter handoff가 18.3× 빠르지만 ##warm sample speed는 merge path가 약간 우월##(20.6 vs 15.6 tok/s on 4B). Long-lived production deployment에서 ##누적 inference cost가 transfer saving을 잠식##하는 break-even point가 명시되지 않음.</li>
+  <li><strong>"Million-scale catalog" 주장의 measurement gap</strong>: paper의 실측은 100k까지. 10^6은 ##extrapolation (Appendix Table 13의 sizing model)##이며 ##실제 measured 값이 아님##. fleet-level routing model 가정 하에서의 capacity estimate라는 점을 명시는 했지만 abstract는 다소 단정적.</li>
+  <li><strong>Time-slicing vs mLoRA fusion 비교 누락</strong>: RL request의 ##rollout token이 충분히 크다##는 가정 하에 time-slicing을 선택했으나, ##short rollout (e.g., per-step preference scoring)## 환경에서 mLoRA fusion이 더 유리한 regime을 정량적으로 보이지 않음.</li>
+  <li><strong>Cold-load staircase의 1.36 s/adapter는 절대값 의존</strong>: 이 measurement는 ##특정 cluster shape, network bandwidth, storage IO##에 강하게 의존. 다른 환경에서 packed representation의 8.5× gain이 재현될지는 ##infrastructure-specific##.</li>
+  <li><strong>DSA correction의 정확도 검증 부재</strong>: IcePop-style correction이 ##unsafe scoring term을 mask##하지만, 그 mask가 학습 신호를 얼마나 손상시키는지 ablation 없음. R3 같은 explicit replay와 IcePop mask의 ##수렴 quality 비교##가 누락.</li>
+  <li><strong>Tinker-compatibility의 정확한 boundary</strong>: paper는 Tinker-compatible API를 표방하지만 Tinker의 모든 primitive에 대한 ##compliance matrix##는 없음. SkyRL tx 같은 다른 Tinker backend와의 ##semantic 차이##가 mint-cookbook 외에서 검증되지 않음.</li>
+  <li><strong>Adapter shape limits</strong>: Same resident base에서 different rank/target-module은 worker가 ##configured shape limits##을 광고. 이 제약을 넘는 request는 다른 worker로 라우팅되어야 함. 실제 다양한 shape mix를 가진 production load의 ##scheduling efficiency##는 미보고.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Post-training은 단일 단계가 아니라 운영체제다"</strong>: long-running multi-tenant policy population을 관리하는 OS-like abstraction이 필요. MinT의 ##adapter revision = payload, policy record = service state## 분리는 다른 RL/serving 시스템에도 transferable.</li>
+  <li><strong>"Time-slicing은 fusion보다 RL friendly"</strong>: RL의 큰 rollout batch가 per-policy efficient kernel을 가능하게 하므로, ##mLoRA 같은 multi-adapter fused kernel보다 simple time-slice##가 동일 memory budget에서 더 효율적. 이 통찰은 LoRA training 일반론과 다른 RL-specific design 결정.</li>
+  <li><strong>"MoE adapter representation이 cache miss latency를 결정한다"</strong>: byte size가 같아도 ##tensor object fanout##이 loader overhead를 지배. Packed representation으로 8.5× live-load 가속을 얻는 system trick은 ##다른 sparse model serving에도 즉시 적용 가능##.</li>
+  <li><strong>"3-tier cache는 명시적 SLA"</strong>: addressable catalog (10^6) vs CPU cache (hundreds) vs GPU batch (≤64)의 분리가 ##각 tier의 promotion/eviction과 latency 특성을 측정 가능한 표면으로 노출##. cold-load가 service work가 되어 throttle/dedup/prewarm 가능.</li>
+  <li><strong>"Trillion-parameter LoRA RL은 운영 가능하다"</strong>: Kimi K2 1.04T 사례로 입증. ##frontier-scale post-training이 academic-size compute로도 접근 가능##해진 첫 명확한 demonstration. 단 이는 base가 cluster-resident일 때의 이야기 — base 자체를 띄울 수 있어야 함.</li>
+  <li><strong>"Proxy-vs-full divergence가 explicit research signal"</strong>: AutoResearch가 v11의 proxy-high를 full-confirm 단계에서 reject한 사례는 ##unsupervised proxy가 distribution shift를 만들 때 그 차이가 hypothesis test 신호##라는 점을 보여줌. 같은 adapter lifecycle이 이를 자연스럽게 carry.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

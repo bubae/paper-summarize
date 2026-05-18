@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MinT 개요 브리핑 — 백만 개 LLM을 한 클러스터에서 굴리는 인프라</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #0077a8; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #4facfe; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #e3f7ff 0%, #f0fcff 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #b0e6ff; box-shadow: 0 4px 18px rgba(79,172,254,0.08); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #0077a8; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #4facfe; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-purple { border-left: 5px solid #9b59b6; background: #f8f0ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #4facfe; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #4facfe; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #e3f7ff 0%, #d0eeff 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #b0e0ff; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #0077a8; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #4facfe; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #e3f7ff; }
+  .highlight-row { background: #d0eeff !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(79,172,254,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #80d4ff; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">Mind Lab</span>
+      <span class="badge">2026.05.13</span>
+      <span class="badge">LLM Infrastructure</span>
+      <span class="badge">LoRA Multi-tenant RL</span>
+      <span class="badge">arXiv 2605.13779</span>
+    </div>
+    <h1>MinT — "한 base 위에서 백만 개 LLM을 살아 움직이게 하는 운영체제"</h1>
+    <p class="sub">매 학생마다 학교를 새로 짓는 대신, 한 캠퍼스에서 강좌(LoRA adapter)를 시간 분할로 돌리는 인프라. 1.04T MoE까지 검증, 30B에서 동시 GRPO 3개를 같은 메모리로 1.45× 빠르게.</p>
+    <a href="20260518_mindlab_mint.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"Base 모델은 한 번만 띄워두고, 그 위에서 수만 개의 LoRA adapter가 시간을 나눠 살아 움직인다. 학습-서빙-롤백-평가가 모두 'adapter revision'이라는 단일 단위로 흘러간다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>LLM 후처리는 더 이상 1회성이 아니다</h3>
+    <p>2024년까지: "한 번 fine-tune해서 끝." 2026년 현재: 같은 base 모델 위에 <strong>수십~수백 개의 변종</strong>이 동시에 살아있는 게 일상.</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>🌳 제품 분기</h4>
+        <p>같은 모델의 <strong>다양한 product branch</strong> (A/B 테스트, 지역화).</p>
+      </div>
+      <div class="step">
+        <h4>🧪 실험 변종</h4>
+        <p>학습 실험마다 <strong>다른 hyperparameter / 데이터 비율</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>👤 사용자 맞춤</h4>
+        <p>테넌트별·사용자별 <strong>personalization adapter</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>⏪ 롤백 포인트</h4>
+        <p>문제 발생 시 돌릴 <strong>checkpoint history</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>🔬 평가 후보</h4>
+        <p>AutoResearch가 <strong>proxy 평가로 screening 중인 candidate</strong>.</p>
+      </div>
+    </div>
+
+    <h3>기존 인프라의 한계</h3>
+    <p>기존 시스템은 <strong>각 변종마다 full checkpoint를 복사</strong>해 서빙. 30B 모델이면 변종 하나가 <strong>60+ GB</strong>를 차지. 100개 변종 → <strong>6 TB 이상의 storage + 100개 inference server</strong>. 학원이나 중소 기업은 이를 못 견딘다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <!-- Old way -->
+        <text x="180" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">❌ 기존: 매 변종마다 별도 server</text>
+
+        <g>
+          <rect x="40" y="50" width="80" height="80" rx="6" fill="#ffe6e6" stroke="#e74c3c"/>
+          <text x="80" y="85" text-anchor="middle" font-size="10">변종 A</text>
+          <text x="80" y="100" text-anchor="middle" font-size="10">60 GB</text>
+          <text x="80" y="115" text-anchor="middle" font-size="18">💾</text>
+
+          <rect x="140" y="50" width="80" height="80" rx="6" fill="#ffe6e6" stroke="#e74c3c"/>
+          <text x="180" y="85" text-anchor="middle" font-size="10">변종 B</text>
+          <text x="180" y="100" text-anchor="middle" font-size="10">60 GB</text>
+          <text x="180" y="115" text-anchor="middle" font-size="18">💾</text>
+
+          <rect x="240" y="50" width="80" height="80" rx="6" fill="#ffe6e6" stroke="#e74c3c"/>
+          <text x="280" y="85" text-anchor="middle" font-size="10">변종 C</text>
+          <text x="280" y="100" text-anchor="middle" font-size="10">60 GB</text>
+          <text x="280" y="115" text-anchor="middle" font-size="18">💾</text>
+
+          <rect x="40" y="140" width="280" height="40" rx="6" fill="#fff5f5" stroke="#e74c3c"/>
+          <text x="180" y="166" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">100개 변종 = 6+ TB · 100 inference server 필요</text>
+        </g>
+
+        <!-- New way -->
+        <text x="540" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#27ae60">✅ MinT: base 1개 + adapter들</text>
+
+        <g>
+          <rect x="400" y="50" width="280" height="60" rx="10" fill="#e6fff0" stroke="#27ae60" stroke-width="2"/>
+          <text x="540" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1e8449">Resident Base 모델 (1개)</text>
+          <text x="540" y="100" text-anchor="middle" font-size="11" fill="#666">60 GB · 클러스터에 한 번 상주</text>
+        </g>
+
+        <g>
+          <circle cx="430" cy="155" r="22" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+          <text x="430" y="160" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">A</text>
+          <text x="430" y="190" text-anchor="middle" font-size="9" fill="#555">252 MB</text>
+
+          <circle cx="480" cy="155" r="22" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+          <text x="480" y="160" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">B</text>
+          <text x="480" y="190" text-anchor="middle" font-size="9" fill="#555">252 MB</text>
+
+          <circle cx="530" cy="155" r="22" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+          <text x="530" y="160" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">C</text>
+          <text x="530" y="190" text-anchor="middle" font-size="9" fill="#555">252 MB</text>
+
+          <text x="580" y="160" font-size="13" fill="#555">...</text>
+
+          <circle cx="630" cy="155" r="22" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+          <text x="630" y="160" text-anchor="middle" font-size="9" font-weight="700" fill="#1e8449">10^6</text>
+          <text x="630" y="190" text-anchor="middle" font-size="9" fill="#555">252 MB</text>
+
+          <rect x="400" y="210" width="280" height="40" rx="6" fill="#f0faf3" stroke="#27ae60"/>
+          <text x="540" y="236" text-anchor="middle" font-size="13" font-weight="700" fill="#1e8449">백만 개 adapter = 252 GB · server 1개</text>
+        </g>
+
+        <text x="360" y="295" text-anchor="middle" font-size="12" fill="#444">Base의 3.3% 크기인 LoRA adapter만 학습-서빙 사이를 움직인다</text>
+      </svg>
+      <div class="svg-caption">▲ Full-checkpoint 시대 vs MinT 시대: artifact 크기가 100× 이상 감소.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) Post-training (후처리 학습)</h3>
+      <p>Pretrain된 LLM에 <strong>추가 학습을 입혀 특정 도메인/스타일/능력</strong>을 발현시키는 단계. SFT (감독학습), RLHF (인간 피드백 RL), GRPO 같은 reasoning RL이 대표.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) LoRA (Low-Rank Adaptation)</h3>
+      <p>Base 모델의 weight를 그대로 두고 <strong>low-rank 행렬 두 개를 곁붙여</strong> 학습. Base 메모리는 그대로, <strong>학습 파라미터는 1% 미만</strong>. Base + LoRA = adapted 행동.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) Multi-tenant LLM</h3>
+      <p>한 인프라가 <strong>여러 고객/팀/제품의 LLM 변종</strong>을 동시에 서빙. 클라우드 서비스의 자연스러운 형태이지만 <strong>GPU 자원이 곱셈으로 늘면 비용 폭발</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) GRPO (Group Relative Policy Optimization)</h3>
+      <p>한 prompt에 여러 답안을 만들고 <strong>group 내 상대 우수성</strong>을 reward로 사용하는 RL. DeepSeek-R1 이후 reasoning 모델의 표준.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) MoE (Mixture-of-Experts)</h3>
+      <p>전체 파라미터 일부 expert만 활성화하는 효율 아키텍처. <strong>Qwen3-30B-A3B = 30B 중 3B 활성</strong>, Kimi K2 = 1.04T 중 32.6B 활성. LoRA를 expert별로 붙이면 <strong>tiny tensor가 수만 개</strong> 생긴다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) vLLM</h3>
+      <p>현대 LLM serving 엔진 표준. <strong>PagedAttention</strong>과 KV cache 관리, batching, LoRA dynamic loading 등을 제공. MinT는 vLLM 위에 <strong>정책 lifecycle 추상화</strong>를 얹는다.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>MinT의 핵심 추상화: Adapter Revision vs Policy Record</h2>
+
+    <p>MinT의 가장 중요한 conceptual contribution은 <strong>두 개체를 명시적으로 분리</strong>한 것이다:</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>📦 Adapter Revision</h4>
+        <p>특정 학습 step에서 <strong>frozen된 LoRA의 snapshot</strong>. Rollout/평가/서빙/롤백이 <strong>소비하는 실행 가능한 payload</strong>. 한 번 export하면 변하지 않는다.</p>
+      </div>
+      <div class="step">
+        <h4>📋 Policy Record</h4>
+        <p>그 payload를 <strong>schedulable/durable하게 만드는 service state</strong>. compatible base 버전, LoRA rank, target modules, latest checkpoint, rollout records, exported revisions의 목록 등을 보관.</p>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎬 비유</strong>: <strong>영화 필름 vs 영화관 운영 정보</strong>. 필름(adapter revision)은 한 번 찍히면 그 자체는 고정 — 재생만 하면 같은 영화가 나온다. 영화관 운영 정보(policy record)는 어느 상영관에서 언제 상영 중인지, 다음 상영은 언제인지, 백업 필름은 어디에 있는지를 추적하는 lifecycle metadata. <strong>둘을 섞어두면 필름이 망가지거나 운영이 멈춘다</strong>.
+    </div>
+
+    <h3>왜 이 분리가 중요한가</h3>
+    <ul>
+      <li>한 policy record가 <strong>여러 cache tier에 동시 존재 가능</strong> (durable storage, CPU cache, GPU batch).</li>
+      <li>학습 worker가 <strong>사라져도</strong> 나중 요청이 같은 adapter revision을 selectable.</li>
+      <li>학습 도중 export된 revision이 서빙되는 동안 <strong>trainer는 다음 update를 계속</strong>.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>세 가지 확장 축</h2>
+
+    <p>MinT는 같은 adapter lifecycle을 3가지 방향으로 <strong>scale</strong>한다:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="360,40 100,260 620,260" fill="none" stroke="#999" stroke-width="2" stroke-dasharray="5"/>
+
+        <circle cx="360" cy="40" r="55" fill="#4facfe"/>
+        <text x="360" y="35" text-anchor="middle" font-size="13" font-weight="700" fill="white">Scale Up</text>
+        <text x="360" y="52" text-anchor="middle" font-size="11" fill="white">1T+ 파라미터</text>
+
+        <circle cx="100" cy="260" r="55" fill="#9b59b6"/>
+        <text x="100" y="255" text-anchor="middle" font-size="13" font-weight="700" fill="white">Scale Down</text>
+        <text x="100" y="272" text-anchor="middle" font-size="11" fill="white">&lt; 1% 크기</text>
+
+        <circle cx="620" cy="260" r="55" fill="#27ae60"/>
+        <text x="620" y="255" text-anchor="middle" font-size="13" font-weight="700" fill="white">Scale Out</text>
+        <text x="620" y="272" text-anchor="middle" font-size="11" fill="white">10⁶ catalog</text>
+
+        <text x="220" y="155" text-anchor="middle" font-size="11" fill="#555">MoE/MLA/DSA</text>
+        <text x="220" y="170" text-anchor="middle" font-size="11" fill="#555">target mapping</text>
+        <text x="500" y="155" text-anchor="middle" font-size="11" fill="#555">Megatron 분산</text>
+        <text x="500" y="170" text-anchor="middle" font-size="11" fill="#555">+ LoRA 매핑</text>
+        <text x="360" y="285" text-anchor="middle" font-size="11" fill="#555">3-tier cache + cold load schedule</text>
+
+        <text x="360" y="305" text-anchor="middle" font-size="12" fill="#444">세 축이 같은 adapter-revision path 위에 얹혀 있다</text>
+      </svg>
+      <div class="svg-caption">▲ MinT의 3-axis scaling: 같은 lifecycle이 모델 크기·artifact 크기·정책 개수 세 방향으로 확장.</div>
+    </div>
+
+    <div class="card card-accent">
+      <h3>🚀 Scale Up — 1T 파라미터까지</h3>
+      <p>Megatron-style <strong>tensor parallel + expert parallel</strong>로 base를 sharding. LoRA tensor가 그 위에 <strong>compatibility 있게 매핑</strong>: dense LoRA는 TP shard 따라가고, expert LoRA는 EP shard가 own한다. Kimi K2 <strong>1.04T 모델 LoRA RL</strong>까지 검증.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>📉 Scale Down — Full checkpoint 제거</h3>
+      <p>학습-서빙 사이로 옮기는 artifact가 <strong>full model이 아닌 LoRA만</strong>. Qwen3-4B에서 <strong>252 MiB vs 8 GB</strong> = <strong>3.3%</strong>. Rank-1 설정이면 <strong>0.10%</strong> 미만. 매 update의 wall-time이 <strong>18.3× 빠름</strong>.</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>🌐 Scale Out — 백만 개 정책</h3>
+      <p><strong>Addressable catalog (10^6)</strong>와 <strong>engine-local working set (수백)</strong>을 <strong>분리</strong>. 정책 이름은 카탈로그에 있고, 실제 실행은 cache가 결정. Cold load는 <strong>scheduled service work</strong>로 격상 (deduplication + bounded backpressure).</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>실용 기법: Time-Sliced Multi-LoRA Training</h2>
+
+    <p>한 base 위에서 <strong>여러 정책을 시간 분할로 학습</strong>. mLoRA처럼 한 batch에 여러 adapter를 fusion하는 게 아니라, <strong>gradient step 단위로 switch</strong>.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#444">한 trainer actor가 시간별로 다른 LoRA를 실행</text>
+
+        <!-- timeline -->
+        <line x1="60" y1="150" x2="660" y2="150" stroke="#333" stroke-width="2"/>
+        <polygon points="660,150 650,145 650,155" fill="#333"/>
+        <text x="660" y="170" font-size="11" fill="#555">시간</text>
+
+        <text x="60" y="170" font-size="11" fill="#555">t₁</text>
+        <text x="220" y="170" font-size="11" fill="#555">switch</text>
+        <text x="380" y="170" font-size="11" fill="#555">switch</text>
+        <text x="540" y="170" font-size="11" fill="#555">switch</text>
+
+        <!-- LoRA blocks -->
+        <rect x="80" y="100" width="120" height="40" rx="6" fill="#e3f7ff" stroke="#4facfe" stroke-width="2"/>
+        <text x="140" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="#0077a8">LoRA A</text>
+
+        <rect x="240" y="100" width="120" height="40" rx="6" fill="#fff0e8" stroke="#e67e22" stroke-width="2"/>
+        <text x="300" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="#c97f00">LoRA B</text>
+
+        <rect x="400" y="100" width="120" height="40" rx="6" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="460" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="#1e8449">LoRA C</text>
+
+        <rect x="560" y="100" width="80" height="40" rx="6" fill="#e3f7ff" stroke="#4facfe" stroke-width="2"/>
+        <text x="600" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="#0077a8">LoRA A</text>
+
+        <!-- base layer always resident -->
+        <rect x="60" y="40" width="600" height="40" rx="8" fill="#e8e8ff" stroke="#9b59b6" stroke-width="2"/>
+        <text x="360" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#6c3a8a">Resident Base Model (계속 상주)</text>
+
+        <!-- switch arrows -->
+        <path d="M200 145 L200 100" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <path d="M240 100 L240 145" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <path d="M360 145 L360 100" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <path d="M400 100 L400 145" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <path d="M520 145 L520 100" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <path d="M560 100 L560 145" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+
+        <!-- save/load -->
+        <rect x="60" y="185" width="600" height="40" rx="8" fill="#fff" stroke="#999" stroke-dasharray="4"/>
+        <text x="360" y="210" text-anchor="middle" font-size="12" fill="#666">switch 시 저장/복원: LoRA tensor · optimizer · gradient · rollout records</text>
+      </svg>
+      <div class="svg-caption">▲ Base 모델은 상주, switch 때 옮기는 건 LoRA-specific state뿐.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎓 비유</strong>: 한 강의실에서 <strong>수업 시간표</strong>대로 다른 강사가 들어와 강의한다. 강의실(base)은 그대로, <strong>강사의 강의 자료와 노트(adapter)</strong>만 교체. 모든 강사를 동시에 한 강의실에 넣으려는(mLoRA 방식) 대신, 시간을 나눠 쓰는 게 RL 환경에선 더 효율적이다 — 각 강사가 가져오는 학생(rollout token)이 이미 충분히 많기 때문.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">18.3×</div>
+        <div class="stat-label">Adapter handoff 가속<br>(Qwen3-4B)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">1.77×</div>
+        <div class="stat-label">3개 GRPO 동시 학습<br>(같은 메모리, 4B)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">8.5–8.7×</div>
+        <div class="stat-label">Packed MoE LoRA<br>live load 가속</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">1.04T</div>
+        <div class="stat-label">최대 검증 모델<br>(Kimi K2 LoRA RL)</div>
+      </div>
+    </div>
+
+    <h3>Adapter vs Full Checkpoint Handoff (Table 4)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>경로</th><th>파일 크기</th><th>Materialization</th><th>첫 sample</th></tr></thead>
+      <tbody>
+        <tr><td>Qwen3-4B</td><td>Full merge</td><td>8.061 GB</td><td>71.8 s</td><td>55.7 s</td></tr>
+        <tr class="highlight-row"><td>Qwen3-4B</td><td>LoRA adapter</td><td>252 MiB (3.3%)</td><td>0.036 s</td><td>4.1 s</td></tr>
+        <tr><td>Qwen3-30B</td><td>Full merge</td><td>61.084 GB</td><td>402.2 s</td><td>156.1 s</td></tr>
+        <tr class="highlight-row"><td>Qwen3-30B</td><td>LoRA adapter</td><td>1.692 GB (2.8%)</td><td>46.5 s</td><td>117.3 s</td></tr>
+      </tbody>
+    </table>
+    <p><strong>Trade-off</strong>: warm 상태 inference 속도는 full merge가 약간 우월 (LoRA 곱셈 비용 없음). 그러나 <strong>short-lived experimental run</strong>에선 adapter가 압도적, <strong>multi-tenant production</strong>에선 transfer cost 절감이 결정적.</p>
+
+    <h3>Concurrent GRPO Scheduling (Table 3)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>스케줄</th><th>Wall time</th><th>Speedup</th><th>Peak memory</th></tr></thead>
+      <tbody>
+        <tr><td>Qwen3-4B</td><td>Sequential</td><td>3081.2 s</td><td>1.00×</td><td>65.6 GiB</td></tr>
+        <tr class="highlight-row"><td>Qwen3-4B</td><td>Concurrent MinT</td><td>1736.1 s</td><td>1.77×</td><td>65.6 GiB</td></tr>
+        <tr><td>Qwen3-30B</td><td>Sequential</td><td>10130.0 s</td><td>1.00×</td><td>68.0 GiB</td></tr>
+        <tr class="highlight-row"><td>Qwen3-30B</td><td>Concurrent MinT</td><td>7008.4 s</td><td>1.45×</td><td>68.0 GiB</td></tr>
+      </tbody>
+    </table>
+    <p><strong>핵심</strong>: <strong>peak memory가 동일</strong>. base 자체는 share, adapter만 time-slice이므로 추가 메모리 0. 4B가 30B보다 더 큰 gain은 <strong>GPU utilization이 더 낮아 채울 여지가 더 컸기 때문</strong>.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>흥미로운 시스템 트릭: Packed MoE LoRA</h2>
+
+    <p>MoE base에 LoRA를 붙이면 <strong>expert별로 tiny tensor</strong>가 분리되어 한 adapter가 <strong>37,248개의 작은 객체</strong>로 쪼개진다. 파일 크기는 110 MB 정도지만 <strong>Python 객체 등록 비용이 N배</strong>.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#444">같은 파일 크기, 객체 개수만 55× 줄여 load 가속</text>
+
+        <!-- Original -->
+        <text x="180" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">Original (37,248개 tensor)</text>
+        <g>
+          <rect x="60" y="80" width="240" height="100" rx="6" fill="#ffe6e6" stroke="#e74c3c"/>
+          <text x="100" y="100" font-size="9">▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪</text>
+          <text x="100" y="115" font-size="9">▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪</text>
+          <text x="100" y="130" font-size="9">▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪</text>
+          <text x="100" y="145" font-size="9">▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪</text>
+          <text x="100" y="160" font-size="9">▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪ ▪</text>
+          <text x="180" y="195" text-anchor="middle" font-size="11" fill="#c0392b">110.75 MB · 37,248 obj</text>
+          <text x="180" y="210" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">load: 1.363s (N=4)</text>
+        </g>
+
+        <!-- Arrow -->
+        <text x="360" y="140" text-anchor="middle" font-size="24" fill="#888">→</text>
+        <text x="360" y="170" text-anchor="middle" font-size="11" fill="#555">패킹</text>
+
+        <!-- Packed -->
+        <text x="540" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#27ae60">Packed (672개 tensor)</text>
+        <g>
+          <rect x="420" y="80" width="240" height="100" rx="6" fill="#e8f8e8" stroke="#27ae60"/>
+          <text x="540" y="120" text-anchor="middle" font-size="14">▪ ▪ ▪ ▪ ▪</text>
+          <text x="540" y="140" text-anchor="middle" font-size="14">▪ ▪ ▪ ▪ ▪</text>
+          <text x="540" y="195" text-anchor="middle" font-size="11" fill="#1e8449">105.58 MB · 672 obj</text>
+          <text x="540" y="210" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">load: 0.156s (8.7× faster)</text>
+        </g>
+
+        <text x="360" y="255" text-anchor="middle" font-size="11" fill="#444">파일 크기는 1.05× 변화에 그치지만, Python 객체 fanout 제거로 live load가 8.5–8.7× 빨라진다</text>
+      </svg>
+      <div class="svg-caption">▲ Packed representation은 byte는 같고 <strong>loader-side object 수만 줄여</strong> inference 시작 latency를 단축한다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>📦 비유</strong>: 100개 작은 박스에 똑같이 든 물건과 1개 큰 박스에 한꺼번에 든 물건. <strong>내용물 무게는 같지만 박스를 열어서 등록하는 시간은 100배 차이</strong>. cold-load 경로에선 이 차이가 transient latency를 결정한다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>3-Tier Cache: 명시적 SLA</h2>
+
+    <p>MinT는 adapter가 머무는 <strong>3가지 위치</strong>를 명시적으로 분리한다:</p>
+
+    <table class="comp-table">
+      <thead><tr><th>Tier</th><th>크기</th><th>특성</th><th>관찰값</th></tr></thead>
+      <tbody>
+        <tr><td>📚 Addressable catalog</td><td>10³ – 10⁶</td><td>Durable, control plane</td><td>1k–100k sweep, 100k row에 1 failed cold</td></tr>
+        <tr><td>🔥 CPU adapter cache</td><td>수백</td><td>Per actor run, LRU eviction</td><td>369 @ 512-hotset, 550 @ 2048-target</td></tr>
+        <tr><td>⚡ GPU batch</td><td>≤ 64</td><td>One decoding step</td><td>Same-batch frontier N=64</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Cold-load의 비용 측정</h3>
+    <p>Cache miss는 <strong>단순 파일 읽기가 아니다</strong>: tensor fetch → loader object materialization → engine registration → adapter activation. 16개 distinct cache-miss adapter가 도착하면 <strong>1.375s → 23.267s의 staircase</strong> (약 1.36 s/adapter)로 직렬화.</p>
+    <p>따라서 cold load는 <strong>scheduled service work</strong>로 다뤄야 한다: deduplication(같은 missing policy는 한 번 로딩 후 공유), bounded backpressure(너무 많이 동시에 들어오면 throttle).</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>실용 케이스: AutoResearch on LawBench</h2>
+
+    <p>법률 reasoning 도메인에서 <strong>28개 실험 candidate</strong>를 proxy로 screening, <strong>6개 kept</strong>, <strong>v23이 winner</strong>로 maintain되는 과정을 같은 adapter lifecycle이 자연스럽게 carry한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">AutoResearch: proxy 평가 → 후보 promote → full 평가 confirm</text>
+
+        <line x1="60" y1="200" x2="660" y2="200" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="50" x2="60" y2="200" stroke="#333" stroke-width="2"/>
+
+        <!-- proxy dots (rejected) -->
+        <circle cx="100" cy="180" r="3" fill="#ccc"/>
+        <circle cx="130" cy="175" r="3" fill="#ccc"/>
+        <circle cx="160" cy="170" r="3" fill="#ccc"/>
+        <circle cx="200" cy="165" r="3" fill="#ccc"/>
+        <circle cx="240" cy="160" r="3" fill="#ccc"/>
+        <circle cx="280" cy="155" r="3" fill="#ccc"/>
+        <circle cx="350" cy="145" r="3" fill="#ccc"/>
+        <circle cx="430" cy="135" r="3" fill="#ccc"/>
+        <circle cx="500" cy="125" r="3" fill="#ccc"/>
+        <circle cx="540" cy="125" r="3" fill="#ccc"/>
+
+        <!-- proxy kept -->
+        <circle cx="100" cy="170" r="6" fill="#4facfe"/>
+        <text x="100" y="160" text-anchor="middle" font-size="9">v1</text>
+        <circle cx="170" cy="155" r="6" fill="#4facfe"/>
+        <text x="170" y="145" text-anchor="middle" font-size="9">v3</text>
+        <circle cx="260" cy="135" r="6" fill="#4facfe"/>
+        <text x="260" y="125" text-anchor="middle" font-size="9">v10</text>
+        <circle cx="350" cy="100" r="6" fill="#4facfe"/>
+        <text x="350" y="90" text-anchor="middle" font-size="9">v11 (proxy high)</text>
+        <circle cx="500" cy="80" r="6" fill="#4facfe"/>
+        <text x="500" y="70" text-anchor="middle" font-size="9">v23</text>
+        <circle cx="590" cy="65" r="6" fill="#4facfe"/>
+        <text x="600" y="55" font-size="9">v24</text>
+
+        <!-- running best line -->
+        <path d="M100 170 L170 155 L260 135 L350 135 L500 80 L590 65" stroke="#0077a8" stroke-width="2" fill="none"/>
+
+        <!-- full eval result -->
+        <polygon points="500,90 510,85 520,90 510,95" fill="#e74c3c"/>
+        <text x="540" y="92" font-size="10" fill="#e74c3c" font-weight="700">★ best 0.539</text>
+
+        <!-- v11 rejected -->
+        <line x1="345" y1="95" x2="355" y2="105" stroke="#e74c3c" stroke-width="2"/>
+        <line x1="355" y1="95" x2="345" y2="105" stroke="#e74c3c" stroke-width="2"/>
+        <text x="350" y="80" text-anchor="middle" font-size="9" fill="#e74c3c">rejected (full < v10)</text>
+
+        <text x="35" y="60" font-size="10" fill="#666" transform="rotate(-90 35 60)">LawBench score</text>
+        <text x="360" y="225" text-anchor="middle" font-size="11" fill="#444">Experiment #</text>
+        <text x="360" y="245" text-anchor="middle" font-size="10" fill="#444">28개 후보 중 6개 kept · v11은 proxy 높았으나 full에서 떨어짐 (proxy-full divergence가 명시적 신호)</text>
+      </svg>
+      <div class="svg-caption">▲ AutoResearch는 single high point가 아니라 running-best line + kept-candidate filter로 진행. v11의 proxy-full divergence가 distribution shift를 자동 탐지.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① 저자/소속 익명성</h3>
+      <p>"Mind Lab"만 명시. 기업 기술 백서 형태이므로 <strong>peer review를 통한 method scrutiny가 어렵다</strong>. 코드는 mint-cookbook으로 일부 공개되지만 <strong>management plane 핵심은 closed</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Warm inference에서 Merge가 약간 빠름</h3>
+      <p>Adapter handoff는 transfer가 18.3× 빠르지만 <strong>warm sample 속도는 merge path가 약간 우월</strong>(20.6 vs 15.6 tok/s). <strong>Long-lived deployment</strong>에서 이 차이가 transfer saving을 잠식하는 break-even point가 명시되지 않음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ 10⁶ 카탈로그는 extrapolation</h3>
+      <p>실측은 100k까지. 10⁶은 <strong>sizing model에 의한 추정값</strong>이며 실제 measured 값이 아님. abstract는 다소 단정적.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Time-slicing vs mLoRA의 정량 비교 부재</h3>
+      <p>RL의 큰 rollout token이라는 가정 하의 design choice. <strong>짧은 rollout 환경</strong>에서 mLoRA fusion이 유리한 regime을 정량적으로 비교하지 않음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ DSA correction의 정확도 미검증</h3>
+      <p>IcePop-style mask가 <strong>unsafe scoring term을 0</strong>으로 만들지만, 그것이 학습 신호를 얼마나 손상시키는지 ablation이 없음. R3 explicit replay와의 quality 비교가 누락.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="65" fill="#4facfe"/>
+        <text x="360" y="165" text-anchor="middle" font-size="15" font-weight="700" fill="white">MinT</text>
+        <text x="360" y="185" text-anchor="middle" font-size="11" fill="white">Multi-tenant LoRA</text>
+
+        <line x1="360" y1="105" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">SaaS LLM 서비스</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">고객별 fine-tune 변종</text>
+
+        <line x1="360" y1="105" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">Frontier 모델 학원 연구</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">1T 모델 LoRA RL 가능</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">Agentic AI 학습</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">동시 다중 정책 RL</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">A/B 실험 인프라</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">수십 variant 병렬</text>
+
+        <line x1="360" y1="235" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">Personal AI 서버</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">사용자별 adapter 보관</text>
+
+        <line x1="360" y1="235" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">AutoResearch</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">실험 candidate 자동 screening</text>
+      </svg>
+      <div class="svg-caption">▲ MinT가 enable하는 워크로드들.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Post-training은 OS가 필요한 워크로드다. MinT는 그 OS의 첫 reference implementation. <br>
+        <strong>학습-서빙 경계가 가로지르는 artifact를 "GB짜리 base"에서 "MB짜리 adapter"로 바꾸면,<br> trillion-parameter LoRA RL이 학원 규모 클러스터에서도 가능해진다.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Payload vs Service State 분리"</strong>: adapter revision (실행 가능 payload)과 policy record (서비스 lifecycle state)의 명시적 분리는 <strong>다른 분산 시스템에도 transferable한 디자인 패턴</strong>.</li>
+      <li><strong>"같은 Byte, 다른 Object Layout"</strong>: Packed MoE LoRA의 8.5× live-load 가속은 <strong>사이즈가 아니라 객체 fanout이 cache-miss latency를 지배</strong>한다는 system-level 교훈. sparse model serving 일반에 적용 가능.</li>
+      <li><strong>"3-Tier Cache는 측정 가능한 SLA"</strong>: 추상적인 "cache" 대신 catalog/CPU/GPU 3계층을 <strong>각자 latency·promotion·eviction이 다른 표면</strong>으로 노출하면 cold-load가 scheduled work가 되어 throttle/dedup 가능해진다.</li>
+    </ul>
+
+    <a href="20260518_mindlab_mint.html" class="nav-link" style="background: #4facfe; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>MinT: Managed Infrastructure for Training and Serving Millions of LLMs</strong></p>
+    <p>Mind Lab · arXiv 2605.13779 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260518_mindlab_mint.html">전문가용 보기</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

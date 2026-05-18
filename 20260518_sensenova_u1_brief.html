@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SenseNova-U1 개요 브리핑 — 보고 만드는 AI를 하나로 합치는 법</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #5b21b6 0%, #ec4899 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #5b21b6; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #5b21b6; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #f5f3ff 0%, #fdf2f8 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #ddd6fe; box-shadow: 0 4px 18px rgba(91,33,182,0.08); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #5b21b6; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #5b21b6; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-purple { border-left: 5px solid #9b59b6; background: #f8f0ff; }
+  .card-pink { border-left: 5px solid #ec4899; background: #fdf2f8; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #5b21b6; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #5b21b6; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #f5f3ff 0%, #ede4ff 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #ddd6fe; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #5b21b6; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #5b21b6; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #f5f3ff; }
+  .highlight-row { background: #ede4ff !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #5b21b6 0%, #ec4899 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(91,33,182,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #c4b5fd; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">SenseTime</span>
+      <span class="badge">2026.05.12</span>
+      <span class="badge">Multimodal Foundation Model</span>
+      <span class="badge">VE-free / VAE-free</span>
+      <span class="badge">arXiv 2605.12500</span>
+    </div>
+    <h1>SenseNova-U1 — "보는 AI"와 "만드는 AI"를 처음부터 하나로 키운다</h1>
+    <p class="sub">Vision encoder도 VAE도 없이 raw pixel을 직접 다루는 native unified multimodal model. GenEval 0.91 (open-source SOTA), CVTG-2K 0.940 (closed-source까지 능가), 텍스트가 들어간 인포그래픽 생성에서 새 기준.</p>
+    <a href="20260518_sensenova_u1.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"이미지를 보는 능력과 이미지를 만드는 능력을 별개 시스템으로 두면 둘 사이에 항상 trade-off가 생긴다. <strong>두 능력을 하나의 native multimodal process</strong>로 키우면 그 trade-off 자체가 사라진다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>현재 멀티모달 AI의 dichotomy</h3>
+    <p>현재의 vision-language model은 <strong>두 가지 capability를 분리해서 학습</strong>한다:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">❌ 기존 패러다임: 두 시스템이 따로 학습</text>
+
+        <!-- Understanding side -->
+        <rect x="40" y="50" width="280" height="180" rx="10" fill="#ffe6e6" stroke="#e74c3c" stroke-width="2"/>
+        <text x="180" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">이미지 이해 (Understanding)</text>
+        <rect x="60" y="90" width="240" height="40" rx="4" fill="#fff" stroke="#999"/>
+        <text x="180" y="115" text-anchor="middle" font-size="11" fill="#444">Vision Encoder (CLIP/SigLIP)</text>
+        <text x="180" y="150" text-anchor="middle" font-size="10" fill="#666">→ semantic feature 추출</text>
+        <text x="180" y="170" text-anchor="middle" font-size="10" fill="#666">discriminative pretraining</text>
+        <text x="180" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">pixel detail 손실</text>
+
+        <!-- Generation side -->
+        <rect x="400" y="50" width="280" height="180" rx="10" fill="#ffeaea" stroke="#e74c3c" stroke-width="2"/>
+        <text x="540" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">이미지 생성 (Generation)</text>
+        <rect x="420" y="90" width="240" height="40" rx="4" fill="#fff" stroke="#999"/>
+        <text x="540" y="115" text-anchor="middle" font-size="11" fill="#444">VAE Latent Space</text>
+        <text x="540" y="150" text-anchor="middle" font-size="10" fill="#666">→ 압축된 latent</text>
+        <text x="540" y="170" text-anchor="middle" font-size="10" fill="#666">reconstruction-driven</text>
+        <text x="540" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">semantic 구조 약화</text>
+
+        <text x="360" y="260" text-anchor="middle" font-size="12" font-weight="700" fill="#444">두 모듈의 inductive bias가 대립 → unified model은 항상 trade-off를 안고 산다</text>
+      </svg>
+      <div class="svg-caption">▲ 기존 unified model의 근본 문제: VE와 VAE가 <strong>반대 방향으로 학습된 module</strong>이라 합쳐도 한 쪽이 약해진다.</div>
+    </div>
+
+    <h3>SenseNova-U1의 해결 방향</h3>
+    <p>두 module을 다 빼버리고 <strong>raw pixel과 word를 직접 다루는 하나의 native architecture</strong>로 학습한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#27ae60">✅ SenseNova-U1: 하나의 native architecture</text>
+
+        <!-- Input -->
+        <rect x="40" y="50" width="100" height="120" rx="8" fill="#f5f3ff" stroke="#5b21b6"/>
+        <text x="90" y="75" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">Input</text>
+        <text x="90" y="100" text-anchor="middle" font-size="10" fill="#444">Pixel</text>
+        <text x="90" y="115" text-anchor="middle" font-size="20">🖼</text>
+        <text x="90" y="140" text-anchor="middle" font-size="10" fill="#444">Word</text>
+        <text x="90" y="155" text-anchor="middle" font-size="20">📝</text>
+
+        <path d="M150 110 L180 110" stroke="#5b21b6" stroke-width="2" marker-end="url(#a4)"/>
+
+        <!-- Patch encoding -->
+        <rect x="180" y="60" width="140" height="100" rx="6" fill="#fff" stroke="#5b21b6" stroke-width="2"/>
+        <text x="250" y="85" text-anchor="middle" font-size="11" font-weight="700" fill="#5b21b6">Patch Encoder</text>
+        <text x="250" y="105" text-anchor="middle" font-size="10" fill="#444">2-layer conv</text>
+        <text x="250" y="120" text-anchor="middle" font-size="10" fill="#444">stride 16</text>
+        <text x="250" y="140" text-anchor="middle" font-size="9" fill="#666">(VE 없음)</text>
+
+        <path d="M330 110 L360 110" stroke="#5b21b6" stroke-width="2" marker-end="url(#a4)"/>
+
+        <!-- MoT -->
+        <rect x="360" y="40" width="200" height="140" rx="10" fill="linear-gradient(135deg, #5b21b6, #ec4899)" stroke="#5b21b6" stroke-width="2"/>
+        <rect x="360" y="40" width="200" height="140" rx="10" fill="#5b21b6"/>
+        <text x="460" y="65" text-anchor="middle" font-size="12" font-weight="700" fill="white">Native MoT</text>
+        <text x="460" y="85" text-anchor="middle" font-size="10" fill="white">Understanding stream</text>
+        <text x="460" y="100" text-anchor="middle" font-size="10" fill="white">+ Generation stream</text>
+        <text x="460" y="125" text-anchor="middle" font-size="10" fill="white">shared self-attention</text>
+        <text x="460" y="140" text-anchor="middle" font-size="10" fill="white">decoupled params</text>
+        <text x="460" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#fff7af">모든 layer에서 interact</text>
+
+        <path d="M570 110 L600 110" stroke="#5b21b6" stroke-width="2" marker-end="url(#a4)"/>
+
+        <!-- Output -->
+        <rect x="600" y="60" width="100" height="100" rx="6" fill="#fdf2f8" stroke="#ec4899"/>
+        <text x="650" y="85" text-anchor="middle" font-size="11" font-weight="700" fill="#be185d">Output</text>
+        <text x="650" y="105" text-anchor="middle" font-size="10" fill="#444">Word (next-token)</text>
+        <text x="650" y="120" text-anchor="middle" font-size="10" fill="#444">또는</text>
+        <text x="650" y="135" text-anchor="middle" font-size="10" fill="#444">Pixel patch</text>
+        <text x="650" y="150" text-anchor="middle" font-size="9" fill="#666">(VAE 없음)</text>
+
+        <text x="360" y="220" text-anchor="middle" font-size="12" fill="#444">두 stream이 모든 layer에서 shared attention으로 interact + parameter는 decouple</text>
+        <text x="360" y="240" text-anchor="middle" font-size="12" font-weight="700" fill="#5b21b6">→ semantic + pixel을 동시에 자유롭게 self-organize</text>
+
+        <defs>
+          <marker id="a4" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#5b21b6"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ "보는 능력"과 "만드는 능력"이 처음부터 하나의 모델 안에서 <strong>같이 자란다</strong>.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) VLM (Vision-Language Model)</h3>
+      <p>이미지와 텍스트를 동시에 받는 large model. GPT-4V, Gemini, Qwen-VL이 대표. 보통 <strong>이미지를 텍스트로 답할 수만 있다</strong> (understanding만).</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Unified Multimodal Model (UMM)</h3>
+      <p>understanding (이미지를 보고 답)과 generation (이미지를 만든다) <strong>두 능력 모두를 한 모델</strong>이 한다. BAGEL, Show-o, OmniGen, NEO-unify 등. 보통 두 능력 사이에 <strong>trade-off</strong>가 있다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) Vision Encoder (VE) / CLIP / SigLIP</h3>
+      <p>이미지를 <strong>semantic feature vector</strong>로 변환하는 모듈. <strong>discriminative 학습</strong>되어 semantic은 잘 잡지만 <strong>fine pixel detail은 손실</strong>. 거의 모든 VLM이 의존.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) VAE (Variational Autoencoder)</h3>
+      <p>이미지를 <strong>저차원 latent</strong>로 압축, generation 시 그 latent space에서 작업. Stable Diffusion 같은 모델의 표준. <strong>압축 과정에서 semantic 구조가 약해진다</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) Flow Matching</h3>
+      <p>Diffusion의 진화형. <strong>noise → clean</strong>의 trajectory velocity를 학습. 더 안정적이고 fewer step으로 생성 가능. FLUX, Stable Diffusion 3가 사용.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) MoE (Mixture-of-Experts)</h3>
+      <p>전체 파라미터 중 일부 expert만 활성화. Qwen3-30B-A3B = 30B 중 3B 활성. <strong>capacity는 늘리되 inference cost는 통제</strong>.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>핵심 아이디어: 3-Layer Architecture</h2>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>Near-Lossless Visual Interface</h4>
+        <p>2-layer convolution (16x16 stride)으로 image를 token으로. <strong>VE도 VAE도 없음</strong>. 32× compression이지만 pixel detail 보존.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>Native Mixture-of-Transformers</h4>
+        <p>Understanding stream + Generation stream이 <strong>모든 layer에서 shared self-attention</strong>. parameter는 <strong>fully decoupled</strong> (token type에 따라 dynamic routing).</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>Joint Training Objective</h4>
+        <p>$L = \lambda_1 L_\text{Und} + \lambda_2 L_\text{Gen}$. Autoregressive cross-entropy (text) + pixel-space flow matching (image)을 <strong>동시 최적화</strong>.</p>
+      </div>
+    </div>
+
+    <h3>왜 32× compression이 작동하는가</h3>
+    <p>16×16 conv stride = 32×32 pixel patch가 하나의 token으로 압축. <strong>이는 매우 공격적인 압축</strong>이지만, deeply correlated learning이 token-level pixel-word correspondence를 효과적으로 보상한다.</p>
+
+    <div class="analogy">
+      <strong>📷 비유</strong>: 1000만 화소 사진을 <strong>1000개 정도의 의미 있는 단어로 요약</strong>하는 것과 같다. 각 단어는 픽셀 한 점을 묘사하는 게 아니라 <strong>해당 영역의 semantic + texture + structure</strong>를 종합한다. 압축률은 32×인데, 그 작은 토큰 안에 <strong>pixel detail까지 reconstructable한 정보</strong>가 들어있다.
+    </div>
+
+    <h3>두 stream이 한 sequence에서 interact</h3>
+    <p>Understanding stream은 <strong>clean image + text</strong>를 처리하고, generation stream은 <strong>noise-conditioned input</strong>을 처리한다. 둘은 같은 sequence에 함께 있고, 매 layer에서 shared self-attention을 통해 정보를 교환한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">두 stream의 attention 패턴</text>
+
+        <!-- Stream 1 -->
+        <rect x="40" y="50" width="300" height="180" rx="10" fill="#e3f7ff" stroke="#3498db" stroke-width="2"/>
+        <text x="190" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#2c7cb0">Understanding Stream</text>
+        <text x="190" y="100" text-anchor="middle" font-size="11" fill="#444">Clean image + Text</text>
+
+        <rect x="60" y="115" width="50" height="20" rx="3" fill="#fff"/>
+        <text x="85" y="129" text-anchor="middle" font-size="9">text</text>
+        <rect x="120" y="115" width="50" height="20" rx="3" fill="#fff"/>
+        <text x="145" y="129" text-anchor="middle" font-size="9">text</text>
+        <rect x="180" y="115" width="50" height="20" rx="3" fill="#cfe9ff"/>
+        <text x="205" y="129" text-anchor="middle" font-size="9">img</text>
+        <rect x="240" y="115" width="50" height="20" rx="3" fill="#cfe9ff"/>
+        <text x="265" y="129" text-anchor="middle" font-size="9">img</text>
+
+        <text x="190" y="160" text-anchor="middle" font-size="10" fill="#666">text: causal</text>
+        <text x="190" y="175" text-anchor="middle" font-size="10" fill="#666">image: bidirectional 내부</text>
+        <text x="190" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#2c7cb0">→ 다음 토큰 예측</text>
+        <text x="190" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#2c7cb0">→ "보는" 능력</text>
+
+        <!-- Stream 2 -->
+        <rect x="380" y="50" width="300" height="180" rx="10" fill="#fdf2f8" stroke="#ec4899" stroke-width="2"/>
+        <text x="530" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#be185d">Generation Stream</text>
+        <text x="530" y="100" text-anchor="middle" font-size="11" fill="#444">Noise-conditioned</text>
+
+        <rect x="400" y="115" width="50" height="20" rx="3" fill="#fff"/>
+        <text x="425" y="129" text-anchor="middle" font-size="9">text</text>
+        <rect x="460" y="115" width="50" height="20" rx="3" fill="#ffe6f0"/>
+        <text x="485" y="129" text-anchor="middle" font-size="9">noise</text>
+        <rect x="520" y="115" width="50" height="20" rx="3" fill="#ffe6f0"/>
+        <text x="545" y="129" text-anchor="middle" font-size="9">noise</text>
+        <rect x="580" y="115" width="50" height="20" rx="3" fill="#ffe6f0"/>
+        <text x="605" y="129" text-anchor="middle" font-size="9">noise</text>
+
+        <text x="530" y="160" text-anchor="middle" font-size="10" fill="#666">noise: bidirectional</text>
+        <text x="530" y="175" text-anchor="middle" font-size="10" fill="#666">clean prefix 전체 access</text>
+        <text x="530" y="200" text-anchor="middle" font-size="11" font-weight="700" fill="#be185d">→ pixel patch 예측</text>
+        <text x="530" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#be185d">→ "만드는" 능력</text>
+      </svg>
+      <div class="svg-caption">▲ 같은 attention layer 안에 두 stream이 공존, 각자 다른 attention 패턴.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>두 가지 variant: dense와 MoE</h2>
+
+    <table class="comp-table">
+      <thead><tr><th>속성</th><th>U1-8B-MoT</th><th>U1-A3B-MoT</th></tr></thead>
+      <tbody>
+        <tr><td>아키텍처</td><td>Dense</td><td>MoE (Mixture-of-Experts)</td></tr>
+        <tr><td>Layer 수</td><td>42</td><td>48</td></tr>
+        <tr><td>Hidden size</td><td>4,096</td><td>2,048</td></tr>
+        <tr><td>Pre-Buffer</td><td>✓ (shallow mapping layer)</td><td>✗</td></tr>
+        <tr><td>Understanding experts</td><td>1</td><td>128 (총 30B)</td></tr>
+        <tr><td>Generation experts</td><td>1</td><td>32 (총 8B)</td></tr>
+        <tr><td>Token당 active</td><td>전체 8.2B</td><td>top-8 routing, ~3B active</td></tr>
+      </tbody>
+    </table>
+
+    <p>두 variant 모두 <strong>같은 design philosophy</strong>를 따른다. 8B는 <strong>dense + Pre-Buffer</strong>로 pretrained LLM의 linguistic proficiency를 보존, A3B는 <strong>MoE로 capacity 확장</strong>.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>5단계 학습 레시피</h2>
+
+    <p>처음부터 한 번에 학습하는 게 아니라, <strong>점진적으로 capability를 쌓는다</strong>.</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>Understanding Warmup</h4>
+        <p>NEO에서 초기화. <strong>0.75T tokens</strong>로 vision-language understanding backbone 구축. CE:MSE = 1:0.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>Generation Pre-Training</h4>
+        <p>3 phases. Understanding branch freeze, generation을 <strong>pixel-space flow matching</strong>으로 학습. Phase III에서 editing + interleaved data 추가. <strong>1.38T tokens</strong>.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>Unified Mid-Training</h4>
+        <p>두 branch 동시 학습. <strong>1.19T tokens</strong>로 joint convergence. CE:MSE = 0.1:1 (generation이 dominate).</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">4</span>Unified SFT</h4>
+        <p>High-quality instruction data로 9K steps. <strong>instruction alignment + task-specific sharpening</strong>.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">5</span>Post-Training</h4>
+        <p><strong>Flow-GRPO</strong> RL + <strong>Distribution Matching Distillation (DMD2)</strong>. NFE 100→8로 효율화.</p>
+      </div>
+    </div>
+
+    <p>누적 <strong>3T+ training tokens</strong>. 학원 규모에서는 거의 재현 불가능한 scale.</p>
+
+    <div class="analogy">
+      <strong>🌱 비유</strong>: 아이를 키우듯이 단계별로 능력을 쌓는다. 먼저 <strong>보는 법</strong> (Stage 1), 그 다음 <strong>그리는 법</strong> (Stage 2), 그 다음 <strong>둘을 함께</strong> (Stage 3), 그리고 <strong>섬세한 지시 따르기</strong> (Stage 4), 마지막으로 <strong>효율적으로 빨리 그리기</strong> (Stage 5).
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">0.91</div>
+        <div class="stat-label">GenEval<br>(open-source SOTA, closed 능가)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0.940</div>
+        <div class="stat-label">CVTG-2K word accuracy<br>(closed-source까지 능가)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">0.979</div>
+        <div class="stat-label">LongText-Bench-EN<br>(long text rendering)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">9.16</div>
+        <div class="stat-label">OpenING interleaved<br>(closed-source 능가)</div>
+      </div>
+    </div>
+
+    <h3>이미지 생성 (GenEval)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>크기</th><th>Single</th><th>Two Obj</th><th>Counting</th><th>Colors</th><th>Position</th><th>Attribute</th><th>Overall</th></tr></thead>
+      <tbody>
+        <tr><td>GPT-Image-1 (closed)</td><td>—</td><td>0.99</td><td>0.92</td><td>0.85</td><td>0.92</td><td>0.75</td><td>0.61</td><td>0.84</td></tr>
+        <tr><td>Seedream 3.0 (closed)</td><td>—</td><td>0.99</td><td>0.96</td><td>0.91</td><td>0.93</td><td>0.47</td><td>0.80</td><td>0.84</td></tr>
+        <tr class="highlight-row"><td>SenseNova-U1 (8BA3B)</td><td>8BA3B</td><td>1.00</td><td>0.96</td><td>0.89</td><td>0.91</td><td>0.92</td><td>0.77</td><td>0.91</td></tr>
+        <tr class="highlight-row"><td>SenseNova-U1 (8B)</td><td>8B</td><td>1.00</td><td>0.96</td><td>0.92</td><td>0.92</td><td>0.91</td><td>0.76</td><td>0.91</td></tr>
+        <tr><td>Qwen-Image</td><td>20B</td><td>0.99</td><td>0.92</td><td>0.89</td><td>0.88</td><td>0.76</td><td>0.77</td><td>0.87</td></tr>
+      </tbody>
+    </table>
+    <p>특히 <strong>Position score 0.92</strong>가 closed-source(0.47–0.75)와 <strong>큰 격차</strong>. <strong>spatial alignment에 강하다</strong>는 것이 native architecture의 핵심 장점.</p>
+
+    <h3>Multilingual text rendering (CVTG-2K)</h3>
+    <p>이미지에 <strong>2–5개 region에 다른 텍스트를 정확히 렌더링</strong>하는 task. closed-source SOTA Seedream 4.5 = 0.899. SenseNova-U1-8B = <strong>0.940</strong>. <strong>디자인, 포스터, 인포그래픽 application에 즉시 적용 가능</strong>한 새 기준.</p>
+
+    <h3>이해 + 생성의 synergy (Uni-MMMU GaU)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>Jigsaw</th><th>Maze</th><th>Sliding</th><th>Geometry</th><th>평균</th></tr></thead>
+      <tbody>
+        <tr class="highlight-row"><td>U1-SFT 8B</td><td>87.3</td><td>28.6</td><td>0.0</td><td>24.2</td><td>35.0</td></tr>
+        <tr><td>BAGEL</td><td>48.0</td><td>0.0</td><td>1.2</td><td>32.8</td><td>20.5</td></tr>
+        <tr><td>Ovis-U1</td><td>53.0</td><td>0.0</td><td>0.0</td><td>3.5</td><td>14.1</td></tr>
+        <tr><td>OmniGen2</td><td>48.0</td><td>0.0</td><td>0.0</td><td>5.7</td><td>13.4</td></tr>
+      </tbody>
+    </table>
+    <p><strong>generation 능력이 understanding을 실제로 도와준다</strong>. BAGEL/Ovis 같은 unified baseline을 <strong>압도</strong>.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>가장 흥미로운 발견 3가지</h2>
+
+    <div class="card card-pink">
+      <h3>① 32× compression에서도 <strong>near-lossless reconstruction</strong></h3>
+      <p>NEO-unify (2B) reconstruction이 MS-COCO에서 <strong>PSNR 31.56, SSIM 0.85</strong>. <strong>FLUX VAE의 PSNR 31.56, SSIM 0.93</strong>에 근접. <strong>VAE 없이도 fine pixel detail이 보존된다</strong>는 놀라운 결과.</p>
+    </div>
+
+    <div class="card card-pink">
+      <h3>② CoT가 <strong>generation에도</strong> 큰 효과</h3>
+      <p>WISE benchmark (science-oriented generation)에서 <strong>U1-SFT 8B w/o CoT 0.69 → w/ CoT 0.78</strong>. RISEBench Logical dimension이 <strong>7.1 → 20.0</strong>. <strong>explicit reasoning이 complex edit goal decomposition을 돕는다</strong>.</p>
+    </div>
+
+    <div class="card card-pink">
+      <h3>③ Data scaling이 <strong>단조 향상</strong></h3>
+      <p>Training token 0→2.5T로 갈수록 T2I-Reasoning(WISE)이 <strong>40 → 67</strong>로 단조 증가. Editing-Reasoning(RISEBench)도 <strong>11 → 20</strong>. <strong>native MoT 아키텍처가 data scale에 잘 반응</strong>한다는 검증.</p>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Data scaling: training token이 늘수록 능력이 단조 향상</text>
+
+        <line x1="60" y1="200" x2="660" y2="200" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="50" x2="60" y2="200" stroke="#333" stroke-width="2"/>
+
+        <text x="360" y="225" text-anchor="middle" font-size="11" fill="#444">Training Tokens</text>
+        <text x="30" y="125" text-anchor="middle" font-size="11" fill="#444" transform="rotate(-90 30 125)">Score</text>
+
+        <!-- x ticks -->
+        <text x="60" y="218" text-anchor="middle" font-size="10" fill="#666">0T</text>
+        <text x="180" y="218" text-anchor="middle" font-size="10" fill="#666">0.5T</text>
+        <text x="300" y="218" text-anchor="middle" font-size="10" fill="#666">1T</text>
+        <text x="420" y="218" text-anchor="middle" font-size="10" fill="#666">1.5T</text>
+        <text x="540" y="218" text-anchor="middle" font-size="10" fill="#666">2T</text>
+        <text x="660" y="218" text-anchor="middle" font-size="10" fill="#666">2.5T</text>
+
+        <!-- T2I-Reasoning (WISE) -->
+        <path d="M60 170 L180 162 L300 150 L420 130 L540 90 L660 70" stroke="#5b21b6" stroke-width="3" fill="none"/>
+        <circle cx="60" cy="170" r="4" fill="#5b21b6"/>
+        <circle cx="660" cy="70" r="4" fill="#5b21b6"/>
+        <text x="670" y="65" font-size="10" fill="#5b21b6" font-weight="700">WISE 67</text>
+        <text x="50" y="175" text-anchor="end" font-size="10" fill="#5b21b6" font-weight="700">40</text>
+
+        <!-- T2I (DPG) -->
+        <path d="M60 110 L180 90 L300 85 L420 80 L540 75 L660 65" stroke="#27ae60" stroke-width="3" fill="none" stroke-dasharray="4"/>
+        <circle cx="60" cy="110" r="4" fill="#27ae60"/>
+        <circle cx="660" cy="65" r="4" fill="#27ae60"/>
+        <text x="670" y="60" font-size="10" fill="#27ae60" font-weight="700">DPG 86</text>
+
+        <!-- RISEBench Reasoning Editing -->
+        <path d="M60 185 L180 180 L300 175 L420 155 L540 130 L660 110" stroke="#ec4899" stroke-width="3" fill="none" stroke-dasharray="2 4"/>
+        <circle cx="60" cy="185" r="4" fill="#ec4899"/>
+        <circle cx="660" cy="110" r="4" fill="#ec4899"/>
+        <text x="670" y="105" font-size="10" fill="#ec4899" font-weight="700">RISE 20</text>
+
+        <text x="120" y="40" font-size="10" fill="#5b21b6">━ WISE (reasoning gen)</text>
+        <text x="280" y="40" font-size="10" fill="#27ae60">┅ DPG (general gen)</text>
+        <text x="450" y="40" font-size="10" fill="#ec4899">┄ RISE (reasoning edit)</text>
+      </svg>
+      <div class="svg-caption">▲ Training token 증가에 따른 단조 향상. native 아키텍처가 <strong>scale-friendly</strong>임을 증명.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>Disaggregated Inference: 두 engine으로 서빙</h2>
+
+    <p>Unified model이지만 <strong>실제 inference 시에는 두 engine으로 분리</strong>해 서빙한다.</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>🧠 LightLLM</h4>
+        <p>Understanding + text streaming + control flow. <strong>LLM-oriented tensor parallelism</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>🎨 LightX2V</h4>
+        <p>Image generation. <strong>Diffusion-oriented</strong> (CFG parallelism, sequence parallelism).</p>
+      </div>
+      <div class="step">
+        <h4>🔗 Pinned Shared Memory</h4>
+        <p>두 engine 사이 generation state 교환. <strong>unified API abstraction을 유지</strong>하면서도 두 path를 독립 최적화.</p>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <strong>🍽 비유</strong>: 한 셰프(unified model)가 <strong>앞 주방(LightLLM)</strong>과 <strong>뒷 주방(LightX2V)</strong>을 모두 운영하지만, 실제 조리 시에는 두 주방을 <strong>다른 인프라(스토브 vs 오븐)</strong>로 분리하고 <strong>패스 데스크(shared memory)</strong>로 연결한다. 손님(API)은 한 명의 셰프를 부르지만, 내부는 specialized.
+    </div>
+
+    <h3>Step Distillation: 100 → 8 NFE</h3>
+    <p>Post-training에서 <strong>Distribution Matching Distillation (DMD2)</strong>로 생성 step 수를 100에서 8로 줄인다. <strong>production-ready efficiency</strong>. Generator G가 fake flow F의 5 update마다 1번 update되는 distillation scheme.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① 학습 cost가 어마어마하다</h3>
+      <p>총 3T+ training tokens. <strong>GPU hour 비용과 사용 자원</strong>이 명시되지 않음. <strong>학원 규모에서는 거의 재현 불가능</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② 일부 OCR task에서는 VE 기반 모델이 우세</h3>
+      <p>InfoVQA에서 Qwen3VL-8B 86.00 vs U1-8B 82.46. <strong>fine-grained text-in-image OCR</strong>에서는 VE의 강점이 남아있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ 100+ contributor 단체 저작</h3>
+      <p><strong>individual ablation에 대한 깊이 있는 분석이 부족</strong>. peer review의 책임 추적이 어렵다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Complex commercial scenario에서 closed-source와 큰 격차</h3>
+      <p>BizGenEval에서 <strong>U1 39.7 / 61.7 vs GPT-Image-2 82.1 / 92.5</strong>. <strong>complex layout + text + brand identity</strong>가 결합된 영역에서는 still gap.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Image editing이 specialized model 대비 약함</h3>
+      <p>Qwen-Image-Edit-2511 (20B) 4.51 vs U1-8B 3.90. <strong>unified model의 본질적 trade-off</strong>일 수 있음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑥ VLA / World Modeling 결과가 preliminary</h3>
+      <p>Vision-language-action과 world modeling 능력은 <strong>qualitative 시범 수준</strong>. quantitative benchmark 없음.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="70" fill="#5b21b6"/>
+        <text x="360" y="165" text-anchor="middle" font-size="15" font-weight="700" fill="white">SenseNova-U1</text>
+        <text x="360" y="185" text-anchor="middle" font-size="10" fill="white">Native Unified</text>
+
+        <line x1="360" y1="100" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">디자인 / 마케팅</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">포스터·인포그래픽·광고</text>
+
+        <line x1="360" y1="100" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">스토리텔링 / 만화</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">interleaved 텍스트-이미지</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">교육 콘텐츠</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">CoT 기반 시각화</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#ec4899" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">이미지 편집</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">reasoning 기반 수정</text>
+
+        <line x1="360" y1="240" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">로봇 / VLA</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">native pixel-action</text>
+
+        <line x1="360" y1="240" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">spatial intelligence</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">3D / map / nav</text>
+      </svg>
+      <div class="svg-caption">▲ SenseNova-U1이 enable하는 application들.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Vision encoder와 VAE의 trade-off는 <strong>엔지니어링 artifact가 아니라 design choice</strong>였다.<br>
+        <strong>둘 다 빼버리고 raw pixel-word에서 시작하면, <strong>보는 능력과 만드는 능력이 서로를 강화</strong>한다.<br>
+        SenseNova-U1은 그 가설을 8B/30B 스케일에서 처음 입증했다.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Pretrained module의 prior는 양날의 검"</strong>: CLIP, VAE 같은 잘 작동하는 module은 <strong>편한 출발점이지만 그 inductive bias가 unified model의 진짜 잠재력을 막는다</strong>. 처음부터 native하게 학습할 용기가 next paradigm을 연다.</li>
+      <li><strong>"Compression과 fidelity는 zero-sum이 아니다"</strong>: 32× compression에서도 PSNR 31.56 보존. <strong>압축률이 높을수록 detail이 잃는다는 직관이 deep learning에서는 틀린 경우가 있다</strong> — 모델이 충분히 크고 데이터가 충분하면.</li>
+      <li><strong>"Bidirectional synergy는 측정 가능하다"</strong>: Uni-MMMU GaU 같은 benchmark가 <strong>generation이 understanding을 돕는지</strong>를 정량 측정. unified model은 단순히 두 능력을 <strong>같이 둔 게 아니라 진짜 synergize</strong>시켜야 한다.</li>
+    </ul>
+
+    <a href="20260518_sensenova_u1.html" class="nav-link" style="background: #5b21b6; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>SenseNova-U1: Unifying Multimodal Understanding and Generation with NEO-unify Architecture</strong></p>
+    <p>SenseTime · arXiv 2605.12500 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260518_sensenova_u1.html">전문가용 보기</a> · <a href="https://github.com/OpenSenseNova/SenseNova-U1">GitHub</a> · <a href="https://huggingface.co/collections/sensenova/sensenova-u1">HuggingFace</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

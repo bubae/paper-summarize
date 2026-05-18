@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SenseNova-U1: Unifying Multimodal Understanding and Generation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>SenseNova-U1: Unifying Multimodal Understanding and Generation with NEO-unify Architecture</h1>
+
+<a href="20260518_sensenova_u1_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: SenseTime SenseNova Team (100+ contributors)</li>
+  <li><strong>소속</strong>: SenseTime (商汤科技)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (technical report)</li>
+  <li><strong>연도</strong>: 2026 (May 12)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.12500">arXiv:2605.12500</a> · <a href="https://github.com/OpenSenseNova/SenseNova-U1">GitHub</a> · <a href="https://huggingface.co/collections/sensenova/sensenova-u1">HuggingFace</a> · <a href="https://unify.light-ai.top">Demo</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 현재의 vision-language model은 ##understanding과 generation을 별개의 시스템##으로 다룬다 — understanding은 vision encoder(VE)가 매개하고, generation은 VAE latent를 사용. 이 dichotomy는 ##fragmented architecture, cascaded pipeline, misaligned representation space##를 만들어 native multimodal intelligence의 emergence를 막는다.</li>
+  <li><strong>해결</strong>: SenseNova-U1은 NEO-unify를 scale-up한 ##native unified multimodal paradigm##. ##VE도 VAE도 없이## raw pixel과 word를 직접 다룬다. (1) Near-lossless visual interface (16×16 conv encoding, MLP decoding, 32× compression), (2) Native Mixture-of-Transformers (MoT) — understanding stream과 generation stream이 ##모든 layer에서 interact##, (3) end-to-end pixel-space autoregressive cross-entropy + flow matching joint objective.</li>
+  <li><strong>왜 작동하는가</strong>: VE/VAE의 pretrained semantic bias와 compression bottleneck이 ##capacity trade-off의 진짜 원인##. 그 layer를 제거하면 ##representation space가 자유롭게 application에 맞춰 self-organize##된다. ##encoder-free design이 semantic + pixel representation을 동시 보존##.</li>
+  <li><strong>비유</strong>: 통역사(VE) 한 명이 두 언어를 옮기는 시스템에서, ##두 언어를 native로 같이 키운 bilingual speaker##로 전환. 두 capability가 분리된 시스템이 아니라 ##한 underlying process의 synergistic view##.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>NEO-unify 기반 native unified paradigm</strong>: ##VE와 VAE 동시 제거##한 최초의 강력한 unified VLM 중 하나. 16×16 stride conv encoding + MLP-like patch decoding, ##32× compression ratio##에서도 native semantic + pixel fidelity 유지.</li>
+  <li><strong>Native Mixture-of-Transformers (MoT)</strong>: understanding stream(clean image+text)과 generation stream(noise-conditioned)이 ##shared self-attention##을 매 layer 거치며 interact. Full parameter decoupling — projections, normalizations, feedforward block은 ##token type에 따라 dynamic routing##. 두 스트림이 monolithic하게 작동.</li>
+  <li><strong>두 가지 scale</strong>: ##SenseNova-U1-8B-MoT## (dense 8B, 42 layers, pre-buffer layers 포함) and ##SenseNova-U1-A3B-MoT## (30B-A3B MoE, 128/32 experts for und/gen, 48 layers, ##8 active experts per token##, ~3B active param). 같은 paradigm이 dense와 sparse 양쪽에 확장 가능.</li>
+  <li><strong>5-stage Training Recipe</strong>: ##Stage 1 (Understanding Warmup)## → ##Stage 2 (Generation Pre-Training, 3 phases)## → ##Stage 3 (Unified Mid-Training)## → ##Stage 4 (Unified SFT)## → ##Stage 5 (Post-Training: Flow-GRPO + DMD)##. 누적 ##1.19T training tokens## for unified mid-training.</li>
+  <li><strong>광범위한 SOTA</strong>: GenEval ##0.91## (8B/8BA3B both, open-source SOTA), DPG-Bench ##88.14/87.78##, OneIG-EN ##0.549/0.543##, CVTG-2K word accuracy ##0.940## (closed-source 능가), LongText-Bench-EN ##0.979##, WISE ##0.81## (open-source top), Uni-MMMU GaU ##35.0## (BAGEL/Ovis 능가).</li>
+  <li><strong>Disaggregated inference architecture</strong>: ##LightLLM (understanding+streaming)## + ##LightX2V (generation)## 두 specialized engine. Pinned shared memory로 state 교환. ##colocate / separate 양 모드 지원##.</li>
+  <li><strong>Distribution Matching Distillation</strong>: T2I post-training에서 NFE를 ##100 → 8##로 축소. 100M-step 학습 후 8-step inference가 가능한 production-ready efficiency.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>VLM의 두 가지 진화 방향</h3>
+<p>2022년 이후 vision-language model이 두 distinct direction으로 분화:</p>
+<ul>
+  <li><strong>Discrete unified models</strong> (Show-o, Janus, Tuna, OmniGen, BAGEL 등): 모든 modality를 ##discrete token으로 변환##해 single autoregressive framework. seamless cross-modal reasoning이 가능하지만 ##non-linguistic signal이 lossy하게 compressed##되어 visual fidelity 제약.</li>
+  <li><strong>Continuous unified models</strong>: ##continuous representation 기반의 shared space##. high-fidelity 재구성이 가능하지만 understanding-generation 사이 ##semantic abstraction vs pixel granularity의 tension## 미해결.</li>
+</ul>
+
+<h3>NEO-unify의 출발점</h3>
+<p>NEO (Wang et al.)는 ##native VLM primitive##를 제안 — VE 없이 pretrained representation에 의존하지 않고 vision perception을 self-organize. 이를 generation으로 확장한 것이 NEO-unify. 본 paper는 ##NEO-unify를 8B/30B-A3B scale로 키우고## 5-stage 학습 레시피를 fully document.</p>
+
+<h3>왜 VE/VAE 제거가 어려운가</h3>
+<p>VE (CLIP, SigLIP, DINOv2)는 ##discriminative pretraining objective##에서 학습되어 ##high-level semantic feature##만 retain하고 fine-grained pixel detail은 lossy. VAE는 ##low-dimensional latent로 압축##해 generation의 efficient flow matching을 가능하게 하지만 ##semantic structure가 약화##. 두 모듈이 ##대립되는 inductive bias##를 imposing해 unified model은 항상 그 사이 trade-off를 감내해야 했다.</p>
+
+<h2>방법 (Method): 3-Layer Architecture</h2>
+
+<h3>Layer 1: Near-Lossless Visual Interface</h3>
+
+<h4>Patch Encoding Layer</h4>
+<p>입력 image (또는 noise)를 ##2-layer convolution (GELU activation, 2D sinusoidal positional encoding)##로 visual token으로 매핑. Conv stride 16, 16 → 32×32 image patch 하나가 하나의 visual token으로. ##&lt;img&gt;/&lt;/img&gt; special token##으로 visual content delimit.</p>
+
+<p>중요: ##downsampling ratio 32##인데도 unified model이 strong understanding+generation을 유지. 이는 token-level pixel-word correspondence를 deeply correlated learning으로 보상.</p>
+
+<h4>Patch Decoding Layer</h4>
+<ul>
+  <li><strong>Understanding stream</strong>: linear projection head → token-to-vocabulary.</li>
+  <li><strong>Generation stream</strong>: ##multi-layer MLP head로 pixel patch 직접 예측##. ##diffusion head나 VAE decoder를 우회##.</li>
+</ul>
+
+<h4>Dynamic Noise Scale</h4>
+<p>Generation stream이 ##varying resolution##에서 작동하므로 naive unit-variance prior $z_1 \sim \mathcal{N}(0, I)$가 signal scale과 mismatch. Resolution-adaptive noise scale:</p>
+<p>$$\sigma_R(H,W) = \sigma_0 \sqrt{N(H,W) / N_0} \quad (\text{NSEmb})$$</p>
+<p>$N(H,W) = (H \cdot W)/32^2$는 generation token 수, $N_0$는 reference count. 직관적으로 말하면, ##고해상도 image는 더 많은 noise를 받아야## per-token noise energy가 일정하게 유지. Conditioning signal:</p>
+<p>$$s_t = \tau_t + \text{NSEmb}(\tilde\sigma(H,W)), \quad \tilde\sigma = \sigma_R/\sigma_\max \in [0,1]$$</p>
+
+<h3>Layer 2: Native Mixture-of-Transformers (MoT)</h3>
+
+<h4>Improved Native Primitive</h4>
+<p>Native RoPE multi-axis: text token은 ##temporal axis T##만 사용 (H=W=0), image token은 ##추가로 spatial axes H, W##. Q/K projection의 head dimension을 T, H, W로 ##reallocate##, 각각 independent frequency base. 텍스트와 비주얼 modeling을 단일 unified attention 안에서 native하게 지원.</p>
+
+<h4>Two Streams, One Sequence</h4>
+<p>Understanding stream과 generation stream은 ##모든 layer에서 shared self-attention##:</p>
+<ul>
+  <li>Clean image와 text는 understanding stream으로 처리 (causal w.r.t. text, bidirectional within image block).</li>
+  <li>Noise-conditioned input은 generation stream으로 (noise tokens가 same image block 안에서 bidirectional, full access to clean inputs).</li>
+  <li>Clean tokens는 noise tokens로부터 attend하지 못함 (prevent leak).</li>
+</ul>
+<p>##Full parameter decoupling##: 두 stream은 ##separate projections, normalizations, feedforward block##을 가지며 ##각 layer에서 token type에 따라 dynamic routing##.</p>
+
+<h4>두 가지 variant configuration (Table 1)</h4>
+<table>
+<thead><tr><th>Configuration</th><th>U1-8B-MoT</th><th>U1-A3B-MoT</th></tr></thead>
+<tbody>
+<tr><td>Patch Size</td><td>32 × 32</td><td>32 × 32</td></tr>
+<tr><td>Pre-Buffer</td><td>✓</td><td>✗</td></tr>
+<tr><td># Num Layers</td><td>42</td><td>48</td></tr>
+<tr><td># Num Heads (Q/KV)</td><td>32 / 8</td><td>32 / 4</td></tr>
+<tr><td>Head Size (T/H/W)</td><td>64 / 32 / 32</td><td>64 / 32 / 32</td></tr>
+<tr><td>Hidden Size</td><td>4,096</td><td>2,048</td></tr>
+<tr><td># Und / Gen Experts</td><td>1 / 1 (dense)</td><td>128 / 32 (A8)</td></tr>
+<tr><td># Und / Gen Parameters</td><td>8.2B / 8.2B</td><td>30.0B / 8.2B (A3B)</td></tr>
+</tbody>
+</table>
+
+<p>핵심 design 결정:</p>
+<ul>
+  <li>##8B 변종은 Pre-Buffer 사용##: shallow layers가 raw pixel/text → unified representation으로 mapping, post-LLM layers는 pretrained LLM의 linguistic proficiency 유지.</li>
+  <li>##A3B 변종은 MoE##: understanding은 128 expert (30B total), generation은 32 expert (8B total). top-8 routing, ~3B active per token.</li>
+</ul>
+
+<h3>Layer 3: Joint Training Objective</h3>
+
+<h4>Total Loss (Equation 1)</h4>
+<p>$$\mathcal{L}_\text{total} = \lambda_1 \mathcal{L}_\text{Und} + \lambda_2 \mathcal{L}_\text{Gen}$$</p>
+
+<h4>Autoregressive Text Loss (Equation 2)</h4>
+<p>$$\mathcal{L}_\text{Und} = -\frac{1}{N}\sum_{n=1}^{N} \log p_\theta(x_n | x_{<n}, c)$$</p>
+<p>표준 next-token prediction.</p>
+
+<h4>Pixel-Space Flow Matching (Equations 3–5)</h4>
+<p>JiT-style x-predict + v-loss. Clean image $\mathbf{x}$와 Gaussian sample $\boldsymbol\epsilon \sim \mathcal{N}(0, I)$:</p>
+<p>$$\mathbf{z}_t = t \mathbf{x} + (1-t) \sigma_R \boldsymbol\epsilon, \quad t \in [0,1] \quad (3)$$</p>
+<p>$t=0$이 pure noise, $t=1$이 clean image. Velocity term:</p>
+<p>$$\mathbf{v}_\theta(\mathbf{z}_t, t) = \frac{\hat{\mathbf{x}}_\theta(\mathbf{z}_t, t, \mathbf{s}_t) - \mathbf{z}_t}{1-t} \quad (4)$$</p>
+<p>MSE 형태 loss:</p>
+<p>$$\mathcal{L}_\text{Gen} = \mathbb{E}_{t, \mathbf{x}, \boldsymbol\epsilon, (H,W)}\left[ \|\mathbf{v}_\theta(\mathbf{z}_t, t) - \mathbf{v}^\star\|_2^2 \right], \quad \mathbf{v}^\star = \frac{\mathbf{x} - \mathbf{z}_t}{1-t} \quad (5)$$</p>
+<p>직관적으로 말하면, model이 ##noise → clean trajectory의 velocity##를 학습.</p>
+
+<h4>Unified Classifier-Free Guidance (Equation 6)</h4>
+<p>Text condition $c_\text{txt}$와 image context $c_\text{img}$를 ##independently modulate##:</p>
+<p>$$\nabla_\mathbf{x} \log p(\mathbf{x} | c_\text{img}, c_\text{txt}) = \gamma(\nabla_\mathbf{x} \log p(\mathbf{x}|c_\text{img}, c_\text{txt}) - \nabla_\mathbf{x} \log p(\mathbf{x}|c_\text{img})) + \gamma_\text{img}(\nabla_\mathbf{x} \log p(\mathbf{x}|c_\text{img}) - \nabla_\mathbf{x} \log p(\mathbf{x})) + \nabla_\mathbf{x} \log p(\mathbf{x})$$</p>
+<p>Training 중 text를 10% drop, text+image를 추가 10% drop. Empirically $\gamma=4, \gamma_\text{img}=1$이 best — ##model이 visual conditioning은 effectively capture, text alignment에 더 강한 guidance 필요##.</p>
+
+<h3>5-Stage Training Procedure (Table 2)</h3>
+
+<table>
+<thead><tr><th>Stage</th><th>Steps</th><th>LR</th><th>Resolution</th><th>Loss (CE:MSE)</th><th>Training tokens</th></tr></thead>
+<tbody>
+<tr><td>1 Understanding Warmup</td><td>120K</td><td>2e-5</td><td>256² → 4096²</td><td>1:0</td><td>0.75T</td></tr>
+<tr><td>2-P1 Generation Pre-Training</td><td>120K</td><td>2e-4</td><td>256² → 512²</td><td>0:1</td><td>0.25T</td></tr>
+<tr><td>2-P2</td><td>60K</td><td>1e-4</td><td>512² → 2048²</td><td>0:1</td><td>0.25T</td></tr>
+<tr><td>2-P3 (edit + interleave)</td><td>120K</td><td>1e-4 → 2e-5</td><td>512² → 2048²</td><td>0:1</td><td>0.88T</td></tr>
+<tr><td>3 Unified Mid-Training</td><td>84K</td><td>2e-5</td><td>256² → 4096² / 512² → 2048²</td><td>0.1:1</td><td>##1.19T##</td></tr>
+<tr><td>4 Unified SFT</td><td>9K</td><td>2e-5 → 0</td><td>same</td><td>0.1:1</td><td>0.13T</td></tr>
+</tbody>
+</table>
+
+<h4>Stage 1: Understanding Warmup</h4>
+<p>Pretrained NEO에서 초기화. 2-phase:</p>
+<ul>
+  <li><strong>Attention-Fusion Phase</strong>: NEO의 QK projection과 normalization을 ##temporal axis와 spatial axes에 걸쳐 single shared set으로 unify## (QK parameter footprint를 절반으로). RoPE frequency: temporal $\theta=5{,}000{,}000$, spatial $\theta=10{,}000$. ##기존 network는 freeze, attention layer만 fine-tune##.</li>
+  <li><strong>Full-Model Continuation Phase</strong>: 전체 understanding branch unfreeze, mid-training corpus로 LR 2e-5. SenseNova-U1의 ##understanding backbone## 구축.</li>
+</ul>
+
+<h4>Stage 2: Generation Pre-Training (3 Phases)</h4>
+<ul>
+  <li><strong>Phase I</strong>: text-to-image data 256²~1024² resolution, constant LR 2e-4, 120K steps.</li>
+  <li><strong>Phase II</strong>: resolution ≥ 512², 60K steps, LR 1e-4.</li>
+  <li><strong>Phase III</strong>: editing + reasoning + interleaved image-text generation 추가, 120K steps, cosine LR 1e-4 → 2e-5.</li>
+</ul>
+<p>A3B variant는 MoE balance loss coefficient $5 \times 10^{-3}$.</p>
+
+<h4>Stage 3 & 4: Unified Joint Training</h4>
+<p>Both branches가 ##end-to-end jointly optimize##. Data sampling ratio: understanding 0.33, generation 0.37, editing 0.24, interleave 0.06. Loss weights $\lambda_1=0.1, \lambda_2=1.0$ (generation이 dominate). Stage 4 SFT는 ##9K steps##로 더 짧고 carefully curated data로 instruction alignment.</p>
+
+<h4>Stage 5: Post-Training for T2I</h4>
+<p>##Flow-GRPO##를 사용한 RL: text rendering reward (PaddleOCR IoU), style following reward (VLM judge), aesthetic reward (HPSv3). 두 reward group 교대 학습:</p>
+<ul>
+  <li>Group 1: text rendering + style ($r = r_\text{ocr} + \lambda_\text{sty} r_\text{sty}$, $\lambda_\text{sty}=0.5$).</li>
+  <li>Group 2: aesthetic only.</li>
+</ul>
+<p>Dynamic resolution warmup: difficulty score 기반 gated sampling (Equation 7). 8B variant 1,600 epochs, A3B variant 200 epochs.</p>
+
+<h4>Stage 6: CFG & Step Distillation (DMD2)</h4>
+<p>Distribution Matching Distillation v2로 NFE ##100 → 8##. Three model: generator $G$, fake flow model $F$, teacher $T$ (모두 teacher에서 initialize). $G$는 ##5 update of $F$마다 1번 update##. AdamW lr 2e-6 (G), 4e-7 (F).</p>
+
+<h3>Inference Infrastructure: Disaggregated Deployment</h3>
+<p>두 specialized open-source engine:</p>
+<ul>
+  <li><strong>LightLLM</strong>: multimodal understanding, text streaming, request orchestration. LLM-oriented tensor parallelism (TP).</li>
+  <li><strong>LightX2V</strong>: image generation. Diffusion-oriented (CFG parallelism, sequence parallelism).</li>
+</ul>
+<p>두 engine이 ##pinned shared memory##로 generation state 교환. Three practical benefits: (1) different parallelism per workload, (2) independent resource budget, (3) operational isolation.</p>
+
+<h4>Hybrid Attention Kernel</h4>
+<p>Unified multimodal prefill의 system challenge: text rows는 causal, image rows는 ##full text prefix + full image span##에 attend. ##Optional b_image_token_end##로 M-block 단위 masking decision: image token이 있으면 key range를 image-span end까지 확장, 없으면 causal fast path. Triton kernel + modified FlashAttention3 두 backend.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>5.1.1 Image Understanding (Table 3, 4)</h3>
+
+<h4>STEM & Reasoning</h4>
+<table>
+<thead><tr><th>Benchmark</th><th>U1-8B-Think</th><th>Qwen3VL-8B-Think</th><th>Qwen3.5-9B</th><th>U1-30BA3B-Think</th><th>Qwen3VL-30BA3B-Think</th><th>Qwen3.5-35BA3B</th></tr></thead>
+<tbody>
+<tr><td>MMMU</td><td>74.78</td><td>74.10</td><td>78.40</td><td>80.55</td><td>76.00</td><td>81.40</td></tr>
+<tr><td>MMMU-Pro</td><td>67.69</td><td>60.40</td><td>70.10</td><td>72.83</td><td>63.00</td><td>75.10</td></tr>
+<tr><td>MathVista_mini</td><td>84.20</td><td>81.40</td><td>85.70</td><td>85.30</td><td>81.90</td><td>86.20</td></tr>
+<tr><td>MathVision</td><td>##75.82##</td><td>62.70</td><td>78.90</td><td>79.63</td><td>65.70</td><td>83.90</td></tr>
+</tbody>
+</table>
+
+<h4>OCR & Visual Reasoning</h4>
+<table>
+<thead><tr><th>Benchmark</th><th>U1-8B</th><th>Qwen3VL-8B</th><th>U1-30BA3B</th><th>Qwen3VL-30BA3B</th></tr></thead>
+<tbody>
+<tr><td>InfoVQA</td><td>82.46</td><td>86.00</td><td>83.04</td><td>86.00</td></tr>
+<tr><td>OCRBench-v2</td><td>61.30</td><td>61.55</td><td>68.64</td><td>61.50</td></tr>
+<tr><td>AI2D</td><td>91.74</td><td>84.90</td><td>92.23</td><td>86.90</td></tr>
+<tr><td>BabyVision</td><td>##25.00##</td><td>17.78</td><td>##31.70##</td><td>18.60</td></tr>
+<tr><td>HallusionBench</td><td>67.75</td><td>65.40</td><td>68.95</td><td>66.00</td></tr>
+</tbody>
+</table>
+
+<h4>Spatial Intelligence</h4>
+<table>
+<thead><tr><th>Benchmark</th><th>U1-8B</th><th>Qwen3VL-8B</th><th>U1-30BA3B</th><th>Qwen3VL-30BA3B</th></tr></thead>
+<tbody>
+<tr><td>VSI-Bench</td><td>62.66</td><td>56.61*</td><td>56.90</td><td>51.56*</td></tr>
+<tr><td>ViewSpatial</td><td>56.19</td><td>47.25</td><td>58.52</td><td>47.37</td></tr>
+<tr><td>MindCube-Tiny</td><td>##62.01##</td><td>43.17</td><td>##70.86##</td><td>40.80</td></tr>
+<tr><td>3DSR-Bench</td><td>64.88</td><td>54.48</td><td>62.96</td><td>55.55</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Encoder-free design이 strong understanding을 보존##. 모든 카테고리에서 Qwen3VL competitive.</li>
+  <li>##Spatial intelligence에서 압도##: MindCube +18.84점 (8B), 3DSR-Bench +10.4. ##native pixel-level modeling이 geometric structure 보존에 유리##.</li>
+  <li>##Math reasoning에서 강세##: MathVision 75.82 vs Qwen3VL 62.70 (+13.12).</li>
+</ul>
+
+<h4>Language Understanding (Table 4)</h4>
+<ul>
+  <li><strong>Knowledge</strong>: MMLU-Pro 81.44 (8B), 84.04 (30BA3B); C-Eval 84.20 (8B), 85.89 (30BA3B).</li>
+  <li><strong>Instruction Following</strong>: ##IFEval 91.13 / 92.39##, IFBench 67.01 / 79.79 — Qwen3VL series 능가, Qwen3.5에 비견.</li>
+  <li><strong>Agentic</strong>: τ²-Bench 71.70 / 75.39, Claw-Eval 58.90 / 58.50.</li>
+</ul>
+
+<h3>5.1.3 Image Generation</h3>
+
+<h4>GenEval (Table 5)</h4>
+<table>
+<thead><tr><th>Model</th><th># Params</th><th>Single Obj</th><th>Two Obj</th><th>Counting</th><th>Colors</th><th>Position</th><th>Attribute Binding</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td>GPT-Image-1</td><td>-</td><td>0.99</td><td>0.92</td><td>0.85</td><td>0.92</td><td>0.75</td><td>0.61</td><td>0.84</td></tr>
+<tr><td>Seedream 3.0</td><td>-</td><td>0.99</td><td>0.96</td><td>0.91</td><td>0.93</td><td>0.47</td><td>0.80</td><td>0.84</td></tr>
+<tr><td>SenseNova-U1 (8BA3B)</td><td>8BA3B</td><td>1.00</td><td>0.96</td><td>0.89</td><td>0.91</td><td>0.92</td><td>0.77</td><td>##0.91##</td></tr>
+<tr><td>SenseNova-U1 (8B)</td><td>8B</td><td>1.00</td><td>0.96</td><td>0.92</td><td>0.92</td><td>0.91</td><td>0.76</td><td>##0.91##</td></tr>
+<tr><td>Qwen-Image</td><td>20B</td><td>0.99</td><td>0.92</td><td>0.89</td><td>0.88</td><td>0.76</td><td>0.77</td><td>0.87</td></tr>
+<tr><td>NEO-unify (이전 버전)</td><td>8B</td><td>1.00</td><td>0.96</td><td>0.90</td><td>0.91</td><td>0.91</td><td>0.77</td><td>0.90</td></tr>
+</tbody>
+</table>
+<p>##Open-source SOTA##. closed-source GPT-Image-1, Seedream 3.0(0.84)을 능가. ##8B와 8BA3B 모두 0.91##로 ##active param 효율성##도 입증. 특히 Position score 0.92로 큰 차이 — ##spatial alignment 강세##.</p>
+
+<h4>DPG-Bench (Table 6)</h4>
+<table>
+<thead><tr><th>Model</th><th>Global</th><th>Entity</th><th>Attribute</th><th>Relation</th><th>Other</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td>Seedream 4.5</td><td>89.24</td><td>94.30</td><td>92.14</td><td>92.23</td><td>93.83</td><td>88.63</td></tr>
+<tr><td>SenseNova-U1 (8BA3B)</td><td>##94.19##</td><td>92.05</td><td>91.05</td><td>93.22</td><td>93.44</td><td>##88.14##</td></tr>
+<tr><td>Qwen-Image</td><td>91.32</td><td>91.56</td><td>92.02</td><td>94.31</td><td>92.73</td><td>88.32</td></tr>
+<tr><td>SenseNova-U1 (8B)</td><td>88.74</td><td>90.90</td><td>92.43</td><td>92.43</td><td>92.50</td><td>87.78</td></tr>
+</tbody>
+</table>
+<p>30BA3B의 ##Global score 94.19##가 closed-source 능가 — semantic planning, holistic scene composition, long-range instruction consistency 우수.</p>
+
+<h4>OneIG-Bench (Tables 7, 8)</h4>
+<p>SenseNova-U1-8B가 ##English Text score 0.969## (closed-source GPT-Image-1 0.857 능가). Chinese tracks에서도 ##Text 0.977## — multilingual text rendering의 SOTA.</p>
+
+<h4>TIIF-Bench (Tables 9, 10)</h4>
+<p>8B SenseNova-U1 short testmini ##89.74 overall## (closed-source Seedream 3.0 86.02, MidJourney v7 68.74 능가). Long testmini ##89.17##.</p>
+
+<h4>CVTG-2K (Table 11)</h4>
+<table>
+<thead><tr><th>Model</th><th>NED</th><th>CLIPScore</th><th>WAcc 2reg</th><th>WAcc 5reg</th><th>Average</th></tr></thead>
+<tbody>
+<tr><td>Seedream 4.5</td><td>0.948</td><td>0.807</td><td>0.878</td><td>0.901</td><td>0.899</td></tr>
+<tr><td>SenseNova-U1 (8B)</td><td>0.972</td><td>0.825</td><td>0.945</td><td>0.936</td><td>##0.940##</td></tr>
+<tr><td>SenseNova-U1 (8BA3B)</td><td>0.944</td><td>0.824</td><td>0.884</td><td>0.875</td><td>0.881</td></tr>
+</tbody>
+</table>
+<p>##8B variant가 closed-source SOTA를 능가## (0.940 vs Seedream 0.899). multi-region text rendering의 분야 신기록.</p>
+
+<h4>LongText-Bench (Table 12)</h4>
+<p>##LongText-Bench-EN 0.979##, ##LongText-Bench-ZH 0.962## (8B). 영어/중국어 long-form text rendering이 안정적.</p>
+
+<h4>IGenBench (Table 13)</h4>
+<p>Infographic generation. Nano-Banana-Pro 0.90 / 0.49가 closed-source SOTA지만 ##open-source 중에서는 SenseNova-U1이 압도## (0.51 / 0.04). complex infographic은 ##여전히 어려운 영역##임을 보임.</p>
+
+<h4>BizGenEval (Table 14)</h4>
+<p>Commercial visual generation. SenseNova-U1 8B의 ##39.7 / 61.7 hard/easy##이 ##open-source SOTA##.</p>
+
+<h4>WISE (Table 15)</h4>
+<table>
+<thead><tr><th>Model</th><th>Cultural</th><th>Time</th><th>Space</th><th>Biology</th><th>Physics</th><th>Chemistry</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td>Nano-Banana-Pro (closed)</td><td>0.89</td><td>0.80</td><td>0.89</td><td>0.88</td><td>0.86</td><td>0.85</td><td>0.87</td></tr>
+<tr><td>U1-SFT 8BA3B (w/ CoT)</td><td>0.81</td><td>0.77</td><td>0.84</td><td>0.81</td><td>0.84</td><td>0.82</td><td>##0.81##</td></tr>
+<tr><td>U1-SFT 8B (w/ CoT)</td><td>0.78</td><td>0.73</td><td>0.82</td><td>0.80</td><td>0.85</td><td>0.77</td><td>0.78</td></tr>
+<tr><td>U1-SFT 8BA3B (no CoT)</td><td>0.73</td><td>0.69</td><td>0.80</td><td>0.73</td><td>0.82</td><td>0.69</td><td>0.74</td></tr>
+</tbody>
+</table>
+<p>Reasoning-driven generation. ##CoT를 활성화하면 모든 카테고리에서 향상##. 특히 Biology/Physics/Chemistry 같은 science-oriented task에서. ##structured semantic reasoning을 accurate, knowledge-consistent visual generation으로 전환##.</p>
+
+<h3>5.1.4 Image Editing</h3>
+<p>ImgEdit (Table 16): 8BA3B ##3.91## overall. RISEBench (Table 18, reasoning editing): U1-SFT 8BA3B (w/ CoT) ##30.0##, w/o CoT ##26.9##. Logical dimension ##7.1 → 20.0## CoT 활성화 시 — ##explicit reasoning이 complex edit goal decomposition을 돕는다##.</p>
+
+<h3>5.1.5 Interleaved Generation</h3>
+<table>
+<thead><tr><th>Model</th><th>Complete</th><th>Quality</th><th>Richness</th><th>Correct</th><th>Human Align.</th><th>IT Coherency</th><th>Multi-step</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td>Nano-Banana</td><td>9.34</td><td>8.58</td><td>8.00</td><td>9.17</td><td>8.88</td><td>9.27</td><td>8.70</td><td>8.85</td></tr>
+<tr><td>GPT-4o+DALL-E3</td><td>8.66</td><td>8.01</td><td>7.42</td><td>7.98</td><td>8.77</td><td>8.15</td><td>8.38</td><td>8.20</td></tr>
+<tr><td>U1-SFT 8BA3B (w/ CoT)</td><td>9.27</td><td>9.11</td><td>8.45</td><td>9.16</td><td>9.40</td><td>9.55</td><td>9.21</td><td>##9.16##</td></tr>
+<tr><td>U1-SFT 8B (w/ CoT)</td><td>9.14</td><td>9.03</td><td>8.43</td><td>9.08</td><td>9.35</td><td>9.40</td><td>9.09</td><td>9.07</td></tr>
+</tbody>
+</table>
+<p>OpenING benchmark에서 ##U1-SFT 8BA3B 9.16##으로 closed-source Nano-Banana 8.85, GPT-4o+DALL-E3 8.20을 모두 능가. ##unified framework가 image generation/reasoning을 separated process로 다루지 않고 shared space에서 coordinate##함을 입증.</p>
+
+<h3>5.1.5 Unified Reasoning</h3>
+
+<h4>Uni-MMMU (Generation-aids-Understanding, GaU)</h4>
+<table>
+<thead><tr><th>Model</th><th>Jigsaw-T</th><th>Maze-T</th><th>Sliding-T</th><th>Geometry-T</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>U1-SFT 8B</td><td>##87.3##</td><td>28.6</td><td>0.0</td><td>24.2</td><td>##35.0##</td></tr>
+<tr><td>U1-SFT 8BA3B</td><td>88.0</td><td>34.0</td><td>1.2</td><td>7.1</td><td>32.6</td></tr>
+<tr><td>BAGEL</td><td>48.0</td><td>0.0</td><td>1.2</td><td>32.8</td><td>20.5</td></tr>
+<tr><td>Ovis-U1</td><td>53.0</td><td>0.0</td><td>0.0</td><td>3.5</td><td>14.1</td></tr>
+</tbody>
+</table>
+<p>##generation branch가 understanding을 actively assist##. BAGEL/Ovis-U1 같은 unified baseline을 ##큰 폭으로 능가##.</p>
+
+<h4>RealUnify (Table 22)</h4>
+<table>
+<thead><tr><th>Model</th><th>WK</th><th>CR</th><th>MR-I</th><th>LR</th><th>SR</th><th>C2I</th><th>Avg-UEG</th><th>MR-II</th><th>MT</th><th>AF</th><th>CN</th><th>Avg-GEU</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>U1-SFT 8B</td><td>88</td><td>68</td><td>33</td><td>45</td><td>54</td><td>46</td><td>##55.7##</td><td>36</td><td>63</td><td>51</td><td>40</td><td>##47.5##</td><td>##52.4##</td></tr>
+<tr><td>U1-SFT 8BA3B</td><td>81</td><td>56</td><td>41</td><td>40</td><td>55</td><td>42</td><td>52.8</td><td>30</td><td>65</td><td>58</td><td>35</td><td>47.0</td><td>50.5</td></tr>
+<tr><td>BAGEL</td><td>74</td><td>80</td><td>26</td><td>37</td><td>29</td><td>40</td><td>47.7</td><td>35</td><td>25</td><td>52</td><td>28</td><td>35.8</td><td>42.9</td></tr>
+</tbody>
+</table>
+<p>##genuine bidirectional synergy## — understanding이 generation을 enhance, 그 역도. ##unified framework가 두 capability를 colocate한 게 아니라 진짜로 synergize##시킴을 정량적으로 입증.</p>
+
+<h3>5.2 Ablation Studies</h3>
+
+<h4>5.2.1 Encoder-free design (Table 23, Figure 10–11)</h4>
+<p>Image Reconstruction: NEO-unify (2B) achieves ##31.56 PSNR, 0.85 SSIM## on MS-COCO 2017 with 90K pretraining — ##FLUX.1-dev VAE의 31.56 PSNR / 0.93 SSIM##에 근접. Native near-lossless interface가 ##semantic + pixel detail을 동시 보존##.</p>
+<p>Image Editing (frozen understanding branch): ##ImgEdit score 3.32## after 60K-step mixed training. 60K-step만으로 strong editing capability 입증.</p>
+
+<h4>5.2.2 MoT synergy (Figure 12)</h4>
+<p>Before MT vs After MT score 변화:</p>
+<ul>
+  <li>Multimodal Understanding: 72.1 → ##73.2## (+1.1)</li>
+  <li>Text-Only Understanding: 77.7 → 77.8 (+0.1)</li>
+  <li>Image Generation (DPG): 84.7 → ##86.5## (+1.8)</li>
+  <li>Image Editing (GEdit): 69.1 → 69.9 (+0.8)</li>
+</ul>
+<p>##Joint mid-training이 understanding을 안정적으로 유지하면서 generation을 rapid converge##. minimal intrinsic conflict.</p>
+
+<h4>5.2.3 Data-Scaling Efficiency (Figure 13)</h4>
+<p>8B-MoT backbone에서 training token이 0T → 2.5T로 갈수록:</p>
+<ul>
+  <li>T2I (DPG-Bench): 80 → 86 (+6)</li>
+  <li>T2I-Reasoning (WISE): 40 → ##67## (+27)</li>
+  <li>Editing (GEdit-Bench): 6.5 → 7.2</li>
+  <li>Editing-Reasoning (RISEBench): 11 → 20 (+9)</li>
+</ul>
+<p>##Native MoT design이 strong data-scaling efficiency를 보임##. understanding-generation synergy가 token 증가에 따라 향상.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>학습 cost 미공개</strong>: 1.19T mid-training token 외에 generation pre-training이 0.25T+0.25T+0.88T = 1.38T, 거기에 understanding warmup 0.75T까지 = ##총 3T+ training tokens##. ##GPU hour 비용, 사용 H100 수##가 명시되지 않음. 학원 규모 재현이 거의 불가능.</li>
+  <li><strong>저자 익명/대규모 단체 저작</strong>: 100+ contributor 단체 발행. ##peer review에서의 개별 책임 추적이 어렵고## individual ablation에 대한 깊이 있는 토론이 부족.</li>
+  <li><strong>Encoder-free design의 일부 약점 인정</strong>: InfoVQA에서 Qwen3VL-8B 86.00 vs U1-8B 82.46 — ##일부 fine-grained OCR task에서는 VE 기반 모델이 우세##. paper는 이를 솔직히 보고하지만, ##모든 task에서 encoder-free가 우월##하다는 message는 과장.</li>
+  <li><strong>32× compression의 정량적 cost</strong>: image generation에서 fine detail이 손상되는 case (예: tiny text, dense pattern)에 대한 ##failure mode 분석##이 부족. CVTG-2K 같은 text rendering benchmark에서는 0.940으로 우수하지만, ##very dense visual element##에서는 어떤지 미명시.</li>
+  <li><strong>5-stage training의 부분 ablation</strong>: 각 stage의 individual contribution이 fully ablated되지 않음. ##Stage 5 RL post-training의 contribution##이 GenEval/DPG benchmark 수치에 얼마나 영향을 주었는지 명확한 ablation 없음.</li>
+  <li><strong>Inference cost와 latency 측정 부족</strong>: 8 NFE distillation 후의 ##absolute latency##가 production-relevant하지만, 다양한 resolution에서의 end-to-end time이 부분적으로만 보고됨. 2048×2048 in separate mode: 0.415s (5090) / 0.443s (L40S) — 다른 resolution에 대한 표준화된 표가 없음.</li>
+  <li><strong>BizGenEval 절대값이 낮음</strong>: 39.7/61.7 hard/easy로 open-source SOTA지만 closed-source SOTA(GPT-Image-2 82.1/92.5)와 ##큰 격차##. ##complex commercial scenario에서 unified model이 still gap을 보인다##는 점을 인정.</li>
+  <li><strong>VLA/WM 주장의 preliminary nature</strong>: vision-language-action과 world modeling 결과가 ##preliminary evidence##라고만 명시되며 quantitative benchmark가 없음. 향후 검증이 필요.</li>
+  <li><strong>Image editing이 specialized model에 비해 약함</strong>: Qwen-Image-Edit-2511 (20B) 4.51 vs U1-8B 3.90 — ##specialized editing model이 여전히 advantage##. paper는 이를 "editing data가 open-source resource에 dominated되어 있다"고 설명하지만, unified model의 ##본질적 trade-off##일 수 있음.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"VE/VAE 제거가 multimodal AI의 next paradigm"</strong>: pretrained semantic prior에 의존하지 않고 ##raw pixel/word로부터 representation을 자유롭게 self-organize##시키는 디자인이 unified model의 long-standing trade-off를 깨는 방향. SenseNova-U1은 이 가설을 ##8B/30B scale에서 처음으로 실증##.</li>
+  <li><strong>"Native MoT는 colocation이 아니라 synergy를 만든다"</strong>: Understanding stream과 generation stream이 모든 layer에서 shared self-attention으로 interact하면서도 ##fully decoupled parameters##를 가져 minimal interference. Uni-MMMU의 GaU/UEG 결과가 ##genuine bidirectional synergy##를 정량 입증.</li>
+  <li><strong>"32× compression이 가능하다 (조건부)"</strong>: visual interface 자체는 highly compressed지만 ##deeply correlated learning이 token-level pixel-word correspondence를 효과적으로 보상##. 그러나 fine-grained OCR 같은 일부 task에서는 ##VE 기반이 여전히 우월##.</li>
+  <li><strong>"Text rendering이 open-source SOTA에 도달"</strong>: CVTG-2K 0.940, LongText-Bench 0.979 — ##multilingual long-form text rendering이 closed-source SOTA를 넘어선 첫 open-source 결과##. 디자인/포스터/인포그래픽 application에 직접 응용 가능.</li>
+  <li><strong>"Reasoning-driven generation의 CoT 효과"</strong>: WISE/RISEBench에서 ##CoT 활성화 시 logical/causal 차원에서 큰 향상## (RISEBench Logical 7.1 → 20.0). 이는 explicit reasoning이 ##generation pipeline의 새 control surface##임을 시사.</li>
+  <li><strong>"Data-scaling efficiency가 native design의 진짜 검증"</strong>: T2I-Reasoning이 0→2.5T tokens에서 40 → 67로 단조 향상. ##unified MoT가 data scale에 잘 반응##하는 것이 architecture choice의 정당성을 시간 차원에서 입증.</li>
+  <li><strong>"Disaggregated inference가 unified model의 production-ready 디자인"</strong>: LightLLM (understanding) + LightX2V (generation) 분리는 ##두 workload의 parallelism 전략과 resource budget이 독립##임을 인정하는 실용적 architecture. unified model을 monolithic하게 serve하려는 잘못된 instinct에 대한 corrective.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

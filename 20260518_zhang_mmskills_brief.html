@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMSkills 개요 브리핑 — 시각 Agent에게 "사진 첨부 매뉴얼"을 주는 법</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #c0306e; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #fa709a; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #fff5f7 0%, #fffbf0 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #ffd8e0; box-shadow: 0 4px 18px rgba(250,112,154,0.08); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #c0306e; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #fa709a; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-purple { border-left: 5px solid #9b59b6; background: #f8f0ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #fa709a; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #fa709a; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #fff5f7 0%, #ffe0ea 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #ffc8d4; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #c0306e; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #fa709a; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #fff5f7; }
+  .highlight-row { background: #ffe0ea !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(250,112,154,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #ffb0c4; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">SJTU · Xiaohongshu · 동남대</span>
+      <span class="badge">2026.05.14</span>
+      <span class="badge">Visual Agent</span>
+      <span class="badge">Multimodal Skills</span>
+      <span class="badge">arXiv 2605.13527</span>
+    </div>
+    <h1>MMSkills — 시각 AI에게 "텍스트 매뉴얼" 대신 "사진 첨부 매뉴얼"을 주자</h1>
+    <p class="sub">데스크탑 GUI와 게임 환경에서 일하는 AI 에이전트에 "언제, 무엇을 보고, 무엇을 하지 말지"를 담은 multimodal skill 패키지를 제공. OSWorld에서 weak 모델 성능 2.4×.</p>
+    <a href="20260518_zhang_mmskills.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"AI 에이전트가 컴퓨터를 다룰 때 '어떤 버튼을 누르는가'만으로는 부족하다. '지금 화면이 그 단계가 맞는지' '어떤 단서를 봐야 하는지' '무엇을 하면 안 되는지'까지 <strong>사진과 함께 묶인 매뉴얼</strong>이 있어야 한다 — 그게 MMSkills다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>AI 에이전트의 실제 실패 모드</h3>
+    <p>2025–26년의 visual agent (Gemini, Claude Computer Use, Qwen3-VL 등)는 desktop, GUI, 게임을 다룰 수 있지만 <strong>자주 어리석은 실수</strong>를 한다:</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>📊 잘못된 시트에 차트 생성</h4>
+        <p>"Sheet2에 차트 만들어줘"라고 했는데 <strong>현재 활성 시트가 Sheet1</strong>이라 거기에 만든다. 결과는 wrong.</p>
+      </div>
+      <div class="step">
+        <h4>⏰ 다이얼로그 안 떴는데 클릭</h4>
+        <p>창이 <strong>아직 로딩 중인데</strong> 다음 버튼을 누른다. 무반응.</p>
+      </div>
+      <div class="step">
+        <h4>🎮 진행과 완료를 혼동</h4>
+        <p>게임에서 <strong>목표를 달성했는데 아직 진행 중인 줄</strong>. 같은 액션을 반복.</p>
+      </div>
+    </div>
+
+    <p>이런 실수의 공통점: <strong>"지금 화면 상태"</strong>를 텍스트로만 추론하면 잘못 판단한다. 시각 단서가 결정적이다.</p>
+
+    <h3>기존 Skill 라이브러리의 한계</h3>
+    <p>기존 agent system (Voyager, ReAct 등)이 사용하는 skill은 <strong>텍스트로만 표현</strong>된다:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <!-- Text skill -->
+        <text x="180" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">❌ 기존: 텍스트만</text>
+        <rect x="40" y="50" width="280" height="200" rx="10" fill="#ffe6e6" stroke="#e74c3c" stroke-width="2"/>
+        <text x="180" y="80" text-anchor="middle" font-size="11" fill="#666" font-style="italic">"차트 만들기 절차"</text>
+        <text x="60" y="105" font-size="10" fill="#444">1. Insert 메뉴 클릭</text>
+        <text x="60" y="125" font-size="10" fill="#444">2. Chart Wizard 선택</text>
+        <text x="60" y="145" font-size="10" fill="#444">3. 데이터 범위 선택</text>
+        <text x="60" y="165" font-size="10" fill="#444">4. 차트 타입 결정</text>
+        <text x="60" y="185" font-size="10" fill="#444">5. Finish 클릭</text>
+        <text x="180" y="220" text-anchor="middle" font-size="11" fill="#c0392b" font-weight="700">→ 어느 시트에 있는지 모름</text>
+        <text x="180" y="238" text-anchor="middle" font-size="11" fill="#c0392b">→ Wizard가 떴는지 모름</text>
+
+        <!-- MMSkill -->
+        <text x="540" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#27ae60">✅ MMSkills: 텍스트 + 시각</text>
+        <rect x="400" y="50" width="280" height="200" rx="10" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="540" y="75" text-anchor="middle" font-size="11" fill="#666" font-style="italic">"차트 만들기" + 상태 카드</text>
+
+        <rect x="415" y="85" width="120" height="55" rx="4" fill="white" stroke="#27ae60"/>
+        <text x="475" y="103" text-anchor="middle" font-size="9" font-weight="700" fill="#1e8449">📷 Full Frame</text>
+        <text x="475" y="118" text-anchor="middle" font-size="8" fill="#555">목표 시트 활성?</text>
+        <text x="475" y="132" text-anchor="middle" font-size="8" fill="#555">Sheet2 탭 ✓</text>
+
+        <rect x="545" y="85" width="120" height="55" rx="4" fill="white" stroke="#27ae60"/>
+        <text x="605" y="103" text-anchor="middle" font-size="9" font-weight="700" fill="#1e8449">🔍 Focus Crop</text>
+        <text x="605" y="118" text-anchor="middle" font-size="8" fill="#555">Wizard 보임?</text>
+        <text x="605" y="132" text-anchor="middle" font-size="8" fill="#555">제목 일치 ✓</text>
+
+        <rect x="415" y="150" width="250" height="40" rx="4" fill="white" stroke="#27ae60"/>
+        <text x="425" y="166" font-size="9" fill="#1e8449" font-weight="700">⚠ when_not_to_use:</text>
+        <text x="425" y="180" font-size="9" fill="#555">활성 시트가 목표와 다르면 skip</text>
+
+        <text x="540" y="215" text-anchor="middle" font-size="11" fill="#1e8449" font-weight="700">→ "지금 화면이 맞는 상태인가"</text>
+        <text x="540" y="232" text-anchor="middle" font-size="11" fill="#1e8449">스스로 판정 가능</text>
+      </svg>
+      <div class="svg-caption">▲ 기존 텍스트 매뉴얼 vs MMSkills: state card와 multi-view evidence가 추가된다.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) Visual Agent (시각 에이전트)</h3>
+      <p>screenshot이나 게임 화면을 <strong>직접 보고</strong> 키보드/마우스 액션을 수행하는 AI. Gemini 3, Claude Computer Use, Qwen3-VL 등이 대표. 텍스트 base agent보다 <strong>applicable scope가 훨씬 넓지만</strong> 실수도 잦다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Skill / Procedural Knowledge</h3>
+      <p>재사용 가능한 <strong>"이 task를 하는 방법"</strong>의 추상화. 인간에게도 운전 면허 매뉴얼, 요리 레시피처럼 <strong>반복되는 절차</strong>가 있듯이, AI도 task-specific skill을 가진다.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) OSWorld</h3>
+      <p>desktop GUI 환경에서 AI agent를 평가하는 벤치마크. Chrome, GIMP, LibreOffice (Calc/Impress/Writer), VS Code 등 <strong>실제 Ubuntu 데스크탑</strong>에서의 task를 측정.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) VLM (Vision-Language Model)</h3>
+      <p>이미지와 텍스트를 동시에 받는 LLM. GPT-4V, Gemini, Qwen3-VL 등이 대표. 본 논문은 <strong>VLM을 base agent</strong>로 사용.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) Branch / Sub-agent 패턴</h3>
+      <p>메인 agent의 reasoning context를 보호하기 위해 <strong>temporary sub-agent에 정보 처리</strong>를 위임. 처리 결과만 main으로 반환. 본 논문의 핵심 메커니즘 중 하나.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) State Card</h3>
+      <p>본 논문 고유 개념. "지금 어떤 단계인가"를 <strong>시각 단서 + 진행 검증 + when-not-to-use</strong>로 명시한 <strong>agent-facing description</strong>. 인간의 체크리스트와 유사.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>MMSkill의 구조</h2>
+
+    <p>각 MMSkill은 4개 component로 구성: $M = (D, P, S, K)$</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>📝 D: Descriptor</h4>
+        <p>이 skill이 <strong>언제 사용되는지</strong>의 한 줄 요약. 이름표 역할.</p>
+      </div>
+      <div class="step">
+        <h4>📋 P: Procedure</h4>
+        <p><strong>재사용 가능한 텍스트 절차</strong>. "1. Insert 메뉴를 연다, 2. Chart Wizard 선택..." 같은 step list.</p>
+      </div>
+      <div class="step">
+        <h4>📊 S: State Cards</h4>
+        <p>각 단계의 <strong>시각적 상태 설명</strong>. when_to_use, when_not_to_use, visible_cues, verification_cue 포함.</p>
+      </div>
+      <div class="step">
+        <h4>🖼 K: Keyframes</h4>
+        <p>각 state에 대한 <strong>4종 view</strong>: full_frame, focus_crop, before, after.</p>
+      </div>
+    </div>
+
+    <h3>4종 Multi-View: 왜 이렇게 나누나?</h3>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">하나의 keyframe state가 4가지 view로 묶인다</text>
+
+        <!-- Full frame -->
+        <g>
+          <rect x="40" y="50" width="140" height="100" rx="6" fill="#e3f7ff" stroke="#3498db" stroke-width="2"/>
+          <text x="110" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">full_frame</text>
+          <rect x="55" y="85" width="110" height="55" fill="#fff" stroke="#999"/>
+          <text x="110" y="110" text-anchor="middle" font-size="10" fill="#666">전체 화면</text>
+          <text x="110" y="125" text-anchor="middle" font-size="8" fill="#999">app / layout 파악</text>
+          <text x="110" y="170" text-anchor="middle" font-size="10" fill="#444">global context</text>
+        </g>
+
+        <!-- Focus crop -->
+        <g>
+          <rect x="200" y="50" width="140" height="100" rx="6" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+          <text x="270" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#c0306e">focus_crop</text>
+          <rect x="245" y="95" width="50" height="40" fill="#fff" stroke="#999"/>
+          <text x="270" y="120" text-anchor="middle" font-size="9" fill="#666">버튼 위치</text>
+          <text x="270" y="170" text-anchor="middle" font-size="10" fill="#444">visible cue localization</text>
+        </g>
+
+        <!-- Before -->
+        <g>
+          <rect x="360" y="50" width="140" height="100" rx="6" fill="#fff8e1" stroke="#fbc02d" stroke-width="2"/>
+          <text x="430" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#c97f00">before</text>
+          <rect x="375" y="85" width="110" height="55" fill="#fff" stroke="#999"/>
+          <text x="430" y="115" text-anchor="middle" font-size="10" fill="#666">실행 전 상태</text>
+          <text x="430" y="170" text-anchor="middle" font-size="10" fill="#444">transition 비교</text>
+        </g>
+
+        <!-- After -->
+        <g>
+          <rect x="520" y="50" width="140" height="100" rx="6" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+          <text x="590" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#1e8449">after</text>
+          <rect x="535" y="85" width="110" height="55" fill="#fff" stroke="#999"/>
+          <text x="590" y="115" text-anchor="middle" font-size="10" fill="#666">실행 후 상태</text>
+          <text x="590" y="170" text-anchor="middle" font-size="10" fill="#444">completion 검증</text>
+        </g>
+
+        <text x="360" y="220" text-anchor="middle" font-size="11" fill="#444">필요한 view만 <strong>gated selection</strong>으로 load — 4종 모두 항상 보여주지 않는다</text>
+        <text x="360" y="240" text-anchor="middle" font-size="11" fill="#444">실측: focus_crop이 3/4 setting에서 가장 자주 selected</text>
+      </svg>
+      <div class="svg-caption">▲ 4종 view는 <strong>coordinate를 복사하기 위한 게 아니라 평가 evidence</strong>다. 각자 다른 진단 목적.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>📷 비유</strong>: 사진 첨부 요리 레시피를 떠올려보자. <strong>전체 식탁 사진(full_frame)</strong>으로 "지금 어떤 단계인지"를 보고, <strong>손 부분 확대(focus_crop)</strong>로 "어떻게 칼질하는지"를 보고, <strong>볶기 전(before)/후(after)</strong> 사진으로 "다 익었는지"를 판단한다. 4종 view가 각각의 역할.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>Skill을 만드는 5단계 파이프라인</h2>
+
+    <p>handwritten skill이나 raw demonstration replay가 아니라, <strong>public non-evaluation trajectory</strong>에서 자동 추출한다 (Generator $\mathcal{G}_\mathcal{F}$).</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">5-Phase Skill Generation Pipeline</text>
+
+        <!-- Phase boxes -->
+        <rect x="20" y="80" width="120" height="80" rx="8" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="80" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#c0306e">Phase 0</text>
+        <text x="80" y="120" text-anchor="middle" font-size="10" fill="#444">Task</text>
+        <text x="80" y="135" text-anchor="middle" font-size="10" fill="#444">embed+cluster</text>
+        <text x="80" y="155" text-anchor="middle" font-size="9" fill="#777">→ semantic 군집</text>
+
+        <path d="M140 120 L160 120" stroke="#888" stroke-width="2" marker-end="url(#arr)"/>
+
+        <rect x="160" y="80" width="120" height="80" rx="8" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="220" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#c0306e">Phase 1</text>
+        <text x="220" y="120" text-anchor="middle" font-size="10" fill="#444">cluster plan</text>
+        <text x="220" y="135" text-anchor="middle" font-size="10" fill="#444">(skill 후보)</text>
+        <text x="220" y="155" text-anchor="middle" font-size="9" fill="#777">→ atomic skills</text>
+
+        <path d="M280 120 L300 120" stroke="#888" stroke-width="2" marker-end="url(#arr)"/>
+
+        <rect x="300" y="80" width="120" height="80" rx="8" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="360" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#c0306e">Phase 2</text>
+        <text x="360" y="120" text-anchor="middle" font-size="10" fill="#444">merge</text>
+        <text x="360" y="135" text-anchor="middle" font-size="10" fill="#444">(중복 제거)</text>
+        <text x="360" y="155" text-anchor="middle" font-size="9" fill="#777">→ generalize</text>
+
+        <path d="M420 120 L440 120" stroke="#888" stroke-width="2" marker-end="url(#arr)"/>
+
+        <rect x="440" y="80" width="120" height="80" rx="8" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="500" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#c0306e">Phase 3</text>
+        <text x="500" y="120" text-anchor="middle" font-size="10" fill="#444">text draft</text>
+        <text x="500" y="135" text-anchor="middle" font-size="10" fill="#444">(image 안 봄)</text>
+        <text x="500" y="155" text-anchor="middle" font-size="9" fill="#777">→ D, P, Ŝ</text>
+
+        <path d="M560 120 L580 120" stroke="#888" stroke-width="2" marker-end="url(#arr)"/>
+
+        <rect x="580" y="80" width="120" height="80" rx="8" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="640" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">Phase 4</text>
+        <text x="640" y="120" text-anchor="middle" font-size="10" fill="#444">ground+audit</text>
+        <text x="640" y="135" text-anchor="middle" font-size="10" fill="#444">(image 추가)</text>
+        <text x="640" y="155" text-anchor="middle" font-size="9" fill="#777">→ M = (D,P,S,K)</text>
+
+        <text x="360" y="200" text-anchor="middle" font-size="11" fill="#444">Phase 3에서 <strong>text rationale을 먼저 고정</strong>한 뒤 Phase 4에서 image를 grounding한다</text>
+        <text x="360" y="220" text-anchor="middle" font-size="11" fill="#444">→ visual grounding이 rationale에 anchor되도록 강제 (image overfitting 방지)</text>
+
+        <defs>
+          <marker id="arr" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ 5-phase pipeline. 핵심 design: <strong>image를 보기 전에 text rationale을 먼저 굳힌다</strong>.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>📚 비유</strong>: 요리책 저자가 <strong>레시피 글을 먼저 다 써놓고</strong> 마지막에 사진작가가 단계별 사진을 찍어 끼워넣는 워크플로우. 사진이 글을 만들지 않고, 글이 사진의 진단 기준을 정한다.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>실행 메커니즘: Branch Loading</h2>
+
+    <p>Skill을 사용하는 방식이 중요하다. 전체 skill package를 main agent에 그대로 inject하면 <strong>세 가지 문제</strong>가 생긴다.</p>
+
+    <div class="card card-orange">
+      <h3>Direct loading의 3가지 문제</h3>
+      <ul>
+        <li><strong>① Context pressure</strong>: state card + 4종 keyframe + transition example이 <strong>main context를 잡아먹는다</strong>.</li>
+        <li><strong>② Image 경쟁</strong>: reference image와 live observation이 <strong>시각 attention을 두고 경쟁</strong>.</li>
+        <li><strong>③ Over-anchoring</strong>: main agent가 reference 시나리오를 따라하려고 함 (live와 다른데도).</li>
+      </ul>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Branch Loading: 보조 agent가 정보를 정리해 요약본만 전달</text>
+
+        <!-- Main agent -->
+        <rect x="40" y="50" width="180" height="60" rx="10" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="130" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#c0306e">메인 Agent</text>
+        <text x="130" y="95" text-anchor="middle" font-size="10" fill="#666">현재 화면 + 히스토리</text>
+
+        <!-- Trigger -->
+        <path d="M220 80 L260 80" stroke="#888" stroke-width="2" marker-end="url(#a3)"/>
+        <text x="240" y="70" text-anchor="middle" font-size="9" fill="#555">skill 필요</text>
+
+        <!-- Branch -->
+        <rect x="270" y="40" width="280" height="180" rx="10" fill="#fffbf0" stroke="#fbc02d" stroke-width="2" stroke-dasharray="6"/>
+        <text x="410" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#c97f00">Temporary Branch</text>
+
+        <!-- Stage 1 -->
+        <rect x="285" y="80" width="250" height="50" rx="6" fill="#fff" stroke="#fbc02d"/>
+        <text x="410" y="100" text-anchor="middle" font-size="11" font-weight="700" fill="#c97f00">Stage 1: Gated View Selection</text>
+        <text x="410" y="118" text-anchor="middle" font-size="9" fill="#666">현재 obs를 보고 어떤 state card / view가 필요한가?</text>
+
+        <!-- Stage 2 -->
+        <rect x="285" y="145" width="250" height="50" rx="6" fill="#fff" stroke="#fbc02d"/>
+        <text x="410" y="165" text-anchor="middle" font-size="11" font-weight="700" fill="#c97f00">Stage 2: Branch Planning</text>
+        <text x="410" y="183" text-anchor="middle" font-size="9" fill="#666">선택된 evidence를 live state에 align → guidance</text>
+
+        <!-- Return -->
+        <path d="M550 130 L630 130 L630 80 L550 80" stroke="#888" stroke-width="2" fill="none" stroke-dasharray="0"/>
+        <path d="M540 80 L555 75 L555 85 Z" fill="#888"/>
+
+        <!-- Guidance tuple -->
+        <rect x="560" y="50" width="140" height="100" rx="8" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="630" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">G_t (구조화 지침)</text>
+        <text x="570" y="86" font-size="9" fill="#444">• applicable?</text>
+        <text x="570" y="100" font-size="9" fill="#444">• subgoal</text>
+        <text x="570" y="114" font-size="9" fill="#444">• plan</text>
+        <text x="570" y="128" font-size="9" fill="#444">• do_not_do</text>
+        <text x="570" y="142" font-size="9" fill="#444">• verify</text>
+
+        <text x="360" y="250" text-anchor="middle" font-size="11" fill="#444">메인은 G_t를 <strong>planning signal</strong>로만 사용 — action은 live screenshot에서 자기가 결정</text>
+        <text x="360" y="270" text-anchor="middle" font-size="11" fill="#444">→ reference image가 live observation을 override하지 못한다</text>
+
+        <defs>
+          <marker id="a3" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ Branch는 <strong>보조 agent가 multimodal evidence를 정리</strong>해 5-field tuple만 메인에 돌려준다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🏥 비유</strong>: 의사(main agent)가 환자(live observation)를 진료할 때, 매뉴얼을 직접 읽지 않고 <strong>비서(branch)가 매뉴얼을 보고</strong> "이 환자에게 적용 가능한가, 다음 단계, 하지 말 것, 확인 기준"만 1쪽으로 정리해 전달한다. 의사는 그 1쪽을 참고하면서도 <strong>앞에 있는 환자의 실제 상태</strong>를 직접 본다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">2.4×</div>
+        <div class="stat-label">Qwen3-VL-8B<br>OSWorld 성능</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+17.8</div>
+        <div class="stat-label">Qwen3-VL-235B<br>OSWorld 향상폭</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">−5.35</div>
+        <div class="stat-label">평균 step 수 감소<br>(짧은 경로)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">−15.6%</div>
+        <div class="stat-label">반복 행동 감소<br>(21.8% → 6.2%)</div>
+      </div>
+    </div>
+
+    <h3>OSWorld 전체 성능 (Application별)</h3>
+    <table class="comp-table">
+      <thead><tr><th>Base 모델</th><th>No skill</th><th>Text-only</th><th>MMSkills</th><th>향상</th></tr></thead>
+      <tbody>
+        <tr><td>Gemini 3.1 Pro</td><td>44.08</td><td>40.76</td><td><strong>50.11</strong></td><td>+6.03</td></tr>
+        <tr><td>Gemini 3 Flash</td><td>36.65</td><td>40.27</td><td><strong>47.97</strong></td><td>+11.32</td></tr>
+        <tr><td>Qwen3-VL-235B</td><td>21.34</td><td>28.57</td><td><strong>39.17</strong></td><td>+17.83</td></tr>
+        <tr><td>GLM-5V</td><td>28.71</td><td>36.61</td><td><strong>38.51</strong></td><td>+9.80</td></tr>
+        <tr><td>Kimi-K2.6</td><td>34.98</td><td>39.66</td><td><strong>46.59</strong></td><td>+11.61</td></tr>
+        <tr class="highlight-row"><td>Qwen3-VL-8B-Instruct (weak)</td><td>10.78</td><td>14.93</td><td><strong>25.40</strong></td><td>+14.62</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>핵심 관찰</strong>:</p>
+    <ul>
+      <li><strong>모든 모델에서 일관된 향상</strong>.</li>
+      <li><strong>Text-only는 일관성 없음</strong> — Gemini 3.1 Pro에서 텍스트만은 <strong>오히려 no-skill보다 낮음</strong> (40.76 vs 44.08). procedure만으로는 부족할 뿐 아니라 <strong>distractor가 될 수 있다</strong>.</li>
+      <li><strong>약한 모델일수록 더 큰 gain</strong> (Qwen3-VL-8B 2.4× 향상). <strong>multimodal procedural knowledge가 limited internal prior를 compensate</strong>.</li>
+    </ul>
+
+    <h3>게임 환경에서도 작동</h3>
+    <table class="comp-table">
+      <thead><tr><th>Base 모델</th><th>Skill</th><th>VAB-Minecraft Success</th><th>Super Mario Reward</th></tr></thead>
+      <tbody>
+        <tr><td rowspan="2">Qwen3-VL-235B</td><td>No skill</td><td>52.59</td><td>955.50</td></tr>
+        <tr class="highlight-row"><td>MMSkills</td><td>62.07</td><td>1514.25</td></tr>
+        <tr><td rowspan="2">Qwen3-VL-8B</td><td>No skill</td><td>23.28</td><td>928.75</td></tr>
+        <tr class="highlight-row"><td>MMSkills</td><td>38.79</td><td>1128.75</td></tr>
+      </tbody>
+    </table>
+    <p><strong>GUI desktop만이 아니라 게임 환경에도 transfer</strong>. recurring state + action strategy가 있는 모든 visual environment에 일반화 가능.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>가장 흥미로운 발견: 행동 패턴이 바뀐다</h2>
+
+    <p>MMSkills의 효과는 단순 success rate 향상이 아니다. <strong>agent의 행동 양식 자체가 변한다</strong>.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Qwen3-VL-235B의 OSWorld 행동 변화</text>
+
+        <!-- Before: no skill -->
+        <text x="180" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">❌ No skill</text>
+        <rect x="60" y="75" width="240" height="60" rx="6" fill="#ffe6e6" stroke="#e74c3c" stroke-width="2"/>
+        <text x="180" y="95" text-anchor="middle" font-size="11" fill="#444">Click 비율: 75.8%</text>
+        <text x="180" y="115" text-anchor="middle" font-size="11" fill="#444">Exact repeated: 21.8%</text>
+        <text x="180" y="160" text-anchor="middle" font-size="10" fill="#666">"클릭해보고 안 되면 또 클릭"</text>
+        <text x="180" y="178" text-anchor="middle" font-size="10" fill="#666">trial-and-error 탐색</text>
+
+        <text x="360" y="115" text-anchor="middle" font-size="20" fill="#27ae60">→</text>
+        <text x="360" y="135" text-anchor="middle" font-size="11" fill="#27ae60">MMSkills</text>
+
+        <!-- After: MMSkills -->
+        <text x="540" y="60" text-anchor="middle" font-size="13" font-weight="700" fill="#27ae60">✅ MMSkills</text>
+        <rect x="420" y="75" width="240" height="60" rx="6" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="540" y="95" text-anchor="middle" font-size="11" fill="#444">Click 비율: 63.7%</text>
+        <text x="540" y="115" text-anchor="middle" font-size="11" fill="#444">Exact repeated: 6.2%</text>
+        <text x="540" y="160" text-anchor="middle" font-size="10" fill="#666">"먼저 화면 상태 확인,</text>
+        <text x="540" y="178" text-anchor="middle" font-size="10" fill="#666">맞으면 정확한 액션"</text>
+
+        <line x1="360" y1="205" x2="360" y2="225" stroke="#888" stroke-width="2"/>
+
+        <rect x="100" y="225" width="520" height="40" rx="6" fill="#f0f4ff" stroke="#3498db"/>
+        <text x="360" y="252" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">exploratory trial-and-error → grounded, state-aware execution</text>
+      </svg>
+      <div class="svg-caption">▲ 행동 모드의 질적 전환. click-heavy 탐색이 <strong>keyboard input + completion judgment</strong>로 바뀐다.</div>
+    </div>
+
+    <p>이 변화의 함의:</p>
+    <ul>
+      <li><strong>Step 수 감소</strong>: VAB-Minecraft에서 평균 -7.67 step. <strong>shorter task-solving path</strong>.</li>
+      <li><strong>Repetitive loop 탈출</strong>: exact repeated actions 21.8% → 6.2%.</li>
+      <li><strong>DONE 액션 증가</strong>: 완료 판단이 더 명시적으로 이뤄짐.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① Skill 생성 비용 측정 부재</h3>
+      <p>5-phase Generator는 LLM agent를 반복 호출. <strong>per-skill generation cost</strong>가 보고되지 않아 scale-up 정량 평가 어렵다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Branch loading의 추론 overhead</h3>
+      <p>매 step skill을 invoke할 때 <strong>추가 VLM call</strong>이 branch에서 발생. step 수는 줄어들지만 <strong>총 token cost / latency</strong>는 보고되지 않음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Generator quality에 대한 의존</h3>
+      <p>when_to_use / when_not_to_use가 잘못 생성되면 skill 자체가 wrong state에서 invoked. Audit phase가 이를 막는다고 주장하지만 audit 자체도 LLM 기반의 <strong>circular validation</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Focus crop이 정적</h3>
+      <p>skill package가 focus_crop region을 미리 정의 → <strong>새 UI layout이나 다른 해상도</strong>에서는 적용 불가. adaptive crop 메커니즘 부재.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Safety 분석 없음</h3>
+      <p>잘못 적용된 skill로 <strong>destructive action</strong> (파일 삭제 등)이 일어날 수 있는 GUI 시나리오에 대한 error recovery 정의가 없음.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="65" fill="#fa709a"/>
+        <text x="360" y="165" text-anchor="middle" font-size="15" font-weight="700" fill="white">MMSkills</text>
+        <text x="360" y="185" text-anchor="middle" font-size="10" fill="white">Visual Agent</text>
+
+        <line x1="360" y1="105" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">Desktop GUI 자동화</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">Office, design, dev tools</text>
+
+        <line x1="360" y1="105" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">웹 브라우저 agent</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">multi-page workflow</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">게임 NPC / 봇</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">반복 state 게임</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">모바일 앱 자동화</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">스크린샷 기반</text>
+
+        <line x1="360" y1="235" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">접근성 보조</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">시각 약자용 GUI 도우미</text>
+
+        <line x1="360" y1="235" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">로봇 시각 task</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">embodied visual procedure</text>
+      </svg>
+      <div class="svg-caption">▲ MMSkills 패러다임이 적용 가능한 영역들.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        <strong>시각 agent가 잘 하려면 '무엇을 하는가'뿐 아니라 '무엇을 보고 판단하는가'를 알아야 한다.</strong><br>
+        <strong>MMSkills는 그 시각 단서 + 검증 + negative constraint를 하나의 reusable package로 묶은 첫 시도. <br>
+        Branch loading으로 main context를 보호하면서 동시에 reference 시나리오에 over-anchoring되는 것을 방지한다.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Text-only skill은 distractor가 될 수 있다"</strong>: Gemini 3.1 Pro에서 텍스트만 사용 시 <strong>오히려 no-skill보다 낮은 점수</strong>. procedural knowledge는 <strong>visual evidence와 함께</strong>일 때만 안정적 향상을 준다.</li>
+      <li><strong>"When-not-to-use가 가장 중요한 negative constraint"</strong>: 인간 매뉴얼에서도 자주 누락되는 정보. <strong>agent의 exploration을 줄여 step 수와 repeat을 동시에 감소</strong>.</li>
+      <li><strong>"Branch loading은 distillation의 새 패턴"</strong>: 모든 정보를 main context에 inject하는 대신 <strong>sub-agent가 정리한 요약본</strong>만 전달. context 압박과 attention 경쟁을 동시 해결.</li>
+    </ul>
+
+    <a href="20260518_zhang_mmskills.html" class="nav-link" style="background: #fa709a; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>MMSkills: Towards Multimodal Skills for General Visual Agents</strong></p>
+    <p>Kangning Zhang et al. · SJTU / Xiaohongshu / 동남대 · arXiv 2605.13527 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260518_zhang_mmskills.html">전문가용 보기</a> · <a href="https://github.com/DeepExperience/MMSkills">GitHub</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
