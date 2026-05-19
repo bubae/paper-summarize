@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SABER: Safeguarding Mutating Steps in LLM Agents</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>SABER: Small Actions, Big Errors — Safeguarding Mutating Steps in LLM Agents</h1>
+
+<a href="20260519_anon_saber_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Anonymous (double-blind review)</li>
+  <li><strong>학회/저널</strong>: ICLR 2026 (under review)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://openreview.net/forum?id=JuwuBUnoJk">OpenReview JuwuBUnoJk</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM agent의 long-horizon tool-using task에서 ##모든 액션이 동등하게 실패에 기여하지 않는다##. 그러나 기존 framework들은 ##모든 step을 동일한 scrutiny##로 다루며 (end-to-end prompting, generic scoring, whole-trajectory reruns), 정확히 어느 step에서 실패가 일어나는지에 대한 ablation이 부재.</li>
+  <li><strong>발견</strong>: 실패는 ##mutating action##(state-changing: cancel_reservation, refund, delete_file 등)에 ##압도적으로 집중##된다. Logistic regression으로 정량화하면 ##mutating action 한 번의 deviation이 success odds를 92% (Airline) ~ 96% (Retail)까지 감소##시키는 반면, non-mutating action(get/search/lookup)은 ##거의 영향 없음## (대부분 p > 0.001 미만 유의). Mutating step은 전체 step의 ##14–18%##에 불과한데 ##실패 위험의 대부분을 차지##.</li>
+  <li><strong>해결</strong>: ##SABER##는 model-agnostic, gradient-free, test-time safeguard로 3가지 메커니즘 결합 — (1) ##Mutation-Gated User Verification##: mutating action 직전에만 user 확인, (2) ##Targeted Reflection##: 시스템 제약을 mutation 시점에 distill해 <code>&lt;think&gt;</code> block으로 inject (lost-in-the-middle 방지), (3) ##Block-based Context Cleaning##: 대화 history를 block으로 partition + 의미 검색으로 verification-critical block만 retain.</li>
+  <li><strong>비유</strong>: ##수술실의 "time-out" 프로토콜##. 수술 전 모든 의료 행위(혈압 측정, 검사)는 신속하게 진행되지만, ##메스를 들기 직전##엔 무조건 "환자 신원, 수술 부위, 절차" 3가지를 큰 소리로 확인한다 — ##실제 절단이라는 mutating action에만 verification gate가 작동##. 일상적 행위에 매번 verification을 걸면 효율은 죽는다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>"Do all actions contribute equally to failure?" 라는 새 질문</strong>: 기존 agent failure 분석(Cemri et al. 2025, Zhang et al. 2025)이 broad behavioral failure를 catalog하는 데 그친 반면, ##특정 decision step에 failure가 어떻게 cluster되는지##를 처음으로 정량화.</li>
+  <li><strong>Mutating vs Non-Mutating Decomposition + Decisive Deviation 정의</strong>: action space를 $A = A^\text{mut} \cup A^\text{non}$로 분할. Reference trajectory $\tau^\star$ (success)와 candidate $\tau'$ (failure)를 비교하여 ##success를 failure로 flip시킨 earliest action-level divergence##를 ##decisive deviation##으로 정식화 (Eq. 2). Working hypothesis는 $\Pr[\Delta_t^+=1 | \bar a_t \in A^\text{mut}] \gg \Pr[\Delta_t^+=1 | \bar a_t \in A^\text{non}]$ (Eq. 3).</li>
+  <li><strong>Dataset-level Logistic Regression 입증</strong>: per-trajectory mutating distance $d_\text{mut}$와 non-mutating distance $d_\text{non}$로 success를 예측. ##Mutating 계수가 압도적 (Claude Sonnet 4 Airline: OR=0.04, p<0.001), non-mutating은 weak/negligible## (대부분 OR≈0.81–0.99, p>0.001).</li>
+  <li><strong>SABER 시스템</strong>: 3 메커니즘 + 2-model 구조(main agent + auxiliary)로 ##gradient-free, model-agnostic, test-time## safeguard 제공. Existing agent loop에 plug-in 가능. 적용 모델 무관하게 일관적 성능 향상.</li>
+  <li><strong>τ-Bench Verified 공개</strong>: τ-Bench(Yao et al. 2024)의 ##contradictory booking policy, missing disambiguation## 등 annotation 오류와 underspecified instruction을 수정한 cleaned 버전. ##Airline ~70%, Retail ~92%의 attainable performance ceiling##이 raw benchmark에서 인위적으로 capped된다는 발견.</li>
+  <li><strong>광범위 실증</strong>: Qwen3-Thinking-235B (open-weight), GPT-5 (med), Claude Sonnet 4 (closed)에서 SABER가 ##모두 일관된 향상##. Qwen3-Thinking + Qwen3-Instruct-235B auxiliary가 Airline Verified +19.7pp, Retail Verified +10.8pp, SWE-Bench Verified +7pp. ##약한 모델 강한 모델 모두##에 효과.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>현대 LLM Agent의 brittleness</h3>
+<p>2024–25년 frontier agent(Claude 4, GPT-5, Gemini 3 Pro)가 single-step QA에서 인간 수준에 근접하지만, ##long-horizon multi-turn tool-using task##(τ-Bench, SWE-Bench, ChatShop 등)에서는 여전히 깨지기 쉽다. 알려진 실패 모드:</p>
+<ul>
+  <li>##Misinterpret constraint## (Jimenez et al. 2024).</li>
+  <li>##Stale context## 의존 (Yao et al. 2024).</li>
+  <li>##Tool call이 derailment로 이어짐## (Kwan et al. 2024).</li>
+  <li>##Lost-in-the-middle## drift (Liu et al. 2023).</li>
+  <li>##Context poisoning##: verification turn이 dialogue history를 부풀려 진짜 신호가 묻힘 (Breunig 2025).</li>
+</ul>
+
+<h3>기존 대응 방식의 패턴</h3>
+<table>
+<thead><tr><th>접근</th><th>특징</th><th>한계</th></tr></thead>
+<tbody>
+<tr><td>End-to-end prompting 강화</td><td>System prompt에 모든 제약을 명시</td><td>전체 context 길이 폭증, lost-in-the-middle 가속</td></tr>
+<tr><td>Generic scoring (process reward)</td><td>매 step마다 reward 평가</td><td>비용 비례, ##실제 risky step과 무관한 step도 평가##</td></tr>
+<tr><td>Whole-trajectory rerun</td><td>실패 시 처음부터 다시</td><td>실패 위치를 모름, 재실행 비용</td></tr>
+<tr><td>5-turn self-reflection</td><td>같은 model이 5번 자기 답 revise</td><td>compounding error, single-model 한계 내</td></tr>
+<tr><td>Multi-agent (debate, MoA)</td><td>여러 agent의 의견을 합성</td><td>cost 폭발, compounding error, ##critical step 식별 안 함##</td></tr>
+</tbody>
+</table>
+<p>공통 문제: ##모든 step에 동일한 scrutiny##. 이는 ##(i) 의미 있는 verification noise를 dilute하고, (ii) 비용을 폭증시키며, (iii) user를 verification 피로에 빠뜨려## production deployment에 부적합.</p>
+
+<h2>방법 1: Problem Formulation</h2>
+
+<h3>3.1 Formal Setup</h3>
+<p>LLM-powered agent system을 표준 turn-based MDP로 modeling:</p>
+<p>$$\mathcal{M} = \langle S, A, P \rangle \quad (1)$$</p>
+<p>$S$는 state set, $A$는 action set, $P(s_{t+1} | s_t, a_t)$는 transition. Trajectory $\tau = (s_0, a_0, s_1, a_1, \ldots, s_T)$, 실패 indicator $Z(\tau) \in \{0, 1\}$ (1=failure, 0=success).</p>
+
+<h3>Decisive Deviation Indicator (Eq. 2)</h3>
+<p>Successful reference trajectory $\tau^\star$ ($Z(\tau^\star) = 0$)와 candidate failure trajectory $\tau'$ (same task)을 비교. $t$를 ##두 trajectory의 action sequence가 처음 diverge하는 earliest index##라 두고, position $t$에서 $\tau'$의 추가 action을 $\bar a_t$라 표기:</p>
+<p>$$\Delta_t^+ (\tau', \tau^\star) = \begin{cases} 1, & \text{if } Z(\tau^\star)=0 \text{ and } Z(\tau')=1 \\ 0, & \text{otherwise} \end{cases} \quad (2)$$</p>
+<p>직관적으로 말하면, $\Delta_t^+ = 1$은 ##"$t$에서 $\bar a_t$를 삽입하는 것이 success를 failure로 flip시켰다"##는 의미.</p>
+
+<h3>Mutating vs Non-mutating Partition (Eq. 3)</h3>
+<p>$A^\text{mut} \subseteq A$를 ##external environment 또는 user-visible state를 변경하는 액션##, $A^\text{non} = A \setminus A^\text{mut}$. 예:</p>
+<ul>
+  <li><strong>$A^\text{mut}$</strong>: cancel_reservation, update_reservation, send_certificate, refund_payment, delete_file, modify_database_entry.</li>
+  <li><strong>$A^\text{non}$</strong>: get_reservation_details, search_flights, lookup_user_balance, list_files.</li>
+</ul>
+<p>Working hypothesis (Eq. 3):</p>
+<p>$$\mathbb{P}(\Delta_t^+ = 1 | \bar a_t \in A^\text{mut}) \gg \mathbb{P}(\Delta_t^+ = 1 | \bar a_t \in A^\text{non})$$</p>
+
+<h3>From Local Deviations to Dataset-level Test</h3>
+<p>Trajectory $\tau$의 mutating count와 non-mutating count:</p>
+<p>$$M(\tau) = \sum_k \mathbf{1}[a_k \in A^\text{mut}], \quad N(\tau) = \sum_k \mathbf{1}[a_k \in A^\text{non}]$$</p>
+<p>Reference로부터의 absolute deviation:</p>
+<p>$$d_\text{mut}(\tau'; \tau^\star) = |M(\tau') - M(\tau^\star)|, \quad d_\text{non}(\tau'; \tau^\star) = |N(\tau') - N(\tau^\star)|$$</p>
+<p>Eq. 3 하에서 success는 ##주로 $d_\text{mut}$ 증가에 따라 감소##, $d_\text{non}$ 통제 후. 예: 한 번 더 file을 deletion하는 것(mutating)이 한 번 더 search query(non-mutating)보다 ##훨씬 failure 가능성이 높다##.</p>
+
+<h3>Logistic Regression 결과 (Table 1)</h3>
+<table>
+<thead><tr><th>Model</th><th>Dataset</th><th>$d_\text{mut}$ Coef</th><th>OR</th><th>p</th><th>$d_\text{non}$ Coef</th><th>OR</th><th>p</th><th>n</th></tr></thead>
+<tbody>
+<tr><td>GPT-5 (med)</td><td>τ-Bench Retail</td><td>-1.06</td><td>0.35</td><td>&lt;0.001</td><td>-0.01</td><td>0.99</td><td>0.781</td><td>690</td></tr>
+<tr><td>GPT-5 (med)</td><td>τ-Bench Airline</td><td>-2.02</td><td>0.13</td><td>&lt;0.001</td><td>-0.04</td><td>0.96</td><td>0.163</td><td>297</td></tr>
+<tr><td>Qwen3-Thinking</td><td>τ-Bench Retail</td><td>-0.80</td><td>0.45</td><td>&lt;0.001</td><td>-0.02</td><td>0.98</td><td>0.559</td><td>345</td></tr>
+<tr><td>Qwen3-Thinking</td><td>τ-Bench Airline</td><td>-2.46</td><td>0.09</td><td>&lt;0.001</td><td>-0.12</td><td>0.89</td><td>0.004</td><td>297</td></tr>
+<tr><td>Claude Sonnet 4.0</td><td>τ-Bench Retail</td><td>-2.54</td><td>##0.08##</td><td>&lt;0.001</td><td>-0.09</td><td>0.91</td><td>0.008</td><td>690</td></tr>
+<tr><td>Claude Sonnet 4.0</td><td>τ-Bench Airline</td><td>-3.32</td><td>##0.04##</td><td>&lt;0.001</td><td>-0.21</td><td>0.81</td><td>&lt;0.001</td><td>297</td></tr>
+</tbody>
+</table>
+
+<p><strong>해석</strong>:</p>
+<ul>
+  <li><strong>Mutating odds ratio (OR)는 모두 1보다 훨씬 작음</strong>: 한 번 더 mutating deviation을 하면 success odds가 ##0.04 ~ 0.45##로 곱셈 — Claude Sonnet 4 Airline에서 ##96% 감소##.</li>
+  <li><strong>Non-mutating OR은 1에 가까움</strong>: 대부분 ##0.81–0.99##, 즉 거의 영향 없음. 일부 p < 0.05인 경우도 ##effect size가 mutating 대비 미미##.</li>
+  <li><strong>모든 모델 일관성</strong>: GPT-5, Qwen3-Thinking, Claude Sonnet 4 모두에서 same pattern. ##모델 specific하지 않은 universal phenomenon##.</li>
+  <li><strong>Implication</strong>: failure는 ##mutating steps라는 small slice (전체의 14–18%)에 압도적으로 집중##. 모든 step에 동일 scrutiny를 적용하는 기존 방법은 ##99% 이상이 무관한 step##이라는 의미.</li>
+</ul>
+
+<h2>방법 2: SABER System</h2>
+
+<h3>4.1 세 가지 안전장치</h3>
+
+<h4>(i) Mutation-Gated User Verification</h4>
+<p>SABER는 ##mutating action을 실행하기 직전##에만 explicit user confirmation을 요구. Non-mutating action은 ##bypass##. τ-Bench 분석에 따르면 mutating은 전체 step의 14–18% → ##interruption rate가 turn 6번에 1번 정도##.</p>
+<p>효과:</p>
+<ul>
+  <li>##Scarce user attention concentration##: success를 flip할 likeliest step에 집중.</li>
+  <li>##Decisive error reduction## with low verification burden.</li>
+  <li>Side benefit: ##prompt-locking / stalling attack 방지## (feedback 직후 action 즉시 실행되므로).</li>
+</ul>
+
+<h4>(ii) Targeted Reflection</h4>
+<p>Long trajectory에서 mutating action은 종종 ##syntactically valid but semantically inconsistent##한 tool call을 produce — "lost-in-the-middle" + stale token over-trust 때문.</p>
+<p>SABER는 ##at the point of mutation##에 ##concise, high-salience summary of key instructions##를 inject:</p>
+<ul>
+  <li>Auxiliary model이 system prompt + tool description + relevant user query를 보고 ##distilled reflection##을 <code>&lt;think&gt;</code> block 안에 작성.</li>
+  <li>Reasoning trace를 지원하지 않는 model의 경우 ReAct-style format으로 append.</li>
+</ul>
+<p>효과: miscalibrated tool call 감소 + alignment 개선.</p>
+
+<h4>(iii) Block-based Context Filtering</h4>
+<p>Verification turn 자체가 dialogue history를 inflate → ##context poisoning## (Breunig 2025) — older verification-critical history가 새 confirmation turn에 묻힘.</p>
+<p>SABER는:</p>
+<ol>
+  <li>Trajectory를 ##semantic block##으로 partition.</li>
+  <li>각 block의 ##embedding $e_k$와 short summary $s_k$## 저장.</li>
+  <li>Current user query에 대해 ##top-$N$ most relevant block##만 retrieve.</li>
+</ol>
+<p>$N$은 user-configurable로 ##recall vs context-window pressure trade-off##. Embeddings cached + summaries short → ##latency overhead marginal##.</p>
+
+<h3>4.2 SABER 시스템 구현</h3>
+
+<div class="flow-diagram">[Main agent — action 생성]
+       ↓
+   Candidate action a_t
+       ↓
+[Auxiliary model — Mutation 분류기]
+       ↓
+   a_t ∈ A^mut?
+       ↓
+   ┌─── YES ───┐                ┌─── NO ───┐
+   ↓                            ↓
+[Auxiliary가 tool call을        [Main이 그대로 실행]
+ natural-language summary로
+ 변환 + preconditions/effects]
+       ↓
+[User confirmation 요청]
+       ↓
+   ┌─── Confirm ───┐         ┌─── Reject ───┐
+   ↓                          ↓
+[Main이 tool call 실행]    [Main이 trajectory를
+                            revise → 새 action]
+       ↓
+[Reflection 추가:
+ distilled constraints
+ → <think> block 또는
+   ReAct format]
+       ↓
+[Block-based context cleaning:
+ trajectory partition → block summaries →
+ top-N relevant blocks retrieve]</div>
+
+<p>두 model 분리의 이점:</p>
+<ul>
+  <li><strong>Main policy unchanged</strong>: agent의 native 능력 유지. SABER는 ##invasive하지 않음##.</li>
+  <li><strong>Auxiliary가 gates를 enforce</strong>: cheap (embed/summarize/classify 작업이 generation보다 가벼움).</li>
+  <li><strong>Different model pairing 가능</strong>: Qwen3-Thinking main + Qwen3-Instruct auxiliary 같은 paired specialization.</li>
+</ul>
+
+<h2>τ-Bench Verified 공개</h2>
+
+<h3>τ-Bench의 systematic 문제 식별</h3>
+<p>Section 5에서 저자들은 τ-Bench(Yao et al. 2024)의 두 가지 문제 식별:</p>
+<ul>
+  <li><strong>Annotation errors</strong>:
+    <ul>
+      <li>Retail example (Figure 3a): exchange item의 ground truth가 ##same item ID##를 사용 → policy ("exchanges must select a different product option") 위반.</li>
+      <li>Airline example (Figure 3b): ground truth가 ##change/cancel 없이 certificate를 직접 발급## → policy ("certificate can be issued only after reservation is changed/cancelled") 위반.</li>
+    </ul>
+  </li>
+  <li><strong>Under-specified user instructions</strong>: Airline ##31/50 (62%) 지시##, Retail ##53/115 (46%) 지시##가 충분한 detail 결여 (예: "pay with the credit card"인데 ##multiple cards on file##인데 benchmark가 single만 accept).</li>
+</ul>
+<p>결과: τ-Bench의 ##attainable performance가 Airline ~70%, Retail ~92%에서 인위적으로 cap##.</p>
+
+<h3>τ-Bench Verified</h3>
+<p>저자들이 ##모든 task를 수동 검토##하고 errors 수정, user instruction extension 후 release. ##task coverage 보존, systemic flaw만 제거##. 이 cleaner foundation에서 ##strong model 사이의 차이가 re-emerge하고 SABER의 benefit이 clearer해진다##.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>6.1 SABER 성능 (Table 2)</h3>
+<table>
+<thead><tr><th>Benchmark</th><th>Qwen3-Thinking-235B</th><th></th><th>ChatGPT-5 (med)</th><th></th><th>Claude Sonnet 4</th><th></th></tr></thead>
+<tbody>
+<tr><td></td><td>No-SABER</td><td>SABER</td><td>No-SABER</td><td>SABER</td><td>No-SABER</td><td>SABER</td></tr>
+<tr><td>τ-Bench Airline</td><td>49.3%</td><td>##63.3%##</td><td>45.3%</td><td>##62.6%##</td><td>51.3%</td><td>##56.0%##</td></tr>
+<tr><td>τ-Bench Retail</td><td>64.3%</td><td>##71.6%##</td><td>77.1%</td><td>76.5%</td><td>73.3%</td><td>##78.3%##</td></tr>
+<tr><td>τ-Bench-V Airline</td><td>58.5%</td><td>##78.2%##</td><td>78.9%</td><td>##82.0%##</td><td>72.1%</td><td>##80.3%##</td></tr>
+<tr><td>τ-Bench-V Retail</td><td>66.9%</td><td>##77.7%##</td><td>81.4%</td><td>##83.0%##</td><td>82.3%</td><td>81.0%</td></tr>
+<tr><td>SWE-Bench Verified</td><td>42.6%</td><td>##45.1%##</td><td>—</td><td>—</td><td>—</td><td>—</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Qwen3-Thinking에서 가장 큰 향상</strong>: Airline +14.0pp, Retail +7.3pp, Airline Verified ##+19.7pp##, Retail Verified +10.8pp. SWE-Bench Verified +2.5pp. ##약한 frontier model에 더 큰 효과##.</li>
+  <li><strong>ChatGPT-5에서도 유의미한 향상</strong>: Airline +17.3pp, Retail Verified +3.1pp. ##강한 closed model도 benefit##.</li>
+  <li><strong>Claude Sonnet 4</strong>: Airline +4.7pp, Retail Verified +5.0pp 등. SWE-Bench Verified에서 +7pp(text says).</li>
+  <li><strong>Verified benchmark가 진정한 ceiling 노출</strong>: Claude Sonnet 4가 τ-Bench Airline에서 +4.7pp이지만 τ-Bench-V Airline에서 ##+8.2pp## — annotation 정리가 SABER의 진짜 효과를 보여줌.</li>
+</ul>
+
+<h3>Ablation: 각 component의 기여 (Table 3)</h3>
+<p>Qwen3-Thinking-235B on τ-Bench Verified:</p>
+<table>
+<thead><tr><th>Variant</th><th>Airline</th><th>Retail</th></tr></thead>
+<tbody>
+<tr><td>No-SABER</td><td>58.0%</td><td>66.9%</td></tr>
+<tr><td>+ Reflection only</td><td>68.0% (+10pp)</td><td>80.8% (+13.9pp)</td></tr>
+<tr><td>+ Verification only</td><td>68.7% (+10.7pp)</td><td>80.5% (+13.6pp)</td></tr>
+<tr><td>##Full SABER##</td><td>##78.7% (+20.7pp)##</td><td>77.7%</td></tr>
+</tbody>
+</table>
+
+<p><strong>발견</strong>:</p>
+<ul>
+  <li><strong>Airline에서 reflection과 verification은 각자 약 +10pp, 결합 시 +20.7pp</strong> — ##synergistic, 거의 가산적##.</li>
+  <li><strong>Retail에서는 각자 +13–14pp, 결합도 비슷한 수준##: ##이미 80% 수준에서 saturation##. paper는 "benchmark saturation"으로 해석.</li>
+  <li><strong>두 mechanism이 보완적 역할</strong>: reflection은 model alignment를 sharpens (semantic), verification은 user oversight (decisive gate). ##둘 다 필요##.</li>
+</ul>
+
+<h3>Mutating actions의 rarity vs risk</h3>
+<ul>
+  <li><strong>Mutating actions이 전체 step의 14–18%</strong> (예: Qwen3-Airline 15.5%, Claude-4-Retail 18.1%).</li>
+  <li><strong>그러나 single mutating deviation이 success odds를 57–82% 감소</strong>, 동등한 non-mutating은 7–15%만.</li>
+  <li><strong>SABER가 정확히 이 지점에 verification 집중</strong> → user burden 최소, decisive error 최대 방지.</li>
+</ul>
+
+<h3>Auxiliary-Main pairing의 중요성</h3>
+<p>Qwen3-Thinking-235B as main에서:</p>
+<ul>
+  <li><strong>Same family pairing</strong>: Qwen3-Thinking (자기 자신을 auxiliary로) → τ-Bench-V Airline에서 +10pp.</li>
+  <li><strong>Cross-pairing</strong>: Qwen3-Thinking main + ##Qwen3-Instruct## auxiliary → ##much larger gains## (Table 6.1 reference).</li>
+</ul>
+<p>해석: ##reasoning-focused main과 instruction-tuned auxiliary가 보완적##. Auxiliary의 ##instruction-following 강점##이 SABER 메커니즘의 verification/reflection 품질을 결정.</p>
+
+<h3>SWE-Bench Constraint</h3>
+<p>SWE-Bench Verified에서 ##enhanced reflection만 적용 가능## (user-in-the-loop 없음). 그래도 Qwen3-Thinking을 ##~4pp 향상## — ##partial safeguard도 의미 있음##. 이 결과는 SABER의 ##reflection 컴포넌트가 단독으로도 valuable##함을 시사.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Online safeguard, training-time이 아니다</strong>: SABER는 ##runtime intervention##. Authors도 limitation으로 명시 — future work는 ##loss function을 통해 decisive deviation 인식을 internalize##하거나 model이 ##자기 mutating action을 self-identify##하도록 학습시키는 방향. 현재로선 ##항상 auxiliary model이 inference 시 함께 돌아야 함##.</li>
+  <li><strong>User-in-the-loop 의존</strong>: Mutation-Gated Verification은 ##user 또는 user simulator의 confirmation##을 가정. real production에서는 ##user-in-the-loop가 native하게 지원되지 않을 수 있음##. SWE-Bench 같이 user 없는 environment에서는 ##reflection만 적용 가능##해 효과가 절반.</li>
+  <li><strong>τ-Bench Verified의 독립 검증 부재</strong>: cleaned benchmark를 저자들이 직접 만들고 그 위에서 SABER 효과를 측정. ##independent reproduction##이 필요. paper는 corrections 전체 list를 Appendix C에 공개한다고 명시.</li>
+  <li><strong>Mutating action 정의의 domain dependency</strong>: $A^\text{mut}$는 ##domain별로 manually defined##. ##새 domain (web browsing, embodied robotics)##으로 transfer 시 ##어떤 action이 mutating인지 자동 식별하는 메커니즘이 없음##. paper는 tool schema에서 derivable하다고 implicit하게 가정하지만 정량적 검증 부재.</li>
+  <li><strong>Auxiliary model의 cost 측정 불완전</strong>: Section 4에서 "latency is marginal"이라 명시하지만 ##wall-clock comparison이나 token cost##가 main model 대비 정량 비교되지 않음. Block embedding + summarization + classification이 모두 추가 forward pass.</li>
+  <li><strong>Anonymous submission</strong>: ICLR 2026 double-blind review 중. ##peer review가 완료되지 않은 상태##이므로 검증 quality는 추가 검토가 필요.</li>
+  <li><strong>Decisive deviation의 binary 가정</strong>: Eq. 2의 $\Delta_t^+$는 ##binary##. 그러나 실제로 ##multiple deviations가 누적되어 failure를 만드는 경우##(causally chained errors)는 framework에 직접 표현되지 않음. paper는 logistic regression에서 ##absolute distance##를 사용하지만, ##causal attribution은 더 nuanced##.</li>
+  <li><strong>τ-Bench Retail에서 saturation</strong>: Ablation Table 3에서 reflection 단독이나 verification 단독이 ##Full SABER와 거의 동등## (80.5 / 80.8 / 77.7). ##두 mechanism의 marginal benefit이 sometimes 0이거나 음수##일 수 있음. paper는 saturation으로 설명하지만 ##어떤 task에서 redundant한지 systematic analysis 부재##.</li>
+  <li><strong>5× / Self-reflection 같은 simpler baseline과의 직접 cost-matched 비교 부재</strong>: paper는 SABER의 향상폭에 집중하지만 ##cost-matched (= total token usage)## under self-reflection이나 multi-turn refinement와의 직접 비교 필요.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Not all actions contribute equally"</strong>: 강력한 empirical finding — failure는 ##14–18%의 mutating step에 압도적 집중##. 이 발견 자체가 ##agent reliability research의 paradigm shift##일 수 있다. Universal safeguard를 ##selective safeguard##로 전환하면 cost-quality 양쪽에 win.</li>
+  <li><strong>"Verification as scarce attention allocation"</strong>: user-in-the-loop verification은 비싼 resource다. SABER는 그것을 ##decisive flip을 만들 likeliest point##에 집중 — 모든 turn에 verification을 거는 것보다 ##6배 적은 interruption으로 더 큰 효과##.</li>
+  <li><strong>"Targeted reflection at point of mutation"</strong>: lost-in-the-middle은 일반적 문제지만, ##mutating step에서만 distilled reminder##를 inject하는 것이 ##모든 step에 generic CoT를 강화하는 것##보다 효과적. ##semantic locality + risk locality의 결합##.</li>
+  <li><strong>"Block-based context cleaning"</strong>: verification turn 자체가 context poison이 되는 회의적 문제를 ##semantic block partition + retrieval##로 해결. ##context engineering##의 일반적 design pattern으로 transferable.</li>
+  <li><strong>"Benchmark cleanliness가 method efficacy 발견의 prerequisite"</strong>: τ-Bench Verified가 보인 것 — annotation noise가 ##strong model 차이를 가리고## ##safeguard benefit을 가짐##. cleaner benchmark가 progress 측정의 fundamental requirement.</li>
+  <li><strong>"Action taxonomy가 reliability의 leverage point"</strong>: $A^\text{mut} / A^\text{non}$ partition은 ##agent system design의 lightweight intervention##. ##새 도메인에 transferable##하며 (tool schema로 derivable), ##training-time나 inference-time 모두에 적용 가능##.</li>
+  <li><strong>"Auxiliary-Main pairing이 새 design axis"</strong>: reasoning-focused main + instruction-tuned auxiliary 조합이 가장 효과적. ##어떤 model이 어떤 model을 best support하는지##는 open question. distillation/RL 보다 ##architectural composition##이 next frontier.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

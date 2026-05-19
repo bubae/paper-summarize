@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMProLong 개요 브리핑 — 비전 LLM이 128K context를 다루게 가르치는 법</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #00805a; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #00b09b; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #ecfff8 0%, #f0ffe8 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #b6e8d8; box-shadow: 0 4px 18px rgba(0,176,155,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #00805a; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #00b09b; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #00b09b; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #00b09b; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #ecfff8 0%, #d0f5e8 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #b0e0d0; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #00805a; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #00b09b; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #ecfff8; }
+  .highlight-row { background: #d0f5e8 !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #00b09b 0%, #96c93d 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(0,176,155,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #9aebd0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">HKUST · ByteDance Seed</span>
+      <span class="badge">2026.05.13</span>
+      <span class="badge">Long-Context VLM</span>
+      <span class="badge">Continued Pre-training</span>
+      <span class="badge">arXiv 2605.13831</span>
+    </div>
+    <h1>MMProLong — 비전 AI가 100쪽 문서를 한 번에 이해하게 만드는 레시피</h1>
+    <p class="sub">두꺼운 PDF 어디에서나 질문에 답하도록 7B 모델을 학습. 32K→128K 확장으로 long-doc VQA +7.1%, 128K 학습이지만 512K에서도 작동, 비디오 이해까지 향상.</p>
+    <a href="20260519_wang_mmprolong.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"학생에게 <strong>두꺼운 교과서 음독</strong>을 시키는 대신 <strong>아무 곳에서나 질문</strong>을 던지는 게 진짜 '두꺼운 책을 다루는 능력'을 길러준다. Vision LLM 학습도 마찬가지였다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>"긴 문서를 다루는 능력"이 차세대 AI의 핵심</h3>
+    <p>2026년 현재 AI가 풀어야 하는 task가 점점 길어진다:</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>📚 100쪽 보고서 QA</h4>
+        <p>"이 의학 논문 47쪽의 통계와 12쪽의 정의를 합쳐 결론을 내려라"</p>
+      </div>
+      <div class="step">
+        <h4>📹 1시간 비디오</h4>
+        <p>회의 영상에서 <strong>특정 의사결정 순간</strong>을 찾아내기</p>
+      </div>
+      <div class="step">
+        <h4>🌐 웹 페이지 다수</h4>
+        <p>여러 웹페이지를 한꺼번에 읽고 핵심 정보 retrieval</p>
+      </div>
+      <div class="step">
+        <h4>🤖 Agentic workflow</h4>
+        <p>여러 turn의 대화 history 일관성 유지</p>
+      </div>
+    </div>
+
+    <h3>그런데 어떻게 가르치나? — 공개된 레시피가 없다</h3>
+    <p>Gemini 3 Pro, GPT-5.4, Qwen3-VL, GLM-4.5V 같은 frontier LVLM이 <strong>128K+ context를 지원</strong>한다고 발표하지만, 정작 <strong>어떻게 그렇게 학습했는지 detail</strong>은 거의 공개되지 않는다. 학원 / open-source 진영에서는 다음 질문들이 missing:</p>
+
+    <div class="card card-orange">
+      <h3>❓ 미해결 질문들</h3>
+      <ul>
+        <li><strong>어떤 종류의 데이터</strong>를 써야 long-context 능력이 늘까? (긴 문서 음독? VQA?)</li>
+        <li><strong>데이터 길이 분포</strong>는 어떻게? (전부 128K로? 아니면 다양하게?)</li>
+        <li><strong>여러 task를 어떤 비율</strong>로 섞을까?</li>
+        <li><strong>짧은 데이터를 같이 학습</strong>해야 short-context 능력이 보존되나?</li>
+        <li><strong>RoPE base frequency</strong>는 얼마로 scale?</li>
+      </ul>
+    </div>
+
+    <p>이 paper는 이 5가지 질문에 대해 <strong>controlled ablation 5B token budget</strong>으로 답을 제시.</p>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) LVLM (Large Vision-Language Model)</h3>
+      <p>이미지와 텍스트를 동시에 다루는 LLM. GPT-5, Gemini 3, Claude, Qwen-VL 등. 이미지 한 장당 <strong>수백~수천 토큰</strong>을 소비.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Context Window</h3>
+      <p>모델이 한 번에 보고 추론할 수 있는 <strong>토큰 총량</strong>. 32K = 약 24,000 단어. 128K = 약 96,000 단어. 길수록 더 긴 문서를 처리.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) Long-Context Continued Pre-training (LongPT)</h3>
+      <p>이미 학습된 모델을 <strong>추가로 긴 시퀀스 데이터</strong>로 더 학습시켜 context window를 확장. 본 논문의 핵심 기법.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) Long-Document VQA</h3>
+      <p>긴 문서 (수십~수백 페이지)를 보고 <strong>특정 위치의 정보</strong>에 대해 묻고 답하는 task. "47쪽 표 3에서 보고된 매출액은?" 같은.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) OCR Transcription</h3>
+      <p>문서 이미지를 <strong>페이지별로 텍스트화</strong>하는 task. 본 paper는 long-doc VQA와 OCR을 비교.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) RoPE (Rotary Position Embedding)</h3>
+      <p>토큰의 위치 정보를 인코딩하는 방법. <strong>base frequency</strong>를 scale하면 더 긴 context를 표현 가능 (Dynamic-NTK heuristic).</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>가장 큰 발견: Long-Doc VQA >> OCR</h2>
+
+    <p>저자들이 5가지 후보 task로 같은 5B token budget으로 학습시켜 비교:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">5가지 task로 학습 후 MMLongBench 평균 점수</text>
+
+        <!-- y axis -->
+        <line x1="60" y1="280" x2="60" y2="60" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="280" x2="660" y2="280" stroke="#333" stroke-width="2"/>
+
+        <!-- baseline -->
+        <line x1="60" y1="170" x2="660" y2="170" stroke="#888" stroke-width="1" stroke-dasharray="4"/>
+        <text x="640" y="167" text-anchor="end" font-size="9" fill="#888">Base 50.59</text>
+
+        <!-- gridlines -->
+        <text x="50" y="283" text-anchor="end" font-size="10" fill="#666">0</text>
+        <text x="50" y="240" text-anchor="end" font-size="10" fill="#666">20</text>
+        <text x="50" y="200" text-anchor="end" font-size="10" fill="#666">35</text>
+        <text x="50" y="170" text-anchor="end" font-size="10" fill="#666">50</text>
+        <text x="50" y="120" text-anchor="end" font-size="10" fill="#666">57</text>
+
+        <!-- VQA bars (good) -->
+        <rect x="100" y="125" width="60" height="155" fill="#27ae60"/>
+        <text x="130" y="295" text-anchor="middle" font-size="10" fill="#444">extract-single</text>
+        <text x="130" y="118" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">55.69</text>
+        <text x="130" y="105" text-anchor="middle" font-size="9" fill="#27ae60">+5.1</text>
+
+        <rect x="180" y="118" width="60" height="162" fill="#00b09b"/>
+        <text x="210" y="295" text-anchor="middle" font-size="10" fill="#444">extract-multi</text>
+        <text x="210" y="111" text-anchor="middle" font-size="11" font-weight="700" fill="#00805a">56.90</text>
+        <text x="210" y="98" text-anchor="middle" font-size="9" fill="#00805a">+6.3 (best)</text>
+
+        <rect x="260" y="122" width="60" height="158" fill="#27ae60"/>
+        <text x="290" y="295" text-anchor="middle" font-size="10" fill="#444">reasoning</text>
+        <text x="290" y="115" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">56.47</text>
+        <text x="290" y="102" text-anchor="middle" font-size="9" fill="#27ae60">+5.9</text>
+
+        <!-- OCR bars (bad) -->
+        <rect x="380" y="230" width="60" height="50" fill="#c0392b"/>
+        <text x="410" y="295" text-anchor="middle" font-size="10" fill="#444">OCR-full</text>
+        <text x="410" y="223" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">33.17</text>
+        <text x="410" y="210" text-anchor="middle" font-size="9" fill="#c0392b">-17.4 (catastrophic!)</text>
+
+        <rect x="460" y="195" width="60" height="85" fill="#c0392b"/>
+        <text x="490" y="295" text-anchor="middle" font-size="10" fill="#444">OCR-needle</text>
+        <text x="490" y="188" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">43.80</text>
+        <text x="490" y="175" text-anchor="middle" font-size="9" fill="#c0392b">-6.8</text>
+
+        <!-- Recovery with SFT -->
+        <rect x="540" y="135" width="60" height="145" fill="#e67e22"/>
+        <text x="570" y="295" text-anchor="middle" font-size="10" fill="#444">+SFT 후</text>
+        <text x="570" y="295" text-anchor="middle" font-size="9" fill="#666"></text>
+        <text x="570" y="128" text-anchor="middle" font-size="11" font-weight="700" fill="#e67e22">53.84</text>
+        <text x="570" y="115" text-anchor="middle" font-size="9" fill="#e67e22">+3.2 (회복 미흡)</text>
+
+        <text x="200" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#27ae60">✅ Long-Doc VQA</text>
+        <text x="490" y="48" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">❌ OCR Transcription</text>
+      </svg>
+      <div class="svg-caption">▲ VQA 3종은 모두 +5~6%, OCR은 -6.8~-17.4. SFT 보정해도 VQA에 못 미친다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>📚 비유</strong>: 학생에게 <strong>두꺼운 교과서를 처음부터 끝까지 음독</strong>하라고 시키면 (OCR) <strong>목소리 훈련은 되지만 내용 이해는 안 됨</strong>. <strong>아무 페이지에서나 질문을 던지는 것</strong>(VQA)이 <strong>진짜 '교과서를 다루는 능력'</strong>을 만든다.
+    </div>
+
+    <p><strong>왜?</strong></p>
+    <ul>
+      <li>OCR은 <strong>sequential dense output</strong>만 만들어 <strong>instruction-following style과 mismatch</strong>.</li>
+      <li>VQA는 <strong>다양한 task diversity (extraction~reasoning)</strong>를 제공.</li>
+      <li>VQA는 <strong>다양한 위치</strong>에서 retrieve하는 연습 → <strong>generalize</strong>.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>Long-Doc VQA 데이터 만드는 법</h2>
+
+    <p>긴 문서 (32–50 페이지)를 그대로 <strong>QA 생성기</strong>에 넣으면 비용이 폭증한다. 저자들의 영리한 trick:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Segment-level synthesis pipeline</text>
+
+        <!-- Step 1 -->
+        <rect x="40" y="60" width="200" height="100" rx="10" fill="#fff8e1" stroke="#fbc02d" stroke-width="2"/>
+        <text x="140" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="#c97f00">① Segment 추출</text>
+        <text x="140" y="105" text-anchor="middle" font-size="10" fill="#666">전체 문서 (32-50 pages)</text>
+        <text x="140" y="120" text-anchor="middle" font-size="10" fill="#666">↓ OCR으로 구조 파악</text>
+        <text x="140" y="140" text-anchor="middle" font-size="10" fill="#666">title/section 기반</text>
+        <text x="140" y="155" text-anchor="middle" font-size="10" fill="#666">8-15 페이지 segment 선택</text>
+
+        <path d="M240 110 L280 110" stroke="#888" stroke-width="2" marker-end="url(#a9)"/>
+
+        <!-- Step 2 -->
+        <rect x="280" y="60" width="200" height="100" rx="10" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="380" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">② QA 생성</text>
+        <text x="380" y="105" text-anchor="middle" font-size="10" fill="#666">Segment + 지시</text>
+        <text x="380" y="120" text-anchor="middle" font-size="10" fill="#666">→ Seed 2.0 (QA generator)</text>
+        <text x="380" y="140" text-anchor="middle" font-size="10" fill="#666">→ QA pair 생성</text>
+        <text x="380" y="155" text-anchor="middle" font-size="10" fill="#666">(8-15p 입력만 받으니 저렴)</text>
+
+        <path d="M480 110 L520 110" stroke="#888" stroke-width="2" marker-end="url(#a9)"/>
+
+        <!-- Step 3 -->
+        <rect x="520" y="60" width="200" height="100" rx="10" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="620" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="#1e8449">③ 학습 인스턴스</text>
+        <text x="620" y="105" text-anchor="middle" font-size="10" fill="#666">생성된 QA를</text>
+        <text x="620" y="120" text-anchor="middle" font-size="10" fill="#666">전체 문서 context와 결합</text>
+        <text x="620" y="140" text-anchor="middle" font-size="10" fill="#666">→ 모델은 전체를 process</text>
+        <text x="620" y="155" text-anchor="middle" font-size="10" fill="#666">답은 segment에 있음</text>
+
+        <!-- Bottom row: example -->
+        <rect x="60" y="190" width="600" height="100" rx="8" fill="#f0f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="360" y="215" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">예시</text>
+        <text x="360" y="237" text-anchor="middle" font-size="11" fill="#444">Q: "What percentage of visitors saw a wolf in 2010?</text>
+        <text x="360" y="253" text-anchor="middle" font-size="11" fill="#444">(에서 'in the Park Statistics section')"</text>
+        <text x="360" y="275" text-anchor="middle" font-size="11" font-weight="700" fill="#2c7cb0">A: "45 percent"</text>
+
+        <defs>
+          <marker id="a9" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ short segment에서 QA를 만들고 <strong>full document context와 결합</strong>해 long-context training instance 완성.</div>
+    </div>
+
+    <h3>3가지 VQA 난이도</h3>
+    <table class="comp-table">
+      <thead><tr><th>난이도</th><th>설명</th><th>예시</th></tr></thead>
+      <tbody>
+        <tr><td>extract-single</td><td>단일 페이지에서 사실 추출</td><td>"39쪽 레시피에서 herbs는 vodka에 얼마나 담그라고 하나?"</td></tr>
+        <tr><td>extract-multi</td><td>여러 페이지에서 사실 통합</td><td>"6쪽, 13쪽, 19쪽에 언급된 모든 위험 요인을 list로"</td></tr>
+        <tr><td>reasoning</td><td>추출 후 numerical/logical 추론</td><td>"2020년 총 소비량과 총 수입량의 차이는?"</td></tr>
+      </tbody>
+    </table>
+
+    <h3>핵심 디자인: false positive 방지</h3>
+    <p>같은 질문이 <strong>sampled segment에선 명확하지만 full document에선 ambiguous</strong>할 수 있다 (예: "보고된 매출액?" → 여러 부서/년도 매출 존재). 해결: <strong>segment anchor 추가</strong> ("in the Introduction section", "on pages 20–25").</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Counter-intuitive 발견: 다양한 길이가 더 좋다</h2>
+
+    <p>"128K context에서 평가받을 거니까 학습 데이터도 100K+에 집중시켜야지" — 직관적이지만 <strong>틀렸다</strong>.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">두 가지 길이 분포 비교</text>
+
+        <!-- Long-biased -->
+        <rect x="40" y="60" width="300" height="180" rx="10" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="190" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">❌ Long-biased</text>
+        <text x="190" y="105" text-anchor="middle" font-size="10" fill="#666">83.9%의 데이터가 100K+ token</text>
+
+        <!-- distribution viz -->
+        <rect x="60" y="120" width="20" height="20" fill="#c0392b"/>
+        <rect x="85" y="120" width="40" height="20" fill="#c0392b"/>
+        <rect x="130" y="120" width="190" height="20" fill="#c0392b"/>
+        <text x="70" y="155" font-size="9" fill="#666">32K</text>
+        <text x="115" y="155" font-size="9" fill="#666">64K</text>
+        <text x="225" y="155" font-size="9" fill="#666">100K-128K (heavy)</text>
+
+        <text x="190" y="190" text-anchor="middle" font-size="11" fill="#c0392b">extract-single avg: 54.4</text>
+        <text x="190" y="208" text-anchor="middle" font-size="11" fill="#c0392b">extract-multi avg: 55.7</text>
+        <text x="190" y="226" text-anchor="middle" font-size="11" fill="#c0392b">reasoning avg: 54.8</text>
+
+        <!-- Pool-native -->
+        <rect x="380" y="60" width="300" height="180" rx="10" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="530" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#1e8449">✅ Pool-native (제안)</text>
+        <text x="530" y="105" text-anchor="middle" font-size="10" fill="#666">자연스러운 분포, 100K+는 23.6%만</text>
+
+        <rect x="400" y="120" width="80" height="20" fill="#27ae60"/>
+        <rect x="485" y="120" width="100" height="20" fill="#27ae60"/>
+        <rect x="590" y="120" width="70" height="20" fill="#27ae60"/>
+        <text x="430" y="155" font-size="9" fill="#666">32K</text>
+        <text x="525" y="155" font-size="9" fill="#666">64K</text>
+        <text x="615" y="155" font-size="9" fill="#666">128K</text>
+
+        <text x="530" y="190" text-anchor="middle" font-size="11" fill="#1e8449">extract-single avg: <strong>55.7 (+1.3)</strong></text>
+        <text x="530" y="208" text-anchor="middle" font-size="11" fill="#1e8449">extract-multi avg: 56.8</text>
+        <text x="530" y="226" text-anchor="middle" font-size="11" fill="#1e8449">reasoning avg: <strong>56.5 (+1.7)</strong></text>
+      </svg>
+      <div class="svg-caption">▲ 다양한 길이의 자연스러운 분포가 <strong>일관되게 우월</strong>. 더 적은 near-128K 데이터를 쓰면서도.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🏃 비유</strong>: 마라톤(42km)을 위해 <strong>42km만 반복 연습</strong>하는 게 좋을까? 아니다. <strong>5km, 10km, 21km, 30km</strong> 다양한 거리를 mix해서 훈련하는 게 더 좋다. <strong>다양한 페이스와 위치에서의 retrieval 능력</strong>이 <strong>특정 거리 specialization</strong>보다 generalize한다.
+    </div>
+
+    <p>해석: <strong>long-context 능력은 specific length가 아니라 generalizable retrieval skill</strong>. 모델은 <strong>다양한 위치와 거리에서 key information을 찾는 법</strong>을 배워야 한다.</p>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>Optimal Mixture: Extraction 8, Reasoning 2</h2>
+
+    <p>추출(extraction)과 추론(reasoning) data를 어떤 비율로 섞을까? 저자들이 grid search:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Extraction : Reasoning 비율 grid search 결과</text>
+
+        <line x1="60" y1="220" x2="680" y2="220" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="60" x2="60" y2="220" stroke="#333" stroke-width="2"/>
+
+        <text x="370" y="245" text-anchor="middle" font-size="11" fill="#444">Extraction 비율 (왼쪽 = 모두 reasoning, 오른쪽 = 모두 extraction)</text>
+        <text x="35" y="140" text-anchor="middle" font-size="11" fill="#444" transform="rotate(-90 35 140)">Average score</text>
+
+        <!-- Bars -->
+        <rect x="90" y="146" width="80" height="74" fill="#888"/>
+        <text x="130" y="240" text-anchor="middle" font-size="10" fill="#444">0:10</text>
+        <text x="130" y="140" text-anchor="middle" font-size="10" font-weight="700" fill="#444">56.47</text>
+
+        <rect x="190" y="152" width="80" height="68" fill="#888"/>
+        <text x="230" y="240" text-anchor="middle" font-size="10" fill="#444">2:8</text>
+        <text x="230" y="146" text-anchor="middle" font-size="10" font-weight="700" fill="#444">56.13</text>
+
+        <rect x="290" y="156" width="80" height="64" fill="#888"/>
+        <text x="330" y="240" text-anchor="middle" font-size="10" fill="#444">4:6</text>
+        <text x="330" y="150" text-anchor="middle" font-size="10" font-weight="700" fill="#444">55.73</text>
+
+        <rect x="390" y="135" width="80" height="85" fill="#27ae60"/>
+        <text x="430" y="240" text-anchor="middle" font-size="10" fill="#444">6:4</text>
+        <text x="430" y="129" text-anchor="middle" font-size="10" font-weight="700" fill="#27ae60">57.27</text>
+
+        <rect x="490" y="120" width="80" height="100" fill="#00b09b"/>
+        <text x="530" y="240" text-anchor="middle" font-size="11" font-weight="700" fill="#00805a">8:2 (best)</text>
+        <text x="530" y="114" text-anchor="middle" font-size="11" font-weight="700" fill="#00805a">57.70</text>
+
+        <rect x="590" y="148" width="80" height="72" fill="#888"/>
+        <text x="630" y="240" text-anchor="middle" font-size="10" fill="#444">10:0</text>
+        <text x="630" y="142" text-anchor="middle" font-size="10" font-weight="700" fill="#444">56.94</text>
+      </svg>
+      <div class="svg-caption">▲ Extraction-heavy mixture가 우월. 8:2가 best. 단일 데이터(10:0)나 reasoning-heavy(0:10)보다 좋다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🥗 비유</strong>: 좋은 다이어트는 <strong>주식 80% + 보조 영양소 20%</strong>이다. 한 종류만 먹으면 결핍이 생긴다. Long-context 학습도 <strong>정보 추출 80% + 추론 20%</strong>가 balanced.
+    </div>
+
+    <p>해석: <strong>long-context의 진짜 병목은 retrieval</strong> (key info 찾기). reasoning은 <strong>task diversity 보존</strong>을 위한 minimal supplement.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>또 다른 surprise: Short-context data 불필요</h2>
+
+    <p>LLM에서는 long-context training이 short-context 능력을 <strong>손상시킨다</strong>고 알려져 있다 (Fu et al. 2024). 그래서 short data를 일정 비율 섞어야 한다.</p>
+
+    <p>그러나 <strong>LVLM에서는 다르다</strong>:</p>
+
+    <div class="card card-green">
+      <h3>Pure long training (0% short data)</h3>
+      <ul>
+        <li><strong>Long-doc VQA</strong>: 57.70 (<strong>최고</strong>)</li>
+        <li><strong>Short-context capability</strong>: 65.48 (vs original 66.47, <strong>단 -0.99</strong>)</li>
+        <li>→ Long 성능 최고 + short 거의 그대로</li>
+      </ul>
+    </div>
+
+    <div class="card card-orange">
+      <h3>20% short data 추가</h3>
+      <ul>
+        <li><strong>Long</strong>: 55.57 (<strong>-2.13 손실</strong>)</li>
+        <li><strong>Short</strong>: 66.53 (+1.05)</li>
+        <li>→ Short 회복하지만 long 더 큰 손실</li>
+      </ul>
+    </div>
+
+    <p><strong>왜?</strong> Long-document VQA가 <strong>이미 instruction-formatted</strong>이라 모델이 short-context의 <strong>instruction-following style을 자연 보존</strong>한다. LLM과 LVLM의 본질적 차이.</p>
+
+    <div class="analogy">
+      <strong>🧑‍🎓 비유</strong>: 대학생이 <strong>두꺼운 전공 책으로 공부</strong>해도 <strong>단답형 시험</strong>을 보는 능력이 거의 그대로 유지된다. 두꺼운 책의 <strong>문제 풀기 연습</strong> 자체가 <strong>단답형 시험의 'instruction-따라가기'</strong>와 본질적으로 같기 때문.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">+7.1%</div>
+        <div class="stat-label">Long-doc VQA<br>(MMLongBench)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">5B</div>
+        <div class="stat-label">학습 토큰<br>(modest budget)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">512K</div>
+        <div class="stat-label">128K 학습으로<br>4× 길이 generalize</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+29.4</div>
+        <div class="stat-label">MM-NIAH 평균<br>(웹 needle-in-haystack)</div>
+      </div>
+    </div>
+
+    <h3>다른 LVLM과의 비교 (128K MMLongBench Avg)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>크기</th><th>전체 Avg</th></tr></thead>
+      <tbody>
+        <tr class="highlight-row"><td>MMProLong (Ours)</td><td>7B</td><td>57.70</td></tr>
+        <tr><td>Qwen2.5-VL-7B (base)</td><td>7B</td><td>50.59 (-7.11)</td></tr>
+        <tr><td>InternVL3-8B</td><td>8B</td><td>47.15</td></tr>
+        <tr><td>InternVL3-14B</td><td>14B</td><td>47.47</td></tr>
+        <tr><td>Gemma3-12B</td><td>12B</td><td>47.76</td></tr>
+        <tr><td>InternVL3-38B (large!)</td><td>38B</td><td>48.88</td></tr>
+        <tr><td>Gemma3-27B</td><td>27B</td><td>52.63</td></tr>
+      </tbody>
+    </table>
+    <p><strong>15B 미만 open-source 중 SOTA</strong>. <strong>InternVL3-38B 같은 5× 큰 모델</strong>도 능가.</p>
+
+    <h3>Beyond Training Length: 256K, 512K도 안정</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>256K Avg</th><th>512K Avg</th><th>전체 Avg</th></tr></thead>
+      <tbody>
+        <tr class="highlight-row"><td>MMProLong (128K 학습)</td><td>55.09</td><td>52.52</td><td>53.80</td></tr>
+        <tr><td>Qwen2.5-VL-7B (base)</td><td>25.47</td><td>19.49</td><td>22.48</td></tr>
+        <tr><td>Gemma3-12B</td><td>31.63</td><td>24.18</td><td>27.91</td></tr>
+      </tbody>
+    </table>
+    <p><strong>추가 학습 없이</strong> 4× 긴 context에서 작동. <strong>+31.32 절대 격차</strong>.</p>
+
+    <h3>Long-Video로 transfer</h3>
+    <p>비디오 데이터를 <strong>한 번도 학습하지 않았는데도</strong>:</p>
+    <ul>
+      <li><strong>Video-MME</strong>: 65.1 → 67.8 (+2.7)</li>
+      <li><strong>MLVU</strong>: 70.2 → 73.5 (+3.3)</li>
+      <li><strong>LongVideoBench</strong>: 60.4 → 62.1 (+1.6)</li>
+    </ul>
+    <p><strong>temporal sequence가 multi-page structure와 isomorphic</strong>해서 transfer.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① Closed-source와 큰 격차</h3>
+      <p>GPT-5.5 90.77 vs MMProLong 57.70. <strong>7B vs frontier의 절대 차이</strong>가 크다. "open-source 중 SOTA"이지 <strong>overall SOTA가 아니다</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② 5B token budget 임의성</h3>
+      <p>모든 ablation이 5B 토큰. <strong>더 큰 budget</strong>(20B, 50B)에서는 <strong>long-biased가 우월</strong>해질 가능성이 있음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Document domain 편향</h3>
+      <p>학습 데이터가 <strong>학술 논문, 책, 기술 매뉴얼</strong> 위주. <strong>대화, 코드, 법률</strong>같은 다른 long-context 도메인 transfer는 미검증.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ OCR과 fair comparison 의문</h3>
+      <p>OCR이 <strong>본질적으로 instruction-formatted가 아니라</strong> 평가에서 불리할 수 있다. <strong>instruction wrapper로 OCR을 dress up</strong>한 fair comparison이 없음.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Mechanistic explanation 부족</h3>
+      <p>"왜 LVLM은 short capability를 유지하는가"에 대한 <strong>mechanistic analysis</strong>가 부족. instruction-formatted라는 설명은 plausible하지만 정량 검증 미흡.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="70" fill="#00b09b"/>
+        <text x="360" y="165" text-anchor="middle" font-size="14" font-weight="700" fill="white">MMProLong</text>
+        <text x="360" y="185" text-anchor="middle" font-size="10" fill="white">Long-Context VLM</text>
+
+        <line x1="360" y1="100" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">법률 / 의료 문서 분석</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">100쪽 보고서 QA</text>
+
+        <line x1="360" y1="100" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">학술 논문 도구</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">multi-paper synthesis</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">긴 비디오 이해</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">video transfer 입증</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">웹 페이지 분석</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">MM-NIAH +29 입증</text>
+
+        <line x1="360" y1="240" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">교육 콘텐츠 자동화</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">교과서 기반 학습 도구</text>
+
+        <line x1="360" y1="240" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">Agentic workflow</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">긴 대화 history 일관성</text>
+      </svg>
+      <div class="svg-caption">▲ Long-context VLM의 응용 영역.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Long-context는 <strong>특정 길이의 specialization이 아니라 generalizable retrieval</strong>이다.<br>
+        <strong>5B 토큰으로 32K → 128K, 그리고 256K/512K까지 추가 학습 없이 generalize.<br>
+        Open-source 진영에 frontier 수준의 long-context 능력을 만드는 첫 공개 레시피.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Supervision의 task structure가 raw scale보다 중요"</strong>: 같은 token budget으로 <strong>VQA가 OCR보다 5–23점 우월</strong>. instruction-formatted supervision이 모델에게 <strong>어떻게 사용될지</strong>를 가르친다. 다른 long-context training (audio, video)에도 transferable.</li>
+      <li><strong>"Diversity > Specialization"</strong>: pool-native 분포 우월, extraction 8 + reasoning 2 mix 우월. <strong>모델은 generic retrieval skill을 배워야지 specific length나 single task type을 외워선 안 된다</strong>.</li>
+      <li><strong>"LVLM은 LLM과 다른 short-context 보존 behavior"</strong>: pure long-context training이 short capability를 <strong>단 -0.99</strong>만 감소시킨다. instruction-formatted data로 train되는 LVLM의 <strong>새로운 advantage</strong>.</li>
+    </ul>
+
+    <a href="20260519_wang_mmprolong.html" class="nav-link" style="background: #00b09b; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>Training Long-Context Vision-Language Models Effectively with Generalization Beyond 128K Context</strong></p>
+    <p>Wang, Luo, Duan et al. · HKUST + ByteDance Seed · arXiv 2605.13831 · 2026.05</p>
+    <p style="margin-top: 1rem;"><a href="20260519_wang_mmprolong.html">전문가용 보기</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

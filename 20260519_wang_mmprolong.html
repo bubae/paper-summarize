@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MMProLong: Long-Context Vision-Language Pre-training</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Training Long-Context Vision-Language Models Effectively with Generalization Beyond 128K Context</h1>
+
+<a href="20260519_wang_mmprolong_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhaowei Wang¹², Lishu Luo², Haodong Duan², Weiwei Liu², Sijin Wu², Ji Luo², Shen Yan², Shuai Peng², Sihang Yuan², Chaoyi Huang², Yi Lin²†, Yangqiu Song¹†</li>
+  <li><strong>소속</strong>: ¹CSE Department, HKUST · ²ByteDance Seed</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (May 13)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.13831">arXiv:2605.13831</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 현대 LVLM(large vision-language model)이 long-context(128K+)를 요구하는 task(long-document VQA, video, agentic workflow)를 다루려면 ##long-context continued pre-training (LongPT)##이 필수다. 그러나 ##어떤 데이터 종류, 어떤 length distribution, 어떤 task mixture, 그리고 short-context data를 섞어야 할지##에 대한 ##실용적 recipe가 거의 공개되지 않음##. 기존 LVLM technical report (Qwen3-VL, GLM-4.5V)는 detail이 limited.</li>
+  <li><strong>발견 (3가지 ablation)</strong>: (i) ##long-document VQA가 OCR transcription보다 substantially 더 효과적##, (ii) length distribution에서 ##balanced(pool-native) data가 target-length-focused(long-biased)보다 우월##, (iii) ##retrieval-heavy mixture(8:2 extraction-to-reasoning)##가 최고, ##pure long-document VQA가 short-context 능력을 크게 손상시키지 않음##.</li>
+  <li><strong>해결</strong>: 위 finding을 기반으로 한 final recipe = ##MMProLong##. Qwen2.5-VL-7B에서 ##32K → 128K##로 context extension. 단 ##5B token budget##으로 long-document VQA +7.1% 향상, ##256K/512K에서도 추가 학습 없이 generalize##.</li>
+  <li><strong>비유</strong>: 학생에게 ##두꺼운 교과서(긴 문서)에서 ##아무 부분이나 묻는 질문##(VQA)을 시키는 것이 ##교과서 처음부터 끝까지 음독##시키는 것(OCR transcription)보다 ##훨씬 빠르게 'long document를 다루는 능력'##을 만든다. 다양한 위치에서 핵심 정보를 retrieve하는 연습이 ##generalize##되기 때문.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>LongPT recipe 체계적 ablation</strong>: LVLM long-context pre-training의 ##5가지 design axis##(data type, sequence-length distribution, task mixture ratio, RoPE base frequency, short-context preservation)를 ##controlled 5B-token budget##으로 ablate. ##이 영역의 ablation이 처음 공개됨##.</li>
+  <li><strong>Long-Document VQA가 dominant supervision signal</strong>: 5가지 candidate task(extract-single, extract-multi, reasoning, OCR-full, OCR-needle)를 비교. VQA tasks는 ##5–6% absolute improvement##, OCR transcription은 ##17.4% degradation##까지. 그 후 SFT를 거쳐도 OCR-trained checkpoint는 ##약간만 회복##(+3.24%, +1.85%).</li>
+  <li><strong>Pool-native length distribution이 long-biased보다 우월</strong>: counter-intuitive — ##128K에서 평가받으면서도 데이터의 83.9%를 100K+ token에 집중##시키는 것보다 ##documents가 자연스럽게 sampling되는 분포##(23.6%만 100K+)가 더 좋다. ##long-context ability는 specific target length가 아니라 다양한 absolute position과 image-text distance에 걸친 retrieval 일반화##.</li>
+  <li><strong>Information extraction vs Reasoning 8:2 mixture가 최적</strong>: extraction:reasoning ratio를 grid search(0:10 ~ 10:0). ##8:2 가 평균 57.70##, ##single-data setting (10:0) 56.94##보다 우월. ##약간의 reasoning data가 task diversity 보존##.</li>
+  <li><strong>Short-context data 불필요</strong>: LLM LongPT(Fu et al.) 관행과 달리, LVLM에서는 ##pure long-document VQA가 short-context 능력을 보존##. 0% short → long avg 57.70 (최고), short avg 65.48 (vs original 66.47, ##-0.99##만 감소). ##instruction-formatted long data가 instruction-following style을 유지##하기 때문.</li>
+  <li><strong>MMProLong 모델 출시</strong>: Qwen2.5-VL-7B 기반, 5B-token LongPT. ##15B 미만 open-source LVLM 중 best avg (57.70)##. InternVL3-38B, Gemma3-27B 같은 ##훨씬 큰 LVLM도 능가##.</li>
+  <li><strong>Beyond 128K generalization</strong>: ##256K에서 55.09 avg, 512K에서 52.52 avg## (additional training 없이). Original Qwen2.5-VL-7B는 ##19.49 (512K)##로 추락. ##53.80 vs 28.80## 평균 — 25점 격차.</li>
+  <li><strong>Cross-task transfer</strong>: long-document VQA training이 ##MM-NIAH(웹페이지 needle-in-haystack) +29.4 avg##, ##VTCBench(vision-text compression) +4.5##, ##long-video(Video-MME +2.7, MLVU +3.3, LongVideoBench +1.6)## 모두 향상. ##도메인-specific training 없이## general long-context capability 학습.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>왜 long-context LVLM이 필요한가</h3>
+<p>2025–26년 LVLM(Qwen3-VL, GLM-4.5V, Gemini 3 Pro, GPT-5.4) 모두 ##128K+ context window##를 지원. 이는 다음 capability를 unlock:</p>
+<ul>
+  <li><strong>Multi-hop reasoning over document collections</strong> (Wang et al. 2024).</li>
+  <li><strong>Spatiotemporal dependency in hour-long videos</strong> (Zhou et al. 2024).</li>
+  <li><strong>Long-horizon agent task context consistency</strong>.</li>
+</ul>
+
+<h3>두 가지 context extension 접근</h3>
+<table>
+<thead><tr><th>접근</th><th>설명</th><th>한계</th></tr></thead>
+<tbody>
+<tr><td>Positional extrapolation</td><td>RoPE base frequency 조정, attention modification</td><td>##데이터 학습 없음##, true 능력은 미발달</td></tr>
+<tr><td>Continued pre-training (LongPT)</td><td>긴 시퀀스 데이터로 추가 학습</td><td>##데이터 design이 critical##, 공개된 recipe 부재</td></tr>
+</tbody>
+</table>
+
+<h3>LVLM LongPT recipe의 공개 부재</h3>
+<p>최근 frontier LVLM technical report들이 모두 long-context 능력을 주장하지만 ##구체적 data recipe는 limited##:</p>
+<ul>
+  <li>Qwen3-VL: high-level data category만 보고.</li>
+  <li>GLM-4.5V: 학습 단계만 list, mixture ratio 미공개.</li>
+  <li>Recent concurrent work(다른 paper)이 long-doc data 구성을 다루지만 ##이미 128K+ supports하는 backbone##(Qwen3-VL, Mistral 3.1) 위에서 — ##true context extension##이 아니라 ##context alignment##에 가까움.</li>
+</ul>
+<p>본 paper는 ##native 32K context인 Qwen2.5-VL을 직접 확장##해 ##true LongPT##를 study.</p>
+
+<h2>방법: Multimodal Long-Context Data Curation</h2>
+
+<h3>4.1 Document Pool Construction</h3>
+<p>##1.5M PDF-formatted documents## (academic papers, books, technical manuals, engineering/medicine/social science/biology 도메인). Data synthesis 시 ##32–50 page document##만 선택 — Qwen2.5-VL의 2×2-pixel unshuffle 후 ##32K–128K multimodal tokens##.</p>
+<p>##Evaluation contamination 방지##: SHA-256 hash로 evaluation benchmark와 overlap 필터링. 각 PDF page를 ##DPI=144 image로 렌더##(PyMuPDF). 그리고 ##Seed 2.0##(ByteDance 자체 OCR expert model)으로 ##layout-aware block (title, section, paragraph, table, caption)## 파싱.</p>
+
+<h3>4.2 Long-Document VQA Data Synthesis</h3>
+
+<h4>Segment-Level Synthesis Pipeline (Figure 1)</h4>
+<div class="flow-diagram">[Step 1: Segment Sampling]
+  Full document + OCR expert → parsed structure
+  → 8–15 page coherent segment 선택 (title/section 기반)
+
+[Step 2: QA Generation]
+  Document segment + task instruction → Seed 2.0 → QA pair
+  (generation model에 8–15 페이지만 제공 — 비용 효율적)
+
+[Step 3: Full-Document Instance]
+  Generated question (예: "What percentage of visitors saw a wolf in 2010?")
+  + Full-document context (32–50 pages) → 단일 long-context training instance
+
+  → 답은 short segment에서 inferable
+  → 모델은 full long context를 process해야 함</div>
+
+<h4>핵심 design challenge: locally valid question이 full document에서 ambiguous할 수 있다</h4>
+<p>예: "What is the reported revenue?"가 sampled section에선 답이 명확하지만 ##financial report 전체##에선 ##여러 부서/년도##에 revenue가 있어 ambiguous. 해결: ##QA 생성 시 explicit segment anchor 추가## ("in the Introduction section", "on pages 20–25"). 이로써 ##global-context false positive를 방지##.</p>
+
+<h4>3가지 long-doc VQA task</h4>
+<table>
+<thead><tr><th>Task</th><th>Evidence type</th><th>Example</th></tr></thead>
+<tbody>
+<tr><td>extract-single</td><td>Single page factual retrieval</td><td>"According to the Homemade Bitters recipe on Page 39, how long should the herbs soak in vodka?"</td></tr>
+<tr><td>extract-multi</td><td>Multi-page factual aggregation</td><td>"Based on Pages 6, 13, and 19, list all risk factors mentioned in the report."</td></tr>
+<tr><td>reasoning</td><td>Numerical/logical operations over extracted info</td><td>"What is the difference between total consumption and total imports for rice production in 2020?"</td></tr>
+</tbody>
+</table>
+
+<h3>4.3 OCR Transcription Data Synthesis</h3>
+<p>비교를 위한 alternative task category:</p>
+<ul>
+  <li><strong>OCR-full</strong>: full document의 모든 text element를 transcribe — dense image-text dependency.</li>
+  <li><strong>OCR-needle</strong>: 1–3 pages만 transcribe, 나머지는 distractor — retrieval-style.</li>
+</ul>
+
+<h3>4.4 Long-Document VQA vs OCR Transcription (Table 1)</h3>
+<p>실험 질문: ##어느 task category가 LongPT supervision으로 더 효과적인가?</p>
+<table>
+<thead><tr><th>Training data</th><th>64K MMLongBench Avg</th><th>128K MMLongBench Avg</th><th>전체 Avg</th><th>Δ vs base</th></tr></thead>
+<tbody>
+<tr><td>Qwen2.5-VL-7B (base)</td><td>52.24</td><td>48.94</td><td>50.59</td><td>—</td></tr>
+<tr><td>extract-single</td><td>56.86</td><td>54.53</td><td>55.69</td><td>##+5.1##</td></tr>
+<tr><td>extract-multi</td><td>58.02</td><td>55.77</td><td>56.90</td><td>##+6.3##</td></tr>
+<tr><td>reasoning</td><td>57.33</td><td>55.62</td><td>56.47</td><td>+5.9</td></tr>
+<tr><td>OCR-full</td><td>31.24</td><td>35.11</td><td>33.17</td><td>##−17.4##</td></tr>
+<tr><td>OCR-needle</td><td>45.61</td><td>42.00</td><td>43.80</td><td>−6.8</td></tr>
+<tr><td>OCR-full (+SFT)</td><td>56.09</td><td>51.59</td><td>53.84</td><td>+3.2</td></tr>
+<tr><td>OCR-needle (+SFT)</td><td>54.06</td><td>50.83</td><td>52.44</td><td>+1.9</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>모든 VQA task가 +5–6% 향상</strong> (single budget; SFT 없이).</li>
+  <li><strong>OCR-full이 base를 -17.4 추락시킴</strong> (catastrophic). OCR-needle도 -6.8.</li>
+  <li><strong>OCR + SFT 보정해도 +1.9~3.2에 그침</strong>: VQA보다 훨씬 약함.</li>
+  <li><strong>extract-multi가 best (+6.3)</strong>: ##multi-page aggregation이 long-distance dependency modeling을 가장 잘 가르침##.</li>
+  <li><strong>왜?</strong> OCR은 ##dense, sequential 출력##으로 instruction-following format과 mismatch. VQA는 instruction-formatted supervision + 다양한 task diversity (extraction~reasoning) 제공.</li>
+</ul>
+
+<h3>5.1 Sequence-Length Distribution (Figure 2)</h3>
+<p>실험 질문: ##128K context에서 평가받는데, 데이터를 100K+에 집중##시키는 게 좋은가, ##다양한 length가 좋은가?</p>
+<ul>
+  <li><strong>pool-native</strong>: 자연스러운 sampling, ##100K+ token이 23.6%##.</li>
+  <li><strong>long-biased</strong>: ##100K+ token이 83.9%## (artificial reweighting).</li>
+</ul>
+<table>
+<thead><tr><th>Length distribution</th><th>extract-single</th><th>extract-multi</th><th>reasoning</th></tr></thead>
+<tbody>
+<tr><td>long-biased</td><td>54.4</td><td>55.7</td><td>54.8</td></tr>
+<tr><td>##pool-native (ours)##</td><td>##55.7 (+1.3)##</td><td>##56.8 (+0.1)##</td><td>##56.5 (+1.7)##</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과 해석</strong>: ##pool-native가 일관적으로 우월 (또는 동등)##. 더 적은 near-maximum-length 예시를 사용하면서. ##long-context capability는 specific length가 아니라 various position과 distance에 generalize##해야 한다는 것을 시사. LongPT는 ##다양한 long-context scenario에 걸친 retrieval##을 가르치는 것이지 ##특정 target length specialization##이 아니다.</p>
+
+<h3>5.2 Multi-Task Long-Context Data Mixture (Table 2)</h3>
+<p>실험 질문: information extraction (extract-single + extract-multi 결합)과 reasoning의 ##optimal ratio##?</p>
+<table>
+<thead><tr><th>Ratio (extract:reasoning)</th><th>64K Avg</th><th>128K Avg</th><th>전체 Avg</th></tr></thead>
+<tbody>
+<tr><td>0:10</td><td>57.33</td><td>55.62</td><td>56.47</td></tr>
+<tr><td>2:8</td><td>58.02</td><td>54.24</td><td>56.13</td></tr>
+<tr><td>4:6</td><td>56.35</td><td>55.11</td><td>55.73</td></tr>
+<tr><td>6:4</td><td>58.79</td><td>55.75</td><td>57.27</td></tr>
+<tr><td>##8:2##</td><td>##59.56##</td><td>##55.84##</td><td>##57.70##</td></tr>
+<tr><td>10:0</td><td>57.49</td><td>56.40</td><td>56.94</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴</strong>:</p>
+<ul>
+  <li><strong>Extraction-heavy mixture가 우월</strong>: 6:4와 8:2가 top.</li>
+  <li><strong>8:2가 best (57.70)</strong>, ##single-data setting (10:0) 56.94##보다 우월.</li>
+  <li><strong>해석</strong>: long-context의 ##primary bottleneck은 key information retrieval##(extraction). reasoning은 ##task diversity 보존##을 위해 ##소량(20%)##만 필요.</li>
+</ul>
+
+<h3>5.3 Short-Context Performance Preservation (Table 3, Figure 3)</h3>
+<p>실험 질문: long-context training이 ##short-context capability를 손상##시키는가? LLM에서는 그렇다고 알려져 있음 (Fu et al. 2024).</p>
+<table>
+<thead><tr><th>Short data ratio</th><th>General VQA Avg</th><th>Multimodal Reasoning Avg</th><th>OCRBench</th><th>전체 Avg</th></tr></thead>
+<tbody>
+<tr><td>Qwen2.5-VL-7B (no LongPT)</td><td>~80</td><td>~54</td><td>88.10</td><td>##66.47##</td></tr>
+<tr><td>##0% (pure long)##</td><td>76.34</td><td>51.56</td><td>85.50</td><td>##65.48 (-0.99)##</td></tr>
+<tr><td>20%</td><td>76.40</td><td>52.66</td><td>87.30</td><td>66.53</td></tr>
+<tr><td>40%</td><td>75.86</td><td>52.67</td><td>87.10</td><td>66.14</td></tr>
+<tr><td>60%</td><td>75.80</td><td>52.45</td><td>86.70</td><td>66.05</td></tr>
+<tr><td>80%</td><td>75.41</td><td>52.30</td><td>87.40</td><td>66.17</td></tr>
+</tbody>
+</table>
+
+<p>그리고 long-document VQA performance:</p>
+<table>
+<thead><tr><th>Short ratio</th><th>64K Avg</th><th>Overall Avg</th></tr></thead>
+<tbody>
+<tr><td>##0%##</td><td>##59.56##</td><td>##57.70##</td></tr>
+<tr><td>20%</td><td>55.98</td><td>55.57</td></tr>
+<tr><td>40%</td><td>57.19</td><td>57.01</td></tr>
+<tr><td>60%</td><td>57.38</td><td>56.95</td></tr>
+<tr><td>80%</td><td>57.17</td><td>56.60</td></tr>
+</tbody>
+</table>
+
+<p><strong>발견</strong>:</p>
+<ul>
+  <li><strong>0% short data가 long performance best (57.70)</strong> + short capability ##단 -0.99만 감소##.</li>
+  <li><strong>20% short은 short avg를 +1.05 끌어올리지만 long avg를 -2.13 감소##</strong>.</li>
+  <li><strong>40% short이 balanced compromise</strong>.</li>
+  <li><strong>해석</strong>: long-document VQA가 ##이미 instruction-formatted##이라 model이 short-context의 instruction-following style을 유지. 이는 ##LLM과 다른 LVLM-specific finding##.</li>
+</ul>
+
+<p>저자들의 ##final recipe choice: pure long-context training##. Short capability를 위해 ##최소한##만 trade.</p>
+
+<h2>실험: MMProLong의 generalization</h2>
+
+<h3>6.1 Long-Document VQA (Table 4)</h3>
+<table>
+<thead><tr><th>Model</th><th>64K MMLongBench Avg</th><th>128K MMLongBench Avg</th><th>전체 Avg</th></tr></thead>
+<tbody>
+<tr><td>##MMProLong (ours, 7B)##</td><td>##59.56##</td><td>##55.84##</td><td>##57.70##</td></tr>
+<tr><td>Qwen2.5-VL-7B (base)</td><td>52.24</td><td>48.94</td><td>50.59</td></tr>
+<tr><td>InternVL3-8B</td><td>50.19</td><td>44.11</td><td>47.15</td></tr>
+<tr><td>InternVL3-14B</td><td>50.67</td><td>50.21</td><td>47.47</td></tr>
+<tr><td>Gemma3-12B</td><td>48.03</td><td>47.49</td><td>47.76</td></tr>
+<tr><td colspan="4">##Large open-source (≥15B)##</td></tr>
+<tr><td>Qwen2.5-VL-32B</td><td>60.55</td><td>56.08</td><td>58.31</td></tr>
+<tr><td>Qwen2.5-VL-72B</td><td>62.81</td><td>62.45</td><td>60.83</td></tr>
+<tr><td>InternVL3-38B</td><td>53.11</td><td>44.66</td><td>48.88</td></tr>
+<tr><td>Gemma3-27B</td><td>52.91</td><td>52.35</td><td>52.63</td></tr>
+<tr><td>Gemma4-31B</td><td>67.58</td><td>66.62</td><td>67.10</td></tr>
+<tr><td colspan="4">##Closed-source##</td></tr>
+<tr><td>GPT-5.4</td><td>73.68</td><td>63.01</td><td>69.41</td></tr>
+<tr><td>GPT-5.5</td><td>93.80</td><td>89.12</td><td>90.77</td></tr>
+<tr><td>Gemini-2.5-Pro</td><td>74.18</td><td>74.55</td><td>74.37</td></tr>
+<tr><td>Gemini-3.1-Pro</td><td>83.55</td><td>83.77</td><td>83.66</td></tr>
+</tbody>
+</table>
+
+<p><strong>핵심 결과</strong>:</p>
+<ul>
+  <li><strong>15B 미만 open-source 중 SOTA (57.70)</strong>. 가장 가까운 baseline InternVL3-14B (47.47) 대비 ##+10.23##.</li>
+  <li><strong>InternVL3-38B (48.88), Gemma3-27B (52.63)도 능가</strong> — ##훨씬 큰 모델##도.</li>
+  <li><strong>Qwen2.5-VL-32B에 거의 도달</strong> (58.31) — 동일 backbone family의 4.5× 큰 모델.</li>
+  <li><strong>Closed-source와 격차 존재**: GPT-5.5 90.77, Gemini-3.1-Pro 83.66. 그러나 ##7B 규모로 이만큼##은 의미 있다.</li>
+</ul>
+
+<h3>6.2 Beyond 128K Training Context (Table 5)</h3>
+<p>실험 의도: 128K에서 학습했는데 ##256K, 512K에서 어떤가?</p>
+<table>
+<thead><tr><th>Model</th><th>256K MMLongBench Avg</th><th>512K MMLongBench Avg</th><th>전체 Avg</th></tr></thead>
+<tbody>
+<tr><td>##MMProLong (ours)##</td><td>##55.09##</td><td>##52.52##</td><td>##53.80##</td></tr>
+<tr><td>Qwen2.5-VL-7B</td><td>25.47</td><td>19.49</td><td>22.48</td></tr>
+<tr><td>Gemma3-4B</td><td>20.89</td><td>19.51</td><td>20.20</td></tr>
+<tr><td>Gemma3-12B</td><td>31.63</td><td>24.18</td><td>27.91</td></tr>
+</tbody>
+</table>
+<p>##평균 53.80 vs original 22.48 = +31.32 절대 격차##. ##LongPT가 train length를 넘어 robust##하다는 강력한 demonstration. Qwen2.5-VL-7B는 256K에서도 추락하는데 MMProLong은 ##안정적##.</p>
+
+<h3>Cross-Task Transfer (Figure 4)</h3>
+
+<h4>MM-NIAH (Multimodal Needle-in-a-Haystack)</h4>
+<table>
+<thead><tr><th>Task</th><th>Qwen2.5-VL-7B</th><th>MMProLong</th><th>향상</th></tr></thead>
+<tbody>
+<tr><td>Retrieval</td><td>27.6</td><td>66.3</td><td>##+38.7##</td></tr>
+<tr><td>Counting</td><td>11.2</td><td>18.2</td><td>+7.0</td></tr>
+<tr><td>Reasoning</td><td>18.3</td><td>63.8</td><td>##+45.5##</td></tr>
+<tr><td>##평균##</td><td>20.0</td><td>49.4</td><td>##+29.4##</td></tr>
+</tbody>
+</table>
+<p>LongPT가 ##문서 도메인에서 학습됐지만 webpage-based haystack에도 transfer##. ##key-information retrieval이라는 core skill##이 도메인 독립적으로 학습됨.</p>
+
+<h4>Long-Video Understanding (Figure 5)</h4>
+<ul>
+  <li><strong>Video-MME</strong>: 65.1 → ##67.8 (+2.7)##</li>
+  <li><strong>MLVU</strong>: 70.2 → ##73.5 (+3.3)##</li>
+  <li><strong>LongVideoBench</strong>: 60.4 → ##62.1 (+1.6)##</li>
+</ul>
+<p>##비디오 데이터 없이 long-doc VQA만으로 long-video understanding 향상##. ##temporal sequence가 multi-page structure와 analogous##.</p>
+
+<h4>VTCBench (Vision-Text Compression)</h4>
+<p>전체 48.23 → ##52.73 (+4.5)##. retrieval과 reasoning 둘 다 향상.</p>
+
+<h3>Cross-Backbone Validation (Appendix G.7)</h3>
+<p>저자들이 recipe를 ##Qwen3-VL-8B##에도 적용 — ##일관된 향상##. ##recipe가 Qwen2.5-VL specific하지 않음## (stronger backbone에도 transferable).</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>Closed-source와의 큰 격차</strong>: GPT-5.5는 90.77, MMProLong은 57.70. ##7B vs frontier 격차가 본질적으로 크다##. paper는 "open-source 중 SOTA"라고 framing하지만 ##absolute capability gap##이 여전.</li>
+  <li><strong>5B token budget의 임의성</strong>: 모든 ablation이 5B token으로 fixed. ##더 큰 budget##(20B, 50B)에서 동일 finding이 hold할지 미검증. budget이 클 때 long-biased distribution이 우월해질 가능성 존재.</li>
+  <li><strong>"Pool-native"의 정확한 정의</strong>: pool-native는 ##32–50 page document pool에서 자연스럽게 derive##되지만 그 pool 자체가 한 design choice. 다른 page-count distribution을 가진 pool에서 동일 finding이 hold할지 명확하지 않음.</li>
+  <li><strong>OCR transcription에 대한 fair comparison 의문</strong>: OCR-full(SFT 후) +3.2 vs VQA +5-6 — 둘 다 동일 prompt template이 아닐 가능성. OCR이 ##본질적으로 instruction-formatted가 아니므로 instruction-following metric에서 불리##할 수 있다. paper는 이를 인정하지만 ##fairer comparison##(OCR에도 instruction wrapper 추가)이 없음.</li>
+  <li><strong>Document domain 편향</strong>: training documents가 ##academic + technical + textbook## 위주. ##conversational, web, code, legal 같은 다른 long-context domain##으로 transfer는 미검증. MM-NIAH가 webpage-based여서 transfer를 보였지만 단일 example.</li>
+  <li><strong>Hyperparameter sensitivity</strong>: RoPE base를 1×10^6 → 4×10^6으로 scale. 다른 값에서의 ablation은 Appendix에 있다고 명시되지만 ##sensitivity range가 narrow한지##, ##다른 backbone에서 같은 multiplier가 통할지##는 명확하지 않음.</li>
+  <li><strong>Short-context preservation의 LVLM-specific 주장</strong>: paper는 "LLM과 다르다"고 주장하지만 ##정확한 메커니즘##(왜 LVLM은 short capability를 잃지 않는가)에 대한 mechanistic analysis가 부재. instruction-formatted라는 explanation은 plausible하지만 정량 검증 부족.</li>
+  <li><strong>OCR-full +SFT의 saturated 분석 부족</strong>: SFT가 OCR-trained 모델을 +3.2까지 회복시키지만 여전히 VQA-trained보다 낮음. SFT를 ##더 많이## 하면 동등해질 가능성이 있음. ##SFT budget을 변화##시킨 ablation 부재.</li>
+  <li><strong>Real-world long-context task와 benchmark 차이</strong>: MMLongBench-Doc, LD-URL, SLIDE는 모두 ##document-centric##. ##agentic workflow, long-horizon planning##같은 다른 long-context use case에서의 효과는 추후 검증 필요.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Long-context는 specific target length가 아니라 generalizable retrieval"</strong>: pool-native > long-biased finding은 ##LongPT의 본질적 통찰##. 모델은 ##다양한 absolute position과 image-text distance에 걸친 key-information retrieval##을 학습해야 한다 — 단일 sweet-spot length specialization이 아니다.</li>
+  <li><strong>"Instruction-formatted supervision이 OCR transcription보다 우월"</strong>: 같은 token budget으로 VQA가 OCR보다 ##5-23 절대 점수## 더 좋음. ##supervision의 task structure가 raw scale보다 중요##. 다른 long-context training 영역(audio, video)에도 transferable.</li>
+  <li><strong>"Information retrieval bottleneck"</strong>: extraction:reasoning = 8:2가 optimal. ##long-context의 진짜 bottleneck은 reasoning이 아니라 key info retrieval##. reasoning data는 task diversity 보존용 minimal.</li>
+  <li><strong>"LVLM은 LLM과 다른 short-context behavior"</strong>: pure long-context training이 ##short capability를 -0.99만 감소##. LLM 관행과 반대. ##LVLM이 instruction-formatted data로 train되면 instruction-following style이 자연 보존##.</li>
+  <li><strong>"5B token으로 32K → 128K"</strong>: ##학원 규모에서 LongPT 재현 가능##한 budget. open-source 진영에 ##frontier long-context capability##를 만드는 path를 제공.</li>
+  <li><strong>"Long-doc training이 long-video로 transfer"</strong>: 비디오 데이터 없이 +1.6~3.3pp. ##temporal sequence가 multi-page structure와 isomorphic##. 다른 multimodal long sequence task(audio, sensor stream)에 응용 가능.</li>
+  <li><strong>"Beyond-training-length generalization"</strong>: 128K로 학습한 모델이 256K/512K에서 작동. ##pool-native + RoPE scaling##이 ##train length를 넘어선 extrapolation##을 가능하게 한다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

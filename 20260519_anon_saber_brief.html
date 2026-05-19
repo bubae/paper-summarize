@@ -1,0 +1,608 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SABER 개요 브리핑 — AI 에이전트가 "메스를 들기 전"에만 멈춰서 확인하는 법</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #c0392b 0%, #f39c12 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #c0392b; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #c0392b; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #fff5f5 0%, #fff8e1 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #ffcccc; box-shadow: 0 4px 18px rgba(192,57,43,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #c0392b; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #c0392b; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-red { border-left: 5px solid #c0392b; background: #fff5f5; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #c0392b; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #c0392b; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #fff5f5 0%, #ffe0e0 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #ffcccc; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #c0392b; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #c0392b; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #fff5f5; }
+  .highlight-row { background: #ffe0e0 !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #c0392b 0%, #f39c12 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(192,57,43,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #ffaa99; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">Anonymous</span>
+      <span class="badge">ICLR 2026 (review)</span>
+      <span class="badge">LLM Agent Safety</span>
+      <span class="badge">Tool Use</span>
+      <span class="badge">τ-Bench</span>
+    </div>
+    <h1>SABER — AI 에이전트가 "되돌릴 수 없는 행동" 직전에만 멈춰 확인하는 법</h1>
+    <p class="sub">전체 행동의 14–18%만 차지하는 'mutating step'(취소, 환불, 삭제)이 실패의 92–96%를 만든다. 그 순간에만 verification + reflection을 거는 것만으로 GPT-5/Claude/Qwen3에서 +5~20pp.</p>
+    <a href="20260519_anon_saber.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"모든 행동에 안전벨트를 매면 차를 못 탄다. <strong>되돌릴 수 없는 행동(취소·삭제·환불)</strong>에만 안전장치를 걸어라 — 그게 실패의 거의 전부니까."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>AI 에이전트가 일상 task에서 자주 실패한다</h3>
+    <p>2026년 현재 GPT-5, Claude Sonnet 4, Qwen3 같은 frontier LLM도 <strong>multi-turn tool-using task</strong>에서는 깨지기 쉽다. 항공 예약, 환불, 파일 편집, 코드 수정 같은 task에서:</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>📌 제약을 잘못 해석</h4>
+        <p>"basic economy는 변경 불가" 정책을 무시하고 update_reservation 호출.</p>
+      </div>
+      <div class="step">
+        <h4>📜 오래된 context에 의존</h4>
+        <p>대화 초반의 잘못된 정보를 마지막에 행동으로 옮김.</p>
+      </div>
+      <div class="step">
+        <h4>🔧 부적절한 tool call</h4>
+        <p>cancel_reservation을 잘못된 reservation_id로 호출.</p>
+      </div>
+      <div class="step">
+        <h4>🕰 Lost-in-the-middle</h4>
+        <p>긴 대화 중간의 중요 정보를 모델이 무시.</p>
+      </div>
+    </div>
+
+    <h3>기존 대응의 패턴: "모든 step을 똑같이 검사"</h3>
+    <p>지금까지의 방법들은 <strong>모든 step을 동일한 강도로 검사</strong>했다:</p>
+
+    <div class="card card-orange">
+      <h3>① End-to-end prompting 강화</h3>
+      <p>system prompt에 모든 제약을 길게 기록. <strong>context 폭증 + lost-in-the-middle 가속</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Generic process reward</h3>
+      <p>매 step마다 reward 계산. <strong>99% 이상이 무관한 step</strong>인데 다 비용 들임.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ 5-turn self-reflection</h3>
+      <p>모든 답을 5번 revise. <strong>compounding error</strong>, 모든 step이 동등하게 다뤄짐.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Multi-agent debate (MoA)</h3>
+      <p>여러 agent가 모든 step에 의견. <strong>cost 폭발 + 진짜 risky step 식별 못함</strong>.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>가장 충격적인 발견: 모든 행동은 똑같이 위험하지 않다</h2>
+
+    <p>저자들이 <strong>τ-Bench (항공 예약, 소매 환불)</strong>의 실패 trajectory를 분석한 결과:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">행동 한 번 더 했을 때 실패 확률 증가폭</text>
+
+        <!-- Y axis -->
+        <line x1="60" y1="270" x2="60" y2="60" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="270" x2="660" y2="270" stroke="#333" stroke-width="2"/>
+
+        <text x="30" y="170" text-anchor="middle" font-size="11" fill="#444" transform="rotate(-90 30 170)">실패 확률 (Odds ratio)</text>
+
+        <!-- gridlines -->
+        <line x1="60" y1="240" x2="660" y2="240" stroke="#ddd" stroke-dasharray="3"/>
+        <line x1="60" y1="180" x2="660" y2="180" stroke="#ddd" stroke-dasharray="3"/>
+        <line x1="60" y1="120" x2="660" y2="120" stroke="#ddd" stroke-dasharray="3"/>
+        <text x="50" y="273" text-anchor="end" font-size="10" fill="#666">0</text>
+        <text x="50" y="243" text-anchor="end" font-size="10" fill="#666">25%</text>
+        <text x="50" y="183" text-anchor="end" font-size="10" fill="#666">50%</text>
+        <text x="50" y="123" text-anchor="end" font-size="10" fill="#666">75%</text>
+        <text x="50" y="63" text-anchor="end" font-size="10" fill="#666">100%</text>
+
+        <!-- Mutating bars (high) -->
+        <rect x="100" y="73" width="60" height="197" fill="#c0392b"/>
+        <text x="130" y="290" text-anchor="middle" font-size="10" fill="#444">Claude</text>
+        <text x="130" y="305" text-anchor="middle" font-size="10" fill="#444">Airline</text>
+        <text x="130" y="68" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">96%</text>
+
+        <rect x="180" y="100" width="60" height="170" fill="#c0392b"/>
+        <text x="210" y="290" text-anchor="middle" font-size="10" fill="#444">Qwen3</text>
+        <text x="210" y="305" text-anchor="middle" font-size="10" fill="#444">Airline</text>
+        <text x="210" y="95" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">91%</text>
+
+        <rect x="260" y="78" width="60" height="192" fill="#c0392b"/>
+        <text x="290" y="290" text-anchor="middle" font-size="10" fill="#444">Claude</text>
+        <text x="290" y="305" text-anchor="middle" font-size="10" fill="#444">Retail</text>
+        <text x="290" y="73" text-anchor="middle" font-size="11" font-weight="700" fill="#c0392b">92%</text>
+
+        <!-- Non-mutating bars (low) -->
+        <rect x="400" y="262" width="60" height="8" fill="#27ae60"/>
+        <text x="430" y="290" text-anchor="middle" font-size="10" fill="#444">Claude</text>
+        <text x="430" y="305" text-anchor="middle" font-size="10" fill="#444">Airline</text>
+        <text x="430" y="257" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">19%</text>
+
+        <rect x="480" y="265" width="60" height="5" fill="#27ae60"/>
+        <text x="510" y="290" text-anchor="middle" font-size="10" fill="#444">Qwen3</text>
+        <text x="510" y="305" text-anchor="middle" font-size="10" fill="#444">Airline</text>
+        <text x="510" y="260" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">11%</text>
+
+        <rect x="560" y="265" width="60" height="5" fill="#27ae60"/>
+        <text x="590" y="290" text-anchor="middle" font-size="10" fill="#444">Claude</text>
+        <text x="590" y="305" text-anchor="middle" font-size="10" fill="#444">Retail</text>
+        <text x="590" y="260" text-anchor="middle" font-size="11" font-weight="700" fill="#27ae60">9%</text>
+
+        <!-- Labels -->
+        <rect x="100" y="45" width="220" height="15" fill="#c0392b" rx="3"/>
+        <text x="210" y="56" text-anchor="middle" font-size="10" font-weight="700" fill="white">Mutating Action (취소/환불/삭제)</text>
+
+        <rect x="400" y="45" width="220" height="15" fill="#27ae60" rx="3"/>
+        <text x="510" y="56" text-anchor="middle" font-size="10" font-weight="700" fill="white">Non-Mutating (search/get/lookup)</text>
+      </svg>
+      <div class="svg-caption">▲ Mutating action 한 번 더 실수하면 <strong>91–96% 확률로 실패</strong>. 반면 non-mutating은 9–19%에 그친다.</div>
+    </div>
+
+    <div class="card card-red">
+      <h3>핵심 통계</h3>
+      <ul>
+        <li><strong>Mutating action 비율</strong>: 전체 step의 <strong>단 14–18%</strong>.</li>
+        <li><strong>Mutating 실수 1회 → 실패 확률</strong>: <strong>91–96%</strong> (모델·도메인 무관 일관).</li>
+        <li><strong>Non-mutating 실수 1회 → 실패 확률</strong>: <strong>9–19%</strong> (대부분 통계적으로 무의미).</li>
+        <li><strong>결론</strong>: <strong>소수의 mutating step에 verification을 집중하면 실패의 거의 전부를 잡을 수 있다</strong>.</li>
+      </ul>
+    </div>
+
+    <div class="analogy">
+      <strong>🏥 비유</strong>: 수술실의 <strong>"Surgical Time-Out" 프로토콜</strong>. 환자 입원 → 검사 → 마취 → 절개 → 봉합 → 회복까지 수십 단계가 있지만, 수술팀이 모두 멈춰 큰 소리로 <strong>"환자 이름, 수술 부위, 절차"</strong>를 확인하는 것은 <strong>메스를 들기 직전</strong> 단 한 번뿐이다. 매 단계마다 이 의식을 치르면 시간이 너무 걸리고 직원 피로가 누적된다. <strong>돌이킬 수 없는 행동 직전</strong>에만 멈추는 것이 핵심.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) LLM Agent</h3>
+      <p>LLM이 단순 텍스트 답변을 넘어 <strong>외부 도구(tool)를 호출</strong>하며 multi-turn으로 task를 완료하는 시스템. 항공 예약, 코드 작성, 파일 관리 등 실제 행동을 수행.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Tool Call</h3>
+      <p>Agent가 외부 함수를 부르는 액션. <code>get_reservation_details(...)</code>, <code>cancel_reservation(...)</code>처럼 함수명과 파라미터.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) τ-Bench</h3>
+      <p>conversational agent를 평가하는 표준 벤치마크 (Yao et al. 2024). <strong>항공 예약 (Airline)</strong>과 <strong>소매 환불 (Retail)</strong> 도메인. simulated user가 agent와 multi-turn 대화.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) Mutating vs Non-Mutating Action</h3>
+      <p>본 논문의 핵심 구분. <strong>Mutating</strong>: 환경 상태를 바꾸는 행동 (cancel, update, send, delete). <strong>Non-Mutating</strong>: 정보만 조회 (get, search, lookup).</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) Lost-in-the-Middle</h3>
+      <p>긴 context에서 LLM이 <strong>중간 부분의 정보를 무시</strong>하는 현상. 항공 정책 같은 중요 제약이 대화 중간에 있으면 mutating step에서 잊혀짐.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) Context Poisoning</h3>
+      <p>verification turn을 자주 추가하면 <strong>대화 history가 부풀어</strong> 진짜 중요한 정보가 묻히는 현상 (Breunig 2025).</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>SABER의 3가지 안전장치</h2>
+
+    <p>SABER는 <strong>main model (행동 생성)</strong>과 <strong>auxiliary model (검증/요약/관리)</strong> 두 모델을 함께 쓴다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 460" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">SABER 실행 흐름</text>
+
+        <!-- Main agent generates action -->
+        <rect x="40" y="50" width="180" height="50" rx="8" fill="#f0f4ff" stroke="#3498db" stroke-width="2"/>
+        <text x="130" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#2c7cb0">Main Agent</text>
+        <text x="130" y="92" text-anchor="middle" font-size="10" fill="#666">candidate action a_t 생성</text>
+
+        <path d="M220 75 L270 75" stroke="#888" stroke-width="2" marker-end="url(#a8)"/>
+
+        <!-- Mutation classifier -->
+        <rect x="270" y="50" width="180" height="50" rx="8" fill="#fff8e1" stroke="#fbc02d" stroke-width="2"/>
+        <text x="360" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#c97f00">Auxiliary 분류</text>
+        <text x="360" y="90" text-anchor="middle" font-size="10" fill="#666">"이 액션이 mutating인가?"</text>
+
+        <path d="M450 75 L500 75" stroke="#888" stroke-width="2" marker-end="url(#a8)"/>
+
+        <!-- Decision -->
+        <polygon points="540,55 580,75 540,95 500,75" fill="#fff" stroke="#888" stroke-width="2"/>
+        <text x="540" y="78" text-anchor="middle" font-size="11" font-weight="700" fill="#333">?</text>
+
+        <!-- Yes path -->
+        <path d="M580 75 L630 75" stroke="#c0392b" stroke-width="2" marker-end="url(#a8r)"/>
+        <text x="605" y="65" text-anchor="middle" font-size="10" fill="#c0392b" font-weight="700">YES (mutating)</text>
+
+        <rect x="540" y="115" width="180" height="100" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="630" y="135" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">🛡 ① 사용자 검증</text>
+        <text x="630" y="155" text-anchor="middle" font-size="10" fill="#666">"이 액션 실행하시겠습니까?"</text>
+        <text x="630" y="175" text-anchor="middle" font-size="10" fill="#666">+ 자연어로 풀어쓴 요약</text>
+        <text x="630" y="195" text-anchor="middle" font-size="10" fill="#666">+ preconditions / effects</text>
+
+        <!-- Reflection -->
+        <path d="M630 215 L630 240" stroke="#888" stroke-width="2" marker-end="url(#a8)"/>
+
+        <rect x="540" y="245" width="180" height="80" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="630" y="265" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">🔍 ② Targeted Reflection</text>
+        <text x="630" y="285" text-anchor="middle" font-size="10" fill="#666">시스템 제약 distilled summary</text>
+        <text x="630" y="305" text-anchor="middle" font-size="10" fill="#666">→ &lt;think&gt; block에 inject</text>
+
+        <!-- Block cleaning -->
+        <path d="M630 325 L630 350" stroke="#888" stroke-width="2" marker-end="url(#a8)"/>
+
+        <rect x="540" y="355" width="180" height="80" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="630" y="375" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">📚 ③ Block Context Clean</text>
+        <text x="630" y="395" text-anchor="middle" font-size="10" fill="#666">history를 블록 단위로 분할</text>
+        <text x="630" y="415" text-anchor="middle" font-size="10" fill="#666">→ top-N relevant만 retrieve</text>
+
+        <!-- No path -->
+        <path d="M540 95 L350 250" stroke="#27ae60" stroke-width="2" marker-end="url(#a8g)" stroke-dasharray="4"/>
+        <text x="380" y="160" text-anchor="middle" font-size="10" fill="#27ae60" font-weight="700">NO (non-mutating)</text>
+
+        <rect x="200" y="250" width="200" height="60" rx="8" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="300" y="275" text-anchor="middle" font-size="12" font-weight="700" fill="#1e8449">즉시 실행</text>
+        <text x="300" y="295" text-anchor="middle" font-size="10" fill="#666">검증 없이 진행 (~80%의 step)</text>
+
+        <!-- Final exec -->
+        <path d="M630 435 L300 435 L300 310" stroke="#1e3c72" stroke-width="2" fill="none" marker-end="url(#a8b)"/>
+        <text x="465" y="430" text-anchor="middle" font-size="10" fill="#1e3c72">confirmed</text>
+
+        <defs>
+          <marker id="a8" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+          <marker id="a8r" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#c0392b"/>
+          </marker>
+          <marker id="a8g" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#27ae60"/>
+          </marker>
+          <marker id="a8b" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#1e3c72"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ SABER는 <strong>mutating 분류 후 3가지 안전장치를 직렬 적용</strong>. 80% 이상의 step은 검증 없이 통과.</div>
+    </div>
+
+    <h3>① Mutation-Gated User Verification</h3>
+    <p>매 action마다가 아니라 <strong>mutating action을 실행하기 직전</strong>에만 user confirmation 요청. Verification 빈도가 <strong>평균 turn 6번에 1번</strong>으로 manageable.</p>
+
+    <div class="analogy">
+      <strong>🛒 비유</strong>: 온라인 쇼핑몰에서 <strong>상품 검색, 카트 담기, 옵션 변경</strong>은 그냥 진행되지만, <strong>최종 결제 버튼</strong> 직전에는 "정말 결제하시겠습니까?" 확인창이 뜬다. 이게 mutation gate의 사용자 경험.
+    </div>
+
+    <h3>② Targeted Reflection</h3>
+    <p>긴 대화 도중 mutating action 직전에 <strong>시스템 제약 핵심 요약</strong>을 <strong>&lt;think&gt; block</strong>(또는 ReAct format)에 inject. 모델이 <strong>직전 직접</strong>에 정책을 다시 떠올리게 만듦.</p>
+
+    <div class="analogy">
+      <strong>📋 비유</strong>: 비행기 조종사가 이륙 직전 <strong>체크리스트</strong>를 읽는다. 비행 내내 모든 정책을 머릿속에 두려고 하면 인지 부하가 폭증한다. <strong>결정적 순간에만</strong> 핵심을 다시 본다.
+    </div>
+
+    <h3>③ Block-based Context Cleaning</h3>
+    <p>대화 history를 <strong>semantic block</strong>으로 분할 → 각 블록의 <strong>embedding + 요약</strong>을 저장 → 현재 user query에 <strong>가장 관련 있는 top-N block</strong>만 retrieve해 context에 유지. <strong>verification turn이 context를 오염시키는 것</strong>을 방지.</p>
+
+    <div class="analogy">
+      <strong>🗂 비유</strong>: 책상에 <strong>쓸데없는 종이가 쌓이면</strong> 정작 필요한 서류를 못 찾는다. 주기적으로 <strong>관련된 폴더만 책상에 두고</strong> 나머지는 캐비닛으로 정리.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">+19.7pp</div>
+        <div class="stat-label">Qwen3-Thinking-235B<br>τ-Bench Verified Airline</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+17.3pp</div>
+        <div class="stat-label">GPT-5 (med)<br>τ-Bench Airline</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+10.8pp</div>
+        <div class="stat-label">Qwen3-Thinking<br>Retail Verified</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">+7pp</div>
+        <div class="stat-label">Claude Sonnet 4<br>SWE-Bench Verified</div>
+      </div>
+    </div>
+
+    <h3>모델별·벤치마크별 향상</h3>
+    <table class="comp-table">
+      <thead><tr><th>벤치마크</th><th>Qwen3-Thinking-235B</th><th>GPT-5 (med)</th><th>Claude Sonnet 4</th></tr></thead>
+      <tbody>
+        <tr><td>τ-Bench Airline</td><td>49.3 → <strong>63.3</strong> (+14.0)</td><td>45.3 → <strong>62.6</strong> (+17.3)</td><td>51.3 → <strong>56.0</strong> (+4.7)</td></tr>
+        <tr><td>τ-Bench Retail</td><td>64.3 → <strong>71.6</strong> (+7.3)</td><td>77.1 → 76.5</td><td>73.3 → <strong>78.3</strong> (+5.0)</td></tr>
+        <tr class="highlight-row"><td>τ-Bench-V Airline</td><td>58.5 → <strong>78.2</strong> (+19.7)</td><td>78.9 → <strong>82.0</strong> (+3.1)</td><td>72.1 → <strong>80.3</strong> (+8.2)</td></tr>
+        <tr class="highlight-row"><td>τ-Bench-V Retail</td><td>66.9 → <strong>77.7</strong> (+10.8)</td><td>81.4 → <strong>83.0</strong> (+1.6)</td><td>82.3 → 81.0</td></tr>
+        <tr><td>SWE-Bench Verified</td><td>42.6 → <strong>45.1</strong> (+2.5)</td><td>—</td><td>—</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>관찰</strong>:</p>
+    <ul>
+      <li><strong>모든 모델에서 일관된 향상</strong>.</li>
+      <li><strong>약한 모델(Qwen3-Thinking)에 더 큰 효과</strong> — failure가 더 많기에 safeguard의 marginal value가 큼.</li>
+      <li><strong>τ-Bench Verified에서 향상폭이 더 큼</strong> — annotation noise가 제거되면 진짜 성능 향상이 보임.</li>
+      <li>SWE-Bench Verified는 <strong>reflection만 적용 가능</strong>(user 없음)인데도 +2.5pp.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>부산물: τ-Bench Verified 공개</h2>
+
+    <p>저자들은 τ-Bench를 분석하다가 <strong>벤치마크 자체의 결함</strong>을 발견했다:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">τ-Bench의 잘못된 ground truth 예시</text>
+
+        <!-- Retail example -->
+        <rect x="40" y="50" width="300" height="200" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="190" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">Retail 사례</text>
+
+        <rect x="55" y="80" width="270" height="40" rx="4" fill="#fff" stroke="#999"/>
+        <text x="65" y="98" font-size="9" fill="#444">📜 정책: exchanges must involve a</text>
+        <text x="65" y="112" font-size="9" fill="#444">DIFFERENT product option</text>
+
+        <rect x="55" y="130" width="270" height="50" rx="4" fill="#ffe6e6" stroke="#c0392b"/>
+        <text x="65" y="148" font-size="9" fill="#c0392b" font-weight="700">❌ Ground Truth (잘못됨):</text>
+        <text x="65" y="162" font-size="9" fill="#444">Exchange item 8069050545 → 8069050545</text>
+        <text x="65" y="176" font-size="9" fill="#c0392b">(같은 ID! 정책 위반)</text>
+
+        <rect x="55" y="190" width="270" height="50" rx="4" fill="#e8f8e8" stroke="#27ae60"/>
+        <text x="65" y="208" font-size="9" fill="#1e8449" font-weight="700">✓ 올바른 답:</text>
+        <text x="65" y="222" font-size="9" fill="#444">Exchange to different item ID</text>
+
+        <!-- Airline example -->
+        <rect x="380" y="50" width="300" height="200" rx="8" fill="#fff5f5" stroke="#c0392b" stroke-width="2"/>
+        <text x="530" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="#c0392b">Airline 사례</text>
+
+        <rect x="395" y="80" width="270" height="40" rx="4" fill="#fff" stroke="#999"/>
+        <text x="405" y="98" font-size="9" fill="#444">📜 정책: certificate is issued ONLY</text>
+        <text x="405" y="112" font-size="9" fill="#444">after reservation is changed/cancelled</text>
+
+        <rect x="395" y="130" width="270" height="50" rx="4" fill="#ffe6e6" stroke="#c0392b"/>
+        <text x="405" y="148" font-size="9" fill="#c0392b" font-weight="700">❌ Ground Truth (잘못됨):</text>
+        <text x="405" y="162" font-size="9" fill="#444">send_certificate(amount=$150) directly</text>
+        <text x="405" y="176" font-size="9" fill="#c0392b">(cancel 없이 발급! 정책 위반)</text>
+
+        <rect x="395" y="190" width="270" height="50" rx="4" fill="#e8f8e8" stroke="#27ae60"/>
+        <text x="405" y="208" font-size="9" fill="#1e8449" font-weight="700">✓ 올바른 답:</text>
+        <text x="405" y="222" font-size="9" fill="#444">get_user_details only (no cert needed)</text>
+      </svg>
+      <div class="svg-caption">▲ τ-Bench의 ground truth 자체가 정책 위반. Airline 50개 중 31개, Retail 115개 중 53개 지시가 underspecified.</div>
+    </div>
+
+    <p>τ-Bench의 <strong>attainable performance가 Airline ~70%, Retail ~92%로 인위적 cap</strong>되어 있다. 저자들이 <strong>모든 task를 수동 검토하여 정정</strong>한 <strong>τ-Bench Verified</strong>를 공개. <strong>새 벤치마크 표준</strong>이 될 수 있다.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>Ablation: 어떤 component가 얼마나 기여하나</h2>
+
+    <p>Qwen3-Thinking-235B를 <strong>τ-Bench Verified Airline</strong>에서 측정:</p>
+
+    <table class="comp-table">
+      <thead><tr><th>버전</th><th>Airline Verified 정확도</th><th>향상폭</th></tr></thead>
+      <tbody>
+        <tr><td>No SABER (baseline)</td><td>58.0%</td><td>—</td></tr>
+        <tr><td>+ Reflection only</td><td>68.0%</td><td>+10.0pp</td></tr>
+        <tr><td>+ Verification only</td><td>68.7%</td><td>+10.7pp</td></tr>
+        <tr class="highlight-row"><td>Full SABER (Reflection + Verification + Cleaning)</td><td>78.7%</td><td>+20.7pp</td></tr>
+      </tbody>
+    </table>
+
+    <p><strong>핵심 발견</strong>: <strong>두 컴포넌트가 거의 가산적이고 시너지</strong>. 각 컴포넌트 단독은 +10pp 정도지만 <strong>결합 시 +20.7pp</strong>.</p>
+
+    <ul>
+      <li><strong>Reflection</strong>: model의 <strong>인지 부담 줄임</strong> (semantic). 정책을 다시 떠올림.</li>
+      <li><strong>Verification</strong>: <strong>사용자 감독</strong> (oversight). 모델 실수를 외부에서 catch.</li>
+      <li><strong>둘이 다른 차원에서 작동</strong>하므로 함께 쓰면 보완적.</li>
+    </ul>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① Online safeguard지 training이 아니다</h3>
+      <p>SABER는 <strong>runtime intervention</strong>. inference 시 항상 <strong>auxiliary model이 함께 돌아야</strong>. 향후 <strong>loss function으로 decisive deviation 인식을 학습</strong>하는 방향이 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② User-in-the-loop에 의존</h3>
+      <p>Mutation-Gated Verification은 <strong>user 또는 user simulator의 confirmation</strong>이 필요. 실제 production에서 user가 항상 즉시 응답한다는 보장 없음. SWE-Bench 같은 user 없는 환경에서는 <strong>reflection만 사용 가능</strong>해 효과 절반.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Mutating action 정의가 manual</h3>
+      <p>$A^\text{mut}$를 <strong>도메인별로 사람이 정의</strong>. 새 도메인 (web browsing, embodied robotics)으로 transfer 시 <strong>자동 식별 메커니즘 부재</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ Auxiliary model 비용 측정 불완전</h3>
+      <p>"latency is marginal"이라 명시되지만 <strong>wall-clock 비교가 정량화되지 않음</strong>. block embedding + summarization + classification은 모두 추가 forward pass.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Anonymous submission</h3>
+      <p>ICLR 2026 double-blind review 중. peer review 완료 전이므로 <strong>추가 검증</strong>이 필요.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="70" fill="#c0392b"/>
+        <text x="360" y="165" text-anchor="middle" font-size="15" font-weight="700" fill="white">SABER</text>
+        <text x="360" y="185" text-anchor="middle" font-size="10" fill="white">Mutation Guard</text>
+
+        <line x1="360" y1="100" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">고객 서비스 봇</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">환불, 예약 변경, 취소</text>
+
+        <line x1="360" y1="100" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">코딩 에이전트</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">파일 수정, git commit</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">결제 / 금융</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">송금, 거래 실행</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">의료 AI</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">처방, 진단 결정</text>
+
+        <line x1="360" y1="240" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">행정 자동화</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">민원, 인사 시스템</text>
+
+        <line x1="360" y1="240" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">제조 / 로봇</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">설비 제어, 안전 차단</text>
+      </svg>
+      <div class="svg-caption">▲ 되돌릴 수 없는 행동이 있는 모든 도메인에 적용 가능.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        AI agent의 실패는 <strong>모든 step에 골고루 일어나지 않는다</strong>.<br>
+        <strong>전체 14–18%의 mutating step에 91–96%의 실패가 집중되어 있다.<br>
+        그 좁은 지점에만 verification + reflection을 거는 것이 가장 효율적인 안전장치다.</strong>
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Verification은 희소 자원"</strong>: 사용자의 주의력과 시간은 한정. <strong>모든 step에 verification</strong>을 거는 것이 아니라 <strong>실패를 flip할 가장 가능성 높은 지점</strong>에 집중. <strong>cost와 quality 동시 향상</strong>.</li>
+      <li><strong>"Reliability research의 새 방향"</strong>: agent failure를 <strong>decision step level에서 정량화</strong>하면 generic safeguard보다 <strong>targeted intervention</strong>이 훨씬 효과적. 이 발견은 <strong>다른 도메인(코딩, 의료)에도 transferable</strong>.</li>
+      <li><strong>"Benchmark 자체의 결함을 추적해야 진짜 progress가 보인다"</strong>: τ-Bench Verified가 보인 것 — <strong>annotation noise가 strong model 차이를 가리고 method benefit을 숨긴다</strong>. cleaner benchmark가 progress 측정의 prerequisite.</li>
+    </ul>
+
+    <a href="20260519_anon_saber.html" class="nav-link" style="background: #c0392b; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>SABER: Small Actions, Big Errors — Safeguarding Mutating Steps in LLM Agents</strong></p>
+    <p>Anonymous · ICLR 2026 (under review) · OpenReview JuwuBUnoJk</p>
+    <p style="margin-top: 1rem;"><a href="20260519_anon_saber.html">전문가용 보기</a> · <a href="https://openreview.net/forum?id=JuwuBUnoJk">OpenReview</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
