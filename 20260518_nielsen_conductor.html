@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Conductor: Learning to Orchestrate Agents in Natural Language</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Learning to Orchestrate Agents in Natural Language with the Conductor</h1>
+
+<a href="20260518_nielsen_conductor_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Stefan Nielsen¹, Edoardo Cetin¹ (equal contribution), Peter Schwendeman²† (intern at Sakana), Qi Sun¹³, Jinglue Xu¹, Yujin Tang¹</li>
+  <li><strong>소속</strong>: ¹Sakana AI (Japan), ²University of Michigan (USA), ³Institute of Science Tokyo (Japan)</li>
+  <li><strong>학회/저널</strong>: ICLR 2026 (conference paper)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://openreview.net/forum?id=U23A2BUKYt">OpenReview U23A2BUKYt</a></li>
+  <li><strong>Compute</strong>: only ##2× NVIDIA H100 80GB GPUs## (학원 규모에서 재현 가능)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 강력한 LLM들이 각자 다른 도메인에 특화되어 있으며 ##어떤 단일 LLM도 모든 task에 universally optimal하지 않다##. 기존 multi-agent coordination은 ##손으로 설계한 scaffold##(MoA, RouterDC, MASRouter, Smoothie 등)에 의존하며, 모델 선택을 단순 routing classifier로 환원하거나 인간이 미리 정의한 topology에서만 선택 가능 — ##expressivity가 본질적으로 제약##.</li>
+  <li><strong>해결</strong>: ##7B Conductor 모델##을 RL(GRPO)로 학습해 ##자연어로 임의의 agentic workflow를 직접 출력##시킨다. 각 step은 (subtask 텍스트, 호출할 worker model id, access list)의 triple. ##Pool 안의 worker는 그대로 두고##, Conductor가 (i) 누가 무엇을 할지 결정, (ii) 그 worker에 줄 prompt를 ##구체적으로 prompt-engineer##, (iii) workflow의 정보 흐름(누가 누구의 답을 보는지) topology를 ##모두 한 번에## 자연어로 설계.</li>
+  <li><strong>왜 작동하는가</strong>: training이 ##end-to-end reward maximization##이므로 prompt engineering, refinement, meta-prompt optimization 같은 collaboration 패턴이 ##암묵적 보상 신호로부터 자연 발현##. 또한 ##자연어가 output medium##이라 routing classifier가 표현할 수 없는 ##임의의 tree/chain/recursive## topology를 자유롭게 표현 가능.</li>
+  <li><strong>비유</strong>: 오케스트라 ##지휘자##와 같다. 지휘자는 베이스 한 음도 안 친다. 그러나 ##누가 언제 들어오고##, ##어떻게 연주해야 하고##, ##누가 누구의 멜로디를 듣고 화답할지## — 그 ##coordination만으로## 단일 명연주자보다 더 큰 음악을 만든다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>RL Conductor 패러다임 정립</strong>: 자연어를 output medium으로 하는 end-to-end RL을 통해 ##powerful coordination strategy가 LLM에서 자연 발현##됨을 실증. workflow delegation을 API call로 묶어 ##tool-using RL의 새 확장##을 정의.</li>
+  <li><strong>SOTA 달성</strong>: 7B 단일 모델이 LiveCodeBench v6에서 ##83.93%로 OpenAI O-series 등 모든 단일 LLM을 능가##하며 official online leaderboard 1위. GPQA-Diamond 87.5%, AIME25 93.3%, MATH500 99.4%, MMLU 94.1%, RLPR 44.75% — 7개 in-domain + out-of-domain task ##평균 77.27%##로 closest baseline GPT-5(74.78)를 3점 능가.</li>
+  <li><strong>Multi-Agent baseline 압도</strong>: MoA(62.13), Smoothie(56.48), MASRouter(56.89), RouterDC(52.41)을 ##평균 72.35##로 전부 능가. 더욱이 ##평균 호출 수 3회##로 MoA(8회), MASRouter(4–5회)보다 적음. 5× consensus / 5× self-reflection 같은 비싼 inference-time scaling도 능가.</li>
+  <li><strong>Dynamic worker pool extension</strong>: random subset에 대해 finetune하면 ##임의의 사용자 정의 agent set##(open-only, closed-only, custom)에 generalize. closed-only는 pretrained 성능 유지, open-only는 Claude Sonnet 4 능가.</li>
+  <li><strong>Recursive topology = 새로운 test-time scaling 축</strong>: Conductor가 ##자기 자신을 worker로 선택## 가능하게 되면, 첫 attempt의 결과를 보고 strategy를 revise하는 ##재귀적 self-referential reasoning##이 발현. BigCodeBench에서 +2.2점 추가 향상 (37.8 → 40.0).</li>
+  <li><strong>Emergent patterns 분석</strong>: 학습 중에 ##targeted instruction, prompt engineering, planner/verifier/refiner 역할 분담, 난이도별 step 수 조정##이 모두 emergent하게 등장. 3B vs 7B Conductor 비교에서 ##agent selection은 같지만 prompt engineering 품질 차이##가 최종 성능 격차를 만듦.</li>
+  <li><strong>2× H100 학습</strong>: ##200 GRPO iterations, batch 256, no KL regularization##으로 단 ##2 H100 GPU에서 학습 가능##. Code + model weights 공개. ##학원 규모에서 재현 가능한 frontier-level 결과##.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>RL Reasoning Paradigm: DeepSeek R1 Style</h3>
+<p>R1 (Guo et al., 2025)이 정립한 RL-for-reasoning recipe는 LLM $\pi_\theta$를 ##custom system prompt 하에서 verifiable problem set $D = \{(q_i, s_i)\}$##에 대해 학습:</p>
+<ul>
+  <li>Model이 <code>&lt;think&gt;</code>/<code>&lt;solution&gt;</code> tag 안에 reasoning + final answer를 생성.</li>
+  <li>Reward: format 실패 시 $r_i = -1$, format OK + 정답 일치 시 $r_i = 1$, format OK + 오답 시 $r_i = -0.5$.</li>
+</ul>
+<p>학습은 ##GRPO## (Shao et al., 2024)로 진행 — group $\{o_1, ..., o_G\}$ rollout을 만들고 KL-penalized clipped policy objective:</p>
+<p>$$J(\theta) = \mathbb{E}_{q \sim D, \{o\}^G_i \sim \pi_\theta(\cdot|q)}\left[\frac{1}{G}\sum_{i=1}^G \left(\min(r_i A_i, \text{clip}(r_i, 1-\epsilon, 1+\epsilon) A_i) - \beta \mathbb{D}_\text{KL}(\pi_\theta \| \pi_\text{ref})\right)\right] \quad (1)$$</p>
+<p>Monte-Carlo advantage:</p>
+<p>$$A_i = \frac{r_i - \text{mean}(\{r_1, ..., r_G\})}{\text{std}(\{r_1, ..., r_G\})} \quad (2)$$</p>
+<p>이 recipe로 self-emergent thinking이 unprecedented task specialization을 만들었다.</p>
+
+<h3>왜 multi-agent coordination이 필요한가</h3>
+<p>Chang et al. (2024)의 survey가 명확히 한 사실: ##어떤 단일 LLM도 모든 task에서 universally optimal하지 않다##. GPT-5는 math/coding에 강하고, Gemini는 scientific reasoning(GPQA-Diamond)에서, Claude는 code generation with diverse function calling에서 강점. ##Granular sub-task level에서도 다른 모델이 다른 역할에 최적##.</p>
+
+<h3>기존 multi-agent 접근의 한계</h3>
+<table>
+<thead><tr><th>방법</th><th>접근</th><th>한계</th></tr></thead>
+<tbody>
+<tr><td>MoA (Mixture-of-Agents)</td><td>여러 agent의 candidate response를 aggregator가 합성</td><td>high call count, candidate가 부정확하면 misled, 큰 solution space에서 약함</td></tr>
+<tr><td>RouterDC</td><td>Query→best agent로 router classifier 학습</td><td>##single best agent 선택만 가능##, topology 없음</td></tr>
+<tr><td>MASRouter</td><td>Embedding space로 query→agent + topology 매칭</td><td>##인간이 미리 정의한 topology pool에서만 선택##, manual scaffold에 의존</td></tr>
+<tr><td>Smoothie</td><td>Label-free routing</td><td>per-question dependent variant도 prompt engineering 불가</td></tr>
+<tr><td>GPTSwarm</td><td>Agent collaboration을 learnable graph로</td><td>그래프 구조가 inherently constrained</td></tr>
+<tr><td>Self-reflection (5×)</td><td>같은 model이 자기 답을 5번 refine</td><td>##단일 model 능력 한계## 내, 다양성 부족</td></tr>
+</tbody>
+</table>
+<p>공통 한계: ##expressivity가 인간 설계 또는 classifier의 routing에 묶임##. 자연어가 표현할 수 있는 ##임의의 agentic workflow##를 cover하지 못한다.</p>
+
+<h2>방법 (Method): The RL Conductor</h2>
+
+<h3>3.1 Framing Agent Coordination in Natural Language</h3>
+
+<h4>Conductor task 정의</h4>
+<p>Conductor의 objective: input question $q_i$에 대해 ##indirectly solve## — agent들의 workflow를 설계함으로써. ##Agentic workflow는 workflow steps의 sequence##로 정의되며, 최종 출력이 Conductor의 response $o_i$로 반환.</p>
+
+<p>각 step은 3-tuple:</p>
+<ul>
+  <li><strong>Subtask string</strong>: 그 step의 자연어 sub-instruction.</li>
+  <li><strong>Assigned worker agent</strong>: 정수 model id (e.g., Model 0, Model 1, ...).</li>
+  <li><strong>Access list</strong>: 이전 step들 중 ##어느 sub-task solution을 worker context에 포함##할지 indexing.</li>
+</ul>
+
+<p>구조는 ##chain-of-thought 이후 3개의 Python list##로 parse:</p>
+<pre><code>model_id = [2, 0]
+subtasks = ["Develop an efficient algorithm to count the number of complete subarrays of an array",
+            "Implement the algorithm described by the previous agent in Python"]
+access_list = [[], ["all"]]</code></pre>
+
+<p>여기서 worker 2 (planner)가 알고리즘을 설계, worker 0이 ##worker 2의 답을 access##해 Python으로 구현. <code>access_list[i] = "all"</code>은 이전 모든 step 가시, <code>[]</code>는 empty.</p>
+
+<p>##이 구조는 simple best-of-N과 sequential chain부터 parallelizable arbitrary tree-structured까지 모든 topology를 표현##. 인간 설계 scaffold 없이 Conductor의 자연어 출력만으로.</p>
+
+<h4>Workflow execution & learning dynamics</h4>
+<p>각 workflow step은 ##sequentially 실행##: 지정된 worker agent에게 (i) subtask string + (ii) access list에 따른 이전 step의 conversational template으로 prompt.</p>
+
+<p>Reward $r_i$ for Conductor response:</p>
+<ul>
+  <li><strong>Format condition</strong>: model_id / subtask / access_list 가 parse 불가 → $r_i = 0$.</li>
+  <li><strong>Correctness condition</strong>: well-formatted workflow를 실행한 최종 output이 ##정답 일치 시 $r_i = 1$, 오답 시 $r_i = 0.5$##.</li>
+</ul>
+<p>주목: format failure는 ##0##이고 valid but wrong은 ##0.5##. 이 ##0.5 baseline reward##가 Conductor가 ##최소한 format을 학습##하도록 인센티브화하고, 그 위에서 correctness를 추구하게 만든다.</p>
+
+<p>훈련은 ##GRPO formulation (Section 2)##을 그대로 사용 — 단지 reward signal이 ##agentic workflow 실행의 결과##라는 점만 다르다. 이 simple recipe로:</p>
+<ul>
+  <li>Problem breakdown 발현,</li>
+  <li>Prompt-engineered subtask가 각 worker의 strength에 매칭,</li>
+  <li>Independent attempt + 최종 debate round의 communication 전략 발현.</li>
+</ul>
+
+<h3>3.2 Extending the RL Conductor</h3>
+
+<h4>Adaptive Worker Selection</h4>
+<p>Pre-trained Conductor를 ##randomly sampled $k$-model subset## ($k \le n$, $n$ = total pool)에 대해 finetune해 ##사용자 cost/availability constraint에 맞게 generalize##. Training 후 ##desired subset에 대해 strong performance##.</p>
+
+<h4>Recursive Topologies & Test-Time Scaling</h4>
+<p>Recursive call: workflow 중 Conductor가 ##자기 자신을 worker##로 선택 가능. 이때 parent output + 직전 agent response가 추가 input으로 들어가며, ##new agentic workflow를 instantiate하거나 final solution을 직접 반환##할 결정 가능.</p>
+<p>Infinite recursion 방지: initial root call 이후 ##최대 specified depth##까지만 허용.</p>
+
+<p>Recursive capability를 unlock하는 방법: pretrained Conductor를 ##half-batch에 1 recursive call을 manually instantiate##하면서 같은 RL recipe로 finetune. After training, inference 시 max recursion calls를 adaptively 증가시켜 ##새로운 형태의 test-time scaling##.</p>
+<p>이 scheme의 의미: open-ended chain-of-thought 외에 ##recursion as tunable compute axis##.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>4.1 Training & Evaluation Setup</h3>
+<ul>
+  <li><strong>Base model</strong>: Qwen2.5-7B (Hui et al., 2024). Max completion 1024.</li>
+  <li><strong>Worker pool</strong>: Gemini-2.5-Pro, Claude-Sonnet-4, GPT-5, DeepSeek-R1-Distill-Qwen-32B, Gemma3-27B-instruct, Qwen3-32B (non-thinking + thinking).</li>
+  <li><strong>Training data</strong>: ##960 problems## across math/code/general reasoning, from MATH500, MMLU, RLPR, LiveCodeBench V1.</li>
+  <li><strong>Training</strong>: 200 GRPO iterations, batch 256, 64 rollouts per sample (4 questions × 64 rollouts), AdamW, lr 1e-6 with cosine, ##no KL regularization, no reference model sync##.</li>
+  <li><strong>Compute</strong>: ##2× NVIDIA H100 80GB##.</li>
+</ul>
+
+<p><strong>Evaluation tasks</strong>:</p>
+<ul>
+  <li>In-domain: MATH500, MMLU, RLPR, LiveCodeBench V6.</li>
+  <li>Unseen (OOD): AIME25, BigCodeBench, GPQA-Diamond.</li>
+</ul>
+
+<h3>4.2 Conductor vs Individual Frontier Models (Table 1)</h3>
+<p>실험 의도: 7B Conductor가 ##unconstrained best results## (max reasoning budget) 대비 어떻게 성능?</p>
+<table>
+<thead><tr><th>Model</th><th>M500</th><th>MMLU</th><th>RLPR</th><th>LCB</th><th>AIME25</th><th>BCB</th><th>GPQA-D</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>gemma-3-27b-it</td><td>39.8</td><td>81.3</td><td>16.67</td><td>13.14</td><td>20.7</td><td>14.86</td><td>38.4</td><td>32.12</td></tr>
+<tr><td>Qwen3-32B</td><td>73.5</td><td>83.5</td><td>31.00</td><td>21.21</td><td>20.0</td><td>30.41</td><td>64.1</td><td>53.81</td></tr>
+<tr><td>Qwen3-32B (thinking)</td><td>80.7</td><td>84.1</td><td>37.25</td><td>25.86</td><td>72.9</td><td>28.38</td><td>66.8</td><td>56.57</td></tr>
+<tr><td>R1-Distill-Qwen-32B</td><td>82.5</td><td>84.4</td><td>33.50</td><td>26.86</td><td>63.0</td><td>33.07</td><td>58.1</td><td>54.49</td></tr>
+<tr><td>Claude Sonnet 4</td><td>96.0</td><td>91.4</td><td>36.70</td><td>46.54</td><td>74.3</td><td>37.16</td><td>77.7</td><td>65.69</td></tr>
+<tr><td>Gemini 2.5 Pro</td><td>96.0</td><td>92.4</td><td>40.55</td><td>67.24</td><td>78.3</td><td>37.51</td><td>84.8</td><td>70.97</td></tr>
+<tr><td>GPT 5</td><td>99.0</td><td>93.5</td><td>42.20</td><td>82.90</td><td>90.8</td><td>32.75</td><td>82.3</td><td>74.78</td></tr>
+<tr><td><strong>##Conductor (Ours)##</strong></td><td><strong>99.4</strong></td><td><strong>94.1</strong></td><td><strong>44.75</strong></td><td><strong>83.93</strong></td><td><strong>93.3</strong></td><td><strong>37.86</strong></td><td><strong>87.5</strong></td><td><strong>##77.27##</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>7개 벤치마크 모두에서 우위</strong>. GPT-5 (74.78) → Conductor (77.27), ##+2.49 평균##.</li>
+  <li><strong>LiveCodeBench 83.93</strong>이 worker pool에 없는 ##OpenAI O-series 모델까지도 능가##. 작성 시점 ##online leaderboard 1위##.</li>
+  <li><strong>AIME25 + GPQA-Diamond + LiveCodeBench##에서 worker 능가 폭이 3% 수준##: paper가 강조하듯 이는 ##GPT-o3 → GPT-5 generational jump (AIME25 3.3%, GPQA-D 2.7%)에 견줄 만한 의미 있는 향상##.</li>
+  <li><strong>BCB</strong>는 ##37.86##으로 모든 baseline 능가하지만 절대값이 낮음 — paper는 GPT-5가 strangely BCB에서 약하다고 보고(32.75), Conductor가 그 약점을 ##다른 agent로 보완##.</li>
+</ul>
+
+<h3>4.3 Controlled Large-Scale Evaluation (Figure 4, Table 7)</h3>
+<p>실험 의도: 같은 ##cost-constrained setting (4096 tokens, minimal reasoning budget)##에서 multi-agent baseline과 직접 비교.</p>
+
+<p><strong>비교 대상 (모두 same 7-agent pool)</strong>:</p>
+<ul>
+  <li>5-turn self-reflection (Madaan et al., Du et al.) — 같은 model이 5번 자기 답 revise.</li>
+  <li>MASRouter, RouterDC, Smoothie, MoA (Wang et al., 2024).</li>
+</ul>
+
+<p><strong>Constrained 결과 (Table 7)</strong>:</p>
+<table>
+<thead><tr><th>방법</th><th>MATH500</th><th>MMLU</th><th>RLPR</th><th>LCB</th></tr></thead>
+<tbody>
+<tr><td>Gemini Pro 2.5 (4K/128)</td><td>85.30</td><td>91.53</td><td>39.57</td><td>40.14</td></tr>
+<tr><td>Claude Sonnet 4</td><td>82.90</td><td>90.66</td><td>32.60</td><td>38.00</td></tr>
+<tr><td>GPT 5 (4K/minimal)</td><td>74.45</td><td>89.79</td><td>33.13</td><td>57.50</td></tr>
+<tr><td>5× consensus / reflection</td><td>~83</td><td>~91</td><td>~32</td><td>~52</td></tr>
+<tr><td>MASRouter</td><td>80.60</td><td>86.28</td><td>32.80</td><td>27.86</td></tr>
+<tr><td>MoA</td><td>83.10</td><td>88.46</td><td>38.37</td><td>38.57</td></tr>
+<tr><td>RouterDC</td><td>59.25</td><td>87.52</td><td>27.53</td><td>35.33</td></tr>
+<tr><td>Smoothie (Dep)</td><td>76.95</td><td>83.56</td><td>34.45</td><td>31.00</td></tr>
+<tr><td><strong>##Conductor (Ours)##</strong></td><td><strong>89.33</strong></td><td><strong>93.14</strong></td><td><strong>42.63</strong></td><td><strong>64.29</strong></td></tr>
+</tbody>
+</table>
+<p><strong>Average</strong>: Conductor 72.35 vs MoA 62.13 vs Smoothie 56.48 vs MASRouter 56.89 vs RouterDC 52.41.</p>
+
+<h3>Performance vs Efficiency (Figure 5)</h3>
+<p>Conductor의 average call count는 ##3 calls## (training cap 5). 비교:</p>
+<ul>
+  <li>MoA: ~8 calls (single MoA layer + aggregator = 8 agents)</li>
+  <li>MASRouter: ~5 calls (multi-step coordination)</li>
+  <li>Smoothie: ~7 calls</li>
+  <li>RouterDC: 1 call (single best agent)</li>
+</ul>
+<p>##RouterDC만 더 적지만 성능이 압도적으로 떨어짐##. Conductor는 ##higher performance + fewer calls##의 Pareto front 외각에 위치.</p>
+
+<h3>Efficiency Analysis (Table 5, 6)</h3>
+<p><strong>5× inference-time scaling 비교 (MMLU)</strong>:</p>
+<table>
+<thead><tr><th>Method</th><th>Performance</th><th>Token usage</th><th>Avg cost (USD)</th><th>Cost-adjusted perf</th></tr></thead>
+<tbody>
+<tr><td>Claude 5× consensus</td><td>91.00</td><td>1412.8</td><td>0.0211</td><td>42.94</td></tr>
+<tr><td>Gemini 5× consensus</td><td>91.60</td><td>1658.4</td><td>0.01658</td><td>55.23</td></tr>
+<tr><td>GPT 5× consensus</td><td>91.30</td><td>1376.3</td><td>0.0138</td><td>66.34</td></tr>
+<tr><td>GPT 5× reflect</td><td>91.79</td><td>2457.132</td><td>0.0142</td><td>64.42</td></tr>
+<tr><td><strong>##Conductor##</strong></td><td><strong>93.14</strong></td><td><strong>735.2</strong></td><td><strong>0.009</strong></td><td><strong>103.49</strong></td></tr>
+</tbody>
+</table>
+<p>##Cost-adjusted performance 103.49## — 가장 가까운 baseline GPT 5× consensus (66.34) 대비 ##1.56×##. ##token usage가 절반 수준##인 것이 결정적.</p>
+
+<p><strong>Multi-agent baseline 비교</strong>:</p>
+<table>
+<thead><tr><th>Method</th><th>Performance</th><th>Token usage</th><th>Cost</th></tr></thead>
+<tbody>
+<tr><td>MoA</td><td>62.13</td><td>11203</td><td>0.04855</td></tr>
+<tr><td>Smoothie</td><td>56.48</td><td>9909</td><td>0.03929</td></tr>
+<tr><td>RouterDC</td><td>52.41</td><td>##840##</td><td>0.00561</td></tr>
+<tr><td>MASRouter</td><td>56.89</td><td>4970</td><td>0.01345</td></tr>
+<tr><td><strong>Conductor</strong></td><td><strong>72.35</strong></td><td><strong>1820</strong></td><td><strong>0.02384</strong></td></tr>
+</tbody>
+</table>
+<p>RouterDC만 token usage가 더 적지만 ##성능이 20점 낮음##. Conductor는 ##second-lowest token usage##면서 ##압도적 성능##.</p>
+
+<h3>4.4 User-Customization & Test-Time Recursive Scaling</h3>
+
+<h4>Dynamic worker pool (Figure 6)</h4>
+<p>Pretrained Conductor를 ##randomly sampled subset##에 대해 finetune. 두 evaluation case:</p>
+<ul>
+  <li><strong>Closed-only subset</strong> (Gemini 2.5 Pro + Claude Sonnet 4 + GPT-5): finetuned Conductor가 ##pretrained Conductor와 동일 성능 유지##. closed-only constraint가 fine-tuned model에 비용 없음.</li>
+  <li><strong>Open-only subset</strong> (gemma-3-27b-it + Qwen3-32B [thinking]): finetuned Conductor가 ##Claude Sonnet 4 individual보다 10% 이상## 우수. ##약한 weak 모델들을 통해 surprisingly effective##하게 결합.</li>
+</ul>
+
+<h4>Test-Time Recursion (Table 2)</h4>
+<p>실험 의도: recursive Conductor가 OOD task에서 추가 gain을 unlock하는가?</p>
+<table>
+<thead><tr><th>Model</th><th>AIME25</th><th>BigCodeBench</th><th>GPQA-D</th><th>Average score</th></tr></thead>
+<tbody>
+<tr><td>gemma-3-27b-it</td><td>6.67</td><td>10.8</td><td>33.33</td><td>16.93</td></tr>
+<tr><td>Qwen3-32B</td><td>23.33</td><td>23.0</td><td>54.05</td><td>33.46</td></tr>
+<tr><td>R1-Distill-Qwen-32B</td><td>30.00</td><td>24.3</td><td>51.01</td><td>35.10</td></tr>
+<tr><td>Gemini Pro 2.5</td><td>46.67</td><td>35.1</td><td>75.25</td><td>52.34</td></tr>
+<tr><td>Claude Sonnet 4</td><td>35.33</td><td>35.8</td><td>67.30</td><td>46.14</td></tr>
+<tr><td>GPT 5</td><td>46.67</td><td>33.8</td><td>72.73</td><td>51.73</td></tr>
+<tr><td><strong>Conductor</strong></td><td><strong>66.67</strong></td><td>37.8</td><td>81.31</td><td>61.93</td></tr>
+<tr><td><strong>##Conductor-Recursive##</strong></td><td>66.67</td><td><strong>40.0</strong></td><td><strong>82.32</strong></td><td><strong>63.00</strong></td></tr>
+</tbody>
+</table>
+
+<p>##BigCodeBench에서 +2.2점 (37.8 → 40.0)##, GPQA-D에서 +1.0점. Figure 10에 따르면 recursive call에서 Conductor는 ##GPT-5 (suboptimal in BCB)에서 Claude/Gemini로 agent 재분배##. ##unseen task에서 unforeseen agent 약점을 인지하고 strategy를 fly에서 adjust##.</p>
+
+<h3>4.5 Analyzing Conductor Properties</h3>
+
+<h4>Conductor scale (Figure 7)</h4>
+<p>실험 의도: 같은 recipe로 ##3B Conductor##를 학습하면 어떻게 다른가?</p>
+<ul>
+  <li><strong>Agent selection은 동일</strong>: 3B도 7B와 같은 ##top-3 strongest model##로 distribution converge.</li>
+  <li><strong>최종 성능은 격차</strong>: LCB에서 7B Conductor가 ##GPT-5 (단일 worker)를 능가##, 3B는 GPT-5에 못 미침.</li>
+  <li><strong>차이의 원인</strong>: ##prompt engineering quality##. 같은 모델을 호출해도 7B가 더 정교한 subtask string을 만든다. ##base model의 natural language capability가 직접 prompt engineering quality로 변환##되어 Conductor가 worker에 대해 ##새로운 agency level##을 얻는다.</li>
+</ul>
+
+<h4>Task & difficulty adaptivity (Figure 8)</h4>
+<p>학습이 진행될수록 task별 step 수 분포가 ##task complexity에 adaptive##:</p>
+<ul>
+  <li><strong>LiveCodeBench (hard coding)</strong>: 3–4 step workflow가 다수. multi-planner + implementer + verifier 패턴.</li>
+  <li><strong>MMLU (factual recall)</strong>: 1–2 step workflow가 다수. 1-shot or simple targeted retrieval.</li>
+</ul>
+<p>Output trace 분석에 따르면 ##model이 task complexity에 대해 explicitly 추론##한 뒤 workflow를 specify. ##unnecessary computation을 줄이고 hard task에 compute 집중##.</p>
+
+<h4>Few-shot OOD prompting (Table 4)</h4>
+<p>흥미로운 발견: Conductor 학습 시 few-shot 예시를 ##OOD task##에서 가져오면 성능이 ##in-distribution보다 더 향상##.</p>
+<table>
+<thead><tr><th>Few-shot source</th><th>M500</th><th>MMLU</th><th>RLPR</th><th>LCB</th></tr></thead>
+<tbody>
+<tr><td>In-distribution</td><td>88.20</td><td>92.31</td><td>42.60</td><td>58.32</td></tr>
+<tr><td>Mixed</td><td>88.70</td><td>92.62</td><td>42.60</td><td>61.43</td></tr>
+<tr><td><strong>OOD (Ours)</strong></td><td><strong>89.33</strong></td><td><strong>93.14</strong></td><td><strong>42.63</strong></td><td><strong>64.29</strong></td></tr>
+</tbody>
+</table>
+<p>해석: OOD few-shot이 ##reward-hackable strategy의 lazy repetition을 막고##, ##compatible agent combination에 대한 useful information##을 isolate하여 ##exploration을 더 잘 incentivize##.</p>
+
+<h4>Ablation: subtasks 제거 (Table 9, Appendix B.7)</h4>
+<p>모든 worker에게 동일하게 ##"Solve the user question"## prompt만 주도록 Conductor를 학습시키면 (= Conductor가 agent selection + topology만 결정):</p>
+<table>
+<thead><tr><th>Variant</th><th>M500</th><th>MMLU</th><th>RLPR</th><th>LCB</th></tr></thead>
+<tbody>
+<tr><td>Fine-grained access list</td><td>88.67</td><td>93.55</td><td>42.28</td><td>61.24</td></tr>
+<tr><td>w/o few-shot</td><td>82.00</td><td>92.69</td><td>41.50</td><td>54.86</td></tr>
+<tr><td>##w/o subtasks##</td><td>##88.5##</td><td>92.75</td><td>41.95</td><td>##58.62##</td></tr>
+<tr><td><strong>Conductor (full)</strong></td><td>89.33</td><td>93.14</td><td>42.63</td><td><strong>64.29</strong></td></tr>
+</tbody>
+</table>
+<p><strong>핵심 발견</strong>: ##LCB에서 subtask 없을 때 큰 손실##(64.29 → 58.62, -5.67). 그러나 MMLU/MATH500은 ##소폭만 하락##. 해석:</p>
+<ul>
+  <li>Code generation은 ##수많은 constraint와 formatting requirement##를 따라야 함 → targeted prompt engineering 필수.</li>
+  <li>MATH/MMLU/RLPR은 ##짧은 질문##이라 direct request로도 reasonably well.</li>
+  <li>##Task complexity가 높을수록 prompt engineering의 marginal value 증가##.</li>
+</ul>
+
+<h4>Conductor 자체를 frontier model로 대체 (Table 11)</h4>
+<p>Conductor 자체를 ##GPT-5 또는 Gemini 2.5 Pro##로 대체 (zero-shot prompted to act as planner/coordinator):</p>
+<table>
+<thead><tr><th>Model</th><th>LCB</th><th>AIME</th><th>BCB</th><th>GPQA-D</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>GPT-5 conduct 7 models</td><td>50.86</td><td>76.67</td><td>34.50</td><td>77.78</td><td>59.95</td></tr>
+<tr><td>GPT-5 conduct 3 models</td><td>67.43</td><td>93.30</td><td>33.10</td><td>86.36</td><td>70.05</td></tr>
+<tr><td>Gemini 2.5 Pro conduct 3</td><td>70.29</td><td>93.30</td><td>35.13</td><td>87.62</td><td>71.59</td></tr>
+<tr><td><strong>Conductor (7B trained)</strong></td><td><strong>83.93</strong></td><td>93.30</td><td><strong>37.86</strong></td><td><strong>87.50</strong></td><td><strong>75.65</strong></td></tr>
+</tbody>
+</table>
+<p>중요한 발견:</p>
+<ul>
+  <li><strong>GPT-5/Gemini가 7 model conduct하면 over-rely on weak open models하여 50.86까지 추락</strong>. ##다른 worker가 어떤 task에서 잘하는지 모르기 때문##.</li>
+  <li><strong>GPT-5 conduct 3 models</strong> (top frontier only)로 제한해도 ##trained 7B Conductor에 못 미침##.</li>
+  <li>해석: ##frontier model조차 worker compatibility에 대한 underlying hypothesis가 부족##. Conductor의 underlying assumption ("powerful LLM은 적절히 trained되면 effective meta-orchestrator")이 검증되며, ##더 큰 base로 framework scale하면 추가 gain이 가능##할 것.</li>
+</ul>
+
+<h2>Emergent Behaviors (관찰)</h2>
+
+<p>Appendix F.1에 따르면 학습 중 ##자연 발현##한 coordination 패턴:</p>
+<ol>
+  <li><strong>Sequential with high-level planner</strong>: planner → executor → (refiner) → (checker). 가장 일반적 패턴.</li>
+  <li><strong>Tree coordination</strong>: 여러 agent가 independent하게 작업 → aggregator가 통합.</li>
+  <li><strong>Pure recall</strong>: 사실적 recall task에서는 agent-to-agent collaboration 없이 single agent로.</li>
+  <li><strong>Step-by-step logical decomposition</strong>: complex multi-step problem에서 각 agent가 한 단계씩.</li>
+  <li><strong>Conductor task abdication</strong>: Conductor가 ##더 강한 frontier model##(예: Gemini 2.5 Pro)에 ##subtask design 권한 자체를 위임##. — 저자들의 personal favorite.</li>
+</ol>
+
+<p>Figure 3 시각화: 학습 초반(iteration ~25)에는 sound subtask를 issue하지만 ##collaborative strategy를 활용하지 못함##. Iteration ~200 무렵엔 ##planner 활용 + worker간 reasoning share + verification/refinement##까지 발현 → 더 큰 worker agent들의 individual 성능을 능가.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<ul>
+  <li><strong>API 비용 의존</strong>: Worker pool이 ##expensive frontier API (Gemini 2.5 Pro, Claude Sonnet 4, GPT-5)##를 포함. Conductor 자체는 7B(저렴)지만 inference 단가는 결국 ##worker 호출 비용에 비례##. open-only subset이 작동함을 보였지만 ##absolute performance gap##이 여전히 존재.</li>
+  <li><strong>Worker capability ceiling</strong>: Conductor의 성능 ceiling은 ##worker pool의 best combination##. Conductor가 GPT-5/Claude/Gemini를 능가하지만, 그 ##worker들이 약하면 Conductor 효과도 제한##. 향후 worker가 더 강해지면 Conductor의 marginal value가 어떻게 변할지 불명.</li>
+  <li><strong>Reward 신호의 verifiability 의존</strong>: Math/code/MMLU 같은 ##binary correctness가 가능한 task##에만 적용. ##open-ended creative writing이나 multi-modal task##에서는 reward 정의 자체가 challenge.</li>
+  <li><strong>Training data 다양성 제약</strong>: 단 960 problems × 4 domain. ##다른 domain (translation, planning, agentic web)## generalization은 추후 검증 필요. AIME25/GPQA-D/BCB OOD 결과는 promising하지만 ##domain transfer## 자체는 아님.</li>
+  <li><strong>Recursive scaling의 모호한 budget</strong>: recursive call 수가 inference cost로 직결되나 ##budget 자동 조정 메커니즘이 없음##. Table 2의 +2.2점 gain은 valuable하나 ##2× 호출 비용에 대한 정량 trade-off##가 깊이 분석되지 않음.</li>
+  <li><strong>3B vs 7B의 prompt engineering 격차 origin이 미해명</strong>: 두 모델이 같은 agent를 선택하지만 7B가 더 나은 prompt를 만드는 ##precise mechanism## (어떤 capability가 prompt quality를 결정)에 대한 ablation 부재.</li>
+  <li><strong>Format failure의 0 baseline 설계 정당성</strong>: format 실패에 0, wrong에 0.5 — 이 ##0.5 difference##가 cold-start 학습을 가능하게 한다고 paper는 implicit하게 가정. 다른 reward shape(예: -1 / 0 / 1)와의 비교 ablation이 없음.</li>
+  <li><strong>Multi-agent baseline 학습 시 same data</strong>: MASRouter/RouterDC도 same 7-agent pool과 same training data로 학습되었지만 ##scaffold 자체가 더 expressive하지 못해서## 성능이 낮은 것인지, ##학습 신호가 본질적으로 다른 것인지## 구별 어려움. 특히 MASRouter는 ##fixed prompt template + scaffold##라 expressivity 차이가 본질적이라는 paper 설명은 타당하나 ##empirical contrastive analysis##가 부족.</li>
+  <li><strong>Reproducibility 부분 우려</strong>: 같은 worker pool (특히 GPT-5)이 paper 작성 시점과 다르게 진화하면 결과 재현 어려움. ##API 모델은 시간에 따라 변동##하므로 long-term reproducibility는 challenge.</li>
+  <li><strong>Few-shot OOD의 surprising 발견의 메커니즘</strong>: paper의 설명("OOD가 reward-hackable lazy repetition을 막는다")이 합리적이지만 ##정량적 검증##(예: in-distribution few-shot 시 repetition 빈도 측정)이 부족.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Coordination strategy는 emergent capability"</strong>: end-to-end reward maximization에서 prompt engineering, planner/verifier 분담, task adaptivity가 ##모두 자연 발현##. ##explicit scaffold design이 필요 없다##는 강력한 demonstration.</li>
+  <li><strong>"자연어가 ultimate output medium"</strong>: routing classifier나 graph edge 같은 ##구조화된 output space##는 expressivity가 본질적으로 제약. ##자연어가 임의의 topology를 표현##할 수 있어 더 큰 design space를 열어준다. 다른 ##meta-agent task##(toolchain orchestration, agent composition)에 즉시 transferable.</li>
+  <li><strong>"7B가 frontier를 능가할 수 있다"</strong>: ##2 H100 GPU와 200 GRPO iteration##으로 학습된 7B model이 GPT-5/Claude/Gemini를 능가. ##collective intelligence가 single-model scale을 보완##할 수 있음을 입증. ##학원 규모 연구의 새 가능성##.</li>
+  <li><strong>"Recursive topology = 새 test-time scaling 축"</strong>: open-ended CoT 외에 ##self-referential recursion##이 tunable compute axis. 어려운 task에서 추가 compute를 dynamic allocate.</li>
+  <li><strong>"Adaptive worker pool은 distillation의 dual"</strong>: 비싼 frontier model을 ##직접 distill하는 대신 그들을 더 똑똑하게 조합##. distillation이 capability를 압축한다면 conduction은 capability를 ##활용##. 두 패러다임이 보완적.</li>
+  <li><strong>"Prompt engineering quality가 model scale에 비례"</strong>: 3B vs 7B 비교. ##base model의 natural language capability가 직접 coordination quality로 변환##. 향후 더 큰 base로 학습하면 추가 gain 기대.</li>
+  <li><strong>"OOD few-shot이 in-domain보다 효과적"</strong>: counter-intuitive하지만 ##reward-hackable strategy의 lazy repetition을 막는 explicit benefit##. cold-start training의 일반적 lesson: ##exploration을 incentivize하는 prior conditioning##.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,682 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Conductor 개요 브리핑 — 7B 지휘자가 frontier LLM들을 능가하다</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #1e3c72; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #2a5298; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #f0f4ff 0%, #e3edff 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #c8d8ff; box-shadow: 0 4px 18px rgba(42,82,152,0.08); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #1e3c72; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #2a5298; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-purple { border-left: 5px solid #9b59b6; background: #f8f0ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #2a5298; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #2a5298; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #f0f4ff 0%, #d8e2ff 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #c0d0ff; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #1e3c72; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #2a5298; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #f0f4ff; }
+  .highlight-row { background: #d8e2ff !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(42,82,152,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #a0c0ff; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">Sakana AI · UMich · ISCT</span>
+      <span class="badge">ICLR 2026</span>
+      <span class="badge">Multi-Agent RL</span>
+      <span class="badge">LLM Orchestration</span>
+      <span class="badge">2 H100 GPUs</span>
+    </div>
+    <h1>The Conductor — 7B 지휘자가 GPT-5와 Gemini, Claude를 모두 능가하는 법</h1>
+    <p class="sub">베이스 한 음도 안 치는 오케스트라 지휘자처럼, 7B 모델이 강한 LLM 워커들의 협업을 자연어로 직접 설계해 LiveCodeBench 1위 + 평균 SOTA 달성. 단 2장의 H100으로 학습 가능.</p>
+    <a href="20260518_nielsen_conductor.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"제일 똑똑한 AI 한 명을 만드는 게 아니라, 강력한 AI들이 <strong>어떻게 협업할지</strong>를 똑똑하게 설계하는 작은 AI를 만든다. 그 결과 7B Conductor가 GPT-5 + Claude + Gemini를 <strong>각자</strong> 능가한다."</div>
+    </div>
+
+    <h2>왜 이 문제가 중요한가</h2>
+
+    <h3>"하나의 만능 LLM"은 없다</h3>
+    <p>2026년 현재 frontier LLM들은 각자 다른 영역에 특화되어 있다:</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4>🧮 GPT-5</h4>
+        <p>수학(AIME), 코딩(LiveCodeBench)에 강함. <strong>knowledge-rich domain</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>🔬 Gemini 2.5 Pro</h4>
+        <p>과학 reasoning(GPQA-Diamond), long context. <strong>다양한 학문 정보</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>💻 Claude Sonnet 4</h4>
+        <p>다양한 function call이 들어간 코드 생성(BigCodeBench). <strong>소프트웨어 엔지니어링</strong>.</p>
+      </div>
+      <div class="step">
+        <h4>🚀 DeepSeek-R1</h4>
+        <p>오픈소스 reasoning. <strong>비용 효율</strong> 좋음.</p>
+      </div>
+      <div class="step">
+        <h4>🌟 Qwen3 (thinking)</h4>
+        <p>중국어 + 다국어. 오픈 가중치. <strong>구조화된 reasoning</strong>.</p>
+      </div>
+    </div>
+
+    <p>그러나 <strong>어떤 단일 LLM도 모든 task에서 universally optimal하지 않다</strong>. 그리고 <strong>하나의 task 안에서도</strong> (예: 코딩) 서브 스텝마다 다른 모델이 더 잘한다 — 계획은 Gemini, 구현은 Claude, 검증은 GPT-5처럼.</p>
+
+    <h3>기존 multi-agent 방법의 한계</h3>
+
+    <div class="card card-orange">
+      <h3>① 인간이 설계한 scaffold에 의존</h3>
+      <p>MASRouter, GPTSwarm 같은 방법은 <strong>미리 정해진 topology pool</strong>에서 선택. 인간이 상상한 워크플로우 밖으로 못 나간다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② 단순 router classifier로 환원</h3>
+      <p>RouterDC는 query→best agent로 1대1 매칭. <strong>multi-agent collaboration 자체를 못한다</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Mixture-of-Agents는 비용 폭발</h3>
+      <p>MoA는 8개 agent를 모두 부른 뒤 aggregator로 합성. <strong>평균 8회 호출</strong>, candidate가 부정확하면 misled.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ 표현력의 본질적 제약</h3>
+      <p>모든 기존 방법은 <strong>인간이 정한 routing function 또는 fixed scaffold 구조</strong>에 묶임. <strong>자연어가 표현할 수 있는 임의의 워크플로우</strong>를 카버하지 못한다.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+
+    <h2>배경 지식: 알아두면 좋은 6가지 개념</h2>
+
+    <div class="card card-blue">
+      <h3>1) LLM 워커 (Worker Agent)</h3>
+      <p>GPT-5, Claude, Gemini, Qwen3 같은 <strong>강한 LLM 한 명</strong>. 각자 도메인이 다르고 가격도 다르다. API 호출로 사용.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>2) Multi-Agent 시스템</h3>
+      <p>여러 LLM이 협업해서 한 문제를 푸는 시스템. 인간 팀처럼 <strong>기획자/구현자/검증자</strong> 역할 분담.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>3) Routing</h3>
+      <p>"이 질문은 어떤 LLM에 보낼까?"를 결정하는 <strong>classifier</strong>. 가장 간단한 multi-agent 방식이지만 <strong>한 명만 선택 가능</strong>.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>4) Topology (협업 구조)</h3>
+      <p>여러 agent가 <strong>누가 누구와 정보를 주고받는지</strong>의 구조. Chain (A→B→C), Tree (A,B → C), 또는 더 복잡한 그래프.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>5) GRPO (Group Relative Policy Optimization)</h3>
+      <p>DeepSeek-R1이 사용한 RL 방법. 한 문제에 여러 답을 만들어 <strong>group 내 상대 우수성</strong>을 reward로. 본 논문도 같은 알고리즘.</p>
+    </div>
+
+    <div class="card card-blue">
+      <h3>6) Prompt Engineering</h3>
+      <p><strong>LLM에게 어떻게 질문할지</strong>를 잘 설계하면 같은 모델로도 더 나은 답이 나온다. Conductor는 이걸 <strong>자동으로</strong> 한다.</p>
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>핵심 아이디어: 자연어로 워크플로우를 설계하는 RL Conductor</h2>
+
+    <p>Conductor는 LLM이다. 그러나 user 질문에 <strong>직접 답하지 않는다</strong>. 대신 <strong>다른 LLM들에게 어떻게 답할지를 자연어로 지시</strong>한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Conductor의 출력 = (subtask, 모델 ID, access list) 시퀀스</text>
+
+        <!-- User query -->
+        <rect x="40" y="50" width="200" height="50" rx="8" fill="#f0f4ff" stroke="#2a5298" stroke-width="2"/>
+        <text x="140" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">User Question</text>
+        <text x="140" y="90" text-anchor="middle" font-size="10" fill="#666">"complete subarrays..."</text>
+
+        <path d="M240 75 L290 75" stroke="#1e3c72" stroke-width="2" marker-end="url(#arr5)"/>
+
+        <!-- Conductor -->
+        <rect x="290" y="40" width="140" height="70" rx="10" fill="#1e3c72"/>
+        <text x="360" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="white">Conductor 7B</text>
+        <text x="360" y="85" text-anchor="middle" font-size="10" fill="#fff">CoT + workflow</text>
+        <text x="360" y="100" text-anchor="middle" font-size="10" fill="#fff">자연어 출력</text>
+
+        <path d="M430 75 L480 75" stroke="#1e3c72" stroke-width="2" marker-end="url(#arr5)"/>
+
+        <!-- Workflow specification -->
+        <rect x="480" y="40" width="200" height="70" rx="8" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="580" y="60" text-anchor="middle" font-size="11" font-weight="700" fill="#1e3c72">model_id = [2, 0]</text>
+        <text x="580" y="78" text-anchor="middle" font-size="10" fill="#555">subtasks = [...]</text>
+        <text x="580" y="95" text-anchor="middle" font-size="10" fill="#555">access_list = [[], ["all"]]</text>
+
+        <!-- Workflow execution -->
+        <text x="360" y="145" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3c72">↓ 순차 실행</text>
+
+        <!-- Step 1: planner -->
+        <rect x="40" y="170" width="200" height="80" rx="8" fill="#fff8e1" stroke="#fbc02d" stroke-width="2"/>
+        <text x="140" y="190" text-anchor="middle" font-size="12" font-weight="700" fill="#c97f00">Step 1: Model 2 (Gemini)</text>
+        <text x="140" y="210" text-anchor="middle" font-size="10" fill="#666">"Develop an efficient</text>
+        <text x="140" y="225" text-anchor="middle" font-size="10" fill="#666">algorithm to count..."</text>
+        <text x="140" y="245" text-anchor="middle" font-size="11" font-weight="700" fill="#c97f00">→ 알고리즘 설계</text>
+
+        <path d="M240 210 L290 210" stroke="#888" stroke-width="2" marker-end="url(#arr5)"/>
+        <text x="265" y="200" text-anchor="middle" font-size="9" fill="#555">결과</text>
+
+        <!-- Step 2: implementer -->
+        <rect x="290" y="170" width="200" height="80" rx="8" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="390" y="190" text-anchor="middle" font-size="12" font-weight="700" fill="#1e8449">Step 2: Model 0 (Claude)</text>
+        <text x="390" y="210" text-anchor="middle" font-size="10" fill="#666">"Implement the algorithm</text>
+        <text x="390" y="225" text-anchor="middle" font-size="10" fill="#666">in Python" + Gemini 답</text>
+        <text x="390" y="245" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">→ Python 구현</text>
+
+        <path d="M490 210 L540 210" stroke="#888" stroke-width="2" marker-end="url(#arr5)"/>
+
+        <!-- Output -->
+        <rect x="540" y="170" width="140" height="80" rx="8" fill="#fff5f7" stroke="#fa709a" stroke-width="2"/>
+        <text x="610" y="190" text-anchor="middle" font-size="12" font-weight="700" fill="#c0306e">최종 답</text>
+        <text x="610" y="215" text-anchor="middle" font-size="10" fill="#666">User에게 반환</text>
+
+        <!-- Reward path -->
+        <text x="360" y="290" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3c72">↓ 실행 결과로 reward 계산</text>
+
+        <rect x="100" y="305" width="520" height="60" rx="10" fill="#f5f3ff" stroke="#9b59b6" stroke-width="2"/>
+        <text x="360" y="325" text-anchor="middle" font-size="12" font-weight="700" fill="#6c3a8a">GRPO RL 학습: 정답이면 r=1, 오답이면 r=0.5, format 실패면 r=0</text>
+        <text x="360" y="345" text-anchor="middle" font-size="11" fill="#444">200 iteration, batch 256, no KL — 2 H100 GPU로 학습 완료</text>
+
+        <defs>
+          <marker id="arr5" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ Conductor의 동작: <strong>(subtask 텍스트, model id, access list)</strong> 트리플 시퀀스를 자연어로 출력 → 실행 → reward로 학습.</div>
+    </div>
+
+    <h3>Output의 3가지 요소</h3>
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>Subtask 텍스트</h4>
+        <p>그 step에서 worker가 할 일을 <strong>자연어로 구체적으로</strong> 지시. "Develop algorithm…", "Verify the previous solution…"</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>Model ID</h4>
+        <p><strong>어느 워커</strong>를 부를지. 0~6의 정수 (총 7개 worker).</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>Access List</h4>
+        <p><strong>이전 step 중 어느 것의 답을 이 worker에게 보여줄지</strong>. [] (empty), ["all"] (전체), 또는 특정 index만.</p>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎼 비유</strong>: 오케스트라 <strong>지휘자</strong>와 같다. 지휘자는 베이스도, 첼로도, 바이올린도 직접 안 친다. 그러나 <strong>누가 언제 들어오고</strong>, <strong>어떤 음량과 표정으로 연주할지</strong>, <strong>누가 누구의 멜로디를 듣고 화답할지</strong>를 <strong>지휘봉 하나로</strong> 만든다. 단원들이 아무리 명연주자여도 <strong>지휘자가 없으면 100명이 따로 노는 소음</strong>일 뿐이다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>Conductor가 모든 topology를 표현할 수 있는 이유</h2>
+
+    <p>3-tuple (model_id, subtask, access_list)의 sequence는 <strong>놀랍게도 모든 일반적 워크플로우를 표현할 수 있다</strong>.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">3-tuple 시퀀스로 표현 가능한 4가지 topology</text>
+
+        <!-- Sequential chain -->
+        <text x="100" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">① Sequential (체인)</text>
+        <circle cx="40" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="40" y="105" text-anchor="middle" font-size="11" font-weight="700">A</text>
+        <path d="M58 100 L82 100" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <circle cx="100" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="100" y="105" text-anchor="middle" font-size="11" font-weight="700">B</text>
+        <path d="M118 100 L142 100" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <circle cx="160" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="160" y="105" text-anchor="middle" font-size="11" font-weight="700">C</text>
+        <text x="100" y="140" text-anchor="middle" font-size="9" fill="#666">access_list = [[], ["all"], ["all"]]</text>
+
+        <!-- Tree / parallel -->
+        <text x="280" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">② Tree (병렬)</text>
+        <circle cx="220" cy="80" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="220" y="85" text-anchor="middle" font-size="11" font-weight="700">A</text>
+        <circle cx="280" cy="80" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="280" y="85" text-anchor="middle" font-size="11" font-weight="700">B</text>
+        <circle cx="340" cy="80" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="340" y="85" text-anchor="middle" font-size="11" font-weight="700">C</text>
+        <path d="M220 98 L280 132" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <path d="M280 98 L280 132" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <path d="M340 98 L280 132" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <circle cx="280" cy="150" r="18" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+        <text x="280" y="155" text-anchor="middle" font-size="10" font-weight="700">Agg</text>
+        <text x="280" y="185" text-anchor="middle" font-size="9" fill="#666">A/B/C 독립, D가 종합</text>
+
+        <!-- Pipeline w/ skip -->
+        <text x="460" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">③ Pipeline + Skip</text>
+        <circle cx="400" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="400" y="105" text-anchor="middle" font-size="11" font-weight="700">A</text>
+        <path d="M418 100 L442 100" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <circle cx="460" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="460" y="105" text-anchor="middle" font-size="11" font-weight="700">B</text>
+        <path d="M478 100 L502 100" stroke="#888" stroke-width="2" marker-end="url(#a6)"/>
+        <circle cx="520" cy="100" r="18" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="520" y="105" text-anchor="middle" font-size="11" font-weight="700">C</text>
+        <path d="M400 82 Q460 50 520 82" stroke="#fa709a" stroke-width="2" stroke-dasharray="4" marker-end="url(#a6)" fill="none"/>
+        <text x="460" y="55" text-anchor="middle" font-size="9" fill="#c0306e">A→C 직접 access</text>
+        <text x="460" y="140" text-anchor="middle" font-size="9" fill="#666">access_list = [[], ["all"], [0]]</text>
+
+        <!-- Best of N -->
+        <text x="640" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">④ Single (1-shot)</text>
+        <circle cx="640" cy="100" r="22" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="640" y="106" text-anchor="middle" font-size="11" font-weight="700">A</text>
+        <text x="640" y="140" text-anchor="middle" font-size="9" fill="#666">간단한 질문엔 1단계</text>
+
+        <text x="360" y="240" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3c72">→ 인간이 설계한 topology pool 없이 <strong>모든 구조를 동일 형식으로</strong> 표현</text>
+        <text x="360" y="260" text-anchor="middle" font-size="11" fill="#444">access_list가 어떤 정보를 다음 step에 노출할지 결정 = 정보 흐름 그래프 자유롭게 설계</text>
+
+        <defs>
+          <marker id="a6" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ 같은 3-tuple 시퀀스 형식이 모든 topology를 표현한다. access_list가 정보 흐름을 결정.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>📜 비유</strong>: 음악 <strong>악보 기호</strong>도 결국 <strong>음표(어떤 음)</strong>, <strong>악기 지정</strong>, <strong>연주 지시 (forte, piano)</strong>의 3요소가 시퀀스로 나열되는 것. 그 단순한 형식이 베토벤 9번 교향곡까지 표현한다. 마찬가지로 (model_id, subtask, access_list)의 3-tuple이 <strong>모든 LLM 협업 패턴</strong>을 표현한다.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>학습 방법: 단순한 RL 레시피</h2>
+
+    <p>Conductor의 학습은 <strong>놀랍도록 단순</strong>하다 — DeepSeek-R1의 RL 레시피를 그대로 가져온다.</p>
+
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>Base 모델</h4>
+        <p>Qwen2.5-7B에서 시작.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>Worker pool 준비</h4>
+        <p>Gemini, Claude, GPT-5, DeepSeek-R1, Gemma3, Qwen3 등 <strong>7개 API/오픈 worker</strong>.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>학습 데이터 960문제</h4>
+        <p>MATH500, MMLU, RLPR, LiveCodeBench V1에서 4개 도메인 다양하게 선별.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">4</span>GRPO 학습</h4>
+        <p>한 문제에 64개 rollout, 200 iteration, batch 256. <strong>KL regularization 없음</strong>.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">5</span>Reward 단순</h4>
+        <p>format 실패: 0, 오답: 0.5, 정답: 1.</p>
+      </div>
+    </div>
+
+    <h3>핵심 디자인: 자연어가 output</h3>
+    <p>다른 모든 multi-agent 방법이 <strong>classifier 또는 graph 구조를 학습</strong>하는 반면, Conductor는 <strong>LLM 자체가 자연어로 워크플로우를 출력</strong>. 이 차이가 만드는 expressivity 폭이 결정적.</p>
+
+    <h3>학습 중 발현하는 패턴들</h3>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">학습 진행에 따른 emergent coordination</text>
+
+        <line x1="60" y1="220" x2="660" y2="220" stroke="#333" stroke-width="2"/>
+        <line x1="60" y1="60" x2="60" y2="220" stroke="#333" stroke-width="2"/>
+
+        <text x="360" y="245" text-anchor="middle" font-size="11" fill="#444">학습 iteration</text>
+        <text x="30" y="140" text-anchor="middle" font-size="11" fill="#444" transform="rotate(-90 30 140)">정확도 (LiveCodeBench)</text>
+
+        <!-- Curve -->
+        <path d="M60 200 Q120 195 180 170 Q240 160 300 145 Q360 130 420 115 Q480 105 540 90 Q600 80 660 75" stroke="#1e3c72" stroke-width="3" fill="none"/>
+
+        <!-- Annotations -->
+        <line x1="120" y1="195" x2="120" y2="160" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <text x="180" y="155" text-anchor="middle" font-size="10" fill="#666">초기: 단순 subtask</text>
+        <text x="180" y="168" text-anchor="middle" font-size="10" fill="#666">but no collaboration</text>
+
+        <line x1="300" y1="145" x2="300" y2="110" stroke="#888" stroke-width="1" stroke-dasharray="3"/>
+        <text x="360" y="105" text-anchor="middle" font-size="10" fill="#666">중간: planner 등장</text>
+        <text x="360" y="118" text-anchor="middle" font-size="10" fill="#666">+ 다단계 분해</text>
+
+        <line x1="540" y1="90" x2="540" y2="55" stroke="#27ae60" stroke-width="1" stroke-dasharray="3"/>
+        <text x="600" y="50" text-anchor="middle" font-size="10" fill="#27ae60" font-weight="700">수렴: targeted prompts</text>
+        <text x="600" y="63" text-anchor="middle" font-size="10" fill="#27ae60" font-weight="700">+ verification + refinement</text>
+
+        <!-- baselines -->
+        <line x1="60" y1="115" x2="660" y2="115" stroke="#888" stroke-width="1" stroke-dasharray="6"/>
+        <text x="640" y="112" text-anchor="end" font-size="9" fill="#888">GPT-5 단일</text>
+        <line x1="60" y1="100" x2="660" y2="100" stroke="#888" stroke-width="1" stroke-dasharray="6"/>
+        <text x="640" y="97" text-anchor="end" font-size="9" fill="#888">Gemini</text>
+        <line x1="60" y1="85" x2="660" y2="85" stroke="#fa709a" stroke-width="2" stroke-dasharray="6"/>
+        <text x="640" y="82" text-anchor="end" font-size="9" fill="#fa709a">Claude</text>
+
+        <text x="360" y="260" text-anchor="middle" font-size="11" fill="#444">Conductor가 최강 worker를 능가하는 지점 (Iteration ~140) → 명시적으로 학습된 적 없는 collaboration pattern이 자연 발현</text>
+      </svg>
+      <div class="svg-caption">▲ Iteration이 진행되면서 단순 호출 → 다단계 분해 → 정교한 collaboration까지 자연 발현. 명시적 supervision 없음.</div>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>핵심 성과</h2>
+
+    <div class="stat-row">
+      <div class="stat">
+        <div class="stat-num">+2.49</div>
+        <div class="stat-label">GPT-5 대비 평균 향상<br>(7개 벤치마크)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">83.93</div>
+        <div class="stat-label">LiveCodeBench V6<br>(작성 시점 1위)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">3 calls</div>
+        <div class="stat-label">평균 worker 호출<br>(MoA 8회 대비 1/3)</div>
+      </div>
+      <div class="stat">
+        <div class="stat-num">2× H100</div>
+        <div class="stat-label">학습 자원<br>(학원 규모 가능)</div>
+      </div>
+    </div>
+
+    <h3>Frontier LLM 개별 비교 (전체 7개 벤치마크)</h3>
+    <table class="comp-table">
+      <thead><tr><th>모델</th><th>M500</th><th>MMLU</th><th>RLPR</th><th>LCB</th><th>AIME25</th><th>BCB</th><th>GPQA-D</th><th>평균</th></tr></thead>
+      <tbody>
+        <tr><td>Claude Sonnet 4</td><td>96.0</td><td>91.4</td><td>36.70</td><td>46.54</td><td>74.3</td><td>37.16</td><td>77.7</td><td>65.69</td></tr>
+        <tr><td>Gemini 2.5 Pro</td><td>96.0</td><td>92.4</td><td>40.55</td><td>67.24</td><td>78.3</td><td>37.51</td><td>84.8</td><td>70.97</td></tr>
+        <tr><td>GPT 5</td><td>99.0</td><td>93.5</td><td>42.20</td><td>82.90</td><td>90.8</td><td>32.75</td><td>82.3</td><td>74.78</td></tr>
+        <tr class="highlight-row"><td>Conductor 7B (Ours)</td><td>99.4</td><td>94.1</td><td>44.75</td><td>83.93</td><td>93.3</td><td>37.86</td><td>87.5</td><td>77.27</td></tr>
+      </tbody>
+    </table>
+    <p><strong>7개 벤치마크 모두에서 1위</strong>. 작성 시점 LiveCodeBench online leaderboard에서 OpenAI O-series까지 능가하며 1위.</p>
+
+    <h3>Multi-Agent baseline 비교 (Performance vs Cost)</h3>
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>평균 성능</th><th>Token usage</th><th>비용</th></tr></thead>
+      <tbody>
+        <tr><td>MoA (8 calls)</td><td>62.13</td><td>11203</td><td>$0.0486</td></tr>
+        <tr><td>Smoothie</td><td>56.48</td><td>9909</td><td>$0.0393</td></tr>
+        <tr><td>MASRouter</td><td>56.89</td><td>4970</td><td>$0.0135</td></tr>
+        <tr><td>RouterDC (1 call)</td><td>52.41</td><td>840</td><td>$0.0056</td></tr>
+        <tr class="highlight-row"><td>Conductor (3 calls)</td><td>72.35</td><td>1820</td><td>$0.0238</td></tr>
+      </tbody>
+    </table>
+    <p><strong>압도적 성능 + 두 번째로 낮은 token usage</strong>. Pareto frontier 외각.</p>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>흥미로운 발견 4가지</h2>
+
+    <div class="card card-purple">
+      <h3>① 학습 데이터의 OOD few-shot이 더 효과적</h3>
+      <p>Counter-intuitive: 학습 시 <strong>in-distribution 예시</strong>보다 <strong>out-of-distribution 예시</strong>를 few-shot으로 주면 더 좋은 결과. M500 88.2 → 89.33, LCB 58.32 → 64.29. <strong>OOD example이 lazy repetition reward-hacking을 막고 exploration을 유도</strong>.</p>
+    </div>
+
+    <div class="card card-purple">
+      <h3>② 모델 크기가 prompt engineering 품질을 결정</h3>
+      <p>3B vs 7B Conductor는 <strong>agent selection은 동일</strong>. 그러나 7B가 <strong>더 정교한 subtask 문자열</strong>을 만들어 LCB에서 큰 격차. <strong>base LLM의 자연어 능력이 직접 coordination quality로 변환</strong>.</p>
+    </div>
+
+    <div class="card card-purple">
+      <h3>③ Frontier model을 Conductor로 써도 학습된 7B가 우월</h3>
+      <p>GPT-5/Gemini를 zero-shot prompted Conductor로 쓰면 <strong>worker 능력에 대한 잘못된 가정</strong>(open-source over-reliance) 때문에 <strong>학습된 7B Conductor에 못 미친다</strong>. 학습이 worker capability landscape를 학습시킨다.</p>
+    </div>
+
+    <div class="card card-purple">
+      <h3>④ Task complexity별 step 수 자동 조절</h3>
+      <p>LiveCodeBench (어려운 코딩): 3–4 step. MMLU (사실 회상): 1–2 step. <strong>난이도가 높을수록 더 많은 compute를 자동 할당</strong>. emergent task adaptivity.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>확장: 재귀적 Conductor와 새로운 test-time scaling</h2>
+
+    <p>Conductor 자신을 worker pool에 포함시키면 <strong>자기 자신을 부를 수 있는 재귀</strong>가 가능해진다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="25" text-anchor="middle" font-size="14" font-weight="700">Conductor가 자기 답을 보고 strategy를 재설계</text>
+
+        <!-- First pass -->
+        <rect x="40" y="50" width="160" height="60" rx="8" fill="#fff" stroke="#2a5298" stroke-width="2"/>
+        <text x="120" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#1e3c72">1st Workflow</text>
+        <text x="120" y="92" text-anchor="middle" font-size="10" fill="#666">초기 strategy</text>
+
+        <path d="M200 80 L240 80" stroke="#888" stroke-width="2" marker-end="url(#a7)"/>
+
+        <rect x="240" y="50" width="120" height="60" rx="8" fill="#fff8e1" stroke="#fbc02d" stroke-width="2"/>
+        <text x="300" y="72" text-anchor="middle" font-size="11" font-weight="700" fill="#c97f00">초기 답</text>
+        <text x="300" y="92" text-anchor="middle" font-size="9" fill="#666">(예: GPT-5 답)</text>
+
+        <path d="M360 80 L400 80" stroke="#888" stroke-width="2" marker-end="url(#a7)"/>
+
+        <!-- Self-call -->
+        <rect x="400" y="50" width="160" height="60" rx="8" fill="#f5f3ff" stroke="#9b59b6" stroke-width="2"/>
+        <text x="480" y="72" text-anchor="middle" font-size="12" font-weight="700" fill="#6c3a8a">Conductor (재귀)</text>
+        <text x="480" y="92" text-anchor="middle" font-size="10" fill="#666">"이 답 만족스러운가?"</text>
+
+        <path d="M480 110 L480 145" stroke="#9b59b6" stroke-width="2" marker-end="url(#a7)"/>
+
+        <text x="480" y="135" text-anchor="middle" font-size="10" fill="#6c3a8a">아니오</text>
+
+        <!-- Revised workflow -->
+        <rect x="320" y="155" width="320" height="60" rx="8" fill="#fff" stroke="#9b59b6" stroke-width="2"/>
+        <text x="480" y="178" text-anchor="middle" font-size="12" font-weight="700" fill="#6c3a8a">2nd Workflow: agent 재분배</text>
+        <text x="480" y="198" text-anchor="middle" font-size="10" fill="#666">예: GPT-5 → Claude/Gemini로 전환</text>
+
+        <path d="M480 215 L480 250" stroke="#27ae60" stroke-width="2" marker-end="url(#a7)"/>
+
+        <rect x="400" y="260" width="160" height="40" rx="6" fill="#e8f8e8" stroke="#27ae60" stroke-width="2"/>
+        <text x="480" y="285" text-anchor="middle" font-size="11" font-weight="700" fill="#1e8449">최종 (개선된) 답</text>
+
+        <defs>
+          <marker id="a7" viewBox="0 0 10 10" refX="9" refY="5" orient="auto">
+            <path d="M0,0 L10,5 L0,10 Z" fill="#888"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">▲ Conductor가 자기 답을 본 뒤 worker를 <strong>다른 모델로 재분배</strong>해 개선. BigCodeBench에서 +2.2점.</div>
+    </div>
+
+    <p>Table 2의 결과: BigCodeBench 37.8 → <strong>40.0</strong> (+2.2), GPQA-D 81.31 → <strong>82.32</strong> (+1.0). 분석해보면 BigCodeBench에서 <strong>GPT-5가 strangely 약함</strong>을 Conductor가 첫 번째 시도에서 발견하고, 재귀 호출에서 <strong>Claude/Gemini로 worker 재분배</strong>.</p>
+
+    <div class="analogy">
+      <strong>🔄 비유</strong>: 작가가 <strong>초고를 쓰고 자기가 다시 읽어보며 고쳐쓰는</strong> 과정. 첫 시도에는 평소 쓰던 stylebook(GPT-5 의존)을 따르지만, 결과를 보고 <strong>"이 부분은 시인의 손길이 더 낫겠다"</strong>(Claude로 전환)고 판단해 재할당.
+    </div>
+
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>한계점</h2>
+
+    <div class="card card-orange">
+      <h3>① API 비용 의존</h3>
+      <p>Worker pool이 GPT-5, Claude, Gemini 같은 <strong>expensive API</strong>를 포함. Conductor 자체는 저렴하지만 <strong>inference 단가는 worker 호출 비용에 비례</strong>. open-only subset도 작동하지만 <strong>절대 성능 gap이 존재</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>② Worker ceiling에 종속</h3>
+      <p>Conductor 성능 한도는 <strong>worker 조합의 best 가능치</strong>. worker가 약하면 Conductor도 한계가 있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>③ Verifiable task에만 적용</h3>
+      <p>Math, code, MMLU 같은 <strong>binary 정답이 있는 task</strong>에서만 reward 정의 가능. <strong>open-ended creative writing</strong>이나 multi-modal task는 reward shaping이 추가로 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>④ API 모델의 시간적 가변성</h3>
+      <p>worker가 <strong>GPT-5 같은 closed API</strong>이므로 시간에 따라 진화/변경. <strong>재현성</strong>이 long-term challenge.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⑤ Domain transfer 미검증</h3>
+      <p>training data가 math/code/MMLU/RLPR 4개 도메인만. <strong>translation, planning, web agent</strong>로의 domain transfer는 추후 검증 필요.</p>
+    </div>
+
+  </div>
+</section>
+
+<section style="background: #f5f5f7;">
+  <div class="container">
+    <h2>활용 분야</h2>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="170" r="70" fill="#2a5298"/>
+        <text x="360" y="165" text-anchor="middle" font-size="14" font-weight="700" fill="white">Conductor</text>
+        <text x="360" y="185" text-anchor="middle" font-size="10" fill="white">Multi-LLM Orchestration</text>
+
+        <line x1="360" y1="100" x2="180" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="20" width="200" height="60" rx="10" fill="white" stroke="#27ae60" stroke-width="2"/>
+        <text x="160" y="45" text-anchor="middle" font-size="12" font-weight="700">학원/소규모 lab</text>
+        <text x="160" y="65" text-anchor="middle" font-size="10" fill="#555">2 H100으로 SOTA 가능</text>
+
+        <line x1="360" y1="100" x2="540" y2="50" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="20" width="200" height="60" rx="10" fill="white" stroke="#3498db" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="12" font-weight="700">코드 생성 서비스</text>
+        <text x="560" y="65" text-anchor="middle" font-size="10" fill="#555">LiveCodeBench 1위</text>
+
+        <line x1="290" y1="170" x2="170" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="0" y="140" width="170" height="60" rx="10" fill="white" stroke="#e67e22" stroke-width="2"/>
+        <text x="85" y="165" text-anchor="middle" font-size="12" font-weight="700">에이전트 시스템</text>
+        <text x="85" y="185" text-anchor="middle" font-size="10" fill="#555">메타 오케스트레이션</text>
+
+        <line x1="430" y1="170" x2="560" y2="170" stroke="#999" stroke-width="2"/>
+        <rect x="560" y="140" width="160" height="60" rx="10" fill="white" stroke="#9b59b6" stroke-width="2"/>
+        <text x="640" y="165" text-anchor="middle" font-size="12" font-weight="700">고비용 task 효율화</text>
+        <text x="640" y="185" text-anchor="middle" font-size="10" fill="#555">5× consensus 1/3 비용</text>
+
+        <line x1="360" y1="240" x2="180" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="60" y="260" width="200" height="60" rx="10" fill="white" stroke="#fbc02d" stroke-width="2"/>
+        <text x="160" y="285" text-anchor="middle" font-size="12" font-weight="700">기업 LLM 게이트웨이</text>
+        <text x="160" y="305" text-anchor="middle" font-size="10" fill="#555">cost-aware routing+orch</text>
+
+        <line x1="360" y1="240" x2="540" y2="290" stroke="#999" stroke-width="2"/>
+        <rect x="460" y="260" width="200" height="60" rx="10" fill="white" stroke="#16a085" stroke-width="2"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700">recursive reasoning</text>
+        <text x="560" y="305" text-anchor="middle" font-size="10" fill="#555">테스트 타임 스케일링</text>
+      </svg>
+      <div class="svg-caption">▲ Conductor 패러다임의 응용 영역.</div>
+    </div>
+
+    <h2>한 줄 결론</h2>
+    <div class="conclusion-card">
+      <div class="quote">
+        Frontier LLM의 성능을 끌어올리는 두 가지 방법:<br>
+        <strong>① 더 크고 더 비싸게 학습시킨다 (지금까지의 방법). <br>
+        ② 그들을 똑똑하게 <strong>조합</strong>할 작은 지휘자를 학습시킨다 (Conductor).</strong><br>
+        7B Conductor가 GPT-5/Claude/Gemini를 <strong>모두</strong> 능가했다 — 2장의 H100으로.
+      </div>
+    </div>
+
+    <h2>가져갈 인사이트 3가지</h2>
+    <ul>
+      <li><strong>"Collective intelligence는 single-model scaling의 진정한 대안"</strong>: 더 큰 모델을 만드는 대신 <strong>기존 모델을 더 똑똑하게 조합</strong>하면 frontier를 돌파할 수 있다. 비용/접근성 측면에서 <strong>학원 연구의 새 가능성</strong>.</li>
+      <li><strong>"자연어가 ultimate output medium"</strong>: classifier나 graph 같은 <strong>구조화된 output space</strong>는 expressivity 한계. <strong>자연어로 워크플로우 자체를 출력</strong>하는 것이 임의의 topology를 표현하는 유일한 방법.</li>
+      <li><strong>"Coordination strategy는 emergent capability"</strong>: 명시적으로 가르치지 않은 planner/verifier/refiner 패턴이 <strong>end-to-end reward maximization만으로 자연 발현</strong>. <strong>RL이 LLM에게 가르칠 수 있는 것의 범위</strong>가 prompt engineering까지 확장된다는 발견.</li>
+    </ul>
+
+    <a href="20260518_nielsen_conductor.html" class="nav-link" style="background: #2a5298; color: white;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>Learning to Orchestrate Agents in Natural Language with the Conductor</strong></p>
+    <p>Nielsen, Cetin, Schwendeman, Sun, Xu, Tang · Sakana AI / UMich / ISCT · ICLR 2026</p>
+    <p style="margin-top: 1rem;"><a href="20260518_nielsen_conductor.html">전문가용 보기</a> · <a href="https://openreview.net/forum?id=U23A2BUKYt">OpenReview</a> · <a href="index.html">전체 논문 목록</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>
