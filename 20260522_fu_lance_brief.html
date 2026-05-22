@@ -142,6 +142,71 @@
     <div class="analogy">
       <strong>🍳 비유 (요리 평론가 vs 요리사):</strong> '맛 평론'(이해)에는 "이건 매콤하고 균형 잡힌 요리"라는 고차원 판단이면 충분하다. 하지만 '직접 요리'(생성)에는 "소금 3g, 180도에서 7분"이라는 정밀한 디테일이 필요하다. <strong>한 사람의 머릿속에서 두 모드를 억지로 같은 회로로 처리하면 서로 방해</strong>한다.
     </div>
+
+    <h3>배경 3 — "토큰"과 AI가 정보를 다루는 법</h3>
+    <p>AI는 글이든 그림이든 모두 <strong>토큰(token)</strong>이라는 작은 조각으로 쪼개서 다룬다. 문장은 단어 토큰으로, 이미지는 작은 패치(조각) 토큰으로 나뉜다. Lance의 핵심은 이 토큰들을 <strong>한 줄에 죽 늘어놓고(sequence)</strong> 한꺼번에 처리한다는 점이다.</p>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 150" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="24" text-anchor="middle" font-size="13.5" font-weight="700" fill="#006273">모든 입력을 '토큰'으로 쪼개 한 줄에 늘어놓기</text>
+        <g font-size="11">
+          <rect x="40" y="50" width="50" height="40" rx="5" fill="#fff3e0" stroke="#fb8c00"/><text x="65" y="75" text-anchor="middle">고양</text>
+          <rect x="92" y="50" width="50" height="40" rx="5" fill="#fff3e0" stroke="#fb8c00"/><text x="117" y="75" text-anchor="middle">이가</text>
+          <rect x="144" y="50" width="50" height="40" rx="5" fill="#fff3e0" stroke="#fb8c00"/><text x="169" y="75" text-anchor="middle">앉아</text>
+          <rect x="210" y="50" width="42" height="40" rx="5" fill="#e3f2fd" stroke="#3498db"/><text x="231" y="75" text-anchor="middle">🖼️</text>
+          <rect x="254" y="50" width="42" height="40" rx="5" fill="#e3f2fd" stroke="#3498db"/><text x="275" y="75" text-anchor="middle">🖼️</text>
+          <rect x="298" y="50" width="42" height="40" rx="5" fill="#e3f2fd" stroke="#3498db"/><text x="319" y="75" text-anchor="middle">🖼️</text>
+          <rect x="356" y="50" width="42" height="40" rx="5" fill="#fdecea" stroke="#e74c3c"/><text x="377" y="75" text-anchor="middle">🎬</text>
+          <rect x="400" y="50" width="42" height="40" rx="5" fill="#fdecea" stroke="#e74c3c"/><text x="421" y="75" text-anchor="middle">🎬</text>
+          <rect x="444" y="50" width="42" height="40" rx="5" fill="#fdecea" stroke="#e74c3c"/><text x="465" y="75" text-anchor="middle">🎬</text>
+        </g>
+        <text x="115" y="115" text-anchor="middle" font-size="10.5" fill="#b9700f">텍스트 토큰</text>
+        <text x="275" y="115" text-anchor="middle" font-size="10.5" fill="#2471a3">이미지(의미) 토큰</text>
+        <text x="443" y="115" text-anchor="middle" font-size="10.5" fill="#c0392b">이미지(생성) 토큰</text>
+        <line x1="500" y1="70" x2="560" y2="70" stroke="#888" stroke-width="1.5" marker-end="url(#la1)"/>
+        <rect x="565" y="48" width="170" height="44" rx="8" fill="#e0f7fa" stroke="#00acc1" stroke-width="2"/>
+        <text x="650" y="68" text-anchor="middle" font-size="11.5" font-weight="700" fill="#006978">한 줄로 합친</text>
+        <text x="650" y="84" text-anchor="middle" font-size="11.5" font-weight="700" fill="#006978">멀티모달 sequence</text>
+        <defs><marker id="la1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#888"/></marker></defs>
+      </svg>
+      <div class="svg-caption">텍스트·이미지·비디오가 모두 같은 '토큰 줄'에 섞여 들어간다.</div>
+    </div>
+
+    <h3>배경 4 — AI가 그림을 '만드는' 두 가지 방식</h3>
+    <p>AI가 이미지를 생성하는 방법은 크게 두 가지다. Lance가 왜 이해와 생성에 <strong>다른 학습 방식</strong>을 쓰는지 이해하려면 이 차이를 알아야 한다.</p>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+        <rect x="30" y="30" width="340" height="170" rx="12" fill="#fff3e0" stroke="#fb8c00" stroke-width="2"/>
+        <text x="200" y="56" text-anchor="middle" font-size="14" font-weight="700" fill="#b9700f">① 자기회귀 (이해에 사용)</text>
+        <text x="200" y="80" text-anchor="middle" font-size="11.5" fill="#555">"다음에 올 것을 한 개씩 예측"</text>
+        <g font-size="11">
+          <rect x="55" y="100" width="55" height="34" rx="5" fill="#fff" stroke="#fb8c00"/><text x="82" y="122" text-anchor="middle">고양이</text>
+          <rect x="120" y="100" width="55" height="34" rx="5" fill="#fff" stroke="#fb8c00"/><text x="147" y="122" text-anchor="middle">가</text>
+          <rect x="185" y="100" width="55" height="34" rx="5" fill="#fff" stroke="#fb8c00"/><text x="212" y="122" text-anchor="middle">앉아</text>
+          <rect x="250" y="100" width="55" height="34" rx="5" fill="#ffe0b2" stroke="#e65100"/><text x="277" y="122" text-anchor="middle">?</text>
+        </g>
+        <text x="200" y="160" text-anchor="middle" font-size="10.5" fill="#888">단어→단어 순차 (글쓰기처럼)</text>
+        <text x="200" y="182" text-anchor="middle" font-size="10.5" fill="#888">→ 의미·언어에 강함</text>
+
+        <rect x="390" y="30" width="340" height="170" rx="12" fill="#fdecea" stroke="#e74c3c" stroke-width="2"/>
+        <text x="560" y="56" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">② 확산/플로우 (생성에 사용)</text>
+        <text x="560" y="80" text-anchor="middle" font-size="11.5" fill="#555">"흐릿한 노이즈를 점점 선명하게"</text>
+        <g>
+          <rect x="415" y="100" width="50" height="50" rx="5" fill="#bbb"/><text x="440" y="130" text-anchor="middle" font-size="10" fill="#fff">노이즈</text>
+          <rect x="490" y="100" width="50" height="50" rx="5" fill="#999"/><text x="515" y="130" text-anchor="middle" font-size="16">🌫️</text>
+          <rect x="565" y="100" width="50" height="50" rx="5" fill="#bbb" opacity="0.6"/><text x="590" y="130" text-anchor="middle" font-size="16">🐱</text>
+          <rect x="640" y="100" width="50" height="50" rx="5" fill="#fff" stroke="#e74c3c"/><text x="665" y="132" text-anchor="middle" font-size="18">🐱</text>
+        </g>
+        <line x1="465" y1="125" x2="488" y2="125" stroke="#c0392b" stroke-width="1.5" marker-end="url(#la2)"/>
+        <line x1="540" y1="125" x2="563" y2="125" stroke="#c0392b" stroke-width="1.5" marker-end="url(#la2)"/>
+        <line x1="615" y1="125" x2="638" y2="125" stroke="#c0392b" stroke-width="1.5" marker-end="url(#la2)"/>
+        <text x="560" y="182" text-anchor="middle" font-size="10.5" fill="#888">노이즈→선명 (사진 현상처럼) → 디테일에 강함</text>
+        <defs><marker id="la2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="#c0392b"/></marker></defs>
+      </svg>
+      <div class="svg-caption">Lance는 이해엔 '자기회귀(다음 예측)', 생성엔 '플로우 매칭(노이즈→그림)'을 쓴다. 둘은 학습 방식이 근본적으로 다르다.</div>
+    </div>
+    <div class="analogy">
+      <strong>📷 비유 (사진 현상):</strong> 옛날 암실에서 사진을 현상하면, 흐릿한 인화지가 약품 속에서 <strong>점점 또렷한 사진으로 떠오른다</strong>. 확산/플로우 방식의 이미지 생성이 딱 이렇다 — 무작위 노이즈에서 시작해 한 단계씩 선명한 그림으로 만들어간다. 반면 글쓰기(이해/언어)는 단어를 하나씩 이어 붙이는 순차 방식이라 완전히 다른 메커니즘이다. 그래서 두 능력에 <strong>별도의 전문 두뇌</strong>를 주는 게 합리적이다.
+    </div>
   </div>
 </section>
 
@@ -200,29 +265,86 @@
     <div class="analogy">
       <strong>🏷️ 비유 (회의실 명찰):</strong> 여러 부서 사람이 한 회의실에 모이면 누가 누군지 헷갈린다. 부서별로 다른 색 명찰을 달아주면(=MaPE) 즉시 역할이 구분된다. 특히 '편집'처럼 원본(조건)과 결과물(생성)을 동시에 봐야 하는 작업에서 효과가 컸다.
     </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="24" text-anchor="middle" font-size="13.5" font-weight="700" fill="#006273">MaPE: 같은 자리라도 '역할'에 따라 다른 출발점 부여</text>
+        <text x="120" y="56" text-anchor="middle" font-size="11.5" fill="#2471a3">의미용 토큰</text>
+        <text x="380" y="56" text-anchor="middle" font-size="11.5" fill="#27ae60">조건용(원본) 토큰</text>
+        <text x="640" y="56" text-anchor="middle" font-size="11.5" fill="#c0392b">생성타깃 토큰</text>
+        <!-- three groups on a timeline -->
+        <line x1="40" y1="120" x2="720" y2="120" stroke="#ccc" stroke-width="1.5"/>
+        <g font-size="10" fill="#fff">
+          <rect x="60" y="100" width="36" height="40" rx="4" fill="#3498db"/><text x="78" y="124" text-anchor="middle">0</text>
+          <rect x="100" y="100" width="36" height="40" rx="4" fill="#3498db"/><text x="118" y="124" text-anchor="middle">1</text>
+          <rect x="320" y="100" width="36" height="40" rx="4" fill="#27ae60"/><text x="338" y="124" text-anchor="middle">Δ</text>
+          <rect x="360" y="100" width="36" height="40" rx="4" fill="#27ae60"/><text x="378" y="124" text-anchor="middle">Δ+1</text>
+          <rect x="580" y="100" width="36" height="40" rx="4" fill="#e74c3c"/><text x="598" y="124" text-anchor="middle">2Δ</text>
+          <rect x="620" y="100" width="44" height="40" rx="4" fill="#e74c3c"/><text x="642" y="124" text-anchor="middle">2Δ+1</text>
+        </g>
+        <text x="380" y="172" text-anchor="middle" font-size="11" fill="#666">각 그룹을 시간축에서 Δ만큼 떨어뜨려 → "이건 의미용/조건용/타깃" 구분</text>
+        <text x="380" y="190" text-anchor="middle" font-size="10.5" fill="#888">(공간 좌표는 그대로 두어 그림의 배치는 보존)</text>
+      </svg>
+      <div class="svg-caption">편집 점수가 6.30→6.86으로 가장 크게 올랐다(원본과 결과물을 동시에 봐야 하므로 역할 구분이 결정적).</div>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="container">
     <h2>어떻게 학습했나 — 4단계 훈련</h2>
+    <p>Lance는 능력을 한 번에 다 넣지 않고, <strong>쉬운 것부터 어려운 것 순서로</strong> 4단계에 걸쳐 가르친다. 마치 학생을 기초→심화→실전 순으로 키우듯이.</p>
     <div class="step-flow">
       <div class="step">
         <h4><span class="step-num">1</span>PT (사전학습)</h4>
-        <p>대량 데이터(이미지 10억·비디오 1.4억)로 <strong>기본 보기·그리기</strong> 능력 확립.</p>
+        <p>대량 데이터(이미지 <strong>10억</strong>·비디오 <strong>1.4억</strong>)로 <strong>기본 보기·그리기</strong> 능력 확립. 해상도를 192p→360p→480p로 점점 올림.</p>
       </div>
       <div class="step">
         <h4><span class="step-num">2</span>CT (지속학습)</h4>
-        <p>편집·subject-driven 등 <strong>다양한 task</strong> 추가. 여기서 multi-task 시너지가 발생.</p>
+        <p>편집·subject-driven 등 <strong>다양한 task</strong> 추가. 어려운 task 비율을 점점 늘림. 여기서 multi-task 시너지가 발생.</p>
       </div>
       <div class="step">
         <h4><span class="step-num">3</span>SFT (정밀조정)</h4>
-        <p>고품질 데이터로 <strong>지시 따르기·일관성</strong>을 다듬음.</p>
+        <p>소량의 <strong>고품질 데이터</strong>로 지시 따르기·일관성·정체성 보존을 다듬음.</p>
       </div>
       <div class="step">
         <h4><span class="step-num">4</span>RL (강화학습)</h4>
-        <p>OCR 모델을 채점관으로 써서 <strong>이미지 속 글자 정확도</strong>를 강화.</p>
+        <p>OCR 모델을 채점관으로 써서 <strong>이미지 속 글자 정확도</strong>를 직접 강화.</p>
       </div>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="24" text-anchor="middle" font-size="13.5" font-weight="700" fill="#006273">단계별 학습량(토큰 수) — 갈수록 적고 정밀하게</text>
+        <!-- bars -->
+        <g font-size="11" text-anchor="middle">
+          <rect x="80" y="50" width="120" height="100" rx="6" fill="#1565c0"/>
+          <text x="140" y="105" fill="#fff" font-weight="700">1.5T</text>
+          <text x="140" y="170" fill="#333">PT</text>
+          <text x="140" y="186" fill="#888" font-size="9.5">기초 능력</text>
+
+          <rect x="250" y="110" width="120" height="40" rx="6" fill="#0288d1"/>
+          <text x="310" y="135" fill="#fff" font-weight="700">300B</text>
+          <text x="310" y="170" fill="#333">CT</text>
+          <text x="310" y="186" fill="#888" font-size="9.5">다재다능</text>
+
+          <rect x="420" y="135" width="120" height="15" rx="4" fill="#00acc1"/>
+          <text x="480" y="128" fill="#006978" font-weight="700">72B</text>
+          <text x="480" y="170" fill="#333">SFT</text>
+          <text x="480" y="186" fill="#888" font-size="9.5">정밀조정</text>
+
+          <rect x="590" y="146" width="120" height="4" rx="2" fill="#26c6da"/>
+          <text x="650" y="138" fill="#006978" font-weight="700">0.5B</text>
+          <text x="650" y="170" fill="#333">RL</text>
+          <text x="650" y="186" fill="#888" font-size="9.5">글자 보강</text>
+        </g>
+        <line x1="60" y1="152" x2="720" y2="152" stroke="#ccc"/>
+      </svg>
+      <div class="svg-caption">기초(PT)에 압도적 비중, 뒤로 갈수록 적은 양으로 정밀하게 다듬는다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🎓 비유 (학생 교육 과정):</strong> 학생을 가르칠 때 초등(방대한 기초)→중고등(다양한 과목)→수능 특강(소수 정예)→실전 모의고사(약점 보강) 순으로 진행하듯, Lance도 방대한 기초 학습 후 점점 적고 정밀한 데이터로 능력을 다듬는다.
     </div>
   </div>
 </section>
@@ -240,8 +362,54 @@
       <p>즉, multi-task는 단순히 능력을 '쌓는' 게 아니라 능력들이 <strong>서로를 강화(mutual reinforcement)</strong>한다.</p>
     </div>
 
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="26" text-anchor="middle" font-size="13.5" font-weight="700" fill="#006273">서로를 키우는 양방향 시너지</text>
+        <circle cx="200" cy="120" r="60" fill="#f0f7ff" stroke="#3498db" stroke-width="2.5"/>
+        <text x="200" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#2471a3">👁️ 이해</text>
+        <text x="200" y="136" text-anchor="middle" font-size="11" fill="#666">(보기)</text>
+        <circle cx="520" cy="120" r="60" fill="#fdf0ef" stroke="#e74c3c" stroke-width="2.5"/>
+        <text x="520" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#c0392b">🎨 생성</text>
+        <text x="520" y="136" text-anchor="middle" font-size="11" fill="#666">(그리기·편집)</text>
+        <path d="M 262 100 Q 360 70 458 100" fill="none" stroke="#27ae60" stroke-width="2.5" marker-end="url(#sy1)"/>
+        <text x="360" y="78" text-anchor="middle" font-size="11" fill="#1e8449">이해 데이터 → 생성 향상</text>
+        <path d="M 458 140 Q 360 170 262 140" fill="none" stroke="#9b59b6" stroke-width="2.5" marker-end="url(#sy2)"/>
+        <text x="360" y="185" text-anchor="middle" font-size="11" fill="#7d3c98">생성 데이터 → 이해 향상 (의외!)</text>
+        <defs>
+          <marker id="sy1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#27ae60"/></marker>
+          <marker id="sy2" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#9b59b6"/></marker>
+        </defs>
+      </svg>
+      <div class="svg-caption">단방향이 아니라 양방향. 특히 '생성 데이터가 이해를 돕는' 보라색 화살표가 예상 밖 발견.</div>
+    </div>
+
     <div class="analogy">
       <strong>🎵 비유 (악기와 작곡):</strong> 작곡을 배우면 연주 실력이 늘고, 연주를 많이 하면 작곡 감각이 는다. 따로 배우는 것보다 함께 배울 때 두 능력이 시너지를 낸다. Lance의 이해-생성 관계가 딱 이렇다.
+    </div>
+
+    <h3>곁가지 — 왜 '비디오'가 더 어려운가</h3>
+    <p>Lance가 이미지뿐 아니라 비디오까지 다룬다는 점이 특별하다. 비디오는 <strong>'움직임'이라는 시간 차원</strong>이 추가되기 때문에 훨씬 어렵다.</p>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 160" xmlns="http://www.w3.org/2000/svg">
+        <text x="180" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#2471a3">이미지: 공간만</text>
+        <rect x="120" y="40" width="120" height="90" rx="8" fill="#e3f2fd" stroke="#3498db"/>
+        <text x="180" y="92" text-anchor="middle" font-size="30">🖼️</text>
+        <text x="180" y="148" text-anchor="middle" font-size="10.5" fill="#888">한 장면</text>
+
+        <text x="500" y="24" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">비디오: 공간 + 시간</text>
+        <g>
+          <rect x="380" y="50" width="70" height="70" rx="6" fill="#fdecea" stroke="#e74c3c"/><text x="415" y="92" text-anchor="middle" font-size="20">🎬</text>
+          <rect x="460" y="50" width="70" height="70" rx="6" fill="#fdecea" stroke="#e74c3c"/><text x="495" y="92" text-anchor="middle" font-size="20">🎬</text>
+          <rect x="540" y="50" width="70" height="70" rx="6" fill="#fdecea" stroke="#e74c3c"/><text x="575" y="92" text-anchor="middle" font-size="20">🎬</text>
+        </g>
+        <line x1="375" y1="135" x2="615" y2="135" stroke="#c0392b" stroke-width="1.5" marker-end="url(#vd1)"/>
+        <text x="495" y="152" text-anchor="middle" font-size="10.5" fill="#888">시간 →  (장면이 자연스럽게 이어져야)</text>
+        <defs><marker id="vd1" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 Z" fill="#c0392b"/></marker></defs>
+      </svg>
+      <div class="svg-caption">Lance는 학습 시 이미지:비디오를 약 1:4 비율로 섞어, 더 어려운 비디오에 가중치를 둔다.</div>
+    </div>
+    <div class="analogy">
+      <strong>📚 비유 (사진 vs 만화):</strong> 사진 한 장 그리기와 만화 여러 컷을 '앞뒤가 자연스럽게 이어지게' 그리는 건 난이도가 다르다. 비디오 생성은 매 프레임의 디테일뿐 아니라 <strong>프레임 사이의 일관성(같은 인물이 갑자기 변하지 않기)</strong>까지 맞춰야 해서 훨씬 어렵다.
     </div>
   </div>
 </section>
@@ -257,6 +425,36 @@
       <tr class="highlight-row"><td>비디오 이해</td><td>MVBench</td><td>62.0</td><td>7B Show-o2(50.6) +11%</td></tr>
     </table>
     <p style="text-align:center;color:#555;">네 가지 능력 <strong>모두에서</strong> 3B라는 작은 크기로 훨씬 큰 모델들을 따라잡거나 능가했다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 200" xmlns="http://www.w3.org/2000/svg">
+        <text x="360" y="24" text-anchor="middle" font-size="13.5" font-weight="700" fill="#006273">모델 크기 비교 — Lance는 '경량급'인데 결과는 '헤비급'</text>
+        <line x1="70" y1="160" x2="690" y2="160" stroke="#ccc"/>
+        <g text-anchor="middle" font-size="11">
+          <rect x="100" y="135" width="70" height="25" rx="4" fill="#00acc1"/>
+          <text x="135" y="153" fill="#fff" font-weight="700" font-size="10">3B</text>
+          <text x="135" y="178" fill="#006978" font-weight="700">Lance</text>
+
+          <rect x="230" y="105" width="70" height="55" rx="4" fill="#90a4ae"/>
+          <text x="265" y="138" fill="#fff" font-size="10">7B</text>
+          <text x="265" y="178" fill="#555">BAGEL</text>
+
+          <rect x="360" y="40" width="70" height="120" rx="4" fill="#90a4ae"/>
+          <text x="395" y="100" fill="#fff" font-size="10">20B</text>
+          <text x="395" y="178" fill="#555">Qwen-Image</text>
+
+          <rect x="490" y="60" width="70" height="100" rx="4" fill="#90a4ae"/>
+          <text x="525" y="115" fill="#fff" font-size="10">8B</text>
+          <text x="525" y="178" fill="#555">Emu3-Gen</text>
+
+          <rect x="620" y="118" width="55" height="42" rx="4" fill="#90a4ae"/>
+          <text x="647" y="143" fill="#fff" font-size="9.5">1.7B</text>
+          <text x="647" y="178" fill="#555" font-size="10">InternVL-U</text>
+        </g>
+        <text x="135" y="125" text-anchor="middle" font-size="10.5" fill="#006978">🏆 동급 성능</text>
+      </svg>
+      <div class="svg-caption">막대 높이 = 모델 크기. Lance(3B)는 가장 작으면서도 더 큰 모델들과 대등하거나 우월한 점수.</div>
+    </div>
   </div>
 </section>
 
