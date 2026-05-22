@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lance 개요 브리핑 — 하나의 AI가 보고·그리고·편집까지</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #1565c0 0%, #00acc1 60%, #26c6da 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #1565c0; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #00acc1; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #e3f2fd 0%, #e0f7fa 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #b3e5fc; box-shadow: 0 4px 18px rgba(0,172,193,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #006978; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #00acc1; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #00acc1; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #00acc1; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #e3f2fd 0%, #c5ecf2 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #b0dce8; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #006978; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #00acc1; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #e0f7fa; }
+  .highlight-row { background: #c5ecf2 !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #1565c0 0%, #00acc1 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(21,101,192,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #80deea; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">ByteDance</span>
+      <span class="badge">2026.05.20</span>
+      <span class="badge">Unified Multimodal</span>
+      <span class="badge">이미지+비디오</span>
+      <span class="badge">arXiv 2605.18678</span>
+    </div>
+    <h1>Lance — 하나의 AI가 보고·그리고·편집까지 다 한다</h1>
+    <p class="sub">이미지와 비디오를 '이해'하고 '생성'하고 '편집'하는 능력을 단 하나의 작은 모델(3B)에 담았다. 비결은 두 능력에 별도의 전문 두뇌를 주되, 같은 작업실에서 함께 훈련시키는 것.</p>
+    <a href="20260522_fu_lance.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"한 사람이 <strong>'그림 감상'(이해)</strong>과 <strong>'그림 그리기'(생성)</strong>를 모두 배우되, 두 능력에 <strong>각각 전문 두뇌 영역</strong>을 주고 같은 작업실에서 훈련시켰더니 — 감상이 그리기를, 그리기가 감상을 서로 도와주더라."</div>
+    </div>
+
+    <h2>핵심 성과 한눈에</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">3B</div><div class="stat-label">활성 파라미터<br>(7~20B 모델과 경쟁)</div></div>
+      <div class="stat"><div class="stat-num">0.90</div><div class="stat-label">GenEval<br>이미지 생성 (최상위)</div></div>
+      <div class="stat"><div class="stat-num">85.1</div><div class="stat-label">VBench<br>비디오 생성 (1위)</div></div>
+      <div class="stat"><div class="stat-num">128</div><div class="stat-label">GPU로 학습<br>(자원 효율적)</div></div>
+    </div>
+
+    <h2>먼저 알아야 할 배경 지식</h2>
+
+    <h3>배경 1 — "Unified(통합) 멀티모달 모델"이란?</h3>
+    <p>지금까지 AI는 보통 한 가지만 잘했다. <strong>이미지를 이해하는 AI</strong>(예: "이 사진 속에 뭐가 있어?")와 <strong>이미지를 생성하는 AI</strong>(예: Midjourney, "고양이를 그려줘")는 서로 다른 모델이었다. <strong>Unified 모델</strong>은 이 둘을 하나로 합치려는 시도다. 한 모델이 보기도 하고 그리기도 한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+        <text x="180" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#888">기존: 따로따로</text>
+        <rect x="40" y="50" width="130" height="55" rx="8" fill="#f0f7ff" stroke="#3498db"/>
+        <text x="105" y="75" text-anchor="middle" font-size="12.5" fill="#2471a3">이해 모델</text>
+        <text x="105" y="93" text-anchor="middle" font-size="10.5" fill="#888">(보기)</text>
+        <rect x="190" y="50" width="130" height="55" rx="8" fill="#fdf0ef" stroke="#e74c3c"/>
+        <text x="255" y="75" text-anchor="middle" font-size="12.5" fill="#c0392b">생성 모델</text>
+        <text x="255" y="93" text-anchor="middle" font-size="10.5" fill="#888">(그리기)</text>
+        <text x="180" y="140" text-anchor="middle" font-size="11.5" fill="#888">+ 편집은 또 별도 모델…</text>
+
+        <text x="560" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#006978">Lance: 하나로</text>
+        <rect x="440" y="50" width="240" height="100" rx="10" fill="#e0f7fa" stroke="#00acc1" stroke-width="2"/>
+        <text x="560" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#006978">단일 통합 모델</text>
+        <text x="560" y="110" text-anchor="middle" font-size="11.5" fill="#555">이해 · 생성 · 편집</text>
+        <text x="560" y="130" text-anchor="middle" font-size="11.5" fill="#555">이미지 + 비디오</text>
+      </svg>
+      <div class="svg-caption">여러 전용 모델 대신, 하나의 통합 모델이 모든 시각 task를 처리한다.</div>
+    </div>
+
+    <h3>배경 2 — 왜 합치기가 어려울까? (핵심 딜레마)</h3>
+    <p>이해와 생성을 합치는 게 왜 어려운가? 두 능력이 <strong>요구하는 '시각 정보의 종류'가 정반대</strong>이기 때문이다.</p>
+
+    <div class="step-flow">
+      <div class="step" style="border-top-color:#3498db;">
+        <h4>👁️ 이해(보기)에 필요한 것</h4>
+        <p><strong>고차원 의미</strong>(semantic). "이건 고양이고, 슬퍼 보이고, 실내에 있다" — 세부 픽셀은 중요하지 않다.</p>
+      </div>
+      <div class="step" style="border-top-color:#e74c3c;">
+        <h4>🎨 생성(그리기)에 필요한 것</h4>
+        <p><strong>저차원 디테일</strong>(texture·geometry). 털 한 올, 그림자, 색감 — 픽셀 수준 디테일이 결정적.</p>
+      </div>
+    </div>
+
+    <div class="analogy">
+      <strong>🍳 비유 (요리 평론가 vs 요리사):</strong> '맛 평론'(이해)에는 "이건 매콤하고 균형 잡힌 요리"라는 고차원 판단이면 충분하다. 하지만 '직접 요리'(생성)에는 "소금 3g, 180도에서 7분"이라는 정밀한 디테일이 필요하다. <strong>한 사람의 머릿속에서 두 모드를 억지로 같은 회로로 처리하면 서로 방해</strong>한다.
+    </div>
+  </div>
+</section>
+
+<section style="background:#e8f7fb;">
+  <div class="container">
+    <h2>Lance의 핵심 아이디어 — 2가지 원칙</h2>
+
+    <h3>원칙 1 — 같은 작업실 (Unified Context)</h3>
+    <p>텍스트·이미지·비디오를 모두 <strong>하나의 긴 줄(sequence)에 섞어</strong> 모델에게 보여준다. 그래서 모든 능력이 같은 맥락을 공유하며 서로 배울 수 있다.</p>
+
+    <h3>원칙 2 — 별도의 전문 두뇌 (Decoupled Experts)</h3>
+    <p>같은 작업실을 공유하되, <strong>'이해 전문가'와 '생성 전문가' 두 개의 별도 두뇌</strong>를 둔다. 서로 같은 파라미터를 두고 싸우지 않게.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
+        <!-- inputs -->
+        <rect x="30" y="20" width="120" height="36" rx="6" fill="#fff" stroke="#888"/>
+        <text x="90" y="43" text-anchor="middle" font-size="11.5">📝 텍스트</text>
+        <rect x="320" y="20" width="120" height="36" rx="6" fill="#fff" stroke="#888"/>
+        <text x="380" y="43" text-anchor="middle" font-size="11.5">🖼️ 이미지(의미)</text>
+        <rect x="610" y="20" width="120" height="36" rx="6" fill="#fff" stroke="#888"/>
+        <text x="670" y="43" text-anchor="middle" font-size="11.5">🎬 이미지(생성)</text>
+
+        <!-- MaPE bar -->
+        <rect x="30" y="78" width="700" height="34" rx="6" fill="#fff3e0" stroke="#fb8c00"/>
+        <text x="380" y="100" text-anchor="middle" font-size="12.5" fill="#e65100">MaPE: 각 토큰에 "역할 표시"를 붙여 위치로 구분 (의미용/조건용/생성타깃)</text>
+
+        <!-- shared sequence -->
+        <rect x="30" y="128" width="700" height="42" rx="8" fill="#e0f7fa" stroke="#00acc1" stroke-width="2"/>
+        <text x="380" y="154" text-anchor="middle" font-size="13" font-weight="700" fill="#006978">하나의 공유 sequence (같은 작업실)</text>
+
+        <!-- two experts -->
+        <rect x="120" y="200" width="220" height="64" rx="10" fill="#f0f7ff" stroke="#3498db" stroke-width="2"/>
+        <text x="230" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="#2471a3">👁️ 이해 전문가</text>
+        <text x="230" y="248" text-anchor="middle" font-size="11" fill="#666">"다음 단어 맞히기"</text>
+
+        <rect x="420" y="200" width="220" height="64" rx="10" fill="#fdf0ef" stroke="#e74c3c" stroke-width="2"/>
+        <text x="530" y="226" text-anchor="middle" font-size="13" font-weight="700" fill="#c0392b">🎨 생성 전문가</text>
+        <text x="530" y="248" text-anchor="middle" font-size="11" fill="#666">"노이즈→그림 방향 맞히기"</text>
+
+        <line x1="280" y1="170" x2="230" y2="198" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="480" y1="170" x2="530" y2="198" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="90" y1="56" x2="90" y2="76" stroke="#aaa"/>
+        <line x1="380" y1="56" x2="380" y2="76" stroke="#aaa"/>
+        <line x1="670" y1="56" x2="670" y2="76" stroke="#aaa"/>
+      </svg>
+      <div class="svg-caption">Lance 전체 구조: 입력 → MaPE로 역할 표시 → 공유 sequence → 두 전문가가 각자 처리.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🧠 비유 (좌뇌·우뇌 같은 작업실):</strong> 사람의 뇌도 언어(좌뇌)와 공간 인지(우뇌)에 특화된 영역이 나뉘어 있지만, 같은 머리 안에서 정보를 공유한다. Lance도 이해·생성 전문가를 분리하되 같은 정보(공유 sequence)를 보게 해서, 두 능력이 서로를 강화하게 만든다.
+    </div>
+
+    <h3>보너스 아이디어 — MaPE (역할 이름표 붙이기)</h3>
+    <p>한 줄에 여러 종류의 시각 토큰(의미용/조건용/생성용)이 섞이면 모델이 헷갈린다. MaPE는 각 토큰 그룹을 <strong>'시간축에서 서로 다른 출발점'에 배치</strong>해서 "이건 의미용, 이건 생성 타깃"이라고 위치로 알려준다.</p>
+    <div class="analogy">
+      <strong>🏷️ 비유 (회의실 명찰):</strong> 여러 부서 사람이 한 회의실에 모이면 누가 누군지 헷갈린다. 부서별로 다른 색 명찰을 달아주면(=MaPE) 즉시 역할이 구분된다. 특히 '편집'처럼 원본(조건)과 결과물(생성)을 동시에 봐야 하는 작업에서 효과가 컸다.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>어떻게 학습했나 — 4단계 훈련</h2>
+    <div class="step-flow">
+      <div class="step">
+        <h4><span class="step-num">1</span>PT (사전학습)</h4>
+        <p>대량 데이터(이미지 10억·비디오 1.4억)로 <strong>기본 보기·그리기</strong> 능력 확립.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">2</span>CT (지속학습)</h4>
+        <p>편집·subject-driven 등 <strong>다양한 task</strong> 추가. 여기서 multi-task 시너지가 발생.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">3</span>SFT (정밀조정)</h4>
+        <p>고품질 데이터로 <strong>지시 따르기·일관성</strong>을 다듬음.</p>
+      </div>
+      <div class="step">
+        <h4><span class="step-num">4</span>RL (강화학습)</h4>
+        <p>OCR 모델을 채점관으로 써서 <strong>이미지 속 글자 정확도</strong>를 강화.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section style="background:#e8f7fb;">
+  <div class="container">
+    <h2>가장 흥미로운 발견 — "다재다능이 서로를 키운다"</h2>
+    <div class="card card-green">
+      <h3>🎯 Multi-Task Synergy (다중작업 시너지)</h3>
+      <p>여러 task를 함께 학습시키면 보통 "이것저것 다 하느라 각각은 평범"해질 거라 생각한다. 그런데 Lance에서는 정반대였다:</p>
+      <ul>
+        <li><strong>이해 데이터를 추가했더니 → 이미지·비디오 '생성'이 좋아졌다.</strong> (보는 연습이 그리기를 도움)</li>
+        <li><strong>생성 편집 데이터를 추가했더니 → 비디오 '이해'까지 좋아졌다.</strong> (그리는 연습이 보기를 도움 — 이건 정말 의외!)</li>
+      </ul>
+      <p>즉, multi-task는 단순히 능력을 '쌓는' 게 아니라 능력들이 <strong>서로를 강화(mutual reinforcement)</strong>한다.</p>
+    </div>
+
+    <div class="analogy">
+      <strong>🎵 비유 (악기와 작곡):</strong> 작곡을 배우면 연주 실력이 늘고, 연주를 많이 하면 작곡 감각이 는다. 따로 배우는 것보다 함께 배울 때 두 능력이 시너지를 낸다. Lance의 이해-생성 관계가 딱 이렇다.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>성적표 — 작은 모델이 큰 모델을 이기다</h2>
+    <table class="comp-table">
+      <tr><th>능력</th><th>벤치마크</th><th>Lance(3B)</th><th>비교</th></tr>
+      <tr class="highlight-row"><td>이미지 생성</td><td>GenEval</td><td>0.90</td><td>20B Qwen-Image(0.87) 능가</td></tr>
+      <tr class="highlight-row"><td>비디오 생성</td><td>VBench</td><td>85.11 (1위)</td><td>unified 모델 중 최고</td></tr>
+      <tr class="highlight-row"><td>이미지 편집</td><td>GEdit-Bench</td><td>7.30</td><td>unified 모델 중 최고</td></tr>
+      <tr class="highlight-row"><td>비디오 이해</td><td>MVBench</td><td>62.0</td><td>7B Show-o2(50.6) +11%</td></tr>
+    </table>
+    <p style="text-align:center;color:#555;">네 가지 능력 <strong>모두에서</strong> 3B라는 작은 크기로 훨씬 큰 모델들을 따라잡거나 능가했다.</p>
+  </div>
+</section>
+
+<section style="background:#e8f7fb;">
+  <div class="container">
+    <h2>한계점 — 균형 잡힌 시각</h2>
+    <div class="card card-orange">
+      <h3>🔸 "3B"는 약간의 마케팅</h3>
+      <p>'3B 활성 파라미터'를 강조하지만, 두 전문가(MoE) 구조라 <strong>전체 파라미터는 더 크다</strong>. ViT 인코더·VAE까지 합치면 실제 모델 크기는 "3B"가 주는 인상보다 크고, 128 GPU도 결코 작은 자원이 아니다.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>🔸 글자 편집이 약하다</h3>
+      <p>저자도 인정하듯 <strong>이미지 속 텍스트 수정(text modification)이 약점</strong>이다. 그래서 RL 단계에서 OCR 채점관까지 동원해야 했다. 정밀한 글자 일관성은 여전히 미해결 과제.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>🔸 작은 차이로 내린 결론</h3>
+      <p>"다중작업이 비디오 이해를 향상"이라는 흥미로운 주장은 58.1→59.2(약 1점) 같은 <strong>작은 차이</strong>에 기반한다. 통계적 유의성이나 여러 번 반복한 결과가 보고되지 않아, 이 작은 향상이 노이즈인지 진짜인지는 더 검증이 필요하다.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>🔸 "from scratch"의 모호함</h3>
+      <p>초록에서 "처음부터 학습(from scratch)"이라 하지만 실제로는 <strong>Qwen2.5-VL 3B 가중치로 초기화</strong>한다. 표현과 실제 사이에 약간의 수사적 긴장이 있다.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>활용 분야</h2>
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+        <circle cx="360" cy="120" r="46" fill="#e0f7fa" stroke="#00acc1" stroke-width="2"/>
+        <text x="360" y="116" text-anchor="middle" font-size="14" font-weight="700" fill="#006978">Lance</text>
+        <text x="360" y="135" text-anchor="middle" font-size="10" fill="#888">통합 시각 AI</text>
+        <g font-size="11.5">
+          <rect x="60" y="30" width="160" height="38" rx="8" fill="#fff" stroke="#3498db"/>
+          <text x="140" y="54" text-anchor="middle" fill="#2471a3">🎨 콘텐츠 제작</text>
+          <rect x="500" y="30" width="160" height="38" rx="8" fill="#fff" stroke="#27ae60"/>
+          <text x="580" y="54" text-anchor="middle" fill="#1e8449">🎬 영상 편집</text>
+          <rect x="60" y="172" width="160" height="38" rx="8" fill="#fff" stroke="#e67e22"/>
+          <text x="140" y="196" text-anchor="middle" fill="#b9700f">📸 상품 이미지</text>
+          <rect x="500" y="172" width="160" height="38" rx="8" fill="#fff" stroke="#9b59b6"/>
+          <text x="580" y="196" text-anchor="middle" fill="#7d3c98">💬 멀티모달 비서</text>
+        </g>
+        <line x1="220" y1="49" x2="318" y2="105" stroke="#ccc"/>
+        <line x1="500" y1="49" x2="402" y2="105" stroke="#ccc"/>
+        <line x1="220" y1="191" x2="318" y2="135" stroke="#ccc"/>
+        <line x1="500" y1="191" x2="402" y2="135" stroke="#ccc"/>
+      </svg>
+      <div class="svg-caption">하나의 모델로 생성·편집·이해를 다 하므로, 여러 도구를 갈아탈 필요 없이 통합 워크플로우가 가능.</div>
+    </div>
+  </div>
+</section>
+
+<section style="background:#e8f7fb;">
+  <div class="container">
+    <div class="conclusion-card">
+      <div class="quote">"이해와 생성을 한 두뇌에서 싸우게 하지 말고,<br>별도 전문가로 나누되 같은 작업실을 공유시켜라.<br>그러면 작은 모델(3B)로도 큰 모델을 이길 수 있고,<br>능력들이 서로를 키운다."</div>
+    </div>
+
+    <h2>핵심을 다시 한 번</h2>
+    <div class="card card-accent">
+      <ul>
+        <li>🎯 Lance = 이미지+비디오의 이해·생성·편집을 하나로 합친 통합 멀티모달 모델.</li>
+        <li>🧠 비결 = 같은 작업실(공유 맥락) + 별도 전문 두뇌(이해/생성 분리).</li>
+        <li>🏷️ MaPE = 여러 종류 시각 토큰에 '역할 명찰'을 붙여 헷갈림 방지 (특히 편집에 효과).</li>
+        <li>🤝 가장 흥미로운 발견 = 다재다능이 서로를 강화한다(보기↔그리기 시너지).</li>
+        <li>📊 3B 작은 크기로 GenEval 0.90·VBench 85.1 등 7~20B 모델 능가.</li>
+        <li>⚠️ 단, '3B'는 활성 파라미터 기준이고 글자 편집은 아직 약점.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>Lance: Unified Multimodal Modeling by Multi-Task Synergy</strong></p>
+    <p>Fengyi Fu, Mengqi Huang, Shaojin Wu 외 · Intelligent Creation Lab, ByteDance · 2026</p>
+    <p><a href="https://arxiv.org/abs/2605.18678">arXiv:2605.18678</a> · <a href="https://lance-project.github.io">project page</a></p>
+    <p style="margin-top:1rem;"><a href="20260522_fu_lance.html" style="color:#fff;background:#00acc1;padding:0.5rem 1rem;border-radius:6px;text-decoration:none;">전문가용 상세 요약 보기 →</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

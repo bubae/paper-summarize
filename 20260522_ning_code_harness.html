@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code as Agent Harness — 서베이 요약</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Code as Agent Harness: Toward Executable, Verifiable, and Stateful Agent Systems</h1>
+
+<a href="20260522_ning_code_harness_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Xuying Ning, Katherine Tieu, Dongqi Fu, Tianxin Wei, Zihao Li, Yuanchen Bei (core contributors) 외 다수 · Hanghang Tong, Jingrui He (corresponding)</li>
+  <li><strong>소속</strong>: University of Illinois Urbana-Champaign, Meta, Stanford University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (서베이, 66p 본문 + 부록)</li>
+  <li><strong>연도</strong>: 2026 (May 18)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.18747">arXiv:2605.18747</a> · <a href="https://github.com/YennNing/Awesome-Code-as-Agent-Harness-Papers">GitHub (paper list)</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM이 "코드를 잘 짠다"는 것은 이미 풀린 문제처럼 보이지만, 실제 agentic system에서 자율성의 병목은 base model의 추론 능력만이 아니라 ##모델 출력을 long-horizon action과 persistent state에 연결하는 시스템(=harness)의 신뢰성##이다. 기존 서베이는 코드를 "LLM이 생성하는 최종 결과물"로만 다룬다.</li>
+  <li><strong>해결</strong>: 코드를 ##agent harness — 에이전트가 추론·행동·상태유지·검증을 수행하는 실행 가능하고 검사 가능한 매체##로 재정의(reframe)한다. 코드의 세 성질 ##executable(실행 가능) · inspectable(검사 가능) · stateful(상태 유지)##이 단순한 표기법 특성이 아니라 harness를 "기능"하게 만드는 핵심임을 주장.</li>
+  <li><strong>왜 작동하는가</strong>: 코드는 (1) 모델 의도를 형식적으로 검증 가능한 연산으로 만들고(executability), (2) 실패를 진단·피드백 가능한 구조화된 trace로 노출하며(inspectability), (3) 단계 간 상호작용 이력을 잃지 않는 영속적·수정가능 형태로 보존한다(statefulness). 자연어 대화 채널과 달리 ##객관적 oracle signal(hallucinate 불가능)##을 만든다.</li>
+  <li><strong>비유</strong>: 코드는 에이전트의 "운영체제 + 작업대(workbench)"다. 자연어가 머릿속 생각이라면, 코드는 ##그 생각을 실행해보고, 결과를 눈으로 확인하고, 작업 중간 상태를 책상 위에 그대로 남겨두는## 물리적 작업 공간이다. 여러 작업자가 같은 작업대를 공유하면 멀티에이전트 협업이 된다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>개념적 재정의 (Conceptual framing)</strong>: <em>code as agent harness</em> — 코드를 "생성된 산출물"에서 ##실행 가능·검증 가능·상태 유지 가능한 AI 에이전트 시스템의 운영 기반(operational substrate)##으로 재정의. 코드의 세 가지 기능적 성질을 명시.</li>
+  <li><strong>3계층 taxonomy와 종합</strong>: 문헌을 ##(1) Harness Interface(§2), (2) Harness Mechanisms(§3), (3) Scaling the Harness(§4)##의 세 연결 계층으로 조직. 각 계층마다 대표 시스템을 표로 정리(Table 1~11).</li>
+  <li><strong>새로운 position 제안</strong>: 차세대 멀티에이전트 지능을 위한 ##shared code-centric harness substrate##(공유 코드 중심 harness 기반)을 제시. 현재 문헌의 핵심 gap = "에이전트가 query·update할 수 있는 형식적·영속적 공유 코드 상태의 부재".</li>
+  <li><strong>5대 응용 분야 + 7대 미해결 문제</strong>: code assistants, GUI/OS agents, scientific discovery, personalization, embodied agents 5개 도메인에 taxonomy를 연결하고, harness engineering의 미래 의제(evaluation, verification, safety, coordination)를 7개 open problem으로 정리.</li>
+</ol>
+
+<h2>배경 (Background): "Agent Harness"란 무엇인가</h2>
+
+<h3>Harness의 정의와 세 가지 구성요소</h3>
+<p>최근 논의에서 <strong>agent harness</strong>는 ##LLM을 둘러싸고 tool, API, sandbox, memory, validator, permission boundary, execution loop, feedback channel을 제공하여, stateless model을 long-running task를 수행하는 functional agent로 바꾸는 소프트웨어 계층##을 가리킨다. 이 관점에서 자율성의 병목은 base model의 추론 능력만이 아니라 ##모델 출력을 장기 행동·영속 상태에 연결하는 시스템의 신뢰성##이다.</p>
+
+<p>저자들은 long-running agentic system에서 세 가지 결합된 요소를 구분한다:</p>
+<ul>
+  <li><strong>Model-internal capabilities</strong>: 모델의 reasoning, perception, planning, simulation, evaluation 능력.</li>
+  <li><strong>System-provided harness infrastructure</strong>: 사전 정의된 tools, API, sandbox, memory system, validator, permission boundary, telemetry, workflow — ##harness engineering의 주된 초점##.</li>
+  <li><strong>Agent-initiated code artifacts</strong>: 에이전트가 task 실행 loop 안에서 ##생성·실행·관찰·수정·영속화·공유##하는 코드 객체. 상대적으로 underexplored. 예: regression test, 임시 tool, DSL 프로그램, executable workflow, reusable skill, 중간 program state. (Claude Code, Codex, LangChain 등이 이를 구현.)</li>
+</ul>
+
+<h3>왜 "코드"가 답인가 — Scope boundary</h3>
+<p>저자들은 <em>code</em>를 비유적이 아니라 ##실행 가능하거나 machine-checkable한 산출물##(프로그램, 스크립트, formal spec, proof script, API schema, tool definition, test, repository, config, 그리고 실행 시스템이 생성/소비하는 trace·log)으로 넓게 정의한다. 반면 raw perception, physical state, human intent, model-internal latent reasoning은 ##그 자체로는 코드가 아니다##(코드를 통해 sensed/verified될 수는 있음). 이 경계가 중요한 이유: code as harness interface는 perception·embodiment·human goal·model reasoning을 ##대체하는 것이 아니라, 그 일부를 agent loop 안에서 executable·inspectable·stateful하게 만드는 것##이기 때문이다.</p>
+
+<div class="flow-diagram">[AI Agent(s)] --Generate--> [Code] --Execute--> [External Environment]
+                  <--Feedback--          <--Verification--
+
+  Code as Harness Infrastructure:
+   ├─ Reasoning Substrate  (externalize inference, intermediate reasoning, verify by execution)  → Inspectable
+   ├─ Action Interface     (interact with tools, embodied robots, code to actions)              → Executable
+   └─ Environment Modeling (program states, execution traces, collect & verify)                 → Stateful</div>
+
+<h2>§2. Harness Interface — 추론·행동·환경모델링을 위한 코드</h2>
+<p>가장 근본적인 질문: <em>"무슨 매체가 모델을 task environment에 연결하는가?"</em> 저자들은 코드가 답이라 주장하며 세 가지 역할로 조직한다.</p>
+
+<h3>2.1 Code for Reasoning (추론을 위한 코드)</h3>
+<p>모델 추론을 ##순간적 텍스트 생성에서 실행 가능·검증 가능한 연산##으로 전환. 순수 CoT(chain-of-thought)는 symbolic/logical/arithmetic 연산을 충실히 수행하지 못하고, 중간 상태 검사나 progress 영속화가 불가능. 세 가지 paradigm:</p>
+<ul>
+  <li><strong>Program-Delegated Reasoning</strong>: 실행 가능 프로그램을 problem decomposition과 computation 사이의 주 인터페이스로 사용. PoT(Program-of-Thoughts), PAL, MathCoder, Chain of Code(CoC), CodeAdapt(코드 결합 LLM이 reasoning-specialized model을 능가), CodeI/O(코드를 verifiable I/O prediction task로 변환).</li>
+  <li><strong>Formal Verification & Symbolic Reasoning Interfaces</strong>: machine-verifiable formal language(Lean, Isabelle, Coq)를 추론 인터페이스로. ReProver, DeepSeek-Prover-V2, Kimina-Prover, Goedel-Prover-V2, Lean4Agent(Lean4로 agent workflow를 모델링·검증). Graph-of-Thoughts, CodeSteer, VisualCoder(control-flow graph로 program behavior 가시화)도 hybrid neural-symbolic.</li>
+  <li><strong>Iterative Code-Grounded Reasoning</strong>: generate–execute–verify–refine loop. NExT(program trace로 execution behavior 예측), CodePRM·ORPS(execution outcome으로 process reward), CodeRL·StepCoder·RLEF(unit-test reward로 policy optimization), EG-CFG(생성 중 execution signal 주입), R1-Code-Interpreter(persistent interactive session 내에서 reasoning과 code execution을 interleave).</li>
+</ul>
+<blockquote><strong>[Table 1 요약]</strong> code가 reasoning substrate로 작동하는 대표 시스템 분류. Mechanism = Delegated / Formal / Hybrid / Iterative. 예: PoT(Delegated, hybrid comments), Goedel-Code-Prover(Formal, Lean code proof), Chain of Code(Hybrid, LMulator로 non-executable semantic code 시뮬레이션), RLEF(Iterative, multi-step RL).</blockquote>
+
+<h3>2.2 Code for Acting (행동을 위한 코드)</h3>
+<p>코드를 ##high-level intent를 grounded operation(tool 호출, robot 제어 policy, GUI action, software command)으로 변환하는 action interface##로. 핵심 도전 = grounding: embodiment limit, interface API, environment dynamics, safety requirement를 존중. 행동 실행은 reasoning과 달리 ##부분 관측·동적 환경##에서 일어나며, 실패가 invalid state transition·지연 피드백·silent error로 드러남.</p>
+<ul>
+  <li><strong>Grounded Skill Selection</strong>: 환경을 executable capability의 집합으로 보고, agent가 invoke/compose/refine. SayCan(language planning + grounded skill, affordance), KnowNo(conformal prediction으로 uncertainty 인지), BOSS(guided practice로 새 skill chain 합성), SkillVLA(combinatorial bimanual).</li>
+  <li><strong>Programmatic Policy Generation</strong>: harness가 executable policy를 프로그램으로 직접 materialize. CaP(Code-as-Policies, LLM Python program을 robot policy로), RoboCodeX(multimodal tree-structured), Code-BT(behavior-tree controller로 컴파일), CP-Agent(persistent execution loop으로 formal constraint solving), NormCode(semi-formal interface로 auditability·data isolation).</li>
+  <li><strong>Lifelong Code-Based Agents</strong>: executable interface가 capability를 영속적으로 축적·진화. Voyager(Minecraft에서 자동 curriculum + 확장 skill library), LRLL(persistent memory + self-guided exploration), ViReSkill(vision-grounded replanning + skill-memory cache), UI-Voyager(GUI agent로 self-evolving 일반화), SkillsCrafter(catastrophic forgetting 완화).</li>
+</ul>
+<blockquote><strong>[Table 2 요약]</strong> code가 action interface로 작동하는 대표 시스템. Mechanism = Harness Gen.(AutoHarness, invalid action 필터링) / Skill Selec. / Policy Gen. / Lifelong.</blockquote>
+
+<h3>2.3 Code for Environment Modeling (환경 모델링을 위한 코드)</h3>
+<p>코드를 ##environment interface 자체##로. 환경 상태를 simulator·repository·test·execution trace·log·state-transition program으로 materialize → ##(1) verifiable state transition 노출(execution으로 outcome 평가, 모호한 자연어 판단 대신), (2) persistent·modifiable(query·simulate·edit·refine)##.</p>
+<ul>
+  <li><strong>Structured World Representations</strong>: ViStruct(visual scene을 data structure로), FactoredScenes(room program), PoE-World(programmatic expert 조합으로 world model 확장), Code2World(GUI state를 renderable HTML로).</li>
+  <li><strong>Execution-Trace World Modeling</strong>: SemCoder(static program ↔ runtime semantics), CWM(Code World Model, program trace에서 predictive world model 학습), WorldCoder(executable world model을 Python으로 작성·갱신), RWML, AWM, WorldMind.</li>
+  <li><strong>Code-Grounded Evaluation Environments</strong>: InterCode(coding task를 interactive execution env로), CRUXEval, LiveCodeBench, SWE-bench(repo-level unit test를 objective world state로), AgentBench, Endless Terminals.</li>
+  <li><strong>Verifiable Environment Construction</strong>: SWE-smith(repository를 reproducible program world로 합성), EnvScaler(tool-interactive env를 programmatic validator와 함께 합성). 환경 인터페이스 자체가 ##construction의 대상##.</li>
+</ul>
+
+<h2>§3. Harness Mechanisms — Planning·Memory·Tool Use·Control·Optimization</h2>
+<p>코드가 agent loop에 들어온 뒤, harness는 ##무엇을 다음에 실행할지 결정, 유용한 상태 보존, 적절한 tool 노출, 실패를 corrective action으로 전환##해야 한다. 5개 메커니즘.</p>
+
+<h3>3.1 Planning for Agent Harness</h3>
+<p>Planning은 단순한 LLM 내부 능력이 아니라 ##harness control의 한 형태## — intent를 executable step으로 외재화하고, code artifact·tool과의 상호작용을 스케줄링하며, reasoning·execution·revision의 trajectory를 규제. "harness control이 실현되는 주된 위치"에 따라 4분류:</p>
+<ul>
+  <li><strong>Linear Decomposition Planning</strong>: 단일 explicit executable step sequence 생성 후 따름. ReAct(thought-action-observation interleave), Self-Planning, Plan-And-Act, WebAgent. 산업 관행에서 <code>PLAN.md</code>, <code>Implement.md</code>, status log가 ##ephemeral prompt에서 filesystem-backed control object##로 격상(Git versioning, subagent 소비).</li>
+  <li><strong>Structure-grounded Planning</strong>: free-form prompt가 아니라 dependency graph·repository graph·circuit graph·knowledge graph에 grounding. CodePlan(plan graph + change-impact propagation), GraphCodeAgent(dual-graph: Requirement Graph + Structural-Semantic Code Graph), VerilogCoder(Task and Circuit Relation Graph). AGENTS.md, architecture note, API spec이 persistent harness object.</li>
+  <li><strong>Search-based Planning</strong>: inference-time compute를 multiple candidate path 탐색에 할당. Tree-of-Code, ReThinkMCTS(MCTS over reasoning path), SWE-Search, CodeTree, ##Meta-Harness(harness code 자체를 search)##.</li>
+  <li><strong>Orchestration-based Planning</strong>: planning을 system-level coordination을 위한 harness design으로. MapCoder(role orchestration), Blueprint2Code. Anthropic의 long-running harness(planning·generation·evaluation을 distinct role로 분리), ##Natural-Language Agent Harness(role·contract·adapter·state convention을 editable 자연어로 작성 → Intelligent Harness Runtime이 실행 시점에 constrained execution step으로 해석)##.</li>
+</ul>
+
+<h3>3.2 Memory and Context Engineering</h3>
+<p>Memory는 ##더 큰 context window나 vector DB가 아니라, 어떤 정보를 active context에 남기고/요약하고/외부 저장소로 offload할지 결정하는 state-management 계층##. 핵심 긴장 = ##모델의 제한된 context window vs 끊임없이 확장되는 task의 중간 상태##. 기능적 역할에 따라:</p>
+<ul>
+  <li><strong>Working Memory</strong>: 현재 trajectory의 state 유지. SWE-agent, CodeMem(budgeted memory slot), RepairAgent.</li>
+  <li><strong>Semantic Memory</strong>: codebase를 queryable evidence space로. AutoCodeRover, RepoCoder, CodeRAG(AST-based structured chunking, iterative query rewriting).</li>
+  <li><strong>Experiential Memory</strong>: task 간 재사용 경험(repair trajectory, failure case). MemGovern(##quality가 scale보다 중요## — ungoverned record는 semantic noise·error propagation 유발), ExpeL.</li>
+  <li><strong>Long-Term Memory</strong>: memory governance로 초점 이동(what to store → when to write/compress/retrieve/avoid contamination). MemGPT, MemoryOS, MemCoder, TALM.</li>
+  <li><strong>Multi-Agent Memory</strong>: shared blackboard / collaborative state graph. MIRIX, ChatDev, G-Memory.</li>
+  <li><strong>Context Compaction & State Offloading</strong>: decision-relevant context를 durable evidence와 분리. failing-test report를 (test name + key stack frame + suspected file + full log 링크)로 압축, 전체 fidelity는 file·DB·trace store·MCP-style server에 offload.</li>
+</ul>
+<blockquote><strong>[Table 5 요약]</strong> 역할별 대표 메커니즘: Working(SWE-agent, CodeMem, RepairAgent) / Semantic(AutoCodeRover, RepoCoder, CodeRAG) / Experiential(MemGovern, ExpeL) / Long-term(MemCoder, TALM) / Multi-agent(MIRIX, ChatDev) / Compaction(LongCodeZip, SWE-Pruner, SWEZE).</blockquote>
+
+<h3>3.3 Tool Use for Agent Harness</h3>
+<p>Tool use = code-agent harness의 action·observation 계층. ##어떤 tool이 available한지, schema가 어떻게 노출되는지, 각 tool의 permission, execution 위치, result sanitization, risky action의 human approval 시점##을 결정하는 governed interface. "##tool lifecycle control##" 강조 — pre-use hook(permission check, argument validation), post-use hook(output sanitize, log offload, memory update, verification trigger). 4분류:</p>
+<ul>
+  <li><strong>Function-Oriented</strong>: API·library·documentation gap 보완. ToolCoder(API search tool, hallucination 방지), CodeQA, RAG-for-Code.</li>
+  <li><strong>Environment-Interaction</strong>: repository·dev artifact·execution env에서 행동. CodeAgent, SWE-agent(agent-computer interface), RepairAgent.</li>
+  <li><strong>Verification-Driven</strong>: 외부 tool을 deterministic sensor로. AgentCoder(programmer-tester-executor loop), VeriGuard(verifier-guided tool loop).</li>
+  <li><strong>Workflow-Orchestration</strong>: 여러 tool·role·control policy를 coherent workflow로. ToolNet(learned multi-tool policy routing), MapCoder, OpenHands(unified software-agent workspace).</li>
+</ul>
+
+<h3>3.4 Harness Control — Plan-Execute-Verify (PEV) Loop</h3>
+<p>iterative debugging을 ##broader control process로 재구성##: harness가 (1) 의도된 변경과 validation criteria를 외재화(Plan), (2) sandboxed·permissioned 환경에서 실행(Execute), (3) deterministic sensor·human-review gate로 결과 검증(Verify). harness는 ##cybernetic governor(사이버네틱 통치자)## — linter·parser·compiler·type checker·unit/integration test·static analyzer·fuzzer·runtime monitor·CI pipeline 같은 deterministic sensor로 trajectory를 inspectable signal로 변환하고, continue/revise/escalate를 결정.</p>
+<ul>
+  <li><strong>Planning as Contract Formation</strong>: plan = 다음 state transition에 대한 explicit contract(relevant file, expected invariant, validation command, rollback point, risky operation 명시). AGENTS.md, MCP server registry, typed tool schema가 contract layer 강화.</li>
+  <li><strong>Sandboxed Execution & Permissioned State Transition</strong>: 3-tier model — ##read-only tier(repo browsing, static inspection, log analysis), sandbox-edit tier(local patching, test execution, 임시 dependency install), full-access tier(network, credential, deployment, package publish, destructive FS op, Git history mutation)##. 최상위 tier는 mandatory HITL(human-in-the-loop) gate.</li>
+  <li><strong>Verification through Deterministic Sensors</strong>: compilation·static-analysis(low-cost), runtime signal(exception, assertion break), test-based feedback(unit/integration/regression/fuzzing). evaluation harness가 single test command를 repeatable task distribution으로 확장. ##Reflection은 executable evidence에 grounding될 때만 reliable##. Termination도 model confidence가 아니라 verification으로 통치.</li>
+</ul>
+
+<h3>3.5 Agentic Harness Engineering (AHE) — 적응형 harness 최적화</h3>
+<p>##harness 자체(tool schema, planning artifact, memory policy, retrieval strategy, sandbox config, verification sensor, permission tier, routing rule)를 분석 대상으로 삼는 harness-level design problem##. prompt engineering(instruction 변경)·context engineering(evidence 변경)을 넘어 ##operating environment 자체를 측정·수정##. 많은 실패가 model generation이 아니라 missing repo context·brittle tool interface·weak validator·excessive token cost·poor retry policy·mismatched permission boundary에서 발생한다는 관점.</p>
+<ul>
+  <li><strong>Deep Telemetry as Optimization Substrate</strong>: model decision–harness action–environment state–outcome를 연결하는 structured trace(prompt, token cost, latency, tool argument, permission request, edited file, sandbox snapshot, command output, test result, rejected alternative, human intervention). ##harness version 간 replay·compare 가능 → surface behavior 변화가 아닌 reliability 개선 여부를 평가##.</li>
+  <li><strong>The Evolution Agent</strong>: deep telemetry를 사용해 harness component의 revision을 propose·evaluate·promote하는 meta-level agent. task agent가 target repo를 수정한다면, Evolution Agent는 ##task agent가 작동하는 operating condition을 수정##. 5단계 loop: observe → diagnose → propose → evaluate(held-out task·replayed trace) → promote(reliability/cost/safety 개선 + 이전 해결 case regression 없음).</li>
+  <li><strong>Governed Harness Mutation</strong>: AHE ≠ unconstrained self-modification. ##harness mutation = safety-critical runtime에 대한 code change처럼 취급##. permission boundary·network access·credential handling·deployment behavior·human-review requirement를 바꾸는 변경은 활성화 전 HITL approval 필요.</li>
+</ul>
+<blockquote><strong>[Table 8 요약]</strong> telemetry-driven revision target별 분류: AutoHarness(harness code & test), Meta-Harness(prompt·tool·script), AHE(context·tool·validator), GEPA(prompt), EvoMAC(agent role & graph), SEW(stage order & role), Live-SWE(policy·tool·memory).</blockquote>
+
+<h2>§4. Scaling the Harness — 코드 위의 멀티에이전트 오케스트레이션</h2>
+<p>단일 에이전트의 3대 한계: ##(1) context window가 전체 codebase·이력·trace를 담지 못함, (2) planning·synthesis·testing·review·debugging을 한 generalist가 다 하기엔 비효율, (3) 독립적 coordination·verification 채널 부재로 자기 오류를 신뢰성 있게 검출·교정 못함##. 멀티에이전트(MAS)는 책임을 specialized role로 분산하여 harness를 modular·inspectable·adaptable하게.</p>
+
+<h3>4.1 멀티에이전트 협업을 통한 코딩 지원 개선</h3>
+<ul>
+  <li><strong>Functional Role Specialization</strong>: program synthesis agent(Coder/Programmer/Engineer/Developer), program understanding agent(Repository Custodian, Navigator), verification agent(Test Designer, Static Analyzer, Fuzzing Agent, Panelist), execution agent(deterministic Test Executor — ##비-LLM Python script로 reasoning과 execution을 깔끔히 분리##), planning agent(Architect, Manager, Scrum Master, Mother). ##EvoMAC의 Gradient Agent(execution log로 실패를 agent에 귀속) + Updating Agent(prompt 수정 & workflow DAG 재구성)##는 MAS 자체 수준에서 작동하는 novel meta-role.</li>
+  <li><strong>Diverse Interaction Modes (shared program state 기반)</strong>: artifact-mediated communication(API·file·diff·test·log·schema·blackboard). 4 modes — Collaborative synthesis(PairCoder의 Navigator-Driver), Critique-and-repair(##dominant## — Self-Collaboration은 simulated LLM tester, AgentCoder는 real Python executor), Adversarial validation(AutoSafeCoder의 Fuzzing Agent가 crash-inducing input 생성, MAGE의 simulation mismatch), Reasoning debate(ChatDev의 communicative de-hallucination, CANDOR의 3 Panelist + majority vote).</li>
+  <li><strong>Optimized Workflow Topology</strong>: Pre-defined heuristic(Chain/Waterfall: ChatDev·MetaGPT; Cyclic/Agile: AgentCoder·PairCoder·MAGE; Hierarchical: MAGIS·HyperAgent·SoA; Star: CANDOR·MetaGPT pub-sub) vs ##Objective-driven Adaptive(topology를 최적화 대상으로)## — Dynamic agent pool scaling(SoA Mother-Child, MAGIS), Feedback-driven DAG restructuring(##EvoMAC — 실행 피드백으로 harness topology를 구조적으로 변경하는 유일 시스템##), Runtime self-reorganization(SEW가 BPMN/CoRE/Python/YAML workflow를 DE/HE operator로 mutate; FlowReasoner가 입력마다 tailored MAS 생성).</li>
+</ul>
+
+<h3>4.2 Execution Feedback과 Shared-Harness Synchronization</h3>
+<p>code-centric MAS의 정의적 차원 = ##shared harness가 uniquely executable하고 objective oracle signal을 생성##. Execution feedback types: compiler/syntax(L2MAC의 $E(D)$가 매 file write마다 syntax check를 blocking condition으로), test pass/fail(##dominant## — QualityFlow의 Imagined Execution은 LLM이 Python interpreter를 step-by-step 시뮬레이션해 MBPP에서 98%+ precision/recall, ##실제 실행 없이##), fuzzer crash trace(AutoSafeCoder), static analysis(CWE-mapped), performance profiling(MACRO), fine-grained simulation(MAGE의 State Checkpoint — 매 clock edge마다 signal 기록).</p>
+<p><strong>Shared-Harness Synchronization</strong>: Sequential handoff(##가장 흔함##, program state가 가장 최근 artifact로만 존재 → parallel/iterative 수정 시 invisible state divergence), Shared blackboard(L2MAC의 file store $D$ — never overwritten, Control Unit이 모든 read/write 관리), Structured context scheduling(L2MAC의 Control Unit이 instruction step 사이 context window reset), Hierarchical memory(ChatDev short/long-term, Cogito 3-tier), Agent pool scaling(SoA — 글로벌 일관성 희생, 각 agent는 bounded slice만), QualityFlow의 revert mechanism(##state history를 명시 관리하는 유일 시스템##).</p>
+
+<h3>4.3 Position: Shared Code-Centric Harness Substrate</h3>
+<p>핵심 주장 = ##차세대 멀티에이전트 지능은 에이전트가 query·update할 수 있는 형식적·영속적 공유 코드 상태(shared code-centric harness substrate)를 필요로 한다##. shared harness substrate를 4단계 형식화로 구분:</p>
+<ul>
+  <li><strong>Implicit / File-only</strong>(##가장 흔하고 least formalized## — ChatDev, MetaGPT, FlowGen, MapCoder, SEW, CodePori): 공유 상태가 매 invocation마다 conversational history에서 암묵 재구성. ##state divergence(agent의 belief가 true state와 어긋남)가 시스템에 invisible.##</li>
+  <li><strong>Repository-based</strong>: navigable repository(directory, dependency graph, call hierarchy, version history). MAGIS(repository evolution memory), HyperAgent(get_tree_structure 등 navigation tool), Lingma SWE-GPT, ##SyncMind(repository substrate를 ground-truth state $S_k$로 형식 정의, agent belief $B_k$와의 divergence $|B_k - S_k|$ 측정하는 유일 시스템)##.</li>
+  <li><strong>Execution-based</strong>(##code generation에 가장 distinctive, general MAS에 평행 없음##): state = code가 무엇처럼 보이는가가 아니라 ##무엇을 하는가##(compile 여부, test 통과, fuzzer 발견 취약점, 실행 속도). objective oracle signal. AgentCoder, AutoSafeCoder, QualityFlow, MACRO, EvoMAC, MAGE(clock-edge 단위).</li>
+  <li><strong>Blackboard / Shared-State</strong>(##문헌에서 formal harness substrate에 가장 근접##): 모든 agent가 read/write하는 explicit·globally accessible·persistent·queryable 자료구조. L2MAC(##가장 principled## — semantically meaningful path를 가진 persistent file store $D$, Control Unit이 관리), GameGPT, Cogito 3-tier.</li>
+</ul>
+<p><strong>The Central Gap</strong>: 문헌의 다수가 ##implicit/file-only category에 존재 → shared harness substrate의 formal model 부재##. 프로그램은 멀티에이전트 도메인 중 유일하게 ##실행되어 객관적·비언어적 signal을 만들 수 있는 artifact##인데, 대부분 시스템이 이 성질을 architectural 수준에서 활용하지 못하고 ##자연어만으로 code quality를 추론##.</p>
+
+<h3>4.4 Patterns and Trends (핵심 통찰)</h3>
+<ul>
+  <li><strong>The implicit-harness-state constraint</strong>: 다수 시스템이 explicit shared representation 없이 작동 → ##system brittleness의 기술적 근원##(scalability 편의 문제가 아님).</li>
+  <li><strong>Code-mediated channel은 coordination bottleneck을 제거하지 못함</strong>: file·API·diff·test·log·schema·blackboard 모두 ##fidelity·latency·scope를 trade-off하는 partial channel##. 핵심 질문 = "어떤 artifact가 authoritative한가, 어떻게 압축되는가, channel 간 conflict를 어떻게 해소하는가".</li>
+  <li><strong>Execution feedback이 linguistic ↔ formal reasoning의 다리</strong>: ##놀라운 발견 — Self-Collaboration·QualityFlow의 LLM-simulated execution이 실제 실행 없이 98%+ precision/recall##. execution feedback의 가치는 failure mode마다 다름 — runtime crash·resource exhaustion·boundary error·performance regression 같은 ##corner case 검출에 탁월하지만, 많은 correctable bug는 simulated reasoning으로 충분##. 성숙한 harness는 둘을 통합(linguistic = fast path, execution = verification oracle).</li>
+  <li><strong>Topology complexity가 harness-state formality와 역상관</strong>: ##L2MAC(명확한 formal substrate)은 단순 sequential chain## 사용, ##EvoMAC·SEW(implicit-state)는 elaborate adaptive topology##로 보상. topology 복잡성은 부분적으로 substrate 부재의 증상.</li>
+  <li><strong>Context management = implicit shared state의 세금</strong>: L2MAC의 Control Unit, MetaGPT의 pub-sub, SoA의 agent-pool scaling, Cogito 3-tier는 모두 같은 근본 문제(너무 큰 코드 harness를 하나의 context window에 못 담음)에 대한 응답.</li>
+  <li><strong>Agent specialization이 shared state metric의 criticality를 증가</strong>: role diversity가 늘수록 unified substrate 필요성 긴급. ##SyncMind가 belief divergence $|B_k - S_k|$로 형식화##. role 다양화는 단순 engineering choice가 아니라 ##성숙한 shared harness 개발을 강제하는 forcing function##.</li>
+</ul>
+
+<h2>§5. 응용 분야 (5 Emerging Fields)</h2>
+
+<h3>5.1.1 Code Assistants</h3>
+<p>가장 명확한 production instantiation. ##repository-centered workspace##(SWE-agent, OpenHands, Claude Code, Codex, GitHub Copilot agents, DeepAgents), executable development harness(tool-mediated loop으로 repo access·file edit·command exec·approval·context isolation·logging·validation 통제), MCP(Model Context Protocol)로 표준화. ##핵심 2026 발전 = production harness가 더 이상 deployment infra가 아니라 차세대 모델의 dominant training data source## — Cursor Composer(real usage trace로 continuous online RL), Codex/Codex-Max(long-horizon multi-turn coding 학습), Claude Code dogfooding. 산업 규모: LingmaAgent가 Alibaba Cloud 사내 이슈의 16.9%를 완전 자율, 43.3%를 manual intervention으로 해결. open challenge: oracle adequacy(PatchDiff, SWE-Bench++), failure attribution(step-level 14–53%), capability-based safety primitive(Aethelgard, Microsoft Agent Governance Toolkit).</p>
+
+<h3>5.1.2 GUI/OS Agents as a Program World</h3>
+<p>##가장 문자 그대로의 program world## — 모든 observation = executable code의 rendered output(HTML/CSS/layout XML/accessibility API), 모든 action = code 호출(DOM event, adb shell, keystroke, Playwright script). POMDP $\langle\mathcal{S},\mathcal{A},\mathcal{O},T,R\rangle$로 모델링. observation 4형태: serialized DOM/HTML, accessibility tree(AXTree), bounding-box/Set-of-Mark annotated screenshot, hybrid. action $\mathcal{A}$ = $\langle action\_type, target, value\rangle$ tuple(<code>element.click()</code> 또는 <code>pyautogui.click(x,y)</code>로 compile). transition $T$는 learned가 아니라 browser engine·OS가 deterministic하게 executed. native GUI model(SeeClick, CogAgent, UI-TARS, GUI-Libra)이 ##grounding을 pixel→executable coordinate function으로## 취급 → planner→grounder→executor pipeline을 single runnable VLA로 collapse. evaluator도 code(WebArena URL/string assertion, OSWorld Python checker, AndroidWorld adb 검사). production: Claude Computer Use, OpenAI Operator/CUA, Project Mariner, UI-TARS, AutoGLM.</p>
+
+<h3>5.1.3 Autonomous Embodied Agents</h3>
+<p>##physical constraint가 silent하게 위반될 수 있어 correctness 부담이 runtime에서 action-generation time으로 이동##. 코드는 grounding interface(primitive skill call, synthesized Python control policy, behavior-tree program)이자 safety boundary(admissible action을 execution time에 constrain). layered harness: foundation model(semantic layer) + code/classical robotics software(admissibility boundary, typed robot API, motion planner) + perception model + physical controller(kinematics, collision avoidance). ##Reusable Skills as Embodied Memory## — skill library = read만 하는 게 아니라 ##re-execute하는 code artifact##. Voyager → tabletop manipulation, vision-grounded replanning, continual learning, GUI domain까지. coordinated deployment(multi-robot policy synthesis, robot-agnostic cooperative architecture, verified closed-loop control).</p>
+
+<h3>5.1.4 Agents for Scientific Discovery as Program Worlds</h3>
+<p>##scientific method 자체가 hypothesize→design→execute→observe→revise의 closed loop, 각 transition이 점점 program으로 매개##. 코드의 3중 역할: reasoning medium(symbolic derivation, formal proof, hypothesis-as-program), acting substrate(wet-lab robot·simulator·statistical pipeline 호출), executable environment(molecular-dynamics engine, autonomous lab). POMDP로 research project 모델링. ChemCrow(18 chemistry tool), Coscientist(Python+web search+robotic API), AlphaProof(reasoning step = Lean tactic). ##Self-Driving Labs(SDL)이 production system## — A-Lab(17일 연속 운영으로 41개 신규 무기화합물 합성), Coscientist(Emerald Cloud Lab에서 Suzuki/Sonogashira coupling), Biomni(25 biomedical subfield, bioRxiv 수만 편 mining), AlphaEvolve(Gemini code edit를 automated evaluator로 scoring → 새 matrix-multiplication 알고리즘). benchmark: MLAgentBench, MLE-bench(75 Kaggle), ScienceAgentBench(##모든 target output을 self-contained Python program으로##), DiscoveryBench.</p>
+
+<h3>5.1.5 Agent Personalization</h3>
+<p>환경이 software system뿐 아니라 ##intent·satisfaction·long-term goal이 부분 관측되는 human user##. 코드는 preference representation·feedback processing·constraint enforcement·policy adaptation의 inspectable substrate. ##Preference State as an Editable Artifact## — 사용자가 자연어로 preference 수정 → 시스템이 다음 추천 전 state 갱신. AMem, MemRec. Feedback as Policy Adaptation(code-defined feedback pipeline: interaction log, metric compute, A/B test, model/policy update). Controllable·Instruction-Following Personalization(constraint·filter·reward function으로 표현). open challenge: preference grounding(reliable oracle 부재 — click/engagement는 misleading), privacy·governance, multi-stakeholder(platform engagement vs creator exposure vs user welfare).</p>
+
+<h2>§5.2 미해결 문제 (7 Open Problems)</h2>
+<ol>
+  <li><strong>Harness-Level Evaluation and Oracle Adequacy</strong>: 대부분 evaluation이 end-task success만 측정 → base model 능력·harness 품질·tool 신뢰성·feedback 정보량·환경 난이도를 ##conflate##. ##harness-level metric## 필요: trajectory efficiency, verification strength, recovery ability, state consistency, safety compliance, replayability. 핵심 = oracle adequacy(evaluator가 intended task를 포착하는가, narrow executable proxy만이 아니라).</li>
+  <li><strong>Semantic Verification Beyond Executable Feedback</strong>: execution은 attached oracle만큼만 reliable. unit test는 incomplete, GUI checker는 unacceptable intermediate action 놓침, robot simulator는 physical risk 숨김 → ##harness가 green test 때문에 overconfident##. explicit scope를 가진 verification stack 필요(각 artifact가 무엇을 verify/cannot verify/confidence를 선언). ##모든 accepted action이 evidence bundle(run한 check, 보존된 assumption, untested region, 남은 risk)을 carry##.</li>
+  <li><strong>Self-Evolving Harnesses without Regression</strong>: ##harness mutation을 safety-critical runtime의 code change처럼 취급##. 모든 proposed edit이 change contract(어떤 component 수정, 어떤 failure mode target, 어떤 improvement 예측, 어떤 invariant 보존, 어떤 evaluation이 falsify, 어떻게 rollback)를 carry. evidence-carrying harness evolution, held-out regression suite, safety invariant, canary deployment.</li>
+  <li><strong>Transactional Shared Program State and Semantic Conflict Resolution</strong>: synchronization이 artifact는 동기화하지만 ##assumption은 동기화하지 못함##. ##transactional shared program state## — 각 action이 read set·write set·assumption·version dependency·verifier obligation·conflict policy를 선언. semantic merge, belief-state reconciliation. CRDT·build system을 넘어 incompatible plan·stale memory·divergent goal interpretation 같은 agentic conflict.</li>
+  <li><strong>Human-in-the-Loop Safety and Accountability as Harness State</strong>: safety를 base model이나 자연어 instruction에 위임 불가. multi-tier permission model + ##HITL을 durable harness state로## — 각 approval/rejection/policy exception/reviewer correction이 permission rule·escalation policy·verification criteria·future memory retrieval을 갱신. high-stakes approval은 auditable state transition. ##executable accountability##(real world 도달 전 agent action을 filter·veto·escalate·record하는 safety layer).</li>
+  <li><strong>Multimodal Code-Harness Systems</strong>: 대부분 harness가 textual state로 설계되었으나 GUI·embodied·scientific agent의 critical state는 multimodal. multimodal context compression(screenshot 수백 element 중 하나의 button만 중요), visual grounding contract(각 action이 grounded reference — bounding box·object id·frame index를 carry), multimodal verification stack, calibrated evidence로서의 multimodal feedback.</li>
+  <li><strong>Toward a Science of Harness Engineering</strong>: 연구 대상이 model이나 generated program이 아니라 ##complete closed-loop system(context·memory·tool·execution·feedback·safety·coordination·evaluation)##. 가장 중요한 미래 시스템은 4성질 결합 — ##executable · inspectable · stateful · governed##.</li>
+</ol>
+
+<div class="critical-analysis">
+<h2>비판적 분석 (Critical Analysis)</h2>
+<ul>
+  <li><strong>서베이로서의 강점</strong>: "code as harness"라는 ##single unifying lens##가 reasoning·acting·environment·planning·memory·tool·control·multi-agent·5개 응용을 일관되게 묶는다. 특히 4단계 shared substrate 형식화(implicit→repository→execution→blackboard)와 "implicit-harness-state constraint가 brittleness의 근원"이라는 진단은 ##설명적 가치가 높은 통찰##이다. SyncMind의 $|B_k-S_k|$ 같은 formalization을 끌어와 position을 뒷받침한 점도 설득력 있다.</li>
+  <li><strong>실증의 부재 (서베이의 본질적 한계)</strong>: 이 논문은 ##새로운 실험·벤치마크·정량 결과를 제시하지 않는다##. "shared code-centric harness substrate가 feasible & necessary"라는 핵심 position은 ablation이나 비교 실험으로 검증되지 않은 ##conceptual argument##다. EvoMAC·SyncMind·L2MAC 같은 기존 시스템을 증거로 인용하지만, "formal substrate가 implicit보다 우월하다"는 주장을 ##controlled comparison으로 직접 보인 연구는 인용되지 않는다##(저자도 "execution feedback의 가치가 failure mode마다 다르다"고 인정하며, simulated execution이 98% 달성한다는 반례를 스스로 제시).</li>
+  <li><strong>경계의 모호함</strong>: "code"를 trace·log·config·natural-language harness spec까지 넓게 정의하면서, 동시에 "natural language harness(IHR)"를 orchestration planning의 한 형태로 포함한다. 이는 ##"code as harness"의 외연을 거의 모든 agent infrastructure로 확장##시켜, 반증 가능성(falsifiability)을 약화시킨다 — 무엇이 harness가 "아닌지"가 불분명.</li>
+  <li><strong>최신성 vs 깊이의 trade-off</strong>: 2026년 production system(Cursor Composer, Codex-Max, Claude Code)까지 다루는 시의성은 탁월하나, 이들에 대한 서술은 주로 ##공개 whitepaper·blog 수준의 정보##에 의존한다. 학술적 검증이 어려운 산업 claim(예: LingmaAgent 16.9% 자율 해결)을 그대로 인용.</li>
+  <li><strong>7 open problem의 실행가능성</strong>: "evidence-carrying harness evolution", "transactional shared program state", "executable accountability" 등은 ##방향성은 명확하나 구체적 구현 경로나 metric 정의가 추상적##. 미래 의제로서는 가치 있으나, 당장 연구를 시작하려는 독자에게는 추가 구체화가 필요하다.</li>
+  <li><strong>인용 편향 가능성</strong>: UIUC·Meta·Stanford 팀의 서베이로, 일부 응용(code assistant, scientific discovery)이 다른 영역(personalization)보다 훨씬 깊게 다뤄진다. 분야별 coverage의 균형은 완벽하지 않다.</li>
+</ul>
+</div>
+
+<div class="takeaways">
+<h2>이 논문에서 가져갈 것 (Key Takeaways)</h2>
+<ul>
+  <li><strong>관점 전환의 도구</strong>: agent system을 설계·평가할 때 ##"model이 뭘 생성하는가"가 아니라 "harness가 model 출력을 long-horizon action·persistent state에 얼마나 신뢰성 있게 연결하는가"##를 1차 질문으로 삼아라. 자율성 병목은 종종 model이 아니라 harness에 있다.</li>
+  <li><strong>3-tier permission + PEV loop</strong>: 실무에서 즉시 적용 가능한 패턴. read-only / sandbox-edit / full-access tier를 명시하고, full-access에는 mandatory HITL gate. debugging을 Plan-Execute-Verify로 재구성하고 deterministic sensor(linter·test·type checker)를 control signal로 활용.</li>
+  <li><strong>Shared state를 명시화하라</strong>: 멀티에이전트 코딩 시스템을 만든다면, implicit/file-only 상태에 머무르지 말고 최소 repository-based, 가능하면 execution-based·blackboard로 ##formal·queryable shared substrate##를 구축. state divergence는 brittleness의 근원이다.</li>
+  <li><strong>Telemetry-driven harness evolution</strong>: harness를 한 번 만들고 고정하지 말고, deep telemetry(prompt·cost·tool arg·edited file·test result·rejected alternative)를 기록하여 ##replay·compare로 harness version의 reliability 개선을 측정##. 단, harness mutation은 safety-critical code change처럼 governed.</li>
+  <li><strong>Evaluation을 의심하라</strong>: end-task success(test 통과 여부)만으로는 부족 — green test가 full specification이 아니다. trajectory efficiency·verification strength·recovery·state consistency·replayability 같은 ##harness-level metric##과 oracle adequacy를 함께 보라.</li>
+  <li><strong>연구 진입점</strong>: GitHub의 Awesome-Code-as-Agent-Harness-Papers를 통해 Table 1~11의 대표 시스템(PoT, SWE-agent, AutoCodeRover, MapCoder, EvoMAC, L2MAC, SyncMind, OSWorld 등)을 starting point로 탐색. 5개 응용 도메인 중 하나를 골라 harness 4성질(executable·inspectable·stateful·governed) 관점에서 gap을 찾으면 좋은 연구 주제가 된다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

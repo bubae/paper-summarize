@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lance: Unified Multimodal Modeling by Multi-Task Synergy</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Lance: Unified Multimodal Modeling by Multi-Task Synergy</h1>
+
+<a href="20260522_fu_lance_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Fengyi Fu*, Mengqi Huang*†, Shaojin Wu*, Yunsheng Jiang*, Yufei Huo, Hao Li, Yinghang Song, Fei Ding, Jianzhu Guo§, Qian He, Zheren Fu, Zhendong Mao, Yongdong Zhang (*공동기여, †교신, §프로젝트 리드)</li>
+  <li><strong>소속</strong>: Intelligent Creation Lab, ByteDance</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (technical report, 34p)</li>
+  <li><strong>연도</strong>: 2026 (May 20, v2)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.18678">arXiv:2605.18678</a> · <a href="https://lance-project.github.io">project page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: unified multimodal model(UMM, 이해+생성을 한 모델로)은 두 가지 근본 한계가 있다. (1) ##이해와 생성의 visual representation 요구가 본질적으로 다름## — 이해는 high-level semantic feature(language-aligned), 생성은 low-level continuous feature(texture·geometry·temporal 보존). (2) 대부분 모델이 ##task coverage가 좁음## — image-text 중심이고, editing·subject-driven generation·video 같은 task를 unified multi-task로 다루지 못하고 downstream fine-tuning으로 처리.</li>
+  <li><strong>해결</strong>: ##Lance## — image+video의 understanding·generation·editing을 ##단일 native unified model##로. 두 원칙: ##(1) unified context learning(interleaved multimodal sequence로 cross-task 상호작용) + (2) decoupled capability pathways(이해·생성을 별도 expert로 분리)##. ##dual-stream Mixture-of-Experts##(LLM_UND + LLM_GEN)가 같은 shared context를 공유하되 별도 파라미터로 처리.</li>
+  <li><strong>왜 작동하는가</strong>: 이해와 생성을 한 backbone에서 경쟁시키지 않고(decoupled expert) 같은 sequence를 보게 하여(shared context) ##multi-task synergy##를 얻는다. ##multi-task가 단순 capability 합산이 아니라 cross-modality·cross-task transfer를 촉진## — 놀랍게도 multi-task generation 데이터가 video understanding까지 향상시킨다.</li>
+  <li><strong>비유</strong>: 한 사람이 ##'그림 감상'(이해)과 '그림 그리기'(생성)##를 모두 배우되, 두 능력에 ##별도의 전문 두뇌 영역##을 할당하고(decoupled), 같은 작업실(shared context)에서 훈련시킨다. 감상 연습이 그리기를, 그리기 연습이 감상을 서로 도와준다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Lance — native unified multimodal model</strong>: ##image/video understanding·generation·editing의 full spectrum을 단일 모델##로 지원. X2T(any-to-text), X2I(any-to-image), X2V(any-to-video) task family를 unified framework에서. multi-task synergy를 capability aggregation이 아니라 ##cross modality-task transfer 메커니즘##으로 봄.</li>
+  <li><strong>Dual-stream Mixture-of-Experts 아키텍처</strong>: ##shared interleaved multimodal sequence##를 보존하면서, understanding(LLM_UND)과 generation(LLM_GEN)에 ##dedicated visual representation·model capacity## 할당. understanding은 autoregressive next-token prediction, generation은 flow matching(velocity prediction).</li>
+  <li><strong>Modality-aware Rotary Positional Encoding (MaPE)</strong>: heterogeneous visual token group(ViT semantic / clean VAE / noisy VAE)을 ##temporal 차원에 modality offset $\Delta_t$를 주입##하여 positional space에서 구분. spatial layout은 보존하면서 functional boundary를 명확화.</li>
+  <li><strong>Staged multi-task training paradigm</strong>: ##PT → CT → SFT → RL## 4단계. capability-oriented objective + adaptive data scheduling. RL 단계에서 GRPO + PaddleOCR reward로 text rendering·image-text correspondence 강화.</li>
+  <li><strong>강력한 효율성</strong>: ##단 3B activated parameters + 128-GPU training budget##으로 open-source unified model 중 최상위 — GenEval 0.90, VBench 85.11, GEdit 7.30, MVBench 62.0. 7B~100B+ unified model을 능가.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Unified Multimodal Model(UMM)의 두 갈래와 한계</h3>
+<p>multimodal AI는 understanding·reasoning·generation을 single framework에 통합하는 <strong>native unified paradigm</strong>으로 이동 중이다. 기존 UMM은 두 갈래로 나뉜다:</p>
+<ul>
+  <li><strong>Fully autoregressive (AR)</strong>: Chameleon, Emu3, TokenFlow, HunyuanImage 3.0. understanding·generation을 shared token space의 next-token prediction으로. clean unified interface이나 ##reasoning 능력·visual fidelity·generation efficiency에서 trade-off##.</li>
+  <li><strong>AR-diffusion hybrid</strong>: text는 language modeling, visual은 diffusion/flow-based. Transfusion, Show-o/Show-o2, BLIP3-o, BAGEL. 최근 ##decoupling 탐색## — Janus(visual encoding 분리), BAGEL(shared decoder-only backbone 하에서 expert specialization), TUNA(unified continuous representation), InternVL-U(강력한 MLLM + generation head).</li>
+</ul>
+
+<h3>두 가지 핵심 representation 결정</h3>
+<p>Lance의 design motivation은 두 관찰에 기반한다:</p>
+<ol>
+  <li><strong>Unified vs Decoupled Visual Representation</strong>: understanding은 language-aligned high-level semantic feature(SigLIP 2, Qwen2.5-VL ViT)에서, generation은 appearance·spatiotemporal structure를 보존하는 low-level latent에서 이득. 일부 연구(TUNA)는 shared representation을 탐색했으나 ##semantic reasoning과 high-fidelity synthesis를 동시에 만족시키기엔 부족##. → Lance는 semantic visual token과 generative latent token을 ##decoupled##하되 shared interleaved sequence 안에 조직.</li>
+  <li><strong>Shared Backbone vs Specialized Expert</strong>: single stream의 fully shared backbone은 clean하나 ##understanding과 generation이 substantially 다른 objective 하에서 같은 파라미터를 두고 경쟁##. BAGEL·HunyuanImage 3.0의 증거는 ##generation-oriented vs understanding-oriented 파라미터를 decouple하면 dense shared backbone 대비 명확한 이득##. → Lance는 unified multimodal token interface(bottleneck-free context fusion)는 보존하되 ##understanding·generation pathway에 specialized expert capacity## 할당.</li>
+</ol>
+
+<h2>방법론 (Methodology)</h2>
+
+<h3>3.1 설계 원칙: unified context learning + decoupled capability pathways</h3>
+<p>Lance의 핵심: broad multi-task learning이 unified model의 잠재력을 더 끌어낼 수 있으나, ##task family마다(understanding/generation/editing) objective·representation·optimization dynamics가 크게 다름##. 효과적 unified model은 ##(1) 다른 task가 unified context learning 안에서 상호작용하게 하면서, (2) heterogeneous objective 간 간섭을 decoupled capability pathway로 완화##해야 한다.</p>
+
+<h3>3.2 전체 아키텍처</h3>
+<div class="flow-diagram">[입력] Text(Caption/VQA/OCR..) · Image(T2I/I2I/S2I..) · Video(T2V/I2V/V2V..)
+   ↓                ↓                   ↓
+[Text Tokenizer]  [ViT Encoder]    [VAE Encoder]
+   └──────────── MaPE (Modality-aware Rotary Positional Encoding) ────────────┘
+                              ↓
+        [ LANCE: dual-expert backbone, generalized 3D causal attention ]
+              ↙ (LLM_UND)                          ↘ (LLM_GEN)
+   [Next-token Prediction]                    [Velocity Prediction]
+   (ViT semantic + text tokens)               (clean VAE + noisy VAE tokens)</div>
+
+<p><strong>Unified Context Learning</strong>: heterogeneous 입력을 shared interleaved multimodal sequence로 변환.</p>
+<ul>
+  <li>Text: Qwen2.5-VL의 language embedding layer로 embed.</li>
+  <li>Understanding-oriented visual: ##Qwen2.5-VL ViT encoder##(14× spatial / 2× temporal patching + 2×2 spatial merge)로 compact semantic visual token. language-aligned semantics 제공.</li>
+  <li>Generation-oriented visual: ##Wan2.2 3D causal VAE encoder##로 continuous latent(16× spatial downsampling, 4× temporal downsampling for video). low-level appearance·temporal structure 보존, lightweight MLP connector로 generation backbone hidden space에 projection.</li>
+</ul>
+<p>각 sample은 unified interleaved sequence로 표현 (식 1–2):</p>
+<p>$$\mathcal{S} = \cdots \oplus \mathcal{B}_{\text{text}}(\mathbf{T}) \oplus \mathcal{B}_{\text{vis}}(\mathbf{V}_{\text{vit}}) \oplus \mathcal{B}_{\text{vis}}(\mathbf{V}_{\text{vae}}^{\text{clean}}) \oplus \mathcal{B}_{\text{vis}}(\mathbf{V}_{\text{vae}}^{\text{noisy}}) \oplus \mathcal{B}_{\text{text}}(\mathbf{T}') \oplus \cdots$$</p>
+<p>$$\mathcal{B}_{\text{text}}(\mathbf{T}) = [\texttt{BOT}, \mathbf{T}, \texttt{EOT}], \quad \mathcal{B}_{\text{vis}}(\mathbf{V}) = [\texttt{BOV}, \mathbf{V}, \texttt{EOV}]$$</p>
+<p>직관적으로 말하면, 텍스트·의미 시각토큰·생성용 시각토큰을 모두 하나의 긴 sequence에 섞어 놓되, 각 modality를 special token(BOT/EOT, BOV/EOV)으로 경계 짓는다. <strong>generalized 3D causal attention</strong>: sequence를 modality-specific segment로 분할, 각 segment는 선행 segment에 attend(causal dependency 보존). segment 내부에서 ##text token은 causal attention, visual token은 bidirectional attention##(spatial·spatiotemporal structure 포착).</p>
+
+<p><strong>Decoupled Capability Pathways</strong>: 모든 modality를 shared sequence에 조직하되, understanding·generation을 specialized expert pathway로 처리.</p>
+<ul>
+  <li>Understanding expert $\text{LLM}_{\text{UND}}$: text token + semantic visual token에 작동, target text token을 autoregressive 예측. standard next-token prediction loss (식 3):
+  $$\mathcal{L}_{\text{UND}} = -\sum_i \log p_{\theta_{\text{UND}}}(y_i \mid y_{<i}, \mathcal{S})$$</li>
+  <li>Generation expert $\text{LLM}_{\text{GEN}}$: VAE latent token에 작동, interleaved context 조건으로 generation-side hidden state 예측. clean latent $x_1$, noise $x_0 \sim \mathcal{N}(0,I)$, interpolated latent $x_t = t x_1 + (1-t) x_0$ ($t \sim \mathcal{U}(0,1)$). flow matching objective (식 4):
+  $$\mathcal{L}_{\text{GEN}} = \mathbb{E}_{x_0, x_1, t}\left[\|v_{\theta_{\text{GEN}}}(x_t, \mathcal{S}, t) - (x_1 - x_0)\|_2^2\right]$$</li>
+</ul>
+<p>직관: understanding expert는 "다음 단어 맞히기"로, generation expert는 "noise에서 clean image로 가는 속도 벡터(velocity) 맞히기"(flow matching)로 학습한다. 전체 목적함수 (식 5): $\mathcal{L} = \lambda_u \mathcal{L}_{\text{UND}} + \lambda_g \mathcal{L}_{\text{GEN}}$.</p>
+
+<h3>3.3 Modality-Aware Rotary Positional Encoding (MaPE)</h3>
+<p>unified multimodal training에서는 single sequence가 ##여러 visual token group($\mathbf{V}_{\text{vae}}^{\text{noisy}}, \mathbf{V}_{\text{vit}}, \mathbf{V}_{\text{vae}}^{\text{clean}}$)##을 포함한다. 이들은 source encoder뿐 아니라 functional role도 다르다(semantic cue / visual condition / generation target). 표준 3D-RoPE는 spatiotemporal layout만 encode하므로 이들을 구분 못 해 ##positional ambiguity##와 cross-task alignment 약화 유발.</p>
+<p>Qwen2.5-VL의 원래 3D-RoPE에서 시각 토큰 $(t,h,w)$의 위치 (식 6): $\hat{\mathbf{p}}^{\text{vis}}_{t,h,w} = D + [t, h, w] = [D+t, D+h, D+w]$, $t \in [0,T-1], h \in [0,H-1], w \in [0,W-1]$.</p>
+<p>MaPE는 ##각 modality group $m_i$의 index $i$에 따라 temporal 차원에만 fixed offset $\Delta_t$를 적용## (식 7):</p>
+<p>$$\mathbf{p}^{(m_i)}_{t,h,w} = \hat{\mathbf{p}}^{(m_i)}_{t,h,w} + [i \cdot \Delta_t, 0, 0] = [\hat{t}^{(m_i)}_{t,h,w} + i\cdot\Delta_t,\ \hat{h}^{(m_i)}_{t,h,w},\ \hat{w}^{(m_i)}_{t,h,w}],\quad i \in \{0,1,2\}$$</p>
+<p>직관: 세 종류의 시각 토큰 그룹을 ##시간축에서 서로 다른 출발점($i\cdot\Delta_t$)에 배치##하여 "이건 의미용, 이건 조건용, 이건 생성 타깃"임을 위치 정보로 명시한다. spatial 좌표는 그대로 두어 image/video의 intrinsic layout과 temporal order·상대 거리를 보존. $\Delta_t = 1000$으로 설정.</p>
+
+<h2>학습과 데이터 (§4)</h2>
+<p>Lance는 staged multi-task training으로 understanding·generation을 점진적으로 발전·균형. 4단계(Table 2 하이퍼파라미터):</p>
+
+<table>
+<tr><th></th><th>PT (Pre-Training)</th><th>CT (Continual)</th><th>SFT</th><th>RL</th></tr>
+<tr><td>Learning rate</td><td>1.0e-4</td><td>1.0e-4</td><td>2.5e-5</td><td>2.0e-6</td></tr>
+<tr><td>LR scheduler</td><td>Constant</td><td>Constant</td><td>Cosine</td><td>Constant</td></tr>
+<tr><td>Loss weight (CE:MSE)</td><td>0.25:1</td><td>0.5:1</td><td>0.25:1</td><td>—</td></tr>
+<tr><td>Training steps</td><td>350k</td><td>80k</td><td>15k</td><td>800</td></tr>
+<tr><td># Seen tokens</td><td>1.5T</td><td>300B</td><td>72B</td><td>0.5B</td></tr>
+<tr><td>Max context window</td><td>40k</td><td>70k</td><td>70k</td><td>70k</td></tr>
+</table>
+
+<ul>
+  <li><strong>PT (Pre-Training)</strong>: 기본 multimodal alignment + visual generation 능력 확립. VAE·ViT encoder freeze, 나머지(multimodal backbone, QK-Norm, MLP connector) 최적화. ##image-text ~1B samples + video-text ~140M samples##. progressive resolution curriculum 192p → 360p → 480p, image:video sampling ratio ~1:4(video modeling이 더 어려움).</li>
+  <li><strong>CT (Continual Training)</strong>: paired supervision → unified multi-task로 확장. understanding에 ##2.73M interleaved samples##(T2T 41K, captioning 443K, classification 142K, conversation 72K, grounding 200K, reasoning 194K, VQA 600K, OCR 120K). generation에 ##2.8M image editing + 2.6M video editing + 3.6M subject-driven image + 1M subject-driven video##. progressive data-mixture(어려운 task 비율 점진 증가). ~300B tokens.</li>
+  <li><strong>SFT</strong>: high-quality·task-aligned supervision으로 refine. instruction fidelity·visual consistency·editing accuracy·identity preservation 강조. 190K high-quality image caption, 190K image generation, 84K image editing, 5K/9K/5.5K video 등.</li>
+  <li><strong>RL</strong>: image generation 능력을 task-specific reward로 직접 최적화. ##GRPO(Group Relative Policy Optimization)##로 fine-grained textual constraint 만족 유도. ##20K image generation prompts##, ##PaddleOCR을 reward model##로 사용해 생성 이미지와 텍스트 제약의 consistency 평가(text rendering·image-text alignment). supervised fine-tuning만으로 잡기 어려운 측면에 직접 피드백.</li>
+</ul>
+<p>Task-specific system prompt(Figure 8–9)로 unified context 내 heterogeneous task 구분(I2T/V2T captioning, T2I/T2V generation, X2I/X2V editing 등 별도 prompt template).</p>
+
+<h2>실험 (Experiments)</h2>
+<p>Lance는 ##Qwen2.5-VL 3B## 위에 구현(visual understanding encoder + LLM_UND/LLM_GEN backbone 초기화). 각 attention block에 QK-Norm 장착(초기화 backbone의 query-key activation 분포 변경 → 직접 재사용이 아니라 staged training으로 re-adapt). visual generation은 Wan2.2 3D causal VAE. CFG(classifier-free guidance) 적용(PT에서 text condition 10% drop, CT/SFT에서 full condition 5% drop + text-only 5% drop). inference: image 768×768, video 480p 12fps, text CFG scale 4.</p>
+
+<h3>5.2.1 Image Generation</h3>
+<p><strong>실험 의도</strong>: 3B unified model이 훨씬 큰 generation-only/unified model과 경쟁 가능한가? <strong>결과(Table 5)</strong>: GenEval ##overall 0.90##(unified model 중 best와 동률, counting 0.84·colors 0.97·position 0.87·attr 0.81에서 강함). DPG-Bench overall 84.67(relation modeling 93.38에서 특히 우수). <strong>뒷받침</strong>: 단 3B activated param으로 7B BAGEL(0.80)·1.7B InternVL-U(0.85)·20B Qwen-Image(0.87)를 능가 → unified framework가 high-quality image synthesis를 효율적으로 지원.</p>
+
+<h3>5.2.2 Video Generation</h3>
+<p><strong>결과(Table 6, VBench)</strong>: ##Total Score 85.11## — unified model 중 best, 3B activated param으로. quality·semantic 양면에서 강함(Multi-Objects 93.86, Human Action 97.80, Spatial Relation 93.61, Temporal Flickering 99.66). 8.3B HunyuanVideo1.5·5B Wan2.2·7B UniVideo와 정성 비교에서 complex human interaction("two adults hugging")·explicit camera transition("medium view → close facial framing")을 정확히 따름. <strong>뒷받침</strong>: unified framework가 image→video로 자연스럽게 scaling, compositional video generation·text-video alignment 지원.</p>
+
+<h3>5.2.3 Multimodal Editing</h3>
+<p><strong>결과(Table 7, GEdit-Bench)</strong>: ##Avg/G_O 7.30## — unified model 중 best. background change·material modification·motion change·portrait beautification·subject removal·replacement·tone change에서 best. ##단, text modification은 상대적 약점##(향후 개선 방향). image+video editing 모두 정성적으로 구조 보존·자연스러운 motion dynamics.</p>
+
+<h3>5.2.4 Multimodal Understanding</h3>
+<p><strong>결과(Table 8, MVBench)</strong>: ##Overall 62.0## — 기존 unified model 중 best, second-best unified(Show-o2 7B 50.6) 대비 ##~11.3% relative 향상##. ##절반 이하 파라미터로## 강한 video understanding 유지. unified multi-task training이 generation·editing을 가능케 하면서도 강한 understanding을 보존함을 시사.</p>
+
+<h3>6. Ablation Study</h3>
+<h4>6.1 Training Dynamics (Figure 13)</h4>
+<p><strong>의도</strong>: 능력이 학습 토큰 따라 어떻게 진화하나? <strong>결과</strong>: image·video generation 모두 PT 초반 급증 후 slow-growth. ##CT 단계가 native generation 능력을 더 향상시킴(주로 multi-task/instruction-following 데이터 추가임에도)##. <strong>뒷받침</strong>: multi-task integration이 editing·instruction-following뿐 아니라 ##visual generation으로 positive transfer## → multi-task synergy가 mutual reinforcement 메커니즘.</p>
+
+<h4>6.2 Cross-Task Data Synergy (Table 9)</h4>
+<table>
+<tr><th>Ablation</th><th>Setting</th><th>GenEval(이미지생성)</th><th>VBench(비디오생성)</th><th>MVBench(비디오이해)</th></tr>
+<tr><td>Base</td><td>Gen. only</td><td>80.88</td><td>81.25</td><td>—</td></tr>
+<tr><td>+ Understanding data</td><td>Gen:Und = 8:2</td><td>81.65</td><td>82.91</td><td>58.06</td></tr>
+<tr><td>+ Understanding data</td><td>Gen:Und = 9:1 (MT-Gen Base)</td><td>80.93</td><td>81.47</td><td>57.99</td></tr>
+<tr><td>+ Multi-task data</td><td>Gen:Und=9:1, Gen:MT-Gen=8:2</td><td>81.89</td><td>82.88</td><td>59.18</td></tr>
+<tr><td>+ Multi-task data</td><td>Gen:Und=9:1, Gen:MT-Gen=6:4</td><td><strong>82.06</strong></td><td><strong>83.05</strong></td><td>58.95</td></tr>
+</table>
+<ul>
+  <li><strong>Effect of Understanding Data</strong>: 적절한 비율(##Gen:Und = 8:2##)의 understanding data가 image·video generation 모두 향상 → ##understanding data가 visual synthesis에 유용한 semantic grounding 제공##.</li>
+  <li><strong>Effect of Multi-task Data</strong>: multi-task generation data(editing·subject-driven 등)가 base generation 능력을 joint training으로 강화. ##Gen:MT-Gen = 6:4가 최고##. ##놀랍게도 multi-task generation data가 video understanding(MVBench)까지 향상## → multi-task synergy = 단순 capability 누적이 아니라 ##cross-task mutual reinforcement##.</li>
+</ul>
+
+<h4>6.3 Effect of MaPE (Table 10)</h4>
+<table>
+<tr><th>Setting</th><th>GenEval</th><th>GEdit</th><th>VBench</th><th>MVBench</th></tr>
+<tr><td>w/ MaPE</td><td><strong>80.94</strong></td><td><strong>6.86</strong></td><td><strong>81.81</strong></td><td><strong>59.16</strong></td></tr>
+<tr><td>w/o MaPE</td><td>80.56</td><td>6.30</td><td>80.95</td><td>59.02</td></tr>
+</table>
+<p>MaPE 제거 시 generation·editing·understanding 전반 성능 저하. ##특히 image editing에서 6.30→6.86로 큰 향상## — editing은 visual condition과 generation target을 jointly reason해야 하므로 token group 구분이 결정적. MaPE가 heterogeneous visual token group 간 positional ambiguity 감소.</p>
+
+<div class="critical-analysis">
+<h2>비판적 분석 (Critical Analysis)</h2>
+<ul>
+  <li><strong>효율성 주장의 미묘함 — "3B activated parameters"</strong>: Lance는 3B activated param을 강조하나, ##dual-stream MoE이므로 total parameter는 더 크다##(LLM_UND + LLM_GEN). 또한 Qwen2.5-VL 3B + Wan2.2 VAE + ViT encoder를 합치면 실제 model footprint·storage·serving cost는 "3B"가 시사하는 것보다 크다. "128-GPU budget"도 절대 작은 자원이 아니다. 효율성 비교가 activated param 기준이라 ##공정성에 주의##가 필요하다.</li>
+  <li><strong>Baseline 비교의 공정성</strong>: GenEval 0.90이 "unified model 중 best와 동률"인데, 일부 baseline은 LLM rewriter 사용(†표시), Lance도 video에서 LLM rewriter 사용(†). prompt rewriting 유무가 점수에 큰 영향을 줄 수 있어 ##rewriter 조건을 통제한 비교가 더 명확##했을 것이다.</li>
+  <li><strong>Text rendering 약점</strong>: 저자도 인정하듯 ##image editing의 text modification이 약점##이고, RL 단계에서 PaddleOCR reward로 text rendering을 보강해야 했다. 이는 unified model에서 ##fine-grained text 일관성이 여전히 미해결##임을 보여주는 동시에, dedicated text-rendering 데이터 부재(저자가 future work로 명시)라는 데이터 한계를 드러낸다.</li>
+  <li><strong>Ablation scale의 제약</strong>: cross-task synergy ablation(Table 9)이 ##GenEval 80~82, VBench 81~83 범위의 작은 차이(1~2점)##로 결론을 내린다. seed variance·통계적 유의성 보고가 없어, "multi-task가 video understanding을 향상"이라는 surprising claim(58.06→59.18, +1.1점)이 ##noise 대비 robust한지 불확실##.</li>
+  <li><strong>MaPE의 일반성</strong>: MaPE는 Qwen2.5-VL의 3D-RoPE에 특화된 modification으로, 효과(특히 editing +0.56)는 명확하나 ##다른 backbone·다른 token grouping에 일반화되는지##는 검증되지 않았다. $\Delta_t=1000$이라는 hyperparameter 선택의 sensitivity도 보고되지 않음.</li>
+  <li><strong>Native vs initialized의 모호함</strong>: "trained from scratch"(abstract)라 하면서도 실제로는 ##Qwen2.5-VL 3B weights로 initialize##(§5.1). QK-Norm으로 인해 "직접 재사용이 아니라 re-adapt"라 설명하나, "native unified / from scratch"라는 표현과 pretrained backbone 초기화 사이에 ##수사적 긴장##이 있다.</li>
+</ul>
+</div>
+
+<div class="takeaways">
+<h2>이 논문에서 가져갈 것 (Key Takeaways)</h2>
+<ul>
+  <li><strong>"Shared context + Decoupled experts"는 강력한 unified design 패턴</strong>: 이해와 생성을 한 backbone에서 경쟁시키지 말되, 같은 interleaved sequence를 보게 하라. 간섭은 줄이고 transfer는 살린다. 향후 unified multimodal 설계의 참고 청사진.</li>
+  <li><strong>Multi-task synergy의 실증</strong>: multi-task 데이터가 단순 능력 누적이 아니라 ##cross-task로 전이##된다는 증거(multi-task generation 데이터가 video understanding까지 향상). 데이터 믹스를 task별 silo가 아니라 synergy 관점에서 설계할 동기.</li>
+  <li><strong>Heterogeneous token에는 positional 신호로 역할을 명시하라</strong>: MaPE처럼 token group을 positional space에서 구분하면 특히 ##editing(condition+target 동시 추론)##에서 이득. 여러 종류의 visual token을 한 sequence에 섞는 모든 아키텍처에 적용 가능한 아이디어.</li>
+  <li><strong>효율적 unified model의 가능성</strong>: 3B activated param + 128 GPU로 7B~20B 모델과 경쟁 → unified multimodal이 ##반드시 초거대 모델일 필요는 없다##는 실용적 신호. 리소스 제약 환경의 참고점.</li>
+  <li><strong>RL로 fine-grained 제약 보강</strong>: text rendering·image-text alignment 같이 SFT로 잡기 어려운 측면은 ##GRPO + 외부 reward model(PaddleOCR)##로 보강하는 실용적 recipe.</li>
+  <li><strong>비판적 독해</strong>: "3B"·"from scratch"·"best among unified" 같은 표현은 activated param 기준·pretrained 초기화·rewriter 조건 등 ##세부 조건을 확인##하고 받아들일 것.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

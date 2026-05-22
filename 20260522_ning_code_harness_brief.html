@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Code as Agent Harness 개요 브리핑 — 코드가 AI 에이전트의 '작업대'가 된다</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; color: #1a1a1a; background: #fafafa; line-height: 1.75; }
+  .container { max-width: 920px; margin: 0 auto; padding: 0 1.2rem; }
+
+  .hero { background: linear-gradient(135deg, #5b2c9e 0%, #8e54e9 60%, #4776e6 100%); color: white; padding: 3rem 1.5rem; }
+  .hero .container { padding: 0 1.5rem; }
+  .hero .badges { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+  .hero .badge { background: rgba(255,255,255,0.25); padding: 0.3rem 0.9rem; border-radius: 999px; font-size: 0.85rem; backdrop-filter: blur(4px); }
+  .hero h1 { font-size: 2.4rem; margin: 0.5rem 0 0.5rem; line-height: 1.25; text-shadow: 0 2px 8px rgba(0,0,0,0.18); }
+  .hero p.sub { font-size: 1.1rem; opacity: 0.97; margin: 0.5rem 0; }
+  .nav-link { display: inline-block; background: rgba(255,255,255,0.92); color: #5b2c9e; padding: 0.45rem 1rem; border-radius: 6px; text-decoration: none; margin-top: 1rem; font-weight: 600; }
+  .nav-link:hover { background: white; }
+
+  section { padding: 2.5rem 0; }
+  h2 { font-size: 1.7rem; border-left: 5px solid #8e54e9; padding-left: 0.8rem; margin: 0 0 1.2rem; color: #1a1a1a; }
+  h3 { font-size: 1.25rem; color: #333; margin-top: 1.8rem; }
+
+  .oneliner-card { background: linear-gradient(135deg, #f3ecff 0%, #e8f0ff 100%); border-radius: 14px; padding: 1.8rem; margin: 1rem 0; border: 1px solid #d4c2f0; box-shadow: 0 4px 18px rgba(142,84,233,0.07); }
+  .oneliner-card .quote { font-size: 1.4rem; font-weight: 600; color: #5b2c9e; line-height: 1.5; }
+
+  .card { background: white; border-radius: 12px; padding: 1.5rem; margin: 1rem 0; box-shadow: 0 2px 10px rgba(0,0,0,0.04); border: 1px solid #eee; }
+  .card-accent { border-left: 5px solid #8e54e9; }
+  .card-green  { border-left: 5px solid #27ae60; background: #f0faf3; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fff8f0; }
+  .card-blue   { border-left: 5px solid #3498db; background: #f0f7ff; }
+  .card-red    { border-left: 5px solid #e74c3c; background: #fdf0ef; }
+  .card-purple { border-left: 5px solid #8e54e9; background: #f6f0ff; }
+
+  .step-flow { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .step { flex: 1; min-width: 200px; background: white; border-radius: 10px; padding: 1.2rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #8e54e9; }
+  .step-num { display: inline-block; width: 28px; height: 28px; border-radius: 50%; background: #8e54e9; color: white; text-align: center; font-weight: 700; line-height: 28px; margin-right: 0.5rem; }
+  .step h4 { margin: 0.3rem 0; font-size: 1.05rem; }
+
+  .stat-row { display: flex; gap: 1rem; margin: 1.5rem 0; flex-wrap: wrap; }
+  .stat { flex: 1; min-width: 160px; background: linear-gradient(135deg, #f3ecff 0%, #e0d0f8 100%); padding: 1.2rem; border-radius: 10px; text-align: center; border: 1px solid #d0c0ee; }
+  .stat-num { font-size: 2.2rem; font-weight: 700; color: #5b2c9e; line-height: 1.1; }
+  .stat-label { font-size: 0.9rem; color: #555; margin-top: 0.3rem; }
+
+  .analogy { background: #fff9c4; border-left: 5px solid #fbc02d; padding: 1.2rem 1.4rem; border-radius: 8px; margin: 1.2rem 0; }
+  .analogy strong { color: #f57f17; }
+
+  table.comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; background: white; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+  .comp-table th { background: #8e54e9; color: white; padding: 0.7rem; text-align: left; }
+  .comp-table td { padding: 0.7rem; border-top: 1px solid #eee; }
+  .comp-table tr:hover { background: #f6f0ff; }
+  .highlight-row { background: #e0d0f8 !important; font-weight: 600; }
+
+  .svg-wrap { background: white; padding: 1.2rem; border-radius: 10px; margin: 1.2rem 0; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.04); }
+  .svg-wrap svg { max-width: 100%; height: auto; }
+  .svg-caption { font-size: 0.92rem; color: #666; margin-top: 0.6rem; }
+
+  .conclusion-card { background: linear-gradient(135deg, #5b2c9e 0%, #4776e6 100%); color: white; padding: 2rem; border-radius: 14px; text-align: center; margin: 2rem 0; box-shadow: 0 6px 20px rgba(91,44,158,0.25); }
+  .conclusion-card .quote { font-size: 1.3rem; font-weight: 600; }
+
+  footer { background: #2c3e50; color: #ecf0f1; padding: 2rem 0; text-align: center; margin-top: 3rem; }
+  footer a { color: #c9aef0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<header class="hero">
+  <div class="container">
+    <div class="badges">
+      <span class="badge">UIUC · Meta · Stanford</span>
+      <span class="badge">2026.05.18</span>
+      <span class="badge">Survey (서베이)</span>
+      <span class="badge">AI Agent</span>
+      <span class="badge">arXiv 2605.18747</span>
+    </div>
+    <h1>Code as Agent Harness — 코드가 AI 에이전트의 '작업대'가 된다</h1>
+    <p class="sub">AI 에이전트가 똑똑해지는 진짜 비결은 '더 좋은 두뇌'가 아니라 '더 좋은 작업 환경'이다. 이 서베이는 코드를 그 작업 환경(harness)으로 재해석하고, 흩어진 수백 편의 연구를 하나의 지도로 묶는다.</p>
+    <a href="20260522_ning_code_harness.html" class="nav-link">전문가용 상세 요약 보기 →</a>
+  </div>
+</header>
+
+<section>
+  <div class="container">
+
+    <h2>한 줄 요약</h2>
+    <div class="oneliner-card">
+      <div class="quote">"AI 에이전트에게 코드는 단순한 '결과물'이 아니다. 코드는 에이전트가 <strong>생각을 실행해보고 · 결과를 눈으로 확인하고 · 작업 중간 상태를 그대로 남겨두는</strong> 디지털 작업대(workbench)다."</div>
+    </div>
+
+    <h2>핵심 성과 한눈에</h2>
+    <div class="stat-row">
+      <div class="stat"><div class="stat-num">3</div><div class="stat-label">계층으로 정리<br>(Interface·Mechanism·Scaling)</div></div>
+      <div class="stat"><div class="stat-num">5</div><div class="stat-label">응용 분야<br>(코딩·GUI·과학·추천·로봇)</div></div>
+      <div class="stat"><div class="stat-num">7</div><div class="stat-label">미해결 문제<br>(미래 연구 의제)</div></div>
+      <div class="stat"><div class="stat-num">300+</div><div class="stat-label">정리된 관련 연구<br>(GitHub 공개)</div></div>
+    </div>
+
+    <h2>먼저 알아야 할 배경 지식</h2>
+
+    <h3>배경 1 — "LLM"과 "AI 에이전트"는 다르다</h3>
+    <p>ChatGPT 같은 <strong>LLM(거대 언어 모델)</strong>은 본질적으로 "질문을 받으면 한 번 답하고 끝나는" 모델이다. 기억도 없고, 직접 무언가를 실행하지도 못한다. 반면 <strong>AI 에이전트</strong>는 며칠에 걸친 작업을 스스로 수행한다 — 코드를 짜고, 실행하고, 에러를 보고, 고치고, 또 실행한다. 이 차이를 만드는 것이 무엇일까?</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 240" xmlns="http://www.w3.org/2000/svg">
+        <rect x="20" y="40" width="320" height="160" rx="12" fill="#f0f7ff" stroke="#3498db" stroke-width="2"/>
+        <text x="180" y="70" text-anchor="middle" font-size="17" font-weight="700" fill="#2471a3">그냥 LLM</text>
+        <rect x="60" y="95" width="240" height="40" rx="8" fill="#fff" stroke="#bbb"/>
+        <text x="180" y="120" text-anchor="middle" font-size="13" fill="#333">질문 → (한 번 생각) → 답변</text>
+        <text x="180" y="160" text-anchor="middle" font-size="12" fill="#888">기억 없음 · 실행 불가 · 검증 불가</text>
+        <text x="180" y="182" text-anchor="middle" font-size="12" fill="#888">→ 단발성</text>
+
+        <rect x="420" y="40" width="320" height="160" rx="12" fill="#f6f0ff" stroke="#8e54e9" stroke-width="2"/>
+        <text x="580" y="70" text-anchor="middle" font-size="17" font-weight="700" fill="#5b2c9e">AI 에이전트 = LLM + Harness</text>
+        <rect x="455" y="90" width="110" height="34" rx="6" fill="#fff" stroke="#8e54e9"/>
+        <text x="510" y="112" text-anchor="middle" font-size="12" fill="#5b2c9e">계획</text>
+        <rect x="595" y="90" width="110" height="34" rx="6" fill="#fff" stroke="#8e54e9"/>
+        <text x="650" y="112" text-anchor="middle" font-size="12" fill="#5b2c9e">실행 (도구)</text>
+        <rect x="455" y="135" width="110" height="34" rx="6" fill="#fff" stroke="#8e54e9"/>
+        <text x="510" y="157" text-anchor="middle" font-size="12" fill="#5b2c9e">기억</text>
+        <rect x="595" y="135" width="110" height="34" rx="6" fill="#fff" stroke="#8e54e9"/>
+        <text x="650" y="157" text-anchor="middle" font-size="12" fill="#5b2c9e">검증</text>
+        <text x="580" y="190" text-anchor="middle" font-size="12" fill="#888">두뇌(LLM)를 둘러싼 시스템 = harness</text>
+      </svg>
+      <div class="svg-caption">LLM은 두뇌, harness는 그 두뇌가 실제로 일하게 만드는 손·발·기억·작업대다.</div>
+    </div>
+
+    <h3>배경 2 — "Harness(하네스)"란?</h3>
+    <p><strong>Harness</strong>는 원래 말이나 낙하산을 몸에 묶는 '안전벨트·마구(馬具)'를 뜻한다. AI에서는 <strong>LLM을 둘러싸고 도구·메모리·실행 환경·안전장치·피드백 채널을 제공하는 소프트웨어 계층</strong>을 말한다. 한마디로 "stateless한 모델을 진짜로 일하는 에이전트로 바꿔주는 껍데기"다.</p>
+
+    <div class="analogy">
+      <strong>🐴 비유 (마구 harness):</strong> 아무리 힘센 말(=똑똑한 LLM)이라도 마구(harness)가 없으면 마차를 끌 수 없다. 안장·고삐·바퀴를 연결하는 마구가 있어야 비로소 그 힘이 '운송'이라는 유용한 일로 바뀐다. AI 에이전트의 자율성을 결정하는 병목은 종종 <strong>말의 힘(모델의 똑똑함)이 아니라 마구의 품질(harness의 신뢰성)</strong>이다.
+    </div>
+
+    <h3>배경 3 — 이 논문의 핵심 통찰: "코드 = harness"</h3>
+    <p>그렇다면 harness를 무엇으로 만들면 가장 좋을까? 이 논문의 답은 <strong>"코드"</strong>다. 왜냐하면 코드는 자연어 대화에는 없는 세 가지 마법 같은 성질을 가지기 때문이다:</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 260" xmlns="http://www.w3.org/2000/svg">
+        <rect x="30" y="40" width="220" height="180" rx="12" fill="#eafaf1" stroke="#27ae60" stroke-width="2"/>
+        <text x="140" y="72" text-anchor="middle" font-size="34">⚙️</text>
+        <text x="140" y="110" text-anchor="middle" font-size="16" font-weight="700" fill="#1e8449">Executable</text>
+        <text x="140" y="132" text-anchor="middle" font-size="13" fill="#555">실행 가능</text>
+        <text x="140" y="165" text-anchor="middle" font-size="12" fill="#666">모델이 의도한 것을</text>
+        <text x="140" y="184" text-anchor="middle" font-size="12" fill="#666">실제로 돌려서</text>
+        <text x="140" y="203" text-anchor="middle" font-size="12" fill="#666">"맞는지 확인" 가능</text>
+
+        <rect x="270" y="40" width="220" height="180" rx="12" fill="#f0f7ff" stroke="#3498db" stroke-width="2"/>
+        <text x="380" y="72" text-anchor="middle" font-size="34">🔍</text>
+        <text x="380" y="110" text-anchor="middle" font-size="16" font-weight="700" fill="#2471a3">Inspectable</text>
+        <text x="380" y="132" text-anchor="middle" font-size="13" fill="#555">검사 가능</text>
+        <text x="380" y="165" text-anchor="middle" font-size="12" fill="#666">실패가 구조화된</text>
+        <text x="380" y="184" text-anchor="middle" font-size="12" fill="#666">로그·에러로 드러나</text>
+        <text x="380" y="203" text-anchor="middle" font-size="12" fill="#666">"진단·피드백" 가능</text>
+
+        <rect x="510" y="40" width="220" height="180" rx="12" fill="#f6f0ff" stroke="#8e54e9" stroke-width="2"/>
+        <text x="620" y="72" text-anchor="middle" font-size="34">💾</text>
+        <text x="620" y="110" text-anchor="middle" font-size="16" font-weight="700" fill="#5b2c9e">Stateful</text>
+        <text x="620" y="132" text-anchor="middle" font-size="13" fill="#555">상태 유지</text>
+        <text x="620" y="165" text-anchor="middle" font-size="12" fill="#666">작업 이력을 영속적·</text>
+        <text x="620" y="184" text-anchor="middle" font-size="12" fill="#666">수정 가능 형태로</text>
+        <text x="620" y="203" text-anchor="middle" font-size="12" fill="#666">"잃지 않고 보존"</text>
+      </svg>
+      <div class="svg-caption">코드의 세 성질. 이것이 단순한 표기법이 아니라 "harness를 기능하게 만드는" 핵심이라는 게 논문의 주장.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🗣️ 비유 (말 vs 글):</strong> 자연어로 "2,847 × 391을 계산했어, 답은 113만쯤이야"라고 말하는 LLM은 <strong>틀려도 그럴듯하게 들린다</strong>(검증 불가). 하지만 <code>2847 * 391</code>이라는 코드를 실제로 실행하면 <strong>1,113,177</strong>이라는 객관적 답이 나온다 — 모델이 거짓말을 할 수 없다. 코드는 "환각(hallucination)이 불가능한 객관적 진실의 채널"이다.
+    </div>
+
+  </div>
+</section>
+
+<section style="background:#f4eeff;">
+  <div class="container">
+    <h2>이 서베이의 큰 그림 — 3개의 계층</h2>
+    <p>저자들은 흩어진 수백 편의 연구를 <strong>코드가 에이전트 안에서 점점 더 큰 역할을 맡아가는 3단계</strong>로 정리한다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 760 330" xmlns="http://www.w3.org/2000/svg">
+        <!-- Layer 1 -->
+        <rect x="40" y="30" width="680" height="80" rx="10" fill="#eafaf1" stroke="#27ae60" stroke-width="2"/>
+        <text x="60" y="58" font-size="15" font-weight="700" fill="#1e8449">① Harness Interface — 코드가 '입구'가 된다</text>
+        <text x="60" y="82" font-size="12.5" fill="#555">추론(Reasoning) · 행동(Acting) · 환경모델링(Environment)을 코드로 표현</text>
+        <text x="60" y="100" font-size="11.5" fill="#888">예: PoT, Code-as-Policies, SWE-bench, Voyager</text>
+
+        <!-- Layer 2 -->
+        <rect x="40" y="125" width="680" height="80" rx="10" fill="#f0f7ff" stroke="#3498db" stroke-width="2"/>
+        <text x="60" y="153" font-size="15" font-weight="700" fill="#2471a3">② Harness Mechanisms — 코드가 '운영'된다</text>
+        <text x="60" y="177" font-size="12.5" fill="#555">계획 · 메모리 · 도구사용 · 제어(Plan-Execute-Verify) · 자기진화</text>
+        <text x="60" y="195" font-size="11.5" fill="#888">예: CodePlan, MemGPT, OpenHands, AutoHarness</text>
+
+        <!-- Layer 3 -->
+        <rect x="40" y="220" width="680" height="80" rx="10" fill="#f6f0ff" stroke="#8e54e9" stroke-width="2"/>
+        <text x="60" y="248" font-size="15" font-weight="700" fill="#5b2c9e">③ Scaling the Harness — 코드가 '공유 작업대'가 된다</text>
+        <text x="60" y="272" font-size="12.5" fill="#555">여러 에이전트가 같은 코드 저장소·실행 상태를 공유하며 협업</text>
+        <text x="60" y="290" font-size="11.5" fill="#888">예: ChatDev, MetaGPT, MAGIS, L2MAC, EvoMAC</text>
+
+        <text x="730" y="75" font-size="22" fill="#27ae60">↓</text>
+        <text x="730" y="170" font-size="22" fill="#3498db">↓</text>
+      </svg>
+      <div class="svg-caption">단일 에이전트의 도구(①·②)에서 여러 에이전트의 공유 기반(③)으로 발전.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>계층 ① — 코드가 에이전트의 '입구'가 된다</h2>
+    <p>가장 기초적인 단계. 코드가 모델과 작업 환경을 잇는 다리 역할을 한다. 세 가지 방식:</p>
+
+    <h3>(1) 추론을 위한 코드 (Code for Reasoning)</h3>
+    <p>LLM은 머릿속 계산에 약하다. 그래서 계산을 '코드'로 떠넘긴다.</p>
+    <div class="analogy">
+      <strong>🧮 비유 (계산기):</strong> 똑똑한 사람도 큰 곱셈은 계산기를 쓴다. PoT(Program of Thoughts)는 LLM이 "직접 암산"하는 대신 "계산할 코드를 짜서 컴퓨터에게 시키는" 방식이다. 추론의 신뢰성이 크게 올라간다. 한 발 더 나가면 Lean 같은 '수학 증명 언어'로 모든 단계를 검증한다(AlphaProof).
+    </div>
+
+    <h3>(2) 행동을 위한 코드 (Code for Acting)</h3>
+    <p>로봇 팔을 움직이거나, 웹 버튼을 누르거나, API를 호출하는 '행동'을 코드로 표현한다.</p>
+    <div class="analogy">
+      <strong>🤖 비유 (레시피 카드):</strong> 요리사(에이전트)에게 "맛있게 만들어"라고 말하면 막막하다. 하지만 "①양파를 썬다 ②중불에 볶는다…"라는 <strong>실행 가능한 레시피(코드)</strong>를 주면 정확히 행동할 수 있다. Voyager는 마인크래프트에서 이런 '레시피(skill)'를 스스로 모아 도서관처럼 쌓아간다.
+    </div>
+
+    <h3>(3) 환경 모델링을 위한 코드 (Code for Environment)</h3>
+    <p>에이전트가 일하는 '세상' 자체를 코드로 표현한다 — 코드 저장소, 시뮬레이터, 테스트가 곧 '세계'다.</p>
+    <div class="analogy">
+      <strong>🎮 비유 (게임 세이브 파일):</strong> 게임의 세계 상태가 세이브 파일에 저장되듯, 에이전트가 다루는 환경(코드베이스)도 파일·테스트·실행 로그로 저장된다. SWE-bench는 "GitHub 이슈를 고쳤는가?"를 <strong>유닛 테스트 통과 여부</strong>라는 객관적 세계 상태로 측정한다.
+    </div>
+  </div>
+</section>
+
+<section style="background:#f4eeff;">
+  <div class="container">
+    <h2>계층 ② — 코드가 '운영'된다 (Plan-Execute-Verify)</h2>
+    <p>코드가 에이전트 안에 들어오면, 이제 "무엇을 다음에 할지" 결정하고, 실패를 고치는 '운영' 메커니즘이 필요하다. 핵심은 <strong>계획→실행→검증(PEV)</strong> 루프다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg">
+        <!-- circular PEV loop -->
+        <rect x="60" y="100" width="160" height="60" rx="10" fill="#fff" stroke="#27ae60" stroke-width="2"/>
+        <text x="140" y="128" text-anchor="middle" font-size="15" font-weight="700" fill="#1e8449">① Plan</text>
+        <text x="140" y="148" text-anchor="middle" font-size="11" fill="#666">의도·검증기준 명시</text>
+
+        <rect x="280" y="100" width="160" height="60" rx="10" fill="#fff" stroke="#3498db" stroke-width="2"/>
+        <text x="360" y="128" text-anchor="middle" font-size="15" font-weight="700" fill="#2471a3">② Execute</text>
+        <text x="360" y="148" text-anchor="middle" font-size="11" fill="#666">샌드박스에서 실행</text>
+
+        <rect x="500" y="100" width="160" height="60" rx="10" fill="#fff" stroke="#8e54e9" stroke-width="2"/>
+        <text x="580" y="128" text-anchor="middle" font-size="15" font-weight="700" fill="#5b2c9e">③ Verify</text>
+        <text x="580" y="148" text-anchor="middle" font-size="11" fill="#666">테스트·린터로 검증</text>
+
+        <line x1="220" y1="130" x2="278" y2="130" stroke="#888" stroke-width="2" marker-end="url(#arr2)"/>
+        <line x1="440" y1="130" x2="498" y2="130" stroke="#888" stroke-width="2" marker-end="url(#arr2)"/>
+        <path d="M 580 100 Q 580 40 360 40 Q 140 40 140 100" fill="none" stroke="#e67e22" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr3)"/>
+        <text x="360" y="32" text-anchor="middle" font-size="12" fill="#e67e22">실패하면 다시 계획 (피드백 루프)</text>
+        <defs>
+          <marker id="arr2" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#888"/></marker>
+          <marker id="arr3" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6 Z" fill="#e67e22"/></marker>
+        </defs>
+        <text x="360" y="210" text-anchor="middle" font-size="12.5" fill="#555">harness는 '사이버네틱 통치자' — 린터·테스트·타입체커 같은 객관적 센서로</text>
+        <text x="360" y="230" text-anchor="middle" font-size="12.5" fill="#555">에이전트의 작업을 감시하고 계속/수정/사람에게 보고를 결정한다</text>
+      </svg>
+      <div class="svg-caption">디버깅을 단순 '에러 고치기'가 아니라 '통제된 상태 전이'로 재구성한다.</div>
+    </div>
+
+    <h3>안전을 위한 3단계 권한 (Permission Tier)</h3>
+    <p>에이전트가 위험한 일(파일 삭제, 배포)을 멋대로 하지 않도록, 행동을 위험도별로 나눈다:</p>
+    <div class="step-flow">
+      <div class="step" style="border-top-color:#27ae60;">
+        <h4>🟢 읽기 전용</h4>
+        <p>코드 둘러보기, 로그 분석 — 위험 없음, 자유롭게 허용</p>
+      </div>
+      <div class="step" style="border-top-color:#f39c12;">
+        <h4>🟡 샌드박스 편집</h4>
+        <p>격리된 공간에서 코드 수정·테스트 — 제한된 범위</p>
+      </div>
+      <div class="step" style="border-top-color:#e74c3c;">
+        <h4>🔴 전체 접근</h4>
+        <p>네트워크·배포·삭제 — <strong>반드시 사람의 승인(HITL) 필요</strong></p>
+      </div>
+    </div>
+
+    <h3>스스로 진화하는 harness (AHE)</h3>
+    <div class="analogy">
+      <strong>🔧 비유 (정비공이 자기 공구를 개선):</strong> 보통 에이전트는 '코드(자동차)'를 고친다. 그런데 한 단계 위의 '진화 에이전트(Evolution Agent)'는 <strong>에이전트가 쓰는 공구·작업대(harness) 자체</strong>를 개선한다. 단, 작업대를 함부로 바꾸면 위험하므로 — "안전 규칙을 바꾸는 변경은 반드시 사람 승인" 같은 통제(governed mutation)가 붙는다.
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>계층 ③ — 코드가 '공유 작업대'가 된다 (멀티에이전트)</h2>
+    <p>혼자서는 한계가 있다. 그래서 여러 에이전트(기획자·코더·테스터·리뷰어)가 같은 코드 저장소를 공유하며 협업한다. 사람 개발팀과 똑같다.</p>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+        <!-- shared substrate in center -->
+        <circle cx="360" cy="140" r="58" fill="#f6f0ff" stroke="#8e54e9" stroke-width="2.5"/>
+        <text x="360" y="132" text-anchor="middle" font-size="13" font-weight="700" fill="#5b2c9e">공유 코드</text>
+        <text x="360" y="152" text-anchor="middle" font-size="13" font-weight="700" fill="#5b2c9e">작업대</text>
+        <text x="360" y="172" text-anchor="middle" font-size="10.5" fill="#888">(저장소·테스트·로그)</text>
+
+        <g font-size="12">
+          <rect x="290" y="20" width="140" height="42" rx="8" fill="#fff" stroke="#3498db"/>
+          <text x="360" y="46" text-anchor="middle" fill="#2471a3">🧑‍💼 기획자(Planner)</text>
+          <rect x="540" y="115" width="140" height="42" rx="8" fill="#fff" stroke="#27ae60"/>
+          <text x="610" y="141" text-anchor="middle" fill="#1e8449">👨‍💻 코더(Coder)</text>
+          <rect x="290" y="218" width="140" height="42" rx="8" fill="#fff" stroke="#e67e22"/>
+          <text x="360" y="244" text-anchor="middle" fill="#b9700f">🧪 테스터(Tester)</text>
+          <rect x="40" y="115" width="140" height="42" rx="8" fill="#fff" stroke="#9b59b6"/>
+          <text x="110" y="141" text-anchor="middle" fill="#7d3c98">🔎 리뷰어(Reviewer)</text>
+        </g>
+        <line x1="360" y1="62" x2="360" y2="82" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="538" y1="136" x2="420" y2="140" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="360" y1="198" x2="360" y2="216" stroke="#aaa" stroke-width="1.5"/>
+        <line x1="182" y1="136" x2="300" y2="140" stroke="#aaa" stroke-width="1.5"/>
+      </svg>
+      <div class="svg-caption">여러 전문 에이전트가 하나의 공유 코드 작업대를 중심으로 협업한다.</div>
+    </div>
+
+    <div class="analogy">
+      <strong>🏗️ 비유 (건설 현장의 청사진):</strong> 건축가·목수·전기공이 협업하려면 <strong>모두가 같은 청사진</strong>을 봐야 한다. 한 명만 옛 도면을 보면 벽이 어긋난다. 마찬가지로 멀티에이전트 코딩에서 가장 큰 문제는 "각자 머릿속 코드 상태가 어긋나는 것(state divergence)"이다.
+    </div>
+
+    <h3>이 논문이 진단한 핵심 문제와 제안</h3>
+    <div class="card card-red">
+      <h3>⚠️ 진단: 대부분의 시스템은 '청사진'이 없다</h3>
+      <p>저자들이 조사한 멀티에이전트 시스템 대다수는 공유 상태를 <strong>그때그때 대화 기록에서 암묵적으로 재구성</strong>한다(implicit/file-only). 형식적인 공유 청사진이 없어서, 한 에이전트의 착각이 시스템 전체에 보이지 않게 퍼진다. <strong>이것이 시스템이 자주 깨지는(brittle) 근본 원인</strong>이라는 게 핵심 진단.</p>
+    </div>
+    <div class="card card-purple">
+      <h3>💡 제안: 공유 코드 중심 기반 (Shared Code-Centric Harness Substrate)</h3>
+      <p>차세대 멀티에이전트 지능은 모든 에이전트가 <strong>읽고 쓸 수 있는 형식적·영속적 공유 코드 상태</strong>가 필요하다. 코드는 멀티에이전트 영역 중 유일하게 <strong>'실행되어 객관적 신호를 만드는'</strong> 매체이므로, 이 성질을 적극 활용해야 한다.</p>
+    </div>
+
+    <table class="comp-table">
+      <tr><th>공유 상태 형식화 단계</th><th>설명</th><th>대표</th></tr>
+      <tr><td>① 암묵적/파일만</td><td>매번 대화에서 재구성 (가장 흔하고 취약)</td><td>ChatDev, MetaGPT</td></tr>
+      <tr><td>② 저장소 기반</td><td>탐색 가능한 코드 저장소를 공유</td><td>MAGIS, SyncMind</td></tr>
+      <tr><td>③ 실행 기반</td><td>"코드가 무엇을 하는가"(테스트·실행 결과)가 상태</td><td>AgentCoder, MAGE</td></tr>
+      <tr class="highlight-row"><td>④ 블랙보드/공유상태</td><td>모두가 읽고 쓰는 명시적 영속 자료구조 (이상에 가장 근접)</td><td>L2MAC</td></tr>
+    </table>
+  </div>
+</section>
+
+<section style="background:#f4eeff;">
+  <div class="container">
+    <h2>어디에 쓰이나 — 5대 응용 분야</h2>
+    <div class="step-flow">
+      <div class="step">
+        <h4>💻 코딩 어시스턴트</h4>
+        <p>Claude Code, Codex, Cursor — 저장소 전체를 다루며 PR까지 작성. <strong>2026년엔 이 도구의 사용 기록이 차세대 모델의 학습 데이터</strong>가 됨.</p>
+      </div>
+      <div class="step">
+        <h4>🖥️ GUI/OS 에이전트</h4>
+        <p>화면의 모든 것이 코드(HTML)의 결과물, 모든 클릭이 코드 호출. "가장 문자 그대로의 프로그램 세계".</p>
+      </div>
+      <div class="step">
+        <h4>🔬 과학 발견</h4>
+        <p>가설→실험→분석이 모두 코드로. <strong>자율 실험실(A-Lab)이 17일 만에 41개 신물질 합성</strong>.</p>
+      </div>
+    </div>
+    <div class="step-flow">
+      <div class="step">
+        <h4>🎯 개인화/추천</h4>
+        <p>사용자 선호를 "수정 가능한 코드 객체"로 저장 → 사용자가 자연어로 고치면 즉시 반영.</p>
+      </div>
+      <div class="step">
+        <h4>🦾 로봇/체화 에이전트</h4>
+        <p>코드가 '행동의 안전 경계'. 물리 제약(충돌·도달범위)을 행동 생성 시점에 강제.</p>
+      </div>
+      <div class="step" style="background:#f6f0ff;border-top-color:#5b2c9e;">
+        <h4>🔭 공통점</h4>
+        <p>모든 분야에서 코드는 <strong>관찰·행동·평가·기억·세계모델</strong>의 공통 언어(lingua franca)가 된다.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <h2>아직 풀리지 않은 7가지 숙제</h2>
+    <div class="card card-orange">
+      <ol>
+        <li><strong>평가의 한계</strong>: "테스트 통과"만으로는 부족 — 초록불이 떴다고 진짜 잘한 게 아니다(green test ≠ 완전한 검증).</li>
+        <li><strong>실행을 넘어선 의미 검증</strong>: 테스트가 불완전하면 에이전트가 '잘못된 신호'에 맞춰 학습한다.</li>
+        <li><strong>퇴보 없는 자기 진화</strong>: harness가 스스로 개선하되, 이전에 풀던 문제를 망가뜨리지 않아야 한다.</li>
+        <li><strong>트랜잭션 공유 상태</strong>: 코드는 동기화돼도 '가정(assumption)'은 동기화 안 됨 → 의미적 충돌 해결 필요.</li>
+        <li><strong>안전과 책임을 harness 상태로</strong>: 사람의 승인·거부 이력을 일회성이 아니라 영속적 규칙으로.</li>
+        <li><strong>멀티모달 harness</strong>: 화면·영상·센서 같은 비텍스트 상태도 다뤄야 한다.</li>
+        <li><strong>'harness 공학'이라는 과학</strong>: 연구 대상이 모델이 아니라 <strong>전체 폐루프 시스템</strong>으로 이동.</li>
+      </ol>
+    </div>
+  </div>
+</section>
+
+<section style="background:#f4eeff;">
+  <div class="container">
+    <h2>한계점 — 이 서베이를 읽을 때 주의할 점</h2>
+    <div class="card card-orange">
+      <h3>🔸 실험으로 증명한 게 아니다</h3>
+      <p>이 논문은 <strong>새로운 실험·벤치마크가 없는 '관점 제시(position) 서베이'</strong>다. "공유 코드 기반이 더 좋다"는 핵심 주장은 통제된 비교 실험으로 검증된 게 아니라 개념적 논증이다. 오히려 저자 스스로 "LLM이 코드를 실행하지 않고도 98% 정확히 시뮬레이션하더라"는 반례를 인정한다.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>🔸 'harness'의 경계가 모호하다</h3>
+      <p>코드를 로그·설정·심지어 '자연어 harness 명세'까지 넓게 정의하다 보니, 거의 모든 에이전트 인프라가 harness가 되어버린다. 무엇이 harness가 "아닌지"가 불분명해 반증하기 어렵다.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>🔸 산업 주장은 검증이 어렵다</h3>
+      <p>2026년 최신 상용 시스템(Cursor, Codex-Max)까지 다루는 시의성은 훌륭하나, 그 정보는 주로 회사 블로그·백서 수준이라 학술적 검증이 어렵다.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="container">
+    <div class="conclusion-card">
+      <div class="quote">"AI 에이전트의 미래는 '더 똑똑한 두뇌'만으로 오지 않는다.<br>그 두뇌가 일하는 '작업대(harness)'를 잘 설계하는 것 —<br>실행 가능하고(executable), 검사 가능하고(inspectable),<br>상태를 유지하고(stateful), 통제되는(governed) 코드 기반이<br>다음 프런티어다."</div>
+    </div>
+
+    <h2>핵심을 다시 한 번</h2>
+    <div class="card card-accent">
+      <ul>
+        <li>🐴 AI 에이전트 = LLM(두뇌) + harness(마구). 자율성의 병목은 종종 두뇌가 아니라 마구다.</li>
+        <li>⚙️ 코드가 최고의 harness인 이유: 실행·검사·상태유지가 가능해 '객관적 진실의 채널'이 된다.</li>
+        <li>🪜 3계층: 코드가 입구(Interface) → 운영(Mechanism) → 공유 작업대(Scaling)로 발전.</li>
+        <li>🔁 실무 패턴: Plan-Execute-Verify 루프 + 3단계 권한 + 위험 작업엔 사람 승인.</li>
+        <li>🏗️ 멀티에이전트의 핵심 문제는 '공유 상태 어긋남' → 형식적 공유 코드 기반이 해법.</li>
+        <li>🔭 5대 응용(코딩·GUI·과학·추천·로봇) 모두에서 코드가 공통 언어가 된다.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="container">
+    <p><strong>Code as Agent Harness: Toward Executable, Verifiable, and Stateful Agent Systems</strong></p>
+    <p>Xuying Ning, Katherine Tieu, Dongqi Fu 외 · UIUC · Meta · Stanford · 2026</p>
+    <p><a href="https://arxiv.org/abs/2605.18747">arXiv:2605.18747</a> · <a href="https://github.com/YennNing/Awesome-Code-as-Agent-Harness-Papers">GitHub paper list</a></p>
+    <p style="margin-top:1rem;"><a href="20260522_ning_code_harness.html" style="color:#fff;background:#8e54e9;padding:0.5rem 1rem;border-radius:6px;text-decoration:none;">전문가용 상세 요약 보기 →</a></p>
+  </div>
+</footer>
+
+</div>
+</body>
+</html>

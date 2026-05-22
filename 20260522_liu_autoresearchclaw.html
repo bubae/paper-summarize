@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AutoResearchClaw: Self-Reinforcing Autonomous Research with Human-AI Collaboration</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  h4 { margin-top: 1.2rem; color: #444; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ff9800; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+  .brief-link:hover { background: #f57c00; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>AutoResearchClaw: Self-Reinforcing Autonomous Research with Human-AI Collaboration</h1>
+
+<a href="20260522_liu_autoresearchclaw_brief.html" class="brief-link">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Jiaqi Liu*, Shi Qiu*, Mairui Li, Bingzhou Li, Haonian Ji 외 다수 · James Zou, Zeyu Zheng, Cihang Xie, Mingyu Ding, Huaxiu Yao (*공동기여)</li>
+  <li><strong>소속</strong>: UNC-Chapel Hill, UC Santa Cruz, CMU, NUS, UC Berkeley, Rutgers, NEC Labs, Meta, Stanford, Google, U. Washington, Recursive.com</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (12p 본문 + 부록)</li>
+  <li><strong>연도</strong>: 2026 (May 19)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.20025">arXiv:2605.20025</a> · <a href="https://github.com/aiming-lab/AutoResearchClaw">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 자율 과학 연구(autonomous research)는 '아이디어→논문' 생성을 넘어선다. 실제 연구는 ##반복적(iterative)## — 가설은 여러 관점에서 도전받고, 실험은 실패하며 다음 시도에 정보를 주고, 교훈은 cycle 간 축적된다. 기존 시스템은 이 과정을 ##linear pipeline으로 모델링##해서 (1) single-agent 추론(가설 생성·평가를 같은 모델이 → 약한 가정 노출 어려움), (2) 실행 실패 시 중단(AIDE ML 등이 informative한 partial result도 폐기), (3) run 간 교훈 미축적(매 시도 from scratch)이라는 약점을 가진다.</li>
+  <li><strong>해결</strong>: ##AutoResearchClaw## — 5가지 메커니즘 위에 구축된 multi-agent 자율 연구 파이프라인. ##(1) structured multi-agent debate(가설 생성·결과 분석에 epistemic role 부여), (2) self-healing executor + Pivot/Refine loop(실패를 정보로 전환), (3) verifiable result reporting(numeric registry + 4-layer citation verification으로 fabrication·hallucination 방지), (4) human-in-the-loop collaboration(7 intervention mode), (5) cross-run evolution(time-decayed lesson store로 과거 실패를 미래 safeguard로)##.</li>
+  <li><strong>왜 작동하는가</strong>: 세 도전(가설 품질·실행 견고성·경험 축적)이 ##독립적이지 않고 서로 강화##된다 — 더 나은 가설은 major revision 필요성을 줄이고, 더 견고한 실행은 분석에 쓸 중간 결과를 보존하며, 과거 교훈은 가설 생성·실험 설계를 개선. 그래서 ##unified framework에서 함께## 다뤄야 한다.</li>
+  <li><strong>비유</strong>: AI Scientist가 ##혼자 일하는 연구자##라면, AutoResearchClaw는 ##토론하는 연구실 + 끈질긴 실험 조교 + 엄격한 fact-checker + 경험 노트##를 갖춘 연구팀. 그리고 가장 중요한 결정 순간에만 ##사람 지도교수가 개입##(CoPilot)하는 게, 전부 자동화하거나 매 단계 승인받는 것보다 낫다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>AutoResearchClaw — open-source multi-agent 자율 연구 시스템</strong>: 가설 품질·실행 견고성·경험 축적을 ##함께## 다루는 23-stage 3-phase 파이프라인(Discovery·Experimentation·Writing). 기존 시스템 중 ##end-to-end 실행 + multi-agent debate + self-healing + anti-fabrication verification + cross-run evolution을 모두 결합한 유일 시스템##(Table 1).</li>
+  <li><strong>ARC-Bench 벤치마크 도입</strong>: experiment-stage에 초점을 둔 ##25-topic ML benchmark##(ML01–ML25, tabular ML·optimization·NLP·AutoML·causal discovery 등) + ##20-topic scientific-domain extension##(physics 10 + biology 7 + statistics 3). rubric-assisted LLM judge로 평가.</li>
+  <li><strong>강력한 성능</strong>: ARC-Bench에서 AI Scientist v2를 ##54.7% 능가##(CoPilot mode overall 0.648 vs 0.419), AIDE-ML도 26.8% 능가. ##Full-Auto(0.596)조차 두 baseline 능가## → gain의 출처가 사람 입력이 아니라 시스템 설계.</li>
+  <li><strong>HITL ablation의 핵심 발견</strong>: 7 intervention mode 비교에서 ##더 많은 개입이 단조롭게 더 좋은 게 아니다## — high-leverage decision point에 targeted 개입(CoPilot, 87.5% accept rate)이 ##full autonomy(25%)와 exhaustive step-by-step(50%) 모두를 능가##. 정밀하고 표적화된 human-AI 협업이 두 극단보다 효과적.</li>
+  <li><strong>Component ablation</strong>: 각 메커니즘이 distinct failure mode를 다루며 결합 시 ##super-additive## — debate가 quality 주도(-1.37 quality if removed), self-healing이 completion 주도(10/10→6/10 if removed), verification이 integrity 보장(제거 시 accept 3→5/10이나 5개 중 3개가 fabricated). debate+self-healing 동시 제거 시 completion 4/10·quality 3.47·accept 0.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>자율 연구 시스템의 세 가지 약점</h3>
+<p>실제 연구는 직선이 아니다 — 연구자는 가설을 제안하고, 실험을 설계하고, 실패를 관찰하고, 그 실패에 기반해 계획을 수정하며 반복한다. 이 loop는 세 능력에 의존한다: ##(1) 자신의 가설을 여러 각도에서 도전하기, (2) partial progress를 잃지 않고 실패 실험에서 회복하기, (3) 과거 시도의 교훈을 미래로 옮기기##. 기존 시스템은 이를 부실하게 다룬다:</p>
+<ul>
+  <li><strong>가설 품질</strong>: AI Scientist 같은 single-agent system은 ##생성과 평가에 같은 모델##을 쓴다 → 약한 가정·너무 쉬운 방향을 surface하기 어렵다(모델은 자기 가설을 confirm하는 구조적 유인).</li>
+  <li><strong>실행 견고성</strong>: AIDE ML 같은 시스템은 ##실행 실패 시 중단하고 partial result를 폐기## → 여전히 informative할 수 있는 결과를 버린다.</li>
+  <li><strong>경험 축적</strong>: Agent Laboratory 같은 multi-agent system은 single run 내 협업은 하나 ##run 간 교훈 미전달## → 매 시도가 from scratch.</li>
+</ul>
+<blockquote><strong>[Table 1 요약 — feature 비교]</strong> end-to-end pipeline, real experiment exec, multi-agent debate, self-healing repair, Pivot/Refine loop, cross-run evolution, citation verification, result verification, HITL gates, sandbox security, open-source의 11개 feature에서 ##AutoResearchClaw만 모두 지원##. AI Scientist v2는 end-to-end·real exec·open-source만, Agent Lab·MLR-Copilot은 부분적.</blockquote>
+
+<h2>방법론 (Methodology) — 5가지 메커니즘</h2>
+
+<h3>전체 구조: 23-stage, 3-phase</h3>
+<div class="flow-diagram">[Research Idea]
+   ↓
+Phase 1: DISCOVERY
+   A. Research Scoping (topic init, domain detect, problem decompose)
+   B. Literature Discovery (multi-source search, arXiv/Semantic Scholar API)  [HITL Gate]
+   C. Knowledge Synthesis & Hypothesis Debate (Innovator/Pragmatist/Contrarian, K=3)
+   ↓
+Phase 2: EXPERIMENTATION   ←──── REFINE ────┐   (PIVOT은 Phase 1로 복귀)
+   D. Experiment Design (code gen, alignment, HITL Gate)
+   E. Self-Healing Execution (Docker sandbox, failure diagnosis, iterative repair)
+   F. Analysis & Decision (Optimist/Skeptic/Methodologist debate → PROCEED/REFINE/PIVOT)
+   ↓  (Refine ×10)
+Phase 3: WRITING
+   G. Paper Writing (outline → draft → peer review → revision)
+   H. Finalization & Verification (quality gate, 4-layer citation verify)  [HITL Gate]
+   ↓
+[Final Paper]
+─────────────────────────────────────────────────
+Cross-Run Evolution System: persistent lesson store · time-decayed weighting (T½=30d)
+                            · prompt overlay injection into all stages</div>
+
+<h3>① Multi-Agent Debate (구조화된 토론)</h3>
+<p>single LLM agent는 ##자기가 생성한 가설을 confirm하는 경향## — 같은 모델이 제안과 반증의 유인을 동시에 갖기 때문. AutoResearchClaw는 두 pipeline stage에 K=3 agent + synthesizer의 구조화된 토론을 instantiate.</p>
+<ul>
+  <li><strong>Hypothesis-stage debate</strong>: ##Innovator##(conventional assumption에 도전하는 high-risk hypothesis 제안), ##Pragmatist##(hardware·time budget 대비 feasibility 평가), ##Contrarian##(약점·confound 적극 탐색). synthesizer가 이를 ##2~4개의 falsifiable hypothesis로 distill##(각각 testability criteria·required baseline annotation).</li>
+  <li><strong>Result-stage debate</strong>: 실험 완료 후 두 번째 panel — ##Optimist##(강한 발견 surface), ##Skeptic##(통계적 유의성 도전·confound flag), ##Methodologist##(reproducibility·data leakage 점검). synthesizer가 supported claim과 unsupported claim을 구분한 structured assessment 생성(writing 시작 전).</li>
+</ul>
+
+<h3>② Self-Healing Execution (자가 치유 실행)</h3>
+<p>실험 실패는 실제 연구에서 흔하다. 기존 시스템은 실패를 termination condition으로 취급하고 모든 중간 progress를 폐기. AutoResearchClaw는 ##실패를 진단 정보##로 취급 — 무엇이 잘못됐는지 식별, 현재 접근을 고칠지 방향을 바꿀지 결정, ##모든 회복 가능 artifact 보존##.</p>
+<ul>
+  <li><strong>Cascading code generation</strong>: scoring function이 각 experiment plan을 6차원(architectural depth, file count, domain difficulty, dependency chain, historical failure rate, control-flow complexity)으로 평가해 complexity scalar $c \in [0,1]$ 산출. ##$\tau$(=0.6) 초과 시 external AI coding agent로 dispatch##, $\tau$ 미만은 built-in multi-phase code agent(per-file blueprint → AST-derived summary로 cross-file consistency 유지). static validation gate가 detectable defect(identical ablation, hardcoded metric value)를 execution budget 소비 전 차단.</li>
+  <li><strong>Sandboxed execution</strong>: Docker container의 ##3-phase network policy## — Phase 0(dependency install 시 network 허용), Phase 1(data acquisition 시 허용), ##Phase 2(experiment execution 중 network 완전 차단 → result exfiltration·pre-computed result download 방지)##. metric reporting은 read-only evaluation harness로만 → 생성 코드가 자기 측정 인프라를 재정의 불가.</li>
+  <li><strong>Pivot/Refine decisions</strong>: 실패·degenerate result 시 automated repair loop가 failure signature 포착, targeted fix 생성, 3가지 중 결정 — ##PROCEED##(evidence가 가설 지지), ##REFINE##(결과 약하나 방향은 건전), ##PIVOT##(접근이 근본적 결함 → 가설 생성으로 복귀, 실패를 new evidence로 기록). ##실패를 recoverable하게 만들어 brittle execution model에서는 포기될 higher-risk hypothesis를 추구 가능##.</li>
+</ul>
+
+<h3>③ Verifiable Result Reporting (검증 가능한 결과 보고)</h3>
+<p>LLM 생성 논문의 두 integrity 문제: ##fabricated result + hallucinated citation##. 둘 다 같은 행동(grounding 없이 그럴듯한 내용 생성)에서 발생. 두 granularity의 deterministic verification gate로 해결.</p>
+<ul>
+  <li><strong>Numeric registry</strong>: 실행 중 ##verified registry##(모든 experiment run이 생성한 value의 whitelist) 구축 — per-condition mean·std·individual seed measurement 저장. drafting 시 ##registry에서만 채워진 pre-built LaTeX table을 generation prompt에 주입##. 생성 후 post-hoc verifier가 모든 numeric claim을 re-extract하여 registry와 대조(per-condition scope로 cross-condition false positive 방지). ##strict section(Abstract/Results/Experiments)에서 매칭 안 되는 claim → document rejection##. 다른 section은 visible placeholder로 대체. writing agent는 registry를 ##read만 가능, modify 불가##.</li>
+  <li><strong>Citation verification</strong>: 모든 reference가 ##4-layer pipeline## — DOI resolution via CrossRef, OpenAlex fuzzy title matching, arXiv identifier lookup, Semantic Scholar(final fallback). LLM relevance check가 각 reference를 ##VERIFIED / SUSPICIOUS / HALLUCINATED##로 분류. HALLUCINATED는 draft finalize 전 제거.</li>
+</ul>
+
+<h3>④ Human-in-the-Loop Collaboration (7 intervention mode)</h3>
+<p>full automation은 critical juncture에서 output quality를 떨어뜨리고, exhaustive step-by-step은 자동화의 효율을 없앤다. 유용한 영역은 그 사이 — ##human expertise는 소수의 high-leverage decision point에 가장 가치 있다##. 7개 mode:</p>
+<ul>
+  <li><strong>Full-Auto</strong>: 사람 입력 없이 전체 실행.</li>
+  <li><strong>Gate-Only</strong>: 3개 fixed checkpoint(literature screening, experiment design, final quality review)에서만 pause.</li>
+  <li><strong>Thorough</strong>: 모든 phase boundary에서 pause(visibility 제공, 매 substep 승인은 불필요).</li>
+  <li><strong>CoPilot</strong>: 6개 high-leverage decision point(Idea Workshop, Baseline Navigator, Paper Co-Writer 등)에 표적 개입.</li>
+  <li><strong>Step-by-Step</strong>: 매 stage 명시적 승인 필요.</li>
+  <li><strong>Pre-Experiment / Post-Experiment</strong>: CoPilot을 분해 — 전자는 early-pipeline(literature·hypothesis·experiment design), 후자는 late-pipeline(result analysis·paper draft·quality gate)에만 개입.</li>
+</ul>
+<p><strong>SmartPause</strong>: fixed checkpoint 대신 시스템의 estimated uncertainty를 매 stage 모니터링. uncertainty가 learned threshold 초과 시 pause하고 결정을 사람에게 제시. threshold는 historical approval pattern에 따라 adapt(자주 override되는 stage는 더 자주 pause, 높은 approval rate stage는 자율 진행).</p>
+
+<h3>⑤ Cross-Run Evolution (run 간 진화)</h3>
+<p>기존 시스템은 run 간 stateless — 매 run이 이전 시도 모름. AutoResearchClaw는 ##persistent lesson store##로 과거 실패를 미래 safeguard로 전환. 각 run 종료 시 repair attempt·Pivot/Refine decision·HITL feedback·verification result에서 structured lesson 추출(category, severity score $s(l) \in (0,1)$, recommended mitigation). 새 run 시작 시 category로 retrieve하여 ##time-decayed weight##로 ranking (식 1):</p>
+<p>$$w(l) = s(l) \cdot \exp\left(-\ln 2 \cdot \frac{\Delta t}{T_{1/2}}\right)$$</p>
+<p>여기서 $\Delta t$ = lesson 기록 후 경과 시간, $T_{1/2}$ = half-life hyperparameter(default 30 days). 직관적으로 말하면, ##최근 실패는 다음 run을 강하게 제약##하고, 완료된·성공한 line의 교훈은 점차 prominence가 사라진다. lesson은 ##natural-language overlay로 prompt에 주입##(model retraining 불필요, 어떤 LLM backbone에도 적용 가능).</p>
+
+<h3>Algorithm 1 — Domain-Aware Routing</h3>
+<div class="flow-diagram">Require: Research idea I, lesson store L, max pivots Np=2, max refines Nr=10
+ 1: domain D 감지 (3-level cascade: 강제override → keyword matching → LLM classification)
+ 2: domain prompt bank B(D) 선택; PromptManager(D)·domain adapter A(D); L에서 lesson 주입
+ 3: I로부터 topic scope; literature retrieve & screen; knowledge cards synthesize
+ 4: np ← 0
+ 5: repeat
+ 6:   [Debate] K=3 agents → hypotheses H (ML: Innovator/Pragmatist/Contrarian)
+ 7:   H로부터 experiment 설계; budget 계산
+ 8:   complexity c 산정; generator 선택 (Beast→Agent→Legacy cascade)
+ 9:   code 검증 (AST check, import verify, ablation-identity detect)
+10:   nr ← 0
+11:   repeat
+12:     Docker sandbox 실행 (3-phase network isolation)
+13:     while 실패 and repair budget 남음: failure signature 파싱; targeted fix; 재실행
+15:     [Debate] K=3 → result analysis
+16:     d ∈ {PROCEED, REFINE, PIVOT} 결정; nr ← nr+1
+18:   until d ≠ REFINE or nr ≥ Nr
+20:  until d ≠ PIVOT or np ≥ Np
+21: verified registry R 구축; pre-built table로 draft; review → revise
+23: 검증: unverified number 있으면 reject; citation 4-layer verify
+25: lesson 추출; L 갱신 (time-decayed)
+26: return verified paper P</div>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>4.1 실험 설계 — ARC-Bench</h3>
+<p>3개 evaluation mode: ##experiment-stage##(rubric-assisted strict judge로 framework×topic cell 평가, 다른 end-to-end 능력 시스템 간 공정 비교), ##end-to-end##(idea→완성 논문, 1–10 scale, accept = score≥5), ##scientific-domain##(physics/biology/statistics). experiment-stage evaluation은 ##CD:CE:RA = 25:25:50## 가중 — Code Development(구현 정확성), Code Execution(완료·valid output), ##Result Analysis(결론이 측정에 grounding됐는가, 더블 가중 — 자율 연구를 자동 스크립팅과 구분하는 scientific reasoning 품질)##. 2개 독립 agent reviewer 병렬, leaf 불일치 |Δ|>0.20 재심.</p>
+<p>baseline: ##AI Scientist v2, AIDE-ML##(둘 다 end-to-end 실행 가능). 모든 framework가 ##같은 LLM backbone(GPT-5.3-codex)##·같은 sandbox·같은 per-experiment time budget → 시스템 설계의 기여를 backbone 능력에서 분리.</p>
+
+<h3>4.2 Main Results — Experiment-Stage (Table 2)</h3>
+<table>
+<tr><th>Framework</th><th>Code Dev</th><th>Code Exec</th><th>Result Analysis</th><th>Overall</th></tr>
+<tr><td>AutoResearchClaw (CoPilot)</td><td>0.968</td><td>0.578</td><td>0.523</td><td><strong>0.648</strong></td></tr>
+<tr><td>AutoResearchClaw (Full-Auto)</td><td>0.938</td><td>0.562</td><td>0.442</td><td>0.596</td></tr>
+<tr><td>AIDE-ML</td><td>0.958</td><td>0.415</td><td>0.336</td><td>0.511</td></tr>
+<tr><td>AI Scientist v2</td><td>0.712</td><td>0.442</td><td>0.261</td><td>0.419</td></tr>
+</table>
+<ul>
+  <li><strong>전 차원 능가</strong>: CoPilot 0.648 = AI Scientist v2(0.419) 대비 ##+54.7%##, AIDE-ML(0.511) 대비 +26.8%. Full-Auto(0.596)도 두 baseline 능가 → gain은 ##사람 입력이 아니라 시스템 설계##.</li>
+  <li><strong>가장 큰 격차는 Result Analysis</strong>: CoPilot 0.523 vs AI Scientist v2 0.261 = ##+100.4%##. multi-agent debate(result stage) + verified registry가 ##explicit per-hypothesis verdict + 모든 보고 수치를 실제 측정에 anchoring## → AI Scientist v2의 single-agent 분석은 약한 발견을 oversell.</li>
+  <li><strong>Code Development는 경쟁적, 실행이 시스템을 가른다</strong>: 모든 시스템이 Code Dev 0.70+. ##차이는 작성 이후## — AIDE-ML execution success 0.415(self-healing 부재로 runtime error 만난 실험 폐기) vs AutoResearchClaw self-healing이 execution success를 0.562(Full-Auto)·0.578(CoPilot)로.</li>
+  <li><strong>Failure mode</strong>: AutoResearchClaw(Full-Auto)는 25개 중 ##2개 topic##에서만 valid result 실패(둘 다 cascading dependency의 복잡한 multi-file). AI Scientist v2는 ##6개 topic 실패##(dynamical systems·causal discovery 등 iterative experiment refinement 필요 topic에 집중) → ##self-healing은 첫 구현이 성공하기 어려운 topic에서 가장 가치##.</li>
+</ul>
+
+<h3>4.3 Cross-Domain Coverage (Table 4)</h3>
+<table>
+<tr><th>Framework</th><th>Biology</th><th>Statistics</th><th>HEP-ph</th><th>Overall</th></tr>
+<tr><td>AutoResearchClaw (CoPilot)</td><td>0.912</td><td>0.898</td><td>0.489</td><td><strong>0.867</strong></td></tr>
+<tr><td>AIDE-ML</td><td>✗</td><td>0.452</td><td>✗</td><td>0.090</td></tr>
+<tr><td>AI Scientist v2</td><td>✗</td><td>0.418</td><td>✗</td><td>0.084</td></tr>
+</table>
+<p>physics(MadGraph5·Pythia8·FeynRules)·biology(COBRApy·BiGG genome-scale model)·statistics(double-ML)는 domain-specific software stack 필요. AutoResearchClaw는 각 topic을 ##sandboxed domain-specialized agent##(requisite package pre-install된 Claude Code subprocess)로 routing → top-level orchestrator는 domain knowledge 불필요. ##baseline은 physics·biology에서 모두 0점##(sandbox에 필요한 scientific software 부재) → AutoResearchClaw의 domain-skill install step이 이 gap을 닫는다.</p>
+
+<h3>4.4 End-to-End HITL Ablation (Table 3) — 핵심 발견</h3>
+<table>
+<tr><th>Mode</th><th>Valid</th><th>Mean Q (paper quality)</th><th>Accept</th><th>Interventions</th></tr>
+<tr><td>Full-Auto</td><td>8/10</td><td>4.03</td><td>25.0%</td><td>0</td></tr>
+<tr><td>Gate-Only</td><td>10/10</td><td>5.03</td><td>50.0%</td><td>3</td></tr>
+<tr><td><strong>CoPilot</strong></td><td>8/10</td><td><strong>7.27</strong></td><td><strong>87.5%</strong></td><td>6</td></tr>
+<tr><td>Thorough</td><td>7/10</td><td>4.86</td><td>42.9%</td><td>8</td></tr>
+<tr><td>Step-by-Step</td><td>10/10</td><td>5.19</td><td>50.0%</td><td>23</td></tr>
+<tr><td>Pre-Experiment</td><td>8/10</td><td>4.28</td><td>37.5%</td><td>3</td></tr>
+<tr><td>Post-Experiment</td><td>6/10</td><td>5.08</td><td>50.0%</td><td>3</td></tr>
+</table>
+<ul>
+  <li><strong>개입이 많다고 단조롭게 좋아지지 않는다</strong>: CoPilot이 ##최고 mean Q 7.27 + accept 87.5%를 단 6 intervention으로##. Step-by-Step은 23 intervention인데 5.19/50%에 그침. matched topic에서 CoPilot이 Full-Auto +3.21, Step-by-Step +2.16. ##Step-by-Step의 non-critical stage 승인은 noise를 더할 뿐##, CoPilot은 marginal impact가 가장 큰 곳에 전문 판단 집중.</li>
+  <li><strong>Pre vs Post-Experiment가 서로 다른 failure mode 해결</strong>: Pre-Experiment HITL(stage 5,8,9)은 research design feasibility 수정(T02에서 240-cell factorial design을 60-cell로 압축)이나 ##scoping만으로 downstream claim discipline은 못 고침##(8/10 valid, 4.28/37.5%). Post-Experiment HITL(stage 14,17,20)은 claim faithfulness 수정이나 ##late-stage HITL은 없는 실험 증거를 만들 수 없음##(6/10 valid). CoPilot은 둘 다 — early feasibility + late faithfulness.</li>
+  <li><strong>Gate-Only가 cost-effective 중간 지점</strong>: 3 intervention으로 accept 25%→50%, 유일하게 10/10 valid. 최소 개입으로 의미 있는 품질 개선을 원하는 실무자에게 매력적.</li>
+</ul>
+
+<h3>4.5 Component Ablation (Table 5, best-of-3 over 3 reruns)</h3>
+<table>
+<tr><th>Configuration</th><th>Completion</th><th>Quality</th><th>Accept</th><th>Fabrication</th></tr>
+<tr><td>Full AutoResearchClaw</td><td>10/10</td><td>5.62</td><td>3/10</td><td>✗ (없음)</td></tr>
+<tr><td>w/o Debate</td><td>10/10</td><td>4.25</td><td>1/10</td><td>✗</td></tr>
+<tr><td>w/o Self-Healing</td><td>6/10</td><td>4.83</td><td>1/6</td><td>✗</td></tr>
+<tr><td>w/o Evolution</td><td>9/10</td><td>5.14</td><td>2/10</td><td>✗</td></tr>
+<tr><td>w/o Verification</td><td>10/10</td><td>5.48‡</td><td>5/10‡</td><td>✓ (발생!)</td></tr>
+<tr><td>w/o Debate & Healing</td><td>4/10</td><td>3.47</td><td>0/4</td><td>✗</td></tr>
+</table>
+<ul>
+  <li><strong>각 메커니즘이 distinct failure mode</strong>: ##Debate가 quality 최대 기여##(제거 시 -1.37, p=0.003 — Pragmatist 부재로 infeasible hypothesis, Skeptic 부재로 weak finding). ##Self-Healing이 completion 최대 기여##(10/10→6/10, 첫 unrecovered runtime error가 run 종료). ##Evolution은 moderate reliability gain##(-0.48 quality, -1 completion — 주로 known failure mode 회피).</li>
+  <li><strong>Verification = integrity backstop</strong>: verified registry 제거 시 apparent acceptance가 3→5/10으로 ##올라가지만##, manual inspection 결과 ##5개 중 3개가 측정 기록에 없는 값을 포함(fabrication!)##. verification gate가 genuine과 fabricated를 정확히 분리 — accept rate 하락은 ##scientific integrity의 대가##(‡로 표시).</li>
+  <li><strong>Super-additive interaction</strong>: debate+self-healing 동시 제거 시 completion 4/10·quality 3.47·accept 0. ##직관적 — debate는 self-healing 없으면 첫 실패에 crash하는 ambitious hypothesis를 만들고, self-healing은 debate 없으면 poorly formulated question을 테스트하는 실험을 고친다##.</li>
+</ul>
+
+<h3>4.6 Case Study: Topic T10 (Figure 2)</h3>
+<p>small-sample model selection의 cross-validation 전략 연구. ##Full-Auto는 silent semantic collapse## — 8개 CV 전략이 모두 동일한 zero-bias output을 보고(실행은 성공했으나 metric이 못 잡는 collapse, 논문이 substantive 비교 불가). ##CoPilot은 이 실패를 회피## — human guidance가 experimental bottleneck을 직접 표적(CV 전략들이 다른 결과를 내는지, LOOCV가 time budget에 맞는지 확인). 결과는 9개 pipeline에서 nonzero contrast 보고(LOOCV 0.072, RSS 0.002 등), limitation 명시. ##T10이 보여주는 것: execution success만으로는 부족하다 — Full-Auto는 manuscript를 완성했으나 모든 전략이 동일 output으로 붕괴##. CoPilot의 우월성은 더 많은 개입이 아니라 ##올바른 결정 지점에 개입##.</p>
+
+<div class="critical-analysis">
+<h2>비판적 분석 (Critical Analysis)</h2>
+<ul>
+  <li><strong>평가가 LLM judge에 의존</strong>: ARC-Bench의 핵심 metric(experiment-stage, end-to-end paper quality)이 ##rubric-assisted LLM judge##에 의존한다. 2 reviewer 병렬·불일치 재심으로 보강하나, ##LLM judge 자체가 잘 구조화된·잘 인용된 산출물을 선호##할 수 있어, AutoResearchClaw의 verification·debate 메커니즘이 만든 산출물이 judge에게 ##실질 과학 품질이 아니라 표면적 완성도로 점수를 받을 가능성##을 완전히 배제하기 어렵다.</li>
+  <li><strong>작은 표본 크기</strong>: end-to-end HITL ablation(Table 3)이 ##10 topic##, component ablation(Table 5)도 ##10 topic, best-of-3##. accept rate 같은 핵심 결론이 N=10(또는 valid한 6~8개)에 기반 → ##통계적 검정력이 제한적##. "CoPilot 87.5% vs Step-by-Step 50%"의 차이가 robust한지는 더 큰 표본이 필요. p값은 일부(debate -1.37, p=0.003)만 보고.</li>
+  <li><strong>"54.7% 능가"의 맥락</strong>: 인상적 수치이나 ##experiment-stage overall 0.648 vs 0.419의 상대 비교##다. 절대 점수 0.648은 ##Result Analysis가 0.523##(절반 수준)에 그쳐, "자율 연구"가 완성됐다기보다 ##baseline 대비 덜 나쁘다##는 의미에 가깝다. baseline인 AI Scientist v2·AIDE-ML의 약점(특히 self-healing 부재)이 비교를 유리하게 만든 측면도 있다.</li>
+  <li><strong>Verification의 범위 한계</strong>: numeric registry는 ##fabricated number##와 ##hallucinated citation##을 잡지만, ##방법론적 결함·잘못된 실험 설계·부적절한 baseline 선택## 같은 deeper scientific error는 잡지 못한다. T10 case처럼 "실행은 성공했으나 의미적으로 붕괴"한 결과는 numeric gate를 통과한다(저자도 인정 — verification은 necessary but not sufficient).</li>
+  <li><strong>Cross-domain 비교의 공정성</strong>: Table 4에서 baseline이 physics·biology에서 0점인 것은 ##주로 software stack 부재## 때문이다. 이는 AutoResearchClaw의 domain-skill install 설계의 가치를 보여주지만, "AI 연구 능력"의 비교라기보다 ##engineering infrastructure의 비교##에 가깝다. 같은 software를 갖춘 baseline과 비교했다면 격차가 줄었을 것.</li>
+  <li><strong>안전·오용 우려</strong>: ##완전 자율 연구 + 논문 생성 시스템##은 그 자체로 academic integrity·논문 공해(paper flooding) 우려를 동반한다. 저자가 Appendix J에서 citation verification·claim grounding·transparency requirement를 safeguard로 논의하나, ##"research amplifier(증폭기)"라는 positioning에도 불구하고 대량 자동 논문 생성의 사회적 영향##은 본문에서 깊이 다뤄지지 않는다.</li>
+</ul>
+</div>
+
+<div class="takeaways">
+<h2>이 논문에서 가져갈 것 (Key Takeaways)</h2>
+<ul>
+  <li><strong>"실패를 정보로" — self-healing이 자율 시스템의 핵심</strong>: 자율 에이전트 설계 시 실패를 termination이 아니라 진단 정보로 취급하고 partial result를 보존하라. 이것이 completion rate를 결정짓는 가장 큰 요인(10/10→6/10). 특히 첫 시도가 성공하기 어려운 복잡한 task에서 가치.</li>
+  <li><strong>표적화된 HITL이 양 극단을 이긴다</strong>: 자동화 시스템에 사람을 넣을 때 "전부 자동 vs 매 단계 승인"의 이분법을 버려라. ##소수의 high-leverage decision point##(CoPilot)에 개입하는 것이 6 intervention으로 87.5% accept를 달성 — 23 intervention의 Step-by-Step(50%)보다 우월. early feasibility + late faithfulness 둘 다 표적.</li>
+  <li><strong>Generation과 verification을 분리하라</strong>: LLM이 만든 결과의 integrity는 ##별도의 deterministic gate##로 강제. numeric registry(실측값 whitelist + read-only) + 4-layer citation verification은 다른 LLM 산출 시스템에도 이식 가능한 anti-fabrication 패턴. 단, verification은 necessary이지 sufficient가 아님을 기억(의미적 붕괴는 못 잡음).</li>
+  <li><strong>Multi-agent debate로 confirmation bias 깨기</strong>: 같은 모델이 생성·평가하면 자기 가설을 confirm한다. Innovator/Pragmatist/Contrarian(생성), Optimist/Skeptic/Methodologist(분석) 같은 ##epistemic role 분리##가 quality의 최대 기여 요인(-1.37 if removed).</li>
+  <li><strong>Cross-run 학습은 retraining 없이 가능</strong>: time-decayed lesson store를 prompt overlay로 주입하는 방식은 ##어떤 LLM backbone에도 적용 가능##하고 model 재학습이 불필요. 최근 실패를 강하게 반영하는 half-life decay($T_{1/2}$=30d)는 실용적 설계.</li>
+  <li><strong>비판적 수용</strong>: "54.7% 능가"는 상대 비교이고 절대 점수(Result Analysis 0.52)는 아직 미성숙. N=10 표본·LLM judge 의존을 감안해 결과를 해석하고, 대량 자율 논문 생성의 integrity·사회적 영향을 함께 고려하라.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
