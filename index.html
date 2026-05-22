@@ -16,6 +16,9 @@
   .tag-filter button { padding: 4px 12px; border: 1px solid #ccc; border-radius: 16px; background: #fff; cursor: pointer; font-size: 0.85rem; transition: all 0.15s; }
   .tag-filter button:hover { border-color: #666; }
   .tag-filter button.active { background: #333; color: #fff; border-color: #333; }
+  .tag-filter button.tag-collapsed { display: none; }
+  .tag-filter button.more-toggle { background: #f0f4ff; border-color: #4a90d9; color: #2c5aa0; }
+  .tag-filter button.more-toggle:hover { background: #e1ecff; }
 
   /* 검색 */
   .search-box { width: 100%; padding: 10px 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; margin-bottom: 1.5rem; }
@@ -1398,24 +1401,56 @@
     });
   });
 
-  statsEl.innerHTML = `<span>총 <strong>${items.length}</strong>편</span>` +
-    Object.entries(tagCount).map(([t,c]) => `<span>${t}: ${c}</span>`).join('');
+  // 빈도순(동률이면 이름순) 정렬
+  const sortedTags = Object.keys(tagCount).sort((a, b) =>
+    (tagCount[b] - tagCount[a]) || a.localeCompare(b));
 
-  // 태그 필터 버튼
+  // 통계줄: 태그를 일일이 나열하지 않고 요약만
+  statsEl.innerHTML =
+    `<span>총 <strong>${items.length}</strong>편</span>` +
+    `<span>태그 <strong>${sortedTags.length}</strong>종</span>`;
+
+  // 태그 필터 버튼: 상위 5개만 기본 노출, 나머지는 '더보기'로
+  const TOP_N = 5;
   const allBtn = document.createElement('button');
   allBtn.textContent = '전체';
   allBtn.classList.add('active');
   filterEl.appendChild(allBtn);
-  Object.keys(tagCount).sort().forEach(tag => {
+
+  const extraBtns = [];
+  sortedTags.forEach((tag, i) => {
     const btn = document.createElement('button');
     btn.textContent = tag;
     btn.dataset.tag = tag;
+    if (i >= TOP_N) {
+      btn.classList.add('tag-collapsed');
+      extraBtns.push(btn);
+    }
     filterEl.appendChild(btn);
   });
+
+  // 더보기 / 접기 토글
+  if (extraBtns.length) {
+    const moreBtn = document.createElement('button');
+    moreBtn.className = 'more-toggle';
+    let expanded = false;
+    const setLabel = () => {
+      moreBtn.textContent = expanded ? '접기 ▲' : `더보기 +${extraBtns.length} ▼`;
+    };
+    setLabel();
+    moreBtn.addEventListener('click', e => {
+      e.stopPropagation();           // 필터 클릭으로 처리되지 않게
+      expanded = !expanded;
+      extraBtns.forEach(b => b.classList.toggle('tag-collapsed', !expanded));
+      setLabel();
+    });
+    filterEl.appendChild(moreBtn);
+  }
 
   let activeTag = null;
   filterEl.addEventListener('click', e => {
     if (e.target.tagName !== 'BUTTON') return;
+    if (e.target.classList.contains('more-toggle')) return;  // 토글 버튼은 필터 아님
     filterEl.querySelectorAll('button').forEach(b => b.classList.remove('active'));
     e.target.classList.add('active');
     activeTag = e.target.dataset.tag || null;
