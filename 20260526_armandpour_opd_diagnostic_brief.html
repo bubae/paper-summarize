@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>On-Policy Distillation 진단 — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif; line-height: 1.7; color: #1a1a1a; background: #fafbfc; }
+  .container { max-width: 980px; margin: 0 auto; padding: 0; background: white; box-shadow: 0 0 40px rgba(0,0,0,0.04); }
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #4a47a3 0%, #7a4dab 50%, #d96570 100%); color: white; padding: 4rem 2.5rem; text-align: center; }
+  .hero .badge-row { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-bottom: 1.5rem; }
+  .hero .badge { background: rgba(255,255,255,0.18); padding: 0.4rem 1rem; border-radius: 20px; font-size: 0.9rem; backdrop-filter: blur(10px); }
+  .hero h1 { font-size: 2.6rem; margin: 0.5rem 0; font-weight: 700; line-height: 1.25; }
+  .hero .subtitle { font-size: 1.2rem; opacity: 0.95; margin: 1rem 0 0 0; max-width: 720px; margin-left: auto; margin-right: auto; }
+  /* General content */
+  .content { padding: 3rem 2.5rem; }
+  h2 { font-size: 1.7rem; margin-top: 3rem; margin-bottom: 1rem; color: #2a2a2a; border-left: 4px solid #7a4dab; padding-left: 0.8rem; }
+  h3 { font-size: 1.25rem; margin-top: 2rem; color: #4a47a3; }
+  p { margin: 1rem 0; }
+  /* One-liner card */
+  .oneliner { background: linear-gradient(135deg, #fff5fa 0%, #f0f0ff 100%); padding: 2rem; border-radius: 16px; margin: 2rem 0; text-align: center; font-size: 1.3rem; font-weight: 500; color: #4a47a3; border: 1px solid rgba(122, 77, 171, 0.2); }
+  .oneliner::before { content: '"'; font-size: 3rem; line-height: 0; vertical-align: -1.2rem; opacity: 0.4; }
+  .oneliner::after { content: '"'; font-size: 3rem; line-height: 0; vertical-align: -1.2rem; opacity: 0.4; }
+  /* Cards */
+  .card { padding: 1.5rem; border-radius: 12px; margin: 1.2rem 0; }
+  .card-accent { background: #f5f3ff; border-left: 4px solid #7a4dab; }
+  .card-green { background: #ecfdf5; border-left: 4px solid #10b981; }
+  .card-orange { background: #fff7ed; border-left: 4px solid #f59e0b; }
+  .card-red { background: #fef2f2; border-left: 4px solid #ef4444; }
+  .card h4 { margin-top: 0; color: #2a2a2a; }
+  /* Analogy box */
+  .analogy { background: #fffbeb; border-left: 4px solid #fbbf24; padding: 1.2rem 1.5rem; border-radius: 8px; margin: 1.5rem 0; }
+  .analogy::before { content: '💡 비유'; display: block; font-weight: 700; color: #b45309; margin-bottom: 0.4rem; font-size: 0.9rem; }
+  /* Step flow */
+  .step-flow { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .step { flex: 1; min-width: 200px; background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #7a4dab; }
+  .step .step-num { display: inline-block; background: #7a4dab; color: white; width: 28px; height: 28px; border-radius: 50%; text-align: center; line-height: 28px; font-weight: 700; margin-bottom: 0.6rem; }
+  .step h4 { margin: 0.4rem 0; }
+  /* Stat row */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1; min-width: 180px; background: linear-gradient(135deg, #f5f3ff 0%, #fce7f3 100%); padding: 1.5rem; border-radius: 12px; text-align: center; }
+  .stat .num { font-size: 2.4rem; font-weight: 700; color: #4a47a3; display: block; }
+  .stat .label { color: #6b6b6b; font-size: 0.95rem; margin-top: 0.4rem; }
+  /* Comparison table */
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1.5rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #e5e7eb; }
+  .comp-table th { background: #f9fafb; color: #4b5563; font-weight: 600; }
+  .comp-table tr:hover { background: #fafafa; }
+  .check { color: #10b981; font-weight: 700; }
+  .cross { color: #ef4444; font-weight: 700; }
+  /* SVG container */
+  .svg-wrap { background: white; padding: 1rem; border-radius: 12px; margin: 1.5rem 0; border: 1px solid #e5e7eb; text-align: center; }
+  .svg-caption { font-size: 0.9rem; color: #6b6b6b; margin-top: 0.5rem; font-style: italic; }
+  /* Conclusion card */
+  .conclusion { background: linear-gradient(135deg, #4a47a3 0%, #7a4dab 100%); color: white; padding: 2.5rem; border-radius: 16px; margin: 2.5rem 0; text-align: center; font-size: 1.2rem; }
+  /* Footer */
+  .footer { background: #f8f9fa; padding: 2rem 2.5rem; text-align: center; color: #6b6b6b; font-size: 0.9rem; border-top: 1px solid #e5e7eb; }
+  .expert-link { display: inline-block; margin: 1rem 0; padding: 0.5rem 1rem; background: rgba(255,255,255,0.2); color: white; border-radius: 8px; text-decoration: none; }
+  .expert-link:hover { background: rgba(255,255,255,0.3); }
+  .expert-link-light { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e3f2fd; color: #1565c0; border-radius: 6px; text-decoration: none; font-size: 0.95em; }
+  .expert-link-light:hover { background: #bbdefb; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .step-flow, .stat-row { flex-direction: column; }
+    .content { padding: 2rem 1.2rem; }
+  }
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- HERO -->
+<div class="hero">
+  <div class="badge-row">
+    <span class="badge">🍎 Apple</span>
+    <span class="badge">📅 2026</span>
+    <span class="badge">🔬 OPD Diagnostic</span>
+    <span class="badge">📄 arXiv:2605.10889</span>
+  </div>
+  <h1>On-Policy Distillation, 까보기</h1>
+  <p class="subtitle">"왜 어떤 teacher는 student를 정답으로 이끌고, 어떤 teacher는 길을 잃게 만드는가?"<br>학습 한 번 안 하고 token 단위로 진단하는 프레임워크</p>
+  <a class="expert-link" href="20260526_armandpour_opd_diagnostic.html">📑 전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="content">
+
+<!-- ONE-LINER -->
+<div class="oneliner">
+Teacher의 손짓이 정상으로 향하는지, 매 갈림길마다 각도기로 재본다
+</div>
+
+<!-- ============ 배경 지식 ============ -->
+<h2>🧭 배경 지식 — 이 논문을 이해하기 위해</h2>
+
+<h3>배경 1 — 지식 증류(Knowledge Distillation)란?</h3>
+<p>
+거대한 AI 모델(예: GPT-4 수준)이 매우 똑똑하지만 너무 느리고 비싸서 실제 서비스에 쓰기 어렵습니다. 이를 해결하는 표준 방법이 <strong>지식 증류(Knowledge Distillation)</strong> — 거대한 <strong>teacher 모델</strong>의 지식을 작은 <strong>student 모델</strong>로 옮기는 것입니다. 학생은 자기보다 똑똑한 선생님의 답을 흉내 내면서 작은 모델 크기로도 좋은 성능을 내게 됩니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="tea1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7a4dab"/>
+      <stop offset="100%" stop-color="#4a47a3"/>
+    </linearGradient>
+    <linearGradient id="stu1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#d96570"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+  </defs>
+  <!-- Teacher -->
+  <circle cx="150" cy="120" r="80" fill="url(#tea1)"/>
+  <text x="150" y="115" text-anchor="middle" fill="white" font-size="18" font-weight="700">Teacher</text>
+  <text x="150" y="140" text-anchor="middle" fill="white" font-size="14">큰 모델 (똑똑)</text>
+  <!-- Arrow -->
+  <path d="M 240 120 L 460 120" stroke="#666" stroke-width="3" marker-end="url(#arr1)"/>
+  <text x="350" y="105" text-anchor="middle" font-size="14" fill="#4a47a3" font-weight="700">지식 전달</text>
+  <text x="350" y="140" text-anchor="middle" font-size="12" fill="#666">"이 답이 더 자연스러워"</text>
+  <!-- Student -->
+  <circle cx="550" cy="120" r="55" fill="url(#stu1)"/>
+  <text x="550" y="115" text-anchor="middle" fill="white" font-size="16" font-weight="700">Student</text>
+  <text x="550" y="135" text-anchor="middle" fill="white" font-size="13">작은 모델</text>
+  <defs>
+    <marker id="arr1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#666"/>
+    </marker>
+  </defs>
+</svg>
+<div class="svg-caption">전통적 지식 증류: 큰 teacher가 작은 student에게 정답 분포를 전달</div>
+</div>
+
+<h3>배경 2 — On-Policy Distillation(OPD)이란?</h3>
+<p>
+기존 증류는 미리 만들어놓은 정답 데이터로 학생을 가르쳤다면, <strong>On-Policy Distillation</strong>은 다릅니다. 학생이 <em>스스로 답을 써 내려가는 동안</em>, 매 단어마다 선생님이 "이 단어 다음에는 이런 단어가 자연스러워"라고 분포(확률표)를 알려줍니다. Qwen3, MiMo, GLM-5 같은 최신 reasoning 모델들이 모두 채택한 표준 기법입니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <!-- Student writing -->
+  <rect x="40" y="40" width="640" height="80" rx="10" fill="#f5f3ff" stroke="#7a4dab" stroke-width="2"/>
+  <text x="60" y="68" font-size="14" fill="#4a47a3" font-weight="700">학생의 답안:</text>
+  <text x="60" y="95" font-family="monospace" font-size="14" fill="#1a1a1a">"</text>
+  <rect x="72" y="80" width="60" height="22" rx="4" fill="#e9d5ff"/><text x="102" y="96" text-anchor="middle" font-size="13">3 shelves</text>
+  <rect x="138" y="80" width="40" height="22" rx="4" fill="#e9d5ff"/><text x="158" y="96" text-anchor="middle" font-size="13">4</text>
+  <rect x="184" y="80" width="60" height="22" rx="4" fill="#e9d5ff"/><text x="214" y="96" text-anchor="middle" font-size="13">books</text>
+  <rect x="250" y="80" width="50" height="22" rx="4" fill="#fbbf24"/><text x="275" y="96" text-anchor="middle" font-size="13" font-weight="700">×4=12</text>
+  <text x="305" y="95" font-family="monospace" font-size="14" fill="#1a1a1a">..."</text>
+
+  <!-- Each token gets teacher signal -->
+  <path d="M 102 110 L 102 145" stroke="#10b981" stroke-width="2" marker-end="url(#arrG)"/>
+  <path d="M 158 110 L 158 145" stroke="#10b981" stroke-width="2" marker-end="url(#arrG)"/>
+  <path d="M 214 110 L 214 145" stroke="#10b981" stroke-width="2" marker-end="url(#arrG)"/>
+  <path d="M 275 110 L 275 145" stroke="#10b981" stroke-width="2" marker-end="url(#arrG)"/>
+  <defs>
+    <marker id="arrG" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- Teacher signals -->
+  <rect x="60" y="155" width="280" height="70" rx="8" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <text x="200" y="180" text-anchor="middle" font-size="14" fill="#065f46" font-weight="700">매 단어마다 Teacher의 분포 신호</text>
+  <text x="200" y="205" text-anchor="middle" font-size="12" fill="#065f46">P(다음 단어 | 지금까지의 답)</text>
+
+  <!-- Result -->
+  <rect x="380" y="155" width="290" height="70" rx="8" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="525" y="180" text-anchor="middle" font-size="14" fill="#92400e" font-weight="700">Student 업데이트</text>
+  <text x="525" y="205" text-anchor="middle" font-size="12" fill="#92400e">매 token마다 dense gradient</text>
+
+  <!-- Comparison with RL -->
+  <text x="360" y="260" text-anchor="middle" font-size="14" fill="#666">VS. 강화학습(GRPO): 답 전체에 대해 +1/-1 보상만</text>
+  <text x="360" y="285" text-anchor="middle" font-size="12" fill="#666">→ OPD는 token마다 풍부한 신호 → 더 빠른 학습</text>
+</svg>
+<div class="svg-caption">OPD: 학생이 답을 쓰는 동안 매 token에서 선생님이 분포로 지도</div>
+</div>
+
+<h3>배경 3 — Self-distillation이라는 이상한 기법</h3>
+<p>
+"선생님은 학생보다 커야 하는 거 아닌가?"라고 생각할 수 있지만, 최근에는 <strong>학생이 자기 자신을 가르치는 self-distillation</strong>이 매우 효과적임이 밝혀졌습니다. 같은 모델이지만 한쪽에는 <strong>정답이 보이는 상태(privileged context)</strong>, 다른 쪽에는 보이지 않는 상태로 두면, 정답을 본 쪽은 정답에 가까운 답을 생성합니다. 이를 보이지 않는 쪽이 학습 신호로 사용합니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+  <!-- Same model on both sides -->
+  <rect x="60" y="60" width="220" height="160" rx="14" fill="#f5f3ff" stroke="#7a4dab" stroke-width="2"/>
+  <text x="170" y="85" text-anchor="middle" font-size="14" fill="#4a47a3" font-weight="700">Teacher (= 같은 모델)</text>
+  <rect x="80" y="100" width="180" height="60" rx="6" fill="white" stroke="#7a4dab"/>
+  <text x="170" y="125" text-anchor="middle" font-size="12" fill="#4a47a3" font-weight="700">📋 정답 context 포함</text>
+  <text x="170" y="148" text-anchor="middle" font-size="11" fill="#666">"정답: 4×3=12, 12-5=7"</text>
+  <text x="170" y="180" text-anchor="middle" font-size="12" fill="#7a4dab">→ 정답 같은 분포 생성</text>
+  <text x="170" y="200" text-anchor="middle" font-size="11" fill="#666">(privileged conditioning)</text>
+
+  <!-- Arrow -->
+  <path d="M 290 140 L 420 140" stroke="#10b981" stroke-width="3" marker-end="url(#arrS)"/>
+  <text x="355" y="125" text-anchor="middle" font-size="13" fill="#065f46" font-weight="700">지도</text>
+  <defs>
+    <marker id="arrS" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#10b981"/>
+    </marker>
+  </defs>
+
+  <!-- Student -->
+  <rect x="430" y="60" width="220" height="160" rx="14" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="540" y="85" text-anchor="middle" font-size="14" fill="#92400e" font-weight="700">Student (= 같은 모델)</text>
+  <rect x="450" y="100" width="180" height="60" rx="6" fill="white" stroke="#f59e0b"/>
+  <text x="540" y="125" text-anchor="middle" font-size="12" fill="#92400e" font-weight="700">❓ context 없음</text>
+  <text x="540" y="148" text-anchor="middle" font-size="11" fill="#666">"문제: 책 몇 권 남나?"</text>
+  <text x="540" y="180" text-anchor="middle" font-size="12" fill="#f59e0b">→ 답을 모르고 추론</text>
+  <text x="540" y="200" text-anchor="middle" font-size="11" fill="#666">(이 분포를 학습시킴)</text>
+</svg>
+<div class="svg-caption">Self-distillation: 같은 모델이지만 한쪽에는 정답 힌트를 주고 다른 쪽이 그것을 모방</div>
+</div>
+
+<h3>배경 4 — 그런데 풀리지 않은 미스터리</h3>
+<p>
+OPD가 표준이 되었음에도 실무자들은 답이 없는 결정에 시달려 왔습니다:
+</p>
+<ul>
+  <li>🤔 <strong>어떤 teacher가 좋을까?</strong> Self-distillation? 더 큰 외부 모델?</li>
+  <li>🤔 <strong>Context는 무엇으로?</strong> 정답 풀이 전체? 요약? 정답+오답 contrastive?</li>
+  <li>🤔 <strong>매 token마다 신호의 품질이 다르지 않을까?</strong> 어떤 token은 도움이 되고 어떤 token은 잡음일 텐데?</li>
+  <li>🤔 <strong>이걸 학습 한 번 안 하고 알 수 있을까?</strong></li>
+</ul>
+<p>
+지금까지 이런 질문에 답하려면 비싼 학습 실행을 여러 번 돌리고 최종 정확도를 비교해야 했습니다. 하지만 그 결과는 <strong>token 수준에서 정확히 무슨 일이 일어났는지를 숨깁니다</strong>. 이 논문은 그 안을 들여다보는 도구를 만듭니다.
+</p>
+
+<div class="analogy">
+<strong>등산 가이드 비유</strong>: 학생을 정상으로 이끄는 가이드가 있다고 합시다. 정상에 도착했는지(최종 성적)만 보면, 가이드의 어느 손짓이 결정적이었는지 알 수 없습니다. 어쩌면 가이드는 90%의 시간 동안 "왼쪽으로 가" 같은 의미 없는 손짓을 하다가 1번의 결정적 손짓으로 정상에 데려갔을지도 모릅니다. 이 논문은 <strong>매 갈림길마다 가이드의 손짓 방향과 정상 방향의 각도를 측정</strong>해서 가이드 평가를 token 수준으로 분해합니다.
+</div>
+
+<h3>배경 5 — Reward와 Distillation의 통합 관점</h3>
+<p>
+이 논문이 영리한 부분은 두 가지 다른 학습 방식을 같은 좌표계에서 비교할 수 있게 한 것입니다:
+</p>
+<ul>
+  <li><strong>강화학습(GRPO 계열)</strong>: 답이 맞으면 +1, 틀리면 0. 문제: sparse reward, sample inefficient.</li>
+  <li><strong>OPD</strong>: 매 token에서 teacher 분포로 지도. 문제: teacher 신호가 reward와 정렬되는지 모름.</li>
+</ul>
+<p>
+저자들은 두 방법이 결국 logit 공간에서 같은 수학적 형태의 gradient를 만든다는 것을 증명합니다. 단지 "어떤 신호"를 쓰느냐만 다를 뿐입니다. 이 통찰이 진단 도구의 핵심 토대입니다.
+</p>
+
+<!-- ============ 핵심 아이디어 ============ -->
+<h2>🎯 핵심 아이디어 — Gradient Alignment Score</h2>
+
+<p>
+논문의 중심 도구는 <strong>Gradient Alignment Score(GAS)</strong>입니다. 매 갈림길마다 두 개의 화살표를 계산합니다:
+</p>
+
+<div class="step-flow">
+  <div class="step">
+    <span class="step-num">1</span>
+    <h4>🎯 이상적 화살표</h4>
+    <p>"이 갈림길에서 학생이 어디로 가야 정답에 가장 빨리 도달하는가?" — 학생의 실제 rollout 통계에서 계산된 oracle 방향.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">2</span>
+    <h4>📐 Teacher 화살표</h4>
+    <p>"이 갈림길에서 teacher가 학생에게 어떤 방향으로 가라고 하는가?" — distillation gradient.</p>
+  </div>
+  <div class="step">
+    <span class="step-num">3</span>
+    <h4>📏 두 화살표의 각도</h4>
+    <p>코사인 유사도를 측정. +1이면 완벽히 같은 방향, 0이면 무관(잡음), -1이면 정반대(해롭다).</p>
+  </div>
+</div>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <!-- Coordinate -->
+  <line x1="350" y1="40" x2="350" y2="320" stroke="#ccc"/>
+  <line x1="100" y1="180" x2="600" y2="180" stroke="#ccc"/>
+  <!-- Ideal gradient -->
+  <line x1="350" y1="180" x2="500" y2="80" stroke="#10b981" stroke-width="4" marker-end="url(#arrI)"/>
+  <text x="510" y="80" font-size="13" fill="#065f46" font-weight="700">이상적 gradient</text>
+  <text x="510" y="98" font-size="11" fill="#065f46">(정답으로 향함)</text>
+  <!-- Teacher gradient: helpful -->
+  <line x1="350" y1="180" x2="480" y2="120" stroke="#7a4dab" stroke-width="4" marker-end="url(#arrT1)"/>
+  <text x="490" y="115" font-size="13" fill="#4a47a3" font-weight="700">Teacher A 😊</text>
+  <text x="490" y="132" font-size="11" fill="#4a47a3">cos = +0.7 (helpful)</text>
+  <!-- Teacher gradient: useless -->
+  <line x1="350" y1="180" x2="500" y2="200" stroke="#f59e0b" stroke-width="4" marker-end="url(#arrT2)"/>
+  <text x="510" y="200" font-size="13" fill="#92400e" font-weight="700">Teacher B 😐</text>
+  <text x="510" y="217" font-size="11" fill="#92400e">cos ≈ 0 (잡음)</text>
+  <!-- Teacher gradient: harmful -->
+  <line x1="350" y1="180" x2="220" y2="270" stroke="#ef4444" stroke-width="4" marker-end="url(#arrT3)"/>
+  <text x="100" y="280" font-size="13" fill="#991b1b" font-weight="700">Teacher C 😡</text>
+  <text x="100" y="297" font-size="11" fill="#991b1b">cos = -0.6 (harmful)</text>
+
+  <!-- Origin -->
+  <circle cx="350" cy="180" r="6" fill="#1a1a1a"/>
+  <text x="358" y="195" font-size="12" fill="#666">현재 위치 (node u)</text>
+
+  <defs>
+    <marker id="arrI" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,8 L11,4 z" fill="#10b981"/></marker>
+    <marker id="arrT1" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,8 L11,4 z" fill="#7a4dab"/></marker>
+    <marker id="arrT2" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,8 L11,4 z" fill="#f59e0b"/></marker>
+    <marker id="arrT3" markerWidth="12" markerHeight="12" refX="10" refY="4" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,8 L11,4 z" fill="#ef4444"/></marker>
+  </defs>
+</svg>
+<div class="svg-caption">Gradient Alignment Score: 각 token에서 teacher 화살표와 이상적 화살표의 각도를 측정</div>
+</div>
+
+<div class="analogy">
+<strong>지도 앱 비유</strong>: 당신은 서울에서 부산으로 가고 있고, 친구가 옆에서 운전 조언을 해줍니다. 친구의 조언을 평가하려면 매 분기점마다 "친구가 가리키는 방향과 부산 방향의 각도"를 재면 됩니다. 어떤 친구는 동남쪽을 정확히 가리키고(cos +0.9), 어떤 친구는 동서남북 아무 방향이나 외치고(cos ≈ 0), 어떤 친구는 자꾸 북쪽(반대 방향)을 가리킵니다(cos -0.5). 이 논문은 AI teacher에게 이걸 적용합니다.
+</div>
+
+<h3>왜 이게 작동하나? — Dr. GRPO와 ideal gradient의 동치성</h3>
+<p>
+"이상적 gradient"는 어디서 왔나요? 저자들이 증명한 핵심 정리는: <strong>Dr. GRPO라는 강화학습 알고리즘은 무한히 많은 rollout을 모으면 정확히 이 이상적 gradient를 만들어낸다</strong>는 것입니다. 즉 "강화학습이 결국 향할 방향"을 학습 없이 시뮬레이션할 수 있습니다.
+</p>
+
+<div class="card card-accent">
+<h4>🔍 Logit 공간의 통합 구조</h4>
+<p>이 논문이 보여준 놀라운 사실 — 모든 주요 OPD 알고리즘(GKD, MiniLLM, Thinking Lab)은 logit space에서 <strong>같은 수학적 형태</strong>의 gradient를 만듭니다. 단지 "어떤 신호"를 사용하느냐만 다를 뿐입니다:</p>
+<ul>
+  <li><strong>Dr. GRPO (이상)</strong>: 신호 = "이 token이 정답으로 이끄는 빈도"</li>
+  <li><strong>GKD</strong>: 신호 = "student와 teacher 분포의 로그 비율"</li>
+  <li><strong>MiniLLM</strong>: 신호 = "현재 token부터 미래까지 reward 합"</li>
+</ul>
+<p>이 통합 관점 덕분에 reward와 distillation을 같은 좌표계에서 직접 비교할 수 있게 되었습니다.</p>
+</div>
+
+<!-- ============ 3단계 파이프라인 ============ -->
+<h2>⚙️ 3단계 파이프라인 — 어떻게 계산하나?</h2>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 750 360" xmlns="http://www.w3.org/2000/svg">
+  <!-- Phase 1 -->
+  <rect x="40" y="40" width="200" height="240" rx="12" fill="#f5f3ff" stroke="#7a4dab" stroke-width="2"/>
+  <text x="140" y="68" text-anchor="middle" font-size="15" fill="#4a47a3" font-weight="700">Phase 1 (공유)</text>
+  <text x="140" y="86" text-anchor="middle" font-size="12" fill="#666">Student rollout</text>
+
+  <!-- Tree -->
+  <circle cx="140" cy="115" r="8" fill="#4a47a3"/>
+  <line x1="140" y1="123" x2="100" y2="150" stroke="#7a4dab"/>
+  <line x1="140" y1="123" x2="180" y2="150" stroke="#7a4dab"/>
+  <circle cx="100" cy="155" r="6" fill="#7a4dab"/>
+  <circle cx="180" cy="155" r="6" fill="#7a4dab"/>
+  <line x1="100" y1="160" x2="80" y2="185" stroke="#7a4dab"/>
+  <line x1="100" y1="160" x2="115" y2="185" stroke="#7a4dab"/>
+  <line x1="180" y1="160" x2="165" y2="185" stroke="#7a4dab"/>
+  <line x1="180" y1="160" x2="200" y2="185" stroke="#7a4dab"/>
+  <circle cx="80" cy="190" r="4" fill="#10b981"/>
+  <circle cx="115" cy="190" r="4" fill="#ef4444"/>
+  <circle cx="165" cy="190" r="4" fill="#10b981"/>
+  <circle cx="200" cy="190" r="4" fill="#ef4444"/>
+
+  <text x="140" y="225" text-anchor="middle" font-size="11" fill="#666">Generation tree</text>
+  <text x="140" y="244" text-anchor="middle" font-size="11" fill="#666">+ targeted rollouts</text>
+  <text x="140" y="263" text-anchor="middle" font-size="11" fill="#666">→ P_succ 추정</text>
+
+  <!-- Arrow -->
+  <path d="M 250 160 L 290 160" stroke="#666" stroke-width="2" marker-end="url(#arrP)"/>
+
+  <!-- Phase 2 -->
+  <rect x="300" y="40" width="200" height="240" rx="12" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="400" y="68" text-anchor="middle" font-size="15" fill="#92400e" font-weight="700">Phase 2 (teacher별)</text>
+  <text x="400" y="86" text-anchor="middle" font-size="12" fill="#666">Teacher forward pass</text>
+
+  <!-- Teacher icons -->
+  <circle cx="340" cy="130" r="14" fill="#f59e0b"/>
+  <text x="340" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="700">T1</text>
+  <circle cx="370" cy="130" r="14" fill="#f59e0b"/>
+  <text x="370" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="700">T2</text>
+  <circle cx="400" cy="130" r="14" fill="#f59e0b"/>
+  <text x="400" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="700">...</text>
+  <circle cx="460" cy="130" r="14" fill="#f59e0b"/>
+  <text x="460" y="135" text-anchor="middle" fill="white" font-size="11" font-weight="700">T8</text>
+
+  <text x="400" y="180" text-anchor="middle" font-size="11" fill="#666">각 teacher가</text>
+  <text x="400" y="198" text-anchor="middle" font-size="11" fill="#666">enriched tree에</text>
+  <text x="400" y="216" text-anchor="middle" font-size="11" fill="#666">1회 forward pass</text>
+  <text x="400" y="244" text-anchor="middle" font-size="11" fill="#92400e" font-weight="700">→ log P_te 획득</text>
+  <text x="400" y="263" text-anchor="middle" font-size="11" fill="#92400e" font-weight="700">→ ~7× compute 절약</text>
+
+  <!-- Arrow -->
+  <path d="M 510 160 L 550 160" stroke="#666" stroke-width="2" marker-end="url(#arrP)"/>
+
+  <!-- Phase 3 -->
+  <rect x="560" y="40" width="180" height="240" rx="12" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <text x="650" y="68" text-anchor="middle" font-size="15" fill="#065f46" font-weight="700">Phase 3</text>
+  <text x="650" y="86" text-anchor="middle" font-size="12" fill="#666">Align(u) 계산</text>
+
+  <line x1="650" y1="105" x2="650" y2="200" stroke="#ccc"/>
+  <line x1="600" y1="155" x2="700" y2="155" stroke="#ccc"/>
+  <line x1="650" y1="155" x2="700" y2="120" stroke="#10b981" stroke-width="3" marker-end="url(#arrA)"/>
+  <line x1="650" y1="155" x2="690" y2="135" stroke="#7a4dab" stroke-width="3" marker-end="url(#arrA2)"/>
+
+  <text x="650" y="225" text-anchor="middle" font-size="11" fill="#065f46">cos(g_ideal, g_D)</text>
+  <text x="650" y="244" text-anchor="middle" font-size="11" fill="#065f46">→ +/0/- 판정</text>
+  <text x="650" y="263" text-anchor="middle" font-size="11" fill="#10b981" font-weight="700">teacher 평가 완료</text>
+
+  <defs>
+    <marker id="arrP" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#666"/></marker>
+    <marker id="arrA" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#10b981"/></marker>
+    <marker id="arrA2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth"><path d="M0,0 L0,6 L9,3 z" fill="#7a4dab"/></marker>
+  </defs>
+
+  <text x="375" y="320" text-anchor="middle" font-size="12" fill="#666">Phase 1은 한 번만 — student rollout이 모든 teacher 평가에 공유됨</text>
+</svg>
+<div class="svg-caption">3단계 파이프라인: 학생 rollout 1회 + teacher당 forward 1회 = 효율적 진단</div>
+</div>
+
+<div class="analogy">
+<strong>코스트코 시식 코너 비유</strong>: 8명의 셰프(teacher)를 평가하려면 보통 8번 요리 대회를 열어야 하지만, 이 논문은 같은 재료(generation tree)를 한 번만 준비하고 각 셰프에게 그 재료로 한 입씩 시식 평가만 받으면 됩니다. 이 트릭으로 비용을 ~7배 줄였습니다.
+</div>
+
+<!-- ============ 핵심 발견 ============ -->
+<h2>💎 핵심 발견 3가지 (실험 결과)</h2>
+
+<h3>발견 1 — Distillation은 학생이 길을 잃었을 때 더 잘 작동한다</h3>
+
+<p>
+모든 setting에서 가장 일관된 결과: <strong>학생의 답이 틀렸던 경로에서 teacher 신호가 정답 방향과 더 잘 정렬</strong>됩니다. 학생이 이미 잘 가고 있을 때(correct path)는 teacher가 별로 도움이 안 됩니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <!-- Axes -->
+  <line x1="80" y1="240" x2="650" y2="240" stroke="#333" stroke-width="2"/>
+  <line x1="80" y1="240" x2="80" y2="40" stroke="#333" stroke-width="2"/>
+  <text x="365" y="270" text-anchor="middle" font-size="13" fill="#333">Setting</text>
+  <text x="40" y="140" text-anchor="middle" font-size="13" fill="#333" transform="rotate(-90 40 140)">Mean cosine alignment</text>
+
+  <!-- Bars: 4 settings, each with correct & incorrect -->
+  <!-- 0.6B BoolQ -->
+  <rect x="100" y="232" width="30" height="8" fill="#7a4dab"/>
+  <text x="115" y="225" text-anchor="middle" font-size="10" fill="#7a4dab">.011</text>
+  <rect x="135" y="208" width="30" height="32" fill="#d96570"/>
+  <text x="150" y="200" text-anchor="middle" font-size="10" fill="#d96570">.044</text>
+  <text x="132" y="255" text-anchor="middle" font-size="11" fill="#333">0.6B BoolQ</text>
+
+  <!-- 1.7B BoolQ -->
+  <rect x="220" y="239" width="30" height="1" fill="#7a4dab"/>
+  <text x="235" y="232" text-anchor="middle" font-size="10" fill="#7a4dab">.001</text>
+  <rect x="255" y="198" width="30" height="42" fill="#d96570"/>
+  <text x="270" y="190" text-anchor="middle" font-size="10" fill="#d96570">.058</text>
+  <text x="252" y="255" text-anchor="middle" font-size="11" fill="#333">1.7B BoolQ</text>
+
+  <!-- 0.6B MMLU -->
+  <rect x="340" y="234" width="30" height="6" fill="#7a4dab"/>
+  <text x="355" y="227" text-anchor="middle" font-size="10" fill="#7a4dab">.009</text>
+  <rect x="375" y="204" width="30" height="36" fill="#d96570"/>
+  <text x="390" y="196" text-anchor="middle" font-size="10" fill="#d96570">.048</text>
+  <text x="372" y="255" text-anchor="middle" font-size="11" fill="#333">0.6B MMLU</text>
+
+  <!-- 1.7B MMLU -->
+  <rect x="460" y="231" width="30" height="9" fill="#7a4dab"/>
+  <text x="475" y="223" text-anchor="middle" font-size="10" fill="#7a4dab">.012</text>
+  <rect x="495" y="220" width="30" height="20" fill="#d96570"/>
+  <text x="510" y="213" text-anchor="middle" font-size="10" fill="#d96570">.028</text>
+  <text x="492" y="255" text-anchor="middle" font-size="11" fill="#333">1.7B MMLU</text>
+
+  <!-- Legend -->
+  <rect x="560" y="60" width="14" height="14" fill="#7a4dab"/>
+  <text x="580" y="72" font-size="12" fill="#333">정답 경로</text>
+  <rect x="560" y="80" width="14" height="14" fill="#d96570"/>
+  <text x="580" y="92" font-size="12" fill="#333">오답 경로</text>
+
+  <text x="580" y="125" font-size="11" fill="#666">모든 setting에서</text>
+  <text x="580" y="142" font-size="11" fill="#666">오답 &gt; 정답 (p &lt; 10⁻⁵)</text>
+</svg>
+<div class="svg-caption">Token-level alignment: 학생이 틀린 경로일수록 teacher가 정답 방향을 더 잘 가리킨다</div>
+</div>
+
+<div class="card card-green">
+<h4>🌟 왜 이게 중요한가?</h4>
+<p>이 발견은 단순한 관찰이 아니라 <strong>실용적 함의</strong>를 가집니다. 만약 OPD를 학습할 때 모든 token에 똑같이 distillation loss를 적용하지 말고, <strong>오답이 나온 trajectory에서 더 큰 weight</strong>로 학습한다면 더 빠르게 개선될 수 있습니다. 이를 "rollout-weighted distillation"이라고 부르며, 본 논문이 제안하는 가장 직접적인 개선 방향입니다.</p>
+</div>
+
+<div class="analogy">
+<strong>운전 학원 비유</strong>: 학생 운전자가 잘 가고 있을 때 강사가 "오른쪽 살짝", "왼쪽 살짝" 자꾸 끼어들면 오히려 산만해집니다. 학생이 길을 잃었을 때 강사의 "여기서 좌회전!" 한 마디가 가장 가치 있습니다. AI 학습도 마찬가지 — 실패한 trajectory에 더 큰 가중치를 둬야 합니다.
+</div>
+
+<h3>발견 2 — Student 크기가 최고의 Teacher를 결정한다</h3>
+
+<p>
+"더 큰 teacher가 항상 좋다"는 직관에 정면 도전하는 결과입니다. 0.6B 작은 학생과 1.7B 큰 학생에서 best teacher가 정반대입니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+  <!-- 0.6B side -->
+  <rect x="40" y="40" width="320" height="260" rx="12" fill="#f5f3ff" stroke="#7a4dab" stroke-width="2"/>
+  <text x="200" y="68" text-anchor="middle" font-size="16" fill="#4a47a3" font-weight="700">Qwen3-0.6B (작은 학생)</text>
+
+  <!-- Bars -->
+  <text x="60" y="100" font-size="12" fill="#333">Self-1C</text>
+  <rect x="170" y="92" width="120" height="12" fill="#10b981"/>
+  <text x="295" y="102" font-size="11" fill="#065f46" font-weight="700">.047 🏆</text>
+
+  <text x="60" y="125" font-size="12" fill="#333">Self-Sum-1C</text>
+  <rect x="170" y="117" width="105" height="12" fill="#10b981"/>
+  <text x="280" y="127" font-size="11" fill="#065f46">.041</text>
+
+  <text x="60" y="150" font-size="12" fill="#333">Self-1C(32B)</text>
+  <rect x="170" y="142" width="120" height="12" fill="#10b981"/>
+  <text x="295" y="152" font-size="11" fill="#065f46">.047</text>
+
+  <text x="60" y="175" font-size="12" fill="#333">Qwen3-14B</text>
+  <rect x="170" y="167" width="40" height="12" fill="#f59e0b"/>
+  <text x="215" y="177" font-size="11" fill="#92400e">.016</text>
+
+  <text x="60" y="200" font-size="12" fill="#333">Qwen3-8B</text>
+  <rect x="170" y="192" width="45" height="12" fill="#f59e0b"/>
+  <text x="220" y="202" font-size="11" fill="#92400e">.018</text>
+
+  <text x="60" y="225" font-size="12" fill="#333">Qwen3-4B</text>
+  <rect x="170" y="217" width="45" height="12" fill="#f59e0b"/>
+  <text x="220" y="227" font-size="11" fill="#92400e">.018</text>
+
+  <text x="200" y="265" text-anchor="middle" font-size="13" fill="#065f46" font-weight="700">📌 Self-distillation 압승</text>
+  <text x="200" y="285" text-anchor="middle" font-size="11" fill="#666">2-3배 높은 alignment</text>
+
+  <!-- 1.7B side -->
+  <rect x="380" y="40" width="320" height="260" rx="12" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="540" y="68" text-anchor="middle" font-size="16" fill="#92400e" font-weight="700">Qwen3-1.7B (큰 학생)</text>
+
+  <text x="400" y="100" font-size="12" fill="#333">Qwen3-8B</text>
+  <rect x="510" y="92" width="130" height="12" fill="#10b981"/>
+  <text x="645" y="102" font-size="11" fill="#065f46" font-weight="700">.053 🏆</text>
+
+  <text x="400" y="125" font-size="12" fill="#333">Self-Sum-1C</text>
+  <rect x="510" y="117" width="125" height="12" fill="#10b981"/>
+  <text x="640" y="127" font-size="11" fill="#065f46">.050</text>
+
+  <text x="400" y="150" font-size="12" fill="#333">Qwen3-4B</text>
+  <rect x="510" y="142" width="100" height="12" fill="#10b981"/>
+  <text x="615" y="152" font-size="11" fill="#065f46">.040</text>
+
+  <text x="400" y="175" font-size="12" fill="#333">Qwen3-14B</text>
+  <rect x="510" y="167" width="90" height="12" fill="#10b981"/>
+  <text x="605" y="177" font-size="11" fill="#065f46">.036</text>
+
+  <text x="400" y="200" font-size="12" fill="#333">Self-1C</text>
+  <rect x="510" y="192" width="70" height="12" fill="#f59e0b"/>
+  <text x="585" y="202" font-size="11" fill="#92400e">.028</text>
+
+  <text x="400" y="225" font-size="12" fill="#333">Self-1C1W</text>
+  <rect x="510" y="217" width="5" height="12" fill="#f59e0b"/>
+  <text x="520" y="227" font-size="11" fill="#92400e">.002</text>
+
+  <text x="540" y="265" text-anchor="middle" font-size="13" fill="#065f46" font-weight="700">📌 External teacher 승</text>
+  <text x="540" y="285" text-anchor="middle" font-size="11" fill="#666">8B가 self-distillation 추월</text>
+</svg>
+<div class="svg-caption">BoolQ에서 측정한 teacher ranking: 학생 크기에 따라 최적 teacher가 완전히 뒤집힌다</div>
+</div>
+
+<div class="card card-accent">
+<h4>🧠 Comprehensibility Hypothesis (이해 가능성 가설)</h4>
+<p>저자들의 해석: <strong>학생이 selnoldigning teacher의 신호를 "이해"할 수 있을 때만 distillation이 작동한다</strong>.</p>
+<ul>
+  <li>0.6B 학생에게 14B teacher의 추론 분포는 외계어 같다 → 신호를 흡수하지 못함</li>
+  <li>같은 0.6B에게 정답을 가진 자기 자신의 분포는 같은 "추론 스타일" 안에서 이해 가능한 nudge</li>
+  <li>1.7B는 8B와의 capacity gap이 작아 다른 분포 정보를 exploit 가능</li>
+</ul>
+</div>
+
+<div class="analogy">
+<strong>외국어 학습 비유</strong>: 영어 초급자에게 셰익스피어 원문을 던져주면 한 줄도 못 배웁니다. 차라리 본인이 쓴 어색한 문장을 native speaker가 살짝 고친 버전을 보는 게 훨씬 효과적입니다. 영어 중급자라면 셰익스피어에서도 배울 수 있습니다. 모델도 마찬가지 — 학생의 capacity와 teacher의 distance 사이에 sweet spot이 있습니다.
+</div>
+
+<h3>발견 3 — "보편적 recipe"는 존재하지 않는다</h3>
+
+<p>
+실험에서 가장 충격적인 결과: BoolQ/MMLU에서는 정답 demonstration만 좋고 오답 demonstration은 학습을 망치는데, <strong>어려운 수학(AIME)에서는 정반대</strong>입니다. 오답을 보여주는 게 가장 좋은 선택이 되기도 합니다.
+</p>
+
+<table class="comp-table">
+<thead>
+<tr><th>Task</th><th>난이도</th><th>최고 teacher</th><th>해석</th></tr>
+</thead>
+<tbody>
+<tr><td>BoolQ (Q&amp;A)</td><td>쉬움</td><td>Self-1C (정답만)</td><td>오답은 distracting noise</td></tr>
+<tr><td>MMLU (객관식)</td><td>중간</td><td>Self-1C / Self-Sum-1C</td><td>요약된 정답이 효과적</td></tr>
+<tr><td>AIME Q0 (수학)</td><td>쉬움</td><td>Self-Sum-1C (요약)</td><td>compact reasoning</td></tr>
+<tr><td>AIME Q3 (수학)</td><td><strong>어려움</strong></td><td><strong>Self-1C1W (정답+오답)</strong></td><td><strong>contrastive signal이 도움</strong></td></tr>
+<tr><td>AIME Q28 (수학)</td><td>중간-어려움</td><td>Self-1C1W (정답+오답)</td><td>"이 실수를 피해라" 학습</td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<strong>수학 과외 비유</strong>: 산수 문제 풀이를 가르칠 때 "틀린 풀이"를 보여주면 학생을 혼란시킵니다. 하지만 고난도 수학 올림피아드 문제에서는 "이런 식으로 접근하면 막힌다"는 anti-pattern을 보여주는 게 학생의 사고에 더 큰 도움을 줍니다. 단순함과 복잡성에 따라 학습 방식이 달라지는 보편적 현상입니다.
+</div>
+
+<!-- ============ 핵심 성과 ============ -->
+<h2>📊 핵심 성과 (숫자로 보는 임팩트)</h2>
+
+<div class="stat-row">
+  <div class="stat">
+    <span class="num">~7×</span>
+    <span class="label">compute 절감<br>(teacher-independent tree sharing)</span>
+  </div>
+  <div class="stat">
+    <span class="num">10-15×</span>
+    <span class="label">signal 개선<br>(oracle selective distillation)</span>
+  </div>
+  <div class="stat">
+    <span class="num">~88K</span>
+    <span class="label">decision point 분석<br>(0.6B BoolQ 단독)</span>
+  </div>
+  <div class="stat">
+    <span class="num">~72</span>
+    <span class="label">A100-days 전체 실험</span>
+  </div>
+</div>
+
+<h3>Selective Distillation의 잠재력</h3>
+<p>
+이론적 분석으로 흥미로운 가능성을 보였습니다: 만약 alignment가 positive인 token에만 distillation loss를 적용한다면(oracle 분석), 전체 token의 ~52%만 사용하면서도 모든 path에서 full GKD를 이깁니다. 신호 강도는 10-15배 개선됩니다.
+</p>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <!-- Two columns: Full vs Selective -->
+  <rect x="60" y="60" width="260" height="180" rx="10" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="190" y="90" text-anchor="middle" font-size="15" fill="#92400e" font-weight="700">Full GKD (현재 방식)</text>
+
+  <!-- Tokens row -->
+  <g transform="translate(80, 110)">
+    <rect x="0" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="22" y="0" width="20" height="20" fill="#ef4444"/>
+    <rect x="44" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="66" y="0" width="20" height="20" fill="#fbbf24"/>
+    <rect x="88" y="0" width="20" height="20" fill="#fbbf24"/>
+    <rect x="110" y="0" width="20" height="20" fill="#ef4444"/>
+    <rect x="132" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="154" y="0" width="20" height="20" fill="#fbbf24"/>
+    <rect x="176" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="198" y="0" width="20" height="20" fill="#ef4444"/>
+  </g>
+
+  <text x="190" y="155" text-anchor="middle" font-size="12" fill="#92400e">모든 token에 동일 weight</text>
+  <text x="190" y="180" text-anchor="middle" font-size="22" fill="#92400e" font-weight="700">신호 0.007</text>
+  <text x="190" y="215" text-anchor="middle" font-size="11" fill="#666">😡 빨강(해로움)도 학습에 사용</text>
+
+  <!-- Selective -->
+  <rect x="380" y="60" width="260" height="180" rx="10" fill="#ecfdf5" stroke="#10b981" stroke-width="2"/>
+  <text x="510" y="90" text-anchor="middle" font-size="15" fill="#065f46" font-weight="700">Selective (oracle)</text>
+
+  <g transform="translate(400, 110)">
+    <rect x="0" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="22" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+    <rect x="44" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="66" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+    <rect x="88" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+    <rect x="110" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+    <rect x="132" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="154" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+    <rect x="176" y="0" width="20" height="20" fill="#10b981"/>
+    <rect x="198" y="0" width="20" height="20" fill="#e5e7eb" stroke="#999" stroke-dasharray="2"/>
+  </g>
+
+  <text x="510" y="155" text-anchor="middle" font-size="12" fill="#065f46">positive alignment만</text>
+  <text x="510" y="180" text-anchor="middle" font-size="22" fill="#065f46" font-weight="700">신호 0.076 (10×↑)</text>
+  <text x="510" y="215" text-anchor="middle" font-size="11" fill="#666">😊 ~52% token만 사용</text>
+
+  <!-- Legend -->
+  <text x="60" y="265" font-size="11" fill="#333">🟩 helpful  🟨 useless  🟥 harmful  ⬜ skipped</text>
+</svg>
+<div class="svg-caption">Selective distillation: 도움 되는 token만 골라 쓰면 신호가 10× 강해진다</div>
+</div>
+
+<!-- ============ 기존 대비 장점 ============ -->
+<h2>🆚 기존 방법 vs 본 논문</h2>
+
+<table class="comp-table">
+<thead>
+<tr><th>측면</th><th>기존 OPD 평가</th><th>본 논문 (Gradient Alignment)</th></tr>
+</thead>
+<tbody>
+<tr><td>측정 단위</td><td>전체 정확도 (aggregate)</td><td><strong>매 token 단위</strong></td></tr>
+<tr><td>학습 필요?</td><td>✅ 매 설정마다 학습 실행</td><td><span class="check">❌ 학습 불필요</span></td></tr>
+<tr><td>비용</td><td>실험당 수 GPU-days</td><td>8개 teacher 동시 ~72 A100-days</td></tr>
+<tr><td>해석력</td><td>"어떤 teacher가 좋은가" 정도</td><td><strong>"어느 token에서, 왜 좋은가"</strong></td></tr>
+<tr><td>새 알고리즘 제안?</td><td>대부분 새 손실함수 제안</td><td>진단 도구 — 기존 알고리즘을 평가</td></tr>
+<tr><td>실무 활용</td><td>비싼 hyperparameter sweep</td><td>학습 전에 teacher 선택 가능</td></tr>
+</tbody>
+</table>
+
+<!-- ============ 활용 분야 ============ -->
+<h2>🎯 활용 분야</h2>
+
+<div class="svg-wrap">
+<svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+  <!-- Center -->
+  <circle cx="360" cy="180" r="55" fill="url(#cgrad)" stroke="#4a47a3" stroke-width="2"/>
+  <text x="360" y="175" text-anchor="middle" fill="white" font-size="14" font-weight="700">OPD</text>
+  <text x="360" y="195" text-anchor="middle" fill="white" font-size="14" font-weight="700">Diagnostic</text>
+
+  <defs>
+    <linearGradient id="cgrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#7a4dab"/>
+      <stop offset="100%" stop-color="#4a47a3"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Branches -->
+  <line x1="360" y1="180" x2="170" y2="80" stroke="#7a4dab" stroke-width="2"/>
+  <line x1="360" y1="180" x2="560" y2="80" stroke="#7a4dab" stroke-width="2"/>
+  <line x1="360" y1="180" x2="100" y2="200" stroke="#7a4dab" stroke-width="2"/>
+  <line x1="360" y1="180" x2="620" y2="200" stroke="#7a4dab" stroke-width="2"/>
+  <line x1="360" y1="180" x2="200" y2="320" stroke="#7a4dab" stroke-width="2"/>
+  <line x1="360" y1="180" x2="540" y2="320" stroke="#7a4dab" stroke-width="2"/>
+
+  <!-- Leaf nodes -->
+  <rect x="60" y="50" width="220" height="50" rx="10" fill="#f5f3ff" stroke="#7a4dab"/>
+  <text x="170" y="72" text-anchor="middle" font-size="12" fill="#4a47a3" font-weight="700">🎓 Reasoning 모델 학습</text>
+  <text x="170" y="90" text-anchor="middle" font-size="10" fill="#666">Qwen3, GLM-5, MiMo 등 post-training</text>
+
+  <rect x="450" y="50" width="220" height="50" rx="10" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="560" y="72" text-anchor="middle" font-size="12" fill="#92400e" font-weight="700">⚙️ Teacher 선택 자동화</text>
+  <text x="560" y="90" text-anchor="middle" font-size="10" fill="#666">학습 전에 alignment로 best teacher 선정</text>
+
+  <rect x="0" y="180" width="170" height="50" rx="10" fill="#ecfdf5" stroke="#10b981"/>
+  <text x="85" y="202" text-anchor="middle" font-size="12" fill="#065f46" font-weight="700">🎯 Selective KD</text>
+  <text x="85" y="220" text-anchor="middle" font-size="10" fill="#666">positive token만 학습</text>
+
+  <rect x="550" y="180" width="170" height="50" rx="10" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="635" y="202" text-anchor="middle" font-size="12" fill="#991b1b" font-weight="700">⚠️ OOD 탐지</text>
+  <text x="635" y="220" text-anchor="middle" font-size="10" fill="#666">negative alignment 영역 식별</text>
+
+  <rect x="80" y="295" width="240" height="50" rx="10" fill="#f5f3ff" stroke="#7a4dab"/>
+  <text x="200" y="317" text-anchor="middle" font-size="12" fill="#4a47a3" font-weight="700">🤝 Multi-teacher 결합</text>
+  <text x="200" y="335" text-anchor="middle" font-size="10" fill="#666">complementary signal 발굴</text>
+
+  <rect x="420" y="295" width="240" height="50" rx="10" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="540" y="317" text-anchor="middle" font-size="12" fill="#92400e" font-weight="700">🔄 Context 자동 선택</text>
+  <text x="540" y="335" text-anchor="middle" font-size="10" fill="#666">task별 best demonstration 형식</text>
+</svg>
+<div class="svg-caption">진단 도구의 6가지 응용 분야 — 학습 효율부터 안전성까지</div>
+</div>
+
+<!-- ============ 한 줄 결론 ============ -->
+<div class="conclusion">
+🍎 학습 없이 token 수준에서 OPD의 품질을 평가하는<br>
+<strong style="font-size: 1.4rem;">"엑스레이 진단기"</strong>를 만들었다.<br>
+<small style="opacity: 0.9; font-size: 0.95rem;">— Distillation은 학생이 실패할 때 가장 빛난다.</small>
+</div>
+
+<!-- ============ 한계점 ============ -->
+<h2>⚠️ 한계와 향후 과제</h2>
+
+<div class="card card-orange">
+<h4>한계 1 — Alignment ↔ 실제 모델 성능의 연결 미증명</h4>
+<p>본 논문은 alignment를 측정하지만, alignment가 높은 teacher로 실제 학습했을 때 정말 더 나은 모델이 나오는지 <strong>end-to-end 검증은 하지 않았습니다</strong>. Selective distillation도 oracle 분석에 그치고, 실제 학습 알고리즘으로는 미구현.</p>
+</div>
+
+<div class="card card-orange">
+<h4>한계 2 — Alignment 절댓값이 작다</h4>
+<p>Mean cosine alignment가 0.027-0.053. 이는 "OPD가 reward와 잘 정렬된다"기보다는 <strong>"평균적으로는 거의 random direction, 단지 sign이 약간 positive로 기울었을 뿐"</strong>에 가깝습니다. Distillation의 본질적 한계인지, 측정 noise인지 불명확.</p>
+</div>
+
+<div class="card card-orange">
+<h4>한계 3 — 모델 family와 task의 다양성</h4>
+<p>모든 실험이 Qwen3 family. Llama/Mistral/GPT 같은 다른 family에서도 같은 패턴이 나오는지 검증 안 됨. AIME case study도 4개 question만 분석.</p>
+</div>
+
+<div class="card card-orange">
+<h4>한계 4 — Within-path predictor의 약함</h4>
+<p>"어느 token에서 alignment가 positive인지" 예측하는 cheap feature(divergence)의 상관관계가 |ρ| &lt; 0.05로 매우 약합니다. Alignment-aware training의 실용성에 의문을 남기는 결과.</p>
+</div>
+
+<div class="card card-orange">
+<h4>한계 5 — Student-dependent measurement</h4>
+<p>$P_\text{succ}^k$를 student가 sample한 token에 대해서만 계산 → <strong>student가 결코 sample하지 않는 token은 evaluate되지 않습니다</strong>. Cold-start나 OOD task에서 framework가 적용되기 어려운 본질적 제약.</p>
+</div>
+
+<!-- ============ Footer expert link ============ -->
+<div style="text-align: center; margin: 2rem 0;">
+<a class="expert-link-light" href="20260526_armandpour_opd_diagnostic.html">📑 전문가용 상세 요약 보기 →</a>
+</div>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+<p><strong>"Unmasking On-Policy Distillation: Where It Helps, Where It Hurts, and Why"</strong></p>
+<p>Mohammadreza Armandpour*, Fatih Ilhan*, et al. (Apple, 2026)</p>
+<p>arXiv:2605.10889 · May 12, 2026</p>
+</div>
+
+</div>
+</body>
+</html>
