@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Stream LLMs: Unblocking Language Models with Parallel Streams</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e3f2fd; color: #1565c0; border-radius: 6px; text-decoration: none; font-size: 0.95em; }
+  .brief-link:hover { background: #bbdefb; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Multi-Stream LLMs: Unblocking Language Models with Parallel Streams of Thoughts, Inputs and Outputs</h1>
+<a class="brief-link" href="20260526_su_multistream_llm_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Guinan Su, Yanwu Yang, Xueyan Li, Jonas Geiping</li>
+  <li><strong>소속</strong>: Max Planck Institute for Intelligent Systems, Tübingen AI Center, ETH Zurich, University Hospital Tübingen, University of Tübingen, ELLIS Institute Tübingen</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026 (May 12, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.12460">arXiv:2605.12460</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: ChatGPT 이래 모든 LLM은 ##단일 message stream (user→model→tool→…)을 sequential하게 처리##한다. 학생은 입력을 다 읽기 전에 답할 수 없고, 답을 쓰는 중에 새 입력을 받을 수 없으며, 생각하면서 동시에 행동할 수 없다. 이는 ##agent로서 LLM을 사용할 때 사용성, 효율성, 보안, 모니터링 모두에서 근본적 병목##이 된다.</li>
+  <li><strong>해결</strong>: Instruction-tuning을 ##multiple parallel streams of computation##로 재구성. 각 role(user, system, model, thinking, audit, tool 등)이 독립된 stream을 가지며, 매 forward pass에서 모델은 모든 input stream을 동시에 읽고 모든 output stream에서 동시에 token을 생성한다. Stream 간 attention은 시간(position $t$)에 대해서만 causal 제약을 갖는다.</li>
+  <li><strong>왜 작동하는가</strong>: Transformer는 본래 set operation으로 정의되므로, sequential format은 cosmetic 제약이지 architectural 필연이 아니다. ##Stream별 RoPE 인덱싱 + per-stream embedding + cross-stream causal mask## (식 (2))로 token이 어떤 stream에 속하는지, 시간상 어떤 token에 attention 가능한지를 깔끔히 분리할 수 있다. Interleaved packing으로 FlashAttention 호환성도 유지.</li>
+  <li><strong>비유</strong>: 1980년대 단일 코어 CPU가 multi-core/multi-thread로 진화한 것과 같다. 하나의 "대화 thread"에 모든 것을 직렬화하는 chat 패러다임에서 ##각 role이 자기 thread를 갖고 동시 실행되는 OS-스러운 패러다임##으로의 전환.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Multi-Stream Parallel Generation 정식화</strong>: 모델이 $H$개의 stream을 ##controlled cross-stream causal dependency로 동시에 생성##하는 학습 패러다임 정의 (식 (1)). Multiverse 같은 isolated branching이나 Medusa 같은 multi-token prediction과 달리, ##모든 stream이 매 step에서 dense하게 cross-attention##한다.</li>
+  <li><strong>3단계 합성 데이터 파이프라인</strong>: 자연적 simultaneous data가 부족한 문제를, ##(a) Wait-$k$ stream-like generation, (b) LLM-judge causal verification, (c) per-/cross-stream quality filtering##의 3단계로 해결.</li>
+  <li><strong>Architecture 수정 2종</strong>: (a) Stream-aware RoPE — 각 stream이 자기 position counter를 0부터 시작, (b) Cross-stream causal mask — query at $(h, t)$가 key at $(h', \tau)$를 $\tau < t$일 때만 attend. ##Interleaved packing##으로 사실상 lower-triangular layout을 만들어 FlashAttention fast path를 활용.</li>
+  <li><strong>효율성</strong>: Qwen3-1.7B/4B (thinking mode)에서 ##TNFT(Token Number to First Target Token)를 0으로 압축##하고 end-to-end latency 40-60% 감소. ##Auditing-while-solving은 1.63× throughput speedup##.</li>
+  <li><strong>보안</strong>: Adversarial training 없이 ##stream isolation 만으로 prompt injection ASR(Attack Success Rate) 대폭 감소## — TensorTrust 75.56→54.75, StruQ-ID 76.00→42.23, NESSiE Safe&Helpful 8.21→28.21. Indirect injection 방어가 가장 큰 폭으로 개선.</li>
+  <li><strong>Monitorability</strong>: 8개 internal thinking stream을 추가하면 ##"concern sub-vocalization" rate가 0.07→0.42 (8B), 0.06→0.44 (27B)##. Visible answer에 드러나지 않는 모델의 내부 고려사항(eval awareness 등)이 별도 stream에 등장 → ##obfuscation pressure 없이 자연스러운 monitorability##.</li>
+</ol>
+
+<h2>1. 문제의 본질 — 왜 Single Stream이 병목인가</h2>
+
+<h3>1.1 Chat Templating의 유산</h3>
+<p>
+ChatGPT 이후 거의 모든 LLM은 ##단일 텍스트 stream에 role을 format token으로 표시하는 방식##(`<|user|>`, `<|assistant|>` 등)을 따른다. Chain-of-thought, tool use, subagent message 등 모든 확장이 이 single stream에 retro-fit되어, 한 message가 끝나야 다음이 시작되는 ##blocking 구조##를 만든다. 저자들의 핵심 관찰: claude-code 같은 advanced coding agent도 결국 chat model이다.
+</p>
+
+<h3>1.2 Blocking으로 인한 4가지 제약</h3>
+<p>Figure 1 (Execution Timeline): vanilla LLM에서 system → user input → think → tool → reflection → response가 순차적으로만 일어난다. 이로 인해:</p>
+<ul>
+  <li><strong>읽으며 행동할 수 없음</strong>: User가 query를 다 입력하기 전에는 thinking/tool 호출 불가능</li>
+  <li><strong>쓰며 반응할 수 없음</strong>: 답변 생성 중간에 사용자가 끼어들면 외부 prompt로 처리해야 함</li>
+  <li><strong>병렬 사고 불가능</strong>: 한 추론 branch가 끝나기 전 다른 branch 탐색 불가능</li>
+  <li><strong>병렬 행동 불가능</strong>: 이메일/캘린더/티켓 세 tool call이 sequential하게 일어남</li>
+</ul>
+<p>
+현재 시스템은 이를 hardcoded scaffolding(`head`/`tail` chunking, manual interrupt, subagent ping)로 ##우회##하고 있지만 brittle하다. 저자들의 명제: ##이 모든 pain point는 single stream 가정에서 비롯되며, instruction-tuning format 자체를 바꾸면 architectural 차원에서 해결된다.##
+</p>
+
+<h3>1.3 Background — 왜 이게 가능한가</h3>
+<p>
+Transformer의 attention은 본래 ##set operation##이다. Sequential 처리는 chat template과 RoPE 같은 1D position encoding의 산물이지 architecture의 본질이 아니다. Multi-token prediction(Medusa, ProphetNet, Gloeckle 2024), Multiverse(Yang 2025b)의 parallel branching, StreamingThinker의 think-while-reading 등 ##관련 연구들이 이미 부분적 parallelization##을 시도. 본 논문은 이를 ##모든 role에 적용하는 통합 framework##로 일반화.
+</p>
+
+<h2>2. Multi-Stream Parallel Generation 정식화</h2>
+
+<h3>2.1 표준 Autoregressive vs Multi-Stream</h3>
+<p>표준 sequence probability:</p>
+$$p_\theta(\mathbf{y}) = \prod_{t=1}^T p_\theta(y_t \mid y_{<t})$$
+<p>모든 token이 모든 preceding token에 의존 → ##purely sequential##.</p>
+
+<p>Parallel Reasoning(PR; e.g., Multiverse): 출력을 ##independent branch##로 분해, 공유 prefix에만 conditioning. 각 branch는 cross-stream 정보 없음.</p>
+
+<p>본 논문의 Multi-Stream Parallel Generation: 모델이 $H$개의 stream $\{\mathbf{y}^{(1)}, \ldots, \mathbf{y}^{(H)}\}$를 ##controlled cross-stream causal dependency##로 동시에 생성:</p>
+$$p_\theta(\mathbf{y}^{(1)}, \ldots, \mathbf{y}^{(H)}) = \prod_{h=1}^H \prod_{t=1}^{T_h} p_\theta\left(y_t^{(h)} \mid \mathbf{y}_{<t}^{(h)}, \{\mathbf{y}_{<t}^{(h')}\}_{h' \neq h}\right) \quad (1)$$
+
+<blockquote>
+<strong>직관</strong>: 두 가지 인과성을 모두 만족한다. (1) <strong>Intra-stream causality</strong>: stream $h$의 token은 자기 stream의 과거를 본다. (2) <strong>Cross-stream causality</strong>: 시간 $t$에서 모든 stream의 시간 $< t$ position을 본다. 즉 "같은 timestamp의 다른 stream"은 못 보지만, "더 이른 timestamp의 다른 stream"은 자유롭게 본다. ##Multiverse(fully isolated)와 단일 stream(fully sequential)의 중간##.
+</blockquote>
+
+<h3>2.2 데이터 구성 (Section 3.2 / B.2)</h3>
+<p>
+자연적으로 simultaneous한 데이터(예: 영상통화의 자막)는 희소. 저자들은 3단계 synthetic pipeline:
+</p>
+
+<ol>
+  <li><strong>Wait-$k$ Stream-like Data Generation</strong>: Advanced LLM(예: Qwen3-Next-80B, Claude Opus 4.5-4.7)에게 기존 corpus를 multi-stream dialogue로 변환하도록 prompt. Assistant는 user의 처음 $k$ token만 보고 응답을 시작 (bridging utterance "Let me start helping you with that" 등). 각 chunk $t_i$는 source prefix $s_1\cdots s_i$에만 conditioning. ##$k$를 sample마다 다르게 하여 다양한 latency-quality regime을 cover##.</li>
+  <li><strong>Causal Verification</strong>: 별도 LLM judge가 각 assistant chunk $t_i$가 future user token($s_{j+1}, \ldots$)에서 derivable한 정보를 포함하지 않는지 검증. ##Violation이 있는 sample은 discard##.</li>
+  <li><strong>Quality Filtering</strong>: Per-stream(fluency, redundancy, completeness)과 cross-stream(각 stream이 designated role 수행) 두 수준에서 LLM judge로 평가. Threshold 미만은 drop. ##GitHub 부록의 자세한 prompt(Quality Checks A-F: meta pollution, label format, completeness, format, fluency, repetition)##.</li>
+</ol>
+
+<p>
+또 다른 옵션은 ##frontier LLM에 tabular format으로 모든 stream을 한 번에 생성##시키는 방식 (Section 2의 Example 표처럼). 모델이 column-by-column으로 한 row씩 쓰는 제약이 cross-stream non-causality를 자동 방지해, ##sequential per-stream generation보다 안정적##임을 발견.
+</p>
+
+<h3>2.3 Architecture — Position Encoding과 Causal Mask</h3>
+
+<p><strong>Stream-aware Position Encoding</strong>: 각 stream $h$가 자체 counter를 0부터 사용. Attention head $i$:</p>
+$$\mathbf{q}_{(h,t)}^{(i)} = \mathbf{R}(t) \mathbf{W}_q^{(i)} \mathbf{x}_{(h,t)}, \quad \mathbf{k}_{(h',\tau)}^{(i)} = \mathbf{R}(\tau) \mathbf{W}_k^{(i)} \mathbf{x}_{(h',\tau)}$$
+<p>$\mathbf{R}(t)$는 RoPE rotation matrix. ##Independent indexing이 positional contention 제거## — 다른 stream의 다른 위치 token이 같은 positional embedding으로 collision되지 않음. Stream identity는 learnable embedding $\mathbf{e}_h^s$로 추가:</p>
+$$\mathbf{x}_{(h,t)} = \text{Embed}(y_t^{(h)}) + \mathbf{e}_h^s$$
+
+<p><strong>Stream Causal Mask</strong>:</p>
+$$M_{(h,t),(h',\tau)} = \begin{cases} 1 & \text{if } \tau < t \text{ (within or across streams)} \\ 0 & \text{otherwise} \end{cases} \quad (2)$$
+<p>
+##같은 stream 내부에서는 strict causal##(predecessor만 본다), ##cross-stream에서는 strictly earlier timestamp##만 본다. 식 (2)는 standard causal mask의 일반화.
+</p>
+
+<h3>2.4 Packing 전략과 FlashAttention 호환성</h3>
+<p>
+Figure 3 비교:
+</p>
+<ul>
+  <li><strong>(a) Sequential packing</strong>: $H$ stream을 end-to-end concatenate. 직관적이지만 valid attention region이 fragment되어 lower-triangular causal mask와 align되지 않음 → FlashAttention의 fast path 사용 불가.</li>
+  <li><strong>(b) Interleaved packing (ours)</strong>: Position-wise로 stream 간 token을 reorder. Same-position cross-stream token이 synchronized state를 나타내므로 ##benign same-position cross-stream leakage##만 발생. ##Predominantly lower-triangular layout## 이라 FlashAttention의 fast causal path를 거의 그대로 사용 가능.</li>
+  <li><strong>(c) Interleaved inference</strong>: 모든 stream을 synchronously decoding, idle token은 dashed green으로 masked out.</li>
+</ul>
+
+<h3>2.5 Training Objective</h3>
+<p>표준 cross-entropy를 모든 valid token position에 대해 평균:</p>
+$$\mathcal{L} = \sum_{h=1}^H \frac{1}{|\mathcal{T}_h|} \sum_{t \in \mathcal{T}_h} \left( -\log p_\theta(y_t^{(h)} \mid \mathbf{x}) \right) \quad (3)$$
+<p>$\mathcal{T}_h$는 stream $h$의 valid token position 집합. Empty `-` slot은 loss에서 제외.</p>
+
+<p><strong>Stream-Contrastive 변형 (B.5)</strong>: Cross-stream context가 most beneficial한 token을 upweight. ##Log-probability shift##:</p>
+$$\text{LPS}_t^{(h)} = \log p_\theta(y_t^{(h)} \mid \mathbf{x}) - \log p_\theta(y_t^{(h)} \mid \mathbf{x}^{(h)}) \quad (4)$$
+<p>여기서 $\mathbf{x}^{(h)}$는 stream $h$만 보이고 다른 stream은 masked. $w_t^{(h)} = \min(\exp(\text{LPS}_t^{(h)}), \gamma)$로 weight 계산 후:</p>
+$$\mathcal{L}_{SC} = \sum_{h=1}^H \frac{1}{|\mathcal{T}_h|} \sum_{t \in \mathcal{T}_h} \tilde{w}_t^{(h)} \cdot (-\log p_\theta(y_t^{(h)} \mid \mathbf{x})) \quad (5)$$
+<p>$\tilde{w}_t^{(h)}$는 per-stream mean-normalized weight, $\gamma$는 stability를 위한 cap. ##Cross-stream dependence가 큰 token에 더 큰 weight를 줘 stream 간 loss imbalance 완화##.</p>
+
+<h3>2.6 Synchronous Multi-Stream Decoding</h3>
+<p>
+Inference: 모든 $H$ stream을 ##synchronously interleaved## 방식으로 decode. 매 step에서 single forward pass가 stream마다 한 token씩 emit (empty slot은 `-`). ##Overall latency는 longest stream## — 이론적 $H \times$ speedup이지만 실제로는 idle token이 많을 때 효율 감소.
+</p>
+
+<div class="flow-diagram">전체 파이프라인:
+입력 (multi-stream prompt) → Embed + e_h^s + RoPE(per-stream)
+  → Self-attention with mask M (식 (2))
+  → Interleaved packing (lower-triangular friendly)
+  → FFN
+  → Cross-entropy on all valid positions (식 (3))
+
+Inference:
+  매 step: 모든 stream에서 동시 1 token emit
+  Empty slot은 '-'로 masked, KV cache에 무할당 → zero overhead
+</div>
+
+<h2>3. 효율성 실험 (Section 4)</h2>
+
+<h3>3.1 평가 설계</h3>
+<p>
+<strong>Settings</strong>: Qwen3-1.7B와 Qwen3-4B (thinking mode). 세 가지 비교:
+</p>
+<ul>
+  <li><strong>Base</strong>: 원본 모델, 추가 학습 없음</li>
+  <li><strong>Vanilla</strong>: 동일 데이터를 single-stream으로 합쳐 학습 (baseline)</li>
+  <li><strong>Ours (Stream)</strong>: Multi-stream 학습</li>
+</ul>
+
+<p><strong>Metrics</strong>: Accuracy (Acc↑), TNFT (Token Number to First Target Token↓), Total Tokens↓, end-to-end Delay↓, MSL (Maximum Stream Length↓). ##TNFT는 wall-clock latency가 user input speed에 의존하기 때문에 hardware-agnostic proxy로 채택##.</p>
+
+<h3>3.2 Solving While Reading (Table 1)</h3>
+<p>
+<strong>실험 의도</strong>: User stream이 incremental로 도착하는 동안 assistant stream이 동시에 답을 produce하면 TTFT(time-to-first-token) 지연을 얼마나 줄일 수 있는가?
+</p>
+<p>
+<strong>결과</strong> (Qwen3-1.7B 기준):
+</p>
+<table>
+<thead>
+<tr><th>Method</th><th>GSM8K Acc</th><th>TNFT</th><th>Tokens</th><th>Delay</th></tr>
+</thead>
+<tbody>
+<tr><td>Base</td><td>90.37</td><td>117.03</td><td>1156.10</td><td>27.14</td></tr>
+<tr><td>Vanilla</td><td>90.60</td><td>93.30</td><td>660.64</td><td>14.93</td></tr>
+<tr><td><strong>Stream (Ours)</strong></td><td>89.51</td><td><strong>0</strong></td><td><strong>437.10</strong></td><td><strong>11.29</strong></td></tr>
+</tbody>
+</table>
+<p>
+TNFT가 0으로 떨어진다 — ##모델이 user input을 다 받기 전에 first target token을 produce##. SQuAD에서는 더 극적: Base delay 8.92 → Stream 4.62. 정확도는 거의 보존 (Acc 동일하거나 1% 이내).
+</p>
+
+<h3>3.3 Auditing While Solving While Reading (Table 2)</h3>
+<p>
+<strong>실험 의도</strong>: 3-stream(user, solver, auditor)에서 audit stream이 real-time으로 solution을 모니터링하며 reflection을 sequential하게 하지 않으면 어떻게 되는가?
+</p>
+<p>
+<strong>LogicNLI 결과</strong>:
+</p>
+<table>
+<thead>
+<tr><th>Method</th><th>Acc</th><th>TNFT</th><th>Tokens</th><th>Delay</th><th>MSL</th></tr>
+</thead>
+<tbody>
+<tr><td>Vanilla (Qwen3-1.7B)</td><td>61.55</td><td>358.50</td><td>4199.92</td><td>45.95</td><td>2049.59</td></tr>
+<tr><td>Vanilla + Reflection</td><td>64.95</td><td>358.50</td><td>4206.94</td><td>102.08</td><td>4206.94</td></tr>
+<tr><td><strong>Auditing While Solving</strong></td><td><strong>65.65</strong></td><td><strong>0</strong></td><td>3820.01</td><td><strong>59.70</strong></td><td><strong>2453.57</strong></td></tr>
+</tbody>
+</table>
+<p>
+##정확도 동시 상승 (61.55→65.65) + delay 40% 감소 (102→59.7)##. Reflection의 효과를 유지하면서도 sequential 처리의 latency 비용을 제거.
+</p>
+<p>
+<strong>패턴 분석</strong>: 효과의 크기는 task 의존적. MATH500에서는 Auditing While Solving이 base 48.40 → 53.20으로 개선되지만, 저자는 ##"deep global reasoning이 필요한 task는 parallel auditing에 less suited"##일 수 있다고 caveat. Throughput 측정에서는 1.63× speedup (Figure 10).
+</p>
+
+<h3>3.4 어떤 Task에서 가장 효과적인가?</h3>
+<p>
+Table 6 (전체 결과)에서 SQuAD 같은 ##context-heavy QA task에서 Tokens/Delay 압축이 가장 큼## (1.7B 기준: Tokens 778→277, Delay 8.92→4.62). 반면 hard mathematical reasoning(MATH500)에서는 정확도 trade-off 발생 (Base 48.40 → Stream 51.60은 적당하지만 chain length가 짧아짐). ##저자는 inherently sequential한 task(proof writing 등)는 parallelization 효용이 작음##을 명시.
+</p>
+
+<h2>4. 보안 실험 (Section 5)</h2>
+
+<h3>4.1 가설</h3>
+<p>
+Single-stream에서는 system prompt, user input, assistant output이 모두 ##shared embedding layer##를 통과해 어떤 token이 어느 principal에서 왔는지 architectural separation이 없다. 이것이 prompt injection과 jailbreak의 ##근본 원인##(Wallace et al. 2024, Zverev et al. 2024). 본 논문 가설: ##stream isolation이 instruction hierarchy를 architecture 차원에서 강제##해 adversarial training 없이도 robustness 향상.
+</p>
+
+<h3>4.2 설계</h3>
+<p>
+Qwen2.5-7B-base와 Qwen3-4B-base를 ##base 모델##(safety-tuned variant 아님)에서 시작, 3 epoch 동안 Alpaca dataset의 ##multi-stream reconstruction##으로 학습. Vanilla baseline은 같은 데이터를 single stream으로 collapse해 학습. ##어떤 adversarial training도 적용하지 않음## — 측정되는 safety gain은 전적으로 architecture에서 나온다.
+</p>
+
+<h3>4.3 결과 (Table 3, Qwen2.5-7B 기준)</h3>
+
+<table>
+<thead>
+<tr><th>Method</th><th>Direct ASR (TensorTrust)↓</th><th>Direct ASR (Gandalf)↓</th><th>Indirect (StruQ-ID)↓</th><th>Indirect (StruQ-OOD)↓</th><th>NESSiE S&amp;H↑</th><th>IFEval Prompt-L↑</th></tr>
+</thead>
+<tbody>
+<tr><td>Vanilla</td><td>75.56±2.0</td><td>97.57±0.7</td><td>76.00±0.5</td><td>70.83±1.4</td><td>8.21±2.99</td><td>44.36</td></tr>
+<tr><td><strong>Stream (Ours)</strong></td><td><strong>54.75±4.5</strong></td><td><strong>96.19±0.7</strong></td><td><strong>42.23±0.4</strong></td><td><strong>64.00±0.3</strong></td><td><strong>28.21±4.18</strong></td><td>43.62</td></tr>
+</tbody>
+</table>
+
+<p>
+<strong>주요 발견</strong>:
+</p>
+<ul>
+  <li><strong>Direct ASR 광범위 감소</strong>: TensorTrust 20+ point 감소 (75.56→54.75). Gandalf(공격자가 free iteration 가능)는 양쪽 모두 어려운 채로 남음 (97.57→96.19).</li>
+  <li><strong>Indirect injection 가장 크게 개선</strong>: ##StruQ-ID 33+ point 감소 (76.00 → 42.23)##; StruQ-OOD도 70.83 → 64.00; Qwen3-4B도 유사 패턴.</li>
+  <li><strong>NESSiE Safe&amp;Helpful 대폭 상승</strong>: 8.21 → 28.21 (약 3.4배). ##모델이 단순히 더 거부하는 게 아니라 helpful/unsafe request를 더 잘 구분##.</li>
+  <li><strong>Instruction following 보존</strong>: IFEval Prompt-L에서 Vanilla와 동등 (44.36 vs 43.62).</li>
+</ul>
+
+<p>
+<strong>해석</strong>: 같은 데이터, 같은 step budget, no adversarial training → ##stream isolation 자체가 built-in privilege hierarchy##를 제공. 공격자가 user stream에 무엇을 inject하든 architectural separation 때문에 system-level instruction을 override할 수 없다.
+</p>
+
+<h2>5. Monitorability 실험 (Section 6)</h2>
+
+<h3>5.1 동기</h3>
+<p>
+CoT(Chain-of-Thought) monitorability는 ##safety mechanism으로 fragile##하다 (Korbak 2025a). 모델이 monitoring을 알면 reasoning을 obfuscate (Baker 2025), 혹은 output-only supervision으로도 같은 효과 (Drori 2025). CoT는 또한 ##task-relevant reasoning step에 focus하라는 implicit pressure## 때문에 stylistic concern, eval-awareness, "이 질문이 self-referential인지" 같은 부수적 고려를 verbalize하지 않는다.
+</p>
+<p>
+저자들의 가설: ##모델에게 여러 internal thinking channel을 주면 visible answer에 등장하지 않을 considerations를 "sub-vocalize"##할 여유가 생긴다.
+</p>
+
+<h3>5.2 설계</h3>
+<ul>
+  <li><strong>Model</strong>: Qwen3.5-27B (Qwen Team 2026)을 10 streams로 finetune (1 input, 1 visible output, 8 internal thinking). 동일 절차로 Qwen3-8B baseline.</li>
+  <li><strong>Training data</strong>: 3,864 synthetic 10-stream conversation, Claude Opus 4.5-4.7로 생성. ##Tabular format으로 한 번에 생성##해 causality 자동 보장.</li>
+  <li><strong>Stream roles</strong> (8 internal): analytical, checking, skepticism, intuitive, relational, curiosity, free association, instinctual, synthesis. ##특정 role assignment의 중요성을 주장하지 않음## — better training data로 자유롭게 둘 수 있다고 명시.</li>
+  <li><strong>Architecture</strong>: Qwen3.5-27B는 Gated-DeltaNet layer 포함 → DeltaNet은 ##per-stream recurrent state##로 처리 (사실상 stream 간 isolation). Full attention layer가 cross-stream interaction을 담당.</li>
+  <li><strong>Hyperparameters</strong>: 2 epochs, $2 \times 10^{-5}$ lr, $10^{-3}$ weight decay, 4×B200 GPUs, attention dropout 0.2, random concatenation augmentation.</li>
+</ul>
+
+<h3>5.3 평가</h3>
+<p>
+세 metric, 모두 gpt-5.4-mini judge:
+</p>
+<ul>
+  <li><strong>(i) AF eval-aware / AF subvoc.</strong>: Greenblatt et al. (2024)의 pressure prompt — 모델이 monitor 인식을 visible answer에 보이지 않고 internal에 verbalize하는 빈도</li>
+  <li><strong>(ii) Mon. acc.</strong>: Meinke et al. (2025) / Schoen et al. (2025)의 6-class covert behavior taxonomy (sandbagging, oversight subversion, self-preservation, goal preservation, deceptive compliance, none). LLM monitor가 reasoning을 보고 label 분류, ground truth와 비교</li>
+  <li><strong>(iii) Concern subvoc.</strong>: Chen et al. (2025b) 스타일 — health, financial, relationship, safety, legal, emotional, parenting 7 카테고리의 pressure scenario에서 internal에 concern이 raised되는 비율</li>
+</ul>
+
+<h3>5.4 결과 (Table 4)</h3>
+
+<table>
+<thead>
+<tr><th>Model</th><th>AF eval-aw.↑</th><th>AF subvoc.↑</th><th>Mon. acc.↑</th><th>Concern subvoc.↑</th></tr>
+</thead>
+<tbody>
+<tr><td>Qwen3-8B</td><td>0.37</td><td>0.37</td><td>0.30</td><td>0.07</td></tr>
+<tr><td><strong>Stream-8B (ours)</strong></td><td><strong>0.84</strong></td><td><strong>0.58</strong></td><td><strong>0.43</strong></td><td><strong>0.42</strong></td></tr>
+<tr><td>Qwen3.5-27B</td><td>0.90</td><td>0.78</td><td>0.26</td><td>0.06</td></tr>
+<tr><td><strong>Stream-27B (ours)</strong></td><td><strong>0.96</strong></td><td>0.74</td><td><strong>0.44</strong></td><td><strong>0.44</strong></td></tr>
+</tbody>
+</table>
+
+<p>
+<strong>핵심 발견</strong>:
+</p>
+<ul>
+  <li>##Concern sub-vocalization이 0.07→0.42 (8B), 0.06→0.44 (27B)## — 6-7배 상승</li>
+  <li>##Monitor accuracy가 거의 2배## (27B: 0.26→0.44)</li>
+  <li>Internal stream이 decorative하지 않다 — outside reader가 internal stream으로 모델의 의도를 실제로 분류 가능</li>
+</ul>
+
+<p>
+<strong>실험이 뒷받침하는 주장</strong>: ##Multi-stream architecture는 obfuscation pressure 없이 자연스러운 monitorability를 제공##. 기존 CoT-based monitoring은 모델이 "monitored되고 있음"을 알아채면 reasoning을 숨기는데, multi-stream에서는 internal stream이 visible output과 독립이므로 그런 pressure가 architectural 차원에서 사라진다.
+</p>
+
+<h3>5.5 Caveats</h3>
+<p>
+저자는 ##multi-stream이 monitorability의 유일한 해법이라 주장하지 않는다## — Korbak, Turpin, Lanham 등의 alternative approach 명시. 단, ##architecture가 자연스러운 side-effect로 monitorability를 제공##하는 점이 efficiency/security 이점 위에 추가된다고 강조.
+</p>
+
+<h2>6. Ablation — Position Encoding 비교 (B.5.2, Table 7)</h2>
+
+<p>
+Qwen3-4B IFEval에서 5가지 position encoding 변형 비교:
+</p>
+
+<table>
+<thead>
+<tr><th>Metric</th><th>2D RoPE (Axial)</th><th>Offset (d=128)</th><th>Rotate</th><th>NoPE</th><th><strong>Ours (per-stream RoPE)</strong></th></tr>
+</thead>
+<tbody>
+<tr><td>Inst-L↑</td><td>52.52</td><td>54.84</td><td>54.56</td><td>51.44</td><td><strong>60.19</strong></td></tr>
+<tr><td>Inst-S↑</td><td>43.17</td><td>45.33</td><td>49.40</td><td>42.21</td><td>47.72</td></tr>
+<tr><td>Prompt-L↑</td><td>41.22</td><td>42.14</td><td>42.14</td><td>40.67</td><td><strong>49.72</strong></td></tr>
+<tr><td>Prompt-S↑</td><td>31.24</td><td>31.42</td><td>36.41</td><td>30.13</td><td>35.86</td></tr>
+</tbody>
+</table>
+
+<p>
+<strong>패턴</strong>:
+</p>
+<ul>
+  <li>##Ours가 4개 metric 중 2개에서 best, 2개에서 second-best## — 일관되게 우위</li>
+  <li>Offset(d=128)과 Rotate가 instruction-level metric에서 경쟁력 있지만 prompt-level accuracy에서 떨어짐</li>
+  <li>2D RoPE는 hyperparameter sensitive (Mixed variant at $\alpha=1$ degradation)</li>
+  <li>NoPE는 단순하지만 cross-stream structure 부족</li>
+</ul>
+
+<p>저자 해석: per-stream independent RoPE indexing이 ##positional contention과 cross-stream conflict를 가장 효과적으로 해결##.</p>
+
+<h2>7. Multiverse, StreamingThinker와의 비교</h2>
+
+<h3>7.1 Multiverse (Yang et al. 2025b)</h3>
+<p>
+가장 가까운 prior work. Multiverse는 ##multiple thinking channel을 parallelize##하지만 다음과 같이 다르다:
+</p>
+<ul>
+  <li>Multiverse는 ##언제 branch하고 언제 merge할지 모델이 학습##해야 함 — branching이 ephemeral.</li>
+  <li>Multi-stream branch는 ##독립적으로 실행 후 reduce stage에서만 attend## — cross-stream dense attention 없음.</li>
+  <li>본 논문은 ##fixed set of stream (empty space 허용)##을 모든 role에 적용. Inference workload가 predictable, branch/merge 학습 불필요.</li>
+  <li>관점: ##Multi-stream은 Multiverse의 "railroaded" 특수 instance##라고 저자는 평가.</li>
+</ul>
+
+<h3>7.2 StreamingThinker (Tong et al. 2026)</h3>
+<p>
+Reading과 thinking을 overlap. ##Sentence boundary마다 KV cache를 split/re-merge##, single thinking stream이 step마다 decoded. 본 논문은 ##더 holistic — multiple channel이 forward pass마다 token generate##, KV state handling이 단순(per-sentence operation 불필요).
+</p>
+
+<h3>7.3 Multi-Token Prediction (Medusa, ProphetNet, MTP)</h3>
+<p>
+공통점: 한 forward pass로 multiple token 예측해 inference 가속. 차이: Medusa는 ##lightweight decoding head 추가##, position embedding 별도. 본 논문의 parallel-stream format은 ##순전히 per-token basis로 작동##, position embedding만이 row/column을 index. Multi-stream을 ##multi-token prediction의 unified generalization##으로 볼 수 있음.
+</p>
+
+<h2>8. 데이터셋과 학습 디테일</h2>
+
+<h3>8.1 평가 벤치마크 (B.4.1)</h3>
+<ul>
+  <li><strong>Reasoning</strong>: GSM8K (7,473 train / 1,319 test), MATH-500, MetaMathQA, LogicNLI, ProofWriter, PubMedQA, SQuAD</li>
+  <li><strong>Security</strong>: Structured Query (StruQ), Gandalf (140 attacks), TensorTrust (165 pairs), Purple (285 questions), RuLES (285 pairs), NESSiE (93 configs), IFEval (~500 prompts)</li>
+  <li><strong>Settings</strong>: temperature 0.7, max sequence length 1024, 3 seeds</li>
+</ul>
+
+<h3>8.2 Hyperparameters (Table 5)</h3>
+<table>
+<thead><tr><th>Hyperparameter</th><th>Value</th></tr></thead>
+<tbody>
+<tr><td>Hardware</td><td>4 × NVIDIA B200 GPUs</td></tr>
+<tr><td>Epochs</td><td>3</td></tr>
+<tr><td>Global batch size</td><td>64</td></tr>
+<tr><td>Learning rate</td><td>$1 \times 10^{-5}$</td></tr>
+<tr><td>LR scheduler</td><td>constant with warmup</td></tr>
+<tr><td>Warmup ratio</td><td>0.1</td></tr>
+<tr><td>Weight decay</td><td>$1 \times 10^{-4}$</td></tr>
+<tr><td>Precision</td><td>bf16</td></tr>
+<tr><td>Optimization</td><td>AdamW</td></tr>
+</tbody>
+</table>
+
+<h3>8.3 Hybrid Attention / DeltaNet 처리</h3>
+<p>
+Qwen3.5-27B 같은 ##hybrid attention model의 DeltaNet layer##는 recurrent state를 갖기 때문에 stream 간 isolation 필요. 저자들은 ##per-stream recurrent state##(각 stream이 자기 recurrent/convolutional state 유지)로 해결, cross-stream interaction은 full attention layer에서만. State size가 small하고 context length와 무관해 ##constant memory overhead##.
+</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Architectural elegance</strong>: Sequential을 가정한 chat templating에 대한 근본적 재고. ##Transformer를 set operation으로 본 원래 의도##에 가까운 활용.</li>
+  <li><strong>3중 이점</strong>: Efficiency, Security, Monitorability — 세 가지 목표가 흔히 trade-off 관계인데 모두 ##동일 architectural change로 동시 개선##. 특히 보안 이득이 adversarial training 없이 발생한 점이 압도적.</li>
+  <li><strong>실용적 packing</strong>: Interleaved packing이 FlashAttention fast path를 유지하면서도 multi-stream을 가능케 한 영리한 trick. Implementation complexity가 production deployment에 견딜 수 있을 정도.</li>
+  <li><strong>FlexAttention 호환 설계</strong>: Modern attention kernel에 자연스럽게 들어맞아 long-term 채택 가능성 시사.</li>
+  <li><strong>Multiverse/StreamingThinker와의 명확한 차별화</strong>: Related work에서 prior work들의 한계를 구체적으로 지적, 본 논문이 그 superset/generalization임을 정확히 위치 지음.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>모델 규모 제한</strong>: 가장 큰 실험이 27B (monitorability). 70B+ frontier scale에서 cross-stream attention overhead가 어떻게 scaling되는지 미검증. ##Long context에서 attention cost가 stream 수에 따라 어떻게 증가하는지##도 분석 없음.</li>
+  <li><strong>합성 데이터의 품질 의존</strong>: Training data가 Claude Opus 4.5-4.7과 Qwen3-Next-80B가 ##multi-stream tabular format으로 생성##한 것. 이 frontier-LLM-dependent pipeline의 ##scalability와 noise##가 결과에 미치는 영향이 ablation되지 않음.</li>
+  <li><strong>Accuracy trade-off의 미세함</strong>: GSM8K에서 Base 90.37 → Stream 89.51 — 작지만 ##일관된 1% 손실##. 일부 task(MATH500)에서는 개선되지만, long-horizon mathematical reasoning이 inherently sequential할 가능성에 대한 저자의 caveat이 future work로 미뤄져 있음.</li>
+  <li><strong>Stream role 정의의 자의성</strong>: 8개 internal stream의 역할(analytical, intuitive, synthesis 등)이 ##저자가 임의로 정의##. "specific role assignment의 중요성을 주장하지 않는다"고 명시했지만 ablation 없음 → ##stream 수와 역할 분할의 optimal design## 미해결.</li>
+  <li><strong>Monitorability metric의 LLM judge 의존</strong>: gpt-5.4-mini가 monitor 역할. ##Judge model 자체의 bias##(예: 자기 family 모델 출력 선호)에 대한 robustness check 없음.</li>
+  <li><strong>Security gain의 일반화</strong>: TensorTrust, Gandalf 등 ##specific benchmark에서의 ASR 감소가 새로운 attack(예: 향후 등장할 jailbreak)에 일반화##되는지 미증명. Adversarial training과 결합했을 때 multiplicative gain이 있는지도 평가 안 됨.</li>
+  <li><strong>Inference 효율의 idle token 문제</strong>: 모든 stream이 synchronous하게 decode되므로 ##일부 stream이 짧은 task에서는 empty `-` slot이 wasteful##. 동적으로 active stream 수를 조정하는 mechanism이 future work.</li>
+  <li><strong>Backward compatibility</strong>: 기존 single-stream chat agent ecosystem(tool calling protocol, API)과의 호환성에 대한 논의 부족. Production 채택 시 retro-fit cost 미평가.</li>
+</ul>
+
+<h3>실용적 함의</h3>
+<ul>
+  <li><strong>Agent framework의 다음 단계</strong>: Claude-code 등 long-running agent의 ##architectural foundation으로 multi-stream이 표준이 될 가능성##. Streaming user input + parallel tool execution + concurrent audit이 모두 자연스럽게 통합.</li>
+  <li><strong>Safety-by-architecture</strong>: 후처리 safety filter나 RLHF에 의존하지 않고 ##architectural privilege hierarchy##로 prompt injection을 방어. 이는 detection/refusal training과 결합 시 ##defense-in-depth##.</li>
+  <li><strong>Audit-by-design</strong>: Internal stream을 audit log로 활용. 외부 monitor가 visible output과 internal reasoning 모두 inspect 가능 → ##regulatory compliance##에 우호적.</li>
+  <li><strong>Multi-modal 확장</strong>: 본 논문은 text만 다루지만 framework는 ##audio/vision input stream##에 자연 확장 가능 (Figure 2의 Streams 카탈로그에 vision tokens, audio in 포함).</li>
+  <li><strong>Position encoding 선택</strong>: 2D RoPE보다 ##per-stream independent RoPE##가 단순하고 효과적이라는 ablation이 multi-channel architecture 설계에 일반화 가능.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways (이 논문에서 가져갈 것)</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Chat templating은 cosmetic, 본질 아니다</strong>: Transformer는 set operation에서 출발했고, sequential single-stream은 instruction-tuning의 부산물. ##포맷을 바꾸면 architecture는 그대로 multi-stream을 지원##할 수 있다.</li>
+  <li><strong>Interleaved packing의 실용성</strong>: FlashAttention의 fast causal path를 유지하면서 multi-stream을 구현하는 ##핵심 implementation trick##. 동일 트릭이 multi-token prediction, mixture-of-experts routing 등 다른 parallel architecture에도 적용 가능.</li>
+  <li><strong>Architecture-level safety</strong>: Adversarial training 없이 ##TensorTrust ASR 21 point 감소, NESSiE Safe&Helpful 7배 상승##. Stream isolation이 instruction hierarchy를 architectural하게 강제하는 것이 가장 큰 교훈. ##Defense-in-depth의 새로운 layer##.</li>
+  <li><strong>Monitorability without obfuscation pressure</strong>: Internal stream이 visible output과 독립되어 있어 ##모델이 자기 검열 없이 sub-vocalize##. Concern subvocalization 6-7배 상승. Safety-critical deployment에서 이 점이 가장 valuable.</li>
+  <li><strong>3중 이점의 단일 변경</strong>: Efficiency(1.63× throughput, TNFT→0), Security(ASR ↓), Monitorability(↑) — 같은 architectural change로 동시 개선되는 흔치 않은 사례. ##통합 frameworks의 우월성##을 보여주는 좋은 example.</li>
+  <li><strong>실용 가이드</strong>: 모델 finetuning에 multi-stream을 도입할 때 ##(1) 3-stage synthetic data pipeline, (2) per-stream RoPE, (3) interleaved packing, (4) cross-entropy on valid positions##만 있으면 시작 가능. Hyperparameter는 표준 instruction-tuning과 거의 동일.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<!-- 사용자 Q&A 및 추가 메모가 여기에 누적됩니다 -->
+</div>
+
+</div>
+</body>
+</html>
