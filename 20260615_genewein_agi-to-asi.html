@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From AGI to ASI — Google DeepMind Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem; padding: 0.4rem 0.8rem; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107; text-decoration: none; color: #856404; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>From AGI to ASI: Pathways and Frictions</h1>
+
+<a href="20260615_genewein_agi-to-asi_brief.html" class="brief-link">📘 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Tim Genewein, Matija Franklin, Alexander Lerchner, Laurent Orseau, Samuel Albanie, Adam Bales, Cole Wyeth, Stephanie Chan, Iason Gabriel, Joel Z. Leibo, Allan Dafoe, Marcus Hutter, Thore Graepel, Shane Legg</li>
+  <li><strong>소속</strong>: Google DeepMind (주), University of Waterloo, Australian National University, University College London</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2606.12683v1)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.12683">arXiv</a></li>
+  <li><strong>유형</strong>: Position paper / Research agenda (57 pages)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 인간 수준 AGI(Artificial General Intelligence)가 구체적 next-decade 목표가 된 지금, "AGI 다음은 무엇인가?"에 대한 체계적 landscape mapping이 부재. AGI에서 ASI(Artificial Superintelligence)로의 전환이 매끄러울지, 폭발적일지, 정체될지를 가르는 요인들이 명확하지 않다.</li>
+  <li><strong>해결</strong>: Universal AI(AIXI) 이론을 통해 ASI를 ##"인간 전문가 집단의 성취를 모든 task에서 능가하는 시스템"##으로 informally 특성화. 이후 4가지 ##technological pathways## (scaling / paradigm shift / recursive self-improvement / multi-agent collective)와 6가지 ##bottlenecks## (data wall / economics / neural paradigm 한계 / research가 어려워짐 / abstraction barrier / deliberate slowdown)를 정의하고, 각 pathway × bottleneck의 상호작용을 open research question으로 제시. ##특정 timeline 예측이 아닌 가능성 공간 매핑##.</li>
+  <li><strong>왜 작동하는가</strong>: AIXI는 모든 computable environment에서 universal prior 하의 expected reward를 maximize하는 agent — ASI의 이론적 upper bound 제공. AIXI가 incomputable이지만 ##log-loss minimizing 대규모 sequential predictor에 planning + decision-making scaffolding을 더하면 universal AI에 점근##할 수 있다는 최근 연구(Catt et al. 2023, Genewein et al. 2026)는 현재 paradigm이 fundamental blocker 없이 ASI 영역으로 push될 수 있다는 가설을 지지.</li>
+  <li><strong>비유</strong>: AGI 도착이 ##산 정상에 도달한 것##이라면, 이 보고서는 그 너머 ##대륙의 지형도##다. 정확한 길은 모르지만 가능한 경로(scaling 평원, paradigm shift 협곡, recursive improvement 절벽, multi-agent 군락) + 막힐 수 있는 협소 지점(data wall, economics 한계, abstraction barrier)을 그렸다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>ASI의 informal 특성화</strong>: "인간 전문가 집단의 10년 노력을 능가하는 시스템"으로 정의. AIXI/Legg-Hutter score를 이론적 upper bound로 사용하되, qualitative quintessence를 잃지 않는다.</li>
+  <li><strong>Digital intelligence의 7가지 advantage</strong> (Table 1): I/O speed, internal processing speed, working memory, substrate independence, lossless replication, high-bandwidth experience sharing — 이 모든 advantage가 ##compute scaling과 함께 함께 증폭##.</li>
+  <li><strong>4가지 Technological Pathways</strong> (Table 3): (1) compute/data/model scaling, (2) algorithmic paradigm shift, (3) recursive self-improvement, (4) multi-agent collective의 emergent ASI. ##Mutually exclusive 아니며 parallel 발생 가능##.</li>
+  <li><strong>6가지 Bottlenecks</strong> (Table 4): data wall, economic/natural resource demand, neural paradigm 한계, research getting harder, abstraction barrier, deliberate slowdown — 각 bottleneck에 대해 counter factor도 제시.</li>
+  <li><strong>Open Research Agenda</strong> (Section 7.1): 7개 카테고리 (Scaling Bottlenecks, Quantitative Forecasting, Benchmarking ASI, Recursive Improvement Dynamics, Multi-Agent Scaling, Theoretical Foundations, AI Safety/Alignment/Sociocultural)에 대한 50+ 구체적 연구 질문.</li>
+</ol>
+
+<h2>1. Background — 왜 이런 보고서가 지금?</h2>
+
+<h3>1.1 AI 진보의 가속</h3>
+<p>지난 10년간 AI는 hardware (Moore's law: ##1.5×/year compute per dollar##), 투자 (##2.5×/year hardware spending##), algorithmic efficiency (##3-6×/year FLOPs reduction for given capability##)의 곱으로 ##effective compute 약 10×/year## (Epoch AI 추정). 이 추세가 지속되면 next decade 안에 hardware 측면에서 ##10000×## 증가, 그리고 알고리즘 효율로 더 많이 곱해질 가능성.</p>
+
+<h3>1.2 ASI 진보 예측의 어려움</h3>
+<p>지속적 exponential 성장이 가능한지, 아니면 economic input의 hyper-exponential 증가를 요구하는지 불확실. 한편 frontier lab들의 인프라 투자(에너지·GW급 datacenter)는 trajectory에 신빙성을 더한다. AI safety 측면 우려와 함께 utopia 시나리오도 존재.</p>
+
+<h3>1.3 보고서의 scope</h3>
+<p>"the future is unpredictable"이지만 ##landscape mapping을 통해 uncertainty를 줄일 수 있다##. 본 보고서는 prescriptive(어떻게 해야 한다)가 아닌 ##descriptive(어떤 일들이 가능한가)## 관점.</p>
+
+<h2>2. ASI의 특성화 (Section 3)</h2>
+
+<h3>2.1 용어 정의</h3>
+
+<table>
+  <tr><th>용어</th><th>정의</th></tr>
+  <tr><td><strong>AGI</strong></td><td>대부분의 cognitive task에서 median human-level (Morris et al. 2024의 "Competent AGI"). 일부 task에서는 이미 superhuman.</td></tr>
+  <tr><td><strong>ASI</strong></td><td>인간 전문가 collective(예: 1만 명의 well-coordinated 전문가가 10년 일한 결과)을 ##모든 task에서 reliably 능가##하는 시스템.</td></tr>
+  <tr><td><strong>Universal AI (UAI)</strong></td><td>AIXI agent로 formal하게 정의되는 universal artificial intelligence — Legg-Hutter score를 maximize. ##incomputable, only approximated from below##.</td></tr>
+</table>
+
+<p>ASI는 AGI보다 훨씬 capable한 의미에서 ##qualitatively step change##. 단, 한 ASI가 single instance인지 millions of parallel instance인지 구분의 복잡함을 피하기 위해 high bar 설정.</p>
+
+<h3>2.2 다섯 개 Remark — ASI 정의의 미묘함</h3>
+
+<ul>
+  <li><strong>Remark I</strong>: AIXI는 learning algorithm — 비교 대상은 "trained LLM"이 아니라 "LLM architecture + training algorithm". 즉 cumulative-lifetime evaluation이 적절.</li>
+  <li><strong>Remark II</strong>: All computable tasks가 너무 broad하면 "current and future human interest" 같은 subset으로 제한 가능. AIXI optimality 보장은 약화되지만 실용적 grounding.</li>
+  <li><strong>Remark III</strong>: Legg-Hutter score는 compute에 대해 smooth하지만, concrete task set에서는 capability가 "jagged"할 수 있다 (Morris et al. 2026).</li>
+  <li><strong>Remark IV</strong>: 인간 performance는 movable target — 교과서·도구로 인간도 발전. ASI 정의를 "2010 기준 1만 명 전문가가 10년 작업한 것"에 anchor.</li>
+  <li><strong>Remark V</strong>: human-expert 수준이지만 그 이상 아닌 시스템도 informal sense로 ASI에 해당할 수 있다. Fine-grained level distinction은 본 보고서에서 불필요.</li>
+</ul>
+
+<h3>2.3 Digital Intelligence의 7가지 advantage (Table 1)</h3>
+
+<table>
+  <tr><th>Advantage</th><th>설명</th></tr>
+  <tr><td><strong>I/O speed</strong></td><td>LLM은 초당 수십~수백 책 분량 입력 가능. 적절한 sensor/actuator 결합 시 high-bandwidth interaction.</td></tr>
+  <tr><td><strong>Internal processing speed</strong></td><td>Sequential computation 가속(deeper)과 parallel(broader) 양쪽 가능. Diminishing return 하에서도 biological 대비 막대한 advantage.</td></tr>
+  <tr><td><strong>Working memory</strong></td><td>Internet 상당 부분 memorize 가능. 인간 working memory의 7±2 chunk와 비교 불가.</td></tr>
+  <tr><td><strong>Substrate independence</strong></td><td>Runtime에 다른 hardware로 transition 가능. Heterogeneous distributed compute 위에서 일부만 migrate 가능.</td></tr>
+  <tr><td><strong>Lossless replication</strong></td><td>Source code(DNA) + memory state(lifetime experience) 모두 perfect copy. Backup, restore, spawn, halt — 인간에게 불가능.</td></tr>
+  <tr><td><strong>High-bandwidth experience sharing</strong></td><td>Stored I/O stream을 share/replay/retrain 가능. Homogeneous instance 사이에는 averaged gradient update 같은 raw learning signal까지 share 가능.</td></tr>
+  <tr><td><strong>(상기 모두) compute와 함께 amplify</strong></td><td>인간도 빠른 컴퓨터로 이득 보지만, AI는 disproportionately 이득. 이로 인해 ##인간-AI 갭이 시간에 따라 넓어진다##.</td></tr>
+</table>
+
+<h3>2.4 ASI는 omniscient도 omnipotent도 아니다 (Table 2)</h3>
+
+<table>
+  <tr><th>Limitation</th><th>설명</th></tr>
+  <tr><td><strong>Fundamental physics</strong></td><td>광속, Landauer principle (computation 에너지 하한), Bremermann limit (max computation speed), Bekenstein bound (max information density)</td></tr>
+  <tr><td><strong>Real time</strong></td><td>물리 세계는 realtime으로 작동. 복잡한 dynamical system(날씨, 생명체, 경제)은 실시간 simulation 불가.</td></tr>
+  <tr><td><strong>Physical manipulation</strong></td><td>Universal Constructor 한계 — 모든 logically possible matter configuration이 physically realizable하지 않다. 만들 수 있어도 시간/에너지 든다.</td></tr>
+  <tr><td><strong>Observability/Controllability</strong></td><td>Epistemic uncertainty + finite measurement precision으로 predictability/controllability 한계.</td></tr>
+  <tr><td><strong>Complexity theory</strong></td><td>P vs NP, PSPACE 등. 많은 경우 worst-case bound.</td></tr>
+  <tr><td><strong>Logic</strong></td><td>Gödel's Incompleteness, Halting Problem.</td></tr>
+</table>
+
+<p><strong>핵심 메시지</strong>: ASI는 ##노화 치료, Dyson sphere 건설, 행성 climate restoration## 같은 specific capability를 하나도 보장하지 않는다. 하지만 위 limitation들이 어떤 capability가 가능/불가능한지를 sharply 결정하지도 않는다 — open question.</p>
+
+<h2>3. Universal AI — 비공식 개요 (Section 4)</h2>
+
+<h3>3.1 AIXI Framework</h3>
+<p>AIXI는 모든 computable environment 위에서 expected cumulative reward를 maximize하는 sequential decision-making agent. Environment는 (i) state transition dynamics + (ii) action에 따른 perception + (iii) scalar reward signal.</p>
+
+<p><strong>3가지 fundamental problem</strong>:</p>
+<ul>
+  <li><strong>Acting under uncertainty</strong>: True dynamics 모름. AIXI는 모든 computable hypothesis에 prior 부여(Solomonoff Universal Prior — lower Kolmogorov complexity일수록 likely), Bayesian update.</li>
+  <li><strong>Interactive decision-making (credit assignment)</strong>: Long-horizon에서 short-term suboptimal action이 cumulative 더 좋을 수 있다. Discount scheme 필요.</li>
+  <li><strong>Exploration-exploitation trade-off</strong>: AIXI에서 implicit하게 해결됨 — high uncertainty action이 expected future reward를 높이므로.</li>
+</ul>
+
+<p><strong>AIXI optimality</strong>: 모든 computable environment에서 universal prior로 weighted된 expected cumulative reward를 maximize. 다른 agent가 이 measure를 능가할 수 없다 (단, individual environment에서 더 잘하는 specialized agent는 존재).</p>
+
+<h3>3.2 Legg-Hutter Score</h3>
+<p>Universal intelligence를 정량적으로 정의:</p>
+
+$$\text{LH}(\pi) = \sum_{\mu \in E} 2^{-K(\mu)} V_\mu^\pi$$
+
+<p>$E$는 모든 computable environment, $K(\mu)$는 environment $\mu$의 Kolmogorov complexity, $V_\mu^\pi$는 policy $\pi$의 expected cumulative reward in environment $\mu$. AIXI는 이 score의 upper bound.</p>
+
+<h3>3.3 AIXI의 한계와 현대 AI와의 connection</h3>
+<p>AIXI는 incomputable. AIXI를 below approximate 하는 algorithm이 존재 (예: Veness et al. 2011, MC-AIXI-CTW)하지만 impractical. 더 promising한 방향:</p>
+
+<p><strong>Catt et al. 2023, Kim & Lee 2026</strong>: AIXI의 heavy lifting을 predictor에 push 가능. <strong>Grau-Moya et al. 2024</strong>: Amortized Bayesian predictor를 log-loss minimization + 큰 parametric model로 학습하면 universal limit에 점근. <strong>Genewein et al. 2026</strong>: 대규모 sequential pretraining = universal compression의 resource-bounded approximation.</p>
+
+<p>이를 종합하면: ##인터넷 텍스트의 broad task implication 위에서 sequential pretraining은 algorithmic compression의 universal limit으로 가는 경로 중 하나일 수 있다##. AIXI "recipe"는 그 위에 explicit planning + decision-making scaffolding을 add하는 것.</p>
+
+<h3>3.4 Universal AI의 shortcomings</h3>
+<ul>
+  <li><strong>Incomputability</strong>: 직접 implement 불가.</li>
+  <li><strong>Embedded agency</strong>: AIXI agent 자체는 environment class 밖에 있음 (incomputable이므로 hypothesis class에 포함 안 됨). 최근 Meulemans et al. 2025는 multi-agent embedded framework로 확장.</li>
+  <li><strong>Average performance over all computable worlds</strong>: 우리 세계에서 useful한 measure인가? 일부에서는 hypothesis class 제한 제안 (다만 strong assumption 필요).</li>
+  <li><strong>Universal Turing machine 선택</strong>: complexity 측정 자체가 의존. In the limit, universal Turing machine 선택은 fixed-size interpreter 차이만 남기지만 practical 영향 가능.</li>
+</ul>
+
+<p><strong>Beyond AIXI</strong>: reflective oracles (Fallenstein et al. 2015), logical induction (Garrabrant et al. 2016), Schmidhuber's Gödel machines, computational mechanics (Crutchfield 2012), PAC-learning, algorithmic game theory, thermodynamic bounded rationality (Ortega & Braun 2013) 등이 complementary lens.</p>
+
+<h2>4. 4가지 Technological Pathways (Section 5)</h2>
+
+<p>Pathway는 mutually exclusive 아니며 parallel 발생 가능 (Table 3 요약).</p>
+
+<h3>4.1 Pathway 1 — Compute, Models, Data Scaling (Section 5.1)</h3>
+
+<p><strong>왜 작동할 수 있는가</strong>: Sutton의 "Bitter Lesson" — search가 intelligence의 핵심이라면, more compute = more search = more intelligence. 단 ##naive brute-force search는 거의 모든 non-toy domain에서 실패##. 실용적 capability gain은 search efficiency 개선(better priors, inductive biases, parametric value estimators)에서 옴.</p>
+
+<p><strong>Compute scaling sub-types</strong>:</p>
+<ul>
+  <li>Train-time compute scaling: 더 큰 모델, 더 많은 data, longer training</li>
+  <li>Test-time compute scaling: chain-of-thought, "thinking" budget, more sample-then-select</li>
+  <li>Inference scaling: more instances running in parallel</li>
+</ul>
+
+<p><strong>핵심 friction</strong>: ##high-quality text exhaustion (within the decade)##. Synthetic data로 보완 가능한지 미해결. Hoffmann et al. 2022의 Chinchilla scaling — model size와 data를 ##co-scale## 해야 compute-optimal.</p>
+
+<p><strong>"Is scaling enough?"</strong> — 양적 scaling이 질적 leap을 produce하는가? Schaeffer et al. 2023은 perceived emergent capability의 일부가 metric artifact일 수 있다고 주장. 그러나 millions of human-level AGI instance가 orders of magnitude 빠르게 작동하는 시나리오는 step change에 해당. ##Scaling이 sufficient한지보다, scaling을 long enough sustain할 수 있는가가 central question##.</p>
+
+<h3>4.2 Pathway 2 — Algorithmic Paradigm Shifts (Section 5.2)</h3>
+
+<p>현재 paradigm: ##대규모 transformer pretraining (log-loss minimization) + fine-tuning + test-time scaling##. 추가 ingredient (continual learning, working memory, RL-based agents 등)이 필요하다는 광범위 consensus.</p>
+
+<p><strong>Smooth evolutions of current paradigm</strong>:</p>
+<ul>
+  <li>Tool-augmented planning, code interpreter offloading (Schick et al. 2023, Yao et al. 2023)</li>
+  <li>Continual learning without catastrophic forgetting (Kirkpatrick et al. 2017)</li>
+  <li>Retrieval-augmented systems (Borgeaud et al. 2022, Lewis et al. 2020)</li>
+  <li>Linear-time architectures (Mamba, S4 — Gu & Dao 2024)</li>
+  <li>Robust internal world models (Hafner et al. 2020, Schrittwieser et al. 2020)</li>
+</ul>
+
+<p><strong>True paradigm shifts</strong>: 예측 어려움. Spiking neuron, neuromorphic hardware, analog computing, RL-based pretraining, 또는 complexity-theoretic limit overcome (Neural Turing Machine 같은) 가능성.</p>
+
+<p><strong>핵심 vector</strong>: ##test-time scaling이 capability를 model scale와 orthogonal하게 expand## — 학습된 모델 위에 dynamic, adaptive computation. 이것이 fixed forward pass 의존을 끊는다.</p>
+
+<h3>4.3 Pathway 3 — Recursive Self-Improvement (Section 5.3)</h3>
+
+<p>AI가 AI 연구를 도와 → 더 나은 AI → 더 나은 연구 → ... 이 hyperbolic growth dynamics를 만들 수 있다 (수학적으로 finite time singularity).</p>
+
+<p><strong>4가지 RSI 메커니즘</strong>:</p>
+<ol>
+  <li><strong>Genetic Evolution (genotypic RSI)</strong>: AI가 next-gen AI의 architecture/optimizer/harness/hardware blueprint 작성. Genetic evolution analog.</li>
+  <li><strong>Cultural Evolution (memetic RSI)</strong>: AI가 더 나은 training data 생성·curation, 시뮬레이션, recursive distillation. AlphaZero-style이 prototype.</li>
+  <li><strong>Cooperative Evolution (sociogenic RSI)</strong>: Specialization + division of labor. 이로 freed-up resource가 더 큰 collective + further specialization 가능. Mixture-of-Experts가 rigid form.</li>
+  <li><strong>Hardware-improvements</strong>: AI가 더 efficient chip 설계, 제조 공정 개선. Mirhoseini et al. 2021 등.</li>
+</ol>
+
+<p><strong>현재 weak forms</strong>: White et al. 2023 (neural architecture search), Bischl et al. 2023 (auto hyperparameter), Liu et al. 2023 (AI-assisted hardware), FunSearch (Romera-Paredes et al. 2024), AlphaEvolve (Novikov et al. 2025).</p>
+
+<p><strong>Open questions</strong>: RSI dynamic이 fizzle out 할지, 자원 demand가 폭발할지, hyperbolic growth가 실제로 실현될지. ##Verifier quality(체스의 win-loss 같은)가 critical## — distillation cycle이 degenerate하지 않으려면.</p>
+
+<p><strong>Theoretical barrier</strong>: Schmidhuber's Gödel machine은 provably optimal self-modification을 formalize하지만 complete self-knowledge 요구 + Gödel incompleteness로 limited. Christiano's iterated amplification은 alignment를 유지하면서 capability bootstrapping. Verified program synthesis (De Moura & Bjørner 2008, Leroy 2009)는 self-modification regression을 막는 메커니즘.</p>
+
+<h3>4.4 Pathway 4 — Multi-Agent Coordination (Section 5.4)</h3>
+
+<p>여러 AGI agent가 collective structure를 형성, 인간 사회처럼 superintelligent 사회·조직으로 aggregate. 'Group Agents'(완전 자동화된 corporation 등)가 대표 예.</p>
+
+<p><strong>두 가지 mode</strong>:</p>
+<ul>
+  <li><strong>Decentralized</strong>: AI 서비스 시장 dynamics(Drexler 2019). 'Virtual Agent Economies'(Tomašev et al. 2025). Price signal로 vast number of agent를 coordinate.</li>
+  <li><strong>Centralized</strong>: 단일 base agent의 copies/instances. High-bandwidth communication으로 deep hierarchy 회피. AGI CEO가 모든 직원에게 직접 talk 가능.</li>
+</ul>
+
+<p><strong>Multi-Agent Scaling Laws</strong>: collective intelligence가 (population size, interaction density, available compute)의 함수로 어떻게 scale 하는지 — 핵심 open question.</p>
+
+<p><strong>Why collective could exceed individual</strong>: parallelization (individual bandwidth 한계 극복) + diversity through specialization (homogeneous group이 못 내는 synergy).</p>
+
+<h2>5. 6가지 Bottlenecks (Section 5.5, Table 4)</h2>
+
+<table>
+  <tr><th>Bottleneck</th><th>설명</th><th>Counter Factor</th></tr>
+  <tr><td><strong>Data Wall</strong></td><td>Pre-training용 high-quality data 고갈 (이번 decade 내 예상). Naive iterated training on self-generated data는 degeneration 위험 (Shumailov et al. 2024).</td><td>Synthetic data, simulation, self-play, RL, agentic interaction data, paradigm shifts increasing data efficiency.</td></tr>
+  <tr><td><strong>Economic/Natural Resource Demand</strong></td><td>Investment, chips, energy(GW급), datacenter location, rare earth — required growth rate 지속 불가능할 수 있다.</td><td>AI deployment의 increasing economic returns. AI research efficiency. Large-scale infrastructure build-out.</td></tr>
+  <tr><td><strong>Neural Paradigm Insufficient</strong></td><td>대규모 neural network + post-training + test-time scaling + tool-use가 AGI에 도달 못할 수도.</td><td>Continued evolution. AGI 직전 시스템도 새 paradigm 연구를 가속.</td></tr>
+  <tr><td><strong>Research gets harder</strong></td><td>"Low-hanging fruit harvested" — productivity per researcher 감소. Bloom et al. 2020.</td><td>AI researcher 자체의 efficiency 향상. 18× more researchers/compute 가능.</td></tr>
+  <tr><td><strong>Abstraction Barrier</strong></td><td>인간 abstraction에서 학습된 시스템이 raw data에서 novel concept formation 불가능할 수 있다 (Lerchner 2026). Pre-Newtonian text로 학습한 모델이 일반상대성을 도출할 수 있겠는가?</td><td>Multi-agent scaling이 collective ASI를 produce. Interactive RL paradigm shift.</td></tr>
+  <tr><td><strong>Deliberate Slowdown</strong></td><td>Rogue actor, accidents, military/political abuse, sociocultural backlash, regulation. Compute-threshold licensing, mandatory pre-deployment evaluation.</td><td>Economic/military competition pressures. International coordination 어려움 → 일부에서 progress 지속.</td></tr>
+</table>
+
+<h3>5.1 The Data Wall — 깊이 보기</h3>
+<p>Villalobos et al. 2024는 high-quality text가 이번 decade 안에 고갈된다고 추정. Naive iterated training on synthetic data는 degeneration. 하지만 ##Test-time scaling으로 base model의 generation을 improve해 high-quality data로 distill back## 하는 path가 있다 (AlphaZero analog). 또한 simulation, RL, multi-agent setting에서 더 많은 interaction data를 compute scale로 acquire 가능.</p>
+
+<h3>5.2 The Abstraction Barrier — 가장 micro-deep한 분석</h3>
+
+<p>Lerchner (2026)의 가설: ##computation alone cannot instantiate or discover novel conceptual primitives without an experiencing agent## that maps physical reality to symbols and back. 현재 paradigm은 이미 인간이 정의한 conceptual framework를 흡수·recombine해서 implicit predictive world model 형성. 그러나 ##current model이 conceptual boundary를 넘어 novel concept를 discover할 수 있는가##는 open question.</p>
+
+<p><strong>예시</strong>: Pre-Newtonian (1700년 이전) 시대 과학 지식만으로 학습한 modern foundation model을 상상하라. 이 모델이 'force' 'causality' 같은 concept을 추출할 수 있겠는가? Calculus, universal gravitation, electromagnetism의 conceptual primitive 없이 일반상대성·양자역학을 reason할 수 있겠는가?</p>
+
+<p><strong>Embodied Bottleneck</strong>: 만약 raw sensor data에서 grounded concept discovery가 진정한 ASI를 위해 필요하다면, 이는 physical experiment latency라는 ##linear slowdown##을 recursive self-improvement loop에 도입한다. AI가 새 물리 법칙을 가설할 수는 있어도 검증은 physical experiment speed에 제약.</p>
+
+<h3>5.3 Deliberate Slowdown 분석</h3>
+<p>Public concern, regulation, accident, sociocultural backlash가 trajectory에 형성하는 socio-political feedback loop. Bengio et al. 2024는 frontier AI에 대한 licensing, mandatory evaluation, incident reporting 같은 institutional gate 제안. Compute-threshold-based licensing (EU AI Act), capability cap, moratorium 등이 toolkit.</p>
+
+<p>Counter: 'Anarchy as Architect' (Dafoe 2015) — 국제적 anarchy가 competitive filter로 작동, productivity-enhancing technology adoption을 selection. 즉 ##sustained inter-group rivalry가 systematically competitiveness-enhancing technology를 선호##.</p>
+
+<h2>6. Remarks (Section 6)</h2>
+
+<h3>6.1 "Quantitative compute scaling이 ASI에 충분한가?"</h3>
+<p>이론적으로는 yes — search가 더 많은 compute로 better intelligence를 produce할 수 있다면. 실제로는 inductive biases와 priors가 critical, 그리고 inductive biases는 max performance에 fundamental limit을 도입. 따라서 ##순수 quantitative scaling은 한계에 도달하고 qualitative innovation 필요##.</p>
+
+<p>그러나 important caveat: AGI individual capability가 plateau해도 effective compute가 증가하면 millions/billions of AGI instance를 run, group으로 superhuman. ##Population scaling##(MacAskill & Moorhouse 2025의 ~25×/year 추정)만으로 AGI → ASI 가능.</p>
+
+<h3>6.2 "ASI가 무엇을 할 수 있고 없는지 예측 가능한가?"</h3>
+<p>두 방향: (1) extrapolation from today's capability, (2) theoretical complexity-theoretic limits. 후자는 negative result만 가능 (worst-case bound). 실제로는 approximate solution이 매우 효과적이라 ##theoretical 한계가 vacuous할 수 있다##.</p>
+
+<p>Vereshchagin & Vitányi 2004의 Kolmogorov structure function: maximally compressible string이 알고리즘 structure 가짐. Compression = prediction = intelligence라는 관점에서 lossy compression 한계가 ASI 한계로 inherit.</p>
+
+<h3>6.3 "Superintelligence는 super-creative한가?"</h3>
+<p>Boden의 creativity 3-level:</p>
+<ol>
+  <li><strong>Combinational</strong>: 친숙한 idea의 새 조합. AlphaGo Move 37, AlphaFold이 1-2 level에 해당.</li>
+  <li><strong>Exploratory</strong>: 기존 conceptual space 안에서 novel element 발견.</li>
+  <li><strong>Transformative</strong>: 완전히 new conceptual space 창조 (양자론, 일반상대성, Cubism). ##ASI의 hallmark##.</li>
+</ol>
+
+<p>Hassabis (2025): "1900년 Einstein이 가졌던 정보만으로 AI가 일반상대성을 도출할 수 있는가? 답은 no, still something missing." Transformative creativity가 ASI의 progress 측정의 진짜 test가 될 수 있다.</p>
+
+<h3>6.4 "ASI는 어떤 goal을 추구하는가?"</h3>
+
+<p><strong>Instrumental Convergence</strong> (Omohundro 2008, Bostrom 2012): goal과 무관하게 universally useful sub-goal 추구 — resource acquisition, time efficiency, self-preservation. Corrigibility (Soares et al. 2015), Safely Interruptible Agents (Orseau & Armstrong 2016), Constitutional AI, weak-to-strong generalization, iterated amplification, mechanistic interpretability가 alignment toolkit.</p>
+
+<p><strong>Autonomy pressure</strong>: Human feedback이 expensive하므로 fewer intermediate corrections → 더 internal-objective 의존 → unintended instrumental goal 위험 증가.</p>
+
+<p><strong>Objectives</strong>: Standard RL은 reward hacking 위험. Knowledge Seeking (KS) objective (Orseau 2014) — environment에 대한 uncertainty 최소화. KS는 robustness to delusion, irreversibility aversion, cooperation favorism (knowledge는 non-rivalrous).</p>
+
+<h3>6.5 "AGI가 agentic이어야 하는가?"</h3>
+<p>'Oracle' AI — 답을 줄 수는 있지만 자체 goal 안 추구. 'Scientist AI' framework (Lu et al. 2024) — observation explain + world model build, goal-directed action 안 함. Myopic AI (Cohen et al. 2020, Farquhar et al. 2025) — short time-horizon만 optimize, instrumental convergence 회피.</p>
+
+<p>그러나 economic + practical 압력은 human-in-the-loop 줄임 → 결국 agentic full-autonomy 시스템이 emerge할 likely. Armstrong & O'Rorke 2017: oracle도 implicit incentive로 control 행사 가능 (예측을 정확히 하기 위해 future를 manipulate).</p>
+
+<h3>6.6 What is "progress"?</h3>
+<p>AI capability progress = effectiveness (이전 unsolvable task 해결 능력) + efficiency (같은 outcome을 fewer compute로). Formal grounding: agent의 (hypothetical) Legg-Hutter score 증가.</p>
+
+<p>Beyond capability: scientific/technological progress, economic compression (한 decade에 century 분량 GDP growth), sociocultural progress (well-being, dignity, autonomy enhancement).</p>
+
+<h2>7. Open Research Agenda (Section 7.1)</h2>
+
+<p>50+ 구체적 연구 질문을 7개 카테고리로:</p>
+
+<table>
+  <tr><th>카테고리</th><th>대표 질문</th></tr>
+  <tr><td>1. Bottlenecks/Frictions</td><td>Data Wall — generated data가 high-quality 학습에 useful한가? Resource Demand — more compute가 언제 더 intelligence가 되는가? Abstraction Barrier — 현재 paradigm이 fundamentally bounded인가?</td></tr>
+  <tr><td>2. Quantitative Forecasting</td><td>Macro-quantity (cost per FLOP, compute productivity) 측정. Mathematical model. Inflection point identification. Continuous update protocol.</td></tr>
+  <tr><td>3. Benchmarking ASI</td><td>General capability를 saturate 없이 측정. Multi-agent benchmark. Setter-solver 자동화. Universal Induction-motivated compression benchmark. Indirect measurement (economic productivity).</td></tr>
+  <tr><td>4. Recursive Improvement Dynamics</td><td>Mechanism별 forecasting model. Test-time search 한계. Data curation/improvement 능력. Recursive distillation theory. Verifier quality role.</td></tr>
+  <tr><td>5. Multi-Agent Scaling</td><td>Task delegation/decomposition. Multi-agent scaling laws. Group alignment. Mixed human-AI collective의 epistemic resilience.</td></tr>
+  <tr><td>6. Theoretical Foundations</td><td>AIXI extension to practical ASI. Approximation quality theory. Lossy compression limit. Capability jaggedness.</td></tr>
+  <tr><td>7. AI Safety/Alignment/Sociocultural</td><td>Deliberate slowdown 실용적 implementation. AI/AI group alignment. Convergent instrumental sub-goal risk. Scientific automation 영향. Economic impact (labor → capital shift).</td></tr>
+</table>
+
+<h2>8. 비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론과 실제의 결합</strong>: AIXI/Universal AI 같은 formal framework로 ASI를 ground하면서, 실제 frontier AI 동향과 연결. 단순한 speculation이 아닌 principled 분석.</li>
+  <li><strong>Comprehensive landscape</strong>: 4 pathway × 6 bottleneck 매트릭스가 가능성 공간을 체계적으로 매핑. 단일 시나리오에 commit 안 함.</li>
+  <li><strong>Counter factor 명시</strong>: 각 bottleneck에 대해 어떻게 극복될 수 있는지 명시 — fatalistic / utopian 양극단 회피.</li>
+  <li><strong>AI Safety integration</strong>: capability 분석에 alignment·governance·sociocultural backlash를 직접 통합. "technological progress is everything" 관점의 한계 직시.</li>
+  <li><strong>50+ open question</strong>: 후속 연구 명확 출발점 제공 — agenda paper로서 가치 큼.</li>
+  <li><strong>Author 다양성</strong>: DeepMind core (Legg, Hutter, Dafoe) + alignment (Gabriel) + multi-agent (Leibo) + 외부 academic. Echo chamber 회피.</li>
+</ul>
+
+<h3>약점·의문</h3>
+<ul>
+  <li><strong>Empirical content 부재</strong>: 본 보고서는 거의 전부 conceptual analysis. 새로운 실험·데이터·simulation 없음. "정성적 future 시나리오 mapping"이 한계.</li>
+  <li><strong>Timeline 회피</strong>: 의도적 회피이지만, "언제"에 대한 consensus 없이 "무엇이 가능한가"만 논하는 것이 actionable한지 의문. Decade vs century 차이가 policy implication 매우 다름.</li>
+  <li><strong>AIXI dependency</strong>: ASI 정의의 anchor가 AIXI인데, AIXI는 ##incomputable + embedded agency 부재 + universal Turing machine 의존##. 이 framework의 정당성 자체가 ongoing debate. 보고서는 이 한계를 인정하지만 alternative framework(reflective oracle, computational mechanics)는 superficial하게 다룸.</li>
+  <li><strong>Multi-agent ASI에 대한 분석 얕음</strong>: Section 5.4가 다른 pathway에 비해 짧다. Group agency, market-based ASI, AGI corporation 같은 가능성이 핵심 가능성 중 하나인데 충분히 탐구되지 않음.</li>
+  <li><strong>Economic 분석 단편적</strong>: Section 6.1 ("Economics of AI progress")이 짧다. AI capability와 economic input의 coupled growth model이 critical인데 reference에 의존(Davidson et al. 2026, Erdil et al. 2025 등).</li>
+  <li><strong>Geopolitical 차원 부족</strong>: International coordination 어려움을 언급하지만, 미·중 경쟁, 군사 AI, autonomous weapon에 대한 분석이 표면적.</li>
+  <li><strong>"AI Use" 명시</strong>: 90% 이상 human authored 명시하지만 어디에서 AI 사용했는지 구체적이지 않음. Bibliography cleanup, simulated review에 사용 — 인용 정확성 의문 제기 가능.</li>
+  <li><strong>Author bias</strong>: DeepMind 직원이 다수. 'Anarchy as Architect' 같은 framing이 corporate-friendly한 trajectory에 우호적인지 의문 제기 가능.</li>
+  <li><strong>Solution 부재</strong>: Bottleneck을 어떻게 측정·counter할지 구체적 protocol 부재. "more research needed"의 frequency 높음.</li>
+</ul>
+
+<h3>제안</h3>
+<ul>
+  <li>Quantitative forecasting model을 본 보고서 framework에 binding (Davidson et al. 2026, GATE model 등)으로 시나리오 시뮬레이션.</li>
+  <li>Specific milestone forecast: "2030년까지 어떤 capability가 X 확률로 emerge할까?" 같은 binary prediction.</li>
+  <li>Multi-agent ASI에 대한 별도 paper — virtual agent economy, multi-agent scaling law, group alignment.</li>
+  <li>Embodied bottleneck의 quantitative model — physical experiment latency가 RSI rate를 어떻게 cap하는지.</li>
+  <li>Author affiliation diversity 확장 — academic philosopher, complexity theorist, sociologist, economist 더 많이.</li>
+</ul>
+
+</div>
+
+<h2>9. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>"Cruising past AGI into ASI" 가능성을 진지하게</strong>: AGI plateau이 정확히 human level에 일치할 reason이 없다. Multiple frictions 모두가 hard blocker로 turn out 해야 plateau. 그렇지 않으면 (weak) ASI로 smooth transition.</li>
+  <li><strong>4 pathway가 parallel 작동</strong>: Scaling이 멈춰도 paradigm shift, RSI, multi-agent collective가 ASI 가능성. 단일 pathway 차단으로 ASI 회피 어려움.</li>
+  <li><strong>Population scaling만으로도 collective ASI</strong>: Individual model이 plateau해도 ##millions/billions of AGI instance를 run + group coordination##만으로 superhuman organization. AGI individual = plateau는 ASI = plateau를 imply 하지 않는다.</li>
+  <li><strong>Abstraction Barrier가 가장 흥미로운 open question</strong>: 인간 conceptual primitive 위에 학습된 시스템이 ##transformative creativity##(Boden Level 3)를 이룰 수 있는가. 만약 No이면, RSI rate가 physical experiment speed에 cap되어 explosive growth 불가.</li>
+  <li><strong>Forecasting/Benchmarking 자체가 ASI scientific endeavor</strong>: 성숙한 ASI benchmarking discipline (general capability를 saturate 없이 측정, multi-agent scaling laws)이 정책·기업·연구 의사결정의 prerequisite.</li>
+  <li><strong>AI Safety는 capability development의 bottleneck도 됨</strong>: Alignment 미해결이면 capability scaling 자체가 정치·경제적으로 infeasible. Safety가 옵션이 아닌 capability progress의 enabler.</li>
+  <li><strong>Practitioner 관점 implication</strong>: Application 개발 시 "AGI가 plateau"라는 가정에 의존하지 말라. Tooling, agentic scaffolding, multi-agent orchestration의 design이 자체로 ASI 영토로 push할 수 있다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

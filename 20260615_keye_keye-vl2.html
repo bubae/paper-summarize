@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kwai Keye-VL-2.0 Technical Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem; padding: 0.4rem 0.8rem; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107; text-decoration: none; color: #856404; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Kwai Keye-VL-2.0 Technical Report</h1>
+
+<a href="20260615_keye_keye-vl2_brief.html" class="brief-link">📘 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Keye Team (Kuaishou Group)</li>
+  <li><strong>소속</strong>: 콰이쇼우 (Kuaishou — 중국의 짧은 영상 플랫폼)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2606.10651v1) — Technical Report</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.10651">arXiv</a> · <a href="https://kwai-keye.github.io/">Project</a> · <a href="https://huggingface.co/Kwai-Keye">HuggingFace</a> · <a href="https://github.com/Kwai-Keye/Keye">GitHub</a></li>
+  <li><strong>모델</strong>: Keye-VL-2.0-30B-A3B (MoE: 30B 파라미터, 3B active)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 시간 단위(hour-level) 긴 영상을 이해하려면 256K context가 필요한데, 표준 dense attention은 quadratic 비용으로 인해 KV 캐시가 폭발한다. 또 multi-task 학습(긴 영상 이해, agentic tool use, math/STEM, OCR 등)을 한 모델에 동시에 주입하면 catastrophic forgetting이 발생해 base 모델의 reasoning 능력이 무너진다.</li>
+  <li><strong>해결</strong>: <strong>아키텍처 측면</strong>은 ##GQA backbone에 DeepSeek Sparse Attention(DSA)을 결합한 멀티모달 first-of-its-kind 적용##으로 256K lossless context 처리. <strong>학습 측면</strong>은 ##Cross-Modal Multi-Teacher On-Policy Distillation (MOPD)## — 13개 도메인 specialized teacher가 학생의 on-policy rollout에 token-level feedback을 주어 능력 충돌을 해소. Context-RL과 Video-RL(bucket advantage scaling)도 추가.</li>
+  <li><strong>왜 작동하는가</strong>: (i) DSA는 MQA-style Lightning Indexer로 query-key score를 빠르게 계산하고 Top-k=2048만 선택해 attention 비용을 $O(L^2)$ → $O(Lk)$로 줄임. (ii) GQA backbone에 그대로 얹을 수 있도록 dense warm-up + sparse adaptation 2-stage 학습. (iii) MOPD는 학생이 직접 sample한 응답에 정확히 맞는 teacher의 token-level log-prob 차이를 advantage로 사용해 distillation 안정화.</li>
+  <li><strong>비유</strong>: 256K 토큰을 모두 한 번에 보는 것은 ##2시간 영화의 모든 프레임을 동시에 펼쳐놓고 답하는 것과 같다##. DSA는 "지금 답하는 데 가장 관련 있는 2048개 프레임만 빠르게 골라서 본다"는 식의 똑똑한 선택. MOPD는 13명의 과목별 전문가가 학생이 푼 답을 "여기서 이렇게 더 잘 풀 수 있다"고 마크업하는 과외와 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Multimodal DeepSeek Sparse Attention 최초 적용</strong>: GQA-based MLLM backbone에 DSA를 결합해 256K context를 lossless로 처리. Prefill 비용 0.32×, decode 비용 0.20× 대비 dense attention (128K context).</li>
+  <li><strong>Cross-Modal Multi-Teacher On-Policy Distillation (MOPD)</strong>: 13개 RL teacher(safety/math/IF/code/visual STEM/OCR/grounding/counting/video/tool 등)를 dynamic routing으로 sample별로 매칭. Top-k overlap 기반 advantage estimator + Segmented Prompt-Response Re-tokenization (SPRR) + token-category scaling + repetition collapse penalty.</li>
+  <li><strong>Native-Resolution + 2D RoPE Vision Encoder</strong>: Keye-VL-1.5의 SigLIP-400M-384-14 backbone을 변형해 임의 해상도 입력을 지원. NaViT 스타일 Patch n' Pack + FlashAttention으로 variable resolution 학습 가속.</li>
+  <li><strong>4-stage Pre-training Curriculum</strong>: Stage 0 (projector init, 8K) → Stage 1 (32K, 1T tokens) → Stage 2 (64K, 2T tokens, multi-task injection) → Stage 3 (256K, 500B tokens, long-context). 비디오는 stage별로 max duration이 15초 → 15분 → 2시간으로 확장.</li>
+  <li><strong>SOTA 결과</strong>: ##Video-MME-v2 ACC 35.3 / 42.4## (64/512 frames), ##LongVideoBench 74.1##, ##ActivityNet-TimeLens 58.5, QVHighlights-TimeLens 70.1, Charades-TimeLens 58.4## — 같은 또는 더 큰 규모 open-source 모델(Qwen3.5-35B-A3B, Qwen3-VL-235B-A22B)과 closed-source(Gemini-3-Flash) 대비 leading 또는 경쟁적 성능.</li>
+</ol>
+
+<h2>1. Background — 왜 이 문제가 어려운가?</h2>
+
+<h3>1.1 Long-Video Understanding의 두 가지 벽</h3>
+
+<p><strong>(1) Context Scaling 벽</strong>: 시간 단위 영상은 수만~수십만 토큰의 시각 입력으로 표현된다. Transformer dense attention은 sequence length $L$에 대해 $O(L^2)$ 시간/메모리. 256K 토큰이면 KV 캐시만 100GB+ 수준. 기존 MLLM은 frame을 aggressive하게 subsample(예: 64 frames) → temporal 연속성을 잃어 이벤트 순서·인과 추론에 취약.</p>
+
+<p><strong>(2) Multi-task Conflict 벽</strong>: long-video, agentic tool use, math/STEM reasoning, OCR, grounding 등 여러 capability를 하나의 모델에 주입하려고 end-to-end로 co-optimize 하면, ##task-specific RL이 다른 task의 baseline reasoning capability를 catastrophically forget##. 예: agent task RL 후에 너무 짧은 답변을 생성하거나, math reasoning RL 후에 도구 호출 형식이 깨지는 식.</p>
+
+<h3>1.2 DeepSeek Sparse Attention (DSA) 배경</h3>
+<p>DSA는 DeepSeek에서 제안한 sparse attention 방법으로, 원래 MLA(Multi-head Latent Attention) 기반에 적용되었다. 핵심: 각 query token에 대해 Top-k 가장 관련 있는 KV만 사용해 attention 계산. Quadratic complexity를 $O(Lk)$로 줄인다. 본 논문은 ##DSA를 GQA backbone에 멀티모달 시각 도메인에 최초로 적용##.</p>
+
+<h3>1.3 Native-Resolution Vision Encoding 배경</h3>
+<p>전통적 ViT는 fixed resolution(예: 384×384)을 가정. 큰 이미지는 (a) tiling으로 잘게 나눠 각각 인코딩(InternVL3, MiniCPM-V) 또는 (b) native resolution을 그대로 사용(NaViT, Qwen3.5, K2.5, MiMO). Tiling은 global structure를 깨고 redundant. Keye-VL-2.0은 native-resolution 채택.</p>
+
+<h2>2. Model Architecture (Section 2)</h2>
+
+<h3>2.1 4가지 핵심 컴포넌트</h3>
+
+<table>
+  <tr><th>컴포넌트</th><th>설명</th></tr>
+  <tr><td><strong>Vision Encoder (ViT)</strong></td><td>Keye-VL-1.5-8B (SigLIP-400M-384-14 기반)에서 inherit된 ViT backbone + adaptive position encoding + 2D RoPE + Patch n' Pack + FlashAttention</td></tr>
+  <tr><td><strong>Language Decoder (LLM)</strong></td><td>Qwen3-30B-A3B-Thinking-2507 base. MoE 구조 (총 30B / active 3B)</td></tr>
+  <tr><td><strong>MLP Projector</strong></td><td>Stage 0에서 random init 후 학습. 시각 feature를 LLM representation space로 매핑</td></tr>
+  <tr><td><strong>Sparse Attention Module</strong></td><td>GQA-compatible DSA — 글로벌 MQA-style indexing + GQA aggregation</td></tr>
+</table>
+
+<h3>2.2 Native-Resolution Vision Encoder (Section 2.1)</h3>
+
+<p><strong>Adaptive Position Encoding</strong>: SigLIP의 fixed absolute learnable position embeddings를 interpolate해서 variable resolution에 적응. <strong>2D RoPE</strong>: high-res 이미지에서 spatial extrapolation 향상. <strong>Sequence Packing</strong>: NaViT의 Patch n' Pack — 다른 크기·aspect ratio 샘플을 한 batch에 padding 없이 packing → variable resolution 학습 throughput 개선.</p>
+
+<p><strong>Distribution-Aligned ViT Pre-training</strong>: SigLIP loss로 native-resolution 학습 + SigLIP-400M-384-14 text tower와 align. Pre-training corpus: DataComp, LAION, CC12M, PD12M, COCO 등 500B tokens. 이를 downstream MLLM 학습 distribution과 맞춰 contrastive pre-training과 downstream MLLM 사이의 supervision-granularity gap을 줄임.</p>
+
+<h3>2.3 Unified Visual Encoding (Section 2.2)</h3>
+
+<p><strong>Dynamic-Resolution Image Encoding</strong>: 정적 이미지는 native resolution으로 직접 인코딩. visual token 수는 원본 픽셀 크기에 비례.</p>
+
+<p><strong>Dynamic-Resolution Video Encoding</strong>: 가변 frame rate, resolution, duration의 영상을 처리. 각 sampled frame을 high-resolution image로 취급해 같은 인코더로 처리. ##각 frame 앞에 natural-language timestamp를 prepend## → LLM이 temporal 순서·인과·절대 시각을 자연스럽게 파악. 별도의 video encoder를 두지 않고 simple/unified vision pathway 유지.</p>
+
+<p><strong>Adaptive Video Pixel Budget</strong>: 글로벌 budget을 영상별로 duration에 따라 scaling.</p>
+
+<table>
+  <tr><th>영상 길이</th><th>Pixel Budget Scaling</th></tr>
+  <tr><td>≤256s</td><td>0.125</td></tr>
+  <tr><td>256–512s</td><td>0.25</td></tr>
+  <tr><td>512–1024s</td><td>0.5</td></tr>
+  <tr><td>1024–2048s</td><td>1.0 (full)</td></tr>
+  <tr><td>>2048s</td><td>1.0 (full)</td></tr>
+</table>
+
+<p>짧고 redundant한 영상은 압축, 긴 영상은 더 많은 evidence 보존. 결과적으로 token cost가 통제 가능.</p>
+
+<h3>2.4 DSA for Long-Context Multimodal Modeling (Section 2.3)</h3>
+
+<h4>2.4.1 MQA-Style Lightning Indexer (수식 1, 2)</h4>
+
+<p>각 query token $h_t$가 모든 preceding token $h_s$에 대해 global index score를 계산:</p>
+
+$$I_{t,s} = \sum_{j=1}^{H^I} w_{t,j}^I \cdot \text{ReLU}(q_{t,j}^I \cdot k_s^I) \tag{1}$$
+
+<p>$H^I$: indexer head 수, $w_{t,j}^I$, $q_{t,j}^I$는 $h_t$에서 derive, $k_s^I$는 $h_s$에서 derive (모든 query head 간 shared). After global score → Top-$k$ sparse index set:</p>
+
+$$\Omega_t = \{s \mid I_{t,s} \in \text{Top-}k(I_{t,:})\} \tag{2}$$
+
+<p><strong>직관적으로</strong>: 모든 query head가 한 개의 shared key head를 통해 global score를 빠르게 계산 (MQA 스타일). 이로써 "지금 토큰이 가장 주의해야 할 2048개 토큰"을 효율적으로 선택. FP8 implementation + ReLU scoring으로 indexer가 long context에서도 efficient.</p>
+
+<h4>2.4.2 GQA Sparse Aggregation (수식 3)</h4>
+
+<p>GQA backbone에서 query head를 G grouping하고, 각 그룹은 shared KV head 사용. 동일한 sparse index set $\Omega_t$를 모든 그룹에 적용. g번째 그룹의 sparse attention output:</p>
+
+$$u_{t,g} = \text{Attn}(h_{t,g}, \{c_{s,g} \mid s \in \Omega_t\}) \tag{3}$$
+
+<p>$k = 2048$로 설정. Attention complexity가 $O(L^2)$ → $O(Lk)$로 감소. <strong>GQA backbone의 representation 구조를 그대로 보존하면서 dense attention을 회피</strong>.</p>
+
+<h4>2.4.3 Dense Warm-up과 Sparse Adaptation (수식 4-7)</h4>
+
+<p><strong>Stage A: Dense Warm-up</strong>. 메인 모델은 dense GQA 유지, 대부분 파라미터 freeze. Indexer가 모든 GQA group의 dense attention 분포를 cover하도록 학습. Query token $t$, 그룹 $g$에서 dense attention score를 시각·텍스트 토큰에 normalize → target distribution $p_{t,:,g}$.</p>
+
+$$\mathcal{L}_{\text{warmup}}^I = \sum_t \sum_{g=1}^G \mathbb{D}_{KL}(p_{t,:,g} \| \text{Softmax}(I_{t,:})) \tag{4}$$
+
+<p>이 stage는 약 2B multimodal tokens 사용.</p>
+
+<p><strong>Stage B: Sparse Adaptation</strong>. 모든 파라미터 unfreeze, sparse mode로 전환. Indexer는 main model의 attention 분포에 align 유지하되, KL loss는 selected Top-$k$ token set에서만 계산:</p>
+
+$$S_t = \{s \mid I_{t,s} \in \text{Top-}k(I_{t,:})\} \tag{5}$$
+
+$$\mathcal{L}_{\text{sparse}}^I = \sum_t \sum_{g=1}^G \mathbb{D}_{KL}(p_{t,S_t,g} \| \text{Softmax}(I_{t,S_t})) \tag{6}$$
+
+<p>Main model은 standard NTP loss. Indexer 입력은 detached(gradient 흐름 방지). 최종 objective:</p>
+
+$$\mathcal{L}_{\text{total}} = \mathcal{L}_{\text{NTP}} + \lambda \mathcal{L}_{\text{sparse}}^I \tag{7}$$
+
+<p><strong>왜 2-stage인가</strong>: ##sparse training을 처음부터 하면 indexer가 무엇을 선택해야 할지 모르고, KL signal이 noisy하다##. Dense warm-up에서 dense attention의 행동을 정렬한 후 sparse 전환하면 안정적. Long-context 평가에서 dense model 능력 보존 + inference overhead 대폭 감소.</p>
+
+<h2>3. Pre-Training (Section 3) — 4단계 커리큘럼</h2>
+
+<h3>3.1 Stage 0 — Projector Initialization</h3>
+<p>ViT/LLM frozen, projector만 학습. Image-text caption + interleaved image-text data 사용. 8K context, 4B tokens. <strong>저위험 초기화 단계</strong>: ViT/LLM 능력을 disturb하지 않고 visual feature를 LLM representation space로 매핑.</p>
+
+<h3>3.2 Stage 1 — General Multimodal Pre-training</h3>
+<p>32K context, 1T tokens, 모든 파라미터 학습. Image-text captions, interleaved image-text, interleaved video, pure-text QA, OCR data. 비디오 학습 시 각 영상을 15초 segment로 분할, 각 segment에 caption 부여 후 interleaved multimodal sequence로 구성. <strong>Reception</strong>(이미지에서 caption 재생성)과 <strong>Remake</strong>(원본 caption의 grammatical/expression 오류 수정) 두 전략으로 caption 품질 개선.</p>
+
+<h3>3.3 Stage 2 — Multi-Task Capability Injection</h3>
+<p>64K context, 2T tokens. Task-oriented + verifiable supervision 강조.</p>
+
+<table>
+  <tr><th>데이터 종류</th><th>설명</th></tr>
+  <tr><td><strong>Advanced OCR</strong></td><td>Receipt, chart 등 real + synthetic. Blur, lighting variation, wrinkles, geometric distortion으로 augment</td></tr>
+  <tr><td><strong>Math & STEM</strong></td><td>Geometry, function plots, experimental apparatus, scientific charts. LLM-based verification으로 품질 보증</td></tr>
+  <tr><td><strong>Caption Refinement</strong></td><td>VCap으로 학습된 8B caption expert가 Stage 1보다 더 정밀한 caption 생성</td></tr>
+  <tr><td><strong>GUI</strong></td><td>screen captures + control metadata + interaction semantics</td></tr>
+  <tr><td><strong>Grounding & Counting</strong></td><td>COCO/OpenImages 객체를 다양한 배경에 paste, 통제된 quantity·position</td></tr>
+  <tr><td><strong>General QA, E-Commerce, Chinese</strong></td><td>Kuaishou e-commerce data + 영어 데이터를 중국어 번역</td></tr>
+  <tr><td><strong>Pure-Text Data</strong></td><td>Pure-text math/STEM, Hermes-style tool-use trajectories, search/RAG examples — multimodal fine-tuning에서 LLM 능력 저하 방지</td></tr>
+</table>
+
+<h3>3.4 Stage 3 — Long-Context Extension</h3>
+<p>256K context, 500B tokens. Long-context : short-context = 1:1 비율로 mix. 데이터: long videos, long documents, multi-document inputs, long multi-image conversations, long code contexts, long-range agent trajectories. <strong>목표는 단순한 window 확장이 아니라 retrieval / aggregation / cross-position reasoning over ultra-long inputs</strong>.</p>
+
+<h3>3.5 Video Pre-Training Curriculum</h3>
+
+<table>
+  <tr><th>Stage</th><th>Max Video Duration</th><th>Video Tokens</th></tr>
+  <tr><td>1</td><td>15s</td><td>24K</td></tr>
+  <tr><td>2</td><td>15min</td><td>64K</td></tr>
+  <tr><td>3</td><td>2h</td><td>180K</td></tr>
+</table>
+
+<p><strong>Scene-wise Dense Caption</strong>: 영상을 scene 단위로 decompose, 각 scene에 timestamp + dense caption + global overview 부여. <strong>Diverse TVG (Temporal Video Grounding) Data</strong>: ETBench inspired — Referred Action Recognition, Video Highlight Detection, Extractive Video Summarization, Temporal Event Matching.</p>
+
+<h2>4. Post-Training (Section 4)</h2>
+
+<h3>4.1 SFT + Synthetic CoT</h3>
+
+<p>SFT corpus: ~500B tokens. ##약 40%가 text-only## (instruction following, knowledge QA, textual reasoning anchor). Multimodal Instruction Mixture는 video, perception, reasoning, agent, long-context를 포괄.</p>
+
+<p><strong>Video data 형식</strong>: multiple-choice QA with clue intervals. 모델은 &lt;think&gt; stage에서 candidate temporal segment를 verify하고, 최종 답 + supporting interval `[[mm, mm], ...]`을 출력 — ##temporal evidence localization을 명시적으로 학습##.</p>
+
+<p><strong>Synthetic CoT</strong>: high-quality QA pair에서 strong teacher model이 reasoning trace 생성, query/response/process-level 품질 필터링. Math는 Doubt2Clean second-pass review로 doubtful CoT cleaning. 27 dataset에서 사용. Long &lt;think&gt; data는 STEM/counting/video/complex image-text QA용, direct-answer data는 general VQA/caption/OCR/grounding용. <strong>균형 잡힌 mixture</strong>로 단순 perception에 불필요한 verbosity 회피.</p>
+
+<h3>4.2 Reinforcement Learning</h3>
+
+<h4>4.2.1 Synthetic-Data RL</h4>
+<p>Procedurally generated difference-recognition tasks. 두 이미지 $(I_A, I_B)$, $I_B$는 controlled edit set $\mathcal{E} = e_1, \ldots, e_k$로 만들어짐. 모델은 변경 부위를 (a) localization으로 normalized bounding box로 예측, (b) structured reasoning으로 domain-specific operation set DSL 출력.</p>
+
+<p>Reward (예: localization):</p>
+
+$$R_{\text{perc}} = \lambda_F F_{\text{soft}} + \lambda_I \frac{\sum_{m \in \mathcal{M}} u_m}{\max(|\hat{\mathcal{B}}|, |\mathcal{B}|)} - \lambda_D N_{\text{dup}} \tag{8}$$
+
+<p>$\mathcal{M}$: Hungarian matching된 페어 set, $u_m$: m번째 페어의 IoU, $F_{\text{soft}}$: soft matching-based F-score, $N_{\text{dup}}$: duplicate prediction penalty. ##Rule-based로 verifiable, learned reward model 없이 anti-hallucination + structured output 학습##.</p>
+
+<h4>4.2.2 General RL — GSPO 사용 (수식 9-11)</h4>
+
+<p>SFT 후 multimodal + text-only verifiable QA에서 GRP(General RL). Data: FineVision, MMK12, MM-Eureka, Thyme, mini O3, Open-R1 등. Pipeline: benchmark decontamination, cross-validation by judge, accuracy-based filtering.</p>
+
+<p>Reward: format / outcome / process / ContextRL reward. Algorithm: <strong>Group Sequence Policy Optimization (GSPO)</strong>:</p>
+
+$$\mathcal{J}_{\text{GSPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D}, \{y_i\}_{i=1}^G \sim \pi_{\theta_{\text{old}}}(\cdot|x)}\left[ \frac{1}{G} \sum_{i=1}^G \min\left(s_i(\theta) \hat{A}_i, \text{clip}(s_i(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_i \right) \right] \tag{9}$$
+
+<p>여기서:</p>
+
+$$s_i(\theta) = \exp\left( \frac{1}{|y_i|} \sum_{t=1}^{|y_i|} \log \frac{\pi_\theta(y_{i,t}|x, y_{i,<t})}{\pi_{\theta_{\text{old}}}(y_{i,t}|x, y_{i,<t})} \right) \tag{10}$$
+
+$$\hat{A}_i = \frac{\mathcal{R}(x, y_i) - \text{mean}(\{\mathcal{R}(x, y_j)\}_{j=1}^G)}{\text{std}(\{\mathcal{R}(x, y_j)\}_{j=1}^G) + \delta} \tag{11}$$
+
+<p><strong>직관적으로</strong>: GSPO는 GRPO와 비슷하지만 sequence-level importance ratio를 token 평균으로 stabilize. <strong>Filter groups with zero advantage variance</strong> — 모든 rollout이 같은 reward면 학습 신호가 없어 skip → data efficiency 향상.</p>
+
+<h4>4.2.3 Specialized RL — 5종의 domain expert</h4>
+
+<table>
+  <tr><th>Expert</th><th>Reward 디자인</th></tr>
+  <tr><td><strong>Grounding</strong></td><td>[0,1000] coordinate range로 normalize. Hungarian matching, min IoU + mean IoU + duplicate-box penalty</td></tr>
+  <tr><td><strong>Spatial</strong></td><td>Generative judge가 {-1, 0, 1} discrete score</td></tr>
+  <tr><td><strong>Math</strong></td><td>Symbolic-equivalence reward (canonical form 비교) + format gating (&lt;think&gt;/&lt;answer&gt;)</td></tr>
+  <tr><td><strong>Counting</strong></td><td>Exact numeric-match (deterministic)</td></tr>
+  <tr><td><strong>OCR</strong></td><td>Normalized text-match (case/whitespace/punctuation 정규화 후)</td></tr>
+</table>
+
+<p>이 stage의 목적은 ##최종 모델이 아니라 strong domain expert teacher 확보##. 이후 distillation으로 single MoE로 합치기 위함.</p>
+
+<h4>4.2.4 Video RL</h4>
+<p>~31K video samples, GSPO with frozen ViT/projector. <strong>TVG (Temporal Video Grounding)</strong>: TimeIT (DiDeMo, Charades-STA) — temporal IoU reward. <strong>Temporal dense captioning</strong>: LLM-as-Judge over subject, action, scene, OCR, temporal order, hallucination, coverage. <strong>FrameForge synthetic videos</strong>: rule-verifiable supervision for timestamp localization, before/after reasoning, co-occurrence reasoning.</p>
+
+<h4>4.2.5 Agentic RL</h4>
+
+<p><strong>Shared Training Protocol</strong>: code, tool-use, search 등 multi-step environment interaction. Reward는 executable outcome 또는 verifiable environment state. <strong>Shared collocated partial-rollout 메커니즘</strong>: unfinished trajectory를 cache하고 다음 rollout step에서 resume → variable horizon rollout utilization 향상.</p>
+
+<table>
+  <tr><th>Domain</th><th>Reward source</th></tr>
+  <tr><td><strong>Coding RL</strong></td><td>Online Judge (pass rate, compilation/execution failures) + SWE-style (test outcomes, regression checks, judge agent verification)</td></tr>
+  <tr><td><strong>Tool Use RL</strong></td><td>150+ simulated API domains. Valid invocation, argument consistency, environment post-conditions, judge-based final-state assessment. Randomized API/parameter names → memorization 방지</td></tr>
+  <tr><td><strong>Search RL</strong></td><td>Multi-turn retrieval. Final-answer correctness primary; intermediate result 검증으로 off-track 방지</td></tr>
+</table>
+
+<h4>4.2.6 Cross-Modal Multi-Teacher On-Policy Distillation (MOPD) — Section 4.2.6</h4>
+
+<p><strong>왜 MOPD인가</strong>: 13개 RL teacher가 각각 specialized된 후, 단순히 mix해서 fine-tune하면 한 teacher의 style이 dominant해진다 (예: agent task RL 후 too short response, math RL 후 verbose reasoning). MOPD는 이를 unified MoE backbone에 안전하게 consolidate.</p>
+
+<p><strong>Dynamic Routing</strong>: 각 sample을 modality·task type에 가장 잘 맞는 teacher로 routing. 학생은 on-policy response 생성:</p>
+
+$$y_i = (y_{i,1}, \ldots, y_{i,n}) \sim \pi_\theta(\cdot \mid x_i) \tag{12}$$
+
+<p>State $s_{i,t} = (x_i, y_{i,<t})$에서, routed teacher $\pi_T^{r(i)}$는 token-level feedback 제공. <strong>Segmented Prompt-Response Re-tokenization (SPRR)</strong>: prompt와 response를 따로 process — teacher와 student의 log-probability가 정확히 같은 response token에 align되도록 보장.</p>
+
+<p><strong>Top-k Overlap Set (수식 13)</strong>:</p>
+
+$$\Omega_{i,t} = \text{TopK}(\pi_T^{r(i)}(\cdot|s_{i,t})) \cap \text{TopK}(\pi_\theta(\cdot|s_{i,t})) \tag{13}$$
+
+<p><strong>Raw Advantage (수식 14)</strong>:</p>
+
+$$A_{i,t} = \sum_{v \in \Omega_{i,t}} \pi_\theta(v|s_{i,t}) [\log \pi_T^{r(i)}(v|s_{i,t}) - \log \pi_\theta(v|s_{i,t})] \tag{14}$$
+
+<p>여기서:</p>
+
+$$\pi_\theta(v|s_{i,t}) = \frac{\pi_\theta(v|s_{i,t})}{\sum_{u \in \Omega_{i,t}} \pi_\theta(u|s_{i,t})} \tag{15}$$
+
+<p>$\Omega_{i,t} = \emptyset$이면 $A_{i,t} = 0$. <strong>직관적으로</strong>: full vocabulary 대신 ##teacher와 student 모두 plausible한 token만 supervision## — 매우 낮은 확률 token에 대한 unstable 비교 회피, on-policy 유지.</p>
+
+<p><strong>MOPD Loss (수식 16, 17)</strong>:</p>
+
+$$\mathcal{L}_{\text{MOPD}} = -\mathbb{E}\left[ \frac{1}{|\mathcal{M}_i|} \sum_{t \in \mathcal{M}_i} \hat{A}_{i,t} \log \pi_\theta(y_{i,t} | x_i, y_{i,<t}) \right] \tag{16}$$
+
+<p>$\mathcal{M}_i$: valid response-token mask. Token-category-aware advantage scaling을 적용해 formatting token은 down-weight, perception/reasoning token은 up-weight. Long-form generation에서 repetition collapse를 위치 $\tau_i$에서 detect해 그 이후만 penalize:</p>
+
+$$\hat{A}_{i,t} = \tilde{A}_{i,t} - \lambda_{\text{rep}} \cdot \mathbb{1}[t \geq \tau_i] \tag{17}$$
+
+<p>이 디자인의 합으로 ##13개 RL teacher의 expertise가 single MoE로 consolidate되면서, 각 도메인의 response style을 강제로 한 형식으로 통일하지 않음##.</p>
+
+<h2>5. Efficient Training and Inference Infrastructure (Section 5)</h2>
+
+<h3>5.1 ExtraIO와 ViT-LM Heterogeneous Parallelism</h3>
+<p><strong>ExtraIO</strong>: video decoding/frame sampling을 학습 process와 decoupling하는 horizontally scalable I/O service. <strong>ViT-LM Heterogeneous Parallelism</strong>: ViT와 LM이 같은 GPU group에 colocate되지만 independent sharding strategy. recompute-or-offload로 ViT activation memory를 거의 0으로. <strong>Multimodal-token + LM-sample level Load Balancing</strong>으로 ViT DP/PP와 LM DP/PP의 compute/memory 균형 → end-to-end throughput +20%.</p>
+
+<h3>5.2 DSA Optimization</h3>
+<p>FlashInfer + TileLang으로 baseline 대비 ##2× speedup##. <strong>Top-k Memory Optimization</strong>: indexer score storage를 $T \times T$에서 $T \times \text{max\_seq}$로 축소, flashinfer.top_k_ragged_transform 사용. <strong>Short-Sequence Optimization</strong>: positional index가 top-k보다 작으면 indexer/sparse-attention backward kernel이 causally attendable KV만 iterate → ##1.5× end-to-end speedup##. <strong>Indexer Loss</strong>: post-top-k indexer score만 sparse-attention backward kernel 안에 store, FlashAttention-style backward recomputation 재사용 → per-layer $T \times T$ intermediates 회피.</p>
+
+<h3>5.3 Inference Optimization</h3>
+
+<table>
+  <tr><th>Optimization</th><th>효과</th></tr>
+  <tr><td><strong>Chunk ViT</strong></td><td>video frame을 chunk로 분할, sequential ViT processing → peak memory 감소</td></tr>
+  <tr><td><strong>Sparse Attention Optimization</strong></td><td>Adjacent query가 비슷한 Top-k KV 선택 → dedupe, MMA Thread Layout-Aware Mask. 128K context, k=2048에서 16 adjacent query가 ~8K effective KV token만 사용</td></tr>
+  <tr><td><strong>Decode Optimization</strong></td><td>DSA-specific decode kernel — 128K context에서 dense attention 대비 prefill 3×, decode 5× 빠름</td></tr>
+</table>
+
+<p>실제 inference cost: H800 ($2/GPU-hour) 기준 128K에서 prefill 0.32×, decode 0.20× of dense.</p>
+
+<h2>6. Evaluation (Section 6)</h2>
+
+<h3>6.1 Video Understanding (Table 2)</h3>
+
+<table>
+  <tr><th>Benchmark</th><th><strong>Keye-VL-2.0 30B-A3B</strong></th><th>Qwen3.5 35B-A3B</th><th>InternVL3.5 241B-A28B</th><th>GPT-5-mini</th><th>Qwen3-VL 30B-A3B Thinking</th><th>Qwen3-VL 235B-A22B Thinking</th></tr>
+  <tr><td>LongVideoBench</td><td><strong>74.1</strong></td><td>61.6</td><td>67.1</td><td>—</td><td>—</td><td>70.5</td></tr>
+  <tr><td>Video-MME-v2 ACC (64/512)</td><td><strong>35.3 / 42.4</strong></td><td>32.6 / 28.5</td><td>—</td><td>—</td><td>—</td><td>33.3 / 36.8</td></tr>
+  <tr><td>Video-MME-v2 Non-Lin (64/512)</td><td>18.5 / 24.2</td><td>15.4 / 12.2</td><td>—</td><td>—</td><td>—</td><td><strong>26.3 / 28.1</strong></td></tr>
+  <tr><td>MLVU</td><td>82.8</td><td><strong>85.6</strong></td><td>78.2</td><td>83.3</td><td>78.9</td><td>82.3</td></tr>
+  <tr><td>Video-MME (w/o sub.)</td><td>78.3</td><td><strong>82.5</strong></td><td>72.9</td><td>78.9</td><td>73.3</td><td>79.0</td></tr>
+  <tr><td>ActivityNet-TimeLens</td><td><strong>58.5</strong></td><td>53.2</td><td>—</td><td>—</td><td>—</td><td>52.1</td></tr>
+  <tr><td>QVHighlights-TimeLens</td><td><strong>70.1</strong></td><td>65.7</td><td>—</td><td>—</td><td>—</td><td>64.6</td></tr>
+  <tr><td>Charades-TimeLens</td><td><strong>58.4</strong></td><td>49.1</td><td>—</td><td>—</td><td>—</td><td>47.8</td></tr>
+  <tr><td>Video-MMMU</td><td>80.0</td><td>80.4</td><td>—</td><td><strong>82.5</strong></td><td>75.0</td><td>80.0</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##LongVideoBench, Video-MME-v2 ACC, 모든 TimeLens에서 leading##. 30B-A3B (active 3B)이 235B-A22B Qwen3-VL Thinking을 LongVideoBench/TimeLens에서 능가.</li>
+  <li>MLVU/Video-MME에서는 Qwen3.5-35B-A3B에 약간 뒤짐 → Keye는 fine-grained temporal localization에 특화.</li>
+  <li>Video-MME-v2 Non-Lin (멀리 떨어진 frame 간 추론) 에서는 더 큰 235B 모델에 뒤짐 — 모델 크기와 long-range reasoning 사이의 trade-off.</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: ##sparse long-context modeling + scene-wise dense caption + tIoU-centric Video RL이 fine-grained temporal localization 향상에 효과적##.</p>
+
+<h3>6.2 Code Agent Evaluation (Table 3)</h3>
+
+<table>
+  <tr><th>Benchmark</th><th><strong>Keye-VL-2.0</strong></th><th>Qwen3.5 35B-A3B</th><th>GPT-5-mini</th></tr>
+  <tr><td>LiveCodeBench v6</td><td><strong>64.2</strong></td><td>62.8</td><td>51.5</td></tr>
+  <tr><td>OJBench</td><td><strong>71.5</strong></td><td>70.2</td><td>58.7</td></tr>
+  <tr><td>SWE-bench Verified</td><td>62.0</td><td><strong>63.5</strong></td><td>55.5</td></tr>
+</table>
+
+<p>Algorithmic reasoning + execution-based self-correction 강함. Repository-level SWE-bench에서는 Qwen3.5에 약간 뒤짐 — isolated algorithmic problem에서 repository-level engineering으로 transfer가 일부 가능하지만 완전치 않다.</p>
+
+<h3>6.3 Tool-Use Evaluation (Table 4)</h3>
+
+<table>
+  <tr><th>Benchmark</th><th><strong>Keye-VL-2.0</strong></th><th>Qwen3.5 35B-A3B</th><th>GPT-5-mini</th></tr>
+  <tr><td>BFCL-V4</td><td>65.7</td><td><strong>67.3</strong></td><td>55.5</td></tr>
+  <tr><td>$\tau^2$-Bench</td><td><strong>82.6</strong></td><td>81.2</td><td>69.8</td></tr>
+  <tr><td>VitaBench</td><td><strong>33.1</strong></td><td>31.9</td><td>13.9</td></tr>
+</table>
+
+<p>Multi-turn stateful tool use ($\tau^2$, VitaBench)에서 강함 — Agentic RL의 multi-turn environment 학습 효과.</p>
+
+<h3>6.4 General Vision-Language Evaluation (Figure 5)</h3>
+<p>OCRBench, OmniDocBench, RefCOCO, FSC-147, PixMo-Count, EmbSpatial-Bench, HallusionBench, AI2D_TEST, WeMath, MathVista, DynaMath, MMMU, MMStar, RIME2025 등 perception + reasoning 폭넓게 평가. ##Keye-VL-2.0이 leading multimodal performance + long-video understanding + temporal grounding + hallucination resistance + visual mathematical reasoning에 특히 강력##. C-Eval(중국어 고시), IFEval(instruction following)에서도 strong baseline.</p>
+
+<h2>7. 비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>아키텍처-알고리즘 co-design</strong>: DSA를 GQA backbone에 적용한 첫 사례, dense warm-up + sparse adaptation 2-stage가 sparsity 학습 안정화의 좋은 recipe.</li>
+  <li><strong>Multi-teacher distillation의 implementation 깊이</strong>: 단순한 SFT-style distillation이 아니라 Top-k overlap, SPRR, token-category scaling, repetition collapse penalty까지 — 각 디테일이 실용적 문제 해결.</li>
+  <li><strong>비용 효율성</strong>: 30B-A3B (active 3B)로 235B-A22B에 필적 또는 능가. Inference cost는 dense attention 128K에서 prefill 0.32×, decode 0.20×.</li>
+  <li><strong>실용적 디자인</strong>: timestamp prepend로 별도 video encoder 없이 image-as-frame 형식 — code/maintenance 측면에서 우월한 단순함.</li>
+  <li><strong>Adaptive video pixel budget</strong>: duration에 따라 token 사용 scaling — 짧은 영상에 over-allocation, 긴 영상에 under-allocation 문제 동시 해결.</li>
+</ul>
+
+<h3>약점·의문</h3>
+<ul>
+  <li><strong>Technical report style</strong>: ablation이 거의 없다. DSA의 dense-only baseline 비교, MOPD vs. simple SFT-distillation 비교, Video-RL의 contribution 분리 등 어느 컴포넌트가 얼마나 기여하는지 분리 평가 부재.</li>
+  <li><strong>Video-MME-v2 Non-Lin에서 235B에 뒤짐</strong>: 단순 ACC가 아닌 group-based non-linear score $(N/4)^2$에서는 235B Qwen3-VL이 우위. ##cross-question consistency가 떨어진다는 신호##일 수 있다 — 동일 영상에 대한 4개 관련 질문 중 일관되게 답하지 못함.</li>
+  <li><strong>SWE-bench Verified 62.0 vs Qwen3.5-35B 63.5</strong>: 모델이 작아서가 아니라 repository-level 작업 학습이 충분치 않다는 신호.</li>
+  <li><strong>Capability vector / requirement vector 추정</strong>: Adaptive video pixel budget threshold (256/512/1024/2048s)가 어떻게 정해졌는지 비공개. Hyperparameter ablation 없음.</li>
+  <li><strong>SOTA 비교 모델의 일관성</strong>: 여러 baseline 점수가 "—"로 표시 (직접 비교 불가). 자체 평가의 fair comparison이 어렵다.</li>
+  <li><strong>Hallucination 평가</strong>: HallucinationBench 73.5로 Qwen3.5-35B 57.3 대비 좋다고 하지만, Video-MME-v2의 long-range reasoning에서 강한 모델이 더 잘하는 경향과 tension. 어떤 종류 hallucination에서 강한지 분석 부재.</li>
+  <li><strong>13 teacher 구성</strong>: full 13 teacher 중 어떤 게 핵심인지, 일부 dropping 시 loss는 어떨지 분석 부재.</li>
+  <li><strong>Random seed / std 미보고</strong>: 모든 결과가 single-run 추정.</li>
+</ul>
+
+<h3>제안</h3>
+<ul>
+  <li>DSA의 effective $k$ 값 sweep — k=512, 1024, 2048, 4096 별로 정확도/비용 trade-off 측정.</li>
+  <li>MOPD ablation: simple multi-teacher SFT vs. MOPD vs. on-policy distillation without Top-k overlap. 각 컴포넌트 분리.</li>
+  <li>Long-context "needle-in-haystack" 평가: 256K 안에서 specific evidence localization 정확도 측정.</li>
+  <li>비교 baseline의 inference cost — Keye가 0.20× decode cost라고 주장하면, 같은 256K에서 Qwen3-VL은 어떤 비용인지 직접 비교.</li>
+</ul>
+
+</div>
+
+<h2>8. Key Takeaways</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>DSA를 GQA에 적용</strong>하는 dense warm-up → sparse adaptation 2-stage recipe는 long-context multimodal 모델에 직접 채택 가능한 형태. 다른 sparse attention 방법 (BigBird, Longformer)에도 일반화될 수 있는 패턴.</li>
+  <li><strong>Multi-task RL conflict 해소를 위한 MOPD</strong>: ##specialized teacher → student의 on-policy distillation##은 RLHF 시대의 capability conflict를 해결할 표준 도구가 될 수 있다. Top-k overlap advantage는 anywhere applicable한 trick.</li>
+  <li><strong>Native-resolution + timestamp injection</strong>: 별도 video encoder를 두지 않고 frame을 high-res image로 처리, timestamp를 자연어로 prepend. ##Code maintenance 단순화 + LLM의 자연어 ability 활용##.</li>
+  <li><strong>Adaptive video pixel budget</strong>: duration에 따라 token scaling. Short-form/long-form 양쪽에 효율적 — 다른 video MLLM에 즉시 적용 가능한 lever.</li>
+  <li><strong>Bucket advantage scaling for Video-RL</strong>: long-sequence decision tree 안정화 + visual hallucination 감소. 다른 long-form generation RL에도 적용 가능.</li>
+  <li><strong>30B/3B-active로 235B에 필적</strong>: MoE + sparse attention의 합이 production-grade trade-off. 모델 크기를 늘릴 수 없는 환경에서 capability를 끌어올리는 데 핵심 design pattern.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

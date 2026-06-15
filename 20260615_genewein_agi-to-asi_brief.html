@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From AGI to ASI — 인간 수준 그 이후의 지형도</title>
+<style>
+  * { box-sizing: border-box; }
+  body { max-width: 980px; margin: 0 auto; padding: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; line-height: 1.75; color: #2c3e50; background: #f7f8fa; }
+  .hero { background: linear-gradient(135deg, #0f2027 0%, #203a43 50%, #2c5364 100%); color: white; padding: 4rem 2rem; text-align: center; }
+  .hero .badge { display: inline-block; padding: 0.4rem 1rem; background: rgba(255,255,255,0.15); border-radius: 20px; margin: 0.3rem; font-size: 0.9rem; }
+  .hero h1 { font-size: 2.4rem; margin: 1rem 0 0.5rem; font-weight: 700; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.92; max-width: 720px; margin: 0.5rem auto; }
+  .container { max-width: 880px; margin: 0 auto; padding: 2rem; }
+  .one-liner { background: linear-gradient(135deg, #4361ee 0%, #7209b7 100%); color: white; padding: 2rem; border-radius: 16px; margin: 2rem 0; text-align: center; box-shadow: 0 8px 24px rgba(67,97,238,0.25); }
+  .one-liner blockquote { font-size: 1.3rem; font-weight: 500; margin: 0; }
+  .one-liner blockquote:before { content: "\""; font-size: 2rem; opacity: 0.6; }
+  .one-liner blockquote:after { content: "\""; font-size: 2rem; opacity: 0.6; }
+  h2 { font-size: 1.7rem; margin-top: 3rem; padding-bottom: 0.5rem; border-bottom: 3px solid #4361ee; color: #2c3e50; }
+  h3 { font-size: 1.25rem; color: #4a5568; margin-top: 2rem; }
+  .card { background: white; padding: 1.6rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin: 1.2rem 0; }
+  .card-accent { border-left: 5px solid #4361ee; }
+  .card-green { border-left: 5px solid #48bb78; background: #f0fff4; }
+  .card-orange { border-left: 5px solid #ed8936; background: #fffaf0; }
+  .card-red { border-left: 5px solid #e53e3e; background: #fff5f5; }
+  .analogy { background: #fef5e7; border-left: 5px solid #f39c12; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1.5rem 0; }
+  .analogy strong { color: #b7791f; }
+  .step-flow { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .step-card { flex: 1 1 240px; background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #4361ee; }
+  .step-card .num { display: inline-block; width: 32px; height: 32px; line-height: 32px; text-align: center; background: #4361ee; color: white; border-radius: 50%; font-weight: 700; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 200px; background: white; padding: 1.4rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .stat .num { font-size: 2.4rem; font-weight: 700; color: #4361ee; display: block; line-height: 1.1; }
+  .stat .label { color: #718096; font-size: 0.9rem; margin-top: 0.4rem; }
+  .stat.green .num { color: #48bb78; }
+  .stat.orange .num { color: #ed8936; }
+  .stat.purple .num { color: #9f7aea; }
+  .stat.red .num { color: #e53e3e; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  th { background: #4361ee; color: white; }
+  tr:nth-child(even) { background: #f7fafc; }
+  .conclusion { background: linear-gradient(135deg, #0f2027 0%, #2c5364 100%); color: white; padding: 2rem; border-radius: 16px; text-align: center; margin: 2.5rem 0; }
+  .conclusion h2 { color: white; border-bottom-color: rgba(255,255,255,0.4); }
+  svg { display: block; margin: 1.5rem auto; max-width: 100%; }
+  .full-link { display: inline-block; margin: 1rem 0; padding: 0.7rem 1.4rem; background: #4361ee; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; }
+  .full-link:hover { background: #3651dd; }
+  footer { background: #2d3748; color: #cbd5e0; padding: 2rem; text-align: center; margin-top: 3rem; font-size: 0.9rem; }
+  @media (max-width: 600px) {
+    .step-flow, .stat-row { flex-direction: column; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div>
+    <span class="badge">Google DeepMind</span>
+    <span class="badge">2026.06</span>
+    <span class="badge">arXiv 2606.12683</span>
+    <span class="badge">57 pages</span>
+  </div>
+  <h1>From AGI to ASI</h1>
+  <p class="subtitle">"인간 수준 AI" 다음은 무엇인가? — 가능한 4가지 길과 6가지 장애물에 대한 체계적 지형도</p>
+</div>
+
+<div class="container">
+
+<a href="20260615_genewein_agi-to-asi.html" class="full-link">📄 전문가용 상세 요약 보기 →</a>
+
+<div class="one-liner">
+  <blockquote>AGI가 산 정상이라면, 그 너머의 대륙은 어떻게 생겼을까? 가능한 길 4개와 막힐 수 있는 협소 지점 6개의 지도</blockquote>
+</div>
+
+<h2>📚 배경 지식 — 익숙해져야 할 용어들</h2>
+
+<div class="card card-accent">
+<h3>1. AGI vs ASI — 무엇이 다른가?</h3>
+
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">AI 지능 수준의 단계</text>
+
+  <rect x="40" y="60" width="180" height="160" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="10"/>
+  <text x="130" y="85" text-anchor="middle" font-size="14" font-weight="bold" fill="#92400e">현재 AI</text>
+  <text x="130" y="110" text-anchor="middle" font-size="11">특정 task에서</text>
+  <text x="130" y="126" text-anchor="middle" font-size="11">superhuman</text>
+  <text x="130" y="148" text-anchor="middle" font-size="11">(체스, AlphaFold)</text>
+  <text x="130" y="180" text-anchor="middle" font-size="11">하지만 일반 지능은</text>
+  <text x="130" y="196" text-anchor="middle" font-size="11">제한적</text>
+
+  <rect x="260" y="60" width="180" height="160" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="10"/>
+  <text x="350" y="85" text-anchor="middle" font-size="14" font-weight="bold" fill="#1e3a8a">AGI</text>
+  <text x="350" y="105" text-anchor="middle" font-size="11">Artificial General</text>
+  <text x="350" y="120" text-anchor="middle" font-size="11">Intelligence</text>
+  <text x="350" y="148" text-anchor="middle" font-size="11">대부분 cognitive task</text>
+  <text x="350" y="164" text-anchor="middle" font-size="11">에서 평균적 사람과</text>
+  <text x="350" y="180" text-anchor="middle" font-size="11">비슷</text>
+  <text x="350" y="205" text-anchor="middle" font-size="11" fill="#1e3a8a">"Competent AGI"</text>
+
+  <rect x="480" y="60" width="180" height="160" fill="#ede9fe" stroke="#9f7aea" stroke-width="2" rx="10"/>
+  <text x="570" y="85" text-anchor="middle" font-size="14" font-weight="bold" fill="#553c9a">ASI</text>
+  <text x="570" y="105" text-anchor="middle" font-size="11">Artificial</text>
+  <text x="570" y="120" text-anchor="middle" font-size="11">Superintelligence</text>
+  <text x="570" y="148" text-anchor="middle" font-size="11">인간 전문가 집단의</text>
+  <text x="570" y="164" text-anchor="middle" font-size="11">10년 노력을 능가</text>
+  <text x="570" y="190" text-anchor="middle" font-size="11">모든 task에서</text>
+  <text x="570" y="206" text-anchor="middle" font-size="11" fill="#553c9a">reliably 능가</text>
+
+  <line x1="220" y1="140" x2="260" y2="140" stroke="#4a5568" stroke-width="2" marker-end="url(#arrow)"/>
+  <line x1="440" y1="140" x2="480" y2="140" stroke="#4a5568" stroke-width="2"/>
+  <text x="240" y="135" text-anchor="middle" font-size="14">→</text>
+  <text x="460" y="135" text-anchor="middle" font-size="14">→</text>
+  <text x="240" y="260" text-anchor="middle" font-size="11" fill="#4a5568">"이번 decade 안 가능?"</text>
+  <text x="460" y="260" text-anchor="middle" font-size="11" fill="#4a5568">"AGI 후 무슨 일?"</text>
+</svg>
+
+<div class="analogy">
+<strong>💡 비유:</strong> AGI는 <strong>"평균적인 사람과 비슷한 만능 일꾼"</strong>이고, ASI는 <strong>"노벨상급 천재 1만 명이 10년 모여 한 일을 혼자 해내는 시스템"</strong>입니다. 차이가 거의 종(species)을 넘는 수준입니다.
+</div>
+</div>
+
+<div class="card card-accent">
+<h3>2. AIXI / Universal AI — 이론적 상한선</h3>
+<p>1990년대 Marcus Hutter가 제안한 <strong>AIXI</strong>는 "이론상 가능한 가장 똑똑한 AI"의 수학적 정의입니다. 모든 가능한 환경에서 보상을 최대화하는 결정을 내리는 agent — 단, 실제로 구현할 수는 없습니다(incomputable). 하지만 <strong>"여기까지가 한계다"라는 상한선</strong>을 알려줍니다.</p>
+
+<div class="analogy">
+<strong>💡 비유:</strong> AIXI는 <strong>"빛의 속도(c)"</strong>같은 존재입니다. 도달 불가능하지만 그게 한계임을 알기에, 우리가 어디에 있고 얼마나 갈 수 있는지를 측정할 수 있습니다.
+</div>
+
+<p>최근 연구는 ##인터넷 텍스트 같은 거대 데이터로 sequential prediction을 학습한 모델 + planning + decision-making을 결합하면, AIXI에 근접할 수 있다##고 시사합니다. 즉 "현재 paradigm"이 ASI까지 펼쳐질 가능성이 있다는 뜻입니다.</p>
+</div>
+
+<div class="card card-accent">
+<h3>3. AI 발전 속도 — Effective Compute</h3>
+
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">10× per year — 세 가지 요인의 곱</text>
+
+  <rect x="40" y="60" width="180" height="100" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="10"/>
+  <text x="130" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">Hardware (Moore)</text>
+  <text x="130" y="115" text-anchor="middle" font-size="22" font-weight="bold" fill="#1e3a8a">1.5×</text>
+  <text x="130" y="140" text-anchor="middle" font-size="11" fill="#1e3a8a">/ year</text>
+
+  <text x="240" y="115" text-anchor="middle" font-size="20" font-weight="bold">×</text>
+
+  <rect x="260" y="60" width="180" height="100" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="10"/>
+  <text x="350" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">Investment</text>
+  <text x="350" y="115" text-anchor="middle" font-size="22" font-weight="bold" fill="#92400e">2.5×</text>
+  <text x="350" y="140" text-anchor="middle" font-size="11" fill="#92400e">/ year</text>
+
+  <text x="460" y="115" text-anchor="middle" font-size="20" font-weight="bold">×</text>
+
+  <rect x="480" y="60" width="180" height="100" fill="#d1fae5" stroke="#10b981" stroke-width="2" rx="10"/>
+  <text x="570" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#065f46">Algorithm</text>
+  <text x="570" y="115" text-anchor="middle" font-size="22" font-weight="bold" fill="#065f46">3×</text>
+  <text x="570" y="140" text-anchor="middle" font-size="11" fill="#065f46">/ year</text>
+
+  <text x="350" y="195" text-anchor="middle" font-size="18" font-weight="bold" fill="#2c3e50">= 약 10× / year</text>
+
+  <rect x="40" y="220" width="620" height="50" fill="#ede9fe" stroke="#9f7aea" stroke-width="2" rx="10"/>
+  <text x="350" y="245" text-anchor="middle" font-size="13" fill="#553c9a" font-weight="bold">→ 10년이면 10,000,000,000× (백억 배) effective compute</text>
+  <text x="350" y="262" text-anchor="middle" font-size="11" fill="#553c9a">단, 이 추세가 지속될지가 큰 불확실성</text>
+</svg>
+</div>
+
+<h2>🛤 4가지 길 (Pathways) — AGI에서 ASI로 가는 방법</h2>
+
+<div class="step-flow">
+  <div class="step-card">
+    <span class="num">1</span>
+    <h3>Scaling (확장)</h3>
+    <p>더 큰 모델, 더 많은 데이터, 더 많은 compute. <strong>"더 큰 더 많은 더 빠른"의 path</strong>. AlexNet → GPT-4의 진화처럼 단순 확장만으로 능력 향상. 단 high-quality 데이터 고갈 위험.</p>
+  </div>
+  <div class="step-card">
+    <span class="num">2</span>
+    <h3>Paradigm Shift</h3>
+    <p>현재 transformer + log-loss minimization을 넘어선 <strong>새 algorithmic 접근</strong>. Spiking neuron, neuromorphic chip, RL-based pretraining, world model 기반 agent 등. 예측 어려움.</p>
+  </div>
+  <div class="step-card">
+    <span class="num">3</span>
+    <h3>Recursive Self-Improvement</h3>
+    <p>AI가 더 나은 AI를 설계 → 더 나은 AI가 더 나은 AI를 설계 → ... <strong>인공지능 폭발(intelligence explosion)</strong>의 시나리오. 현재도 약한 형태(AlphaEvolve, FunSearch)로 작동.</p>
+  </div>
+  <div class="step-card">
+    <span class="num">4</span>
+    <h3>Multi-Agent Collective</h3>
+    <p>수백만의 AGI agent가 사회처럼 조직되어 <strong>집단 지성</strong>으로 ASI 수준 도달. 'AGI corporation', 'virtual agent economy'. 개별 모델은 평범해도 group은 superhuman.</p>
+  </div>
+</div>
+
+<div class="card card-accent">
+<h3>4가지 길은 동시에 가능</h3>
+
+<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">병렬로 작동하는 4가지 길</text>
+
+  <circle cx="350" cy="180" r="50" fill="#7c3aed" stroke="#5b21b6" stroke-width="3"/>
+  <text x="350" y="175" text-anchor="middle" font-size="13" font-weight="bold" fill="white">AGI</text>
+  <text x="350" y="192" text-anchor="middle" font-size="11" fill="white">(시작점)</text>
+
+  <path d="M 350 130 Q 200 70 100 80" stroke="#3b82f6" stroke-width="3" fill="none"/>
+  <circle cx="100" cy="80" r="35" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="100" y="78" text-anchor="middle" font-size="11" font-weight="bold">Scaling</text>
+  <text x="100" y="92" text-anchor="middle" font-size="9">↑ 커지기</text>
+
+  <path d="M 400 180 Q 550 120 620 100" stroke="#f59e0b" stroke-width="3" fill="none"/>
+  <circle cx="620" cy="100" r="35" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="620" y="98" text-anchor="middle" font-size="11" font-weight="bold">Paradigm</text>
+  <text x="620" y="112" text-anchor="middle" font-size="9">새 패러다임</text>
+
+  <path d="M 350 230 Q 200 280 80 290" stroke="#10b981" stroke-width="3" fill="none"/>
+  <circle cx="80" cy="290" r="35" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+  <text x="80" y="288" text-anchor="middle" font-size="11" font-weight="bold">RSI</text>
+  <text x="80" y="302" text-anchor="middle" font-size="9">자기 개선</text>
+
+  <path d="M 400 220 Q 550 280 620 290" stroke="#e53e3e" stroke-width="3" fill="none"/>
+  <circle cx="620" cy="290" r="35" fill="#fed7d7" stroke="#e53e3e" stroke-width="2"/>
+  <text x="620" y="288" text-anchor="middle" font-size="11" font-weight="bold">Multi-Agent</text>
+  <text x="620" y="302" text-anchor="middle" font-size="9">집단지성</text>
+
+  <text x="350" y="335" text-anchor="middle" font-size="12" fill="#4a5568" font-style="italic">→ 한 길이 막혀도 다른 길로 ASI 도달 가능</text>
+</svg>
+</div>
+
+<h2>🧱 6가지 장애물 (Bottlenecks) — 막힐 수 있는 협소 지점</h2>
+
+<div class="card card-orange">
+<h3>1. The Data Wall — 데이터 고갈</h3>
+<p><strong>문제</strong>: 세계의 high-quality 텍스트가 이번 decade 내 고갈될 수 있습니다 (Villalobos et al. 2024).</p>
+<p><strong>대응</strong>: Synthetic data, simulation, self-play, RL agent의 환경 상호작용으로 데이터 생성. 다만 ##모델 자체 데이터로 학습 시 degeneration 위험##.</p>
+</div>
+
+<div class="card card-orange">
+<h3>2. Economic / Resource Demand — 자원 수요 폭발</h3>
+<p><strong>문제</strong>: GW급 datacenter, 희토류, rare earth, 에너지. 현재 paradigm 지속을 위한 경제·환경 요구가 지속 불가능 수준에 이를 수 있습니다.</p>
+<p><strong>대응</strong>: AI 자체가 efficiency 향상에 기여, 또는 paradigm shift로 데이터/에너지 효율성 대폭 개선.</p>
+</div>
+
+<div class="card card-orange">
+<h3>3. Neural Paradigm 한계</h3>
+<p><strong>문제</strong>: 대규모 transformer + post-training + test-time scaling + tool-use가 AGI에 도달하지 못할 수 있습니다.</p>
+<p><strong>대응</strong>: Continued evolution. AGI 직전 시스템도 새 paradigm 연구를 가속할 수 있음.</p>
+</div>
+
+<div class="card card-orange">
+<h3>4. Research Gets Harder — "쉬운 문제는 다 풀렸다"</h3>
+<p><strong>문제</strong>: 연구자당 productivity가 시간이 지날수록 감소 (Bloom et al. 2020). Moore's law 유지에 1970년대 대비 ##18배 더 많은 연구자## 필요.</p>
+<p><strong>대응</strong>: AI researcher 자체. 연구의 cognitive part를 자동화하면 수많은 인공 연구자 가능.</p>
+</div>
+
+<div class="card card-red">
+<h3>5. Abstraction Barrier — 가장 흥미로운 장애물</h3>
+
+<p><strong>문제</strong>: 현재 AI는 인간이 이미 만든 conceptual primitive (force, causality, energy 등)을 흡수해서 사용합니다. 하지만 ##진정한 ASI는 raw sensor data에서 새 conceptual primitive를 발견##해야 할 수 있습니다.</p>
+
+<svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">사고 실험: 1700년 데이터로 학습한 AI가 일반상대성을 도출할 수 있을까?</text>
+
+  <rect x="40" y="60" width="280" height="220" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="10"/>
+  <text x="180" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">📚 1700년 이전 인간 지식</text>
+  <text x="180" y="115" text-anchor="middle" font-size="11">아리스토텔레스 자연철학</text>
+  <text x="180" y="135" text-anchor="middle" font-size="11">연금술</text>
+  <text x="180" y="155" text-anchor="middle" font-size="11">기하학</text>
+  <text x="180" y="175" text-anchor="middle" font-size="11">천체관측</text>
+  <text x="180" y="200" text-anchor="middle" font-size="11" fill="#92400e">❌ 미적분 없음</text>
+  <text x="180" y="220" text-anchor="middle" font-size="11" fill="#92400e">❌ 만유인력 없음</text>
+  <text x="180" y="240" text-anchor="middle" font-size="11" fill="#92400e">❌ 전자기학 없음</text>
+  <text x="180" y="265" text-anchor="middle" font-size="11" fill="#92400e">❌ "force" 개념 없음</text>
+
+  <text x="350" y="180" text-anchor="middle" font-size="20" fill="#4a5568">→</text>
+
+  <rect x="380" y="60" width="280" height="220" fill="#fed7d7" stroke="#e53e3e" stroke-width="2" rx="10"/>
+  <text x="520" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#742a2a">🤖 거대 foundation model</text>
+  <text x="520" y="120" text-anchor="middle" font-size="11">이 모델이 일반상대성을</text>
+  <text x="520" y="140" text-anchor="middle" font-size="11">도출할 수 있을까?</text>
+  <text x="520" y="180" text-anchor="middle" font-size="20" font-weight="bold" fill="#742a2a">아마도... 불가능</text>
+  <text x="520" y="225" text-anchor="middle" font-size="11" fill="#742a2a">conceptual primitive</text>
+  <text x="520" y="240" text-anchor="middle" font-size="11" fill="#742a2a">자체가 학습 데이터에</text>
+  <text x="520" y="255" text-anchor="middle" font-size="11" fill="#742a2a">없기 때문</text>
+</svg>
+
+<p><strong>의미</strong>: 인류 사회 수천 년의 누적적 노력으로 발견된 'force' 'causality' 같은 primitive가 없으면, 더 빨라도 더 많은 compute로도 도달 불가. ##진정한 ASI는 grounded interaction이 필요할 수 있다##는 가설.</p>
+
+<p><strong>Embodied Bottleneck</strong>: AI가 새 가설을 제기해도 검증은 물리적 실험 속도에 묶여 있습니다. 이것이 ##recursive self-improvement의 자연 속도 제한##이 될 수 있습니다.</p>
+
+<div class="analogy">
+<strong>💡 비유:</strong> 한국어 사전과 한국어 책만 잔뜩 주고, "영어"라는 언어를 발명하라고 하는 것과 비슷합니다. 단어를 새로 만들 수는 있지만, 한국어 시각에 갇혀 영어가 가진 새 개념·구조는 발견하지 못할 수 있습니다.
+</div>
+</div>
+
+<div class="card card-orange">
+<h3>6. Deliberate Slowdown — 사회적 제동</h3>
+<p><strong>문제</strong>: 사고, 군사 abuse, 사회적 backlash, regulation으로 진보가 의도적으로 늦춰질 수 있습니다 (EU AI Act, compute-threshold licensing).</p>
+<p><strong>대응</strong>: 국가 간 경쟁 dynamics. Anarchy as Architect — 국제적 무정부가 競爭力 강화 기술을 자연 선택.</p>
+</div>
+
+<h2>💡 디지털 지능의 7가지 기본 우위</h2>
+
+<div class="card card-green">
+<p>AI는 본질적으로 인간이 못 가진 7가지 advantage를 가지며, ##compute가 늘수록 인간-AI 격차는 더 커집니다##:</p>
+
+<svg viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="40" width="320" height="100" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="8"/>
+  <text x="180" y="65" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">1. I/O 속도</text>
+  <text x="180" y="90" text-anchor="middle" font-size="11">초당 수십~수백 책 분량 입력</text>
+  <text x="180" y="110" text-anchor="middle" font-size="11">고대역폭 sensor·actuator 결합 시</text>
+
+  <rect x="360" y="40" width="320" height="100" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="8"/>
+  <text x="520" y="65" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">2. 내부 처리 속도</text>
+  <text x="520" y="90" text-anchor="middle" font-size="11">Sequential 깊게 + Parallel 넓게</text>
+  <text x="520" y="110" text-anchor="middle" font-size="11">생물학적 한계 없음</text>
+
+  <rect x="20" y="160" width="320" height="100" fill="#d1fae5" stroke="#10b981" stroke-width="2" rx="8"/>
+  <text x="180" y="185" text-anchor="middle" font-size="13" font-weight="bold" fill="#065f46">3. Working Memory</text>
+  <text x="180" y="210" text-anchor="middle" font-size="11">인터넷 상당부 외울 수 있음</text>
+  <text x="180" y="230" text-anchor="middle" font-size="11">인간 7±2 chunk와 비교 불가</text>
+
+  <rect x="360" y="160" width="320" height="100" fill="#ede9fe" stroke="#9f7aea" stroke-width="2" rx="8"/>
+  <text x="520" y="185" text-anchor="middle" font-size="13" font-weight="bold" fill="#553c9a">4. Substrate Independence</text>
+  <text x="520" y="210" text-anchor="middle" font-size="11">runtime에 다른 hardware로 이동</text>
+  <text x="520" y="230" text-anchor="middle" font-size="11">heterogeneous distribution</text>
+
+  <rect x="20" y="280" width="320" height="100" fill="#fed7d7" stroke="#e53e3e" stroke-width="2" rx="8"/>
+  <text x="180" y="305" text-anchor="middle" font-size="13" font-weight="bold" fill="#742a2a">5. Lossless Replication</text>
+  <text x="180" y="330" text-anchor="middle" font-size="11">Source code + memory state 모두</text>
+  <text x="180" y="350" text-anchor="middle" font-size="11">완벽 복사 가능 (인간 불가)</text>
+
+  <rect x="360" y="280" width="320" height="100" fill="#bee3f8" stroke="#0987a0" stroke-width="2" rx="8"/>
+  <text x="520" y="305" text-anchor="middle" font-size="13" font-weight="bold" fill="#22597a">6. 경험 공유</text>
+  <text x="520" y="330" text-anchor="middle" font-size="11">학습 신호(gradient) 공유 가능</text>
+  <text x="520" y="350" text-anchor="middle" font-size="11">"경험 압축" 없이 직접 전달</text>
+
+  <rect x="100" y="400" width="500" height="60" fill="#ffe4e1" stroke="#ec4899" stroke-width="2" rx="8"/>
+  <text x="350" y="425" text-anchor="middle" font-size="13" font-weight="bold" fill="#831843">7. 모든 advantage가 compute와 함께 amplify</text>
+  <text x="350" y="445" text-anchor="middle" font-size="11" fill="#831843">→ 인간-AI 갭이 시간에 따라 점점 더 넓어진다</text>
+</svg>
+</div>
+
+<h2>⚠️ ASI는 무엇은 못하는가?</h2>
+
+<div class="card">
+<p>ASI는 ##omniscient(전지)도 omnipotent(전능)도 아니다##. 다음 한계는 ASI에도 적용됩니다:</p>
+<table>
+<tr><th>한계</th><th>설명</th></tr>
+<tr><td>광속</td><td>정보 전파 속도의 절대 한계</td></tr>
+<tr><td>Landauer principle</td><td>1 비트 erasure에 필요한 최소 에너지</td></tr>
+<tr><td>실시간</td><td>물리 세계는 실시간 작동 — 날씨·생명체 정확 시뮬레이션 불가</td></tr>
+<tr><td>Universal Constructor 한계</td><td>logically possible matter 모두가 physically realizable이 아님</td></tr>
+<tr><td>P vs NP</td><td>특정 계산 문제는 fundamentally 어려움</td></tr>
+<tr><td>Gödel's Incompleteness</td><td>이론적 computability 한계</td></tr>
+</table>
+
+<div class="analogy">
+<strong>💡 비유:</strong> 가장 빠른 자동차도 광속을 넘을 수 없습니다. ASI는 ##노화 치료, 행성 지구화, 모든 질병 완치## 같은 specific capability를 자동으로 보장하지 않습니다. 단, 이 한계가 어디에 있는지도 정확히 알 수 없는 게 문제입니다.
+</div>
+</div>
+
+<h2>🎨 Creativity의 3단계 (Boden)</h2>
+
+<div class="card card-accent">
+
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">진짜 ASI가 하려면 도달해야 할 창의성 수준</text>
+
+  <rect x="40" y="60" width="200" height="180" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="10"/>
+  <text x="140" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">Level 1</text>
+  <text x="140" y="105" text-anchor="middle" font-size="12" fill="#1e3a8a">Combinational</text>
+  <text x="140" y="135" text-anchor="middle" font-size="11">친숙한 idea의</text>
+  <text x="140" y="151" text-anchor="middle" font-size="11">새 조합</text>
+  <text x="140" y="180" text-anchor="middle" font-size="11" font-style="italic">시·analogy</text>
+  <text x="140" y="210" text-anchor="middle" font-size="11" fill="#1e3a8a">현재 AI ✅</text>
+  <text x="140" y="226" text-anchor="middle" font-size="10" fill="#1e3a8a">(LLM 일반 능력)</text>
+
+  <rect x="260" y="60" width="200" height="180" fill="#fef3c7" stroke="#f59e0b" stroke-width="2" rx="10"/>
+  <text x="360" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">Level 2</text>
+  <text x="360" y="105" text-anchor="middle" font-size="12" fill="#92400e">Exploratory</text>
+  <text x="360" y="135" text-anchor="middle" font-size="11">기존 conceptual</text>
+  <text x="360" y="151" text-anchor="middle" font-size="11">space 안 novel 발견</text>
+  <text x="360" y="180" text-anchor="middle" font-size="11" font-style="italic">AlphaGo Move 37</text>
+  <text x="360" y="210" text-anchor="middle" font-size="11" fill="#92400e">현재 AI ✅</text>
+  <text x="360" y="226" text-anchor="middle" font-size="10" fill="#92400e">(AlphaFold)</text>
+
+  <rect x="480" y="60" width="200" height="180" fill="#ede9fe" stroke="#9f7aea" stroke-width="2" rx="10"/>
+  <text x="580" y="85" text-anchor="middle" font-size="13" font-weight="bold" fill="#553c9a">Level 3</text>
+  <text x="580" y="105" text-anchor="middle" font-size="12" fill="#553c9a">Transformative</text>
+  <text x="580" y="135" text-anchor="middle" font-size="11">완전 새 conceptual</text>
+  <text x="580" y="151" text-anchor="middle" font-size="11">space 창조</text>
+  <text x="580" y="180" text-anchor="middle" font-size="11" font-style="italic">양자론·일반상대성</text>
+  <text x="580" y="210" text-anchor="middle" font-size="11" fill="#742a2a" font-weight="bold">현재 AI ❌</text>
+  <text x="580" y="226" text-anchor="middle" font-size="10" fill="#553c9a">(ASI의 hallmark)</text>
+</svg>
+
+<p>Demis Hassabis: "1900년 Einstein이 가졌던 정보만으로 AI가 일반상대성을 도출할 수 있는가? 답은 No, 아직 something missing."</p>
+</div>
+
+<h2>📋 Open Research Agenda — 50+ 연구 질문</h2>
+
+<div class="card">
+<p>이 보고서는 다음 7개 카테고리에 대한 구체적 연구 질문을 제시합니다:</p>
+<ol>
+  <li><strong>Bottlenecks/Frictions</strong> — Data Wall, Resource Demand, Abstraction Barrier 각각이 hard blocker인지 측정</li>
+  <li><strong>Quantitative Forecasting</strong> — Macro-quantity (cost per FLOP, compute productivity) 측정과 모델링</li>
+  <li><strong>Benchmarking ASI</strong> — General capability를 saturate 없이 측정하는 평가 방법론</li>
+  <li><strong>Recursive Improvement Dynamics</strong> — Mechanism별 forecasting model, verifier quality role</li>
+  <li><strong>Multi-Agent Scaling</strong> — Group intelligence가 어떻게 scale 하는지 — 핵심 open question</li>
+  <li><strong>Theoretical Foundations</strong> — AIXI extension to practical ASI, lossy compression limit</li>
+  <li><strong>AI Safety/Alignment/Sociocultural</strong> — Deliberate slowdown 실용적 implementation, group alignment</li>
+</ol>
+</div>
+
+<h2>🌟 활용 / 의미</h2>
+
+<svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="350" cy="200" r="60" fill="#4361ee"/>
+  <text x="350" y="195" text-anchor="middle" font-size="13" fill="white" font-weight="bold">From AGI</text>
+  <text x="350" y="215" text-anchor="middle" font-size="13" fill="white" font-weight="bold">to ASI</text>
+
+  <line x1="350" y1="140" x2="200" y2="60" stroke="#7209b7" stroke-width="2"/>
+  <rect x="80" y="20" width="240" height="60" fill="#ede9fe" stroke="#7209b7" stroke-width="2" rx="8"/>
+  <text x="200" y="42" text-anchor="middle" font-size="12" font-weight="bold">📊 정책 의사결정</text>
+  <text x="200" y="60" text-anchor="middle" font-size="11">Compute-threshold licensing</text>
+  <text x="200" y="74" text-anchor="middle" font-size="11">capability cap 등 설계</text>
+
+  <line x1="410" y1="180" x2="600" y2="80" stroke="#7209b7" stroke-width="2"/>
+  <rect x="450" y="40" width="240" height="60" fill="#ede9fe" stroke="#7209b7" stroke-width="2" rx="8"/>
+  <text x="570" y="62" text-anchor="middle" font-size="12" font-weight="bold">🔬 연구 우선순위</text>
+  <text x="570" y="80" text-anchor="middle" font-size="11">50+ 연구 질문이</text>
+  <text x="570" y="94" text-anchor="middle" font-size="11">community 출발점</text>
+
+  <line x1="410" y1="220" x2="600" y2="320" stroke="#7209b7" stroke-width="2"/>
+  <rect x="450" y="320" width="240" height="60" fill="#ede9fe" stroke="#7209b7" stroke-width="2" rx="8"/>
+  <text x="570" y="342" text-anchor="middle" font-size="12" font-weight="bold">🏢 기업 전략</text>
+  <text x="570" y="360" text-anchor="middle" font-size="11">"AGI 후 plateau" 가정</text>
+  <text x="570" y="374" text-anchor="middle" font-size="11">금지 — 지속 발전 대비</text>
+
+  <line x1="350" y1="260" x2="200" y2="340" stroke="#7209b7" stroke-width="2"/>
+  <rect x="80" y="320" width="240" height="60" fill="#ede9fe" stroke="#7209b7" stroke-width="2" rx="8"/>
+  <text x="200" y="342" text-anchor="middle" font-size="12" font-weight="bold">🎓 학계</text>
+  <text x="200" y="360" text-anchor="middle" font-size="11">AI Safety + Capability</text>
+  <text x="200" y="374" text-anchor="middle" font-size="11">통합 연구 framework</text>
+</svg>
+
+<div class="conclusion">
+<h2 style="color: white; border: none;">🎯 한 줄 결론</h2>
+<p style="font-size: 1.2rem; margin-top: 1rem;">"AGI에서 ASI로의 transition은 <strong>4가지 길과 6가지 장애물의 상호작용</strong>에 의해 결정되며, <strong>한 길이 막혀도 다른 길로 도달 가능</strong>하다. 우리는 미래를 정확히 예측할 수 없지만, <strong>가능성 공간의 지도를 그릴 수는 있다</strong>."</p>
+</div>
+
+<h2>⚠️ 한계점</h2>
+
+<div class="card card-orange">
+<h3>1. Empirical content 부재</h3>
+<p>거의 전부 conceptual analysis입니다. 새로운 실험·데이터·simulation 없음. "정성적 future 시나리오 mapping"이 한계로 남습니다.</p>
+</div>
+
+<div class="card card-orange">
+<h3>2. Timeline 의도적 회피</h3>
+<p>"무엇이 가능한가"는 다루지만 "언제"는 거의 다루지 않습니다. Decade vs century 차이가 policy implication 매우 다른데 actionable한지 의문.</p>
+</div>
+
+<div class="card card-orange">
+<h3>3. AIXI 의존</h3>
+<p>ASI 정의의 anchor가 AIXI인데, AIXI 자체가 incomputable + embedded agency 부재 + universal Turing machine 의존. 이 framework의 정당성 자체가 ongoing debate.</p>
+</div>
+
+<div class="card card-orange">
+<h3>4. Multi-agent ASI 분석 얕음</h3>
+<p>4번째 pathway가 가장 짧습니다. Group agency, market-based ASI, AGI corporation 같은 가능성이 핵심인데 충분히 탐구되지 않음.</p>
+</div>
+
+<div class="card card-orange">
+<h3>5. Author bias</h3>
+<p>DeepMind 직원이 다수. Corporate-friendly trajectory에 우호적인 framing 가능성. 학자·철학자·사회학자 다양성 부족.</p>
+</div>
+
+<a href="20260615_genewein_agi-to-asi.html" class="full-link">📄 전문가용 상세 요약에서 AIXI 이론, 4 pathway 자세히 보기 →</a>
+
+</div>
+
+<footer>
+  <p><strong>From AGI to ASI: Pathways and Frictions</strong></p>
+  <p>Tim Genewein, Marcus Hutter, Shane Legg et al. — Google DeepMind · 2026</p>
+  <p>arXiv: 2606.12683 · 57 pages · Position Paper</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestra-o1 — 멀티모달 AI 에이전트의 똑똑한 지휘자</title>
+<style>
+  * { box-sizing: border-box; }
+  body { max-width: 980px; margin: 0 auto; padding: 0; font-family: 'Noto Sans KR', -apple-system, sans-serif; line-height: 1.75; color: #2c3e50; background: #f7f8fa; }
+  .hero { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 4rem 2rem; text-align: center; }
+  .hero .badge { display: inline-block; padding: 0.4rem 1rem; background: rgba(255,255,255,0.2); border-radius: 20px; margin: 0.3rem; font-size: 0.9rem; }
+  .hero h1 { font-size: 2.4rem; margin: 1rem 0 0.5rem; font-weight: 700; }
+  .hero .subtitle { font-size: 1.1rem; opacity: 0.92; max-width: 720px; margin: 0.5rem auto; }
+  .container { max-width: 880px; margin: 0 auto; padding: 2rem; }
+  .one-liner { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; padding: 2rem; border-radius: 16px; margin: 2rem 0; text-align: center; box-shadow: 0 8px 24px rgba(245,87,108,0.25); }
+  .one-liner blockquote { font-size: 1.3rem; font-weight: 500; margin: 0; quotes: """ """; }
+  .one-liner blockquote:before { content: open-quote; font-size: 2rem; opacity: 0.6; }
+  .one-liner blockquote:after { content: close-quote; font-size: 2rem; opacity: 0.6; }
+  h2 { font-size: 1.7rem; margin-top: 3rem; padding-bottom: 0.5rem; border-bottom: 3px solid #667eea; color: #2c3e50; }
+  h3 { font-size: 1.25rem; color: #4a5568; margin-top: 2rem; }
+  .card { background: white; padding: 1.6rem; border-radius: 12px; box-shadow: 0 2px 12px rgba(0,0,0,0.06); margin: 1.2rem 0; }
+  .card-accent { border-left: 5px solid #667eea; }
+  .card-green { border-left: 5px solid #48bb78; background: #f0fff4; }
+  .card-orange { border-left: 5px solid #ed8936; background: #fffaf0; }
+  .card-red { border-left: 5px solid #e53e3e; background: #fff5f5; }
+  .analogy { background: #fef5e7; border-left: 5px solid #f39c12; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1.5rem 0; }
+  .analogy strong { color: #b7791f; }
+  .step-flow { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .step-card { flex: 1 1 240px; background: white; padding: 1.2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-top: 4px solid #667eea; }
+  .step-card .num { display: inline-block; width: 32px; height: 32px; line-height: 32px; text-align: center; background: #667eea; color: white; border-radius: 50%; font-weight: 700; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 200px; background: white; padding: 1.4rem; border-radius: 12px; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
+  .stat .num { font-size: 2.4rem; font-weight: 700; color: #667eea; display: block; line-height: 1.1; }
+  .stat .label { color: #718096; font-size: 0.9rem; margin-top: 0.4rem; }
+  .stat.green .num { color: #48bb78; }
+  .stat.orange .num { color: #ed8936; }
+  .stat.purple .num { color: #9f7aea; }
+  table { width: 100%; border-collapse: collapse; background: white; border-radius: 10px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+  th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+  th { background: #667eea; color: white; }
+  tr:nth-child(even) { background: #f7fafc; }
+  .conclusion { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; padding: 2rem; border-radius: 16px; text-align: center; margin: 2.5rem 0; }
+  .conclusion h2 { color: white; border-bottom-color: rgba(255,255,255,0.4); }
+  svg { display: block; margin: 1.5rem auto; max-width: 100%; }
+  .full-link { display: inline-block; margin: 1rem 0; padding: 0.7rem 1.4rem; background: #667eea; color: white; text-decoration: none; border-radius: 8px; font-weight: 500; }
+  .full-link:hover { background: #5568d3; }
+  footer { background: #2d3748; color: #cbd5e0; padding: 2rem; text-align: center; margin-top: 3rem; font-size: 0.9rem; }
+  @media (max-width: 600px) {
+    .step-flow, .stat-row { flex-direction: column; }
+    .hero h1 { font-size: 1.8rem; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div>
+    <span class="badge">CUHK · LIGHTSPEED · PKU · THU</span>
+    <span class="badge">2026.06</span>
+    <span class="badge">arXiv 2606.13707</span>
+  </div>
+  <h1>Orchestra-o1</h1>
+  <p class="subtitle">텍스트, 이미지, 오디오, 비디오를 한꺼번에 다루는 AI 에이전트의 "지휘자(Orchestrator)" 만들기</p>
+</div>
+
+<div class="container">
+
+<a href="20260615_zhang_orchestra-o1.html" class="full-link">📄 전문가용 상세 요약 보기 →</a>
+
+<div class="one-liner">
+  <blockquote>한 명의 만능 천재가 모든 일을 떠맡는 대신, 작업을 잘게 쪼개 전문가들에게 동시에 맡기고 결과를 합치는 'AI 프로젝트 매니저'</blockquote>
+</div>
+
+<h2>📚 배경 지식 — 왜 이 문제가 어려운가?</h2>
+
+<div class="card card-accent">
+<h3>1. 멀티모달 시대의 도전</h3>
+<p>인간은 일상에서 자연스럽게 여러 감각을 동시에 처리합니다. 친구와 대화할 때 우리는 <strong>말소리(오디오)</strong>, <strong>표정과 몸짓(영상)</strong>, <strong>주변 환경(이미지)</strong>, <strong>대화 내용(텍스트)</strong>을 모두 한 번에 이해합니다. AI가 이 수준에 도달하려면 단순히 "사진을 분석한다", "음성을 인식한다"를 따로 잘하는 것을 넘어, <strong>여러 종류의 정보를 동시에 통합 추론(omnimodal reasoning)</strong>할 수 있어야 합니다.</p>
+
+<svg viewBox="0 0 600 240" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#667eea"/>
+      <stop offset="100%" style="stop-color:#764ba2"/>
+    </linearGradient>
+  </defs>
+  <text x="300" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">사람의 일상적인 정보 처리</text>
+  <circle cx="100" cy="100" r="40" fill="#fef3c7" stroke="#f59e0b" stroke-width="2"/>
+  <text x="100" y="105" text-anchor="middle" font-size="14">🔊 오디오</text>
+  <circle cx="220" cy="100" r="40" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="220" y="105" text-anchor="middle" font-size="14">👁 비디오</text>
+  <circle cx="340" cy="100" r="40" fill="#d1fae5" stroke="#10b981" stroke-width="2"/>
+  <text x="340" y="105" text-anchor="middle" font-size="14">🖼 이미지</text>
+  <circle cx="460" cy="100" r="40" fill="#fce7f3" stroke="#ec4899" stroke-width="2"/>
+  <text x="460" y="105" text-anchor="middle" font-size="14">📝 텍스트</text>
+  <path d="M 100 140 Q 280 180 280 200" stroke="#667eea" stroke-width="2" fill="none"/>
+  <path d="M 220 140 L 280 200" stroke="#667eea" stroke-width="2" fill="none"/>
+  <path d="M 340 140 L 280 200" stroke="#667eea" stroke-width="2" fill="none"/>
+  <path d="M 460 140 Q 280 180 280 200" stroke="#667eea" stroke-width="2" fill="none"/>
+  <rect x="200" y="200" width="160" height="32" fill="url(#grad1)" rx="6"/>
+  <text x="280" y="220" text-anchor="middle" font-size="14" fill="white" font-weight="bold">통합 이해 + 의사결정</text>
+</svg>
+</div>
+
+<div class="card card-accent">
+<h3>2. AI 에이전트(Agent)란?</h3>
+<p>"AI 에이전트"는 단순히 질문에 답하는 챗봇과 달리, <strong>스스로 계획을 세우고, 도구(웹 검색·코드 실행·이미지 분석 등)를 사용해, 여러 단계로 문제를 해결</strong>하는 AI 시스템입니다. 마치 인턴이 "이 보고서 좀 작성해줘"라는 지시를 받고 (1) 관련 자료를 검색하고 (2) 차트를 그리고 (3) 글을 다듬는 것처럼 말이죠.</p>
+
+<div class="analogy">
+  <strong>💡 비유:</strong> 챗봇이 "요리 레시피를 알려주는 책"이라면, AI 에이전트는 "장 보러 가서 재료 사고, 요리하고, 설거지까지 하는 도우미"입니다. 행동하고, 도구를 쓰고, 결과를 보고 다음을 결정합니다.
+</div>
+</div>
+
+<div class="card card-accent">
+<h3>3. 기존 멀티모달 에이전트의 두 가지 길</h3>
+
+<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">두 가지 기존 접근법</text>
+
+  <rect x="40" y="60" width="280" height="280" fill="#fff5f5" stroke="#e53e3e" stroke-width="2" rx="10"/>
+  <text x="180" y="85" text-anchor="middle" font-size="15" font-weight="bold" fill="#c53030">A. Native: 만능 천재 한 명</text>
+  <circle cx="180" cy="160" r="50" fill="#fed7d7" stroke="#e53e3e" stroke-width="2"/>
+  <text x="180" y="155" text-anchor="middle" font-size="14">하나의</text>
+  <text x="180" y="175" text-anchor="middle" font-size="14">거대 모델</text>
+  <text x="180" y="225" text-anchor="middle" font-size="12" fill="#742a2a">(Gemini, GPT-Omni 등)</text>
+  <text x="180" y="265" text-anchor="middle" font-size="13" fill="#c53030">😓 모든 걸 다 잘하지는</text>
+  <text x="180" y="285" text-anchor="middle" font-size="13" fill="#c53030">못함 → OmniGAIA 62.5%</text>
+  <text x="180" y="315" text-anchor="middle" font-size="11" fill="#742a2a">긴 추론, 세부 분석에서</text>
+  <text x="180" y="330" text-anchor="middle" font-size="11" fill="#742a2a">한계가 보임</text>
+
+  <rect x="380" y="60" width="280" height="280" fill="#fffaf0" stroke="#dd6b20" stroke-width="2" rx="10"/>
+  <text x="520" y="85" text-anchor="middle" font-size="15" font-weight="bold" fill="#9c4221">B. 기존 Orchestration: 관료적 매니저</text>
+  <rect x="490" y="110" width="60" height="40" fill="#feebc8" stroke="#dd6b20" rx="5"/>
+  <text x="520" y="135" text-anchor="middle" font-size="11">매니저</text>
+  <rect x="410" y="180" width="50" height="30" fill="#feebc8" stroke="#dd6b20" rx="5"/>
+  <text x="435" y="200" text-anchor="middle" font-size="10">부하1</text>
+  <rect x="495" y="180" width="50" height="30" fill="#feebc8" stroke="#dd6b20" rx="5"/>
+  <text x="520" y="200" text-anchor="middle" font-size="10">부하2</text>
+  <rect x="580" y="180" width="50" height="30" fill="#feebc8" stroke="#dd6b20" rx="5"/>
+  <text x="605" y="200" text-anchor="middle" font-size="10">부하3</text>
+  <line x1="520" y1="150" x2="435" y2="180" stroke="#dd6b20" stroke-dasharray="4,2"/>
+  <line x1="520" y1="150" x2="520" y2="180" stroke="#dd6b20" stroke-dasharray="4,2"/>
+  <line x1="520" y1="150" x2="605" y2="180" stroke="#dd6b20" stroke-dasharray="4,2"/>
+  <text x="520" y="240" text-anchor="middle" font-size="13" fill="#9c4221">😐 정해진 순서로 일을 던짐</text>
+  <text x="520" y="265" text-anchor="middle" font-size="12" fill="#9c4221">(선형 워크플로우)</text>
+  <text x="520" y="290" text-anchor="middle" font-size="11" fill="#7c2d12">멀티모달 커버리지 좁고</text>
+  <text x="520" y="305" text-anchor="middle" font-size="11" fill="#7c2d12">병렬화 못함 → 느리고 비쌈</text>
+  <text x="520" y="325" text-anchor="middle" font-size="11" fill="#7c2d12">AOrchestra → 40.0%</text>
+</svg>
+
+<p>두 접근 모두 실세계 멀티모달 과제(이를테면 "이 영상에서 무슨 일이 일어났고, 그 사람의 발언이 사실인지 검증해줘")를 풀기에는 부족했습니다.</p>
+</div>
+
+<div class="card card-accent">
+<h3>4. 강화학습 기반 에이전트 학습 (GRPO란?)</h3>
+<p>최근 LLM 학습에서 자주 쓰이는 <strong>GRPO(Group Relative Policy Optimization)</strong>는, 같은 질문에 대해 여러 답을 생성하고 그 중 어느 게 "더 잘했는지" 비교해서 학습 신호를 만드는 방식입니다. 마치 학생들이 같은 시험을 보고 "옆자리보다 잘한 만큼" 점수를 받는 것과 비슷합니다.</p>
+
+<div class="analogy">
+  <strong>💡 GRPO 비유:</strong> 코딩 면접에서 5명의 후보가 같은 문제를 풀면, 평균 점수보다 잘한 사람은 +가, 못한 사람은 - 점수가 됩니다. 이걸 모델에게 적용해 "그룹 평균 대비 잘한 정도"로 학습시키는 것입니다.
+</div>
+
+<p>그런데 GRPO를 에이전트에 그대로 쓰려면 문제가 있습니다. 에이전트는 한 답을 내기까지 <strong>여러 단계의 도구 호출</strong>을 거치는데, 매번 전체 과정을 실행하면 너무 비싸고, 최종 답만 보고 점수를 매기면 <strong>중간 단계의 좋고 나쁨을 알 수 없습니다</strong>.</p>
+</div>
+
+<h2>🎯 핵심 아이디어 — Orchestra-o1의 3가지 혁신</h2>
+
+<div class="step-flow">
+  <div class="step-card">
+    <span class="num">1</span>
+    <h3>Modality 인식 작업 분해</h3>
+    <p>매니저가 작업을 받자마자 "이 sub-task는 <strong>이미지</strong>가 필요하다", "이건 <strong>오디오 + 텍스트</strong>가 필요하다", "이건 <strong>웹 검색</strong>이 있어야 한다"를 명시적으로 결정. 또한 어떤 sub-task가 어떤 sub-task의 결과를 기다려야 하는지(의존성)도 그래프로 그립니다.</p>
+  </div>
+  <div class="step-card">
+    <span class="num">2</span>
+    <h3>실시간 전문가 매칭</h3>
+    <p>매 작업마다 "어떤 모델"과 "어떤 도구"를 쓸지 동적으로 결정. 쉬운 정보 추출은 싼 모델로, 어려운 추론은 GPT-5 같은 강한 모델로. 모델별 가격표(In: $0.0125, Out: $0.01 등)와 능력 점수를 함께 고려.</p>
+  </div>
+  <div class="step-card">
+    <span class="num">3</span>
+    <h3>병렬 실행</h3>
+    <p>독립적인 sub-task들은 동시에 실행. 영상 분석과 오디오 분석이 서로 의존하지 않으면 함께 처리하고, 그 결과를 모아 다음 단계로 넘어감. 같은 작업이 약 30% 더 빨라짐.</p>
+  </div>
+</div>
+
+<svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="25" text-anchor="middle" font-size="16" font-weight="bold" fill="#2c3e50">Orchestra-o1의 작동 방식</text>
+
+  <rect x="20" y="55" width="660" height="100" fill="#f0f4ff" stroke="#667eea" stroke-width="2" rx="10"/>
+  <text x="350" y="80" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">1단계 — 매니저가 작업을 받아 분석</text>
+  <rect x="50" y="100" width="120" height="40" fill="white" stroke="#667eea" rx="5"/>
+  <text x="110" y="125" text-anchor="middle" font-size="12">📥 입력: 질문 + 이미지/오디오/영상</text>
+  <text x="200" y="125" font-size="20" fill="#667eea">→</text>
+  <rect x="240" y="95" width="200" height="50" fill="#667eea" rx="6"/>
+  <text x="340" y="115" text-anchor="middle" font-size="13" fill="white" font-weight="bold">🎯 매니저 (Main Agent)</text>
+  <text x="340" y="135" text-anchor="middle" font-size="11" fill="white">의존성 그래프 + 자원 할당 결정</text>
+  <text x="470" y="125" font-size="20" fill="#667eea">→</text>
+  <rect x="510" y="100" width="150" height="40" fill="white" stroke="#667eea" rx="5"/>
+  <text x="585" y="125" text-anchor="middle" font-size="12">📋 sub-task 묶음</text>
+
+  <rect x="20" y="180" width="660" height="120" fill="#f0fff4" stroke="#48bb78" stroke-width="2" rx="10"/>
+  <text x="350" y="205" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">2단계 — 독립 sub-task 병렬 실행</text>
+  <rect x="50" y="225" width="180" height="60" fill="white" stroke="#48bb78" rx="6"/>
+  <text x="140" y="245" text-anchor="middle" font-size="12">🖼 Sub-task A (이미지)</text>
+  <text x="140" y="263" text-anchor="middle" font-size="10">backend: cheap model</text>
+  <text x="140" y="278" text-anchor="middle" font-size="10">tool: image analysis</text>
+  <rect x="260" y="225" width="180" height="60" fill="white" stroke="#48bb78" rx="6"/>
+  <text x="350" y="245" text-anchor="middle" font-size="12">🔊 Sub-task B (오디오)</text>
+  <text x="350" y="263" text-anchor="middle" font-size="10">backend: omni-tier</text>
+  <text x="350" y="278" text-anchor="middle" font-size="10">tool: audio analysis</text>
+  <rect x="470" y="225" width="180" height="60" fill="white" stroke="#48bb78" rx="6"/>
+  <text x="560" y="245" text-anchor="middle" font-size="12">🌐 Sub-task C (검색)</text>
+  <text x="560" y="263" text-anchor="middle" font-size="10">backend: cheap model</text>
+  <text x="560" y="278" text-anchor="middle" font-size="10">tool: web search</text>
+
+  <rect x="20" y="320" width="660" height="50" fill="#fef5e7" stroke="#f39c12" stroke-width="2" rx="10"/>
+  <text x="350" y="340" text-anchor="middle" font-size="14" font-weight="bold" fill="#2c3e50">3단계 — 결과 통합 → 다음 round 또는 최종 답</text>
+  <text x="350" y="358" text-anchor="middle" font-size="12" fill="#7b341e">메모리에 evidence 축적, 충분하면 stop, 부족하면 다시 작업 분해</text>
+</svg>
+
+<h2>🔄 실제 작동 예시 — 케이스 스터디</h2>
+
+<div class="card card-green">
+<h3>문제: "이 오디오와 이미지를 보고, 오디오에 언급된 계절 행사가 일어나는 시간을 UTC로 알려줘"</h3>
+
+<svg viewBox="0 0 700 480" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="40" width="660" height="80" fill="#fffbeb" stroke="#f59e0b" stroke-width="2" rx="8"/>
+  <text x="350" y="65" text-anchor="middle" font-size="13" font-weight="bold" fill="#92400e">📥 입력</text>
+  <text x="40" y="90" font-size="12">🔊 오디오: "Mabon falls upon equinox on Sep 23 at 7:49 AM"</text>
+  <text x="40" y="108" font-size="12">🖼 이미지: 프라하 천문 시계 사진</text>
+
+  <rect x="20" y="140" width="320" height="180" fill="#dbeafe" stroke="#3b82f6" stroke-width="2" rx="8"/>
+  <text x="180" y="165" text-anchor="middle" font-size="13" font-weight="bold" fill="#1e3a8a">🎯 Round 1: 동시 진행</text>
+
+  <rect x="35" y="180" width="140" height="120" fill="white" stroke="#3b82f6" rx="6"/>
+  <text x="105" y="200" text-anchor="middle" font-size="12" font-weight="bold">Sub-task 1</text>
+  <text x="105" y="216" text-anchor="middle" font-size="11">🔊 오디오 분석</text>
+  <text x="105" y="240" text-anchor="middle" font-size="10">→ 행사: equinox</text>
+  <text x="105" y="256" text-anchor="middle" font-size="10">→ 날짜: Sep 23</text>
+  <text x="105" y="272" text-anchor="middle" font-size="10">→ 시각: 7:49 AM</text>
+  <text x="105" y="290" text-anchor="middle" font-size="10" fill="#1e3a8a">(local time)</text>
+
+  <rect x="185" y="180" width="140" height="120" fill="white" stroke="#3b82f6" rx="6"/>
+  <text x="255" y="200" text-anchor="middle" font-size="12" font-weight="bold">Sub-task 2</text>
+  <text x="255" y="216" text-anchor="middle" font-size="11">🖼 이미지 분석</text>
+  <text x="255" y="240" text-anchor="middle" font-size="10">→ 랜드마크:</text>
+  <text x="255" y="256" text-anchor="middle" font-size="10">Prague Astronomical</text>
+  <text x="255" y="270" text-anchor="middle" font-size="10">Clock</text>
+  <text x="255" y="290" text-anchor="middle" font-size="10" fill="#1e3a8a">→ TZ: Europe/Prague</text>
+
+  <rect x="360" y="140" width="320" height="180" fill="#f0fff4" stroke="#48bb78" stroke-width="2" rx="8"/>
+  <text x="520" y="165" text-anchor="middle" font-size="13" font-weight="bold" fill="#22543d">🧠 Round 2: 종합 추론</text>
+  <text x="380" y="195" font-size="12">📌 Prague는 9월 → CEST (UTC+2)</text>
+  <text x="380" y="220" font-size="12">📌 7:49 AM (local)</text>
+  <text x="380" y="245" font-size="12">📌 7:49 - 2시간 = 5:49 (UTC)</text>
+  <rect x="380" y="265" width="280" height="40" fill="#48bb78" rx="6"/>
+  <text x="520" y="290" text-anchor="middle" font-size="14" font-weight="bold" fill="white">✅ 정답: 05:49 UTC</text>
+
+  <rect x="20" y="345" width="660" height="120" fill="#f7fafc" stroke="#4a5568" stroke-width="2" rx="8"/>
+  <text x="350" y="370" text-anchor="middle" font-size="13" font-weight="bold" fill="#2d3748">💡 핵심 통찰</text>
+  <text x="40" y="395" font-size="12">• 만약 한 모델이 모든 걸 했다면? → 오디오와 이미지를 동시에 처리하다 정보가 섞이거나 빠짐</text>
+  <text x="40" y="415" font-size="12">• Orchestra-o1: 각 modality를 전문가에게 분배 → 깨끗한 evidence를 따로 모음 → 통합</text>
+  <text x="40" y="435" font-size="12">• 또한 두 sub-task가 독립적이므로 <tspan font-weight="bold" fill="#48bb78">병렬 실행</tspan> → 시간 절반</text>
+  <text x="40" y="455" font-size="12">• 최종 단계에서야 "모든 evidence가 갖춰졌다" 판단 후 답 생성 → premature answering 방지</text>
+</svg>
+</div>
+
+<h2>📊 핵심 성과</h2>
+
+<div class="stat-row">
+  <div class="stat purple">
+    <span class="num">72.8%</span>
+    <span class="label">OmniGAIA 정확도 (GPT-5 기반)</span>
+  </div>
+  <div class="stat green">
+    <span class="num">+10.3%</span>
+    <span class="label">Gemini-3-Pro 대비 향상</span>
+  </div>
+  <div class="stat orange">
+    <span class="num">+32.8%</span>
+    <span class="label">기존 AOrchestra 대비</span>
+  </div>
+  <div class="stat">
+    <span class="num">0.6×</span>
+    <span class="label">비용 (AOrchestra 대비)</span>
+  </div>
+</div>
+
+<div class="card">
+<h3>비용 vs 정확도 — 두 마리 토끼를 모두 잡다</h3>
+<svg viewBox="0 0 600 300" xmlns="http://www.w3.org/2000/svg">
+  <rect x="60" y="40" width="500" height="220" fill="white" stroke="#e2e8f0"/>
+  <line x1="60" y1="260" x2="560" y2="260" stroke="#4a5568" stroke-width="2"/>
+  <line x1="60" y1="40" x2="60" y2="260" stroke="#4a5568" stroke-width="2"/>
+
+  <text x="310" y="285" text-anchor="middle" font-size="13" fill="#2c3e50">비용 ($)</text>
+  <text x="30" y="155" text-anchor="middle" font-size="13" fill="#2c3e50" transform="rotate(-90 30 155)">정확도 (%)</text>
+
+  <text x="50" y="55" font-size="11" text-anchor="end">80</text>
+  <text x="50" y="155" font-size="11" text-anchor="end">50</text>
+  <text x="50" y="260" font-size="11" text-anchor="end">20</text>
+
+  <text x="200" y="278" font-size="11" text-anchor="middle">300</text>
+  <text x="350" y="278" font-size="11" text-anchor="middle">450</text>
+  <text x="500" y="278" font-size="11" text-anchor="middle">600</text>
+
+  <circle cx="450" cy="190" r="14" fill="#e53e3e" opacity="0.7"/>
+  <text x="465" y="195" font-size="12" fill="#742a2a">AOrchestra-GPT-5 (40.0% / $565)</text>
+
+  <circle cx="220" cy="62" r="18" fill="#48bb78" opacity="0.85"/>
+  <text x="245" y="65" font-size="12" font-weight="bold" fill="#22543d">Orchestra-o1-GPT-5 (72.8% / $341)</text>
+
+  <line x1="450" y1="190" x2="220" y2="62" stroke="#9333ea" stroke-width="2" stroke-dasharray="6,3"/>
+  <text x="335" y="115" text-anchor="middle" font-size="13" font-weight="bold" fill="#9333ea">정확도 ↑ + 비용 ↓ 동시 달성!</text>
+</svg>
+<p style="text-align: center; margin-top: 0.5rem; color: #4a5568;">왼쪽 위로 갈수록 좋은 위치 — Orchestra-o1은 비용을 줄이면서 정확도도 크게 향상</p>
+</div>
+
+<div class="analogy">
+<strong>💡 왜 비용까지 줄어들까?</strong> 두 가지 이유 — (1) 쉬운 sub-task는 싼 모델로 라우팅해서 GPT-5 호출 횟수가 줄고, (2) 병렬 실행으로 wall-clock 시간이 짧아져 API 사용 시간이 감소합니다.
+</div>
+
+<h3>난이도별 성능 (Hard task에서 +24.3%)</h3>
+<table>
+<tr><th>난이도</th><th>Orchestra-o1 (GPT-5)</th><th>AOrchestra (GPT-5)</th><th>차이</th></tr>
+<tr><td>Easy (쉬움)</td><td>80.3%</td><td>45.1%</td><td><strong style="color:#48bb78">+35.2%</strong></td></tr>
+<tr><td>Medium (보통)</td><td>75.0%</td><td>40.0%</td><td><strong style="color:#48bb78">+35.0%</strong></td></tr>
+<tr><td>Hard (어려움)</td><td>56.4%</td><td>32.1%</td><td><strong style="color:#48bb78">+24.3%</strong></td></tr>
+</table>
+<p>특히 <strong>Hard task에서의 24.3% 향상</strong>이 의미 있습니다. 어려운 문제는 여러 단계의 추론 + 다양한 evidence 통합이 필요한데, 의존성 그래프와 반복적 evidence 수집 덕분에 "성급한 답변"을 피할 수 있습니다.</p>
+
+<h2>🚀 더 작은 모델도 강하게 — DA-GRPO</h2>
+
+<div class="card card-accent">
+<h3>오픈소스 8B 모델로 30B 모델 능가</h3>
+<p>저자들은 Qwen3-8B(작은 모델)를 base로 새로운 강화학습 기법 <strong>DA-GRPO</strong>로 학습한 Orchestra-o1-8B를 공개. 결과는 놀랍습니다:</p>
+
+<div class="stat-row">
+  <div class="stat green">
+    <span class="num">12.5%</span>
+    <span class="label">기본 Qwen3-8B (ReAct)</span>
+  </div>
+  <div class="stat orange">
+    <span class="num">26.3%</span>
+    <span class="label">+ Orchestra 프레임워크</span>
+  </div>
+  <div class="stat purple">
+    <span class="num">30.0%</span>
+    <span class="label">+ DA-GRPO 학습</span>
+  </div>
+</div>
+
+<p>같은 8B 모델이 12.5% → 30.0%로 <strong>2.4배 성능 향상</strong>. 더 큰 OmniAtlas-Qwen-3-30B-A3B(20.8%)도 능가합니다.</p>
+</div>
+
+<div class="card card-accent">
+<h3>DA-GRPO가 왜 다른가?</h3>
+<svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="40" width="320" height="220" fill="#fff5f5" stroke="#e53e3e" stroke-width="2" rx="10"/>
+  <text x="180" y="65" text-anchor="middle" font-size="14" font-weight="bold" fill="#742a2a">기존 GRPO</text>
+  <rect x="40" y="85" width="280" height="35" fill="white" stroke="#e53e3e" rx="5"/>
+  <text x="180" y="107" text-anchor="middle" font-size="12">전체 multi-agent 시스템 실행</text>
+  <text x="180" y="130" text-anchor="middle" font-size="20">↓</text>
+  <rect x="40" y="135" width="280" height="35" fill="white" stroke="#e53e3e" rx="5"/>
+  <text x="180" y="157" text-anchor="middle" font-size="12">최종 답만 보고 점수 매김</text>
+  <text x="180" y="180" text-anchor="middle" font-size="20">↓</text>
+  <rect x="40" y="185" width="280" height="60" fill="#fed7d7" stroke="#e53e3e" rx="5"/>
+  <text x="180" y="208" text-anchor="middle" font-size="12" fill="#742a2a">😓 비싸고 (매번 다 실행)</text>
+  <text x="180" y="225" text-anchor="middle" font-size="12" fill="#742a2a">😓 sparse한 신호</text>
+  <text x="180" y="240" text-anchor="middle" font-size="11" fill="#742a2a">(중간 결정의 좋고 나쁨 모름)</text>
+
+  <rect x="360" y="40" width="320" height="220" fill="#f0fff4" stroke="#48bb78" stroke-width="2" rx="10"/>
+  <text x="520" y="65" text-anchor="middle" font-size="14" font-weight="bold" fill="#22543d">DA-GRPO (이 논문)</text>
+  <rect x="380" y="85" width="280" height="35" fill="white" stroke="#48bb78" rx="5"/>
+  <text x="520" y="107" text-anchor="middle" font-size="12">상태만 reconstruct (offline)</text>
+  <text x="520" y="130" text-anchor="middle" font-size="20">↓</text>
+  <rect x="380" y="135" width="280" height="35" fill="white" stroke="#48bb78" rx="5"/>
+  <text x="520" y="157" text-anchor="middle" font-size="12">매 결정을 4차원 rubric로 평가</text>
+  <text x="520" y="180" text-anchor="middle" font-size="20">↓</text>
+  <rect x="380" y="185" width="280" height="60" fill="#c6f6d5" stroke="#48bb78" rx="5"/>
+  <text x="520" y="205" text-anchor="middle" font-size="12" fill="#22543d">😊 싸고 (실행 안 함)</text>
+  <text x="520" y="222" text-anchor="middle" font-size="12" fill="#22543d">😊 dense한 신호</text>
+  <text x="520" y="237" text-anchor="middle" font-size="11" fill="#22543d">(format/action/tool/decision 4차원)</text>
+</svg>
+
+<div class="analogy">
+<strong>💡 DA-GRPO 비유:</strong> 기존 GRPO가 "전체 프로젝트 끝낸 후에야 인턴을 평가"하는 거라면, DA-GRPO는 "매 작업 결정마다 즉시 피드백"입니다. 형식이 맞는지 / 행동이 유효한지 / 도구 선택이 합리적인지 / 전체 결정 품질이 좋은지 — 4가지를 매번 채점합니다.
+</div>
+</div>
+
+<h2>🌟 기존 대비 장점 한눈에</h2>
+
+<table>
+<tr><th>항목</th><th>Native OLLM (Gemini-3-Pro)</th><th>기존 Orchestration (AOrchestra)</th><th>Orchestra-o1 (이 논문)</th></tr>
+<tr><td>OmniGAIA 정확도</td><td>62.5%</td><td>40.0%</td><td><strong style="color:#48bb78">72.8%</strong></td></tr>
+<tr><td>병렬 실행</td><td>불가</td><td>선형 워크플로우</td><td><strong style="color:#48bb78">동적 의존성 그래프</strong></td></tr>
+<tr><td>Backend 선택</td><td>고정 (모델 1개)</td><td>제한적</td><td><strong style="color:#48bb78">비용-성능 매칭</strong></td></tr>
+<tr><td>Modality 인식</td><td>전부 한 번에</td><td>좁음</td><td><strong style="color:#48bb78">sub-task별 명시</strong></td></tr>
+<tr><td>학습 가능성</td><td>전체 모델 재학습</td><td>제한적</td><td><strong style="color:#48bb78">DA-GRPO로 step-level 학습</strong></td></tr>
+</table>
+
+<h2>🌐 활용 분야</h2>
+
+<svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="350" cy="180" r="60" fill="#667eea"/>
+  <text x="350" y="175" text-anchor="middle" font-size="14" fill="white" font-weight="bold">Orchestra-o1</text>
+  <text x="350" y="195" text-anchor="middle" font-size="12" fill="white">활용 분야</text>
+
+  <line x1="350" y1="120" x2="200" y2="50" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="100" y="20" width="200" height="60" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="200" y="42" text-anchor="middle" font-size="12" font-weight="bold">📹 영상 콘텐츠 분석</text>
+  <text x="200" y="60" text-anchor="middle" font-size="11">강의·뉴스·미팅 자동 요약</text>
+  <text x="200" y="74" text-anchor="middle" font-size="11">팩트체크</text>
+
+  <line x1="410" y1="160" x2="550" y2="80" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="450" y="40" width="220" height="60" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="560" y="62" text-anchor="middle" font-size="12" font-weight="bold">🛒 e커머스</text>
+  <text x="560" y="80" text-anchor="middle" font-size="11">사진+영상+리뷰 통합 분석</text>
+  <text x="560" y="94" text-anchor="middle" font-size="11">상품 발견·추천</text>
+
+  <line x1="410" y1="200" x2="550" y2="280" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="450" y="280" width="220" height="60" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="560" y="302" text-anchor="middle" font-size="12" font-weight="bold">🎮 vibe coding</text>
+  <text x="560" y="320" text-anchor="middle" font-size="11">목소리·화면·코드를 함께</text>
+  <text x="560" y="334" text-anchor="middle" font-size="11">이해하는 개발 보조</text>
+
+  <line x1="350" y1="240" x2="200" y2="310" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="100" y="280" width="200" height="60" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="200" y="302" text-anchor="middle" font-size="12" font-weight="bold">🎓 교육 보조</text>
+  <text x="200" y="320" text-anchor="middle" font-size="11">강의 영상 + 자료 + 코드</text>
+  <text x="200" y="334" text-anchor="middle" font-size="11">통합 Q&A</text>
+
+  <line x1="290" y1="160" x2="100" y2="170" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="20" y="155" width="100" height="50" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="70" y="175" text-anchor="middle" font-size="12" font-weight="bold">🩺 의료</text>
+  <text x="70" y="190" text-anchor="middle" font-size="11">영상+음성</text>
+
+  <line x1="410" y1="180" x2="600" y2="180" stroke="#a78bfa" stroke-width="2"/>
+  <rect x="600" y="155" width="80" height="50" fill="#ede9fe" stroke="#a78bfa" stroke-width="2" rx="8"/>
+  <text x="640" y="175" text-anchor="middle" font-size="12" font-weight="bold">🚗 자율</text>
+  <text x="640" y="190" text-anchor="middle" font-size="11">주행 보조</text>
+</svg>
+
+<div class="conclusion">
+<h2 style="color: white; border: none;">🎯 한 줄 결론</h2>
+<p style="font-size: 1.2rem; margin-top: 1rem;">"한 명의 만능 천재" 대신 <strong>"똑똑한 PM이 전문가들에게 일을 분배하는 시스템"</strong>으로 멀티모달 AI 에이전트의 <strong>정확도(+10%)와 비용(-40%)</strong>을 동시에 개선했다.</p>
+</div>
+
+<h2>⚠️ 한계점 — 솔직한 시각</h2>
+
+<div class="card card-orange">
+<h3>1. 단일 벤치마크 의존</h3>
+<p>모든 주요 결과가 <strong>OmniGAIA 한 벤치마크</strong>에 의존합니다. 다른 멀티모달 에이전트 벤치마크에서도 같은 우위가 나올지는 미지수입니다. OmniGAIA의 작업 분포가 Orchestra-o1의 의존성 그래프 패러다임과 잘 맞을 가능성이 있습니다.</p>
+</div>
+
+<div class="card card-orange">
+<h3>2. Capability Score의 추정 방법 미공개</h3>
+<p>"이 모델은 이미지에 강하다 / 오디오에 강하다"라는 점수가 어떻게 정해지는지 구체적이지 않습니다. 실제로는 prompt에 적어주는 방식인데, 이 prompt engineering의 robustness가 평가되지 않았습니다.</p>
+</div>
+
+<div class="card card-orange">
+<h3>3. Reward Model 의존</h3>
+<p>DA-GRPO의 4차원 점수를 매기는 reward model이 <strong>Claude-Haiku-4.5</strong>입니다. Haiku의 평가 편향이 학습된 정책에 그대로 전파될 수 있고, reward hacking 가능성이 분석되지 않았습니다.</p>
+</div>
+
+<div class="card card-orange">
+<h3>4. 학습 데이터 1200개 — 작은 규모</h3>
+<p>최종 학습 데이터셋이 1200 examples입니다. 더 큰 scale에서 saturation이나 over-fitting 양상이 어떨지 분석이 부재합니다.</p>
+</div>
+
+<div class="card card-orange">
+<h3>5. Hard task 절대 성능 여전히 낮음</h3>
+<p>Open-source 8B 모델의 Hard task 정확도가 26.9%로, ceiling이 아직 멉니다. 의존성 그래프가 깊어질 때 어디에서 실패하는지 error analysis가 부재합니다.</p>
+</div>
+
+<a href="20260615_zhang_orchestra-o1.html" class="full-link">📄 전문가용 상세 요약에서 수식·테이블·이론 보기 →</a>
+
+</div>
+
+<footer>
+  <p><strong>Orchestra-o1: Omnimodal Agent Orchestration</strong></p>
+  <p>Fan Zhang et al. — CUHK · LIGHTSPEED · PKU · THU · Tongji University · 2026</p>
+  <p>arXiv: 2606.13707 · GitHub: zfkarl/Orchestra-o1 · HuggingFace: Karl28/Orchestra-o1-8B</p>
+</footer>
+
+</body>
+</html>

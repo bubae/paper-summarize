@@ -1,0 +1,466 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestra-o1: Omnimodal Agent Orchestration</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem; padding: 0.4rem 0.8rem; background: #fff3cd; border-radius: 6px; border-left: 3px solid #ffc107; text-decoration: none; color: #856404; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Orchestra-o1: Omnimodal Agent Orchestration</h1>
+
+<a href="20260615_zhang_orchestra-o1_brief.html" class="brief-link">📘 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Fan Zhang, Vireo Zhang, Shengju Qian, Haoxuan Li, Hao Wu, Jinyang Wu, Donghao Zhou, Zhihong Zhu, Zheng Lian, Xin Wang, Pheng-Ann Heng</li>
+  <li><strong>소속</strong>: CUHK (홍콩중문대), LIGHTSPEED Studios, PKU (북경대), THU (칭화대), Tongji University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2606.13707v1)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.13707">arXiv</a> · <a href="https://github.com/zfkarl/Orchestra-o1">GitHub</a> · <a href="https://huggingface.co/Karl28/Orchestra-o1-8B">HuggingFace</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 텍스트·이미지·오디오·비디오가 한꺼번에 등장하는 omnimodal 실세계 과제에서 기존 단일 omnimodal LLM(OLLM, 예: Gemini-3-Pro)은 OmniGAIA 벤치마크에서 62.5%에 머물고, 기존 orchestration 프레임워크(AOrchestra 등)는 모달리티 커버리지가 좁고 sub-agent 워크플로우가 선형·휴리스틱이라 비효율적이다.</li>
+  <li><strong>해결</strong>: ##modality-aware task decomposition, online sub-agent specialization, parallel sub-task execution##을 결합한 통일된 orchestration 메커니즘 Orchestra-o1을 제안. main agent가 의존성 그래프를 추론하고, 각 sub-task에 대해 backend(GPT-5/Gemini/Qwen3 등)와 tool(image/audio/video 분석, 웹 검색, page visit, code 실행)을 동적으로 매칭하며, 독립적인 sub-task들을 비동기 병렬로 실행한다. 또한 open-source main agent를 위한 ##decision-aligned GRPO (DA-GRPO)## 학습 레시피를 제안.</li>
+  <li><strong>왜 작동하는가</strong>: (i) 정보이론적으로 modality 별 specialized 처리는 단일 모델이 모든 modality를 압축하는 것보다 정보 손실이 작다 (Proposition 2), (ii) 독립 sub-task의 비동기 병렬 실행은 round-level latency를 max로 줄여 선형 실행 대비 최대 $K_t$배 speedup을 보장한다 (Proposition 1), (iii) DA-GRPO는 final-answer reward만 보는 GRPO와 달리 step-level 결정(delegate, 모델 선택, tool 선택, complete)을 expert trajectory와 rubric reward로 직접 정렬해 데이터 효율을 높인다.</li>
+  <li><strong>비유</strong>: 한 명의 천재가 모든 일을 떠맡는 "독박 작업자"(native OLLM) 또는 정해진 순서로 부하에게 일을 던지는 "관료적 매니저"(linear orchestration)와 달리, Orchestra-o1은 ##업무 의존성을 한눈에 파악하고, 각 부하의 전문성과 가격을 보며 동시에 일을 시키는 똑똑한 PM##에 가깝다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Omnimodal Agent Orchestration Framework</strong>: modality-aware task decomposition, online sub-agent specialization, parallel sub-task execution을 결합해 high-level orchestration과 low-level perception/action을 decouple. GPT-5를 main agent로 사용 시 OmniGAIA에서 72.8% 정확도로 Gemini-3-Pro 대비 ##+10.3%, AOrchestra 대비 +32.8%## 절대 향상.</li>
+  <li><strong>DA-GRPO 학습 레시피</strong>: standard GRPO가 final-answer reward에만 의존해 sparse·expensive 한 한계를 step-level rubric reward(format/action/tool/decision의 4차원)로 극복. expert trajectory를 reference로 사용하면서도 대안적 decomposition도 보상한다.</li>
+  <li><strong>Orchestra-o1-8B 공개</strong>: Qwen3-8B를 base로 DA-GRPO 학습, OmniGAIA 30.0% 달성 (이전 best open-source OmniAtlas-Qwen-3-30B-A3B 20.8% 대비 ##+9.2%, 8B로 30B-A3B를 능가##).</li>
+  <li><strong>이론적 보장</strong>: parallel orchestration의 round-level latency advantage(Proposition 1)와 omnimodal orchestration의 information gain (Proposition 2)을 정보이론으로 정당화.</li>
+  <li><strong>비용-성능 효율성</strong>: GPT-5 main agent 기준 Orchestra-o1은 72.8% / $341.6, AOrchestra는 40.0% / $565.7 — ##정확도는 1.8배, 비용은 0.6배 (1.65× 비용 효율)##.</li>
+</ol>
+
+<h2>1. Background — Omnimodal Agent의 두 갈래</h2>
+
+<h3>1.1 Native Omnimodal Agents (OLLM 직접 사용)</h3>
+<p>Gemini-3-Pro, Qwen3-Omni, Ming-Omni, Baichuan-Omni 등 omnimodal LLM을 ReAct 스타일로 perception, reasoning, planning, tool-use를 동시에 수행하게 한다. 그러나 OLLM은 long-horizon reasoning, fine-grained cross-modal understanding에서 여전히 한계가 크고, OmniGAIA에서 강력한 proprietary Gemini-3-Pro조차 62.5%에 머문다. <strong>한 모델이 모든 일을 다 하다보니 어느 것도 충분히 잘하지 못하는 문제</strong>.</p>
+
+<h3>1.2 Orchestration-based Agents (오케스트라식)</h3>
+<p>텍스트 기반 LLM이 main agent(=orchestrator)로 작동하고, perception/action을 specialized sub-agent + tool로 위임한다. 모듈성과 확장성이 좋지만, 기존 AOrchestra 등은 (a) modality 커버리지가 좁고 (b) sub-agent 워크플로우가 선형·휴리스틱이며 (c) backend/tool 선택이 정적이라는 한계가 있다.</p>
+
+<h3>1.3 본 논문의 방향</h3>
+<p>Orchestration-based agent 진영을 따르되, 세 가지 새로운 메커니즘을 도입: <strong>(1) modality-aware decomposition (어떤 modality 증거가 어떤 sub-task에 필요한지 명시), (2) online sub-agent specialization (round 단위로 backend/tool을 동적 매칭), (3) parallel sub-task execution (independent sub-task의 비동기 실행)</strong>. 추가로 open-source main agent를 위한 DA-GRPO 학습 레시피를 제안한다.</p>
+
+<h2>2. Methodology — 문제 정의와 Orchestra-o1 프레임워크</h2>
+
+<h3>2.1 문제 정의 (Section 3.1)</h3>
+<p>입력 $x = (q, \mathcal{M})$, 여기서 $q$는 자연어 질문이고 $\mathcal{M} = \{m_i\}_{i=1}^N$은 image/audio/video 등 modality 입력의 집합이다. 목표는 ground-truth $a^*$에 대해 task reward $R(\hat{a}, a^*)$를 최대화하는 답 $\hat{a}$를 생성하는 것.</p>
+
+<p>System은 main agent $\pi_\theta$, sub-agent backend pool $\mathcal{B}$, tool ecosystem $\mathcal{T} = \mathcal{T}^{\text{perc}} \cup \mathcal{T}^{\text{act}}$로 구성. Round $t$에서 main agent는 다음 상태를 본다:</p>
+
+$$s_t = (q, \mathcal{M}, c_t, H_t, \mathcal{B}, \mathcal{T}) \tag{1}$$
+
+<p>여기서 $c_t$는 누적 context, $H_t$는 sub-task history. Main agent는 $y_t \in \{\texttt{delegate}, \texttt{complete}\}$ 중 하나를 출력. $\texttt{delegate}$이면 batch of $K_t$ sub-tasks를 생성한다:</p>
+
+$$\mathcal{U}_t = \{u_{t,j}\}_{j=1}^{K_t}, \quad u_{t,j} = (I_{t,j}, C_{t,j}, b_{t,j}, \mathcal{T}_{t,j}) \tag{2}$$
+
+<p>$I_{t,j}$는 sub-task instruction, $C_{t,j}$는 이전 round에서 넘긴 context, $b_{t,j} \in \mathcal{B}$는 선택된 backend, $\mathcal{T}_{t,j} \subseteq \mathcal{T}$는 할당된 tool subset.</p>
+
+<p><strong>직관적으로</strong>: main agent는 매 round마다 (a) 이 task를 어떻게 sub-task로 쪼갤지, (b) 각 sub-task에 어떤 모델·도구를 줄지, (c) 어떤 sub-task가 병렬 실행 가능한지를 모두 결정해야 한다.</p>
+
+<h3>2.2 Stochastic Orchestration Policy</h3>
+
+$$y_t \sim \pi_\theta(\cdot \mid s_t), \quad y_t = (a_t, \xi_t), \quad a_t \in \{\texttt{delegate}, \texttt{complete}\} \tag{3}$$
+
+<p>최적화 목표는 latency·monetary 비용을 함께 고려:</p>
+
+$$\max_{\pi_\theta} \mathbb{E}_{\tau \sim \pi_\theta}\left[ R(\hat{a}, a^*) - \lambda_c \text{Cost}(\tau) - \lambda_l \text{Latency}(\tau) \right] \tag{4}$$
+
+<p>$\lambda_c, \lambda_l \geq 0$은 각각 비용·지연 페널티 계수. <strong>이전 prompts에 비싸고 느린 모델을 무분별하게 호출하면 보상이 깎인다</strong>.</p>
+
+<h3>2.3 Flexible Agentic Backends — 비용-성능 매칭 (수식 5)</h3>
+<p>각 backend $b \in \mathcal{B}$는 capability vector + cost-latency profile로 표현:</p>
+
+$$\phi(b) = (\phi_b^{\text{txt}}, \phi_b^{\text{img}}, \phi_b^{\text{aud}}, \phi_b^{\text{vid}}, \phi_b^{\text{code}}, \kappa_b, \delta_b)$$
+
+<p>처음 5개는 modality별 능력 점수, $\kappa_b$는 단가, $\delta_b$는 예상 latency. Sub-task $u$의 requirement vector $r(u) = (r_u^{\text{txt}}, r_u^{\text{img}}, r_u^{\text{aud}}, r_u^{\text{vid}}, r_u^{\text{code}}) \in [0,1]$이 주어지면 main agent는 cost-aware matching을 수행:</p>
+
+$$b^*(u) = \arg\max_{b \in \mathcal{B}} \underbrace{\langle r(u), \phi_b \rangle}_{\text{capability match}} - \lambda_c \kappa_b \ell(u) - \lambda_l \delta_b \tag{5}$$
+
+<p>$\ell(u)$는 sub-task의 예상 토큰 수. <strong>직관적으로</strong>: easy extraction/search는 싼 모델로, 어려운 omnimodal reasoning은 강한 backend로 라우팅한다. Figure 2의 "Model Price Table"에서 GPT-5, Gemini, Qwen3 등이 In/Out 단가별로 등록되어 있는 것이 이 매칭에 활용된다.</p>
+
+<h3>2.4 Unified Omnimodal Tool Ecosystem (수식 6, 7)</h3>
+<p>각 tool $g$는 capability vector $\psi(g) = (\psi_g^{\text{txt}}, \psi_g^{\text{img}}, \psi_g^{\text{aud}}, \psi_g^{\text{vid}}, \psi_g^{\text{web}}, \psi_g^{\text{code}}) \in \{0,1\}$로 표현. Sub-task $u$의 tool subset:</p>
+
+$$\mathcal{T}^*(u) = \{g \in \mathcal{T} : p_\theta(g \mid u, s_t) > \gamma\} \tag{6}$$
+
+<p>또는 sparse coverage 목적함수로:</p>
+
+$$\mathcal{T}^*(u) = \arg\max_{\mathcal{S} \subseteq \mathcal{T}}\left[ \langle r_T(u), \sum_{g \in \mathcal{S}} \psi(g) \rangle - \lambda_s |\mathcal{S}| \right] \tag{7}$$
+
+<p>$\lambda_s$는 sparsity 페널티 — <strong>너무 많은 tool을 부르지 않게 한다</strong>. Sub-task $u$의 low-level executor는 $e(u) = (b^*(u), \mathcal{T}^*(u))$.</p>
+
+<h3>2.5 Modality-aware Task Decomposition (수식 9-12)</h3>
+<p>매 round 시작에서 main agent는 latent dependency graph $\mathcal{G}_t = (\mathcal{V}_t, \mathcal{E}_t)$를 induce한다 — sub-goal $v_i$가 $v_j$에 선행되어야 하면 directed edge $(v_i, v_j) \in \mathcal{E}_t$. 각 노드는 modality mask $\mu(v) \in \{0,1\}^4$ (text/image/audio/video 필요 여부)와 tool mask $\alpha(v) \in \{0,1\}^{|\mathcal{T}|}$를 가진다. Round $t$에서 ready set은:</p>
+
+$$\mathcal{R}_t = \{v \in \mathcal{V}_t \setminus C_t : \text{Pred}(v) \subseteq C_t\} \tag{9}$$
+
+<p>$C_t$는 완료된 sub-goal. 그 중 main agent는 budget $K_{\max}, B_t$ 하에서 batch $\mathcal{P}_t$를 선택:</p>
+
+$$\mathcal{P}_t = \arg\max_{\mathcal{P} \subseteq \mathcal{R}_t} \sum_{v \in \mathcal{P}} U_\theta(v \mid s_t) \quad \text{s.t. } |\mathcal{P}| \leq K_{\max}, \sum_{v \in \mathcal{P}} \text{cost}(v) \leq B_t \tag{10}$$
+
+<p><strong>직관적으로</strong>: 의존성 그래프에서 "지금 당장 시작 가능한 노드"들을 찾고, 그 중 utility가 큰 것부터 budget이 허용하는 만큼 동시에 던진다.</p>
+
+<h3>2.6 Parallel Sub-task Execution과 Latency Advantage</h3>
+
+<p>Sub-agent trajectory는 ReAct 스타일:</p>
+
+$$\zeta_{t,j} = \{(\rho_{t,j}^{(\ell)}, a_{t,j}^{(\ell)}, o_{t,j}^{(\ell)})\}_{\ell=1}^{L_{t,j}}, \quad a_{t,j}^{(\ell)} \in \mathcal{T}_{t,j} \cup \{\texttt{Finish}\} \tag{13}$$
+
+<p>$\rho^{(\ell)}$ reasoning state, $a^{(\ell)}$ tool action, $o^{(\ell)}$ observation. 모든 sub-task가 independent하면 결합 분포가 factorize된다:</p>
+
+$$p(Z_t \mid \mathcal{U}_t, s_t) = \prod_{j=1}^{K_t} p(z_{t,j} \mid u_{t,j}, s_t), \quad Z_t = \texttt{AsyncExecute}(u_{t,1}, \ldots, u_{t,K_t}) \tag{15}$$
+
+<h4>Proposition 1 (Round-level Latency Advantage)</h4>
+<p>$K_t \geq 2$ ready sub-task의 실행 시간이 $\delta_{t,1}, \ldots, \delta_{t,K_t} > 0$이고 conditional independent, $\delta_t^{\text{sync}} \geq 0$이 parallel 동기화 오버헤드일 때:</p>
+
+$$\text{Latency}^{\text{linear}}(t) = \sum_{j=1}^{K_t} \delta_{t,j}, \quad \text{Latency}^{\text{parallel}}(t) = \max_{1 \leq j \leq K_t} \delta_{t,j} + \delta_t^{\text{sync}} \tag{16}$$
+
+<p>Parallel이 linear보다 빠를 필요충분조건:</p>
+
+$$\delta_t^{\text{sync}} \leq \sum_{j=1}^{K_t} \delta_{t,j} - \max_{1 \leq j \leq K_t} \delta_{t,j} \tag{17}$$
+
+<p>이때 round-level speedup:</p>
+
+$$1 \leq S_t = \frac{\text{Latency}^{\text{linear}}(t)}{\text{Latency}^{\text{parallel}}(t)} \leq K_t \tag{18}$$
+
+<p>상한 $S_t = K_t$는 $\delta_t^{\text{sync}} = 0$이고 모든 sub-task runtime이 같을 때 달성. <strong>직관적으로</strong>: 4개 독립 sub-task가 각 10초 걸리면 linear는 40초, parallel은 max 10초 + sync 약간 = 약 11초. <strong>즉 비슷한 길이의 일이 많을수록 parallel 이득이 극대화된다</strong>.</p>
+
+<h3>2.7 Context Memory와 Iterative Refinement (수식 19-22)</h3>
+<p>Memory $H_t = \{h_1, \ldots, h_{m_t}\}$, 각 $h = (I, b, \mathcal{T}, \sigma, \eta, \omega)$. Round 후 update:</p>
+
+$$H_{t+1} \cup \{\text{Summarize}(u_{t,j}, z_{t,j})\}_{j=1}^{K_t} \tag{19}$$
+
+<p>Token budget $L_{\text{ctx}}$ 안에서 compressed context:</p>
+
+$$C_{t+1} = \arg\max_{C : |C| \leq L_{\text{ctx}}} \left[ I(C; q) + \sum_{h \in H_{t+1}} \omega(h) I(C; h) \right] \tag{20}$$
+
+<p>$I(\cdot;\cdot)$는 정보 relevance, $\omega(h)$는 최근/성공 evidence를 가중치로 우대. 중단 조건:</p>
+
+$$p_\theta^{\text{stop}}(s_t) = p_\theta(a_t = \texttt{complete} \mid s_t), \quad p_\theta^{\text{stop}}(s_t) > \tau_{\text{stop}} \tag{22}$$
+
+<h3>2.8 Theoretical Advantage over Native Omnimodal Agents</h3>
+
+<h4>Proposition 2 (Information Gain from Omnimodal Orchestration)</h4>
+<p>$Y$를 latent task answer, $\mathcal{M} = (M_1, \ldots, M_R)$를 R modality 소스. Native agent는 모든 modality를 단일 evidence variable $E_0 = f_0(q, \mathcal{M})$로 압축. Orchestration agent는 modality-aware sub-task를 dispatch해 $E_{\text{orch}} = (E_1, \ldots, E_R)$를 얻는다 ($E_r = f_r(q, M_r, C_r)$). 다음 가정 하에:</p>
+<ul>
+  <li>(i) main agent는 evidence loss 없이 aggregate</li>
+  <li>(ii) native evidence $E_0$가 modality별 component $(E_1^0, \ldots, E_R^0)$의 joint 정보를 upper bound</li>
+  <li>(iii) specialized 처리가 native 처리보다 every modality step에서 정보적으로 same-or-better, 적어도 한 modality에서 strict gain</li>
+</ul>
+
+$$I(Y; E_r \mid q, E_{<r}) \geq I(Y; E_r^0 \mid q, E_{<r}^0), \quad r=1,\ldots,R \tag{23}$$
+
+<p>그러면:</p>
+
+$$I(Y; E_{\text{orch}} \mid q) > I(Y; E_0 \mid q) \tag{24}$$
+
+<p>Bayes-optimal log-loss prediction에서 expected risk:</p>
+
+$$\mathcal{R}_{\log}(E_{\text{orch}}) < \mathcal{R}_{\log}(E_0) \tag{25}$$
+
+<p><strong>직관적으로</strong>: 한 명이 모든 modality를 동시에 처리하면 어딘가에서 정보 손실이 일어나고, 전문가가 modality별로 처리하고 결과를 모으면 손실이 줄어든다 — <strong>"분업이 이득"이라는 직관을 정보이론으로 formalize</strong>한 것.</p>
+
+<h2>3. Algorithm 1 — Orchestra-o1 흐름도</h2>
+
+<div class="flow-diagram">입력: 질문 q, modality 입력 M, backend pool B, tool set T, 최대 round T_max
+─────────────────────────────────────────────────────
+초기화: H_1 ← ∅, C_1 ← ∅, s_1 ← (q, M, C_1, H_1, B, T)
+
+for t = 1 ... T_max:
+  ┌─ 1. Sample orchestration decision: y_t = (a_t, ξ_t) ~ π_θ(·|s_t)
+  │
+  ├─ 2. if a_t = complete:
+  │       Generate â = A_θ(q, M, C_t, H_t)
+  │       return â
+  │
+  ├─ 3. Induce/refine dependency graph G_t = (V_t, E_t)
+  │     Compute ready set R_t ⊆ V_t
+  │     Select parallel batch P_t ⊆ R_t (budget·K_max 제약)
+  │
+  ├─ 4. parallel for v_{t,j} ∈ P_t:
+  │       Materialize sub-task u_{t,j} = Γ_θ(v_{t,j}, s_t)
+  │       Assign backend b_{t,j} = b*(u_{t,j})  ← 수식 (5)
+  │       Assign tools T_{t,j} = T*(u_{t,j})    ← 수식 (7)
+  │       Execute sub-agent trajectory ζ_{t,j}
+  │       Summarize z_{t,j} = Ω(ζ_{t,j})
+  │
+  ├─ 5. Update memory: H_{t+1} ← H_t ∪ {Summarize(u_{t,j}, z_{t,j})}
+  │     Compress context C_{t+1} under L_ctx       ← 수식 (20)
+  │     Update remaining budget B_{t+1}
+  │
+  └─ 6. s_{t+1} ← (q, M, C_{t+1}, H_{t+1}, B, T, B_{t+1})
+
+Generate fallback â = A_θ(q, M, C_{T_max}, H_{T_max})
+return â</div>
+
+<h2>4. Training Recipe — DA-GRPO와 데이터 큐레이션 (Section 3.3)</h2>
+
+<h3>4.1 Training Data Curation Pipeline</h3>
+
+<p>FineVideo, LongVideoBench, COCO 2017을 seed로 사용. 시작 seed set: $\mathcal{D}_0 = \{x_i = (q_i, \mathcal{M}_i, a_i, \mathcal{T}_i)\}_{i=1}^N$. 새로운 예제를 만들되 modality 파일은 그대로 유지. 큐레이션은 5단계:</p>
+
+<ol>
+  <li><strong>Seed Data 수집</strong>: FineVideo, LongVideoBench, COCO 2017 등.</li>
+  <li><strong>Rollout</strong>: Orchestra-o1(GPT-5)로 trajectory 수집. 각 trajectory를 annotated reasoning solution $r_i$ + difficulty level $\ell_i$로 변환.</li>
+  <li><strong>Anchor Facts 추출</strong>: LLM extractor가 $A_i = \{(f_{i,m}, \mu_{i,m}, e_{i,m})\}_{m=1}^{M_i}$ 생성. $f$는 anchor fact, $\mu$는 source modality, $e$는 supporting reasoning step. <strong>이 anchor는 "valid한 rewrite는 반드시 보존해야 하는 사실"</strong>.</li>
+  <li><strong>QA Rewrites</strong>: 5가지 전략 — pivot swapping, temporal shifting, numerical recombination, entity-sibling querying, multi-hop reordering. 형식적으로:</li>
+</ol>
+
+$$\tilde{x}_{i,k} \sim G_\omega(\cdot \mid x_i, A_i, z_{i,k}), \quad z_{i,k} \in \{A,B,C,D,E\} \tag{27}$$
+
+<p>제약: $\tilde{\mathcal{M}}_{i,k} = \mathcal{M}_i$ (modality 유지), $\tilde{\ell}_{i,k} = \ell_i$ (난이도 유지), $\tilde{\mathcal{T}}_{i,k} \subseteq \mathcal{T}_i$ (tool subset), $|\tilde{s}_{i,k} - s_i| \leq 2$ (reasoning step 차이 ±2). 쉬운 seed는 pivot swap/entity-sibling, 중간은 temporal/numerical, 어려운 seed는 numerical recomb/multi-hop reordering.</p>
+
+<ol start="5">
+  <li><strong>Filter & Verify (4-stage cascade)</strong>:</li>
+</ol>
+
+$$V(\tilde{x}_{i,k}) = \mathbb{1}\{\text{AnchorCov}(\tilde{q}_{i,k}, A_i) \geq 1\} \cdot \mathbb{1}\{\text{Sim}(q_i, \tilde{q}_{i,k}) \leq 0.85\} \cdot \mathbb{1}\{\text{Bypass}(\tilde{q}_{i,k}, \tilde{a}_{i,k}) = 0\} \cdot \mathbb{1}\{\text{NumCheck}(\tilde{r}_{i,k}, \tilde{a}_{i,k}) = 1\} \cdot \mathbb{1}\{\text{Judge}(\tilde{x}_{i,k}) = 1\} \tag{28}$$
+
+<p>각 게이트:</p>
+<ul>
+  <li><strong>AnchorCov</strong>: anchor fact를 최소 1개 이상 포함</li>
+  <li><strong>Sim</strong>: normalized lexical similarity $\leq 0.85$ (near-duplicate 제거)</li>
+  <li><strong>Bypass</strong>: modality 없이도 답이 나오면 reject (modality-bypass test). <strong>"이미지·오디오 안 봐도 풀 수 있는 문제"는 omnimodal benchmark로 부적절</strong></li>
+  <li><strong>NumCheck</strong>: code execution이나 numeric answer는 Python sandbox로 검증</li>
+  <li><strong>Judge</strong>: LLM judge가 factual consistency, difficulty preservation, peer-level duplication 확인</li>
+</ul>
+
+<p>모든 LLM-based processor(extractor, rewriter, verification judge)는 <strong>Claude-Opus-4.6</strong> 사용. 결과: 300 seed → 1500 raw candidate → 1200 verified examples. 각 trajectory $\tau = \{(s_t, y_t^*, Z_t)\}_{t=1}^N$에서 N개의 decision-level example $(s_t, y_t^*)$를 만들어 dense supervision.</p>
+
+<h3>4.2 DA-GRPO (Decision-aligned Group Relative Policy Optimization)</h3>
+
+<p><strong>왜 DA-GRPO인가</strong>: Standard GRPO는 same prompt에 대해 group of responses를 sampling하고 group 내 final-answer reward를 normalize해 advantage를 계산. 그러나 agent orchestration에서는 final-answer reward가 (a) sparse하고 (b) 전체 multi-agent system 실행 비용이 매우 비싸다.</p>
+
+<p><strong>DA-GRPO의 차별점</strong>: 매 main-agent decision을 현재 orchestration state에서 직접 평가. expert trajectory + rubric reward 사용.</p>
+
+<p>각 prompt $s_i$에 대해 G개 candidate decision $\{y_{i,j}\}_{j=1}^G$를 샘플. 각 decision은 4차원 reward로 평가:</p>
+
+$$r_{i,j} = \alpha_1 r_{i,j}^{\text{format}} + \alpha_2 r_{i,j}^{\text{action}} + \alpha_3 r_{i,j}^{\text{tool}} + \alpha_4 r_{i,j}^{\text{decision}} \tag{29}$$
+
+<ul>
+  <li>$r^{\text{format}}$: valid JSON 출력인가 (binary)</li>
+  <li>$r^{\text{action}}$: action이 valid arguments인가 (binary)</li>
+  <li>$r^{\text{tool}}$: tool/sub-task assignment가 reasonable한가 (graded, $[0,1]$)</li>
+  <li>$r^{\text{decision}}$: overall orchestration decision quality (graded, $[0,1]$)</li>
+</ul>
+
+<p>가중치: $\alpha_1 = \alpha_2 = 0.1, \alpha_3 = 0.2, \alpha_4 = 0.6$. <strong>format/action은 초기에도 잘 되므로 작게, tool/decision에 큰 가중치</strong>. Reward model은 <strong>Claude-Haiku-4.5</strong> 한 번 호출로 4 차원을 모두 평가.</p>
+
+<p><strong>Expert decision은 "유일한 정답"이 아니라 reference</strong> — 다른 합리적 decomposition도 보상받고, $\texttt{complete}$ decision은 답이 ground-truth와 일치할 때 최고 점수.</p>
+
+<p>Group advantage:</p>
+
+$$\hat{A}_{i,j} = \frac{r_{i,j} - \text{Mean}(\{r_{i,k}\}_{k=1}^G)}{\text{Std}(\{r_{i,k}\}_{k=1}^G) + \epsilon} \tag{30}$$
+
+<p>Clipped policy-gradient + KL regularizer:</p>
+
+$$\mathcal{L}_{\text{DA-GRPO}}(\theta) = -\mathbb{E}_{i,j}\left[ \min(\rho_{i,j}(\theta) \hat{A}_{i,j}, \text{clip}(\rho_{i,j}(\theta), 1-\epsilon, 1+\epsilon) \hat{A}_{i,j}) - \beta D_{\text{KL}}(\pi_\theta(\cdot|s_i) \| \pi_{\text{ref}}(\cdot|s_i)) \right] \tag{31}$$
+
+<p>$\rho_{i,j}(\theta) = \pi_\theta(y_{i,j}|s_i)/\pi_{\text{old}}(y_{i,j}|s_i)$. <strong>두 가지 이점</strong>: (1) 비싼 sub-agent trajectory를 매번 실행할 필요 없이 reconstructed state에서 offline scoring, (2) main agent core 책임(decompose/select tool/parallel schedule/stop)에 dense feedback.</p>
+
+<h2>5. Experiments (Section 4)</h2>
+
+<h3>5.1 Setup</h3>
+
+<table>
+  <tr><th>항목</th><th>설정</th></tr>
+  <tr><td>Benchmark</td><td>OmniGAIA (text/image/audio/video) — Easy/Medium/Hard, topic categories (Geo/Tech/Hist/Fin/Sport/Art/Movie/Sci/Food)</td></tr>
+  <tr><td>Proprietary main agent</td><td>GPT-5</td></tr>
+  <tr><td>Open-source main agent</td><td>Orchestra-o1-8B (Qwen3-8B base)</td></tr>
+  <tr><td>최대 orchestration round</td><td>10</td></tr>
+  <tr><td>Sub-agent max step</td><td>30</td></tr>
+  <tr><td>Tool set</td><td>image/audio/video analysis, web search, page visit, code execution (총 6개)</td></tr>
+  <tr><td>DA-GRPO 학습</td><td>8× H20 GPU, batch size 24, rollout group G=8, lr 5e-6, KL 계수 0.01, cosine decay, prompt 24576 / response 4096, 5 epoch</td></tr>
+</table>
+
+<h3>5.2 Main Result — Category-wise (Table 1)</h3>
+
+<table>
+  <tr><th>Method</th><th>Geo</th><th>Tech</th><th>Hist</th><th>Fin</th><th>Sport</th><th>Art</th><th>Movie</th><th>Sci</th><th>Food</th><th>Overall</th></tr>
+  <tr><td colspan="11"><strong>Open-Source</strong></td></tr>
+  <tr><td>Qwen3-Omni</td><td>8.7</td><td>14.3</td><td>7.5</td><td>28.0</td><td>10.8</td><td>13.9</td><td>9.1</td><td>15.4</td><td>22.2</td><td>13.3</td></tr>
+  <tr><td>OmniAtlas-Qwen-3-30B-A3B</td><td>10.1</td><td>30.6</td><td>29.9</td><td>32.0</td><td>18.9</td><td>16.7</td><td>12.1</td><td>11.5</td><td>27.8</td><td>20.8</td></tr>
+  <tr><td><strong>Orchestra-o1-8B (Ours)</strong></td><td><strong>21.7</strong></td><td><strong>32.7</strong></td><td><strong>37.9</strong></td><td>12.0</td><td><strong>29.7</strong></td><td>16.7</td><td><strong>45.5</strong></td><td><strong>38.5</strong></td><td><strong>38.9</strong></td><td><strong>30.0</strong></td></tr>
+  <tr><td colspan="11"><strong>Proprietary</strong></td></tr>
+  <tr><td>Gemini-3-Pro</td><td>65.2</td><td>59.2</td><td>62.1</td><td>72.0</td><td>78.4</td><td>52.8</td><td>48.5</td><td>42.3</td><td>88.9</td><td>62.5</td></tr>
+  <tr><td>AOrchestra-GPT-5</td><td>34.8</td><td>40.8</td><td>56.1</td><td>32.0</td><td>51.4</td><td>25.0</td><td>42.4</td><td>30.7</td><td>22.2</td><td>40.0</td></tr>
+  <tr><td><strong>Orchestra-o1-GPT-5 (Ours)</strong></td><td><strong>72.5</strong></td><td><strong>69.4</strong></td><td><strong>75.8</strong></td><td>64.0</td><td><strong>83.8</strong></td><td><strong>63.9</strong></td><td><strong>69.7</strong></td><td><strong>73.1</strong></td><td>83.3</td><td><strong>72.8</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>Orchestra-o1-GPT-5 vs. Gemini-3-Pro: ##overall +10.3% (62.5 → 72.8). Geo/Tech/Hist/Sport/Art/Sci에서 일관된 향상##. 단, Food(83.3 vs 88.9)은 약간 뒤짐 — strong native OLLM이 이미 잘하는 도메인.</li>
+  <li>Orchestra-o1-GPT-5 vs. AOrchestra-GPT-5: ##overall +32.8% (40.0 → 72.8)##. 같은 main agent를 써도 orchestration 디자인 차이가 매우 크다 — 이는 GPT-5 자체가 아닌 orchestration scaffold의 효과.</li>
+  <li>Orchestra-o1-8B (open): 30.0% — 30B-A3B 모델 대비 +9.2%로, ##8B로 30B-A3B를 능가##. DA-GRPO가 small model을 strong orchestrator로 만든다.</li>
+</ul>
+
+<h3>5.3 Difficulty-level Comparison (Figure 4)</h3>
+
+<table>
+  <tr><th>난이도</th><th>Orchestra-o1-GPT-5</th><th>AOrchestra-GPT-5</th><th>차이</th></tr>
+  <tr><td>Easy</td><td>80.3</td><td>45.1</td><td>+35.2</td></tr>
+  <tr><td>Medium</td><td>75.0</td><td>40.0</td><td>+35.0</td></tr>
+  <tr><td>Hard</td><td>56.4</td><td>32.1</td><td>+24.3</td></tr>
+</table>
+
+<p>Open-source: Orchestra-o1-8B Easy 36.1 / Medium 26.9 / Hard 26.9. <strong>Hard에서의 +24.3% 향상이 의미있다</strong> — hard task는 multi-step reasoning + heterogeneous evidence 필요. Dependency-aware decomposition + iterative evidence aggregation이 premature answering을 방지한다.</p>
+
+<h3>5.4 Efficiency Analysis (Figure 5)</h3>
+
+<table>
+  <tr><th>Method</th><th>Accuracy</th><th>Cost ($)</th><th>Running Time (h)</th></tr>
+  <tr><td>AOrchestra-GPT-5</td><td>40.0</td><td>565.7</td><td>85.30</td></tr>
+  <tr><td>Orchestra-o1-GPT-5</td><td><strong>72.8</strong></td><td><strong>341.6</strong></td><td><strong>61.73</strong></td></tr>
+</table>
+
+<p>##Accuracy는 1.82×, Cost는 0.60×, Time은 0.72×##. Cost 효율성의 두 가지 원천:</p>
+<ol>
+  <li><strong>Parallel sub-task execution</strong>: 동일 round 안에서 independent sub-task를 동시에 → wall-clock latency 감소.</li>
+  <li><strong>Explicit backend/tool selection</strong>: easy sub-task는 cheap model로 라우팅 → 불필요한 expensive call 차단.</li>
+</ol>
+
+<h3>5.5 Ablation: Agent Harness (Figure 6)</h3>
+
+<p><strong>실험 의도</strong>: orchestration framework의 효과인가, 아니면 단순히 GPT-5 backend 덕분인가?</p>
+
+<table>
+  <tr><th>Method</th><th>Geo</th><th>Tech</th><th>Hist</th><th>Fin</th><th>Sport</th><th>Art</th><th>Movie</th><th>Sci</th><th>Food</th><th>Overall</th></tr>
+  <tr><td>ReAct-GPT-5</td><td>46.4</td><td>57.1</td><td>71.2</td><td>52.0</td><td>62.2</td><td>30.6</td><td>48.5</td><td>50.0</td><td>59.6</td><td>53.9</td></tr>
+  <tr><td>Orchestra-o1-GPT-5</td><td>72.5</td><td>69.4</td><td>75.8</td><td>64.0</td><td>83.8</td><td>63.9</td><td>69.7</td><td>73.1</td><td>83.3</td><td>72.8</td></tr>
+  <tr><td>$\Delta$</td><td>+26.1</td><td>+12.3</td><td>+4.6</td><td>+12.0</td><td>+21.6</td><td>+33.3</td><td>+21.2</td><td>+23.1</td><td>+23.7</td><td><strong>+18.9</strong></td></tr>
+</table>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: 동일 GPT-5 backend로도 ##harness만 ReAct에서 Orchestra-o1로 바꾸면 +18.9%## — orchestration scaffold 자체가 강한 inductive bias. 특히 Art(+33.3), Geo(+26.1), Sci(+23.1) 등 specialized perception/external retrieval가 필요한 카테고리에서 큰 이득.</p>
+
+<h3>5.6 Ablation: Post-training Recipe (Table 2)</h3>
+
+<p><strong>실험 의도</strong>: SFT vs. vanilla GRPO vs. DA-GRPO. open-source main agent 학습 어떤 게 최선?</p>
+
+<table>
+  <tr><th>Framework</th><th>Model</th><th>Tools</th><th>Post-training</th><th>Accuracy</th></tr>
+  <tr><td>ReAct</td><td>Qwen3-8B</td><td>Omni</td><td>None</td><td>12.5</td></tr>
+  <tr><td>Orchestra-o1</td><td>Qwen3-8B</td><td>Omni</td><td>None</td><td>26.3</td></tr>
+  <tr><td>Orchestra-o1</td><td>Qwen3-8B</td><td>Omni</td><td>SFT</td><td>28.6</td></tr>
+  <tr><td>Orchestra-o1</td><td>Qwen3-8B</td><td>Omni</td><td>Vanilla GRPO</td><td>27.7</td></tr>
+  <tr><td>Orchestra-o1</td><td>Qwen3-8B</td><td>Omni</td><td><strong>DA-GRPO</strong></td><td><strong>30.0</strong></td></tr>
+</table>
+
+<p><strong>패턴</strong>:</p>
+<ul>
+  <li>Qwen3-8B를 ReAct에 그냥 넣으면 12.5% — 단독으로는 약하다.</li>
+  <li>Orchestra-o1 framework에 그냥 넣어도 26.3%로 +13.8 — ##framework scaffold가 강한 inductive bias##.</li>
+  <li>SFT 28.6, vanilla GRPO 27.7 — vanilla GRPO가 SFT보다 약간 떨어짐. ##sparse·weakly aligned RL은 main-agent orchestration에 부족##.</li>
+  <li>DA-GRPO 30.0 — decision-level alignment + rubric reward가 결정적.</li>
+</ul>
+
+<h3>5.7 Case Study (Figure 7)</h3>
+<p>Question: 오디오에서 "Mabon falls upon equinox on September 23 at 7:49 AM"; 이미지에서 Prague Astronomical Clock. 정답: Prague의 9월 timezone CEST (UTC+2)에서 7:49 - 2시간 = <strong>05:49 UTC</strong>.</p>
+
+<p>Orchestra-o1-GPT-5의 처리:</p>
+<ul>
+  <li><strong>Round 1 (parallel decomposition)</strong>: Sub-task 1 (audio) "이벤트 종류·날짜·local time 추출"; Sub-task 2 (image) "랜드마크·위치·timezone 식별". 두 sub-task는 ##서로 독립적이라 병렬 실행##.</li>
+  <li><strong>Observation</strong>: audio → "equinox on Sep 23 at 7:49 AM"; image → "Prague Astronomical Clock, Europe/Prague".</li>
+  <li><strong>Round 2 (cross-modal synthesis)</strong>: Prague September → CEST UTC+2 → 07:49 - 2 = 05:49 UTC.</li>
+</ul>
+
+<p>이 case가 주는 핵심: ##단순히 tool call을 더 부르는 게 아니라, specialized evidence 수집을 coordinate하고, structured context memory를 유지하며, 모든 evidence가 grounded될 때까지 final answer를 미루는 것##.</p>
+
+<h2>6. 비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>이론과 실험의 결합</strong>: 단순히 "agent system이 잘 된다"가 아니라, parallel speedup(Prop 1)과 information gain(Prop 2)를 정보이론으로 정당화. AOrchestra 같은 휴리스틱 baselines보다 설계가 더 principled.</li>
+  <li><strong>비용 효율성</strong>: 정확도 1.82× 향상하면서 비용 0.60×. 이는 production 환경에서 매우 유의미 — 단순히 SOTA를 달성하는 게 아니라 cost-frontier를 밀어낸다.</li>
+  <li><strong>DA-GRPO의 실용성</strong>: 비싼 multi-agent rollout을 매 RL step마다 안 해도 된다는 점이 critical. offline state reconstruction + 4-dim rubric scoring으로 dense supervision 가능.</li>
+  <li><strong>Open-source ablation</strong>: Qwen3-8B (12.5 → 30.0) 진척이 명확히 framework + DA-GRPO 양쪽 contribution으로 나뉜다.</li>
+</ul>
+
+<h3>약점·의문</h3>
+<ul>
+  <li><strong>OmniGAIA 단일 벤치마크</strong>: 모든 main result가 OmniGAIA에 의존. 이 벤치마크의 distribution이 Orchestra-o1의 decomposition 패러다임에 우호적일 가능성. 다른 vision-language agent benchmark(GAIA, AgentBench 등)에서의 검증이 부재.</li>
+  <li><strong>Capability vector $\phi(b), \psi(g), r(u)$의 추정</strong>: 수식 (5)(7)에서 capability score들이 어떻게 정해지는지 구체적이지 않다. 실제로는 prompt에 "이 모델은 X를 잘한다"고 적어주는 형태로 추정되는데, 이 prompt engineering의 robustness가 평가되지 않음.</li>
+  <li><strong>$\delta_t^{\text{sync}}$의 실제 측정</strong>: Proposition 1의 latency advantage는 동기화 오버헤드가 작다는 가정에 의존. 실제로 cloud API 호출의 동시성 한계, rate limiting, 외부 web search latency 변동성 등은 분석되지 않았다.</li>
+  <li><strong>1200 verified examples</strong>: DA-GRPO 학습 데이터가 1200개라는 것은 매우 작다. 더 큰 scale에서 reward saturation이나 over-fitting 양상은 어떨지 분석이 부재.</li>
+  <li><strong>LLM Judge 의존</strong>: Reward model이 Claude-Haiku-4.5. Haiku의 평가 편향이 학습된 정책에 그대로 전파될 수 있다. Reward hacking 가능성에 대한 분석이 없음.</li>
+  <li><strong>Standard deviation 미보고</strong>: Table 1, 2 어디에도 std나 multiple seed 결과가 없다 — single-run 결과로 보인다.</li>
+  <li><strong>Hard task에서의 절대 성능</strong>: open-source Orchestra-o1-8B의 Hard 정확도 26.9%, GPT-5 main agent도 56.4%로 ceiling이 멀다. dependency graph가 깊어지면 어디서 실패하는지 error analysis 부재.</li>
+  <li><strong>Information gain proposition의 가정</strong>: Prop 2의 가정 (i) "main agent는 evidence loss 없이 aggregate"는 실제로는 context compression(수식 20)으로 어느 정도 손실 발생. 가정과 알고리즘의 entail이 정확하게 맞지 않는다.</li>
+</ul>
+
+<h3>제안</h3>
+<ul>
+  <li>OmniGAIA 외에 GAIA-1, BrowseComp, AssistantBench 등에서의 cross-benchmark 검증.</li>
+  <li>Capability score를 prompt 외에 calibration set으로 학습하는 방법.</li>
+  <li>Hard task에서 dependency graph error의 taxonomy (e.g., wrong decomposition, premature stop, wrong backend matching).</li>
+  <li>DA-GRPO scale-up 실험 — 1200 → 12000 → 120000 examples로 scaling curve.</li>
+</ul>
+
+</div>
+
+<h2>7. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Modality-aware decomposition + parallel execution + dynamic backend matching</strong>의 세 가지 디자인 축은 omnimodal agent design의 새로운 design pattern. 단일 OLLM의 한계가 보일 때 직접 채택할 가치가 있다.</li>
+  <li><strong>DA-GRPO의 step-level rubric reward 디자인</strong>: format/action/tool/decision 4차원으로 weighted sum. format/action은 작게(0.1), 의미있는 결정에 큰 가중치(0.6)를 — 다른 agent RL 학습에도 응용 가능한 일반 원칙.</li>
+  <li><strong>Cost-aware backend matching (수식 5)</strong>: $\arg\max_b \langle r(u), \phi_b \rangle - \lambda_c \kappa_b \ell(u) - \lambda_l \delta_b$ — 능력·단가·latency를 한 식으로 — 직접 implementation 가능한 형태.</li>
+  <li><strong>Modal-bypass test로 데이터 정제</strong>: omnimodal benchmark/training data를 만들 때 "modality 없이도 풀리는 문제"는 reject 해야 함. 이건 데이터 품질 관리에서 무시되기 쉬운데, 실제로 training signal을 흐린다.</li>
+  <li><strong>Information gain perspective</strong>: 분업이 정보이론적으로 이득이라는 framing은, agent system을 hand-wave 하지 않고 분석하는 출발점을 제공한다. 다른 agent paper를 읽을 때 information bottleneck 관점으로 분석하면 inductive bias의 형태가 명확해진다.</li>
+  <li><strong>비용 frontier 이동</strong>: 정확도 ↑ + 비용 ↓ 동시 달성은 흔치 않다. parallelism + backend tier matching이 실무에 직접 적용 가능한 lever.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
