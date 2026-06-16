@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeThinker-3B — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #0c4a6e, #0369a1, #06b6d4);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.2; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 720px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #0c4a6e; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #0369a1, #06b6d4); border-radius: 3px; }
+  section h3 { font-size: 1.2rem; font-weight: 700; margin: 1.5rem 0 0.8rem; color: #0369a1; }
+  section p { margin-bottom: 1rem; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card h3 { margin-top: 0; }
+  .card-accent { border-left: 5px solid #0369a1; }
+  .card-green  { border-left: 5px solid #059669; background: #f0fdf4; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; }
+  .card-red    { border-left: 5px solid #dc2626; background: #fef2f2; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #0369a1, #06b6d4);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+  .one-liner::before { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-right: 4px; }
+  .one-liner::after  { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-left: 4px; }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #0369a1, #06b6d4); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #0c4a6e; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; text-align: left; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f0f9ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; display: flex; align-items: center; gap: 0.5rem; }
+  .analogy-title::before { content: '💡'; font-size: 1.2rem; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #0369a1; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 140px; max-width: 180px; }
+  .step-box .step-num { font-size: 0.75rem; color: #0369a1; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #0369a1; padding: 0 0.4rem; }
+
+  /* ── Pill list ── */
+  .pill-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
+  .pill { background: #e0f2fe; color: #075985; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; border: 1px solid #bae6fd; }
+
+  /* ── Version link ── */
+  .version-link { text-align: center; margin: 1.5rem 0; }
+  .version-link a { display: inline-block; padding: 8px 24px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #f0f9ff; color: #0369a1; border: 1px solid #7dd3fc; transition: all 0.2s; }
+  .version-link a:hover { background: #0369a1; color: #fff; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 3rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">Sina Weibo Inc. (Weibo AI) &middot; 2026.06.15</div>
+  <h1>VibeThinker-3B</h1>
+  <p class="subtitle">단 30억 파라미터 모델이 1조 파라미터 모델과 수학·코딩에서 어깨를 나란히 한다 ―<br>
+  "작은 모델은 큰 모델의 대체재가 아니라, 새로운 길이다"</p>
+</div>
+
+<div class="container">
+
+  <!-- 버전 전환 -->
+  <div class="version-link" style="margin-top:1.5rem;">
+    <a href="20260615_xu_vibethinker3b.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+  <!-- ===== One-liner ===== -->
+  <section>
+    <div class="one-liner">
+      대형 모델이 모든 것을 외워야 한다는 통념을 깨고, <strong>"추론 능력은 작은 모델로도 압축 가능하다"</strong>는 새 가설을 실증한 3B 모델
+    </div>
+  </section>
+
+  <!-- ===== 한 컷 요약 ===== -->
+  <section>
+    <h2>한 컷 요약</h2>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#0369a1"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <!-- title -->
+        <text x="380" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#0c4a6e">AIME26 수학 올림피아드 성능 (점수)</text>
+        <!-- VibeThinker-3B -->
+        <rect x="60" y="60" width="640" height="40" rx="6" fill="#e0f2fe" stroke="#0369a1"/>
+        <rect x="60" y="60" width="604" height="40" rx="6" fill="url(#g1)"/>
+        <text x="80" y="86" font-size="14" font-weight="700" fill="#fff">VibeThinker-3B (3B) — 94.3 (+CLR 97.1)</text>
+        <!-- Kimi K2.5 -->
+        <rect x="60" y="120" width="640" height="40" rx="6" fill="#f1f5f9" stroke="#94a3b8"/>
+        <rect x="60" y="120" width="597" height="40" rx="6" fill="#94a3b8"/>
+        <text x="80" y="146" font-size="14" font-weight="700" fill="#fff">Kimi K2.5 (1T = 1,000,000,000,000 params) — 93.3</text>
+        <!-- DeepSeek V3.2 -->
+        <rect x="60" y="180" width="640" height="40" rx="6" fill="#f1f5f9" stroke="#94a3b8"/>
+        <rect x="60" y="180" width="603" height="40" rx="6" fill="#94a3b8"/>
+        <text x="80" y="206" font-size="14" font-weight="700" fill="#fff">DeepSeek V3.2 (671B) — 94.2</text>
+        <!-- GPT-5.high -->
+        <rect x="60" y="240" width="640" height="40" rx="6" fill="#f1f5f9" stroke="#94a3b8"/>
+        <rect x="60" y="240" width="565" height="40" rx="6" fill="#94a3b8"/>
+        <text x="80" y="266" font-size="14" font-weight="700" fill="#fff">Gemini 3 Pro — 91.7</text>
+        <!-- bottom note -->
+        <text x="380" y="320" text-anchor="middle" font-size="13" fill="#475569">3B 모델 1개가 ≈ 333배 큰 모델과 동급. 사이즈 비교: 1 vs 333.</text>
+        <text x="380" y="340" text-anchor="middle" font-size="11" fill="#64748b">(IMO-AnswerBench·HMMT·BruMO 등 다른 수학 벤치마크에서도 동일 패턴)</text>
+      </svg>
+      <div class="diagram-caption">VibeThinker-3B는 자기보다 200~333배 큰 flagship 모델들과 수학 reasoning에서 동급 성능을 보인다.</div>
+    </div>
+  </section>
+
+  <!-- ===== 배경 지식 ===== -->
+  <section>
+    <h2>먼저 알아둘 개념들</h2>
+    <p>이 논문이 무슨 의미인지 이해하려면 다음 다섯 가지 배경 지식을 알아야 한다. 각 개념을 하나씩 짚어본다.</p>
+
+    <!-- 1. 파라미터 = 모델 크기 -->
+    <div class="card card-accent">
+      <h3>① 모델 "파라미터" = AI의 뇌세포 수</h3>
+      <p>AI 언어 모델의 "크기"는 보통 <strong>파라미터 수</strong>로 표현된다. 파라미터는 모델 내부의 학습 가능한 숫자들의 총 개수로, 인간 뇌의 시냅스 수에 비유할 수 있다. B는 Billion(10억), T는 Trillion(1조)이다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">파라미터 규모별 모델 분류</text>
+          <!-- SLM box -->
+          <rect x="40" y="55" width="180" height="100" rx="10" fill="#dbeafe" stroke="#3b82f6"/>
+          <text x="130" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">SLM (Small)</text>
+          <text x="130" y="100" text-anchor="middle" font-size="12" fill="#1e3a8a">≤ 4B 파라미터</text>
+          <text x="130" y="120" text-anchor="middle" font-size="11" fill="#3b82f6">개인 GPU 가능</text>
+          <text x="130" y="135" text-anchor="middle" font-size="11" fill="#3b82f6">노트북 추론 가능</text>
+          <!-- Mid box -->
+          <rect x="240" y="55" width="180" height="100" rx="10" fill="#fef3c7" stroke="#d97706"/>
+          <text x="330" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">Medium</text>
+          <text x="330" y="100" text-anchor="middle" font-size="12" fill="#78350f">7B ~ 30B</text>
+          <text x="330" y="120" text-anchor="middle" font-size="11" fill="#92400e">고급 GPU 필요</text>
+          <text x="330" y="135" text-anchor="middle" font-size="11" fill="#92400e">서버 1대 ~ 소규모</text>
+          <!-- Large box -->
+          <rect x="440" y="55" width="180" height="100" rx="10" fill="#fee2e2" stroke="#dc2626"/>
+          <text x="530" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#7f1d1d">Large</text>
+          <text x="530" y="100" text-anchor="middle" font-size="12" fill="#7f1d1d">100B ~ 1T+</text>
+          <text x="530" y="120" text-anchor="middle" font-size="11" fill="#b91c1c">GPU 수십~수백</text>
+          <text x="530" y="135" text-anchor="middle" font-size="11" fill="#b91c1c">데이터센터 필요</text>
+          <!-- VibeThinker arrow -->
+          <text x="640" y="80" font-size="13" font-weight="700" fill="#0369a1">VibeThinker-3B</text>
+          <text x="640" y="100" font-size="12" fill="#0369a1">↓</text>
+          <text x="640" y="115" font-size="11" fill="#475569">SLM</text>
+          <text x="640" y="135" font-size="11" fill="#475569">(3B)</text>
+          <line x1="130" y1="160" x2="130" y2="175" stroke="#0369a1" stroke-width="2" marker-end="url(#arr)"/>
+          <defs>
+            <marker id="arr" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#0369a1"/></marker>
+          </defs>
+          <text x="380" y="190" text-anchor="middle" font-size="12" fill="#64748b">통념: 큰 모델일수록 똑똑하다 → "scaling law"</text>
+        </svg>
+      </div>
+      <p>일반적으로 "파라미터가 많을수록 똑똑하다"는 <strong>scaling law</strong>가 통용되었다. 그래서 ChatGPT 같은 강력한 reasoning 모델은 보통 100B 이상이며, 최근 모델은 1T(1조)에 달한다.</p>
+    </div>
+
+    <!-- 2. Reasoning vs Knowledge -->
+    <div class="card card-accent">
+      <h3>② "추론(reasoning)"과 "지식(knowledge)"은 다르다</h3>
+      <p>AI가 할 일은 크게 두 가지로 나눌 수 있다:</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- Reasoning side -->
+          <rect x="40" y="20" width="340" height="260" rx="14" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+          <text x="210" y="50" text-anchor="middle" font-size="16" font-weight="700" fill="#0c4a6e">🧮 추론 (Reasoning)</text>
+          <text x="210" y="80" text-anchor="middle" font-size="13" fill="#0369a1">"풀이"가 필요한 작업</text>
+          <line x1="60" y1="100" x2="360" y2="100" stroke="#0369a1" stroke-dasharray="3,3"/>
+          <text x="60" y="125" font-size="12" fill="#0c4a6e">• 수학 문제: x² + 3x - 4 = 0</text>
+          <text x="60" y="150" font-size="12" fill="#0c4a6e">• 코딩: 이진트리 순회 알고리즘</text>
+          <text x="60" y="175" font-size="12" fill="#0c4a6e">• 논리: "철수가 영희보다 키 크고..."</text>
+          <text x="60" y="200" font-size="12" fill="#0c4a6e">• 정답 검증 가능 (verifiable)</text>
+          <text x="60" y="225" font-size="12" fill="#0c4a6e">• 단계별 search + 제약 만족</text>
+          <text x="60" y="255" font-size="11" font-weight="700" fill="#0369a1">→ "방법"만 알면 되니 작은 모델로 OK</text>
+
+          <!-- Knowledge side -->
+          <rect x="400" y="20" width="340" height="260" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+          <text x="570" y="50" text-anchor="middle" font-size="16" font-weight="700" fill="#7f1d1d">📚 지식 (Knowledge)</text>
+          <text x="570" y="80" text-anchor="middle" font-size="13" fill="#dc2626">"기억"이 필요한 작업</text>
+          <line x1="420" y1="100" x2="720" y2="100" stroke="#dc2626" stroke-dasharray="3,3"/>
+          <text x="420" y="125" font-size="12" fill="#7f1d1d">• "프랑스 수도가 어디?"</text>
+          <text x="420" y="150" font-size="12" fill="#7f1d1d">• "이 약 부작용은?"</text>
+          <text x="420" y="175" font-size="12" fill="#7f1d1d">• "이 영화 감독은?"</text>
+          <text x="420" y="200" font-size="12" fill="#7f1d1d">• 사실 매핑 필요</text>
+          <text x="420" y="225" font-size="12" fill="#7f1d1d">• 광범위한 long-tail 정보</text>
+          <text x="420" y="255" font-size="11" font-weight="700" fill="#dc2626">→ 백과사전급 정보 보관 → 큰 모델 필요</text>
+        </svg>
+      </div>
+      <p>저자들의 핵심 통찰: <strong>"추론"은 작은 모델로 압축 가능</strong>하지만, <strong>"지식"은 모델 크기와 직결</strong>된다.</p>
+    </div>
+
+    <!-- 3. Verifiable Reward -->
+    <div class="card card-accent">
+      <h3>③ "검증 가능한(verifiable)" 보상이란?</h3>
+      <p>AI를 학습시킬 때, 답이 맞았는지 자동으로 확인할 수 있으면 큰 이점이 있다. 이를 <strong>verifiable reward</strong>라 한다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg">
+          <!-- 1. Math -->
+          <rect x="30" y="20" width="220" height="180" rx="12" fill="#f0fdf4" stroke="#059669"/>
+          <text x="140" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">수학</text>
+          <text x="140" y="80" text-anchor="middle" font-size="12" fill="#064e3b">문제: 2x + 3 = 7</text>
+          <text x="140" y="110" text-anchor="middle" font-size="12" fill="#064e3b">AI 답: x = 2</text>
+          <text x="140" y="140" text-anchor="middle" font-size="13" fill="#059669">↓ 자동 채점</text>
+          <text x="140" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#059669">✅ 정답</text>
+          <!-- 2. Code -->
+          <rect x="270" y="20" width="220" height="180" rx="12" fill="#f0fdf4" stroke="#059669"/>
+          <text x="380" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">코드</text>
+          <text x="380" y="80" text-anchor="middle" font-size="12" fill="#064e3b">"sort 함수 작성"</text>
+          <text x="380" y="110" text-anchor="middle" font-size="11" fill="#064e3b">AI: def sort(a): return ...</text>
+          <text x="380" y="140" text-anchor="middle" font-size="13" fill="#059669">↓ 100개 test 실행</text>
+          <text x="380" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#059669">✅ 100/100 통과</text>
+          <!-- 3. Open-ended -->
+          <rect x="510" y="20" width="220" height="180" rx="12" fill="#fef2f2" stroke="#dc2626"/>
+          <text x="620" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#7f1d1d">자유 응답</text>
+          <text x="620" y="80" text-anchor="middle" font-size="12" fill="#7f1d1d">"인생의 의미는?"</text>
+          <text x="620" y="110" text-anchor="middle" font-size="11" fill="#7f1d1d">AI: "...심오한 질문..."</text>
+          <text x="620" y="140" text-anchor="middle" font-size="13" fill="#dc2626">↓ 채점?</text>
+          <text x="620" y="170" text-anchor="middle" font-size="14" font-weight="700" fill="#dc2626">❓ 주관적</text>
+        </svg>
+      </div>
+      <p>수학과 코드처럼 정답을 명확히 판단할 수 있는 task는 학습 신호가 깨끗해서 RL이 잘 작동한다. VibeThinker-3B는 이 영역에 집중한다.</p>
+    </div>
+
+    <!-- 4. SFT + RL -->
+    <div class="card card-accent">
+      <h3>④ AI는 어떻게 학습하는가: SFT → RL</h3>
+      <p>현대 LLM의 학습은 보통 다음 단계를 거친다:</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+          <rect x="20" y="40" width="180" height="100" rx="10" fill="#f1f5f9" stroke="#475569"/>
+          <text x="110" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#1e293b">1. Pre-training</text>
+          <text x="110" y="95" text-anchor="middle" font-size="11" fill="#475569">인터넷 텍스트</text>
+          <text x="110" y="113" text-anchor="middle" font-size="11" fill="#475569">전체 학습</text>
+          <text x="110" y="131" text-anchor="middle" font-size="11" fill="#475569">→ 언어 능력</text>
+          <text x="110" y="160" text-anchor="middle" font-size="10" fill="#64748b">(Base Model)</text>
+
+          <path d="M205 90 L235 90" stroke="#0369a1" stroke-width="2" marker-end="url(#a2)"/>
+          <defs><marker id="a2" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#0369a1"/></marker></defs>
+
+          <rect x="240" y="40" width="180" height="100" rx="10" fill="#e0f2fe" stroke="#0369a1"/>
+          <text x="330" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#0c4a6e">2. SFT</text>
+          <text x="330" y="90" text-anchor="middle" font-size="11" fill="#0369a1">Supervised</text>
+          <text x="330" y="105" text-anchor="middle" font-size="11" fill="#0369a1">Fine-Tuning</text>
+          <text x="330" y="123" text-anchor="middle" font-size="11" fill="#0369a1">"정답 예시" 모방</text>
+          <text x="330" y="160" text-anchor="middle" font-size="10" fill="#64748b">(교과서 풀이를 따라하기)</text>
+
+          <path d="M425 90 L455 90" stroke="#dc2626" stroke-width="2" marker-end="url(#a3)"/>
+          <defs><marker id="a3" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#dc2626"/></marker></defs>
+
+          <rect x="460" y="40" width="180" height="100" rx="10" fill="#fef2f2" stroke="#dc2626"/>
+          <text x="550" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#7f1d1d">3. RL</text>
+          <text x="550" y="90" text-anchor="middle" font-size="11" fill="#dc2626">Reinforcement</text>
+          <text x="550" y="105" text-anchor="middle" font-size="11" fill="#dc2626">Learning</text>
+          <text x="550" y="123" text-anchor="middle" font-size="11" fill="#dc2626">스스로 시도 → 보상</text>
+          <text x="550" y="160" text-anchor="middle" font-size="10" fill="#64748b">(시험 보면서 실력 ↑)</text>
+
+          <text x="380" y="200" text-anchor="middle" font-size="12" fill="#475569">SFT는 "흉내내기 단계", RL은 "능동적 학습 단계"</text>
+        </svg>
+      </div>
+      <p>SFT는 "다양한 풀이 방법을 알려주는 단계"이고, RL은 "직접 시도해보고 정답에 보상받는 단계"이다. VibeThinker-3B는 이 두 단계를 모두 세심하게 설계한다.</p>
+    </div>
+
+    <!-- 5. Curriculum -->
+    <div class="card card-accent">
+      <h3>⑤ Curriculum Learning: 쉬운 것부터 어려운 것으로</h3>
+      <p>사람이 산수→방정식→미적분 순으로 배우듯, AI도 단계적으로 가르치면 더 잘 배운다.</p>
+      <div class="analogy">
+        <div class="analogy-title">비유: 의대생 교육</div>
+        의대생은 1년차에 해부학·생리학(broad coverage)을 배우고, 4년차에 가서야 희귀 질환과 복잡 수술 케이스(hard reasoning)에 집중한다. 1학년부터 희귀 질환만 배우면 기초가 흔들리고, 평생 일반 의학만 배우면 전문성이 안 생긴다. VibeThinker-3B의 <strong>2-stage SFT</strong>는 이와 같은 발상이다.
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== 핵심 아이디어 ===== -->
+  <section>
+    <h2>VibeThinker-3B의 4단계 학습 파이프라인</h2>
+    <p>저자들은 3B 모델을 거대 모델 수준으로 끌어올리기 위해, 정교한 <strong>4단계 후처리(post-training) 파이프라인</strong>을 설계했다.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="stg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0369a1"/>
+            <stop offset="100%" stop-color="#06b6d4"/>
+          </linearGradient>
+        </defs>
+        <!-- Base -->
+        <rect x="320" y="20" width="160" height="50" rx="10" fill="#f1f5f9" stroke="#475569"/>
+        <text x="400" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#1e293b">Qwen2.5-Coder-3B (Base)</text>
+        <line x1="400" y1="70" x2="400" y2="90" stroke="#0369a1" stroke-width="2" marker-end="url(#ar)"/>
+        <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#0369a1"/></marker></defs>
+
+        <!-- Stage 1 -->
+        <rect x="120" y="95" width="560" height="80" rx="10" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+        <text x="400" y="120" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">Stage 1: Supervised Fine-Tuning (SFT) — 2단계 커리큘럼</text>
+        <text x="220" y="145" text-anchor="middle" font-size="11" fill="#0369a1">① Broad Coverage</text>
+        <text x="220" y="160" text-anchor="middle" font-size="10" fill="#475569">전체 영역 골고루 (5 epochs)</text>
+        <text x="580" y="145" text-anchor="middle" font-size="11" fill="#0369a1">② Hard-Reasoning</text>
+        <text x="580" y="160" text-anchor="middle" font-size="10" fill="#475569">긴 추론·어려운 문제만 (2 epochs)</text>
+        <path d="M320 152 L460 152" stroke="#0369a1" marker-end="url(#ar)"/>
+
+        <line x1="400" y1="175" x2="400" y2="195" stroke="#0369a1" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 2 -->
+        <rect x="120" y="200" width="560" height="80" rx="10" fill="#dbeafe" stroke="#0369a1" stroke-width="2"/>
+        <text x="400" y="225" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">Stage 2: Reasoning RL — Math → Code → STEM 순차</text>
+        <rect x="160" y="240" width="100" height="32" rx="6" fill="#fff" stroke="#0369a1"/>
+        <text x="210" y="260" text-anchor="middle" font-size="11" fill="#0c4a6e">📐 Math RL</text>
+        <text x="285" y="262" text-anchor="middle" font-size="14" fill="#0369a1">→</text>
+        <rect x="310" y="240" width="100" height="32" rx="6" fill="#fff" stroke="#0369a1"/>
+        <text x="360" y="260" text-anchor="middle" font-size="11" fill="#0c4a6e">💻 Code RL</text>
+        <text x="435" y="262" text-anchor="middle" font-size="14" fill="#0369a1">→</text>
+        <rect x="460" y="240" width="100" height="32" rx="6" fill="#fff" stroke="#0369a1"/>
+        <text x="510" y="260" text-anchor="middle" font-size="11" fill="#0c4a6e">🔬 STEM RL</text>
+        <text x="630" y="262" text-anchor="middle" font-size="10" fill="#475569">(+Long2Short)</text>
+
+        <line x1="400" y1="280" x2="400" y2="300" stroke="#0369a1" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 3 -->
+        <rect x="120" y="305" width="560" height="60" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+        <text x="400" y="330" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">Stage 3: Offline Self-Distillation</text>
+        <text x="400" y="350" text-anchor="middle" font-size="11" fill="#059669">각 단계의 좋은 풀이를 모아 → 하나의 통합 모델로 다시 압축</text>
+
+        <line x1="400" y1="365" x2="400" y2="385" stroke="#0369a1" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 4 -->
+        <rect x="120" y="390" width="560" height="60" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="400" y="415" text-anchor="middle" font-size="14" font-weight="700" fill="#78350f">Stage 4: Instruct RL</text>
+        <text x="400" y="435" text-anchor="middle" font-size="11" fill="#92400e">사용자 지시 따르는 능력 보강 (포맷·제약 준수)</text>
+
+      </svg>
+      <div class="diagram-caption">VibeThinker-3B의 전체 학습 파이프라인 — 각 단계가 명확한 역할을 갖는다.</div>
+    </div>
+
+    <h3>🧩 Stage 1: Supervised Fine-Tuning (모방 학습 단계)</h3>
+    <p>여기서는 모델에게 <strong>"이런 식으로 풀어보자"라는 다양한 예시를 충분히 보여준다</strong>. 핵심은 단순히 정답을 외우게 하는 게 아니라, "다양한 풀이 방법의 공간"을 넓혀주는 것이다.</p>
+    <div class="analogy">
+      <div class="analogy-title">비유: 요리학원</div>
+      좋은 요리학원은 한 가지 김치찌개 레시피만 가르치지 않는다. 신김치 버전, 돼지고기 버전, 참치 버전, 두부 추가 버전 등 <strong>같은 문제의 여러 풀이</strong>를 알려준다. 그래야 학생이 나중에 재료가 달라도 응용할 수 있다. VibeThinker의 "Diversity-Exploring Distillation"이 바로 이 발상 — 한 문제에 여러 풀이 경로를 모두 학습시킨다.
+    </div>
+
+    <h3>🎯 Stage 2: Reinforcement Learning (능동 학습 단계)</h3>
+    <p>SFT가 "교과서 따라하기"였다면, RL은 "실제 시험 보면서 점수 받기"다. 모델이 직접 답을 만들어보고, 자동으로 채점받은 결과(reward)로 더 잘 만들도록 학습한다.</p>
+    <p>핵심 알고리즘은 <strong>MGPO (MaxEnt-Guided Policy Optimization)</strong>인데, 그 핵심 아이디어는 다음과 같다:</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">MGPO: 어떤 문제로 학습할까?</text>
+
+        <!-- Too easy -->
+        <rect x="40" y="55" width="200" height="180" rx="12" fill="#f0fdf4" stroke="#059669"/>
+        <text x="140" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">😐 너무 쉬운 문제</text>
+        <text x="140" y="115" text-anchor="middle" font-size="11" fill="#064e3b">"1 + 1 = ?"</text>
+        <text x="140" y="140" text-anchor="middle" font-size="11" fill="#064e3b">10번 답 중 10번 정답</text>
+        <text x="140" y="170" text-anchor="middle" font-size="20" fill="#059669">→ ❌ 학습 X</text>
+        <text x="140" y="195" text-anchor="middle" font-size="11" fill="#475569">이미 잘 알고 있음</text>
+        <text x="140" y="215" text-anchor="middle" font-size="11" fill="#475569">건너뛰기</text>
+
+        <!-- Just right -->
+        <rect x="280" y="55" width="200" height="180" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="3"/>
+        <text x="380" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">🎯 적당한 문제</text>
+        <text x="380" y="115" text-anchor="middle" font-size="11" fill="#78350f">"이차방정식 풀이"</text>
+        <text x="380" y="140" text-anchor="middle" font-size="11" fill="#78350f">10번 중 5번 정답</text>
+        <text x="380" y="170" text-anchor="middle" font-size="20" fill="#d97706">→ ✅ 학습 ↑↑</text>
+        <text x="380" y="195" text-anchor="middle" font-size="11" fill="#475569">알듯 말듯한 영역</text>
+        <text x="380" y="215" text-anchor="middle" font-size="11" fill="#475569">집중 학습</text>
+
+        <!-- Too hard -->
+        <rect x="520" y="55" width="200" height="180" rx="12" fill="#fef2f2" stroke="#dc2626"/>
+        <text x="620" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#7f1d1d">😱 너무 어려운 문제</text>
+        <text x="620" y="115" text-anchor="middle" font-size="11" fill="#7f1d1d">"리만 가설 증명"</text>
+        <text x="620" y="140" text-anchor="middle" font-size="11" fill="#7f1d1d">10번 중 0번 정답</text>
+        <text x="620" y="170" text-anchor="middle" font-size="20" fill="#dc2626">→ ❌ 학습 X</text>
+        <text x="620" y="195" text-anchor="middle" font-size="11" fill="#475569">신호 없음</text>
+        <text x="620" y="215" text-anchor="middle" font-size="11" fill="#475569">시간 낭비</text>
+
+        <text x="380" y="265" text-anchor="middle" font-size="12" fill="#0c4a6e">정답률이 0.5에 가까운 "능력 경계" 문제에 집중 가중치 → 안정적·효율적 학습</text>
+      </svg>
+    </div>
+
+    <p>또한 Math RL 마지막에는 <strong>Long2Short</strong>이라는 영리한 단계를 추가한다:</p>
+
+    <div class="analogy">
+      <div class="analogy-title">비유: 우수 학생 답안의 "간결성 추가 점수"</div>
+      두 학생이 모두 수학 문제를 맞혔다. 한 명은 풀이가 5장, 다른 한 명은 1장. <strong>정답인 학생들 사이</strong>에서만 "더 간결한 풀이"에 추가 점수, "긴 풀이"에 약간 감점을 준다. 오답에는 손대지 않는다. 합산하면 정답률은 그대로지만 모델은 점차 짧고 명료한 풀이를 선호하게 된다.
+    </div>
+
+    <h3>🔄 Stage 3: Offline Self-Distillation (자기 증류)</h3>
+    <p>Math/Code/STEM 단계가 끝나면, 각 단계가 만들어낸 "좋은 풀이들"을 다시 모아 <strong>학생 모델에 재학습</strong>시킨다. 마치 한 학기 동안 가장 좋은 노트를 모아 시험 직전에 한꺼번에 복습하는 것과 같다.</p>
+
+    <h3>📋 Stage 4: Instruct RL (사용자 지시 따르기)</h3>
+    <p>모델이 수학·코드는 잘 풀어도 "200자 이내로, 한국어로, 마크다운 형식으로 써줘" 같은 <strong>복잡한 사용자 지시를 어기면</strong> 실제 사용성이 떨어진다. 이 단계는 그 부분을 보강한다.</p>
+  </section>
+
+  <!-- ===== Test-time Scaling: CLR ===== -->
+  <section>
+    <h2>CLR: 시험 보는 새로운 방식</h2>
+    <p>학습이 끝난 모델에게 더 어려운 문제를 풀게 할 때, 그냥 한 번 답하는 게 아니라 <strong>여러 번 답하고 검증해서 신뢰성을 높이는 방법</strong>이 있다. 이것이 <strong>CLR (Claim-Level Reliability Assessment)</strong>이다.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">CLR: Claim-Level 검증으로 답 신뢰도 높이기</text>
+
+        <!-- Problem -->
+        <rect x="280" y="50" width="200" height="50" rx="8" fill="#f1f5f9" stroke="#475569"/>
+        <text x="380" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1e293b">📝 문제 (예: AIME)</text>
+
+        <!-- Generate 32 traces -->
+        <path d="M380 100 L380 120" stroke="#0369a1" stroke-width="2" marker-end="url(#ar4)"/>
+        <defs><marker id="ar4" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#0369a1"/></marker></defs>
+        <rect x="200" y="125" width="360" height="40" rx="6" fill="#e0f2fe" stroke="#0369a1"/>
+        <text x="380" y="150" text-anchor="middle" font-size="12" font-weight="700" fill="#0c4a6e">Step 1: 32개의 풀이(trajectory) 생성</text>
+
+        <!-- Extract claims -->
+        <path d="M380 165 L380 185" stroke="#0369a1" stroke-width="2" marker-end="url(#ar4)"/>
+        <rect x="100" y="190" width="560" height="60" rx="6" fill="#dbeafe" stroke="#0369a1"/>
+        <text x="380" y="213" text-anchor="middle" font-size="12" font-weight="700" fill="#0c4a6e">Step 2: 각 풀이에서 "핵심 주장(claim) 5개" + 최종답 추출</text>
+        <text x="380" y="237" text-anchor="middle" font-size="11" fill="#475569">예) "1단계: 인수분해 했음", "2단계: 양변에 2 곱함", "3단계: 정답 x=2"</text>
+
+        <!-- Self-verify -->
+        <path d="M380 250 L380 270" stroke="#0369a1" stroke-width="2" marker-end="url(#ar4)"/>
+        <rect x="100" y="275" width="560" height="40" rx="6" fill="#fef3c7" stroke="#d97706"/>
+        <text x="380" y="300" text-anchor="middle" font-size="12" font-weight="700" fill="#78350f">Step 3: 모델 자신이 각 주장을 "참/거짓" 판단 (v ∈ {0,1})</text>
+
+        <!-- Score -->
+        <path d="M380 315 L380 335" stroke="#0369a1" stroke-width="2" marker-end="url(#ar4)"/>
+        <rect x="100" y="340" width="560" height="35" rx="6" fill="#f0fdf4" stroke="#059669"/>
+        <text x="380" y="362" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">Step 4: 신뢰도 r = (평균)^5 → 모든 주장이 참이어야 1, 하나라도 거짓이면 급락</text>
+      </svg>
+    </div>
+
+    <div class="analogy">
+      <div class="analogy-title">비유: 변호사의 "단계별 증거 검증"</div>
+      변호사가 법정에서 어떤 주장을 할 때, 5단계 논거를 든다고 하자. 단순 평균은 "5단계 중 4단계가 맞으면 80% 신뢰"라고 하지만, CLR은 "한 단계라도 거짓이면 전체가 무너진다"라는 보수적 기준이다. 거듭제곱 5는 그 보수성을 수학적으로 표현한 것이다 — <strong>0.8⁵ = 0.33</strong>이라 한 군데라도 어긋나면 신뢰도가 1/3로 떨어진다.
+    </div>
+
+    <p>이 방식 덕분에 <strong>AIME25 91.4 → 96.7</strong>, BruMO25 93.8 → 99.2 같은 추가 향상이 가능하다 (모델 파라미터 변경 없이).</p>
+  </section>
+
+  <!-- ===== 핵심 성과 ===== -->
+  <section>
+    <h2>핵심 성과 (숫자로 보기)</h2>
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="num">94.3</div>
+        <div class="label">AIME26 점수 (+CLR: 97.1)<br>1조 파라미터 모델과 동급</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">96.1%</div>
+        <div class="label">최근 LeetCode 콘테스트<br>(2026.04-05) 통과율</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">333×</div>
+        <div class="label">Kimi K2.5 (1T) 대비<br>크기 감소율</div>
+      </div>
+    </div>
+
+    <h3>다양한 수학·코딩 벤치마크 비교</h3>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>모델</th>
+          <th>크기</th>
+          <th>AIME26</th>
+          <th>IMO-Ans</th>
+          <th>LiveCodeBench</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight-row">
+          <td>VibeThinker-3B (+CLR)</td>
+          <td>3B</td>
+          <td>97.1</td>
+          <td>80.6</td>
+          <td>80.2</td>
+        </tr>
+        <tr>
+          <td>DeepSeek V3.2</td>
+          <td>671B (≈ 224× 큼)</td>
+          <td>94.2</td>
+          <td>78.3</td>
+          <td>80.8</td>
+        </tr>
+        <tr>
+          <td>GLM-5</td>
+          <td>744B (≈ 248× 큼)</td>
+          <td>95.8</td>
+          <td>82.5</td>
+          <td>85.5</td>
+        </tr>
+        <tr>
+          <td>Kimi K2.5</td>
+          <td>1T (≈ 333× 큼)</td>
+          <td>93.3</td>
+          <td>81.8</td>
+          <td>85.0</td>
+        </tr>
+        <tr>
+          <td>Gemini 3 Pro</td>
+          <td>N/A (수백 B+)</td>
+          <td>91.7</td>
+          <td>83.1</td>
+          <td>87.4</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p><strong>핵심 관찰</strong>: VibeThinker-3B는 자기보다 200~333배 큰 모델과 수학에서 어깨를 나란히 한다. LiveCodeBench도 80.2로 동급. 단 GLM-5/Gemini 3 Pro에는 코딩에서 약간 뒤짐.</p>
+
+    <h3>OOD(미공개 문제) 일반화: LeetCode 콘테스트</h3>
+    <p>학습 데이터에 절대 들어갈 수 없는 "<strong>방금 출제된 새 문제</strong>" 환경에서의 성능. 이는 모델이 단순 암기를 넘어 진짜로 알고리즘을 이해했는지를 보여준다.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 350" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">2026.04.25-05.31 LeetCode 콘테스트 통과율 (128문제)</text>
+
+        <!-- bars -->
+        <g font-size="12">
+          <text x="20" y="65" fill="#0c4a6e">GPT-5.3-Codex (top-tier)</text>
+          <rect x="225" y="50" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="50" width="500" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="66" fill="#1e293b" font-weight="700">100.0%</text>
+
+          <text x="20" y="100" fill="#0c4a6e">Gemini 3.1 Pro</text>
+          <rect x="225" y="85" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="85" width="496" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="101" fill="#1e293b" font-weight="700">99.2%</text>
+
+          <text x="20" y="135" fill="#0c4a6e">Gemini 3 Flash</text>
+          <rect x="225" y="120" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="120" width="485" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="136" fill="#1e293b" font-weight="700">96.9%</text>
+
+          <text x="20" y="170" fill="#0c4a6e" font-weight="700">VibeThinker-3B (3B)</text>
+          <rect x="225" y="155" width="500" height="22" rx="3" fill="#bae6fd"/>
+          <rect x="225" y="155" width="481" height="22" rx="3" fill="#0369a1"/>
+          <text x="735" y="171" fill="#0369a1" font-weight="700">96.1%</text>
+
+          <text x="20" y="205" fill="#0c4a6e">GPT-5.2</text>
+          <rect x="225" y="190" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="190" width="477" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="206" fill="#1e293b" font-weight="700">95.3%</text>
+
+          <text x="20" y="240" fill="#0c4a6e">Kimi K2.5 (1T)</text>
+          <rect x="225" y="225" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="225" width="453" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="241" fill="#1e293b" font-weight="700">90.6%</text>
+
+          <text x="20" y="275" fill="#0c4a6e">Claude Opus 4.6</text>
+          <rect x="225" y="260" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="260" width="434" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="276" fill="#1e293b" font-weight="700">86.7%</text>
+
+          <text x="20" y="310" fill="#0c4a6e">GLM-5 (744B)</text>
+          <rect x="225" y="295" width="500" height="22" rx="3" fill="#cbd5e1"/>
+          <rect x="225" y="295" width="383" height="22" rx="3" fill="#94a3b8"/>
+          <text x="735" y="311" fill="#1e293b" font-weight="700">76.6%</text>
+        </g>
+        <text x="380" y="345" text-anchor="middle" font-size="11" fill="#64748b">3B 모델이 1T·744B 모델을 OOD 코딩에서 능가 — "벤치마크 외움"이 아닌 "진짜 일반화"</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ===== Compression-Coverage Hypothesis ===== -->
+  <section>
+    <h2>핵심 가설: "압축 vs 보관"</h2>
+    <p>저자들은 결과를 단순한 "작은 모델도 잘한다"가 아니라 <strong>새 이론 프레임</strong>으로 정리한다.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="15" font-weight="700" fill="#0c4a6e">Parametric Compression-Coverage Hypothesis</text>
+
+        <!-- Left: Compressible -->
+        <rect x="30" y="55" width="340" height="290" rx="14" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+        <text x="200" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">🔧 압축 가능 (Dense Core)</text>
+        <text x="200" y="105" text-anchor="middle" font-size="12" fill="#0369a1">"방법론" — 추론 능력</text>
+        <line x1="50" y1="120" x2="350" y2="120" stroke="#0369a1" stroke-dasharray="3,3"/>
+        <text x="50" y="145" font-size="12" fill="#0c4a6e">✓ Search (탐색)</text>
+        <text x="50" y="170" font-size="12" fill="#0c4a6e">✓ Constraint satisfaction</text>
+        <text x="50" y="195" font-size="12" fill="#0c4a6e">✓ Error correction</text>
+        <text x="50" y="220" font-size="12" fill="#0c4a6e">✓ Multi-step composition</text>
+        <text x="50" y="245" font-size="12" fill="#0c4a6e">→ "재사용 가능한 코어"</text>
+        <line x1="50" y1="260" x2="350" y2="260" stroke="#0369a1" stroke-dasharray="3,3"/>
+        <text x="200" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#0c4a6e">예: AIME, IMO, LeetCode</text>
+        <text x="200" y="320" text-anchor="middle" font-size="14" font-weight="700" fill="#0369a1">→ 3B로 충분!</text>
+
+        <!-- Right: Coverage -->
+        <rect x="390" y="55" width="340" height="290" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+        <text x="560" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#7f1d1d">📚 광범위 (Wide Coverage)</text>
+        <text x="560" y="105" text-anchor="middle" font-size="12" fill="#dc2626">"백과사전" — 지식 능력</text>
+        <line x1="410" y1="120" x2="710" y2="120" stroke="#dc2626" stroke-dasharray="3,3"/>
+        <text x="410" y="145" font-size="12" fill="#7f1d1d">✓ Open-domain facts</text>
+        <text x="410" y="170" font-size="12" fill="#7f1d1d">✓ Concept matching</text>
+        <text x="410" y="195" font-size="12" fill="#7f1d1d">✓ Semantic association</text>
+        <text x="410" y="220" font-size="12" fill="#7f1d1d">✓ Long-tail scenario</text>
+        <text x="410" y="245" font-size="12" fill="#7f1d1d">→ "넓은 저장공간 필요"</text>
+        <line x1="410" y1="260" x2="710" y2="260" stroke="#dc2626" stroke-dasharray="3,3"/>
+        <text x="560" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#7f1d1d">예: GPQA-Diamond (지식)</text>
+        <text x="560" y="320" text-anchor="middle" font-size="14" font-weight="700" fill="#dc2626">→ 큰 모델 필요</text>
+      </svg>
+    </div>
+
+    <div class="analogy">
+      <div class="analogy-title">비유: 체스 엔진 vs 위키피디아</div>
+      Stockfish 같은 체스 엔진은 단지 <strong>수십 MB</strong>의 코드와 가중치만으로 세계 챔피언을 이긴다. 그러나 위키피디아 전체를 외우려면 <strong>수십 GB</strong>가 필요하다. 같은 "지능"이라도 종류가 다르다 — VibeThinker-3B는 "수학·코딩 엔진" 쪽에 모든 자원을 투입한 모델이고, "백과사전" 일은 큰 모델에게 맡긴다.
+    </div>
+
+    <p>이 가설을 받아들이면 두 가지 결론이 따라온다:</p>
+    <ul style="margin-left: 1.5rem;">
+      <li><strong>1.</strong> 작은 모델은 "compute-saving fallback"이 아니라 <strong>독립적인 길</strong>이다.</li>
+      <li><strong>2.</strong> 큰 모델은 "지식의 자연스러운 그릇", 작은 모델은 "추론 깊이의 압축기" — 보완 관계.</li>
+    </ul>
+  </section>
+
+  <!-- ===== 활용 분야 ===== -->
+  <section>
+    <h2>활용 분야</h2>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+        <!-- center -->
+        <circle cx="380" cy="190" r="60" fill="#0369a1"/>
+        <text x="380" y="190" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">VibeThinker-3B</text>
+        <text x="380" y="208" text-anchor="middle" font-size="11" fill="#fff">(3B reasoning core)</text>
+
+        <!-- 1 학교/교육 -->
+        <line x1="380" y1="130" x2="200" y2="60" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="200" cy="60" r="42" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="200" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#78350f">🎓 교육</text>
+        <text x="200" y="72" text-anchor="middle" font-size="10" fill="#78350f">수학 튜터링</text>
+
+        <!-- 2 코딩 보조 -->
+        <line x1="430" y1="135" x2="600" y2="60" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="600" cy="60" r="42" fill="#e0f2fe" stroke="#0369a1" stroke-width="2"/>
+        <text x="600" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">💻 코딩</text>
+        <text x="600" y="72" text-anchor="middle" font-size="10" fill="#0c4a6e">로컬 코파일럿</text>
+
+        <!-- 3 디바이스 -->
+        <line x1="320" y1="220" x2="120" y2="180" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="120" cy="180" r="42" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+        <text x="120" y="175" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">📱 엣지</text>
+        <text x="120" y="192" text-anchor="middle" font-size="10" fill="#065f46">스마트폰 추론</text>
+
+        <!-- 4 STEM 연구 -->
+        <line x1="440" y1="220" x2="650" y2="195" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="650" cy="195" r="42" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+        <text x="650" y="190" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d">🔬 STEM</text>
+        <text x="650" y="207" text-anchor="middle" font-size="10" fill="#7f1d1d">학술 연구</text>
+
+        <!-- 5 algo trading -->
+        <line x1="380" y1="250" x2="200" y2="320" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="200" cy="320" r="42" fill="#fce7f3" stroke="#be185d" stroke-width="2"/>
+        <text x="200" y="315" text-anchor="middle" font-size="11" font-weight="700" fill="#831843">💹 트레이딩</text>
+        <text x="200" y="332" text-anchor="middle" font-size="10" fill="#831843">알고 분석</text>
+
+        <!-- 6 비용절감 -->
+        <line x1="380" y1="250" x2="600" y2="320" stroke="#0369a1" stroke-width="2"/>
+        <circle cx="600" cy="320" r="42" fill="#fef9c3" stroke="#a16207" stroke-width="2"/>
+        <text x="600" y="315" text-anchor="middle" font-size="11" font-weight="700" fill="#713f12">💰 비용</text>
+        <text x="600" y="332" text-anchor="middle" font-size="10" fill="#713f12">API 대체</text>
+      </svg>
+    </div>
+
+    <p>특히 적합한 시나리오:</p>
+    <div class="pill-list">
+      <span class="pill">🎯 수학 문제 풀이</span>
+      <span class="pill">💻 알고리즘 코딩</span>
+      <span class="pill">🔐 데이터 외부 유출 불가</span>
+      <span class="pill">⚡ 응답 속도 중요</span>
+      <span class="pill">💰 API 비용 최소화</span>
+      <span class="pill">📱 노트북·엣지 디바이스</span>
+      <span class="pill">🧪 학술 reasoning 연구</span>
+    </div>
+  </section>
+
+  <!-- ===== 기존 대비 장점 ===== -->
+  <section>
+    <h2>기존 모델 대비 장점</h2>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>비교 축</th>
+          <th>대형 모델 (예: GLM-5 744B)</th>
+          <th>VibeThinker-3B</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>파라미터 수</td>
+          <td>744B</td>
+          <td class="highlight-row" style="background:#f0f9ff;">3B (248배 작음)</td>
+        </tr>
+        <tr>
+          <td>AIME26 수학</td>
+          <td>95.8</td>
+          <td class="highlight-row" style="background:#f0f9ff;">97.1 (+CLR)</td>
+        </tr>
+        <tr>
+          <td>최근 LeetCode</td>
+          <td>76.6%</td>
+          <td class="highlight-row" style="background:#f0f9ff;">96.1%</td>
+        </tr>
+        <tr>
+          <td>GPU 메모리</td>
+          <td>수백 GB (멀티 GPU)</td>
+          <td>~8-16GB (단일 GPU)</td>
+        </tr>
+        <tr>
+          <td>로컬 실행</td>
+          <td>불가</td>
+          <td>노트북·워크스테이션 가능</td>
+        </tr>
+        <tr>
+          <td>API 비용</td>
+          <td>비쌈</td>
+          <td>거의 무료 (셀프호스팅)</td>
+        </tr>
+        <tr>
+          <td>일반 지식 (GPQA-D)</td>
+          <td>86.0</td>
+          <td>70.2 (16점 뒤짐)</td>
+        </tr>
+        <tr>
+          <td>가중치 공개</td>
+          <td>일부만</td>
+          <td>완전 공개 (HF)</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== 한 줄 결론 ===== -->
+  <section>
+    <h2>한 줄 결론</h2>
+    <div class="one-liner">
+      VibeThinker-3B는 "작은 모델은 큰 모델의 대체재"가 아니라, <strong>"추론은 압축할 수 있고, 지식은 압축할 수 없다"</strong>는 새 가설의 실증적 증거다.
+    </div>
+  </section>
+
+  <!-- ===== 한계점 ===== -->
+  <section>
+    <h2>이 모델의 한계</h2>
+    <p>완벽한 모델은 아니다. 솔직하게 한계를 짚어보자.</p>
+
+    <div class="card card-orange">
+      <h3>⚠️ 일반 지식이 약하다</h3>
+      <p><strong>GPQA-Diamond 70.2</strong>는 Gemini 3 Pro의 91.9에 21점 뒤진다. 즉 대학원 수준의 일반 과학 지식, 사실 매핑, 광범위한 상식 질의에서는 큰 모델이 여전히 유리하다. "이 약의 부작용은?", "이 역사적 사건의 배경은?" 같은 질문은 VibeThinker-3B에게 어려울 수 있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Base 모델 의존성</h3>
+      <p>Qwen2.5-Coder-3B라는 <strong>이미 코드·수학 특화 base</strong>에서 시작했다. 같은 파이프라인이 Llama-3나 일반 base 모델에서도 작동할지는 미검증. 즉 "3B면 다 된다"가 아니라 "좋은 base + 정교한 파이프라인"이 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Ablation 부재</h3>
+      <p>2-stage SFT, Long2Short, CLR, Self-Distillation, Instruct RL 중 <strong>어느 단계가 결정적인지</strong> 분리 실험이 없다. 특히 CLR은 +2~5점의 큰 boost를 주는데, 추론 시 비용(추정 1280배 추가 inference)에 대한 분석도 부족.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Multi-turn / Agent 미평가</h3>
+      <p>모든 벤치마크가 단일 응답 기반. <strong>다중 대화, 도구 사용, 장기 agent 작업</strong>에서의 성능은 평가되지 않아 실제 챗봇/agent 응용 범위는 불명.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ CLR 비교의 공정성</h3>
+      <p>CLR은 VibeThinker에만 적용된 test-time scaling. <strong>다른 모델에도 같은 기법을 적용하면 얼마나 더 향상될지</strong>는 미평가. "+CLR이 적용된 VibeThinker가 적용 안 된 GLM-5와 동급"이라는 비교는 약간의 불균형이 있다.</p>
+    </div>
+  </section>
+
+  <!-- ===== 산업적 의미 ===== -->
+  <section>
+    <h2>왜 중요한가</h2>
+
+    <div class="card card-green">
+      <h3>🌍 AI 접근성 확대</h3>
+      <p>지금까지 reasoning 능력은 OpenAI, Google, Anthropic 같은 대형 사업자의 API를 통해서만 접근 가능했다. VibeThinker-3B는 <strong>중소기업·대학·개인 개발자도 자기 GPU에서 직접 frontier reasoning을 실행</strong>할 수 있게 만든다.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>💸 비용 구조의 근본적 변화</h3>
+      <p>1T 모델 한 번 호출 ≈ 3B 모델 수천 번 호출. 수학·코드처럼 verifiable한 영역에서 <strong>"내장 처리(on-device)"</strong>로 처리 가능해진다. 모바일 디바이스의 수학 튜터, 로컬 코드 보조 등이 현실적이 된다.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>🔬 연구 방향성 전환</h3>
+      <p>"무조건 더 크게(scaling law)"라는 일방향에서, <strong>"reasoning은 작게, knowledge는 크게"</strong>의 이원적 연구 방향을 제시. 작은 reasoning 코어 + 큰 knowledge retriever (RAG)의 결합 아키텍처가 차세대 시스템의 표준이 될 가능성.</p>
+    </div>
+  </section>
+
+  <!-- 버전 전환 -->
+  <div class="version-link" style="margin-top:3rem;">
+    <a href="20260615_xu_vibethinker3b.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+</div>
+
+<div class="footer">
+  논문: VibeThinker-3B: Exploring the Frontier of Verifiable Reasoning in Small Language Models<br>
+  저자: Sen Xu, Shixi Liu, Wei Wang 외 · Sina Weibo Inc. · 2026.06.15<br>
+  arXiv: <a href="https://arxiv.org/abs/2606.16140" style="color:#0369a1;">2606.16140</a> · <a href="https://github.com/WeiboAI/VibeThinker" style="color:#0369a1;">GitHub</a> · <a href="https://huggingface.co/WeiboAI/VibeThinker-3B" style="color:#0369a1;">Hugging Face</a>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VibeThinker-3B: Exploring the Frontier of Verifiable Reasoning in Small Language Models</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>VibeThinker-3B: Exploring the Frontier of Verifiable Reasoning in Small Language Models</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260615_xu_vibethinker3b_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Sen Xu, Shixi Liu, Wei Wang, Jixin Min, Yingwei Dai, Zhibin Yin, Yirong Chen, Xin Zhou, Junlin Zhang</li>
+  <li><strong>소속</strong>: Sina Weibo Inc. (Weibo AI)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (Technical Report)</li>
+  <li><strong>연도</strong>: 2026 (Date: June 15, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.16140">arXiv:2606.16140</a> · <a href="https://github.com/WeiboAI/VibeThinker">GitHub</a> · <a href="https://huggingface.co/WeiboAI/VibeThinker-3B">Hugging Face</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Frontier-level reasoning은 통상 수십~수백 B 파라미터의 거대 모델이 필요하다는 가정이 일반적이다. SLM(Small Language Model, ≤3B)은 "deployment-efficient fallback"으로만 간주되어 왔다. 그러나 ##compact model의 "진짜 능력 한계"##는 어디까지인가? 3B dense model이 ##GLM-5(744B), Kimi K2.5(1T), Gemini 3 Pro 같은 flagship과 verifiable reasoning task에서 어깨를 나란히 할 수 있는가##?</li>
+  <li><strong>해결</strong>: VibeThinker-1.5B의 후속작 VibeThinker-3B. ##Spectrum-to-Signal Principle (SSP)## 기반 post-training pipeline을 확장 -- (1) 2-stage curriculum SFT (broad coverage → hard reasoning), (2) Math/Code/STEM 순차 RL with MGPO + Long2Short, (3) Offline Self-Distillation, (4) Instruct RL의 4단계로 reasoning 능력을 증폭한다.</li>
+  <li><strong>왜 작동하는가</strong>: ##Parametric Compression-Coverage Hypothesis## -- foundational capability는 두 종류로 나뉜다: (a) <strong>parameter-dense compressible</strong> 능력 (verifiable reasoning -- search/constraint satisfaction/error correction을 structured solution space에서 수행), (b) <strong>parameter-expansive coverage</strong> 능력 (open-domain knowledge -- 광범위한 사실/개념/long-tail 매핑). Verifiable reasoning은 (a)에 속하므로 작은 모델로 압축 가능하다는 통찰.</li>
+  <li><strong>비유</strong>: 백과사전을 외워야 하는 일(open-domain knowledge)에는 두꺼운 책장이 필요하지만, 같은 chess engine을 만드는 일(reasoning)에는 작고 정교한 코어만 있으면 된다. VibeThinker-3B는 백과사전 노릇은 포기하고 "수학·코딩 코어" 하나에 모든 파라미터를 투입한 모델이다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SLM이 Frontier Reasoning에 도달함을 실증</strong>: ##3B dense model이 AIME26 94.3 (CLR 적용시 97.1), HMMT25 89.3, IMO-AnswerBench 76.4를 달성##하여 DeepSeek V3.2 (671B), GLM-5 (744B), Kimi K2.5 (1T), Gemini 3 Pro 같은 flagship과 경쟁. Parameter-scale에 대한 기존 통념을 직접적으로 도전.</li>
+  <li><strong>완성된 4-Stage Post-Training Pipeline</strong>: VibeThinker-1.5B 대비 (a) Curriculum-based 2-stage SFT, (b) Multi-domain sequential RL (Math→Code→STEM), (c) Long2Short Math RL for efficiency, (d) Offline Self-Distillation, (e) Instruct RL을 통합한 ##end-to-end pipeline##을 제시. 단순 scale-up이 아닌 "더 완전한 post-training system".</li>
+  <li><strong>Long2Short Math RL</strong>: Accuracy 최적화 후 token-efficiency를 위해 ##정답 trajectory 내부에서만 reward를 redistribute하여 zero-sum으로 길이를 단축##. 정답률 손실 없이 redundant token 감소.</li>
+  <li><strong>Claim-Level Reliability Assessment (CLR)</strong>: Test-time scaling 전략. Trajectory 전체가 아닌 ##decision-relevant claims(M=5)을 추출하여 self-verification##, $r_k = (\frac{1}{M}\sum v_{k,m})^M$로 non-linear aggregation. AIME25 91.4→96.7, BruMO25 93.8→99.2, HMMT25 89.3→95.4 추가 향상.</li>
+  <li><strong>Parametric Compression-Coverage Hypothesis</strong>: ##Reasoning은 압축 가능, knowledge는 압축 불가##라는 새 가설. GPQA-Diamond (knowledge-heavy) 갭은 잔존(70.2)하지만 verifiable reasoning은 격차 해소. SLM 연구를 위한 ##구조적 이론 프레임##을 제공.</li>
+  <li><strong>OOD Generalization 입증</strong>: 최근(2026.04.25–05.31) LeetCode 콘테스트에서 ##96.1% (123/128) acceptance rate##, GPT-5.2와 Gemini 3 Flash에 근접하는 unseen-algorithm 문제 해결력.</li>
+  <li><strong>Reasoning-Knowledge Decoupling Paradigm</strong>: Large model = "natural vehicle for expansive knowledge breadth", Small model = "encapsulator of high-density reasoning depth". SLM은 LLM의 대체재가 아니라 ##보완적 (complementary) trajectory##임을 명시화.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>RL이 post-training의 핵심 단계로 자리잡으면서, 대형 모델의 복잡한 logical reasoning 능력이 크게 향상되었다. 현재 분야의 통념은 "어려운 reasoning task의 임계점을 넘기 위해서는 scaling law를 따라 파라미터 수를 늘려야 한다"는 것이다. 결과적으로 frontier-level reasoning은 tens~hundreds of billions 파라미터 모델에 집중되어 왔다. 반면 SLM (≤3B)은 deployment cost, inference efficiency, academic accessibility에서 명확한 장점을 가지지만, 어려운 수학적 유도나 복잡한 프로그래밍 과제에서는 ##inherent bottleneck##을 가진다고 여겨졌다.</p>
+
+<p>저자들의 이전 연구 VibeThinker-1.5B (Xu et al., 2025; arXiv:2511.06221)는 ##극도로 작은 모델도 stable한 logical chain을 생성할 수 있음##을 보였다. 그러나 1.5B 모델은 "feasibility 입증"에 그쳤고, ##상한선##은 미지로 남았다. 이로부터 본 논문의 핵심 질문이 도출된다:</p>
+
+<blockquote>
+"Instead of treating SLMs simply as compute-saving fallbacks, what is their true capability boundary? ##Can a strictly 3B model actually achieve frontier-level performance comparable to top-tier LLMs?##"
+</blockquote>
+
+<p>VibeThinker-3B는 1.5B 시리즈에서 도입한 ##Spectrum-to-Signal Principle (SSP)## 위에 post-training pipeline을 체계적으로 업그레이드한다:</p>
+<ul>
+  <li><strong>SFT</strong>: Data synthesis, quality filtering, curriculum learning을 강화 -- 수학/코드/STEM/일반 대화/instruction following에 대해 broad coverage 확보 후, 어려운 long-horizon reasoning sample에 집중</li>
+  <li><strong>RL</strong>: MGPO의 핵심 아이디어 유지 + multiple verifiable domain으로 확장 + more stable long-context strategy + ##Long2Short Math RL## 도입 (accuracy 손실 없이 redundant token 감소)</li>
+  <li><strong>Offline self-distillation + Instruct RL</strong>: 각 stage에서 발현된 능력을 통합 모델에 consolidate하고, 복잡 제약이 있는 user instruction에서의 controllability를 강화</li>
+</ul>
+
+<p>광범위한 평가 (data decontamination 적용)는 VibeThinker-3B가 ##strict 3B parameter budget만으로 leading reasoning system의 performance range에 도달##할 수 있음을 보여준다. 동시에 GPQA-Diamond (knowledge-heavy) 같은 벤치마크에서는 large-parameter 일반 모델과의 격차가 잔존한다 -- 이 비대칭성에서 저자들은 ##Parametric Compression-Coverage Hypothesis##를 제안한다.</p>
+
+<!-- ============================================================ -->
+<h2>2. Methods</h2>
+
+<h3>2.0 Overall Pipeline</h3>
+
+<p>VibeThinker-3B는 Qwen2.5-Coder-3B base 위에 ##staged post-training pipeline##을 구축한다. 전체 framework는 1.5B와 동일하게 <strong>Spectrum-to-Signal Principle (SSP)</strong>를 따른다:</p>
+<ul>
+  <li><strong>Spectrum (SFT 단계)</strong>: ##Diversity-Exploring Distillation##을 활용해 broad solution space 구성. SFT는 단일 정답 경로의 optimal imitation이 아니라 ##더 넓은 후보 솔루션 공간 구축##을 지향한다.</li>
+  <li><strong>Signal (RL 단계)</strong>: ##MaxEnt-Guided Policy Optimization (MGPO)##로 high-value reasoning signal을 amplify한다.</li>
+</ul>
+
+<h3>알고리즘 전체 흐름도 (Figure 3 재현)</h3>
+<div class="flow-diagram">Qwen2.5-Coder-3B Base
+       │
+       ▼
+┌─────────────────────────────────────┐
+│  Stage 1: Supervised Fine-Tuning    │
+│  ─────────────────────────────────  │
+│  Sub-stage 1: Broad Coverage SFT    │
+│    • Mix-domain SFT                 │
+│    • Diversity-Exploring Distill.   │
+│  Sub-stage 2: Hard-Reasoning SFT    │
+│    • Hard & Long-CoT Filtering      │
+│    • Diversity-Exploring Distill.   │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  Stage 2: Reasoning RL (MGPO)       │
+│  ─────────────────────────────────  │
+│  Math RL  (Accuracy → Efficiency)   │
+│       ↓     (Long2Short)            │
+│  Code RL                            │
+│       ↓                             │
+│  STEM RL                            │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  Stage 3: Offline Self-Distillation │
+│   (Math/Code/STEM checkpoints       │
+│    → unified student model)         │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────┐
+│  Stage 4: Instruct RL               │
+│    • Rubric-based Reward            │
+│    • Constraint Checking            │
+└──────────────┬──────────────────────┘
+               │
+               ▼
+        VibeThinker-3B</div>
+
+<p>1.5B와 비교한 핵심 변경점: (a) ##2-stage curriculum SFT## 도입, (b) MGPO를 ##multi-domain##으로 확장 + ##significantly expanded context window##, (c) Math RL 내부에 ##Long2Short stage## 추가, (d) Offline Self-Distillation + Instruct RL 통합으로 ##end-to-end system completeness## 확보.</p>
+
+<h3>2.1 Supervised Fine-Tuning</h3>
+
+<h4>2.1.1 Data Construction</h4>
+
+<p>SFT 단계는 ##multi-domain mixed supervised dataset##을 구성하여 후속 RL을 위한 stable cold-start policy를 제공한다. 데이터셋은 수학/코드/STEM reasoning, general chat, instruction following을 포괄한다.</p>
+
+<p><strong>Data Synthesis and Query Expansion</strong>: 자동 data synthesis pipeline을 통해 training query coverage를 확장한다.</p>
+<ul>
+  <li><strong>Seed query 선정 기준</strong>: 신뢰성 있는 supervision signal을 가진 query만 선택 -- 수학 query는 명시적·신뢰성 있는 정답 또는 풀이 근거(rationale)를 가져야 하며, 경쟁 프로그래밍 query는 신뢰성 있는 unit test 또는 실행 가능한 evaluation rule을 가져야 한다.</li>
+  <li><strong>Query rewriting & expansion</strong>: 검증된 seed sample을 기반으로 ##다양한 차원으로 query rewrite 및 expansion## -- concept composition, problem-solving skeleton, constraint, evaluation objective 등 (derivative query 생성).</li>
+  <li><strong>Pseudo-labeling</strong>: Synthetic query에 대해 strong teacher model로 ##multiple independent samplings## + ##majority voting##으로 pseudo-label 생성.</li>
+</ul>
+
+<p><strong>Multi-path Reasoning Distillation</strong>: 수학/코드/STEM reasoning-intensive sample에 대해 ##multi-path distillation## 적용. Single standard solution이 아니라 ##multiple candidate reasoning trace 전체##를 유지. 이로써 SFT phase가 ##diverse valid methods를 cover하는 solution spectrum 구축## 역할을 맡게 되며, 다양한 decomposition method, derivation path, verification strategy를 학습 -- 후속 on-policy sampling에서 exploration diversity 향상.</p>
+
+<p><strong>Multi-level Quality Control</strong>:</p>
+<ol>
+  <li><strong>N-gram-based filtering</strong>: 비정상적 반복 segment, templated degeneration pattern, evaluation set과의 n-gram overlap 제거. <strong>저질 generation과 benchmark contamination 동시 제거</strong>.</li>
+  <li><strong>LLM-based Query Quality Filtering</strong>: Capable LLM이 query 품질 평가 -- 불완전 description, 비합리적 조건, invalid logic, knowledge point가 평가 불가능한 sample 제거.</li>
+  <li><strong>Trace Correctness Filtering</strong>: Distilled response level에서 answer verification + code sandbox execution + LLM majority voting의 조합으로 reasoning trace screening. 잘못된 final answer, 실행 실패, evidently invalid reasoning step 모두 제거.</li>
+</ol>
+
+<p>품질 통제된 데이터는 ##reasoning chain length와 problem difficulty 기준##으로 stratify되어 curriculum SFT를 위한 데이터 기반을 구성한다.</p>
+
+<h4>2.1.2 Training Process</h4>
+
+<p><strong>Curriculum-based two-stage SFT strategy</strong>: 1.5B와 달리 ##2-stage curriculum SFT## 채택.</p>
+
+<p><strong>Stage 1: Broad Capability Coverage and Behavioral Cold Start</strong></p>
+<ul>
+  <li>전체 quality-filtered reasoning dataset 사용 -- task type과 reasoning pattern의 다양성 극대화</li>
+  <li>Stage 1 data의 CoT length 변동이 크므로 ##sequence packing## 사용 (training efficiency)</li>
+  <li>Optimizer: global batch size <strong>128</strong>, initial LR <strong>$5 \times 10^{-5}$</strong></li>
+  <li>LR schedule: cosine annealing, minimum $8 \times 10^{-8}$</li>
+  <li>Epochs: <strong>5</strong>, 5% linear warmup</li>
+</ul>
+
+<p><strong>Stage 2: Hard-Reasoning Concentration</strong></p>
+<ul>
+  <li>Stage 1 final checkpoint에서 초기화, ##higher-difficulty + longer-horizon## sample subset에 집중</li>
+  <li><strong>Joint length-difficulty filtration</strong>:
+    <ol>
+      <li>Reasoning trace ≥5K tokens인 sample만 유지 (shallow reasoning 제거)</li>
+      <li>VibeThinker-1.5B를 reference model로, query당 ##8 independent rollouts## 수행하여 ##error rate &lt; 0.75인 비교적 쉬운 문제 제거##</li>
+    </ol>
+  </li>
+  <li>이 filtering으로 long-horizon logical derivation, complex constraint satisfaction, advanced problem-solving 비중 증가</li>
+  <li>Stage 1과 동일한 hyperparameter 유지, hard-sample subset에서 추가 <strong>2 epochs</strong></li>
+</ul>
+
+<p><strong>Diversity-Exploring Distillation (양 stage에 적용)</strong>: VibeThinker-1.5B에서 도입한 핵심 기법. SSP에 따라 ##SFT는 단일 솔루션 경로의 optimal imitation이 아니라 broader candidate solution space 구축##을 목표로 한다 -- 후속 RL에 더 풍부한 exploration basis를 제공.</p>
+
+<p><strong>Domain-specific specialist 병합 전략</strong>: Training 중 ##주기적으로 intermediate checkpoint 저장##, domain-specific probing set에서 Pass@K 평가. 각 도메인마다 ##highest Pass@1이 아니라 "more valid solutions를 생성하는 checkpoint"##를 specialist로 선정. 그 후 ##parameter level에서 merge##하여 unified SFT model 생성. 결과 모델은 domain-specific reasoning을 유지하면서 ##high output diversity##를 보존 → 후속 단계에 wider solution spectrum 제공.</p>
+
+<h3>2.2 Reinforcement Learning</h3>
+
+<h4>2.2.1 Algorithm Backbone: MGPO</h4>
+
+<p>핵심 RL 알고리즘으로 1.5B에서 도입한 <strong>MaxEnt-Guided Policy Optimization (MGPO)</strong>를 그대로 재사용. SSP 관점에서:</p>
+<ul>
+  <li><strong>SFT는 diverse solution space를 구축</strong></li>
+  <li><strong>RL은 그 안의 올바른 reasoning signal을 amplify</strong></li>
+  <li>MGPO는 이 amplify 역할을 ##모델의 현재 capability boundary 근처에 있는 prompt를 동적으로 선택##함으로써 수행</li>
+</ul>
+
+<p><strong>수식 정의</strong>. 각 prompt $q$에 대해, old policy로부터 $G$개의 response를 sampling하고 verifiable reward로 평가하여 empirical group accuracy를 계산:</p>
+
+$$p(q) = \frac{1}{G}\sum_{i=1}^{G} \mathbb{I}(r_i = 1). \tag{1}$$
+
+<p>직관적으로 말하면, $p(q)\approx 0$인 prompt는 너무 어려워 positive signal이 거의 없고, $p(q)\approx 1$인 prompt는 이미 saturated이다. MGPO는 ##intermediate correctness(약 0.5)##를 가진 prompt에 높은 weight를 부여:</p>
+
+$$w(q) = \exp\big(-\gamma D_{\mathrm{ME}}(p(q) \| p_0)\big), \quad p_0 = 0.5,\ \gamma > 0. \tag{2}$$
+
+<p>여기서 $D_{\mathrm{ME}}(p(q)\|p_0)$은 empirical correctness $p(q)$가 maximum-entropy point 0.5에서 얼마나 벗어났는지를 측정하는 양이다. 값이 작을수록 prompt가 ##current capability boundary에 가깝다##는 의미 -- 정답과 오답이 공존하는 영역.</p>
+
+<p>이 weight를 GRPO-style clipped objective의 group-relative advantage 안에 곱한다:</p>
+
+$$\mathcal{J}_{\mathrm{MGPO}}(\theta) = \mathbb{E}_{q,\{y_i\}}\!\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|y_i|}\sum_{t=1}^{|y_i|}\min\!\left(\rho_{i,t}(\theta)w(q)A_i,\ \mathrm{clip}(\rho_{i,t}(\theta),1-\varepsilon,1+\varepsilon)w(q)A_i\right)\right] \tag{3}$$
+
+<p>여기서 $A_i$는 group-relative advantage, $\rho_{i,t}(\theta)$는 token-level probability ratio, $\varepsilon$은 clipping coefficient. 직관적으로 말하면, ##maximum-entropy 원리##에 영감을 받은 이 weighting은 RL update가 ##sufficient uncertainty를 가진 prompt##에 집중하도록 유도하여, stable하고 healthy한 gradient signal을 만든다. 또한 ##high-probability token에 대한 over-optimization을 완화##하고 noisy token의 부정적 영향을 줄인다.</p>
+
+<p><strong>3B에서의 안정화 조정</strong>: Core MGPO formulation은 유지하면서 training stability를 위한 조정 추가. Rollout engine이 inference throughput을 위해 점점 더 최적화되면서, ##training-inference probability mismatch가 multiple implementation factor에 의해 점진적으로 amplify##되는 현상을 관찰. 이 mismatch는 RL training을 destabilize 또는 collapse시킬 수 있다. Fang & Khazi 2025 ("Mismatch Praxis"), Yao et al. 2025 ("Your efficient RL framework secretly brings you off-policy RL training")의 stabilization 전략을 채택하고 ##모든 RL stage를 on-policy manner로 수행##.</p>
+
+<h4>2.2.2 Multi-domain Reasoning RL</h4>
+
+<p>MGPO를 ##수학, 코드, STEM##의 multi-domain verifiable reasoning task에 적용. 공통의 policy optimization framework를 사용하되 reward source와 verification mechanism은 도메인별로 상이:</p>
+<table>
+  <tr><th>Domain</th><th>Reward source</th></tr>
+  <tr><td>Mathematics</td><td>Final-answer verification</td></tr>
+  <tr><td>Code</td><td>Sandbox execution + test cases</td></tr>
+  <tr><td>STEM</td><td>Answer matching + option verification</td></tr>
+</table>
+
+<p><strong>Training Data</strong>: 모든 도메인에서 reliable supervision signal + 엄격한 ##benchmark decontamination##. 또한 RL 시작 전 ##starting checkpoint 기준으로 accuracy가 정확히 0.0 또는 1.0인 sample을 filter out## -- 이미 saturated이거나 너무 어려운 sample을 미리 제거.</p>
+
+<p><strong>Single Long-context Learning (1.5B와의 차이점)</strong>: Luo et al. 2025 ("DeepScaler")는 ##progressive context-window expansion## 기반의 multi-stage RL을 제안하여 training efficiency와 final performance를 모두 개선. VibeThinker-1.5B에서도 유사한 현상이 관찰되었다 -- 점진적 context window 확대가 더 나은 성능을 더 낮은 training cost로 달성.</p>
+
+<p>그러나 ##이 결론이 VibeThinker-3B에는 성립하지 않음##을 발견. ##High-truncation early stage가 long-thinking capability를 약화##시키고, policy를 incomplete 또는 overly shortened reasoning trajectory로 편향시킨다. 저자들은 이 reversal이 ##더 강한 RL initialization checkpoint## 때문이라고 가설을 세움 -- 1.5B 대비 3B는 stricter SFT data quality control을 거쳐 invalid reasoning pattern이 적다. 결과적으로 high-truncation warm-up은 noisy thinking trace를 제거하기보다 ##기존의 high-quality long-horizon reasoning behavior를 disrupt##한다.</p>
+
+<p>따라서 ##단일 64K long-context window##로 RL을 직접 수행, rollout truncation을 줄이고 long-horizon reasoning trajectory를 더 잘 보존한다.</p>
+
+<p><strong>Training Strategy (Sequential Multi-domain)</strong>: Figure 3과 같이 ##sequential multi-domain Reasoning RL pipeline## 채택:</p>
+<ol>
+  <li><strong>Math RL</strong> 먼저 -- long-horizon symbolic reasoning, complex condition composition, multi-step search 능력 강화</li>
+  <li><strong>Code RL</strong>로 smooth transition -- executable logic의 rigor, boundary-case handling, program constraint satisfaction 개선</li>
+  <li><strong>STEM RL</strong> 마지막 -- 다학제적 scientific scenario에 underlying logical reasoning ability를 일반화, knowledge utilization과 cross-domain reasoning 강화</li>
+</ol>
+
+<p>각 RL stage 이후 checkpoint를 보존하여 후속 ##offline self-distillation phase##에서 사용 -- 서로 다른 stage에서 발현된 high-quality reasoning trajectory를 모아 모델의 overall reasoning capability를 추가 consolidate.</p>
+
+<h4>Long2Short Math RL: From Accuracy to Efficiency</h4>
+
+<p>VibeThinker-3B는 ##two-stage RL strategy## 채택 ('from accuracy to efficiency'):</p>
+<ul>
+  <li><strong>Stage 1 (Accuracy)</strong>: Standard MGPO로 accuracy 최적화 -- 모델이 reasoning process를 fully unfold하고 diverse solution path를 explore.</li>
+  <li><strong>Stage 2 (Long2Short)</strong>: Math RL 단계 후반에 ##token-efficiency optimization##을 위한 stage 추가 -- redundant reasoning 감소, output efficiency 개선, validation set 성능 유지가 목표.</li>
+</ul>
+
+<p><strong>핵심 수식 (length-aware reward shift)</strong>. Binary correctness reward $r_i \in \{0,1\}$가 주어지면, ##incorrect trajectory는 unchanged##, correct set $\mathcal{C} = \{i\,|\,r_i=1\}$에서만 reward를 redistribute. Brevity score는 ##response length의 역수##:</p>
+
+$$s_i = 1/L_i, \quad \text{where } L_i = \text{response length}.$$
+
+<p>그리고 ##centered length-aware reward shift##:</p>
+
+$$r_i' = r_i + \lambda \cdot \frac{s_i - \bar{s}}{\max_{j \in \mathcal{C}}|s_j - \bar{s}|}, \quad i \in \mathcal{C}, \tag{없음}$$
+
+<p>여기서 $\bar{s}$는 correct trajectory의 평균 brevity score, $\lambda$는 ##최대 redistribution 크기##를 제어 (default $\lambda = 0.2$). 모든 correct trajectory의 길이가 동일하면 reward는 unchanged.</p>
+
+<p>##Zero-sum property## (핵심 설계):</p>
+
+$$\sum_{i \in \mathcal{C}} (r_i' - r_i) = 0. \tag{없음}$$
+
+<p>직관적으로 말하면, correct set 내부에서만 reward를 ##재분배##하므로 ##correct subset의 평균 reward는 unchanged##이며, incorrect reward도 unchanged이므로 prompt group 전체의 평균 reward도 unchanged. 따라서 advantage estimation의 group-level baseline에 ##systematic shift를 도입하지 않으면서##, correct trajectory 간의 ##상대 선호도##만 더 concise한 reasoning path 쪽으로 reshape한다. ##짧은 정답에 양의 보너스, 긴 정답에 음의 패널티##가 부여되어 redundancy가 자연 감소.</p>
+
+<h3>2.3 Offline Self-Distillation</h3>
+
+<p>Multi-domain Reasoning RL 완료 후, ##Math, Code, STEM RL stage의 checkpoint와 data filtering##을 함께 사용하여 high-quality reasoning pattern을 담은 ##offline trajectory##를 추출한다. 이 trajectory들은 SFT를 통해 ##unified student model##로 distill back되어, multi-domain reasoning capability를 더 stable하게 통합한다.</p>
+
+<p><strong>Learning-potential Filtering</strong>:</p>
+<ol>
+  <li>먼저 ##domain-specific verifier로 rejection sampling## 적용 -- 잘못된 trajectory 제거.</li>
+  <li>검증된 teacher trajectory에 대해, student model이 그것을 모방했을 때의 ##distillation value##를 추정하기 위해 ##learning potential score## 도입. Input $q$와 teacher trajectory $y$에 대해, student의 length-normalized negative log-likelihood:</li>
+</ol>
+
+$$S_{\mathrm{LP}}(q, y) = -\frac{1}{|y|}\sum_{t=1}^{|y|}\log \pi_{\theta_{\text{stu}}}(y_t | q, y_{<t}). \tag{4}$$
+
+<p>직관적으로 말하면, ##score가 높을수록 student가 이 trajectory를 잘 모델링하지 못함을 의미##하므로, distillation value가 높다 (즉 학습할 거리가 많다).</p>
+
+<p><strong>점수의 bias 방지를 위한 처리</strong>:</p>
+<ul>
+  <li>Sequence length나 abnormal token에 의해 점수가 편향되는 것을 방지하기 위해 ##trace를 globally rank하지 않음##</li>
+  <li>대신 ##domain-specific length bucket## 내에서 priority 계산</li>
+  <li>너무 짧은 trace는 ##소수의 abnormal token에 의해 평균 점수가 dominate되므로 제외##</li>
+  <li>너무 높은 outlier score도 ##format error, distributional shift, noisy sample 가능성##으로 제외</li>
+  <li>최종적으로 ##middle-to-high score range##의 verified trace를 우선 사용</li>
+  <li>Math, Code, STEM 도메인에 걸쳐 selected data를 ##mix##하여 offline self-distillation dataset 구성</li>
+</ul>
+
+<h3>2.4 Instruct RL</h3>
+
+<p>Reasoning-enhanced checkpoint를 ##더 reliable한 user-facing model##로 전환하기 위한 마지막 단계. Mixed instruction dataset 사용 -- format-sensitive prompt, long-context instruction, general alignment example을 포함.</p>
+
+<p><strong>Reward 구성</strong>:</p>
+<ul>
+  <li><strong>명시적 제약이 있는 sample</strong>: ##Rule-based validator로 reward 계산## -- format, ordering, item count, keyword constraint, task completion 등을 자동 확인</li>
+  <li><strong>Open-ended prompt</strong>: ##Rubric-based reward model##로 helpfulness, coherence, instruction adherence, redundancy 평가</li>
+</ul>
+
+<p>Constraint checking + rubric-based reward를 동일한 ##on-policy RL framework## 하에서 결합하여, Instruct RL은 strict controllability를 강화하면서 ##이전 단계의 reasoning ability를 유지##한다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Evaluation</h2>
+
+<h3>3.1 Evaluation Setup</h3>
+
+<h4>Benchmarks</h4>
+
+<p>광범위한 ##verifiable and instruction-oriented## 벤치마크에서 평가 -- 수학적 reasoning, code generation, scientific knowledge, instruction following을 cover:</p>
+
+<table>
+  <tr><th>Domain</th><th>Benchmarks</th></tr>
+  <tr><td>Mathematics</td><td>AIME25, AIME26, HMMT25, BruMO25, IMO-AnswerBench (IMO-Ans, 400 IMO-level problems)</td></tr>
+  <tr><td>Coding</td><td>LiveCodeBench v6, OJBench (competition-level)</td></tr>
+  <tr><td>Knowledge</td><td>GPQA-Diamond (graduate-level scientific reasoning)</td></tr>
+  <tr><td>Instruction</td><td>IFEval, IFBench</td></tr>
+  <tr><td>OOD generalization</td><td>최근 (2026.04.25–05.31) LeetCode Weekly/Biweekly Contests</td></tr>
+</table>
+
+<h4>Evaluation Protocol</h4>
+
+<ul>
+  <li><strong>Inference backend</strong>: vLLM</li>
+  <li><strong>Sampling params (기본)</strong>: temperature 1.0, top-$p$ = 0.95, top-$k$ = -1</li>
+  <li><strong>Output length</strong>: 모델의 maximum generation length까지 cap 없이 (long trajectory 허용)</li>
+  <li><strong>Math evaluation</strong>: 1.5B와 달리, ##math verify + LLM-as-judge 병용## -- IMO-AnswerBench처럼 답이 복잡 형태인 경우 rule-based verification만으로는 unreliable.</li>
+  <li><strong>Code evaluation</strong>: 생성한 solution을 해당 test와 실행</li>
+  <li><strong>Repeated sampling</strong>:
+    <ul>
+      <li>수학 벤치마크: 64 independent generation의 mean Pass@1 (단, IMO-AnswerBench는 16)</li>
+      <li>지식·코딩: 각각 16, 8 independent generation</li>
+    </ul>
+  </li>
+</ul>
+
+<h4>Test-time Scaling: Claim-Level Reliability Assessment (CLR)</h4>
+
+<p>일반적인 test-time scaling 기법은 trajectory 전체를 aggregate한다. CLR은 ##문제 해결의 결정에 영향을 미치는 중요 claim에 집중##하는 두 단계 절차:</p>
+
+<p><strong>Step 1 (Claim Extraction)</strong>: 표준 evaluation과 동일한 sampling parameter로 ##$K = 32$ candidate trajectory##를 problem당 생성. 각 trajectory에서 ##$M = 5$개의 decision-relevant claim##과 final answer 추출.</p>
+
+<p><strong>Step 2 (Self-Verification)</strong>: 모델 자신이 self-verifier 역할 -- 추출된 claim을 falsify 또는 validate하려 시도하여 ##binary verdict $v_{k,m} \in \{0, 1\}$## 산출.</p>
+
+<p><strong>Nonlinear trajectory-level reliability score</strong> -- intermediate logic에 flaw가 있는 trajectory를 ##heavy penalize##:</p>
+
+$$r_k = \left(\frac{1}{M}\sum_{m=1}^{M} v_{k,m}\right)^{M} \tag{5}$$
+
+<p>직관적으로 말하면, $M$ 거듭제곱은 ##claim 중 하나라도 falsify되면 reliability가 급격히 0으로 떨어지도록## 만든다 (모든 verdict가 1이어야 score가 1). 단순 평균이 아닌 ##conjunctive logic##으로, "all claims must hold"의 stricter standard.</p>
+
+<p><strong>Aggregation</strong>: Equivalence별로 candidate answer를 cluster하고 ##reliability-weighted aggregation##을 maximize하는 answer 선택:</p>
+
+$$\mathrm{Score}(G) = \sum_{\{k\,|\,y_k \in G\}} r_k. \tag{6}$$
+
+<p>해당 절차를 ##8회 독립 실행하여 averaged Pass@1을 "+CLR" 라인에 보고##. CLR은 모델 파라미터를 업데이트하지 않으면서 ##critical logical anchor만 처리##하여 token consumption을 줄이고 Pass@1을 consistently 개선.</p>
+
+<h3>3.2 Evaluation Results</h3>
+
+<h4>Overview</h4>
+
+<p>중심 질문은 1.5B 연구의 후속으로 ##"how much parameter capacity is needed for a small model to enter the performance band of first-tier reasoning systems?"##이다. Diversity-driven post-training paradigm을 유지하면서 1.5B → 3B로 scale-up한 결과, compact model의 reasoning capability는 parameter scale에 의해 linearly bound되지 않으며, 3B model은 ##"strong for its size"를 넘어 genuine first-tier competitiveness##로 이동.</p>
+
+<h4>Core Benchmark Performance (Table 1)</h4>
+
+<p><strong>Small / Mid-sized Reasoning Models 비교</strong>:</p>
+<table>
+  <tr><th>Model</th><th>Params</th><th>AIME25</th><th>AIME26</th><th>HMMT25</th><th>BruMO25</th><th>IMO-Ans</th><th>LCBv6</th><th>OJBench</th><th>GPQA-D</th><th>IFEval</th><th>IFBench</th></tr>
+  <tr><td>SmolLM3</td><td>3B</td><td>36.7</td><td>41.0</td><td>26.0</td><td>49.2</td><td>28.7</td><td>29.1</td><td>5.2</td><td>41.7</td><td>71.2</td><td>27.6</td></tr>
+  <tr><td>Hunyuan-4B-Instruct</td><td>4B</td><td>66.5</td><td>57.7</td><td>35.2</td><td>62.7</td><td>39.6</td><td>46.8</td><td>12.1</td><td>61.1</td><td>76.6</td><td>26.5</td></tr>
+  <tr><td>Qwen3-4B-Thinking-2507</td><td>4B</td><td>81.3</td><td>79.0</td><td>55.5</td><td>77.7</td><td>51.6</td><td>55.2</td><td>17.9</td><td>65.8</td><td>87.4</td><td>52.9</td></tr>
+  <tr><td>Qwen3.5-4B</td><td>4B</td><td>79.8</td><td>84.0</td><td>73.8</td><td>83.5</td><td>48.7</td><td>62.0</td><td>23.5</td><td>76.2</td><td>89.8</td><td>59.2</td></tr>
+  <tr><td>Olmo-3-Think</td><td>7B</td><td>67.9</td><td>69.1</td><td>43.8</td><td>69.0</td><td>49.4</td><td>52.6</td><td>15.6</td><td>46.2</td><td>77.9</td><td>30.0</td></tr>
+  <tr><td>Mimo7B-RL-0530</td><td>7B</td><td>70.2</td><td>76.0</td><td>48.5</td><td>79.8</td><td>53.9</td><td>52.2</td><td>20.2</td><td>60.6</td><td>59.7</td><td>31.6</td></tr>
+  <tr><td>OpenReasoning-Nemotron</td><td>7B</td><td>78.2</td><td>80.2</td><td>63.5</td><td>78.8</td><td>60.6</td><td>64.9</td><td>25.9</td><td>61.1</td><td>44.0</td><td>31.3</td></tr>
+  <tr><td>Gemma-4-it</td><td>12B</td><td>72.9</td><td>77.5</td><td>63.3</td><td>80.4</td><td>54.0</td><td>72.0</td><td>–</td><td>78.8</td><td>88.4</td><td>45.2</td></tr>
+  <tr><td>Phi4-Reasoning-Plus</td><td>14B</td><td>68.4</td><td>73.6</td><td>50.3</td><td>66.5</td><td>46.2</td><td>56.8</td><td>14.4</td><td>81.9</td><td>84.9</td><td>51.7</td></tr>
+  <tr><td>Ministral-3-Reasoning-2512</td><td>14B</td><td>82.9</td><td>85.0</td><td>67.1</td><td>86.7</td><td>63.4</td><td>66.0</td><td>15.1</td><td>71.2</td><td>73.9</td><td>32.3</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>VibeThinker-3B</strong></td><td><strong>3B</strong></td><td><strong>91.4</strong></td><td><strong>94.3</strong></td><td><strong>89.3</strong></td><td><strong>93.8</strong></td><td><strong>76.4</strong></td><td><strong>80.2</strong></td><td><strong>38.6</strong></td><td><strong>70.2</strong></td><td><strong>93.4</strong></td><td><strong>74.5</strong></td></tr>
+</table>
+
+<p><strong>Large Reasoning Models 비교 (선택)</strong>:</p>
+<table>
+  <tr><th>Model</th><th>Params</th><th>AIME25</th><th>AIME26</th><th>HMMT25</th><th>BruMO25</th><th>IMO-Ans</th><th>LCBv6</th><th>GPQA-D</th></tr>
+  <tr><td>GPT-OSS-20B (high)</td><td>20B</td><td>91.7</td><td>90.2</td><td>76.7</td><td>86.7</td><td>61.9</td><td>61.0</td><td>71.5</td></tr>
+  <tr><td>Nemotron-3-Nano</td><td>30B</td><td>89.1</td><td>90.1</td><td>–</td><td>–</td><td>70.4</td><td>68.3</td><td>73.0</td></tr>
+  <tr><td>GLM-4.5-Air</td><td>106B</td><td>83.3</td><td>–</td><td>69.2</td><td>90.0</td><td>–</td><td>70.7</td><td>75.0</td></tr>
+  <tr><td>Qwen3-235B-A22B-Thinking</td><td>235B</td><td>92.3</td><td>–</td><td>83.9</td><td>–</td><td>70.5</td><td>74.1</td><td>81.1</td></tr>
+  <tr><td>LongCat Flash</td><td>560B</td><td>90.6</td><td>–</td><td>83.7</td><td>–</td><td>–</td><td>79.4</td><td>81.5</td></tr>
+  <tr><td>GPT-5 Nano (high)</td><td>N/A</td><td>85.2</td><td>–</td><td>75.6</td><td>80.8</td><td>–</td><td>–</td><td>71.2</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>VibeThinker-3B</strong></td><td><strong>3B</strong></td><td><strong>91.4</strong></td><td><strong>94.3</strong></td><td><strong>89.3</strong></td><td><strong>93.8</strong></td><td><strong>76.4</strong></td><td><strong>80.2</strong></td><td><strong>70.2</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>같은 크기대(≤14B)</strong>: VibeThinker-3B가 ##수학 4개 벤치마크에서 모두 최고##, IMO-Ans 76.4로 ##2위 대비 +13.0##. AIME26은 94.3으로 14B 모델 Ministral-3 (85.0)을 ##9.3 포인트 앞섬##. OJBench 38.6 (비교 SLM 중 최고치인 Qwen3.5-4B (4B, 23.5)보다 15.1↑).</li>
+  <li><strong>중·대형 reasoning 모델 대비</strong>: GPT-OSS-20B와 비교했을 때 AIME26 94.3 vs 90.2, HMMT25 89.3 vs 76.7, IMO-Ans 76.4 vs 61.9로 ##수학에서는 우위##. LiveCodeBench v6에서도 80.2 vs 61.0으로 +19.2.</li>
+  <li><strong>GPQA-Diamond (Knowledge)</strong>: ##70.2로 일관된 갭 존재## -- Qwen3-235B-Thinking 81.1, LongCat Flash 81.5, Phi4-Reasoning-Plus(14B)의 81.9에도 뒤짐. 이것이 ##Parametric Compression-Coverage Hypothesis##의 실증적 근거.</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: Verifiable reasoning task에서는 reasoning이 "abstract search, constraint satisfaction, error correction"에 주로 의존하지 "parametric memorization"이 아니므로 ##3B 모델로 충분##. 반면 knowledge-heavy 평가는 ##broad encyclopedic knowledge##를 요구하므로 large-parameter 모델이 여전히 유리.</p>
+
+<h4>Comparison with Top-tier Reasoning Models (Table 2, with CLR)</h4>
+
+<p>비교 기준을 ##open-source flagship (GPT-OSS-120B, DeepSeek V3.2 671B, Kimi K2.5 1T, GLM-5 744B) + proprietary (Gemini 2.5 Pro, OpenAI o3, Grok 4, Claude Opus 4.5, GPT-5, Qwen3.6 Plus, Gemini 3 Pro)##로 격상.</p>
+
+<table>
+  <tr><th>Model</th><th>AIME25</th><th>AIME26</th><th>HMMT25</th><th>BruMO25</th><th>IMO-Ans</th><th>LCBv6</th><th>GPQA-D</th><th>IFEval</th><th>IFBench</th></tr>
+  <tr><td>DeepSeek V3.2 (671B)</td><td>93.1</td><td>94.2</td><td>90.2</td><td>96.7</td><td>78.3</td><td>80.8</td><td>82.4</td><td>92.6</td><td>60.7</td></tr>
+  <tr><td>Kimi K2.5 (1T)</td><td>96.1</td><td>93.3</td><td>95.4</td><td>98.3</td><td>81.8</td><td>85.0</td><td>87.6</td><td>93.9</td><td>70.0</td></tr>
+  <tr><td>GLM-5 (744B)</td><td>96.7</td><td>95.8</td><td>97.9</td><td>–</td><td>82.5</td><td>85.5</td><td>86.0</td><td>92.6</td><td>76.5</td></tr>
+  <tr><td>Gemini 3 Pro</td><td>96.0</td><td>91.7</td><td>97.5</td><td>98.3</td><td>83.1</td><td>87.4</td><td>91.9</td><td>–</td><td>70.4</td></tr>
+  <tr><td>GPT-5 (high)</td><td>94.6</td><td>–</td><td>88.3</td><td>91.7</td><td>76.0</td><td>84.5</td><td>85.7</td><td>–</td><td>73.1</td></tr>
+  <tr><td>Claude Opus 4.5</td><td>92.8</td><td>95.1</td><td>92.9</td><td>–</td><td>78.5</td><td>84.8</td><td>87.0</td><td>–</td><td>58.0</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>VibeThinker-3B</strong></td><td>91.4</td><td>94.3</td><td>89.3</td><td>93.8</td><td>76.4</td><td>80.2</td><td>70.2</td><td>93.4</td><td>74.5</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>+ CLR</strong></td><td><strong>96.7</strong></td><td><strong>97.1</strong></td><td><strong>95.4</strong></td><td><strong>99.2</strong></td><td><strong>80.6</strong></td><td>–</td><td><strong>72.9</strong></td><td>–</td><td>–</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Without CLR</strong>: AIME26 94.3는 DeepSeek V3.2 (94.2)와 ##동급##. BruMO25 93.8은 여러 large 모델을 초과.</li>
+  <li><strong>With CLR</strong>: AIME25 96.7 (GLM-5와 동급), ##AIME26 97.1## (최고), HMMT25 95.4 (Kimi K2.5와 동급), BruMO25 ##99.2## (최고), IMO-Ans 80.6, GPQA-D 70.2→72.9. CLR은 reliability-weighted aggregation 효과로 verifiable math에 큰 boost.</li>
+  <li><strong>GPQA-Diamond</strong>: CLR로도 70.2→72.9에 그침. Knowledge-heavy 벤치마크에서의 갭 잔존.</li>
+  <li><strong>IFBench 74.5</strong>: Instruct RL이 reasoning training의 부작용을 cancel out. 일부 큰 모델보다 오히려 instruction following이 우수.</li>
+</ul>
+
+<h4>OOD Generalization on Recent LeetCode Contests (Table 3)</h4>
+
+<p>2026.04.25–05.31 사이 LeetCode Weekly (W) 및 Biweekly (BW) contest 8개에서 평가. 각 contest 4문제, 문제당 4 independent rollout → contest당 16 first-attempt submission. Cell value $x/16$는 hidden test를 모두 통과한 submission 수.</p>
+
+<table>
+  <tr><th>Model</th><th>BW181</th><th>BW182</th><th>BW183</th><th>W499</th><th>W500</th><th>W502</th><th>W503</th><th>W504</th><th>Overall</th></tr>
+  <tr><td>GPT-5.3-Codex</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>100.0% (128/128)</td></tr>
+  <tr><td>Gemini 3.1 Pro</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>15/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>99.2% (127/128)</td></tr>
+  <tr><td>Gemini 3 Flash</td><td>16/16</td><td>16/16</td><td>12/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>96.9% (124/128)</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>VibeThinker-3B</strong></td><td>16/16</td><td>16/16</td><td>12/16</td><td>16/16</td><td>16/16</td><td>16/16</td><td>15/16</td><td>16/16</td><td><strong>96.1% (123/128)</strong></td></tr>
+  <tr><td>GPT-5.2</td><td>15/16</td><td>16/16</td><td>15/16</td><td>16/16</td><td>14/16</td><td>16/16</td><td>15/16</td><td>15/16</td><td>95.3% (122/128)</td></tr>
+  <tr><td>Doubao Seed 2.0 Pro</td><td>16/16</td><td>16/16</td><td>14/16</td><td>16/16</td><td>14/16</td><td>15/16</td><td>14/16</td><td>16/16</td><td>94.5% (121/128)</td></tr>
+  <tr><td>Qwen3-Max</td><td>16/16</td><td>16/16</td><td>12/16</td><td>16/16</td><td>10/16</td><td>15/16</td><td>16/16</td><td>16/16</td><td>91.4% (117/128)</td></tr>
+  <tr><td>Kimi K2.5</td><td>16/16</td><td>16/16</td><td>16/16</td><td>15/16</td><td>12/16</td><td>15/16</td><td>15/16</td><td>14/16</td><td>90.6% (116/128)</td></tr>
+  <tr><td>Claude Opus 4.6</td><td>15/16</td><td>16/16</td><td>12/16</td><td>16/16</td><td>12/16</td><td>16/16</td><td>15/16</td><td>9/16</td><td>86.7% (111/128)</td></tr>
+  <tr><td>Grok 4.1 Fast</td><td>15/16</td><td>15/16</td><td>11/16</td><td>13/16</td><td>13/16</td><td>12/16</td><td>9/16</td><td>11/16</td><td>77.3% (99/128)</td></tr>
+  <tr><td>GLM-5</td><td>15/16</td><td>14/16</td><td>12/16</td><td>14/16</td><td>8/16</td><td>16/16</td><td>12/16</td><td>7/16</td><td>76.6% (98/128)</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>VibeThinker-3B 96.1%</strong>: GPT-5.2 (95.3%), Doubao Seed 2.0 Pro (94.5%), Qwen3-Max (91.4%), Kimi K2.5 (90.6%), Qwen3.5-397B-A17B (89.8%), Claude 4.6 (86.7%), GLM-5 (76.6%)을 ##아래로##. Gemini 3 Flash (96.9%)에는 0.8%p 뒤짐.</li>
+  <li>이 벤치마크는 ##최근의, 다양한, execution-verified## task이므로 LiveCodeBench/OJBench의 정적 분포 fitting이 아닌 ##realistic competitive-programming evaluation protocol##에서 fresh algorithmic problem을 해결할 수 있음을 확인.</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: 모델이 단순히 ##static coding benchmark distribution##에 fitting된 것이 아니라, 진짜 ##unseen algorithmic problem##에 대한 robust OOD generalization을 보유. 3B 모델로 GLM-5 (744B)를 OOD 코딩에서 20%p 이상 능가하는 것은 reasoning core의 가설을 강하게 뒷받침.</p>
+
+<h4>Parameter Efficiency (Figure 2): IMO-AnswerBench</h4>
+
+<table>
+  <tr><th>Model</th><th>Params</th><th>Scale vs. 3B</th><th>IMO-Ans Score (%)</th></tr>
+  <tr style="background:#fff4e6;"><td><strong>VibeThinker-3B</strong></td><td>3B</td><td>1.0×</td><td>76.4 (+CLR: 80.6, frontier band)</td></tr>
+  <tr><td>Qwen3.5-4B</td><td>4B</td><td>1.3×</td><td>48.7</td></tr>
+  <tr><td>OpenReasoning-Nemotron</td><td>7B</td><td>2.3×</td><td>60.6</td></tr>
+  <tr><td>Ministral-3-Reasoning-2512</td><td>14B</td><td>4.7×</td><td>63.4</td></tr>
+  <tr><td>GPT-OSS-20B (high)</td><td>20B</td><td>6.7×</td><td>61.9</td></tr>
+  <tr><td>MiniMax M2.7</td><td>229B</td><td>76.3×</td><td>66.3</td></tr>
+  <tr><td>DeepSeek V3.2</td><td>671B</td><td>223.7×</td><td>78.3</td></tr>
+  <tr><td>GLM-5</td><td>744B</td><td>248.0×</td><td>82.5</td></tr>
+  <tr><td>Kimi K2.5</td><td>1T</td><td>333.3×</td><td>81.8</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>: ##76.4 (+ CLR 80.6)을 3B만으로 달성##하여 DeepSeek V3.2 (78.3, 223×), GLM-5 (82.5, 248×), Kimi K2.5 (81.8, 333×)의 성능 band에 진입. 이는 ##model의 verifiable reasoning capability가 parameter scale에 선형적으로 묶이지 않음##을 가장 직관적으로 보여주는 데이터.</p>
+
+<!-- ============================================================ -->
+<h2>4. 핵심 가설: Parametric Compression-Coverage Hypothesis</h2>
+
+<p>결과를 종합하여 저자들은 ##새로운 구조적 가설##을 제안한다 -- foundational model capability는 ##parameter 양뿐 아니라 그 structural form##에서도 차이를 가진다.</p>
+
+<table>
+  <tr><th>축</th><th>Parameter-Dense (Compressible)</th><th>Parameter-Expansive (Coverage)</th></tr>
+  <tr><td><strong>대표 능력</strong></td><td>Verifiable reasoning (math, code)</td><td>Open-domain knowledge, general competence</td></tr>
+  <tr><td><strong>핵심 challenge</strong></td><td>Search, constraint satisfaction, error correction, multi-step composition</td><td>광범위한 facts, concept, semantic association, long-tail 매핑</td></tr>
+  <tr><td><strong>Solution space</strong></td><td>Structured</td><td>Open / unstructured</td></tr>
+  <tr><td><strong>파라미터 demand</strong></td><td>Compact & reusable reasoning core로 압축 가능</td><td>광범위한 coverage 필요 → ##coverage problem##</td></tr>
+  <tr><td><strong>예시 벤치마크</strong></td><td>AIME, IMO-Ans, HMMT, LeetCode</td><td>GPQA-Diamond, 일반 지식 QA</td></tr>
+</table>
+
+<p>이 관점에서 VibeThinker-3B의 결과는 두 가지를 동시에 보여준다:</p>
+<ol>
+  <li>##Verifiable task에서는 large flagship에 필적## -- reasoning core compression이 실현 가능</li>
+  <li>##GPQA-Diamond 같은 knowledge-heavy benchmark에서는 갭 잔존## -- coverage problem은 parameter-dense compression으로 해결 불가</li>
+</ol>
+
+<p><strong>Reasoning-Knowledge Decoupling Paradigm</strong>: Parameter scaling은 여전히 broad model capability의 fundamental driver이지만, smaller model의 ##highly specialized potential##을 활용하는 새 paradigm을 제안한다.</p>
+<ul>
+  <li><strong>Large-scale model</strong>: 광범위한 semantic + long-tail 분포의 ##natural vehicle## -- knowledge breadth를 흡수하기 위해 inherently 큰 parameter capacity 필요</li>
+  <li><strong>Small model</strong>: Structurally constrained space + reliable training signal이 주어지면 ##high-density reasoning depth를 encapsulate## 가능</li>
+</ul>
+
+<p>저자들의 메시지: VibeThinker-3B의 ##진짜 의미는 "3B가 large model을 replace할 수 있다"가 아니라##, ##"compact model 개발은 더 이상 deployment efficiency만을 위한 passive compromise가 아니라, traditional scaling law와 fundamentally complementary한 promising research trajectory"##라는 empirical signal을 제공하는 것이다.</p>
+
+<!-- ============================================================ -->
+<h2>5. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>강력한 실증적 결과</strong>: ##3B로 GLM-5 (744B), Kimi K2.5 (1T)와 verifiable math에서 경쟁##하는 것은 그 자체로 인상적인 결과. AIME26 94.3 (CLR 97.1), HMMT25 89.3 (CLR 95.4), BruMO25 93.8 (CLR 99.2)는 검증 가능한 수치.</li>
+  <li><strong>OOD 일반화의 강력한 증거</strong>: 최근 LeetCode contest 96.1%는 ##벤치마크 contamination 가능성을 직접적으로 제거하는 평가##. 다른 large 모델보다 OOD 코딩에서 우위라는 것은 reasoning core 가설을 강화.</li>
+  <li><strong>완성된 pipeline의 체계성</strong>: SFT (2-stage curriculum) → multi-domain sequential RL → Long2Short → offline self-distillation → Instruct RL은 ##각 단계의 역할과 trade-off가 명료##하게 정리. 후속 연구의 reference architecture로 가치.</li>
+  <li><strong>Parametric Compression-Coverage Hypothesis의 명시화</strong>: 단순 "small model이 잘 한다"가 아니라, ##어떤 capability가 압축 가능하고 어떤 것이 아닌가에 대한 구조적 이론 프레임## 제시. GPQA-Diamond에서의 약점을 회피하지 않고 ##이론의 일부##로 흡수.</li>
+  <li><strong>Long2Short의 zero-sum 설계</strong>: Group-level baseline에 systematic shift를 도입하지 않으면서 길이를 단축하는 ##우아한 reward formulation##.</li>
+  <li><strong>Open weight + code 공개</strong>: GitHub와 Hugging Face에 공개 -- 검증과 후속 연구의 진입장벽 낮춤.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>GPQA-Diamond의 갭은 인정되지만 정량적 비교 부족</strong>: ##70.2 vs Qwen3-235B의 81.1 (10.9%p), Gemini 3 Pro의 91.9 (21.7%p) 차이##. Knowledge-heavy task에서 small model의 한계는 분명하며, "verifiable reasoning이 거의 모든 곳에서 통한다"라고 over-extrapolate하지 않도록 주의해야.</li>
+  <li><strong>Base model의 영향 미해명</strong>: Qwen2.5-Coder-3B를 base로 함 -- ##이미 코드/수학에 최적화된 base##에서 시작하는 것이 결과의 얼마를 설명하는가? "Plain Qwen2.5-3B"나 "Llama-3-3B"에서 동일 pipeline이 어떤 결과를 낼지는 불명.</li>
+  <li><strong>Ablation 부재</strong>: ##2-stage curriculum SFT, Long2Short, CLR, Offline Self-Distillation, Instruct RL이 각각 얼마나 기여하는지에 대한 ablation 누락##. Technical report 성격상 그러하나, 어느 구성요소가 결정적인지 알 수 없다. 특히 CLR은 +2~5%p의 큰 boost를 주는데, 이것이 ##test-time inference cost를 크게 늘리는지##에 대한 cost-quality trade-off 분석도 없음 (32 trajectory × 5 claim × verification × 8회 → 추정 ~1280× 추가 inference).</li>
+  <li><strong>Training compute / data scale 미공개</strong>: SFT data 규모, RL step 수, total GPU-hours 등 핵심 수치 부재. 재현성과 efficiency 평가가 어렵다.</li>
+  <li><strong>Reasoning vs knowledge dichotomy의 너무 깔끔한 이분법</strong>: 실제로는 reasoning에도 knowledge가 필요하고 (수학 정리, 알고리즘 패턴), knowledge 검색도 reasoning을 동반. Phi4-Reasoning-Plus (14B)가 GPQA-Diamond 81.9를 달성한 것은 ##knowledge도 어느 정도 작은 모델에 압축 가능##함을 시사 -- 가설의 경계가 명확하지 않다.</li>
+  <li><strong>Long2Short의 길이 감소 효과 정량화 부재</strong>: "redundant token 감소"라고만 언급하고 ##실제로 token 사용량이 몇 % 줄었는지##, validation 성능을 정확히 어떻게 유지했는지에 대한 수치 없음.</li>
+  <li><strong>Single Long-context (vs Progressive)의 일반성</strong>: 1.5B에서는 progressive, 3B에서는 single이 좋다는 reversal은 흥미롭지만 ##5B, 7B, 14B에서 어느 쪽이 좋은지##에 대한 trend 미제시. "stronger SFT initialization"이라는 ad-hoc 설명만으로는 부족.</li>
+  <li><strong>MGPO의 GSPO/DAPO 등 최신 RL 알고리즘 대비 비교 미흡</strong>: GSPO (sequence-level), DAPO (PPO-Clip 변형) 등이 동시기 출간되었으나 비교 또는 채택 여부 unclear.</li>
+  <li><strong>CLR의 일반성과 fairness</strong>: CLR은 test-time scaling으로 다른 모델과의 비교 시 ##공정성 문제##가 있다 (다른 모델에는 적용하지 않은 별도 인프라). "+CLR이 적용된 VibeThinker가 적용 안 된 GLM-5와 동급"이라는 비교는 약간의 불균형이 있음 -- ##다른 모델에 CLR을 적용하면 어떻게 되는가##는 미평가.</li>
+  <li><strong>Multi-turn / agentic 평가 부재</strong>: 모든 벤치마크가 single-turn verifiable task. ##Multi-turn dialogue, tool use, long-horizon agent task##에서의 성능은 평가되지 않아 응용 범위가 좁다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>6. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Reasoning core compression"의 실용적 가능성</strong>: Verifiable reasoning task만 잘 하면 되는 경우, ##strict 3B model이 frontier 수준에 도달 가능##. Edge / 로컬 / cost-sensitive 환경에서 ##큰 모델을 호출하지 않고 reasoning을 처리할 수 있는 선택지##가 실제로 존재. (단, GPQA-Diamond 같은 knowledge-heavy task에는 부족)</li>
+  <li><strong>Curriculum + Diversity의 결합이 핵심</strong>: 단순 mass distillation이 아니라 ##broad coverage SFT → hard/long-CoT SFT##의 2단계 curriculum + ##Diversity-Exploring Distillation## (multi-path traces) + ##specialist merge## (highest Pass@1이 아닌 most-valid-solutions를 기준으로). SFT를 "imitation"이 아닌 "solution space 구축"으로 frame하는 시각.</li>
+  <li><strong>Long2Short의 zero-sum 디자인</strong>: ##정답 trajectory 내에서만 reward redistribute + 모든 변동의 합이 0##인 설계는 advantage baseline을 흔들지 않으면서 brevity를 추구하는 ##재사용 가능한 패턴##. 다른 alignment objective (안전성, 톤 등)에도 동일한 zero-sum 패턴이 적용 가능.</li>
+  <li><strong>CLR: Claim-Level Verification as Test-Time Scaling</strong>: Trajectory 전체를 self-verify하는 대신 ##decision-relevant claim (M=5)만 verify + nonlinear aggregation $(1/M \sum v)^M$##. 검증 비용이 낮으면서도 logical anchor 단위로 quality control 가능 -- ##self-consistency보다 정교한 test-time scaling 패턴##.</li>
+  <li><strong>Parametric Compression-Coverage 가설은 SLM 연구의 frame</strong>: "small model이 잘한다"가 아니라 ##"어떤 capability가 어떤 parameter 형태를 요구하는가"##를 묻는 새 frame. 이 가설은 곧 "SLM은 LLM의 대체재가 아니라 reasoning depth의 encapsulator"라는 ##포지셔닝## 메시지로 이어진다.</li>
+  <li><strong>"Stronger SFT init → simpler RL strategy"의 경험칙</strong>: 1.5B에서 효과적이던 progressive context expansion이 3B에서는 disrupt를 야기. ##더 깨끗한 SFT initialization은 더 단순한 RL strategy를 가능하게 한다##는 일반적 시사. RL 안정성과 SFT 품질의 trade-off를 의도적으로 관리해야 함.</li>
+  <li><strong>OOD 평가의 필수성</strong>: 최근 LeetCode contest 같은 ##post-training-period evaluation##이 contamination 의혹을 직접 봉쇄. Verifiable reasoning 모델을 주장할 때 ##정적 벤치마크 + 미래 contest## 조합이 사실상 표준이 되어야 한다.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>관련 연구 (Selected References)</h2>
+
+<ul>
+  <li><strong>VibeThinker-1.5B</strong> (Xu et al., 2025; arXiv:2511.06221) -- 본 연구의 1.5B 선행작. Diversity-driven optimization 개념.</li>
+  <li><strong>DeepSeek Math / GRPO</strong> (Shao et al., 2024) -- Group Relative Policy Optimization의 원형. MGPO의 기반.</li>
+  <li><strong>DAPO</strong> (Yu et al., 2025; arXiv:2503.14476) -- Open-source LLM RL system at scale.</li>
+  <li><strong>GSPO</strong> (Zheng et al., 2025; arXiv:2507.18071) -- Group Sequence Policy Optimization. <a href="20260406_zheng_gspo.html">[요약]</a></li>
+  <li><strong>DeepScaler</strong> (Luo et al., 2025) -- Surpassing o1-preview with a 1.5B model by scaling RL via progressive context expansion.</li>
+  <li><strong>Mismatch Praxis</strong> (Fang & Khazi, 2025) + <strong>Off-policy RL</strong> (Yao et al., 2025) -- RL training의 train-inference mismatch 안정화 전략.</li>
+  <li><strong>SmolLM3 / Hunyuan-4B / Qwen3 / Phi-4-Reasoning / OpenReasoning-Nemotron / Olmo-3-Think / Gemma-4 / Mimo7B</strong> -- 비교 대상 SLM/MidLM 계열.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+
+<div class="personal-notes">
+<!-- Q&A, 추가 코멘트, 관련 아이디어 등이 누적 기록됩니다 -->
+</div>
+
+</div>
+</body>
+</html>
