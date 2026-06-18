@@ -1,0 +1,745 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ToolOrchestra — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #14532d, #16a34a, #84cc16);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.2; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 720px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #14532d; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #16a34a, #84cc16); border-radius: 3px; }
+  section h3 { font-size: 1.2rem; font-weight: 700; margin: 1.5rem 0 0.8rem; color: #166534; }
+  section p { margin-bottom: 1rem; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card h3 { margin-top: 0; }
+  .card-accent { border-left: 5px solid #16a34a; }
+  .card-green  { border-left: 5px solid #059669; background: #f0fdf4; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; }
+  .card-red    { border-left: 5px solid #dc2626; background: #fef2f2; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #16a34a, #84cc16);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+  .one-liner::before { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-right: 4px; }
+  .one-liner::after  { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-left: 4px; }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #16a34a, #84cc16); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #14532d; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; text-align: left; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f0fdf4; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; display: flex; align-items: center; gap: 0.5rem; }
+  .analogy-title::before { content: '💡'; font-size: 1.2rem; }
+
+  /* ── Pill list ── */
+  .pill-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
+  .pill { background: #dcfce7; color: #14532d; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; border: 1px solid #86efac; }
+
+  /* ── Version link ── */
+  .version-link { text-align: center; margin: 1.5rem 0; }
+  .version-link a { display: inline-block; padding: 8px 24px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #f0fdf4; color: #166534; border: 1px solid #86efac; transition: all 0.2s; }
+  .version-link a:hover { background: #166534; color: #fff; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 3rem; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">NVIDIA &middot; University of Hong Kong &middot; 2025.11.27</div>
+  <h1>ToolOrchestra</h1>
+  <p class="subtitle">"AI는 천재 한 명이 아니라, 좋은 매니저가 되어야 한다" ―<br>
+  8B 모델 1개가 GPT-5·Claude Opus를 도구로 부려서 더 정확하고 2.5배 더 싸게 만든 시스템</p>
+</div>
+
+<div class="container">
+
+  <div class="version-link" style="margin-top:1.5rem;">
+    <a href="20260616_su_toolorchestra.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+  <!-- ===== One-liner ===== -->
+  <section>
+    <div class="one-liner">
+      "거대 모델 한 개로 모든 일을 하기"가 아니라, <strong>"작은 매니저 모델이 비싼 전문가들을 적재적소에 호출하는 회사 구조"</strong>가 더 똑똑하고 더 싸다
+    </div>
+  </section>
+
+  <!-- ===== 한 컷 요약 ===== -->
+  <section>
+    <h2>한 컷 요약</h2>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 420" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g1" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#16a34a"/>
+            <stop offset="100%" stop-color="#84cc16"/>
+          </linearGradient>
+        </defs>
+        <text x="380" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#14532d">HLE 점수 vs 비용 — 같은 정확도를 ⅓ 비용으로</text>
+
+        <!-- chart axes -->
+        <line x1="100" y1="350" x2="700" y2="350" stroke="#94a3b8" stroke-width="2"/>
+        <line x1="100" y1="350" x2="100" y2="80" stroke="#94a3b8" stroke-width="2"/>
+        <text x="380" y="395" text-anchor="middle" font-size="13" fill="#475569">비용 (센트, 낮을수록 좋음 →)</text>
+        <text x="50" y="220" text-anchor="middle" font-size="13" fill="#475569" transform="rotate(-90 50 220)">정확도 (HLE %)</text>
+
+        <!-- x ticks -->
+        <text x="100" y="370" text-anchor="middle" font-size="11" fill="#64748b">0¢</text>
+        <text x="225" y="370" text-anchor="middle" font-size="11" fill="#64748b">10¢</text>
+        <text x="350" y="370" text-anchor="middle" font-size="11" fill="#64748b">30¢</text>
+        <text x="475" y="370" text-anchor="middle" font-size="11" fill="#64748b">50¢</text>
+        <text x="600" y="370" text-anchor="middle" font-size="11" fill="#64748b">70¢</text>
+
+        <!-- y ticks -->
+        <text x="90" y="350" text-anchor="end" font-size="11" fill="#64748b">0%</text>
+        <text x="90" y="280" text-anchor="end" font-size="11" fill="#64748b">15%</text>
+        <text x="90" y="210" text-anchor="end" font-size="11" fill="#64748b">25%</text>
+        <text x="90" y="140" text-anchor="end" font-size="11" fill="#64748b">35%</text>
+        <text x="90" y="100" text-anchor="end" font-size="11" fill="#64748b">40%</text>
+
+        <!-- Orchestrator-8B (sweet spot) -->
+        <circle cx="215" cy="125" r="12" fill="url(#g1)" stroke="#fff" stroke-width="3"/>
+        <text x="240" y="120" font-size="13" font-weight="700" fill="#14532d">⭐ Orchestrator-8B</text>
+        <text x="240" y="138" font-size="11" fill="#16a34a">37.1% / 9.2¢ / 8.2분</text>
+
+        <!-- GPT-5 -->
+        <circle cx="350" cy="135" r="10" fill="#94a3b8"/>
+        <text x="370" y="135" font-size="12" fill="#475569">GPT-5: 35.1% / 30.2¢</text>
+
+        <!-- Claude Opus 4.1 -->
+        <circle cx="565" cy="170" r="10" fill="#94a3b8"/>
+        <text x="585" y="172" font-size="12" fill="#475569">Claude Opus 4.1</text>
+        <text x="585" y="187" font-size="11" fill="#94a3b8">19.8% / 76.2¢</text>
+
+        <!-- Qwen3-235B -->
+        <circle cx="240" cy="290" r="10" fill="#94a3b8"/>
+        <text x="260" y="295" font-size="12" fill="#475569">Qwen3-235B: 14% / 12¢</text>
+
+        <!-- Qwen3-8B baseline -->
+        <circle cx="115" cy="335" r="8" fill="#cbd5e1"/>
+        <text x="130" y="340" font-size="11" fill="#94a3b8">Qwen3-8B 단독: 4.7%</text>
+
+        <!-- Pareto frontier arrow -->
+        <text x="380" y="60" text-anchor="middle" font-size="12" font-weight="700" fill="#16a34a">⬅ 더 좋고 더 싼 영역</text>
+      </svg>
+      <div class="diagram-caption">Orchestrator-8B는 비용은 GPT-5의 1/3, 정확도는 +2점. 같은 8B 모델을 단독으로 쓰면 4.7%에 불과 — "도구 잘 부리는 법"이 핵심.</div>
+    </div>
+  </section>
+
+  <!-- ===== 배경 지식 ===== -->
+  <section>
+    <h2>먼저 알아둘 개념들</h2>
+    <p>이 논문은 "AI 시스템의 설계 철학"에 관한 것이다. 다음 다섯 개념을 짚어본다.</p>
+
+    <!-- 1. Tool Use -->
+    <div class="card card-accent">
+      <h3>① Tool Use: AI가 외부 도구를 부르는 방식</h3>
+      <p>최근 LLM은 답을 모를 때 <strong>외부 도구</strong>(검색 엔진, 계산기, 코드 실행기, 다른 LLM)를 호출해 능력을 확장한다. 사람이 모르는 게 있으면 구글 검색을 하듯, AI도 똑같이 한다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">Tool Use 예시</text>
+          <!-- Without tool -->
+          <rect x="40" y="50" width="320" height="160" rx="12" fill="#fef2f2" stroke="#dc2626"/>
+          <text x="200" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#7f1d1d">❌ 도구 없이</text>
+          <text x="200" y="110" text-anchor="middle" font-size="12" fill="#7f1d1d">Q: "오늘 비트코인 가격은?"</text>
+          <text x="200" y="140" text-anchor="middle" font-size="12" fill="#7f1d1d">AI: "약 5만 달러 정도..."</text>
+          <text x="200" y="170" text-anchor="middle" font-size="12" font-weight="700" fill="#dc2626">→ 학습 시점 정보로 추측 (할루시네이션)</text>
+          <!-- With tool -->
+          <rect x="400" y="50" width="320" height="160" rx="12" fill="#f0fdf4" stroke="#059669"/>
+          <text x="560" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">✅ 도구 사용</text>
+          <text x="560" y="110" text-anchor="middle" font-size="12" fill="#064e3b">AI: 🔧 검색 API 호출 →</text>
+          <text x="560" y="135" text-anchor="middle" font-size="12" fill="#064e3b">"실시간 가격 8.7만 달러"</text>
+          <text x="560" y="160" text-anchor="middle" font-size="12" fill="#064e3b">AI: "지금 가격은 8.7만 달러"</text>
+          <text x="560" y="190" text-anchor="middle" font-size="12" font-weight="700" fill="#059669">→ 정확한 답</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 2. Monolithic vs Composite -->
+    <div class="card card-accent">
+      <h3>② Monolithic vs Composite: 한 명의 천재 vs 회사</h3>
+      <p>지금까지 강력한 AI는 <strong>"한 명의 거대한 천재 모델"</strong>(monolithic)이었다. 하지만 인간 사회는 그렇게 돌아가지 않는다 — <strong>회사</strong>는 매니저, 디자이너, 개발자, 변호사 등 다양한 전문가가 협력해서 일을 한다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 320" xmlns="http://www.w3.org/2000/svg">
+          <!-- Left: Monolithic -->
+          <rect x="40" y="20" width="340" height="280" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+          <text x="210" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#7f1d1d">Monolithic (기존)</text>
+          <text x="210" y="75" text-anchor="middle" font-size="12" fill="#dc2626">"천재 1명이 모든 것을 한다"</text>
+          <!-- giant brain -->
+          <circle cx="210" cy="170" r="60" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+          <text x="210" y="160" text-anchor="middle" font-size="14" font-weight="700" fill="#7f1d1d">Big LLM</text>
+          <text x="210" y="180" text-anchor="middle" font-size="11" fill="#7f1d1d">(예: GPT-5)</text>
+          <text x="210" y="200" text-anchor="middle" font-size="11" fill="#7f1d1d">+ 검색·계산기</text>
+          <text x="210" y="265" text-anchor="middle" font-size="11" fill="#dc2626">⚠ 비싸다, 느리다</text>
+          <text x="210" y="282" text-anchor="middle" font-size="11" fill="#dc2626">⚠ 자기를 과신함</text>
+
+          <!-- Right: Composite -->
+          <rect x="400" y="20" width="340" height="280" rx="14" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+          <text x="570" y="50" text-anchor="middle" font-size="15" font-weight="700" fill="#065f46">Composite (이 논문)</text>
+          <text x="570" y="75" text-anchor="middle" font-size="12" fill="#059669">"매니저가 전문가를 부린다"</text>
+          <!-- manager -->
+          <circle cx="570" cy="120" r="30" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+          <text x="570" y="118" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">매니저</text>
+          <text x="570" y="132" text-anchor="middle" font-size="9" fill="#065f46">(8B)</text>
+          <!-- subordinates -->
+          <circle cx="450" cy="220" r="22" fill="#bbf7d0" stroke="#059669"/>
+          <text x="450" y="225" text-anchor="middle" font-size="10" fill="#065f46">GPT-5</text>
+          <circle cx="510" cy="240" r="22" fill="#bbf7d0" stroke="#059669"/>
+          <text x="510" y="245" text-anchor="middle" font-size="10" fill="#065f46">Claude</text>
+          <circle cx="570" cy="250" r="22" fill="#bbf7d0" stroke="#059669"/>
+          <text x="570" y="255" text-anchor="middle" font-size="10" fill="#065f46">검색</text>
+          <circle cx="630" cy="240" r="22" fill="#bbf7d0" stroke="#059669"/>
+          <text x="630" y="245" text-anchor="middle" font-size="10" fill="#065f46">코드</text>
+          <circle cx="690" cy="220" r="22" fill="#bbf7d0" stroke="#059669"/>
+          <text x="690" y="225" text-anchor="middle" font-size="10" fill="#065f46">Math</text>
+          <!-- arrows -->
+          <line x1="570" y1="150" x2="450" y2="200" stroke="#059669" stroke-width="1.5"/>
+          <line x1="570" y1="150" x2="510" y2="220" stroke="#059669" stroke-width="1.5"/>
+          <line x1="570" y1="150" x2="570" y2="225" stroke="#059669" stroke-width="1.5"/>
+          <line x1="570" y1="150" x2="630" y2="220" stroke="#059669" stroke-width="1.5"/>
+          <line x1="570" y1="150" x2="690" y2="200" stroke="#059669" stroke-width="1.5"/>
+          <text x="570" y="290" text-anchor="middle" font-size="11" font-weight="700" fill="#065f46">✓ 싸고, 빠르고, 균형 잡힘</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 3. Bias -->
+    <div class="card card-accent">
+      <h3>③ AI의 두 가지 편향 (Bias) — 매니저가 무능할 때</h3>
+      <p>그런데 그냥 LLM에게 "매니저 역할 해줘"라고 시키기만 하면 두 가지 문제가 생긴다:</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 270" xmlns="http://www.w3.org/2000/svg">
+          <!-- Self-enhancement -->
+          <rect x="20" y="30" width="350" height="220" rx="12" fill="#fef3c7" stroke="#d97706"/>
+          <text x="195" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#78350f">😎 Self-enhancement</text>
+          <text x="195" y="80" text-anchor="middle" font-size="11" fill="#92400e">("내 식구 챙기기")</text>
+          <text x="50" y="110" font-size="11" fill="#78350f">매니저: Qwen3-8B</text>
+          <text x="50" y="135" font-size="11" fill="#78350f">→ 73%를 자기 변종(Qwen3-32B 등)에 위임</text>
+          <text x="50" y="160" font-size="11" fill="#78350f"> </text>
+          <text x="50" y="180" font-size="11" fill="#92400e">"같은 가족 출신 모델이 더 나을 거야"</text>
+          <text x="50" y="200" font-size="11" fill="#92400e">— 객관적 근거 없이 자기 가족 선호</text>
+          <text x="195" y="235" text-anchor="middle" font-size="11" font-weight="700" fill="#d97706">→ 비효율, 부정확</text>
+
+          <!-- Other-enhancement -->
+          <rect x="390" y="30" width="350" height="220" rx="12" fill="#fee2e2" stroke="#dc2626"/>
+          <text x="565" y="60" text-anchor="middle" font-size="14" font-weight="700" fill="#7f1d1d">🤩 Other-enhancement</text>
+          <text x="565" y="80" text-anchor="middle" font-size="11" fill="#dc2626">("강자 추종")</text>
+          <text x="420" y="110" font-size="11" fill="#7f1d1d">매니저: GPT-5</text>
+          <text x="420" y="135" font-size="11" fill="#7f1d1d">→ 98%를 GPT-5/GPT-5-mini에만 호출</text>
+          <text x="420" y="160" font-size="11" fill="#7f1d1d"> </text>
+          <text x="420" y="180" font-size="11" fill="#b91c1c">"비용 무시하고 가장 강한 모델 부르자"</text>
+          <text x="420" y="200" font-size="11" fill="#b91c1c">— 사용자 비용 선호 무시</text>
+          <text x="565" y="235" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">→ 매우 비싸진다</text>
+        </svg>
+      </div>
+      <p>이 두 편향이 "프롬프트 시키기"의 한계다. 매니저를 <strong>제대로 학습</strong>시켜야 한다는 결론이 된다.</p>
+    </div>
+
+    <!-- 4. Reinforcement Learning -->
+    <div class="card card-accent">
+      <h3>④ 강화학습 (Reinforcement Learning, RL): 시행착오로 배우기</h3>
+      <p>매니저를 학습시키는 방법으로 <strong>RL</strong>을 쓴다. RL은 "정답을 보여주고 따라하기" 대신, "스스로 시도해보고 좋았으면 칭찬, 나빴으면 처벌"하는 방식이다.</p>
+      <div class="analogy">
+        <div class="analogy-title">비유: 강아지 훈련</div>
+        강아지에게 "앉아"를 가르칠 때, 우리는 강아지가 우연히 앉으면 간식을 주고, 다른 행동을 하면 간식을 안 준다. 시간이 지나면 강아지는 <strong>"앉으면 보상이 온다"</strong>를 학습한다. RL도 똑같다 — AI가 좋은 행동을 하면 reward(+1), 나쁜 행동을 하면 처벌(-1)을 주면, 스스로 좋은 행동을 학습한다.
+      </div>
+    </div>
+
+    <!-- 5. Multi-turn agentic task -->
+    <div class="card card-accent">
+      <h3>⑤ Multi-turn Agentic Task: 한 번에 끝나지 않는 일</h3>
+      <p>"파리 날씨는?" 같은 단순 질문은 한 번 답하면 끝(single-turn). 그러나 "파리 여행 계획을 짜줘"는 검색 → 항공권 비교 → 호텔 → 일정 → 검토 등 여러 단계가 필요하다(multi-turn). 매니저는 매 단계마다 "지금 무슨 도구를 부를까?"를 결정해야 한다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">Multi-turn 흐름</text>
+          <!-- turn 1 -->
+          <rect x="30" y="50" width="130" height="120" rx="8" fill="#f0fdf4" stroke="#059669"/>
+          <text x="95" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">Turn 1</text>
+          <text x="95" y="100" text-anchor="middle" font-size="10" fill="#065f46">생각</text>
+          <text x="95" y="120" text-anchor="middle" font-size="10" fill="#065f46">→ 도구 호출</text>
+          <text x="95" y="140" text-anchor="middle" font-size="10" fill="#065f46">→ 결과 받음</text>
+          <text x="95" y="160" text-anchor="middle" font-size="9" fill="#16a34a">(검색)</text>
+          <!-- arrow -->
+          <text x="180" y="115" text-anchor="middle" font-size="20" fill="#16a34a">→</text>
+          <!-- turn 2 -->
+          <rect x="200" y="50" width="130" height="120" rx="8" fill="#f0fdf4" stroke="#059669"/>
+          <text x="265" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">Turn 2</text>
+          <text x="265" y="100" text-anchor="middle" font-size="10" fill="#065f46">결과 분석</text>
+          <text x="265" y="120" text-anchor="middle" font-size="10" fill="#065f46">→ 다른 도구</text>
+          <text x="265" y="140" text-anchor="middle" font-size="10" fill="#065f46">→ 결과 받음</text>
+          <text x="265" y="160" text-anchor="middle" font-size="9" fill="#16a34a">(코드 실행)</text>
+          <text x="350" y="115" text-anchor="middle" font-size="20" fill="#16a34a">→</text>
+          <!-- turn 3 ... -->
+          <rect x="370" y="50" width="130" height="120" rx="8" fill="#f0fdf4" stroke="#059669"/>
+          <text x="435" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">Turn 3</text>
+          <text x="435" y="100" text-anchor="middle" font-size="10" fill="#065f46">검증 필요</text>
+          <text x="435" y="120" text-anchor="middle" font-size="10" fill="#065f46">→ 강한 LLM</text>
+          <text x="435" y="140" text-anchor="middle" font-size="10" fill="#065f46">→ 답 생성</text>
+          <text x="435" y="160" text-anchor="middle" font-size="9" fill="#16a34a">(GPT-5)</text>
+          <text x="520" y="115" text-anchor="middle" font-size="20" fill="#16a34a">→</text>
+          <!-- final -->
+          <rect x="540" y="50" width="190" height="120" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+          <text x="635" y="75" text-anchor="middle" font-size="12" font-weight="700" fill="#14532d">최대 50 turn</text>
+          <text x="635" y="105" text-anchor="middle" font-size="11" fill="#166534">최종 답안 또는 종료</text>
+          <text x="635" y="135" text-anchor="middle" font-size="10" fill="#16a34a">매니저가 매 turn마다</text>
+          <text x="635" y="152" text-anchor="middle" font-size="10" fill="#16a34a">"무슨 도구?"를 결정</text>
+          <text x="380" y="200" text-anchor="middle" font-size="11" fill="#475569">각 turn = 생각 → 도구 호출 → 결과 관찰 → 다음 결정</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- 6. HLE -->
+    <div class="card card-accent">
+      <h3>⑥ HLE (Humanity's Last Exam): 가장 어려운 시험</h3>
+      <p>HLE는 <strong>박사급 전문 지식과 추론을 요구하는 가장 어려운 AI 벤치마크</strong> 중 하나다. 수학, 인문학, 자연과학 등 다양한 분야의 문제를 포함한다. 일반 LLM이 풀기 매우 어렵고(GPT-4o는 5.3%), 도구 사용이 사실상 필수다.</p>
+    </div>
+  </section>
+
+  <!-- ===== ToolOrchestra 핵심 ===== -->
+  <section>
+    <h2>ToolOrchestra의 핵심 아이디어</h2>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 800 480" xmlns="http://www.w3.org/2000/svg">
+        <text x="400" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#14532d">ToolOrchestra 시스템</text>
+
+        <!-- User -->
+        <rect x="40" y="60" width="120" height="80" rx="8" fill="#f1f5f9" stroke="#475569"/>
+        <text x="100" y="90" text-anchor="middle" font-size="13" font-weight="700">👤 사용자</text>
+        <text x="100" y="115" text-anchor="middle" font-size="10" fill="#475569">질문 + 선호도</text>
+        <text x="100" y="130" text-anchor="middle" font-size="10" fill="#475569">"비용 적게 써줘"</text>
+
+        <!-- Orchestrator -->
+        <rect x="200" y="60" width="160" height="80" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+        <text x="280" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#14532d">🎯 Orchestrator-8B</text>
+        <text x="280" y="115" text-anchor="middle" font-size="10" fill="#166534">매니저 모델</text>
+        <text x="280" y="130" text-anchor="middle" font-size="10" fill="#166534">"무슨 도구를 부르지?"</text>
+
+        <line x1="160" y1="100" x2="200" y2="100" stroke="#475569" stroke-width="2" marker-end="url(#a1)"/>
+        <defs><marker id="a1" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#475569"/></marker></defs>
+
+        <!-- Tools shelf -->
+        <text x="500" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#14532d">사용 가능한 도구들</text>
+        <!-- Basic tools row -->
+        <rect x="400" y="95" width="200" height="50" rx="6" fill="#fef3c7" stroke="#d97706"/>
+        <text x="500" y="115" text-anchor="middle" font-size="11" font-weight="700" fill="#78350f">🔧 기본 도구</text>
+        <text x="500" y="132" text-anchor="middle" font-size="10" fill="#92400e">검색, 코드, 함수 호출 (싸다)</text>
+        <!-- Specialized -->
+        <rect x="400" y="155" width="200" height="50" rx="6" fill="#dbeafe" stroke="#0369a1"/>
+        <text x="500" y="175" text-anchor="middle" font-size="11" font-weight="700" fill="#0c4a6e">🎓 전문 LLM</text>
+        <text x="500" y="192" text-anchor="middle" font-size="10" fill="#0369a1">Qwen-Math, Coder (중간)</text>
+        <!-- Generalist -->
+        <rect x="400" y="215" width="200" height="50" rx="6" fill="#fee2e2" stroke="#dc2626"/>
+        <text x="500" y="235" text-anchor="middle" font-size="11" font-weight="700" fill="#7f1d1d">🧠 일반 LLM</text>
+        <text x="500" y="252" text-anchor="middle" font-size="10" fill="#dc2626">GPT-5, Claude (비싸다)</text>
+
+        <line x1="360" y1="100" x2="400" y2="120" stroke="#16a34a" stroke-width="2" marker-end="url(#a1)"/>
+        <line x1="360" y1="105" x2="400" y2="180" stroke="#16a34a" stroke-width="2" marker-end="url(#a1)"/>
+        <line x1="360" y1="110" x2="400" y2="240" stroke="#16a34a" stroke-width="2" marker-end="url(#a1)"/>
+
+        <!-- Reward -->
+        <rect x="630" y="95" width="140" height="170" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+        <text x="700" y="120" text-anchor="middle" font-size="12" font-weight="700" fill="#065f46">3축 보상 (Reward)</text>
+        <text x="640" y="145" font-size="10" fill="#065f46">✓ 정확도 (Outcome)</text>
+        <text x="640" y="165" font-size="10" fill="#065f46">  → 답 맞음/틀림</text>
+        <text x="640" y="190" font-size="10" fill="#065f46">✓ 효율 (Efficiency)</text>
+        <text x="640" y="210" font-size="10" fill="#065f46">  → 비용/지연 작게</text>
+        <text x="640" y="235" font-size="10" fill="#065f46">✓ 선호 (Preference)</text>
+        <text x="640" y="255" font-size="10" fill="#065f46">  → 유저 의견 존중</text>
+
+        <line x1="610" y1="170" x2="630" y2="170" stroke="#059669" stroke-width="2" marker-end="url(#a1)"/>
+
+        <!-- Bottom: training loop -->
+        <rect x="40" y="320" width="720" height="120" rx="12" fill="#f8fafc" stroke="#16a34a" stroke-width="2" stroke-dasharray="6,4"/>
+        <text x="400" y="350" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">RL 학습 루프 (GRPO)</text>
+        <text x="400" y="375" text-anchor="middle" font-size="11" fill="#166534">매니저가 같은 질문에 대해 여러 번 시도 → 점수 계산 → 좋은 시도는 reinforce, 나쁜 시도는 약화</text>
+        <text x="400" y="400" text-anchor="middle" font-size="11" fill="#166534">시간이 지나면: "이런 질문엔 검색이면 충분", "이런 건 GPT-5가 필요"를 학습</text>
+        <text x="400" y="425" text-anchor="middle" font-size="11" font-weight="700" fill="#16a34a">→ 스스로 비용 최적화 + 자기 편향 자동 교정</text>
+      </svg>
+    </div>
+
+    <h3>🎯 어떻게 매니저를 학습시키나?</h3>
+    <p>핵심은 <strong>"무엇을 보상할 것인가"</strong>이다. 단순히 "맞췄을 때만 +1"이 아니라, 다음 세 가지를 모두 따진다:</p>
+
+    <ol style="margin-left:1.5rem;">
+      <li><strong>정확도 (Outcome)</strong>: 답이 맞아야 1점, 틀리면 0점 — 가장 기본</li>
+      <li><strong>효율 (Efficiency)</strong>: 비용과 시간을 처벌 — 같은 답이라면 싸고 빠르게</li>
+      <li><strong>선호 (Preference)</strong>: 사용자가 "비용 줄여줘"라고 했으면 그 선호를 반영</li>
+    </ol>
+
+    <p>이를 한 줄 수식으로 표현하면 <strong>R(τ) = (도구별 호출 횟수, 정확도, 비용, 지연 정규화) · (사용자 선호 벡터 P)</strong>. 정답이 0이면 보상도 0이 된다 — <strong>"틀린 답은 아무리 효율적이어도 의미 없다"</strong>는 hard prior.</p>
+
+    <div class="analogy">
+      <div class="analogy-title">비유: 인사평가 시스템</div>
+      회사가 직원을 평가할 때 <strong>"실적만 보면 안 된다"</strong>. 영업사원이 매출 1억을 올렸어도 회사 비용 5억을 썼다면 마이너스다. 또 고객이 "친환경 제품으로 영업해줘"라고 했는데 그걸 무시하면 감점이다. ToolOrchestra의 3축 보상은 정확히 이 인사평가 철학과 같다 — <strong>실적(정확도) + 비용 효율 + 고객 선호</strong>를 모두 본다.
+    </div>
+
+    <h3>🎓 어떤 데이터로 학습시키나? (ToolScale)</h3>
+    <p>이런 매니저를 학습시키려면 <strong>"여러 도구를 거쳐 풀어야 답이 나오는 문제"</strong>가 많이 필요하다. 그런 데이터가 부족하니 저자들은 자동으로 만들었다 — <strong>ToolScale</strong>.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">ToolScale: 자동 학습 데이터 합성</text>
+        <!-- step 1 -->
+        <rect x="30" y="55" width="160" height="80" rx="8" fill="#fef3c7" stroke="#d97706"/>
+        <text x="110" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#78350f">1️⃣ 도메인 선택</text>
+        <text x="110" y="100" text-anchor="middle" font-size="10" fill="#92400e">10개 도메인</text>
+        <text x="110" y="115" text-anchor="middle" font-size="10" fill="#92400e">금융, 스포츠,</text>
+        <text x="110" y="130" text-anchor="middle" font-size="10" fill="#92400e">의료, 여행 등</text>
+        <text x="200" y="100" text-anchor="middle" font-size="18" fill="#16a34a">→</text>
+        <!-- step 2 -->
+        <rect x="220" y="55" width="160" height="80" rx="8" fill="#dbeafe" stroke="#0369a1"/>
+        <text x="300" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#0c4a6e">2️⃣ 환경 만들기</text>
+        <text x="300" y="100" text-anchor="middle" font-size="10" fill="#0369a1">DB 스키마</text>
+        <text x="300" y="115" text-anchor="middle" font-size="10" fill="#0369a1">+ 도구 API</text>
+        <text x="300" y="130" text-anchor="middle" font-size="10" fill="#0369a1">자동 생성</text>
+        <text x="390" y="100" text-anchor="middle" font-size="18" fill="#16a34a">→</text>
+        <!-- step 3 -->
+        <rect x="410" y="55" width="160" height="80" rx="8" fill="#fce7f3" stroke="#be185d"/>
+        <text x="490" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#831843">3️⃣ 과제 생성</text>
+        <text x="490" y="100" text-anchor="middle" font-size="10" fill="#be185d">사용자 의도</text>
+        <text x="490" y="115" text-anchor="middle" font-size="10" fill="#be185d">→ 구체적 task</text>
+        <text x="490" y="130" text-anchor="middle" font-size="10" fill="#be185d">+ 정답 action</text>
+        <text x="580" y="100" text-anchor="middle" font-size="18" fill="#16a34a">→</text>
+        <!-- step 4 -->
+        <rect x="600" y="55" width="160" height="80" rx="8" fill="#dcfce7" stroke="#16a34a"/>
+        <text x="680" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#14532d">4️⃣ 검증·필터</text>
+        <text x="680" y="100" text-anchor="middle" font-size="10" fill="#166534">실행 가능?</text>
+        <text x="680" y="115" text-anchor="middle" font-size="10" fill="#166534">너무 쉽지 않은?</text>
+        <text x="680" y="130" text-anchor="middle" font-size="10" fill="#166534">도구 필요?</text>
+        <!-- result -->
+        <rect x="180" y="180" width="400" height="80" rx="10" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+        <text x="380" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">📦 ToolScale 데이터셋</text>
+        <text x="380" y="232" text-anchor="middle" font-size="11" fill="#059669">10 도메인 × 197개 도구 × 6,948 DB entry</text>
+        <text x="380" y="250" text-anchor="middle" font-size="11" fill="#059669">총 4,003 학습 task (자동 검증 완료)</text>
+      </svg>
+    </div>
+
+    <div class="analogy">
+      <div class="analogy-title">비유: 의대생을 위한 가상 환자 시뮬레이터</div>
+      의대생이 진짜 환자로 연습할 수 없으니, 학교는 <strong>가상 환자 케이스</strong>를 자동 생성하고 정답 진단을 갖춘 시뮬레이터를 만든다. ToolScale도 똑같다 — 진짜 사용자 데이터를 모으기 어려우니 LLM으로 가상 도메인·DB·도구·태스크·정답을 자동 생성하고, 풀 수 있는지 자동 검증한다.
+    </div>
+  </section>
+
+  <!-- ===== 핵심 성과 ===== -->
+  <section>
+    <h2>핵심 성과 (숫자로 보기)</h2>
+
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="num">37.1</div>
+        <div class="label">HLE 점수<br>(GPT-5 35.1 능가)</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">2.5×</div>
+        <div class="label">GPT-5 대비<br>비용 효율</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">8B</div>
+        <div class="label">파라미터 수<br>(GPT-5의 ~1/100)</div>
+      </div>
+    </div>
+
+    <h3>3개 벤치마크 비교</h3>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>모델</th>
+          <th>HLE↑</th>
+          <th>FRAMES↑</th>
+          <th>τ²-Bench↑</th>
+          <th>비용↓ (¢)</th>
+          <th>지연↓ (분)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight-row">
+          <td>Orchestrator-8B (이 논문)</td>
+          <td>37.1</td>
+          <td>76.3</td>
+          <td>80.2</td>
+          <td>9.2</td>
+          <td>8.2</td>
+        </tr>
+        <tr>
+          <td>GPT-5 + 도구</td>
+          <td>35.1</td>
+          <td>74.0</td>
+          <td>77.7</td>
+          <td>30.2</td>
+          <td>19.8</td>
+        </tr>
+        <tr>
+          <td>Claude Opus 4.1 + 도구</td>
+          <td>34.6</td>
+          <td>72.8</td>
+          <td>76.8</td>
+          <td>52.5</td>
+          <td>25.6</td>
+        </tr>
+        <tr>
+          <td>Qwen3-235B + 도구</td>
+          <td>32.8</td>
+          <td>74.2</td>
+          <td>75.6</td>
+          <td>29.7</td>
+          <td>21.2</td>
+        </tr>
+        <tr>
+          <td>Qwen3-8B 단독 (도구 없이)</td>
+          <td>3.2</td>
+          <td>24.2</td>
+          <td>–</td>
+          <td>0.2</td>
+          <td>0.6</td>
+        </tr>
+      </tbody>
+    </table>
+    <p><strong>핵심 관찰</strong>: 같은 8B 모델이라도 단독으로는 3.2%인데, 매니저로 학습시켜 도구를 부리게 하면 <strong>37.1%로 11배 향상</strong> + 비용은 GPT-5의 1/3.</p>
+
+    <h3>📊 도구를 어떻게 부르는가? (편향 자동 교정)</h3>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 760 360" xmlns="http://www.w3.org/2000/svg">
+        <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#14532d">도구 호출 비율 (Self/Other-Enhancement Bias 비교)</text>
+
+        <!-- GPT-5 column -->
+        <text x="180" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#7f1d1d">GPT-5 (강자 추종)</text>
+        <rect x="80" y="70" width="200" height="240" rx="6" fill="#fef2f2" stroke="#dc2626"/>
+        <rect x="80" y="70" width="200" height="125" fill="#fca5a5"/>
+        <text x="180" y="135" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">GPT-5-mini</text>
+        <text x="180" y="150" text-anchor="middle" font-size="11" fill="#fff">52.3%</text>
+        <rect x="80" y="195" width="200" height="60" fill="#f87171"/>
+        <text x="180" y="225" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">GPT-5 (자기) 25.2%</text>
+        <text x="180" y="280" text-anchor="middle" font-size="10" fill="#7f1d1d">기타 ~22%</text>
+        <text x="180" y="332" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">→ 98%가 GPT 가족</text>
+
+        <!-- Claude column -->
+        <text x="380" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#7f1d1d">Claude Opus (강자 추종)</text>
+        <rect x="280" y="70" width="200" height="240" rx="6" fill="#fef2f2" stroke="#dc2626"/>
+        <rect x="280" y="70" width="200" height="135" fill="#fca5a5"/>
+        <text x="380" y="140" text-anchor="middle" font-size="11" fill="#fff" font-weight="700">GPT-5</text>
+        <text x="380" y="155" text-anchor="middle" font-size="11" fill="#fff">56.9%</text>
+        <text x="380" y="280" text-anchor="middle" font-size="10" fill="#7f1d1d">기타 ~43%</text>
+        <text x="380" y="332" text-anchor="middle" font-size="11" font-weight="700" fill="#dc2626">→ 절반 이상 GPT-5에</text>
+
+        <!-- Orchestrator-8B -->
+        <text x="640" y="55" text-anchor="middle" font-size="12" font-weight="700" fill="#16a34a">Orchestrator-8B (균형)</text>
+        <rect x="540" y="70" width="200" height="240" rx="6" fill="#f0fdf4" stroke="#16a34a"/>
+        <!-- 7 bars -->
+        <rect x="540" y="70" width="200" height="50" fill="#86efac"/>
+        <text x="640" y="100" text-anchor="middle" font-size="10" fill="#14532d" font-weight="700">GPT-5 22%</text>
+        <rect x="540" y="120" width="200" height="40" fill="#bbf7d0"/>
+        <text x="640" y="145" text-anchor="middle" font-size="10" fill="#14532d">Qwen-32B 20.7%</text>
+        <rect x="540" y="160" width="200" height="38" fill="#86efac"/>
+        <text x="640" y="183" text-anchor="middle" font-size="10" fill="#14532d">Coder-32B 19.5%</text>
+        <rect x="540" y="198" width="200" height="32" fill="#bbf7d0"/>
+        <text x="640" y="218" text-anchor="middle" font-size="10" fill="#14532d">GPT-5-mini 15.9%</text>
+        <rect x="540" y="230" width="200" height="20" fill="#86efac"/>
+        <text x="640" y="244" text-anchor="middle" font-size="9" fill="#14532d">Math-72B 9.8%</text>
+        <rect x="540" y="250" width="200" height="18" fill="#bbf7d0"/>
+        <text x="640" y="263" text-anchor="middle" font-size="9" fill="#14532d">Llama-70B 8.5%</text>
+        <rect x="540" y="268" width="200" height="42" fill="#dcfce7"/>
+        <text x="640" y="293" text-anchor="middle" font-size="9" fill="#14532d">검색·코드 등 3.6%</text>
+        <text x="640" y="332" text-anchor="middle" font-size="11" font-weight="700" fill="#16a34a">→ 모든 도구 균형 사용</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- ===== 일반화 ===== -->
+  <section>
+    <h2>학습에 없던 도구도 잘 부린다</h2>
+    <p>매니저가 새로운 부하 직원이 와도 적응하듯, Orchestrator-8B는 <strong>학습 시 본 적 없는 도구</strong>(Claude Sonnet 4.1, OpenMath-Llama-2-70b 등)를 줘도 잘 활용했다.</p>
+    <table class="comp-table">
+      <thead>
+        <tr>
+          <th>모델</th>
+          <th>HLE</th>
+          <th>FRAMES</th>
+          <th>τ²-Bench</th>
+          <th>비용</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr class="highlight-row">
+          <td>Orchestrator-8B (학습 못 본 도구)</td>
+          <td>22.0</td>
+          <td>73.8</td>
+          <td>48.8</td>
+          <td>34.8¢</td>
+        </tr>
+        <tr>
+          <td>GPT-5 (같은 도구셋)</td>
+          <td>16.4</td>
+          <td>54.8</td>
+          <td>44.8</td>
+          <td>81.3¢</td>
+        </tr>
+        <tr>
+          <td>Claude Opus 4.1</td>
+          <td>17.8</td>
+          <td>53.6</td>
+          <td>43.4</td>
+          <td>102.4¢</td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ===== 활용 분야 ===== -->
+  <section>
+    <h2>활용 분야</h2>
+    <p>이 연구의 의의는 <strong>"비싼 LLM에 의존하던 시스템을 작은 매니저 + 가성비 좋은 부하 모델 조합"</strong>으로 재설계할 수 있다는 점이다.</p>
+    <div class="pill-list">
+      <span class="pill">🔍 Deep Research 시스템</span>
+      <span class="pill">🤖 자율 에이전트 / Agentic AI</span>
+      <span class="pill">📞 다중 LLM 콜센터</span>
+      <span class="pill">🛒 e-commerce 어시스턴트</span>
+      <span class="pill">🏥 멀티 모델 의료 supportbot</span>
+      <span class="pill">💼 기업 내부 RAG + 도구 시스템</span>
+      <span class="pill">💸 LLM 비용 최적화</span>
+    </div>
+  </section>
+
+  <!-- ===== 한 줄 결론 ===== -->
+  <section>
+    <h2>한 줄 결론</h2>
+    <div class="one-liner">
+      똑똑함은 <strong>"가장 큰 모델"</strong>에서 오는 게 아니라, <strong>"올바른 도구를 올바른 순서로 부르는 매니저"</strong>에게서 온다.
+    </div>
+  </section>
+
+  <!-- ===== 한계 ===== -->
+  <section>
+    <h2>이 연구의 한계</h2>
+
+    <div class="card card-orange">
+      <h3>⚠️ GPT-5가 "심판"이자 "도구"</h3>
+      <p>학습 보상 평가에 GPT-5가 judge로 쓰이는데, GPT-5가 도구로도 쓰인다. <strong>"GPT-5 호출이 들어간 trajectory를 GPT-5 judge가 더 호의적으로 보는"</strong> 순환 가능성이 ablation 없이 남아있다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ 학습 비용 미공개</h3>
+      <p>16 × H100 GPU로 학습했다는 것 외에, RL step 수, ToolScale 합성 비용, 학습 중 GPT-5 judge 호출 비용 등이 공개되지 않아 <strong>실제 재현 비용 추정이 어렵다</strong>.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Backbone scaling 미검증</h3>
+      <p>Qwen3-8B로만 실험. <strong>3B나 32B 매니저로는 어떤 결과가 나올지</strong> 알 수 없다. 8B가 sweet spot인지, 더 큰 매니저가 더 좋은지 불명.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ 합성 환경의 단순함</h3>
+      <p>ToolScale의 도구·DB는 LLM이 합성한 것. <strong>실제 production API의 latency 변동, 에러, rate-limit</strong>은 반영하지 않는다. 진짜 운용 환경에서의 안정성은 별도 검증 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ 안전성 평가 부재</h3>
+      <p>매니저가 <strong>악의적 도구나 prompt injection</strong>에 robust한지에 대한 분석이 없다. Multi-turn 시스템에서 중요한 질문.</p>
+    </div>
+  </section>
+
+  <!-- ===== 산업 의미 ===== -->
+  <section>
+    <h2>왜 중요한가</h2>
+
+    <div class="card card-green">
+      <h3>💸 LLM 비용 구조의 재설계</h3>
+      <p>OpenAI/Anthropic API에 매월 수천만 원을 쓰는 기업들에게, "<strong>작은 매니저 + 필요한 만큼만 비싼 모델 호출</strong>"은 동일 정확도로 비용을 1/3로 낮출 수 있는 실용적 방법을 제시한다.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>🌐 모델 선택의 자율화</h3>
+      <p>지금은 사람이 "이 task엔 GPT-5", "이건 Claude" 같은 결정을 한다. <strong>매니저 모델이 그 결정을 자동화</strong>하면 "어떤 LLM이 좋을까?"라는 질문 자체가 사라진다.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>🤝 Compound AI Systems의 첫 실증</h3>
+      <p>Berkeley AI Lab이 2024년에 제안한 <strong>"Compound AI Systems"</strong> 비전 — 여러 모델·도구가 결합한 AI 시스템 — 의 구체적 RL 구현. 차세대 AI 시스템 아키텍처의 표준이 될 가능성.</p>
+    </div>
+  </section>
+
+  <div class="version-link" style="margin-top:3rem;">
+    <a href="20260616_su_toolorchestra.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+</div>
+
+<div class="footer">
+  논문: ToolOrchestra: Elevating Intelligence via Efficient Model and Tool Orchestration<br>
+  저자: Hongjin Su, Shizhe Diao 외 · NVIDIA &amp; University of Hong Kong · 2025.11.27<br>
+  arXiv: <a href="https://arxiv.org/abs/2511.21689" style="color:#16a34a;">2511.21689</a>
+</div>
+
+</body>
+</html>
