@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Supervised On-Policy Distillation for Reasoning Language Models (SSOPD)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) { el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g, '<span style="background-color:#ffeb3b;color:#000">$1</span>'); }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Self-Supervised On-Policy Distillation for Reasoning Language Models (SSOPD)</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260619_tan_ssopd_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhiquan Tan¹, Yinrong Hong²</li>
+  <li><strong>소속</strong>: ¹Tsinghua University, ²Beihang University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (Date: May 17, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.17497">arXiv:2605.17497v1</a> · <a href="https://github.com/tzq1999/SSOPD">GitHub (예정)</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: GRPO-style RLVR은 prompt당 multiple on-policy 시도를 수행하지만 ##terminal reward만 사용##하여 ##group의 풍부한 process signal##을 낭비. SFT/OPD 같은 dense supervision은 ##외부 solution trace나 별도 teacher##가 필요한 ##정보 예산 격차##.</li>
+  <li><strong>해결</strong>: ##Self-Supervised On-Policy Distillation (SSOPD)## -- group 내부의 correct/wrong contrast를 ##self-generated process signal##로 활용. ##Shortest correct completion = "fast-success witness"##, ##longest wrong completion의 prefix = "persistent-failure prefix"##. Witness를 conditioned로 stop-gradient teacher가 wrong completion의 prefix에서 next-token distribution을 만들고, student가 이를 distill.</li>
+  <li><strong>왜 작동하는가</strong>: ##Stopping-time view## -- random deadline $D$ with $\Pr(D \geq \ell) = \gamma^\ell$ 하에서 ##fast-success desirability $\phi^s_F(Y) = \mathbf{1}\{R=1\}\gamma^{L_s(Y)}$##. Correct set 중 ##weight 최대 = shortest correct## ($y^+ = \arg\min_{y \in C} \tau(y)$), wrong set 중 ##weight 최대 = longest wrong## ($y^- = \arg\max_{y \in W} \tau(y)$). 단순한 휴리스틱이 아닌 ##finite-group hard-witness approximation to editing persistent failed prefixes toward fast-success actions##.</li>
+  <li><strong>비유</strong>: 같은 시험 문제를 ##8명의 학생##이 푼다. 한 명은 빠르게 정답 (correct shortest), 다른 한 명은 오래 헤매다 오답 (longest wrong). ##빠르게 푼 학생의 풀이를 "정답 단서"##로 활용하여, ##헤매다 망한 학생의 초반 부분##을 어떻게 다르게 풀었어야 하는지 코칭. 외부 강사 없이 ##학생 그룹 내부에서 자기 강화##하는 패턴.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SSOPD 알고리즘</strong>: GRPO group 내부의 correct/wrong contrast를 ##scalar advantage가 아닌 dense prefix-level supervision##으로 변환. 외부 solution trace나 stronger teacher 불필요.</li>
+  <li><strong>Local node-editing analysis</strong> (Theorem 3.1): Prefix state $s$에서 $\pi_\eta(a|s) = (1-\eta)\pi(a|s) + \eta q_\phi(a|s)$ 형태 local edit이 $V_\phi^{\pi_\eta}(s) - V_\phi^\pi(s) = \eta \frac{\text{Var}_{a \sim \pi}[Q_\phi^\pi(s, a)]}{V_\phi^\pi(s)} \geq 0$ -- ##process supervision의 ideal target은 reweighted "good future" distribution##임을 정형화.</li>
+  <li><strong>Stopping-time interpretation</strong>: Random deadline $D \sim \gamma^\ell$ tail로 fast-success criterion 도입. ##Shortest-correct / longest-wrong rule이 그 fast-success posterior의 ##finite-group hard-witness approximation##임을 ##first-principles proof##.</li>
+  <li><strong>Theorem 3.2 (Stopping-time-aware SSOPD lower bound)</strong>: Selected $y^+$, $y^-$로 induced edit이 ##teacher approximation error $\varepsilon_{F, s_t^-}(y^+)$를 마이너스 항으로 가지는 lower bound## 제공.</li>
+  <li><strong>Frontier weighting (Eq.12)</strong>: $\lambda_x = \lambda_0 \cdot 4 \hat{p}_x(1 - \hat{p}_x)$. ##balanced group (correct/wrong이 공존)##에서 maximum, all-correct/all-wrong에서 vanish. Proposition 3.3에서 ##$p_x(1-p_x) = \sum_t \mathbb{E}[\text{Var}_a[Q_R^\pi(S_t, a)]]$##로 ##branching variance## 해석 부여.</li>
+  <li><strong>Empirical SOTA in non-privileged regime</strong>: AIME 2024/2025 + HMMT 2025에서 Qwen3-1.7B/4B/8B 모두 ##GRPO를 일관 outperform## (9 model-benchmark setting 모두). Qwen3-8B에서 macro Avg@12 ##65.6## (GRPO 64.0보다 +1.6, ##solution-conditioned OPSD baseline 64.8보다 +0.8##).</li>
+  <li><strong>Information budget separation</strong>: SFT/OPD는 ##external solution information## 사용; SSOPD/GRPO는 ##answer verification + on-policy sample만##. ##정보적으로 매칭된 비교##에서 SSOPD가 dense process signal을 GRPO보다 추출.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>Verifiable reasoning은 ##process annotation 거의 없이## 학습 가능: 여러 솔루션 sample → 최종 답 verify → 성공한 것 reinforce. 수학 reasoning에 효과적. GRPO-style RLVR (Shao et al. 2024)이 표준이지만 ##fully on-policy이면서 sparse##.</p>
+
+<p>Dense supervision의 보완: SFT, distillation 등은 token-level behavior shape하지만 ##density가 보통 on-policy training loop 외부에서 옴## (reference solution, privileged trace, separate teacher). ##Information-budget gap## 형성.</p>
+
+<p><strong>본 논문의 질문</strong>: ##"Dense process supervision을 on-policy sample 자체에서 추출할 수 있는가?"##</p>
+
+<p><strong>핵심 관찰</strong>: GRPO group은 이미 현재 policy에 대한 ##small empirical reasoning tree##. 같은 prompt에 대해 여러 시도 → ##correct completion = "current policy가 이 문제를 풀 수 있다"는 self-generated witness##; ##incorrect completion = "policy가 visit하다 fail하는 prefix" 노출##. 표준 GRPO는 이 contrast를 group-relative scalar advantage로만 활용. SSOPD는 ##self-supervision 기회##로 본다.</p>
+
+<p>Figure 1의 SSOPD 파이프라인:</p>
+<ol>
+  <li>GRPO group: prompt $x$에 대해 G개의 on-policy completion sample (correct/wrong 혼재)</li>
+  <li>Standard GRPO loss: terminal reward로 group-relative advantage 계산</li>
+  <li>SSOPD auxiliary loss: 같은 group에서 fast-success witness $y^+$ (shortest correct)와 persistent-failure rollout $y^-$ (longest wrong) 선택</li>
+  <li>Teacher가 $y^-$의 early prefix $s_t^-$에서 ##$y^+$를 hint로 보고## next-token distribution 산출 (clipped forward KL distillation)</li>
+  <li>Student는 $y^+$를 보지 않고 prefix $s_t^-$에서 자신의 distribution이 teacher의 hint-aware distribution을 흉내내도록 학습</li>
+  <li>Final objective: ##$\mathcal{L} = \mathcal{L}_{\text{GRPO}} + \lambda_x \mathcal{L}_{\text{SSOPD}}$, $\lambda_x = 4\lambda_0 \hat{p}_x (1-\hat{p}_x)$##</li>
+</ol>
+
+<p>SSOPD는 ##failed completion을 SFT target으로 복사하지 않음##. $y^+$는 student-imitated sequence가 아니라 ##local next-token distribution at the failing prefix##를 위한 ##privileged hindsight##.</p>
+
+<!-- ============================================================ -->
+<h2>2. Background</h2>
+
+<h3>2.1 GRPO</h3>
+
+<p>Prompt $x$에 대해 group $\mathcal{G}(x) = \{y_i\}_{i=1}^G$, $y_i \sim \pi(\cdot|x)$, binary reward $r_i = R(y_i)$. Group mean $\bar{r}$, variance $\sigma_r^2$. Group-normalized advantage:</p>
+
+$$A_i = \frac{r_i - \bar{r}}{\sigma_r + \epsilon_r} \tag{1}$$
+
+<p>Policy ratio $\omega_{i,t}(\theta) = \pi_\theta(a_{i,t}|s_t(y_i)) / \pi(a_{i,t}|s_t(y_i))$. Token-averaged GRPO loss:</p>
+
+$$\mathcal{L}_{\text{GRPO}}(x) = \frac{1}{G}\sum_{i=1}^G \frac{1}{\tau(y_i)}\sum_{t=0}^{\tau(y_i)-1}\big(-\min[\omega_{i,t}(\theta) A_i, \text{clip}(\omega_{i,t}(\theta), 1-\epsilon, 1+\epsilon) A_i] + \beta \mathcal{K}_{i,t}\big) \tag{2}$$
+
+<p>$\mathcal{K}_{i,t}$는 reference-policy KL penalty.</p>
+
+<h3>2.2 Privileged On-Policy Self-Distillation (Zhao et al. 2026)</h3>
+
+<p>Prefix state $s$에서 student update를 on-policy로 유지하되 ##additional training-time context##로 dense teacher distribution 구성. Privileged information $z$. Teacher와 student next-action distribution:</p>
+
+$$q_T(a|s, z) = \pi_{\bar{\theta}}(a | \text{Hint}(s, z)), \quad p_\theta(a|s) = \pi_\theta(a|s)$$
+
+<p>Local distillation loss = ##pointwise-clipped forward KL##:</p>
+
+$$\ell_{\text{OPSD}}(s, z) = \sum_a \text{clip}_{\tau_{\text{clip}}}(q_T(a|s, z))[\log q_T(a|s, z) - \log p_\theta(a|s)] \tag{3}$$
+
+<p>$\text{clip}_{\tau_{\text{clip}}}(u) = \min(u, \tau_{\text{clip}})$, $\tau_{\text{clip}} = 0.05$. ##$s$는 current behavior policy의 prefix, $z$는 teacher distribution 형성용으로만 사용##.</p>
+
+<!-- ============================================================ -->
+<h2>3. SSOPD</h2>
+
+<p>핵심 통찰: GRPO group은 ##terminal reward의 collection 이상##. Same policy가 same prompt에서 여러 번 시도하면, group은 ##"어떻게 성공했는지"의 evidence와 "어디서 fail했는지"의 states##를 모두 담는다. SSOPD는 이 contrast를 ##local training signal##로 변환.</p>
+
+<p>구성 3 step:</p>
+<ol>
+  <li>Prefix에서 좋은 local edit이 무엇인가 (Theorem 3.1)</li>
+  <li>On-policy successful completion이 어떻게 그 edit을 ##privileged distillation##으로 근사하는가</li>
+  <li>Successful/failed completion을 ##stopping time## criterion으로 어떻게 선택하고, group의 correct-wrong contrast로 loss를 weight하는가</li>
+</ol>
+
+<h3>3.1 From GRPO Groups to Local Edits</h3>
+
+<p>Behavior policy $\pi$, student policy $\pi_\theta$. Generated completion = path $Y = (A_0, A_1, \ldots, A_{\tau(Y)-1})$, $\tau(Y) \leq H$, binary reward $R(Y) \in \{0, 1\}$. Prefix state $s_t(y) = (x, y_{<t})$.</p>
+
+<p>각 prompt에 대해 GRPO sample $\mathcal{G}(x)$, split into correct/wrong:</p>
+<ul>
+  <li>$\mathcal{C}(x) = \{y_i : R(y_i) = 1\}$</li>
+  <li>$\mathcal{W}(x) = \{y_i : R(y_i) = 0\}$</li>
+</ul>
+
+<p>Prefix $s$에서 좋은 local guidance 형식? Continuation $Y \sim \pi(\cdot|s)$, nonnegative score $\phi_s(Y) \geq 0$ (각 continuation의 desirability). Define:</p>
+
+$$V_\phi^\pi(s) = \mathbb{E}_\pi[\phi_s(Y) | s], \quad Q_\phi^\pi(s, a) = \mathbb{E}_\pi[\phi_s(Y) | s, a]$$
+
+<p>##Natural next-action target##은 behavior policy를 future desirability로 reweight한 것:</p>
+
+$$q_\phi(a|s) = \frac{\pi(a|s) Q_\phi^\pi(s, a)}{V_\phi^\pi(s)} \tag{4}$$
+
+<blockquote>
+<strong>Theorem 3.1 (Local improvement by reweighting good futures)</strong>: prefix state $s$, nonnegative score $\phi_s$ with $V_\phi^\pi(s) > 0$. Define local edit $\pi_\eta(a|s) = (1-\eta)\pi(a|s) + \eta q_\phi(a|s)$ ($0 < \eta < 1$), other states unchanged. Then:
+$$V_\phi^{\pi_\eta}(s) - V_\phi^\pi(s) = \eta \cdot \frac{\text{Var}_{a \sim \pi(\cdot|s)}[Q_\phi^\pi(s, a)]}{V_\phi^\pi(s)} \geq 0$$
+</blockquote>
+
+<p>직관적으로 말하면, $s$에서 ##다른 next action이 다른 future로 이끌면 (Q variance 큼) edit이 local value 개선##. 모두 동등하게 좋으면 variance 작음 → 학습할 게 적음. ##Edit가 "next decision이 중요한 prefix에 자연 집중"##.</p>
+
+<p>Eq.(4)는 모든 continuation 필요로 compute 불가. SSOPD는 group 내 successful sample을 ##finite-sample proxy##로 사용. Group에 useful witness $z$가 있으면, prefix $s$에 $z$를 extra context로 conditioned stop-gradient teacher:</p>
+
+$$q_T(a|s, z) = \pi_{\bar{\theta}}(\cdot | \text{Hint}(s, z)), \quad p_\theta(a|s) = \pi_\theta(a|s) \tag{5}$$
+
+<p>$\text{Hint}(s, z)$ = prompt-prefix state $s$ + self-generated witness $z$ pack. ##Teacher는 hindsight 사용 가능, student는 불가##. Auxiliary loss는 teacher의 local next-decision distribution을 student로 distill. Pointwise-clipped forward KL:</p>
+
+$$\ell_{\text{OPSD}}(s, z) = \sum_a \text{clip}_{\tau_{\text{clip}}}(q_T(a|s, z))[\log q_T(a|s, z) - \log p_\theta(a|s)] \tag{6}$$
+
+<p>##$z$는 SFT target으로 다뤄지지 않음##. failed prefix의 next-token distribution만 shape.</p>
+
+<h3>3.2 Choosing Witnesses by Stopping Time</h3>
+
+<p>Useful successful witness는 desirable future를 가리켜야 하고, useful failed rollout은 correction이 의미 있는 prefix 제공해야 함. SSOPD는 두 선택을 ##same stopping-time lens##로:</p>
+
+<p>##Random deadline $D$## with survival function $\Pr(D \geq \ell) = \gamma^\ell$, $0 < \gamma < 1$. 작은 $\gamma$ = shorter successful continuation 강하게 선호; $\gamma \to 1$ = milder.</p>
+
+<p>Continuation from prefix $s$, $L_s(Y)$ = remaining stopping time. Solving before deadline의 ##fast-success desirability##:</p>
+
+$$\phi_F^s(Y) = \mathbf{1}\{R(Y) = 1\} \gamma^{L_s(Y)} \tag{7}$$
+
+<p>Fast-success posterior: $q_F(a|s) = \pi(a|s) Q_F^\pi(s, a) / V_F^\pi(s)$.</p>
+
+<p>Root에서 correct completion $y$의 fast-success weight: $w_F(y) = \mathbf{1}\{R(y) = 1\} \gamma^{\tau(y)}$. ##Correct set 중 weight 최대##:</p>
+
+$$y^+ = \arg\min_{y \in \mathcal{C}(x)} \tau(y) \tag{8}$$
+
+<p>("shorter reasoning이 더 좋다"는 주장이 아니라, fast-success criterion 하의 ##highest-weight observed witness##; teacher의 privileged context로만 사용)</p>
+
+<p>같은 deadline이 persistent failure 식별. Wrong completion $y$의 weight: $w_F(y) = \mathbf{1}\{R(y) = 0\}(1 - \gamma^{\tau(y)})$ -- stopping time이 길수록 증가. Long wrong rollout = early prefix가 extended failed continuation으로 이끈다는 strong evidence → useful place to intervene. ##Wrong set 중 weight 최대##:</p>
+
+$$y^- = \arg\max_{y \in \mathcal{W}(x)} \tau(y) \tag{10}$$
+
+<p>이로써 ##shortest-correct / longest-wrong rule##은 ##independent heuristic이 아니라 finite-group hard-witness approximation to editing persistent failed prefixes toward fast-success actions##.</p>
+
+<h3>3.3 Empirical Objective and Frontier Weighting</h3>
+
+<p>Pair $(y^+, y^-)$ 선택 후, ##failed completion의 first $K$ generated position만 edit##:</p>
+
+$$K_- = \min(K, \tau(y^-)), \quad s_t^- = (x, y_{<t}^-), \quad t = 0, \ldots, K_- - 1$$
+
+<p>SSOPD auxiliary loss:</p>
+
+$$\mathcal{L}_{\text{SSOPD}}(x) = \frac{1}{K_-}\sum_{t=0}^{K_- - 1} \ell_{\text{OPSD}}(s_t^-, y^+) \tag{11}$$
+
+<p>두 completion의 역할은 ##의도적으로 비대칭##: ##$y^-$의 long failed suffix는 token supervision으로 사용 안 됨## (selected early prefix가 poor on-policy route임을 certify할 뿐). ##$y^+$는 student가 copy하지 않음## (teacher에게 better local continuation의 privileged evidence 제공).</p>
+
+<blockquote>
+<strong>Theorem 3.2 (Stopping-time-aware SSOPD lower bound)</strong>: $y^+$, $y^-$가 (8), (10)으로 선택. 각 $s_t^-$에 대해 teacher-induced edit $\bar{\pi}_\eta^{s_t^-}(a|s_t^-) = (1-\eta)\pi(a|s_t^-) + \eta q_T(a|s_t^-, y^+)$. Then:
+$$\frac{1}{K_-}\sum_{t=0}^{K_- - 1}[V_F^{\bar{\pi}_\eta^{s_t^-}}(s_t^-) - V_F^\pi(s_t^-)] \geq \eta \cdot \frac{1}{K_-}\sum_{t=0}^{K_- - 1}\left(\frac{\text{Var}_{a \sim \pi(\cdot|s_t^-)}[Q_F^\pi(s_t^-, a)]}{V_F^\pi(s_t^-)} - \varepsilon_{F, s_t^-}(y^+)\right)$$
+</blockquote>
+
+<p>이 bound는 construction을 mirror: ##selected failed prefix = real branching decision for fast-success##; ##short correct completion = teacher가 그 decision에 useful guidance 제공##; ##long wrong completion = where to edit##; ##short correct completion = direction##.</p>
+
+<h3>Frontier Weighting (Eq.12)</h3>
+
+<p>Auxiliary edit은 ##group이 meaningful contrast 가질 때만## 적용해야 함. Model이 거의 못 풀면 reliable witness 없음; 거의 항상 풀면 few failures가 representative 안 됨. ##Most useful regime은 current reasoning frontier## -- correct와 wrong이 공존.</p>
+
+<p>$p_x = \Pr_\pi(R(Y) = 1 | x)$, $\hat{p}_x = (1/G) \sum r_i$. SSOPD term을:</p>
+
+$$\lambda_x = \lambda_0 \cdot 4 \hat{p}_x (1 - \hat{p}_x) \tag{12}$$
+
+<p>$\lambda_x$ = stop-gradient. Group이 balanced일 때 maximum, all-correct/all-wrong에서 vanish.</p>
+
+<blockquote>
+<strong>Proposition 3.3 (Frontier coefficient as branching variance)</strong>: Binary rewards + finite horizon with terminal padding 하에:
+$$p_x(1 - p_x) = \sum_{t=0}^{H-1} \mathbb{E}_{S_t}[\text{Var}_{a \sim \pi(\cdot|S_t)}[Q_R^\pi(S_t, a)]]$$
+또한 $K_c \sim \text{Binomial}(G, p_x)$일 때 $\mathbb{E}[K_c(G - K_c)] = G(G-1) p_x(1-p_x)$.
+</blockquote>
+
+<p>즉 ##$p_x(1-p_x)$는 confidence heuristic뿐 아니라 current reasoning tree 내부에 outcome-relevant branching이 얼마나 존재하는지를 측정##. ##Auxiliary loss가 current reasoning frontier에서 가장 강한 이유##.</p>
+
+<p>Final per-prompt objective:</p>
+
+$$\mathcal{L}(x) = \mathcal{L}_{\text{GRPO}}(x) + \lambda_x \mathcal{L}_{\text{SSOPD}}(x) \tag{13}$$
+
+<p>##No correct-wrong pair → no witness pair instantiated → $\lambda_x = 0$##. SSOPD는 on-policy group이 support할 수 있을 때만 dense process supervision 추가.</p>
+
+<!-- ============================================================ -->
+<h2>4. Experiments</h2>
+
+<h3>4.1 Setup</h3>
+
+<table>
+  <tr><th>Item</th><th>Setting</th></tr>
+  <tr><td>Model</td><td>Qwen3-1.7B / 4B / 8B Instruct</td></tr>
+  <tr><td>Training data</td><td>OpenThoughts mathematical reasoning subset, scale별 ~30K problem with verified final answer</td></tr>
+  <tr><td>Reference solution</td><td>SFT/OPD baseline에만 사용 (privileged)</td></tr>
+  <tr><td>Evaluation</td><td>AIME 2024, AIME 2025, HMMT 2025</td></tr>
+  <tr><td>SSOPD adapter</td><td>LoRA (Hu et al. 2022)</td></tr>
+  <tr><td>Teacher</td><td>##Initial checkpoint에 anchored, trainable adapter disabled##</td></tr>
+  <tr><td>Base coefficient</td><td>$\lambda_0 = 0.5$</td></tr>
+  <tr><td>Avg@12</td><td>Problem당 12 completion sample, average verified correctness</td></tr>
+  <tr><td>Decoding</td><td>Thinking mode, T=1.0, top-p 0.95, max 38K tokens</td></tr>
+</table>
+
+<p>Compared recipes (information budget으로 organized):</p>
+<ul>
+  <li><strong>GRPO</strong>: binary answer reward + grouped rollouts (no reference solution)</li>
+  <li><strong>SSOPD (이 논문)</strong>: same non-privileged setting + auxiliary loss (shortest correct as witness, longest wrong's prefix as edit)</li>
+  <li><strong>SFT</strong>: ##reference reasoning trace 직접 모방## (privileged)</li>
+  <li><strong>OPD (= OPSD with solution-conditioned teacher)</strong>: solution-conditioned teacher가 student prefix를 score (privileged)</li>
+</ul>
+
+<h3>4.2 Main Results (Table 1)</h3>
+
+<table>
+  <tr><th>Backbone</th><th>Recipe</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>Macro Avg</th></tr>
+  <tr><td rowspan="5"><strong>Qwen3-8B Instruct</strong></td><td>No update</td><td>75.8</td><td>65.6</td><td>43.9</td><td>61.8</td></tr>
+  <tr><td>+ GRPO (no privilege)</td><td>76.4</td><td>68.9</td><td>46.7</td><td>64.0</td></tr>
+  <tr style="background:#fff4e6;"><td>+ <strong>SSOPD (no priv, ours)</strong></td><td><strong>78.6</strong></td><td><strong>70.8</strong></td><td><strong>47.5</strong></td><td><strong>65.6</strong></td></tr>
+  <tr><td>+ SFT (priv)</td><td>72.3</td><td>64.2</td><td>42.9</td><td>59.8</td></tr>
+  <tr><td>+ OPD (priv)</td><td>77.8</td><td>70.8</td><td>45.8</td><td>64.8</td></tr>
+  <tr><td rowspan="5"><strong>Qwen3-4B Instruct</strong></td><td>No update</td><td>74.9</td><td>66.4</td><td>42.2</td><td>61.2</td></tr>
+  <tr><td>+ GRPO</td><td>75.6</td><td>68.1</td><td>44.4</td><td>62.7</td></tr>
+  <tr style="background:#fff4e6;"><td>+ <strong>SSOPD (ours)</strong></td><td>75.8</td><td>68.3</td><td>45.0</td><td>63.0</td></tr>
+  <tr><td>+ SFT</td><td>70.2</td><td>62.3</td><td>43.4</td><td>58.6</td></tr>
+  <tr><td>+ OPD</td><td>76.4</td><td>68.3</td><td>46.1</td><td>63.6</td></tr>
+  <tr><td rowspan="5"><strong>Qwen3-1.7B Instruct</strong></td><td>No update</td><td>51.5</td><td>36.7</td><td>23.1</td><td>37.1</td></tr>
+  <tr><td>+ GRPO</td><td>51.1</td><td>38.3</td><td>23.7</td><td>37.7</td></tr>
+  <tr style="background:#fff4e6;"><td>+ <strong>SSOPD (ours)</strong></td><td>51.7</td><td>38.6</td><td>24.7</td><td>38.3</td></tr>
+  <tr><td>+ SFT</td><td>48.4</td><td>36.3</td><td>22.7</td><td>35.8</td></tr>
+  <tr><td>+ OPD</td><td>57.2</td><td>43.9</td><td>29.2</td><td>43.4</td></tr>
+</table>
+
+<p><strong>Obs 1 (Information-controlled best)</strong>: SSOPD가 ##non-privileged 가장 강력한 method## -- ##GRPO를 모든 9 entry에서 일관 outperform##. Macro avg gain: 8B +1.6, 4B +0.3, 1.7B +0.6.</p>
+
+<p><strong>Obs 2 (8B에서 특히 인상적)</strong>: ##SSOPD가 OPD privileged baseline도 능가## (65.6 vs 64.8). AIME 2024와 HMMT 2025 best score, AIME 2025 ties best. ##Model이 reliable successful witness 생성할 정도로 강할 때, self-supervision이 external solution information과 competitive##.</p>
+
+<p><strong>Obs 3 (Smaller scale boundary)</strong>: 1.7B/4B에서는 OPD가 overall stronger. ##External solution-conditioned teacher가 자기 correct completion이 less stable일 때 더 valuable##. SSOPD는 그래도 GRPO보다 일관 우위 -- imperfect witness도 on-policy learning signal 개선.</p>
+
+<p><strong>Benchmark patterns</strong>:</p>
+<ul>
+  <li>AIME 2024/AIME 2025: larger model에서 base accuracy 이미 높음 → already competent policy를 off-policy trace 추가 없이 refine 가능</li>
+  <li>HMMT 2025: harder, persistent failed rollout 더 많음 → ##longest-wrong prefix selection의 useful stress test##</li>
+  <li>SSOPD가 3 benchmark 모두에서 GRPO 능가 → ##self-distillation signal이 single difficulty regime에 tied 안 됨##</li>
+</ul>
+
+<h3>4.3 Ablation on Frontier Weight</h3>
+
+<p>HMMT 2025 + Qwen3-4B에서 auxiliary coefficient ablation:</p>
+
+<table>
+  <tr><th>$\lambda_0$</th><th>Dynamic ($\lambda_0 \cdot 4\hat{p}_x(1-\hat{p}_x)$)</th><th>Fixed (raw value as global)</th></tr>
+  <tr><td>0.4</td><td>44.4</td><td>44.2</td></tr>
+  <tr><td>0.5 (default)</td><td><strong>45.0</strong></td><td>44.7</td></tr>
+  <tr><td>0.6</td><td>44.7</td><td>44.4</td></tr>
+  <tr><td>0.7</td><td>44.2</td><td>43.9</td></tr>
+</table>
+
+<p><strong>관찰</strong>: ##Dynamic coefficient가 모든 tested value에서 fixed weighting을 능가## ($\lambda_0 = 0.5$ default 주변 stable). ##Frontier weight가 distillation을 useful correct-wrong contrast 있는 prompt에 allocating하는 역할 정당화##.</p>
+
+<!-- ============================================================ -->
+<h2>5. Related Work</h2>
+
+<table>
+  <tr><th>분야</th><th>대표 연구</th><th>SSOPD 위치</th></tr>
+  <tr><td>RLVR</td><td>GRPO (Shao et al. 2024), DeepSeek-R1, Yu et al. 2025, Kimi K2, Mistral</td><td>모두 ##terminal reward##만 사용. SSOPD는 same on-policy/verifier setting 유지하면서 ##group internal structure에서 dense signal 추출##</td></tr>
+  <tr><td>Process supervision (curated)</td><td>Math reasoning corpora (Guha et al. 2025, Xiaomi LLM-Core 2026), step-level reward models (Lightman et al. 2024)</td><td>Reference state/annotation/reward model 필요. SSOPD는 ##unnecessary##</td></tr>
+  <tr><td>Self-improvement / Distillation</td><td>Hinton et al., Kim &amp; Rush, Sanh et al., MiniLLM (Gu et al. 2024), ReST (Gulcehre et al. 2023), Snell et al., Huang et al.</td><td>Teacher distribution / generated sequence / behavior 전송. SSOPD에 가장 가까운 것은 ##privileged on-policy self-distillation (Zhao et al. 2026)##: teacher가 verified solution information을 conditioned. ##SSOPD는 external solution trace 사용 없이 same group의 correct completion만 사용##</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>6. Conclusion &amp; Limitations</h2>
+
+<p>SSOPD는 GRPO group 내부의 correct-wrong contrast를 ##dense process supervision##으로 변환. Shortest correct on-policy completion = self-generated witness, longest wrong completion의 prefix에서 conditioned teacher distribution을 distill, ##external solution trace 불필요##. Stopping-time view가 finite-group rule motivates, frontier weight가 group이 meaningful branching 가질 때 auxiliary loss 집중.</p>
+
+<p>실험: SSOPD가 ##모든 평가 model-benchmark pair에서 GRPO outperform##, 8B에서는 ##solution-conditioned OPSD baseline 능가##. ##On-policy group이 terminal reward 너머 reusable process information 담음## -- mixed group이 어느 sample이 succeeded인지뿐 아니라 ##nearby failed prefix where model can be locally corrected##도 노출.</p>
+
+<p><strong>Limitation</strong>: SSOPD는 ##reliable answer verification##과 ##current policy의 useful correct witness##에 의존. Mathematical reasoning 외 또는 smaller model에서는 weaker. Future work: witness selection 개선, occasional external trace와 self-generated witness 결합, finer prefix selection rule.</p>
+
+<!-- ============================================================ -->
+<h2>7. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>이론적 깊이</strong>: Theorem 3.1 (local improvement), Theorem 3.2 (stopping-time-aware bound), Proposition 3.3 (frontier as branching variance) 모두 ##구체적이고 actionable##. ##Stopping-time view##가 ##shortest-correct/longest-wrong heuristic##을 first-principles principle로 변환.</li>
+  <li><strong>Information-budget 매칭 비교</strong>: GRPO와 SSOPD 모두 ##answer verification + on-policy sample만 사용##. Privileged baseline (SFT, OPD)는 ##구분된 카테고리##로 표시. ##Apples-to-apples comparison의 명확함##.</li>
+  <li><strong>8B에서 SSOPD가 OPD 능가</strong>: external solution trace 없이도 ##self-generated witness가 충분히 reliable한 model scale##에서는 self-distillation이 privileged supervision을 능가. SLM 연구의 의미 있는 boundary observation.</li>
+  <li><strong>Frontier weight $\lambda_x = 4\lambda_0 \hat{p}_x(1-\hat{p}_x)$의 우아함</strong>: ##All-correct/all-wrong에서 vanish + branching variance와의 직접 동일성##. Ablation에서 모든 $\lambda_0$ 값에서 dynamic > fixed. Practical heuristic + theoretical justification 동시 제공.</li>
+  <li><strong>Asymmetry 디자인</strong>: "$y^+$를 student가 copy 안 함; $y^-$의 long failed suffix를 token supervision으로 안 씀"이라는 ##비대칭##이 SSOPD를 ##plain SFT/DAgger와 명확히 구분##. 단순 self-imitation이 아닌 ##local prefix-level distillation##.</li>
+  <li><strong>Computational efficiency</strong>: External teacher 없음, additional trace generation 없음, ##GRPO group 자체에서 추출##. Production training pipeline에 minimal overhead로 add-on 가능.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Smaller model에서 OPD 능가 못 함</strong>: Qwen3-1.7B/4B에서 OPD가 SSOPD를 outperform (43.4 vs 38.3, 63.6 vs 63.0). ##Self-supervision의 효과가 model scale에 dependent##. "frontier reasoning model에 효과적"이라는 narrow한 적용 범위.</li>
+  <li><strong>Witness가 unreliable인 경우 fallback 부재</strong>: ##model이 거의 못 푸는 prompt에서는 frontier weight 0##. 이는 안전하지만 ##model이 항상 frontier에 있는 경우##(모든 문제가 적절히 어려운)에만 SSOPD가 유용. Over-easy / over-hard prompt가 많은 dataset에선 SSOPD signal이 sparse.</li>
+  <li><strong>Fast-success criterion의 deadline parameter $\gamma$</strong>: Eq.7에 $\gamma$ 등장하나 실험에서 어떤 $\gamma$ 값을 사용하는지 명시 부재. shortest-correct rule은 implicit $\gamma$의 hard limit 같지만 sensitivity 미평가.</li>
+  <li><strong>Shortest correct가 항상 best witness인가?</strong>: Theorem이 ##fast-success criterion 하의 hard-witness approximation##임을 명시하지만, 실제로 ##shorter reasoning이 항상 better local guidance##인지는 불명. "Shortcut reasoning" (skip steps)이 longer dense reasoning보다 less informative일 수 있음.</li>
+  <li><strong>$K$ (edit horizon) sensitivity</strong>: SSOPD는 first $K$ generated position만 edit. $K$ 선택이 결과에 미치는 영향이나 권장 값 부재.</li>
+  <li><strong>Mathematical reasoning에 한정</strong>: AIME / HMMT만 평가. ##Code generation, science QA, general instruction following##에서 SSOPD의 효과는 unclear. 저자도 limitation으로 인정.</li>
+  <li><strong>Mode collapse risk</strong>: Self-supervision은 model이 already-known 영역에 over-confident하게 만들 위험. Diversity loss나 entropy bonus 분석 부재.</li>
+  <li><strong>$y^+ = y^-$의 경우 처리 모호</strong>: drop-out으로 처리되겠지만, 같은 prompt에 대해 G개 sample이 "all correct"이거나 "all wrong"일 때의 빈도와 그 영향에 대한 통계 부재.</li>
+  <li><strong>OPSD baseline의 reproducibility</strong>: privileged OPSD가 외부 reference solution을 사용한다고 명시되지만, 정확히 어떤 reference를 어떻게 사용하는지의 detail이 abstract. ##Fair baseline 검증을 위한 정보 부족##.</li>
+  <li><strong>Compute cost 비교 부재</strong>: GRPO + auxiliary loss가 GRPO 단독 대비 wall-clock에 미치는 영향 미공개. Teacher forward pass + clipped KL 계산이 오버헤드.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>8. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"GRPO group은 small reasoning tree"라는 시각</strong>: 같은 prompt의 multiple attempt가 단순 average reward로 합쳐지는 게 아니라 ##process-level branching evidence##. 이 evidence를 ##scalar advantage 외##로 활용하는 패턴은 다른 RL setting에도 transfer 가능.</li>
+  <li><strong>Stopping-time as Witness Selection Lens</strong>: Random deadline $\gamma^\ell$ 하의 fast-success desirability가 ##shortest-correct/longest-wrong##을 자연스럽게 도출. ##단순 휴리스틱을 first-principles 정당화##하는 우아한 framework. 다른 process supervision 알고리즘에서도 witness selection rule 도출에 활용 가능.</li>
+  <li><strong>Frontier Weight의 이중 의미</strong>: $4 p_x(1-p_x)$가 ##branching variance와 동일##. Process supervision이 ##current reasoning frontier에 자동 집중##되는 단순 메커니즘. 다른 multi-objective training에서 weight allocation pattern.</li>
+  <li><strong>비대칭 사용의 가치</strong>: $y^+$ as ##privileged context for teacher##, $y^-$ as ##where to edit##. ##두 sample의 역할을 다르게 다루는 것##이 plain SFT나 DPO와 SSOPD의 차이. Multi-sample 학습 알고리즘 설계의 일반 패턴.</li>
+  <li><strong>External Privilege의 boundary</strong>: ##8B에선 SSOPD ≥ privileged OPD##, ##smaller에선 OPD가 우위##. Self-supervision이 효과적인 ##model competence boundary##가 존재. SLM post-training 전략은 이 boundary를 식별하고 적응해야.</li>
+  <li><strong>Information Budget Honest 평가</strong>: External solution / privileged trace 사용 여부를 ##평가 카테고리##로 명시. 이는 RLVR 분야에서 ##fair comparison##의 표준이 되어야. "We outperform X"라는 claim 시 information budget 매칭 명확화 필요.</li>
+  <li><strong>"Self-Supervision은 No Free Lunch"라는 정직한 boundary</strong>: smaller model 또는 unreliable witness setting에서 SSOPD 효과 약화. ##model scale + task verifiability + correct rate 분포##의 3축으로 SSOPD 적용성 결정. 추상적 일반화가 아닌 ##practical applicability map##.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>관련 연구 링크</h2>
+<ul>
+  <li><strong>OPD geometry</strong>: <a href="20260619_shen_opd-geometry.html">Shen et al. 2026</a> -- OPD parameter-space 분석</li>
+  <li><strong>SOD</strong>: <a href="20260619_zhong_sod.html">Zhong et al. 2026</a> -- TIR에서의 step-wise OPD</li>
+  <li><strong>GRPO</strong>: Shao et al. 2024 (DeepSeekMath, arXiv:2402.03300)</li>
+  <li><strong>OPD origin</strong>: Agarwal et al. 2024 (arXiv:2306.13649)</li>
+  <li><strong>Privileged on-policy self-distillation</strong>: Zhao et al. 2026 -- 본 논문의 직접 baseline</li>
+  <li><strong>Process supervision</strong>: Lightman et al. 2024 (Step-level reward), MiniLLM (Gu et al. 2024)</li>
+  <li><strong>OpenThoughts</strong>: Guha et al. 2025 -- 학습 데이터 출처</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
