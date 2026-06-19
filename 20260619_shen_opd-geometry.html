@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>On the Geometry of On-Policy Distillation</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>On the Geometry of On-Policy Distillation</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260619_shen_opd-geometry_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhennan Shen¹, Yanshu Li², Qingyu Yin³, Chak Tou Leong⁴, Zhilin Wang⁵, Yanxu Chen⁶, Rongduo Han⁷, Sunbowen Lee⁸, Yi R. Fung¹</li>
+  <li><strong>소속</strong>: ¹HKUST, ²Brown University, ³Zhejiang University, ⁴Hong Kong PolyU, ⁵USTC, ⁶BUPT, ⁷Nankai University, ⁸BIT</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (v3)</li>
+  <li><strong>연도</strong>: 2026 (Date: June 14, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.07082">arXiv:2606.07082v3</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: ##On-policy distillation (OPD)##는 LLM reasoning을 향상시키는 데 점점 많이 쓰이지만, ##parameter space에서의 학습 dynamics##는 거의 분석된 적이 없다. 기존 연구는 SFT (dense, principal-aligned updates)와 RLVR (sparse, off-principal updates)의 ##기하학적 footprint##만 알려준다. OPD는 학생 자체 rollout(=RLVR-like)을 dense token-level teacher 신호(=SFT-like)와 결합하기 때문에 어느 paradigm으로도 직접 추론 불가.</li>
+  <li><strong>해결</strong>: 3개 RQ로 OPD를 ##parameter-space 관점##에서 해부. (RQ1) ##Relaxed off-principal regime## -- OPD는 SFT보다 fewer weights에 영향, principal direction은 더 약하게 변하지만 RLVR보다는 덜 constrained. (RQ2) ##Subspace locking## -- cumulative update가 학습 초기에 빠르게 ##narrow low-dimensional channel##로 진입하여 그 안에서 수렴. (RQ3) ##Objective composition이 lock을 control## -- token sparsification과 off-policy rollout은 lock 유지, RLVR objective와 mixing하면 lock이 깨진다.</li>
+  <li><strong>왜 작동하는가</strong>: ##Three-Gate view##를 OPD에 확장 -- (G1) KL anchor (distributional anchor)는 update size 제한, (G2) pretrained model geometry는 high-curvature principal direction에서 벗어나도록 routing, (G3) bf16 precision realization이 어떤 좌표가 visibly updated인지 결정. RLVR은 sequence-level scalar advantage로 G2/G3 좁게 통과 → off-principal sparse. OPD는 token-level teacher 신호로 ##active direction set이 broaden##되지만 G1/G2 자체는 보존 → "relaxed" off-principal.</li>
+  <li><strong>비유</strong>: SFT는 등산로를 자유롭게 새로 깎는다 (principal ridge 위에 dense update). RLVR은 ##기존 등산로의 좁은 우회 샛길##만 사용 (sparse off-principal). OPD는 그 사이 ##약간 넓혀진 우회길## -- principal ridge는 피하지만 기존 path보다 ##조금 더 많은 좌표##가 update된다. 게다가 그 우회길이 학습 초기에 ##고정##되고 끝까지 그 채널만 사용한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>OPD의 parameter-space 위치 규명 (RQ1)</strong>: ##bf16-aware update sparsity## (SFT 8.1% / OPD 51.6% / RLVR 77.2%), ##principal-angle rotation## (SFT >10° / OPD ~1° / RLVR <0.5°), ##spectral drift## (SFT 10⁻³ / OPD 10⁻⁴ / RLVR 10⁻⁵), ##update localization## (Update density: SFT 92.73% / OPD 46.28% / RLVR 27.76%) 4개 진단으로 OPD가 ##SFT와 RLVR 사이의 RLVR-biased relaxed off-principal regime##임을 정량 입증.</li>
+  <li><strong>Subspace Locking 발견 (RQ2)</strong>: 학습 trajectory를 추적한 결과, ##OPD는 좁은 low-rank band ($\Delta W_t$의 stable rank 거의 일정)에 머무르며, SFT는 expand, RLVR은 contract##. 이는 small-update artifact가 아니라 (Frobenius norm이 RLVR보다 크면서 stable rank는 RLVR과 비슷) ##nontrivial update의 bounded spectral profile##.</li>
+  <li><strong>Early Subspace Emergence + Functional Sufficiency</strong>: 학습 매우 초기에 ##final update channel V_K(t_end)와 alignment##가 형성됨을 ##subspace similarity## (Eq.9)로 보임. 학습 ~20% 시점의 top-16 right singular subspace로 gradient projection을 ##constrain##해도 OPD 성능은 거의 unchanged인 반면 SFT는 substantial degradation. ##Lock이 functionally sufficient##하다는 의미.</li>
+  <li><strong>Objective Composition이 Lock의 1차 control axis (RQ3)</strong>: 3가지 perturbation 비교: (a) token sparsification (top-KL/random 25%/50%) → rank trajectory 보존 (scale만 변함), (b) off-policy rollout (teacher가 rollout) → rank trajectory 보존, (c) ##objective interpolation $A^{(\alpha)} = \alpha A_{\text{OPD}} + (1-\alpha) A_{\text{RLVR}}$ → α=0.05/0.01에서 rank dynamics 깨짐##. ##즉 lock은 runtime이 아닌 objective 자체에 sensitive##.</li>
+  <li><strong>Three-Gate Account의 OPD 확장</strong>: RLVR의 Three-Gate (Zhu et al., 2025)를 ##signal granularity 차원으로 relax##. Gradient $g = \sum_t a_t \phi_t$에서 RLVR은 $a_t = A(y)$ (sequence-level scalar) 공유, OPD는 $a_t$가 token마다 teacher-student disagreement에 따라 ##heterogeneous## → covariance가 broaden되어 OPD가 더 많은 direction을 활용하지만 G1/G2 anchor는 유지. "##OPD는 RLVR의 on-policy 구조를 유지하되 scalar credit signal을 dense token-level supervision으로 대체##"라는 단일 문장 mechanism.</li>
+  <li><strong>Robustness across teacher/student/data</strong>: Qwen3-8B (controlled 비교) 외에 Qwen3-4B-T8B, T14B, T32B, 14B-T32B (student/teacher scale 변화), Qwen3-30B-A3B MoE teacher, code domain (DeepCoder/LiveCodeBench v5)에서도 ##sparsity 48.6%~57.1% 일관##. OPD-specific 패턴이 한 setting의 우연이 아님.</li>
+  <li><strong>실용적 implication</strong>: 향후 OPD 알고리즘은 ##token coverage나 rollout generation보다 objective-induced update geometry를 regulate## 해야 함. Locked update channel을 monitor하고 그 channel을 보존하는 design이 OPD를 ##stable, interpretable, transferable## 하게 만든다.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>대형 reasoning 모델(LRM)은 post-training으로 큰 진보를 이뤘다. 주류는 (a) SFT (offline demonstration, cross-entropy), (b) RLVR (verifiable reward 기반 RL). 최근 ##On-policy distillation (OPD)##가 보완 paradigm으로 부상 -- ##학생 자기 자신의 sampled rollout##에서 학습하되 ##stronger teacher의 dense token-level guidance## 하에 학습.</p>
+
+<p>그러나 OPD의 ##parameter-space dynamics##는 거의 알려지지 않았다. 기존 분석 (Liu et al., 2026; Mukherjee et al., 2025; Zhu et al., 2025)이 보여준 SFT-RLVR 기하학적 dichotomy:</p>
+
+<table>
+  <tr><th>방법</th><th>Update 특성</th><th>Spectral 보존</th></tr>
+  <tr><td>SFT</td><td>Dense, principal-aligned -- pretrained spectral structure를 ##distort##</td><td>약함</td></tr>
+  <tr><td>RLVR</td><td>Sparse, off-principal -- ##spectrum 보존##</td><td>강함</td></tr>
+  <tr><td>OPD</td><td>SFT-like (dense token guidance) + RLVR-like (on-policy + policy-gradient)</td><td>?</td></tr>
+</table>
+
+<p>OPD는 두 paradigm의 특징을 동시에 갖고 있어 ##어느 쪽 trajectory로도 직접 추론 불가능##. 본 논문은 3 RQ로 답한다:</p>
+
+<ul>
+  <li><strong>RQ1</strong>: OPD는 SFT-RLVR parameter-space spectrum의 어디에 위치하는가?</li>
+  <li><strong>RQ2</strong>: OPD는 학습 중 어떤 ##intrinsic update trajectory##를 따르는가?</li>
+  <li><strong>RQ3</strong>: 어떤 component가 그 trajectory를 control하는가?</li>
+</ul>
+
+<p>핵심 발견 3개 (Figure 1):</p>
+<ol>
+  <li><strong>Relaxed off-principal regime</strong>: OPD는 SFT(over-principal)와 RLVR(off-principal) 사이지만 RLVR 쪽으로 bias됨</li>
+  <li><strong>Early subspace lock</strong>: 학습 초기 OPD가 ##narrow low-dimensional subspace##로 진입하고 끝까지 거기 머무름; SFT는 expand, RLVR은 late contraction</li>
+  <li><strong>Objective composition controls lock</strong>: Lock은 token / rollout perturbation에는 robust, objective composition에는 sensitive</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>2. Related Work</h2>
+
+<p>3가지 관련 분야:</p>
+
+<table>
+  <tr><th>분야</th><th>대표 연구</th><th>본 논문 기여 위치</th></tr>
+  <tr><td>Post-training paradigm</td><td>Howard&Ruder 2018, Wei et al. 2022 (SFT) / Ziegler 2020, RLHF, DAPO, GRPO (RL)</td><td>OPD를 두 paradigm 위에 위치시키는 ##geometric anchor##</td></tr>
+  <tr><td>OPD 자체</td><td>Agarwal et al. 2024 (origin), Lu&Lab 2025, Song&Zheng 2026 (survey), Fu et al. 2026 (failure modes), Li et al. 2026 (rethinking), DeepSeek 2026, Cai et al. 2026 (efficiency)</td><td>OPD가 ##언제/효율적으로## 작동하는지의 행동 분석은 있으나 ##parameter-space 위치##는 unexamined</td></tr>
+  <tr><td>Post-training weight geometry</td><td>Liu et al. 2026 (SFT principal alignment), Mukherjee et al. 2025 (RL off-principal subnetworks), Zhu et al. 2025 -- ##PNT account##: KL anchor + bounded steps + spectrum-preserving subspaces + finite-precision realization</td><td>Zhu et al. 2025의 diagnostic suite와 Three-Gate를 ##OPD에 적용 + signal granularity 차원으로 relax##</td></tr>
+</table>
+
+<p>본 논문의 위치: SFT-RLVR geometric split은 확립됨; ##OPD가 spectrum 어디에 있고, training trajectory가 어떻게 진화하며, 어떤 OPD-specific 요인이 그 trajectory를 결정하는가##를 처음으로 다룬다.</p>
+
+<!-- ============================================================ -->
+<h2>3. Locating OPD in Parameter Space</h2>
+
+<p>OPD가 SFT-like distillation과 RLVR-like online optimization 사이의 어디인지 명확히 하기 위해, ##Zhu et al. (2025) diagnostic suite##를 활용:</p>
+
+<h3>3.1 Parameter-Space Diagnostics</h3>
+
+<p>$W_0$ = initialization, $W_+$ = post-training 후 weight, $\Delta W = W_+ - W_0$.</p>
+
+<h4>Update sparsity</h4>
+
+<p>bf16-visible update convention: scalar weight $w_i, \hat{w}_i$가 다음 만족하면 unchanged로 간주:</p>
+
+$$|\hat{w}_i - w_i| \leq \eta \max(|w_i|, |\hat{w}_i|), \quad \eta = 10^{-3}$$
+
+<p>bf16-aware update sparsity:</p>
+
+$$\text{sp}(W_0, W_+) = 1 - \frac{1}{n}\sum_{i,j} \mathbf{1}[W_{+, ij} \not\approx_\eta W_{0, ij}] \tag{1}$$
+
+<p>큰 값 = fewer visible weight changes.</p>
+
+<h4>Principal-angle rotation</h4>
+
+<p>Dominant singular subspace의 rotation을 ##principal angle## (Eq.2)로 측정:</p>
+
+$$\cos\theta_i(U) = \sigma_i(U_{0,k}^\top U_{+,k}), \quad \cos\theta_i(V) = \sigma_i(V_{0,k}^\top V_{+,k}) \tag{2}$$
+
+<p>여기서 $U_{\cdot, k}$, $V_{\cdot, k}$는 top-$k$ left/right singular vector. ##작은 angle = pretrained dominant subspace 강한 보존##. 직관적으로 말하면, $W_0 = U \Sigma V^\top$의 주축이 학습 후 얼마나 회전했는지를 1단위로 측정.</p>
+
+<h4>Spectral drift</h4>
+
+<p>Normalized Spectral Shift (NSS):</p>
+
+$$\text{NSS}(W_0, W_+) = \frac{\|\sigma(W_+) - \sigma(W_0)\|_2}{\|\sigma(W_0)\|_2} \tag{3}$$
+
+<p>$\sigma(\cdot)$는 descending singular value. 작은 NSS = stronger spectral preservation.</p>
+
+<h4>Update-mask overlap</h4>
+
+<p>bf16 update mask $M = \{(i,j): \text{bf16}(W_+)_{ij} \neq \text{bf16}(W_0)_{ij}\}$.</p>
+<ul>
+  <li>$M_{\text{princ}}$ = $W_0$의 rank-$k$ SVD reconstruction에서 ##top-$\alpha$ fraction by magnitude## (high-curvature region proxy)</li>
+  <li>$M_{\text{low}}$ = bottom-$\alpha$ fraction of entries by $|W_0|$ (low-magnitude region)</li>
+  <li>Overlap: $\text{Overlap}(M_\star, M) = |M_\star \cap M| / |M|$</li>
+</ul>
+
+<p>Random baseline = $\alpha$. Sub-random with $M_{\text{princ}}$ = depletion from principal weight, super-random with $M_{\text{low}}$ = concentration in low-magnitude region.</p>
+
+<h3>3.2 OPD Occupies a Relaxed Off-Principal Regime</h3>
+
+<h4>Update sparsity (Table 1)</h4>
+
+<p>Controlled Qwen3-8B 비교 (모두 dapo-math-17k, Math domain, SFT anchor iter_0005375에서 시작):</p>
+
+<table>
+  <tr><th>Base Model</th><th>Finetuned Model</th><th>Algorithm</th><th>sparsity (bf16)</th></tr>
+  <tr><td>Qwen3-8B-Base</td><td>Qwen3-8B-SFT</td><td>SFT</td><td>##8.1%##</td></tr>
+  <tr><td>Qwen3-8B-SFT</td><td>OPD-8B-T32B</td><td>OPD</td><td>##51.6%##</td></tr>
+  <tr><td>Qwen3-8B-SFT</td><td>RLVR-8B</td><td>GRPO</td><td>##77.2%##</td></tr>
+</table>
+
+<p>OPD variant들 (teacher 4B/8B/14B/32B, 14B student, code, MoE teacher)도 ##48.6~57.1%## 범위로 ##일관##. Published reference (Klear-Reasoner 8B-SFT 0.6%, GT-Qwen3-8B GRPO 79.0%, Polaris-4B DAPO 79.9%)도 SFT-RLVR separation 재현.</p>
+
+<h4>Subspace rotation and spectral drift</h4>
+
+<table>
+  <tr><th>Method</th><th>Principal angle</th><th>Spectral drift (NSS)</th></tr>
+  <tr><td>SFT</td><td>>10°</td><td>$10^{-3}$</td></tr>
+  <tr><td>OPD</td><td>~1°</td><td>$10^{-4}$</td></tr>
+  <tr><td>RLVR</td><td><0.5°</td><td>$10^{-5}$</td></tr>
+</table>
+
+<p>Figure 2에서 single-layer/all-layer 모두 동일 ordering 확인.</p>
+
+<h4>Update localization (Figure 3)</h4>
+
+<p>bf16-visible update에 conditioned했을 때:</p>
+
+<table>
+  <tr><th>Mask</th><th>SFT</th><th>OPD</th><th>RLVR</th></tr>
+  <tr><td>Update density</td><td>92.73%</td><td>46.28%</td><td>27.76%</td></tr>
+  <tr><td>$M_{\text{princ}}$ overlap</td><td>29.66%</td><td>27.31%</td><td>26.65%</td></tr>
+  <tr><td>$M_{\text{low}}$ overlap</td><td>31.88%</td><td>53.59%</td><td>73.48%</td></tr>
+</table>
+
+<p>$M_{\text{princ}}$ overlap이 모두 ##30% random baseline 아래## → ##세 방법 모두 principal weight를 회피##하지만 monotonic 감소 (SFT > OPD > RLVR). $M_{\text{low}}$ overlap은 RLVR이 73.48%로 ##low-magnitude region에 집중##, OPD는 53.59%로 그 절반 정도, SFT는 random 수준.</p>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: OPD는 ##RLVR과 같은 off-principal direction##을 따르되 ##weaker selectivity + larger visible support##. 따라서 ##relaxed off-principal regime##.</p>
+
+<h3>3.3 A Relaxed Three-Gate Account of OPD</h3>
+
+<p>Zhu et al. 2025의 Three-Gate (RLVR이 off-principal이 되는 이유):</p>
+<ol>
+  <li><strong>Gate I (Distributional anchor)</strong>: KL-regularized/trust-region이 update size 제한 -- 매 step이 pretrained model을 자유롭게 rewrite하지 못함</li>
+  <li><strong>Gate II (Model geometry)</strong>: Bounded step에서 structured loss landscape이 ##high-curvature principal direction에서 멀어지고 lower-curvature spectrum-preserving region##으로 routing → off-principal</li>
+  <li><strong>Gate III (Precision realization)</strong>: bf16 precision이 ##어떤 좌표가 visibly update##되는지 결정 -- sub-threshold micro-update는 stored weight에 안 보임</li>
+</ol>
+
+<p><strong>OPD에 대한 relaxation</strong>: OPD는 같은 gated 구조를 보존하되 ##signal granularity##만 다름. RLVR은 token gradient를 sequence-level scalar reward로 묶음, OPD는 ##dense token-level teacher distribution##으로 더 dense한 descent direction 제공.</p>
+
+<p><strong>Signal granularity</strong>: Token score $\phi_t = \nabla_\theta \log p_\theta(y_t | x, y_{<t})$. Post-training update 일반화:</p>
+
+$$g = \sum_{t=1}^T a_t \phi_t \tag{4}$$
+
+<ul>
+  <li>RLVR: $a_t = A(y)$ shared across tokens (sequence-level scalar)</li>
+  <li>OPD: $a_t$가 token마다 ##local teacher-student disagreement##에 따라 varies</li>
+</ul>
+
+<p>OPD는 RLVR의 ##on-policy form 유지##하되 ##scalar credit signal을 dense token-level supervision으로 대체##.</p>
+
+<p><strong>Gate I (distributional anchor)</strong>: OPD remains anchored. Local quadratic budget 하에서 update norm $\|\Delta W\|_F \leq \sqrt{2\delta_W / \mu_W}$ (Eq.5). 차이는 budget 사용 방식 -- RLVR은 sequence-level reward signal로, OPD는 teacher-token distribution으로 ##denser descent direction##을 anchored region 내에서 제공 → ##larger effective update than RLVR while remaining far below SFT-style unconstrained rewriting##.</p>
+
+<p><strong>Gate II (model geometry)</strong>: Bounded update가 여전히 pretrained model geometry에 의해 shape됨. OPD의 relaxation은 update covariance에서 나타남:</p>
+
+$$\mathbb{E}[gg^\top] = \sum_{t,t'} \mathbb{E}[a_t a_{t'} \phi_t \phi_{t'}^\top] \tag{6}$$
+
+<p>RLVR은 모든 token score를 ##shared scalar##로 couple, OPD는 ##heterogeneous token coefficients##로 broaden.</p>
+
+<p><strong>Gate III (precision realization)</strong>: bf16 realization unchanged. 좌표가 visibly updated가 되려면 $|\Delta W_{ij}| \gtrsim \frac{1}{2}\text{ULP}_{\text{bf16}}(W_{0,ij})$ (Eq.7). OPD의 larger geometry-constrained update가 ##더 많은 좌표가 bf16 realization threshold를 통과##하게 만들어 sparsity ↓, off-principal bias 유지.</p>
+
+<p><strong>Implication</strong>: OPD는 relaxed off-principal regime을 차지 -- ##RLVR-like geometry-steered##, 그러나 ##SFT-like dense teacher supervision으로 less selective##. ##OPD recipe는 token-level supervision density보다 update geometry를 regulate해야 함.##</p>
+
+<!-- ============================================================ -->
+<h2>4. Subspace Locking in OPD</h2>
+
+<p>RQ2: OPD의 endpoint property뿐 아니라 ##training trajectory##도 distinct한가? Cumulative update $\Delta W_t = W_t - W_0$를 checkpoint별로 추적.</p>
+
+<h3>4.1 A Low-Dimensional Update Band (Figure 4)</h3>
+
+<p>각 matrix에 대해 ##stable rank## (Eq.8):</p>
+
+$$\text{srank}(\Delta W_t) = \frac{\|\Delta W_t\|_F^2}{\|\Delta W_t\|_{\text{op}}^2} \tag{8}$$
+
+<p>Algebraic rank와 달리 ##scale-aware##, "few dominant singular direction이 update energy를 carry"하는 정도 측정.</p>
+
+<p><strong>관찰</strong>:</p>
+<ul>
+  <li>Figure 4(a) Stable rank: ##OPD는 narrow band (~20-30) 내에서 거의 일정##; SFT는 progressively expand (45→75); RLVR은 contract (70→15)</li>
+  <li>Figure 4(b) Frobenius norm $\|\Delta W_t\|_F$: ##OPD는 RLVR보다 substantially larger## update accumulate하면서도 stable rank는 비슷 → "small-update artifact" 가설 기각. OPD가 진짜로 ##non-trivial update의 bounded spectral profile##을 보임</li>
+  <li>Figure 4(c) Hill alpha (spectral tail estimator): OPD evolve mildly, SFT increases sharply, RLVR decreases over training -- auxiliary 확인</li>
+</ul>
+
+<p>이로써 OPD는 SFT와 RLVR의 ##temporal interpolation 아님##. 학습 초기에 low-dimensional regime으로 진입하여 ##그곳에 머문다##.</p>
+
+<h3>4.2 Stability and Functional Sufficiency</h3>
+
+<h4>Early subspace emergence (Figure 5)</h4>
+
+<p>Low dimensionality alone이 lock을 의미하진 않는다 (다른 low-rank subspace를 rotation할 수도). 따라서 ##final low-dimensional update channel emerge time##을 test:</p>
+
+$$\text{Sim}_K(t, t_{\text{end}}) = \frac{1}{K}\|V_K(t)^\top V_K(t_{\text{end}})\|_F^2 \tag{9}$$
+
+<p>$V_K(t)$는 $\Delta W_t$의 top-$K$ right singular subspace. 1에 가까우면 update가 final update channel의 singular direction을 이미 사용 중.</p>
+
+<p><strong>관찰</strong>: ##OPD는 첫 measured checkpoint부터 final $V_{16}$ subspace와 align##; SFT, RLVR은 gradually 수렴. ##OPD의 low-dimensional channel은 late assemble이 아니라 early emergence##.</p>
+
+<h4>Functional sufficiency (Figure 6)</h4>
+
+<p>이 channel이 descriptive only인가, sufficient for learning인가?</p>
+
+<p><strong>실험 의도</strong>: ##K=16## (early stable rank scale, slightly below effective dimension)으로 ##stringent bottleneck## 부여. 학습 ~20% 시점에서 $V_{16}$ 추출 → 이후 학습 시 매 gradient $g$를 ##$g \leftarrow g V_{16} V_{16}^\top$##로 project (Eq.10) → 이 rank-16 constraint 하에서 OPD vs SFT 학습.</p>
+
+<p><strong>결과</strong>:</p>
+<ul>
+  <li>##OPD는 rank-16 bottleneck 하에서 essentially unchanged## (AIME2024 avg@8 ~plain과 동일)</li>
+  <li>##SFT는 매칭 window에서 substantial degradation##</li>
+  <li>같은 패턴이 추가 reasoning benchmark (AMC2023, AIME2025, Minerva, Beyond AIME)에서도 hold (Appendix F, Figure 8)</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: ##Locked update channel은 OPD의 학습에 functionally sufficient##; 같은 constraint가 SFT를 망가뜨림으로써 sufficiency가 ##projection dimension의 generic property가 아니라 OPD-specific##임을 confirm. ##미래 OPD 구현은 low-dimensionality를 post-hoc spectral statistic이 아닌 monitored & exploited channel로 다뤄야 한다.##</p>
+
+<!-- ============================================================ -->
+<h2>5. What Controls Subspace Locking?</h2>
+
+<p>Lock을 유지하는 component를 분리하기 위해 ##3 controlled perturbation##:</p>
+
+<table>
+  <tr><th>Dimension</th><th>Baseline</th><th>Token sparse</th><th>Off-policy</th><th>Alpha mix</th></tr>
+  <tr><td>Rollout policy</td><td>Student</td><td>Student</td><td>##Teacher##</td><td>Student</td></tr>
+  <tr><td>Token coverage</td><td>100%</td><td>##25/50%##</td><td>100%</td><td>100%</td></tr>
+  <tr><td>Objective signal</td><td>OPD</td><td>OPD</td><td>OPD</td><td>##OPD/RLVR mix##</td></tr>
+  <tr><td>Reward module</td><td>OPD</td><td>OPD</td><td>OPD</td><td>##Mixed reward##</td></tr>
+  <tr><td>Other</td><td>—</td><td>Same</td><td>Same</td><td>Same</td></tr>
+</table>
+
+<h3>5.1 Runtime Perturbations Preserve the Lock</h3>
+
+<h4>(a) Token sparsification (Figure 7a)</h4>
+
+<p>Sample마다 binary mask $m_t \in \{0, 1\}$. Top-KL retention: token을 sampled-token student-teacher log-probability gap $r_t = \log\pi_\theta(a_t|s_t) - \log\pi_T(a_t|s_t)$로 ranking, top $\rho$ fraction 유지 -- student가 teacher 대비 over-confident인 token 선택. Random retention: $\rho \in \{0.25, 0.5\}$ uniform.</p>
+
+<p>Compensation: $\tilde{r}_t = T m_t r_t / \sum_\tau m_\tau$.</p>
+
+<p><strong>결과</strong>: 모든 sparsified variant가 OPD baseline의 stable-rank trajectory를 ##closely track##. ##25% retention beyond는 update scale을 더 변화시키지만 spectral shape는 변화 ⇒ low-rank profile은 small set of high-KL token에 localize되지 않음##.</p>
+
+<h4>(b) Off-policy rollout (Figure 7b)</h4>
+
+<p>$y \sim \pi_T(\cdot | x)$ (teacher generates rollouts), student가 training forward pass에서 teacher-generated token의 log-probability 계산. ##Training objective는 pure OPD KL distillation 유지##. Importance-ratio clipping $\epsilon = 1.0$ (clipping inactive). Qwen3-32B teacher rollout, sglang router + 2 teacher replica.</p>
+
+<p><strong>결과</strong>: Off-policy OPD가 ##modestly larger update norm##을 produce하지만 stable-rank trajectory는 ##nearly unchanged##. ##Rollout-policy 변화에 robust##.</p>
+
+<h3>5.2 Objective Mixing Changes Rank Dynamics (Figure 7c)</h3>
+
+<p>Advantage level interpolation:</p>
+
+$$A_i^{(\alpha)} = \alpha A_{i, \text{OPD}} + (1-\alpha) A_{i, \text{RLVR}} \tag{11}$$
+
+<p>$A_{i, \text{OPD}} = -r_i$ (sampled-token teacher-correction), $A_{i, \text{RLVR}}$ = GRPO advantage from math accuracy reward broadcast to response tokens. $\alpha \in \{0.75, 0.50, 0.25, 0.05, 0.01\}$.</p>
+
+<p><strong>결과</strong>:</p>
+<ul>
+  <li>OPD-dominant mixture (α 큰 값) → OPD-like stable-rank trajectory 유지</li>
+  <li>##α = 0.05/0.01 (OPD weak)에서 trajectory가 deviation##, 다른 spectral regime으로 진입</li>
+  <li>Token sparsification이나 off-policy generation과 달리, ##gradient source 자체를 변경##</li>
+</ul>
+
+<p><strong>Mechanistic view</strong>: OPD gradient = $g_{\text{OPD}} = \sum_t J_t^\top \delta_t$, $\tilde{g}_{\text{OPD}} = \sum_t m_t J_t^\top \delta_t$. Token gradient가 dominant update subspace 공유하면 ##masking은 second moment를 primarily rescale##:</p>
+
+$$\mathbb{E}[\tilde{g} \tilde{g}^\top] \approx c \mathbb{E}[g_{\text{OPD}} g_{\text{OPD}}^\top] + \text{noise} \tag{13}$$
+
+<p>Off-policy rollout은 sampling distribution을 변경하지만 teacher-token gradient source 동일. Objective mixing은 source 자체 변경:</p>
+
+$$g_\alpha = \alpha g_{\text{OPD}} + (1-\alpha) g_{\text{RLVR}}, \quad \Sigma_\alpha \approx \alpha^2 \Sigma_{\text{OPD}} + (1-\alpha)^2 \Sigma_{\text{RLVR}} + \alpha(1-\alpha) \Sigma_{\text{cross}} \tag{14}$$
+
+<p>OPD term이 weak해지면 ##dominant covariance geometry 변경##. ##Lock은 objective-sensitive, not runtime-induced.##</p>
+
+<p><strong>Implication</strong>: ##효과적인 OPD recipe는 token coverage나 rollout generation이 아니라 objective-induced update geometry를 regulate##해야 한다.</p>
+
+<!-- ============================================================ -->
+<h2>6. Discussion &amp; Conclusion</h2>
+
+<p>본 분석은 OPD를 ##distinct parameter-space regime##으로 식별 -- SFT와 RLVR 사이의 simple endpoint interpolation이 아니다. OPD는 relaxed off-principal region을 차지하고, training trajectory가 ##subspace locking## 표현 -- cumulative update가 학습 매우 초기에 ##small, persistent low-dimensional channel##로 진입하여 그곳에서 학습.</p>
+
+<p>이 발견들은 ##미래 OPD 알고리즘의 guiding principle##을 제시:</p>
+
+<ul>
+  <li><strong>Design OPD as geometry control, not merely denser token supervision</strong></li>
+  <li>Locked update channel을 monitor하고 ##objective composition을 primary lever##로 사용 (geometry drift 시), token selection / rollout policy / teacher scale은 update geometry에 미치는 효과를 통해 tune</li>
+  <li>이런 ##geometry-aware control##이 OPD를 stable, interpretable, transferable하게 만들 수 있다 -- learning을 지원하는 update channel을 보존하면서 unnecessary parameter-space drift를 회피</li>
+</ul>
+
+<h3>Limitations</h3>
+<ul>
+  <li>분석은 controlled Qwen3-family reasoning setting에 focus -- 다른 model family, modality, task distribution에서 geometry가 다를 수 있음</li>
+  <li>Diagnostic은 stored checkpoint의 parameter-space trajectory를 characterize -- ##Three-Gate account와 covariance analysis는 evidence-consistent mechanistic explanation##으로 봐야 하며 complete causal/formal theory 아님</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>실험 설정 (Setup)</h2>
+
+<h3>Shared (Table 2)</h3>
+<table>
+  <tr><th>Item</th><th>Setting</th></tr>
+  <tr><td>Model family</td><td>Qwen3</td></tr>
+  <tr><td>Main backbone</td><td>Qwen3-8B</td></tr>
+  <tr><td>Evaluation</td><td>AIME 2024 avg@8</td></tr>
+  <tr><td>Precision</td><td>bf16 training, fp32 gradient accumulation, fp32 attention softmax</td></tr>
+  <tr><td>Hardware</td><td>H200 80GB GPUs</td></tr>
+</table>
+
+<h3>SFT (Table 3)</h3>
+<ul>
+  <li>Initialization: Qwen3-8B-Base</li>
+  <li>Objective: Supervised next-token prediction with Qwen3 loss mask</li>
+  <li>Training data: ##Dolci-Think SFT data (Olmo et al. 2025)##</li>
+  <li>Epoch 5, ##final checkpoint iter_0005375##, batch 256, LR $10^{-5}$ cosine to $10^{-6}$, 10% warmup, Adam (0.9, 0.95)</li>
+</ul>
+
+<h3>OPD (Table 4)</h3>
+<ul>
+  <li>##Initialization: SFT anchor iter_0005375## (OPD와 RLVR 공통 origin)</li>
+  <li>Student: Qwen3-8B; Teacher: Qwen3-32B</li>
+  <li>Training data: ##dapo-math-17k##</li>
+  <li>Rollout policy: Student-generated, on-policy; 300 prompt/step, 8 sample/prompt, T=1.0</li>
+  <li>299 step, save every 64 step</li>
+  <li>Objective: On-policy distillation, teacher supervision = token log-probabilities, OPD coefficient = 1.0</li>
+  <li>Advantage estimator: GRPO; KL loss/entropy bonus disabled</li>
+  <li>Batch 64, LR $10^{-6}$ constant, Adam (0.9, 0.98)</li>
+</ul>
+
+<h3>RLVR (Table 5)</h3>
+<ul>
+  <li>Initialization: SFT anchor iter_0005375</li>
+  <li>Student: Qwen3-8B, no teacher</li>
+  <li>Rollout: 1024 prompt/step, 8 sample/prompt, T=1.0</li>
+  <li>1023 step</li>
+  <li>Objective: Verifier-reward GRPO; reward = Binary DeepScaler math accuracy</li>
+  <li>PPO clipping $\epsilon = 0.2$, $\epsilon_{\text{high}} = 0.28$</li>
+  <li>Dynamic filter: skip batches with zero reward variance</li>
+  <li>Batch 512, LR $10^{-6}$, Adam (0.9, 0.98), Adam epsilon $10^{-15}$</li>
+</ul>
+
+<h3>OPD Variants (Table 6, 7)</h3>
+<table>
+  <tr><th>Variant</th><th>Student</th><th>Teacher</th><th>Changed factor</th></tr>
+  <tr><td>Baseline</td><td>Qwen3-8B</td><td>Qwen3-32B</td><td>Reference</td></tr>
+  <tr><td>MoE teacher</td><td>Qwen3-8B</td><td>##Qwen3-30B-A3B##</td><td>Teacher architecture</td></tr>
+  <tr><td>4B→8B</td><td>Qwen3-4B</td><td>Qwen3-8B</td><td>Teacher scale</td></tr>
+  <tr><td>4B→14B</td><td>Qwen3-4B</td><td>Qwen3-14B</td><td>Teacher scale</td></tr>
+  <tr><td>4B→32B</td><td>Qwen3-4B</td><td>Qwen3-32B</td><td>Teacher scale</td></tr>
+  <tr><td>14B→32B</td><td>Qwen3-14B</td><td>Qwen3-32B</td><td>Student scale</td></tr>
+  <tr><td>Code domain</td><td>Qwen3-8B</td><td>Qwen3-32B</td><td>##DeepCoder data, LiveCodeBench v5##</td></tr>
+  <tr><td>Multi-seed</td><td>Qwen3-8B</td><td>Qwen3-32B</td><td>Random seed</td></tr>
+</table>
+
+<h3>Endpoint selection</h3>
+<p>SFT/OPD/RLVR 학습 곡선의 plateau 지점 -- 약 ##5K / 300 / 1K step##. Tuned endpoint가 아니라 reproducibility 위해 ##rounded horizon## 사용.</p>
+
+<!-- ============================================================ -->
+<h2>비판적 분석</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>OPD에 대한 첫 parameter-space 진단</strong>: 기존 OPD 연구는 ##empirical failure mode + scaling recipe + multi-teacher distillation + training efficiency##만 다뤘음. ##Parameter space에서의 위치와 trajectory##를 정량적으로 다룬 첫 시도.</li>
+  <li><strong>Three-Gate framework의 우아한 확장</strong>: Zhu et al. 2025의 RLVR account를 ##signal granularity 차원으로 relax##만 해서 OPD의 모든 행동(less sparse, broader covariance, similar off-principal direction)을 단일 mechanism으로 설명. 우아한 narrative.</li>
+  <li><strong>Subspace lock의 functional sufficiency 입증</strong>: Rank-16 projection을 OPD와 SFT 모두에 가했을 때 ##OPD만 unchanged##. ##Lock이 단순 spectral shape 관찰이 아니라 학습에 sufficient한 channel##임을 보임. 강한 결과.</li>
+  <li><strong>Controlled experimental design</strong>: Token sparsification, off-policy rollout, objective mixing 3가지를 ##single factor만 변경##하여 ##lock의 control axis##를 분리. Mechanistic view (Eq.13, 14)로 왜 이 결과가 나오는지 설명.</li>
+  <li><strong>Robust across student/teacher/data</strong>: Qwen3-8B controlled 외에 4B-T8B/T14B/T32B, 14B-T32B, MoE teacher (Qwen3-30B-A3B), code domain까지 sparsity 48.6-57.1%로 일관. Single-config 우연 아님.</li>
+  <li><strong>Detailed reproducibility</strong>: Tables 2-7로 모든 hyperparameter 공개; controlled SFT anchor iter_0005375 공유; bf16 convention $\eta = 10^{-3}$, principal angle rank $k=512$, mask $r=64, \alpha=0.5$ 등 명시.</li>
+  <li><strong>Implications가 actionable</strong>: "monitor locked channel + use objective composition as primary lever"는 ##추상적 통찰이 아니라 OPD 시스템 설계자가 바로 시도할 수 있는 권고##.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Qwen3 단일 family로 한정</strong>: 저자도 인정. Llama, DeepSeek, Mistral 등 다른 family에서 동일 패턴이 나오는지 미검증. Backbone-specific spectral structure가 결과에 얼마나 dependent한지 unclear.</li>
+  <li><strong>Math+Code 도메인 한정</strong>: General instruction following, factuality, multi-modal task에서 OPD geometry가 어떻게 변하는지 모름. Verifiable reward와 token-level supervision이 가장 깨끗한 setting에서만 분석한 것이 일반화 한계.</li>
+  <li><strong>Rank-16 projection이 functional sufficient인 이유의 이론 부재</strong>: 왜 16인지, top-K 선택 알고리즘이 다른 K에서도 같은 결과인지. Figure 6은 K=16만 보여줌. K=8, 32, 64에서 어떻게 변화하는지 ablation 부재.</li>
+  <li><strong>Trajectory metric이 cumulative $\Delta W_t$ only</strong>: Stable rank, Frobenius norm, Hill alpha는 모두 cumulative update의 spectral 성질. ##Per-step gradient의 spectral shape##나 ##trajectory의 곡률##은 보지 않음. "lock"이 진짜로 dynamics인지 cumulative endpoint statistic인지 더 깊은 검증 필요.</li>
+  <li><strong>"Lock"이라는 metaphor의 강도</strong>: Subspace similarity Sim_K(t, t_end) 가 OPD에서 ~0.7 from start, ~1.0 by end. 그러나 SFT/RLVR도 ##gradually 수렴##. "OPD는 lock, SFT/RLVR은 not lock"의 binary 차이가 정성적인지 정량적 threshold가 있는지 명확하지 않다.</li>
+  <li><strong>학습 step 수 차이의 영향</strong>: SFT 5K / OPD 300 / RLVR 1K step. Step 수가 다르므로 cumulative $\Delta W$의 norm/rank trajectory를 직접 비교하는 것이 fair한지 의문. Step-rescaled comparison 부재.</li>
+  <li><strong>Objective interpolation의 αα값 선택</strong>: α ∈ {0.75, 0.50, 0.25, 0.05, 0.01} 중 ##0.05, 0.01에서만 break## -- 즉 OPD signal이 95%+ 유지되어야 lock 유지. 이는 "OPD는 robust"인지 "거의 모든 mixing에서 lock 유지"인지 ambiguous.</li>
+  <li><strong>Causality vs correlation</strong>: 저자 본인도 Limitations에서 "evidence-consistent mechanistic explanation"이라 명시. ##이 lock이 OPD 성능 향상의 cause인지 byproduct인지##는 불명. Lock을 의도적으로 깨뜨렸을 때 reasoning benchmark에서 어떤 성능 변화가 나오는지의 controlled study 부재.</li>
+  <li><strong>Teacher scale의 영향 미세분석 부재</strong>: 4B→T8B, T14B, T32B에서 sparsity 50.3/51.1/51.7로 ##거의 동일##. 즉 teacher scale은 sparsity를 거의 변화시키지 않음. 그러나 ##stable rank trajectory##나 ##functional sufficiency## 측면에서는 어떤 차이가 있는지 미보고. Teacher scale이 정말로 update geometry에 무관한가?</li>
+  <li><strong>Practical OPD recipe로의 직접 가이드 부족</strong>: "objective composition을 primary lever로"라는 조언은 추상적. 실무자가 어떻게 정확히 objective를 monitor하고 (어떤 metric, 어떤 threshold) 어떻게 intervene할지에 대한 구체적 알고리즘이나 sample code는 future work로 미뤄짐.</li>
+  <li><strong>"Three-Gate"가 Zhu et al. 2025의 비유적 framework</strong>: 본 논문은 이 framework를 빌려서 OPD를 설명하는데, ##framework 자체의 정량적 검증##은 본 논문에서 다루지 않음 (그게 본 논문 목표는 아님). 그러나 framework가 OPD에 적용될 때의 ##새로운 가정##이나 ##자유 매개변수##는 명시적으로 분석되지 않음.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>OPD의 "Geometric Identity"</strong>: SFT(over-principal, dense, distort)와 RLVR(off-principal, sparse, preserve) 사이의 ##relaxed off-principal regime, RLVR-biased##. Sparsity 51.6%, principal angle ~1°, NSS 10⁻⁴는 OPD의 4가지 정량적 signature.</li>
+  <li><strong>Subspace Lock = OPD의 학습 dynamics 본질</strong>: Cumulative update가 ##학습 초기 (~20% 시점)에 final low-rank channel과 align##되고 그 안에서 학습이 끝까지 진행. SFT는 expand, RLVR은 contract -- OPD만 lock. 이는 ##학습 trajectory의 distinct identity##.</li>
+  <li><strong>Three-Gate에 Signal Granularity 차원 추가</strong>: RLVR의 KL anchor + model geometry + bf16 realization이 보존되되, ##scalar advantage를 dense token coefficient로 대체##하면 active direction set이 broaden되고 update가 less selective. ##다른 RL 변형 분석에도 동일 framework 적용 가능##.</li>
+  <li><strong>Lock의 Sensitivity Axis 식별</strong>: Token sparsification (top-KL/random 25/50%) → ##scale만 변경##; Off-policy rollout (teacher generates) → ##거의 unchanged##; ##Objective mixing은 lock break (α≤0.05에서)##. ##OPD 시스템의 primary tuning lever는 token coverage나 rollout이 아니라 objective composition##.</li>
+  <li><strong>"Functional Sufficiency"의 Rigorous Test</strong>: Rank-16 projection을 ##학습 ~20% 시점에서 freeze##하고 이후 학습을 그 subspace에 constrain. OPD는 거의 영향 없음, SFT는 major degradation. ##학습된 channel이 서술적 fact가 아니라 학습에 충분한 conduit##임을 보여주는 ##강한 실증 디자인##.</li>
+  <li><strong>OPD 설계 원칙: Geometry Control First</strong>: 미래 OPD 알고리즘은 (a) ##locked update channel의 stable rank를 monitor##, (b) drift 시 ##objective composition을 primary lever##로, (c) token selection / rollout policy / teacher scale은 ##update geometry에 대한 effect를 통해## tuning. 추상적 조언이 아닌 ##actionable design framework##.</li>
+  <li><strong>Reasoning RL 연구의 새 차원</strong>: 그동안 RL 분석은 reward shaping, advantage estimator, exploration에 집중. 본 논문은 ##weight space에서 학습 alg의 footprint##라는 새 분석 차원을 보여줌. 후속 연구가 PRO, GRPO 변형, DAPO 등을 같은 방식으로 위치시키면 ##post-training algorithm zoo의 geometry map##이 가능.</li>
+  <li><strong>Spectral Geometry as Quality Signal</strong>: Stable rank trajectory가 일정하게 유지되면 healthy OPD, drift하면 objective composition 문제. ##재훈련 metric으로 reward나 loss 외에 weight geometry 추가 가능##. 모델 production pipeline에서 quality assurance에 활용 가능.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>관련 연구 링크</h2>
+
+<ul>
+  <li><strong>Zhu et al. 2025</strong> (arXiv:2511.08567) -- "The path not taken: RLVR provably learns off the principals". Three-Gate account 원전. <a href="20260406_zheng_gspo.html">GSPO</a>의 token-level noise 진단과 commit이 비슷한 weight-space 연구 line.</li>
+  <li><strong>Liu et al. 2026</strong> (arXiv:2506.00772) -- "Lift the veil for the truth: Principal weights emerge after rank reduction for reasoning-focused SFT". SFT의 principal alignment.</li>
+  <li><strong>Mukherjee et al. 2025</strong> (arXiv:2505.11711) -- "RL fine-tunes small subnetworks in LLMs". RL의 sparse off-principal subnetwork.</li>
+  <li><strong>Agarwal et al. 2024</strong> (arXiv:2306.13649) -- "On-policy distillation of language models". OPD origin.</li>
+  <li><strong>Lu &amp; Thinking Machines Lab 2025</strong> -- OPD blog post.</li>
+  <li><strong>Song &amp; Zheng 2026</strong> (arXiv:2604.00626) -- OPD survey.</li>
+  <li><strong>Fu et al. 2026</strong> (arXiv:2603.25562) -- OPD failure modes.</li>
+  <li><strong>Li et al. 2026</strong> (arXiv:2604.13016) -- Rethinking OPD: Phenomenology, mechanism, recipe.</li>
+  <li><strong>Cai et al. 2026</strong> (arXiv:2605.11739) -- Learning to foresee: Unlocking efficiency of OPD.</li>
+  <li><strong>Shao et al. 2024</strong> (arXiv:2402.03300) -- DeepSeekMath, GRPO 원전.</li>
+  <li><strong>Yu et al. 2025</strong> (arXiv:2503.14476) -- DAPO, RL system at scale.</li>
+  <li><strong>Yang et al. 2025</strong> (arXiv:2505.09388) -- Qwen3 technical report. 본 논문 backbone.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+
+<div class="personal-notes">
+<!-- Q&A, 추가 코멘트, 관련 아이디어 등이 누적 기록됩니다 -->
+</div>
+
+</div>
+</body>
+</html>
