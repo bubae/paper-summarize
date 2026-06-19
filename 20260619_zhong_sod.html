@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOD: Step-wise On-policy Distillation for Small Language Model Agents</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>SOD: Step-wise On-policy Distillation for Small Language Model Agents</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260619_zhong_sod_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Qiyong Zhong¹*†, Mao Zheng²*, Mingyang Song²*, Xin Lin¹, Jie Sun³, Houcheng Jiang³‡, Xiang Wang³, Junfeng Fang⁴‡ (* equal contribution, † intern at Tencent, ‡ corresponding)</li>
+  <li><strong>소속</strong>: ¹Zhejiang University, ²Large Language Model Department, Tencent, ³University of Science and Technology of China, ⁴National University of Singapore</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (Date: May 8, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.07725">arXiv:2605.07725v1</a> · <a href="https://github.com/YoungZ365/SOD">GitHub</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: ##Tool-Integrated Reasoning (TIR)##을 small language model (SLM, ≤2B)에 scale하는 것은 어렵다 -- (a) GRPO 등 RL은 ##trajectory-level sparse reward##만 제공하며 약한 exploration 능력의 SLM은 cold-start regime에 갇힘; (b) On-policy distillation (OPD)는 dense token-level supervision을 주지만 ##TIR에 적용하면 critical failure mode##: ##erroneous tool call이 cascade##되어 student가 OOD state로 빠지고, 그 영역에서 teacher의 token-level supervision이 ##unreliable##해진다 (entropy 폭증). 이는 ##discontinuous tool observation##이 text-only reasoning과 다른 distribution shift를 만들기 때문.</li>
+  <li><strong>해결</strong>: ##SOD (Step-wise On-policy Distillation)## -- step-level student-teacher divergence를 직접 측정하여 ##각 step의 distillation strength를 adaptively reweight##. Student가 teacher와 well-aligned이면 dense supervision 그대로, drift가 커지면 ##misleading high-divergence region에서 distillation signal을 progressively attenuate##. ##GRPO outcome reward + step-wise reweighted OPD##를 함께 사용 ($\mathcal{L} = \mathcal{L}_{\text{GRPO}} + \mathcal{L}_{\text{OPD}}^{\text{step}}$).</li>
+  <li><strong>왜 작동하는가</strong>: 두 propositional 결과로 진단. (Prop 1) ##Discontinuous divergence amplification##: text-only는 $\Delta_{k+1} - \Delta_k = O(\eta)$, TIR은 single erroneous tool observation으로 $\Omega(m \cdot \eta_{\text{tool}})$, $j$ consecutive errors → super-linear compound. (Prop 2) ##Gradient SNR degradation##: teacher-supported overlap $\rho_t \leq \rho$이면 OPD loss의 second moment $\geq (1-\rho) \log^2(1/\epsilon)$, SNR → 0. SOD의 reweighting이 weighted second moment를 $O((d_1/d_k)^2)$로 suppress해서 SNR collapse 복구.</li>
+  <li><strong>비유</strong>: 운전 강사(teacher)가 학생(student) 차에 동승해 매 순간 교정 지도. 학생이 길에서 안 벗어나면(low divergence) 모든 지시가 유효하지만, 학생이 ##낭떠러지로 차를 모는 도중##(high divergence)에는 ##강사의 일반 도로 코칭이 위험##해진다 -- "가속 페달 더 밟아!"가 절벽에서는 치명적. SOD는 ##일탈이 클 때 코칭 강도를 줄이고, 학생이 다시 도로로 돌아오면 강도를 회복##한다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>SLM TIR에서 OPD failure mode 진단</strong>: ##erroneous tool call cascade → student-teacher divergence super-linear amplification + teacher entropy 폭증##을 800 trajectory에서 정량 입증 (Figure 1a, 1b). Text-only reasoning과의 ##정성적 차이##를 명료화.</li>
+  <li><strong>SOD 알고리즘</strong>: Step-level divergence proxy $d_k$ + ##multiplicative ratio-based reweighting## $w_k = \min(\prod_{u=1}^{k-1} (d_u + \epsilon)/(d_{u+1} + \epsilon), 1+\delta)$ (Eq.7). divergence가 ##꺽이면(recovery)## weight가 다시 amplify되어 ##temporary error에 over-penalize 안 함##.</li>
+  <li><strong>이론적 정당화</strong>: Prop 1 (discontinuous divergence amplification, super-linear compound), Prop 2 (gradient SNR degradation), SOD의 weighted second moment $O((d_1/d_k)^2)$ suppression -- monotonically increasing divergence 가정 하에 ##bounded gradient SNR 복구##.</li>
+  <li><strong>SOTA on SLM TIR</strong>: ##0.6B student가 AIME 2025에서 26.13% (avg@32)## 달성 -- 저자 주장상 ##sub-billion-parameter 모델이 이 수준 도달은 처음##. 1.7B는 50.83/41.72/38.72/40.63 (AIME24/25/GPQA-D/LiveCodeBench), 평균 ##42.98##로 second-best baseline (OPD 36.27) 대비 ##+18.50% 상대 개선##. 0.6B는 24.22 vs OPD 20.04 (##+20.86%##).</li>
+  <li><strong>Ablation으로 component 분리</strong>: Uniform / heuristic exponential decay / hard mask after wrong / no clipping 4가지 reweighting variant 모두 SOD에 미달 (34.70/37.14/31.85/38.10 vs SOD 42.98). GRPO 또는 step-wise OPD 단독 제거시 40.78/25.39 -- ##두 항 모두 indispensable##.</li>
+  <li><strong>Three Distillation Patterns</strong>: SOD가 자연 발현하는 3 패턴 -- ##(1) Stable## (high $d_k$ unchanged → dense supervision 활용), ##(2) Erroneous## (분기 시 weight progressively reduce → misleading suppression), ##(3) Recovery## (drift 후 복귀 시 weight 다시 회복 → "recovery from earlier errors").</li>
+  <li><strong>Stronger teacher 활용 능력</strong>: OPD는 4B → 14B teacher 변경 시 0.6B student 성능 ##저하## (capacity gap amplifies misalignment), SOD는 ##일관 향상## -- richer knowledge harness 가능.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>Agentic capability는 LLM 응용 영역을 크게 확장했지만, 보통 large-scale 모델 의존 → ##비싼 inference, 큰 deployment overhead##. Latency/resource/privacy-sensitive 시나리오에서는 ##on-device SLM##이 실용적으로 중요하나, ##stable + effective Tool-Integrated Reasoning (TIR)## 을 SLM에 transfer하는 것은 미해결 과제.</p>
+
+<p>기존 post-training 접근:</p>
+<ul>
+  <li><strong>RL (GRPO 등)</strong>: SLM-based TIR에서 unstable. TIR은 long-horizon trajectory + multi-step decision making + tool interaction → ##sparse outcome-level reward## + 작은 모델의 약한 exploration → ##cold-start regime##.</li>
+  <li><strong>OPD</strong>: dense token-level supervision으로 sparse-reward 문제 완화하지만, ##TIR에 직접 transfer 시 severe training instability##.</li>
+</ul>
+
+<p>저자들의 핵심 관찰 (Figure 1a, 1b):</p>
+<ul>
+  <li>Text-only reasoning에서 student가 teacher에서 점진적으로 drift해도 ##subsequent state가 generated context를 따라 continuously evolve## → distribution shift가 progressive</li>
+  <li>TIR에서 ##single erroneous tool call이 incorrect observation을 context에 inject## → subsequent reasoning이 ##corrupted state에서 unfold##. SLM은 limited capacity와 weak exploration으로 multiple erroneous tool call accumulate → state distribution이 teacher distribution에서 ##rapidly drift##</li>
+  <li>이런 OOD state에서 ##teacher token-level supervision은 unreliable / misleading##; 확대된 student-teacher discrepancy → unstable gradients + training collapse</li>
+</ul>
+
+<p><strong>SOD의 핵심 아이디어</strong>: "각 reasoning step에서 student-teacher divergence에 따라 distillation strength를 adaptively adjust". 정렬되어 있을 때는 dense supervision 보존, 큰 deviation에서는 distillation signal을 ##progressively attenuate## → high-mismatch region에서 misleading supervision 영향 감소 + well-aligned region에서 informative guidance 유지.</p>
+
+<p>실험 결과: AIME 2024/2025, GPQA-Diamond, LiveCodeBench에서 baseline 대비 ##최대 +20.86%##. 0.6B-scale student가 ##AIME 2025에서 26.13%## -- "to our best knowledge, ##sub-billion-parameter 모델이 이 challenge benchmark에서 이 수준 도달은 처음##".</p>
+
+<!-- ============================================================ -->
+<h2>2. Related Work</h2>
+
+<table>
+  <tr><th>분야</th><th>대표 연구</th><th>SOD 위치</th></tr>
+  <tr><td>RL for Agents</td><td>RLHF/PPO → GRPO; ReAct, Toolformer, FireAct (구조화 prompting); 코드/Tool/GUI/Web RL; trajectory-level updates + value-free 방법</td><td>KL-regularized policy opt + agentic shift/compounding error 문제 식별. SOD는 ##distillation으로 dense supervision 보강##</td></tr>
+  <tr><td>OPD</td><td>Gu et al. (reverse KL), Agarwal et al. (on/off-policy distillation 통합), Yang et al. (KL-regularized RL with implicit per-token reward), Li et al. (local support alignment)</td><td>OPD literature 위에서 ##TIR-specific failure mode + step-level adaptive reweighting##</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>3. Preliminaries</h2>
+
+<h3>3.1 Multi-turn Tool-Integrated Reasoning (TIR)</h3>
+
+<p>SLM이 외부 환경과 multi-step interaction. Step $k$에서 모델이 response $y_k$ 생성 (natural-language reasoning, tool invocation, 또는 final answer). Tool 호출 시 environment가 observation $o_k$ 반환, context에 append되어 후속 generation 조건. Trajectory:</p>
+
+$$\tau = (x, y_1, o_1, \ldots, y_K, o_K, y_{K+1}) \tag{1}$$
+
+<p>$y_{K+1}$ = final response. Policy $\pi_\theta$는 model token만 생성, observation $\{o_k\}$는 environment가 제공. $y_t$ = generated token, $y_{<t}$ = prefix (model output + tool observation 포함).</p>
+
+<h3>3.2 GRPO (Group Relative Policy Optimization)</h3>
+
+<p>Outcome-level reward $r(\tau)$로 group-relative advantage 계산. Group $\{\tau_i\}_{i=1}^G$, reward $r_i = r(\tau_i)$, advantage:</p>
+
+$$\hat{A}_i = \frac{r_i - \text{mean}(\{r_j\})}{\text{std}(\{r_j\}) + \epsilon_A} \tag{2}$$
+
+<p>Token-level importance ratio $\rho_{i,t}(\theta) = \pi_\theta(y_{i,t}|y_{i,<t}) / \pi_{\theta_{\text{old}}}(y_{i,t}|y_{i,<t})$. Objective:</p>
+
+$$\mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\frac{1}{G}\sum_{i=1}^G \frac{1}{|\mathcal{T}_i|}\sum_{t \in \mathcal{T}_i} \min(\rho_{i,t}(\theta) \hat{A}_i, \text{clip}(\rho_{i,t}(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_i)\right] \tag{3}$$
+
+<p>$\mathcal{T}_i$ = model-generated token positions (tool observation 제외). ##Sparse outcome-level reward##만 제공.</p>
+
+<h3>3.3 On-policy Distillation (OPD)</h3>
+
+<p>Student-generated trajectory에서 dense token-level supervision (student visited state에서 reverse KL):</p>
+
+$$\mathcal{L}_{\text{OPD}} = \mathbb{E}\left[\sum_{t \in \mathcal{T}_i} (\log \pi_\theta(y_t | y_{<t}) - \log \pi_{\text{teacher}}(y_t | y_{<t}))\right] \tag{4}$$
+
+<p>이는 ##student-visited state에서 student/teacher policy의 reverse KL divergence##의 sampled estimator. Sparse reward 문제 완화 + sample efficiency 향상.</p>
+
+<!-- ============================================================ -->
+<h2>4. Methodology</h2>
+
+<h3>4.1 OPD의 Tool-Induced State Drift Failure</h3>
+
+<p>OPD objective는 student-visited state 전반에서 teacher supervision이 reliable이라는 가정. Text-only에서는 distribution drift가 gradual하므로 성립, ##TIR에서는 tool observation이 도입한 discontinuous state transition으로 severely violated##.</p>
+
+<p>Step-level mismatch 정의:</p>
+
+$$\Delta_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} D_{\text{KL}}(\pi_\theta(\cdot|y_{<t}) \| \pi_{\text{teacher}}(\cdot|y_{<t})) \tag{5}$$
+
+<p>두 propositional 결과 (Appendix D):</p>
+
+<blockquote>
+<strong>Proposition 1 (Discontinuous divergence amplification)</strong>: Text-only reasoning에서 $\Delta_{k+1} - \Delta_k = O(\eta)$ ($\eta$ = per-token distributional shift). TIR에서 length $m$의 single erroneous tool observation은 $\Delta_{k+1} - \Delta_k = \Omega(m \cdot \eta_{\text{tool}})$, $\eta_{\text{tool}} \gg \eta$. ##$j$ consecutive tool errors 하에 super-linear compound##: $\Delta_{k+j} - \Delta_k = \Omega(\sum_{i=0}^{j-1} m_i \cdot \eta_{\text{tool}}^{(i)})$ with $\eta_{\text{tool}}^{(i+1)} \geq \eta_{\text{tool}}^{(i)}$.
+</blockquote>
+
+<blockquote>
+<strong>Proposition 2 (Gradient SNR degradation)</strong>: Teacher-supported region $S_t^\epsilon = \{v \in \mathcal{V}: \pi_{\text{teacher}}(v|y_{<t}) \geq \epsilon\}$, overlap $\rho_t = \sum_{v \in S_t^\epsilon} \pi_\theta(v|y_{<t})$. $\rho_t \leq \rho$일 때, OPD loss의 second moment $\mathbb{E}[\ell_t^2] \geq (1-\rho)\log^2(1/\epsilon)$, ##gradient estimator SNR$(g_t) \to 0$ as $\rho_t \to 0$##.
+</blockquote>
+
+<p>이 두 결과가 TIR-specific failure cascade 특성화: consecutive erroneous tool call이 compounding divergence amplification (Prop 1) 야기 → low-overlap state로 student를 progressively push → OPD gradient가 high-variance, uninformative contribution에 dominated (Prop 2). Figure 1에서 empirical confirm: error accumulate 시 divergence sharp acceleration (a), teacher entropy elevated and unstable (b).</p>
+
+<p>OPD가 step 전반에 ##loss를 uniformly aggregate##하므로 corrupted signal을 systematically overweight → ##step-wise reweighting의 motivation##. Appendix D.4에서 monotonically increasing divergence 하에 reweighting이 weighted second moment를 $O((d_1/d_k)^2)$만큼 suppress → low-overlap state에서도 ##bounded gradient SNR 복구##.</p>
+
+<h3>4.2 Student-teacher Divergence and Step-wise Reweighting</h3>
+
+<p>Generated trajectory를 $K+1$ reasoning step으로 partition (각 step = two tool observation 사이의 model response, 또는 final answer step). $\mathcal{I}_k$ = $k$-th model-generated step의 token position set. Tool observation token은 excluded (environment가 produce).</p>
+
+<p><strong>Step-level divergence score</strong>:</p>
+
+$$d_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} |\log \pi_\theta(y_t|y_{<t}) - \log \pi_{\text{teacher}}(y_t|y_{<t})| \tag{6}$$
+
+<p>$d_k$는 teacher supervision의 ##local reliability indicator##. 작으면 student가 teacher distribution과 well-aligned, 크면 substantial mismatch (tool-induced drift나 corrupted observation).</p>
+
+<p><strong>Adaptive reweighting (핵심 수식)</strong>: 첫 step weight $w_1 = 1$. $k \geq 2$의 weight:</p>
+
+$$w_k = \min\left(\prod_{u=1}^{k-1} \frac{d_u + \epsilon}{d_{u+1} + \epsilon}, 1+\delta\right) \tag{7}$$
+
+<p>$\epsilon$ = stability constant, $\delta$ = maximum amplification 제어. ##Eq.7은 consecutive divergence score의 ratio에만 의존##하므로 absolute value가 아닌 ##$\Delta_k$의 monotone proxy##면 충분 -- $d_k$가 $\Delta_k$와 monotonically consistent하고 OPD forward pass에서 zero marginal cost로 계산되어 implementation에 활용 (Appendix D.5).</p>
+
+<p><strong>직관</strong>: $d_{u+1} > d_u$ (학생이 teacher에서 drift away)이면 ratio < 1 → weight 감소 → high-mismatch region에서 distillation 약화. ##Recovery##: $d_{u+1} < d_u$ (학생이 teacher-supported region으로 partially move back)이면 ratio > 1 → weight 다시 증가 → ##corrected step의 supervision 보존##. 이를 ##"recovery from earlier errors"## 현상이라 부른다. $1+\delta$ upper bound가 stable optimization 보장.</p>
+
+<h3>4.3 Training Objective</h3>
+
+<p>Student-generated trajectory에서 token $t$의 sampled-token OPD term:</p>
+
+$$\ell_{\text{OPD}}(y_t) = \log \pi_\theta(y_t | y_{<t}) - \log \pi_{\text{teacher}}(y_t | y_{<t}) \tag{8}$$
+
+<p>Step level uniform 적용 대신, step $k$의 모든 token을 weight $w_k$로 reweight:</p>
+
+$$\mathcal{L}_{\text{OPD}}^{\text{step}} = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{k=1}^{K+1} w_k \sum_{t \in \mathcal{I}_k}(\log \pi_\theta(y_t|y_{<t}) - \log \pi_{\text{teacher}}(y_t|y_{<t}))\right] \tag{9}$$
+
+<p>최종 training objective:</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{GRPO}} + \mathcal{L}_{\text{OPD}}^{\text{step}} \tag{10}$$
+
+<p>$\mathcal{L}_{\text{GRPO}}$가 sparse outcome-level reward로 ##trajectory exploration##, $\mathcal{L}_{\text{OPD}}^{\text{step}}$가 ##student-teacher divergence로 reweighted된 dense token-level guidance## 제공. tool-induced state drift 하에서 stable learning.</p>
+
+<h3>알고리즘 흐름도 (Figure 2 재현)</h3>
+<div class="flow-diagram">[Student trajectory generation]
+  ├─ Step 1: tool_call → Obs.1 → reasoning  → divergence d_1
+  ├─ Step 2: tool_call → Obs.2 → reasoning  → divergence d_2
+  ├─ ...
+  └─ Step K+1: final answer
+
+[Compute step-level divergence]
+  d_k = (1/|I_k|) Σ |log π_θ - log π_teacher|
+
+[Compute step weights via Eq.7]
+  w_1 = 1
+  w_k = min( ∏_{u=1}^{k-1} (d_u+ε)/(d_{u+1}+ε), 1+δ )
+
+  ─ Stable Pattern  : d_k 일정    → w_k 1 유지         → dense supervision 활용
+  ─ Erroneous Pattern: d_k 점증   → w_k 점차 감소      → misleading 신호 약화
+  ─ Recovery Pattern: d_k 감소     → w_k 다시 증가      → 회복 후 supervision 복원
+
+[Final loss]
+  L = L_GRPO + Σ_k w_k Σ_{t in I_k} ℓ_OPD(y_t)</div>
+
+<!-- ============================================================ -->
+<h2>5. Experiments</h2>
+
+<h3>5.1 Setup</h3>
+
+<table>
+  <tr><th>구분</th><th>설정</th></tr>
+  <tr><td><strong>Training data</strong></td><td>3K high-quality SFT corpus (multi-turn tool reasoning, s1-1k/LeetCode/ReTool에서 curate) + 30K diverse RL dataset (DAPO-Math, Skywork-or1 math/code, MegaScience science)</td></tr>
+  <tr><td><strong>Benchmarks</strong></td><td>AIME 2024 / AIME 2025 (math), GPQA-Diamond (science), LiveCodeBench (code)</td></tr>
+  <tr><td><strong>Eval params</strong></td><td>T = 1.0, top-p = 0.6, ##problem당 32 sample → average@32##</td></tr>
+  <tr><td><strong>Teacher</strong></td><td>Qwen3-4B (RL datasets에서 GRPO로 추가 최적화), 일부 실험에서 Qwen3-14B</td></tr>
+  <tr><td><strong>Student</strong></td><td>Qwen3-0.6B, Qwen3-1.7B</td></tr>
+  <tr><td><strong>Baselines</strong></td><td>Vanilla / SFT / GRPO / OPD / OPSD_gt (self-distillation w/ groundtruth) / OPSD_hint (w/ hints)</td></tr>
+</table>
+
+<h3>5.2 Overall Performance (Table 1)</h3>
+
+<p><strong>0.6B student</strong>:</p>
+<table>
+  <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>GPQA</th><th>LCB</th><th>Avg</th></tr>
+  <tr><td>Vanilla</td><td>7.71</td><td>12.81</td><td>13.24</td><td>14.89</td><td>12.16</td></tr>
+  <tr><td>SFT</td><td>5.67</td><td>5.42</td><td>15.20</td><td>9.61</td><td>8.97</td></tr>
+  <tr><td>GRPO</td><td>4.06</td><td>4.90</td><td>20.38</td><td>15.95</td><td>11.32</td></tr>
+  <tr><td>OPD</td><td>16.82</td><td>22.95</td><td>17.76</td><td>22.65</td><td>20.04</td></tr>
+  <tr><td>OPSD_gt</td><td>12.63</td><td>17.04</td><td>17.32</td><td>16.73</td><td>15.93</td></tr>
+  <tr><td>OPSD_hint</td><td>9.77</td><td>14.12</td><td>15.98</td><td>12.65</td><td>13.13</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>SOD</strong></td><td><strong>20.84</strong></td><td><strong>26.13</strong></td><td><strong>22.19</strong></td><td><strong>27.72</strong></td><td><strong>24.22</strong></td></tr>
+</table>
+
+<p><strong>1.7B student</strong>:</p>
+<table>
+  <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>GPQA</th><th>LCB</th><th>Avg</th></tr>
+  <tr><td>Vanilla</td><td>9.90</td><td>8.96</td><td>26.80</td><td>22.73</td><td>17.10</td></tr>
+  <tr><td>SFT</td><td>26.77</td><td>22.40</td><td>29.85</td><td>24.63</td><td>25.91</td></tr>
+  <tr><td>GRPO</td><td>25.63</td><td>21.67</td><td>33.55</td><td>20.70</td><td>25.39</td></tr>
+  <tr><td>OPD</td><td>43.86</td><td>37.04</td><td>31.73</td><td>32.45</td><td>36.27</td></tr>
+  <tr><td>OPSD_gt</td><td>33.85</td><td>24.69</td><td>35.02</td><td>22.73</td><td>29.07</td></tr>
+  <tr><td>OPSD_hint</td><td>34.42</td><td>21.43</td><td>33.46</td><td>23.12</td><td>28.11</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>SOD</strong></td><td><strong>50.83</strong></td><td><strong>41.72</strong></td><td><strong>38.72</strong></td><td><strong>40.63</strong></td><td><strong>42.98</strong></td></tr>
+</table>
+
+<p><strong>참고 (Teacher 4B)</strong>: 4B GRPO teacher = 67.60/60.42/55.19/63.13 = 61.59 평균.</p>
+
+<p><strong>Obs 1</strong>: SOD가 ##모든 4 task, 두 모델 scale 모두##에서 best. OPD 대비 ##0.6B +20.86%, 1.7B +18.50% 상대 개선##. ##0.6B에서 SFT/GRPO는 Vanilla(12.16)보다 더 낮은 8.97/11.32## -- sparse outcome reward와 static demonstration이 small model TIR guiding에 부족함을 보여줌. SOD의 reweighting이 corrupted tool-call state에서 misleading gradient 차단 + well-aligned region에서 informative supervision 보존.</p>
+
+<p><strong>Obs 2 (Scalability)</strong>: 1.7B student가 ##teacher 성능의 69.8% 회복## (vs OPD 58.9%). 0.6B SOD가 여러 1.7B baseline 능가 -- ##capacity gap을 step-wise reweighting이 부분 보상##.</p>
+
+<h3>5.3 Ablation (Table 2, 1.7B student)</h3>
+
+<table>
+  <tr><th>Variant</th><th>AIME24</th><th>AIME25</th><th>GPQA</th><th>LCB</th><th>Avg</th></tr>
+  <tr><td colspan="6"><em>Step-wise Reweighting</em></td></tr>
+  <tr><td>(1.1) Uniform Weighting ($w_k = 1$)</td><td>41.68</td><td>35.58</td><td>30.12</td><td>31.43</td><td>34.70</td></tr>
+  <tr><td>(1.2) Heuristic ($w_k = \gamma^{k-k_{err}}$, $\gamma=0.9$)</td><td>44.96</td><td>38.75</td><td>31.14</td><td>33.71</td><td>37.14</td></tr>
+  <tr><td>(1.3) Mask After Wrong (zero out post-error)</td><td>39.11</td><td>31.59</td><td>26.56</td><td>30.12</td><td>31.85</td></tr>
+  <tr><td>(1.4) w/o Weight Clipping (no $1+\delta$ upper bound)</td><td>45.78</td><td>37.93</td><td>33.57</td><td>35.12</td><td>38.10</td></tr>
+  <tr><td colspan="6"><em>Training Objective</em></td></tr>
+  <tr><td>(2.1) w/o GRPO</td><td>48.87</td><td>39.73</td><td>35.89</td><td>38.62</td><td>40.78</td></tr>
+  <tr><td>(2.2) w/o Step-wise OPD (= GRPO only)</td><td>25.63</td><td>21.67</td><td>33.55</td><td>20.70</td><td>25.39</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>SOD (full)</strong></td><td><strong>50.83</strong></td><td><strong>41.72</strong></td><td><strong>38.72</strong></td><td><strong>40.63</strong></td><td><strong>42.98</strong></td></tr>
+</table>
+
+<p><strong>Obs 3 (Adaptive reweighting is critical)</strong>:</p>
+<ul>
+  <li>Uniform (1.1) 34.70 -- worst. Static treatment of all steps이 misleading supervision 노출</li>
+  <li>Heuristic decay (1.2) 37.14 -- ##fixed schedule이 non-monotonic divergence 패턴 (recovery 등) 포착 못함##</li>
+  <li>Hard mask (1.3) 31.85 -- ##single error 후 모든 supervision discard##, partially correct trajectory의 informative signal 낭비, recovery 방해</li>
+  <li>w/o clipping (1.4) 38.10 -- ##unbounded amplification##이 training instability</li>
+</ul>
+
+<p><strong>Obs 4 (Both terms indispensable)</strong>:</p>
+<ul>
+  <li>w/o GRPO (2.1): 40.78 -- outcome reward는 dense distillation 위에서도 ##trajectory exploration steering##에 가치</li>
+  <li>w/o Step-wise OPD (2.2): 25.39 -- sparse reward만으로는 SLM TIR 학습 부족. ##OPD 항이 primary fine-grained guidance##, ##GRPO는 teacher distribution 너머 trajectory-level exploration broaden##</li>
+</ul>
+
+<h3>5.4 Scalability (Figure 3)</h3>
+
+<p>Qwen3-14B teacher로 0.6B/1.7B student 추가 학습.</p>
+
+<p><strong>Obs 5</strong>: ##SOD는 stronger teacher에서 일관 향상##; ##OPD는 0.6B에서 4B → 14B teacher로 전환 시 평균 정확도 저하##. ##더 큰 student-teacher capacity gap이 distribution mismatch를 amplify##하여 uniform distillation이 unreliable supervision을 propagate. SOD의 reweighting이 wider gap의 harmful signal을 suppress하면서 richer knowledge harness.</p>
+
+<h3>5.5 Dynamic Training Analysis (Figure 4)</h3>
+
+<p>Training step 별 (a/d) AIME 2025 accuracy, (b/e) policy entropy, (c/f) mean tool-calling turns.</p>
+
+<p><strong>Obs 6 (SOD >> GRPO)</strong>: GRPO는 ##severe entropy collapse## -- policy가 exploration ability 잃고 repetitive output로 degenerate, 결국 multi-step tool interaction 포기 (Figure 4f) -- TIR task의 fatal failure mode.</p>
+
+<p><strong>Obs 7 (SOD > OPD on stability)</strong>: OPD는 entropy 유지하나 1.7B에서 ##early peak 후 substantial degradation## -- uniform distillation이 later training destabilize. SOD는 ##steady improvement 유지##. SOD가 ##fewer tool-calling turns## 사용 (4f) -- 더 efficient reasoning.</p>
+
+<h3>5.6 Three Distillation Patterns (Figure 5)</h3>
+
+<p>Training 중 SOD가 자연 발현하는 3 패턴:</p>
+<ol>
+  <li><strong>Stable Pattern (Normal Distillation)</strong>: Student가 teacher와 closely aligned, $d_k$ low → adaptive weight high → ##teacher supervision의 full utilization##. "sufficient distillation"과 유사.</li>
+  <li><strong>Erroneous Pattern (Error Suppression)</strong>: Persistent deviation으로 step-level divergence 증가 (incorrect intermediate reasoning이나 tool usage 원인) → adaptive weight progressively reduce → ##misleading supervision suppress##, corrupted state 하에서 stabilize.</li>
+  <li><strong>Recovery Pattern (Error Recovery)</strong>: Student가 처음에 deviate but recover. Weight가 high-divergence steps 동안 attenuate, 이후 restore → ##corrected step의 effective guidance + recovery 후 useful supervision 보존##. Temporary error에 over-penalize 회피.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>6. Limitations</h2>
+<ul>
+  <li>##Python code interpreter가 있는 agentic TIR task에 focus## -- web browsing, API call 등 다른 agentic setting의 distribution shift는 unexamined</li>
+  <li>##Qwen3 family만 사용## -- 강한 안정 성능, multi-scale availability, OPD literature wide adoption으로 fair comparison 위해 선택. 다른 model family validation은 future work.</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>7. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>Concrete failure mode 진단</strong>: 800 trajectory에서 ##Figure 1a/b의 정량적 evidence##로 OPD-on-TIR의 실패가 단순 anecdote가 아님을 입증. text-only vs TIR의 정성적 차이를 ##discontinuous tool observation##으로 명료히 설명.</li>
+  <li><strong>이론적 정당화의 깔끔함</strong>: Prop 1 (super-linear divergence amplification)과 Prop 2 (gradient SNR collapse)이 실패와 SOD 해결을 ##단일 framework##에서 설명. Appendix D.4의 weighted second moment $O((d_1/d_k)^2)$ suppression bound는 reweighting 설계의 근거.</li>
+  <li><strong>Multiplicative ratio reweighting의 우아함</strong>: Eq.7이 ##absolute divergence가 아닌 consecutive ratio##만 사용 → magnitude scaling 무관 + ##recovery pattern을 자연스럽게 포착## (ratio가 1 넘어가면 weight 회복). Heuristic exponential decay와 정성적으로 다른 properties.</li>
+  <li><strong>Ablation의 풍부함</strong>: Reweighting 4 variant + objective 2 variant + scaling (4B vs 14B teacher) + dynamics (entropy, mean turns)까지 multi-axis로 검증. ##개별 component의 indispensability##가 명확.</li>
+  <li><strong>SLM TIR의 실용 SOTA</strong>: 0.6B AIME 2025 26.13%는 sub-billion scale에서 인상적. ##On-device deployment 가능한 size에 frontier reasoning approach## 가능성을 보임.</li>
+  <li><strong>Open release</strong>: GitHub 공개로 재현·확장 가능.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Qwen3 단일 family</strong>: 저자도 인정. Llama/DeepSeek/Mistral SLM에서 같은 패턴이 나오는지 미검증. SOD의 효과가 Qwen3-specific일 가능성.</li>
+  <li><strong>Python code interpreter 단일 tool 환경</strong>: API call, web search, GUI tool 등 ##더 복잡한 agentic setting##에서 SOD의 reweighting이 동일 효과인지 unclear. discontinuous transition 정도가 다를 수 있음.</li>
+  <li><strong>$d_k$ proxy의 정밀성</strong>: $|\log\pi_\theta - \log\pi_T|$의 단순 평균이 KL divergence $\Delta_k$의 monotone proxy라는 주장(Appendix D.5)이 ##일반 distribution에서 항상 성립##하는지의 충분성 미세분석 부재. Pathological case에서는 미스매치 가능.</li>
+  <li><strong>Hyperparam sensitivity</strong>: $\epsilon$ (stability), $\delta$ (max amplification)의 ##sensitivity analysis 부재##. 실제 deployment에서 task별로 tuning 필요한지 unclear.</li>
+  <li><strong>Tool error만 다룸</strong>: Erroneous tool call cascade에 집중. ##Tool-supplied correct observation이지만 student가 misinterpret##하는 case의 reweighting 효과는 분석되지 않음.</li>
+  <li><strong>"Recovery from earlier errors" 빈도/효과 미세분석</strong>: Three pattern 중 recovery가 얼마나 자주 발생하는지, recovery 시 정확도 향상 기여도가 정량화되지 않음.</li>
+  <li><strong>Compute cost 미공개</strong>: Step-level $d_k$ 계산이 OPD forward pass에서 zero marginal cost라고 명시되었지만, ##총 학습 GPU-hour, FLOPs## 등 SOD vs OPD 비교 부재.</li>
+  <li><strong>Multi-step sparse reward 외 reward 미평가</strong>: GRPO outcome reward만 사용. Process reward model, intermediate verification 등이 SOD reweighting과 어떻게 상호작용할지 미평가.</li>
+  <li><strong>Teacher quality dependence</strong>: Teacher가 ##GRPO로 추가 최적화된 Qwen3-4B##. Off-the-shelf teacher (e.g., Qwen3-4B base나 Instruct)에서 SOD 작동 여부, teacher quality가 성능에 미치는 elasticity 미평가.</li>
+  <li><strong>Sub-billion claim의 대조점</strong>: "0.6B가 AIME25에서 26.13% achieve"가 첫 sub-billion이라는 주장은 ##비교 대상 sub-billion 모델 명시 부재##. 후속 검증 필요.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>8. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>OPD에는 도메인-specific failure mode 존재</strong>: Text-only reasoning에서 작동하는 dense token-level supervision이 ##discontinuous state transition (TIR)에서는 systematically 위험##. Tool-using agent를 distill할 때 OPD를 vanilla 적용하지 말 것.</li>
+  <li><strong>Multiplicative ratio reweighting의 일반성</strong>: $w_k = \prod (d_u + \epsilon)/(d_{u+1}+\epsilon)$ pattern은 ##recovery##를 자연 포착하면서 magnitude scaling에 무관. ##Token-level이 아닌 step-level divergence##라는 단위 선택이 핵심. 다른 sequential learning task (multi-turn dialogue, video, RL with hierarchical reward)에 transfer 가능 패턴.</li>
+  <li><strong>Sub-billion model의 frontier reasoning 가능성</strong>: 0.6B가 AIME25 26.13% -- ##strong post-training pipeline이 있으면 small model도 frontier benchmark에 진입 가능##. <a href="20260615_xu_vibethinker3b.html">VibeThinker-3B</a>의 Compression-Coverage Hypothesis와 일관: reasoning은 작은 모델로 압축 가능.</li>
+  <li><strong>GRPO + OPD-step의 complementary 역할</strong>: GRPO가 ##trajectory-level exploration broaden## (teacher distribution 너머), step-wise OPD가 ##fine-grained guidance##. ##두 항의 co-optimization##이 신뢰 가능 SLM TIR의 표준 architecture가 될 가능성.</li>
+  <li><strong>Stronger teacher가 항상 좋지 않을 수 있음</strong>: OPD는 4B → 14B teacher 전환 시 0.6B student가 ##저하## (capacity gap이 mismatch propagation amplify). SOD reweighting은 이 효과를 reverse. ##Distillation 시 teacher selection의 단순한 "더 큰 게 좋다"가 항상 옳지 않음##.</li>
+  <li><strong>Three Distillation Pattern으로 학습 진단</strong>: Stable / Erroneous / Recovery 3 패턴 비율을 monitoring하면 ##학습이 정상인지##(stable dominant) ##corrupted state 누적 중인지## 알 수 있다. SOD의 ##reweighting trajectory를 observability tool로 활용 가능##.</li>
+  <li><strong>Theoretical proxy가 적절한 단순화</strong>: $\Delta_k$ KL divergence를 $d_k = |\log\pi - \log\pi_T|$ 단순 평균으로 근사. ##forward pass에서 zero marginal cost##라는 implementation 효율성이 design 결정의 lever. 비슷한 단순화 기법이 다른 distillation 알고리즘에서도 적용 가능 패턴.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>관련 연구 링크</h2>
+<ul>
+  <li><strong>OPD origin</strong>: Agarwal et al. 2024, Gu et al. (Reverse KL minimization)</li>
+  <li><strong>OPD geometry</strong>: <a href="20260619_shen_opd-geometry.html">Shen et al. 2026 (On the Geometry of On-Policy Distillation)</a> -- OPD의 parameter-space 분석</li>
+  <li><strong>GRPO origin</strong>: Shao et al. 2024 (DeepSeekMath)</li>
+  <li><strong>GSPO</strong>: <a href="20260406_zheng_gspo.html">Zheng et al. 2025</a> -- GRPO의 token-level noise 진단 + sequence-level 대안</li>
+  <li><strong>VibeThinker-3B</strong>: <a href="20260615_xu_vibethinker3b.html">Xu et al. 2026</a> -- compact model이 verifiable reasoning에서 frontier 도달, 본 논문의 sub-billion 결과와 line</li>
+  <li><strong>TIR / Agentic RL</strong>: ReAct, Toolformer, FireAct (구조화 prompting); ToRL, Search-R1 (RL extension)</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<!-- Q&A, 추가 코멘트, 관련 아이디어 등이 누적 기록됩니다 -->
+</div>
+
+</div>
+</body>
+</html>
