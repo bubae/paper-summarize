@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hy-Embodied-0.5-VLA — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #4a148c, #7b1fa2, #ec407a);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.25; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 720px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #4a148c; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #7b1fa2, #ec407a); border-radius: 3px; }
+  section h3 { font-size: 1.2rem; font-weight: 700; margin: 1.5rem 0 0.8rem; color: #6a1b9a; }
+  section p { margin-bottom: 1rem; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card h3 { margin-top: 0; }
+  .card-accent { border-left: 5px solid #7b1fa2; }
+  .card-green  { border-left: 5px solid #059669; background: #f0fdf4; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; }
+  .card-red    { border-left: 5px solid #dc2626; background: #fef2f2; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #7b1fa2, #ec407a);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.2rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+  .one-liner::before { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-right: 4px; }
+  .one-liner::after  { content: '"'; font-size: 3rem; line-height: 0.5; vertical-align: -0.4em; opacity: 0.4; margin-left: 4px; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #7b1fa2, #ec407a); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #4a148c; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; text-align: left; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fdf4ff; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; display: flex; align-items: center; gap: 0.5rem; }
+  .analogy-title::before { content: '💡'; font-size: 1.2rem; }
+
+  .pill-list { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 1rem 0; }
+  .pill { background: #f3e5f5; color: #4a148c; padding: 6px 14px; border-radius: 20px; font-size: 0.85rem; font-weight: 500; border: 1px solid #ce93d8; }
+
+  .version-link { text-align: center; margin: 1.5rem 0; }
+  .version-link a { display: inline-block; padding: 8px 24px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #fdf4ff; color: #7b1fa2; border: 1px solid #ce93d8; transition: all 0.2s; }
+  .version-link a:hover { background: #7b1fa2; color: #fff; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; margin-top: 3rem; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Tencent Robotics X &middot; Tencent Hy Team &middot; 2026.06.12</div>
+  <h1>Hy-Embodied-0.5-VLA</h1>
+  <p class="subtitle">로봇 팔이 옷을 개고, 안경을 접고, 와이파이 USB를 꽂는다 ―<br>
+  "AI 모델 1개"가 아니라 "데이터·모델·학습·배포의 전체 시스템"을 다시 설계한 작품</p>
+</div>
+
+<div class="container">
+
+  <div class="version-link" style="margin-top:1.5rem;">
+    <a href="20260619_zhang_hyvla.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+  <section>
+    <div class="one-liner">
+      "더 좋은 로봇 두뇌"를 만드는 것이 아니라, <strong>"로봇이 진짜 일을 하기 위한 모든 단계 (데이터→모델→강화학습→실제 배포)를 함께 설계"</strong>한 첫 통합 시스템
+    </div>
+  </section>
+
+  <!-- 한 컷 요약 -->
+  <section>
+    <h2>한 컷 요약</h2>
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="gh" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stop-color="#7b1fa2"/>
+            <stop offset="100%" stop-color="#ec407a"/>
+          </linearGradient>
+        </defs>
+        <text x="400" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#4a148c">RoboTwin 2.0 (50개 로봇 작업) — 성공률 비교</text>
+        <!-- bars -->
+        <text x="40" y="80" font-size="13" fill="#4a148c">π₀ (기존 SOTA)</text>
+        <rect x="220" y="62" width="500" height="22" rx="3" fill="#cbd5e1"/>
+        <rect x="220" y="62" width="294" height="22" rx="3" fill="#94a3b8"/>
+        <text x="730" y="78" font-size="13" fill="#1e293b" font-weight="700">58.4%</text>
+
+        <text x="40" y="120" font-size="13" fill="#4a148c">π₀.₅</text>
+        <rect x="220" y="102" width="500" height="22" rx="3" fill="#cbd5e1"/>
+        <rect x="220" y="102" width="384" height="22" rx="3" fill="#94a3b8"/>
+        <text x="730" y="118" font-size="13" fill="#1e293b" font-weight="700">76.8%</text>
+
+        <text x="40" y="160" font-size="13" fill="#4a148c">JoyAI-RA (강력 baseline)</text>
+        <rect x="220" y="142" width="500" height="22" rx="3" fill="#cbd5e1"/>
+        <rect x="220" y="142" width="447" height="22" rx="3" fill="#94a3b8"/>
+        <text x="730" y="158" font-size="13" fill="#1e293b" font-weight="700">89.3%</text>
+
+        <text x="40" y="200" font-size="13" font-weight="700" fill="#4a148c">⭐ HyVLA-0.5 (이 논문)</text>
+        <rect x="220" y="182" width="500" height="22" rx="3" fill="#f3e5f5"/>
+        <rect x="220" y="182" width="451" height="22" rx="3" fill="url(#gh)"/>
+        <text x="730" y="198" font-size="13" fill="#7b1fa2" font-weight="700">90.1%</text>
+
+        <!-- real robot results -->
+        <text x="400" y="245" text-anchor="middle" font-size="14" font-weight="700" fill="#4a148c">실제 로봇 (Dobot X-Trainer, 4가지 정밀 작업) — 강화학습 후 성공률</text>
+        <g font-size="11">
+          <rect x="80" y="265" width="160" height="80" rx="8" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="160" y="290" text-anchor="middle" font-weight="700" fill="#4a148c">Bottle 삽입</text>
+          <text x="160" y="318" text-anchor="middle" font-size="20" font-weight="700" fill="#7b1fa2">99%</text>
+          <text x="160" y="335" text-anchor="middle" fill="#6a1b9a">16초</text>
+
+          <rect x="260" y="265" width="160" height="80" rx="8" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="340" y="290" text-anchor="middle" font-weight="700" fill="#4a148c">Pen Cap 조립</text>
+          <text x="340" y="318" text-anchor="middle" font-size="20" font-weight="700" fill="#7b1fa2">99%</text>
+          <text x="340" y="335" text-anchor="middle" fill="#6a1b9a">21초</text>
+
+          <rect x="440" y="265" width="160" height="80" rx="8" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="520" y="290" text-anchor="middle" font-weight="700" fill="#4a148c">USB 삽입 (μm)</text>
+          <text x="520" y="318" text-anchor="middle" font-size="20" font-weight="700" fill="#7b1fa2">98%</text>
+          <text x="520" y="335" text-anchor="middle" fill="#6a1b9a">22초</text>
+
+          <rect x="620" y="265" width="160" height="80" rx="8" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="700" y="290" text-anchor="middle" font-weight="700" fill="#4a148c">Pen Case 지퍼</text>
+          <text x="700" y="318" text-anchor="middle" font-size="20" font-weight="700" fill="#7b1fa2">94%</text>
+          <text x="700" y="335" text-anchor="middle" fill="#6a1b9a">37초</text>
+        </g>
+      </svg>
+      <div class="diagram-caption">시뮬레이션 50개 작업에서 1위 + 실제 로봇 4가지 정밀 작업에서 거의 100% 성공률.</div>
+    </div>
+  </section>
+
+  <!-- 배경 지식 -->
+  <section>
+    <h2>먼저 알아둘 개념들</h2>
+    <p>이 논문은 "AI 로봇 학습 시스템"에 관한 것이다. 다음 6가지를 알아야 의미를 이해할 수 있다.</p>
+
+    <!-- 1. VLA -->
+    <div class="card card-accent">
+      <h3>① VLA: 보고, 듣고, 움직이는 AI</h3>
+      <p><strong>VLA (Vision-Language-Action)</strong>는 다음 3가지를 한 번에 처리하는 AI 모델이다:</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 230" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#4a148c">VLA = Vision + Language + Action</text>
+          <!-- Vision -->
+          <rect x="40" y="55" width="200" height="150" rx="10" fill="#dbeafe" stroke="#0369a1"/>
+          <text x="140" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#0c4a6e">👁 Vision</text>
+          <text x="140" y="110" text-anchor="middle" font-size="11" fill="#0c4a6e">카메라 영상</text>
+          <text x="140" y="130" text-anchor="middle" font-size="11" fill="#0c4a6e">"앞에 컵이 있고</text>
+          <text x="140" y="148" text-anchor="middle" font-size="11" fill="#0c4a6e">선반이 있다"</text>
+          <text x="140" y="180" text-anchor="middle" font-size="11" fill="#0369a1">→ 본다</text>
+          <!-- Language -->
+          <rect x="280" y="55" width="200" height="150" rx="10" fill="#fef3c7" stroke="#d97706"/>
+          <text x="380" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#78350f">💬 Language</text>
+          <text x="380" y="110" text-anchor="middle" font-size="11" fill="#78350f">자연어 명령</text>
+          <text x="380" y="130" text-anchor="middle" font-size="11" fill="#78350f">"머그컵을 선반에</text>
+          <text x="380" y="148" text-anchor="middle" font-size="11" fill="#78350f">걸어줘"</text>
+          <text x="380" y="180" text-anchor="middle" font-size="11" fill="#92400e">→ 이해한다</text>
+          <!-- Action -->
+          <rect x="520" y="55" width="200" height="150" rx="10" fill="#fce4ec" stroke="#ec407a"/>
+          <text x="620" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#880e4f">🤖 Action</text>
+          <text x="620" y="110" text-anchor="middle" font-size="11" fill="#880e4f">로봇 팔 동작</text>
+          <text x="620" y="130" text-anchor="middle" font-size="11" fill="#880e4f">"x=0.3, y=0.1, z=0.5</text>
+          <text x="620" y="148" text-anchor="middle" font-size="11" fill="#880e4f">집게 닫기"</text>
+          <text x="620" y="180" text-anchor="middle" font-size="11" fill="#ad1457">→ 행동한다</text>
+        </svg>
+      </div>
+      <p>대표 모델로 OpenAI의 RT-2, Physical Intelligence의 π₀ 등이 있다. 그러나 이런 VLA들은 <strong>"좋은 모델 1개"</strong>를 만드는 데 집중했다.</p>
+    </div>
+
+    <!-- 2. UMI -->
+    <div class="card card-accent">
+      <h3>② UMI: 인간이 손으로 시연해 로봇을 가르치는 방법</h3>
+      <p>로봇에게 동작을 가르치려면 데이터가 필요하다. 가장 흔한 방법:</p>
+      <ul style="margin-left:1.2rem;">
+        <li><strong>Teleoperation (원격조작)</strong>: 사람이 조이스틱/마스터 팔로 로봇을 직접 움직여 시연. 자세가 부자연스럽고, 손끝 감각(haptic)이 없어 정밀 작업이 어려움.</li>
+        <li><strong>UMI (Universal Manipulation Interface)</strong>: 사람이 <strong>로봇 집게 모양 그리퍼</strong>를 손에 들고 직접 작업하면, 그 동작이 곧 학습 데이터가 됨. 자연스러운 동작, 풍부한 다양성 확보.</li>
+      </ul>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#4a148c">기존 UMI vs. Hy-UMI (이 논문)</text>
+          <rect x="40" y="50" width="340" height="180" rx="12" fill="#fff7ed" stroke="#d97706"/>
+          <text x="210" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#78350f">기존 UMI (Chi et al., 2024)</text>
+          <text x="60" y="110" font-size="11" fill="#78350f">📷 SLAM 카메라로 위치 추적</text>
+          <text x="60" y="135" font-size="11" fill="#78350f">⚠ cm 단위 오차</text>
+          <text x="60" y="160" font-size="11" fill="#78350f">⚠ 큰 휴대 장비 부피</text>
+          <text x="60" y="185" font-size="11" fill="#78350f">⚠ 손끝 힘 측정 불가</text>
+          <text x="210" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#d97706">→ 정밀 작업에 한계</text>
+
+          <rect x="400" y="50" width="340" height="180" rx="12" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="570" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#4a148c">Hy-UMI (이 논문)</text>
+          <text x="420" y="110" font-size="11" fill="#4a148c">📐 외부 모션 캡처 시스템</text>
+          <text x="420" y="135" font-size="11" fill="#4a148c">✅ sub-mm (1mm 미만) 정확도</text>
+          <text x="420" y="160" font-size="11" fill="#4a148c">✅ 손끝에 직접 부착 → 자연스러움</text>
+          <text x="420" y="185" font-size="11" fill="#4a148c">✅ 6축 힘/토크 센서</text>
+          <text x="570" y="215" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">→ 정밀·접촉 작업 가능</text>
+        </svg>
+      </div>
+      <div class="analogy">
+        <div class="analogy-title">비유: 요리 영상 vs. 셰프 손목 추적</div>
+        요리 학원에서 "요리 영상"만 보고 배우는 것과, "셰프의 손목에 정밀 센서를 달아 매 동작을 mm 단위로 기록하는 것"은 학습 효과가 다르다. 후자는 손에 잡힌 칼이 정확히 어떤 각도로 움직이는지까지 학생이 모방할 수 있다. Hy-UMI는 후자다.
+      </div>
+    </div>
+
+    <!-- 3. Imitation vs RL -->
+    <div class="card card-accent">
+      <h3>③ Imitation Learning과 강화학습 (RL)</h3>
+      <ul style="margin-left:1.2rem;">
+        <li><strong>Imitation (모방학습)</strong>: 사람의 시연을 따라 학습. <strong>"5단계 중 4단계는 잘하지만 마지막 1단계가 흔들리는"</strong> last-mile 한계가 있다.</li>
+        <li><strong>강화학습 (RL)</strong>: 시행착오로 학습. 보상(reward) 모델 설계가 어렵다. 특히 "지퍼 잠그기" 같은 contact-rich 작업은 어떻게 보상을 줄지 매우 까다롭다.</li>
+      </ul>
+      <p>이 논문은 <strong>"보상 함수 없이도 RL을 할 수 있는 방법" (FlowPRO)</strong>을 제안한다.</p>
+    </div>
+
+    <!-- 4. Cross-embodiment -->
+    <div class="card card-accent">
+      <h3>④ Cross-Embodiment: 로봇이 바뀌어도 같은 정책이 작동하나?</h3>
+      <p>Robot A에서 학습한 정책을 Robot B(팔 길이, 관절 수, 모양이 다른)에 그대로 쓸 수 있을까? 보통은 안 된다 — 매 로봇마다 다시 학습 필요. 이를 <strong>embodiment gap</strong>이라 한다.</p>
+      <div class="diagram-wrap">
+        <svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+          <text x="380" y="25" text-anchor="middle" font-size="14" font-weight="700" fill="#4a148c">Cross-Embodiment Transfer</text>
+          <!-- Source UMI -->
+          <rect x="40" y="55" width="180" height="140" rx="10" fill="#dbeafe" stroke="#0369a1"/>
+          <text x="130" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#0c4a6e">학습: UMI 데이터</text>
+          <text x="130" y="115" text-anchor="middle" font-size="11" fill="#0c4a6e">사람 손에 달린</text>
+          <text x="130" y="135" text-anchor="middle" font-size="11" fill="#0c4a6e">그리퍼만으로</text>
+          <text x="130" y="160" text-anchor="middle" font-size="11" fill="#0369a1">(타겟 로봇 시연 0건!)</text>
+          <text x="240" y="135" text-anchor="middle" font-size="22" fill="#7b1fa2">→</text>
+          <!-- Target A -->
+          <rect x="280" y="55" width="220" height="140" rx="10" fill="#f3e5f5" stroke="#7b1fa2"/>
+          <text x="390" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#4a148c">배포 #1: JAKA K1</text>
+          <text x="390" y="115" text-anchor="middle" font-size="11" fill="#4a148c">고정 베이스 로봇 팔</text>
+          <text x="390" y="140" text-anchor="middle" font-size="11" fill="#4a148c">"머리핀을 정확히</text>
+          <text x="390" y="158" text-anchor="middle" font-size="11" fill="#4a148c">박스 칸에 넣기"</text>
+          <text x="390" y="180" text-anchor="middle" font-size="11" font-weight="700" fill="#7b1fa2">✓ 성공</text>
+          <!-- Target B -->
+          <rect x="520" y="55" width="220" height="140" rx="10" fill="#fce4ec" stroke="#ec407a"/>
+          <text x="630" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#880e4f">배포 #2: Astribot S1</text>
+          <text x="630" y="115" text-anchor="middle" font-size="11" fill="#880e4f">휴머노이드 (떠 있는 몸통)</text>
+          <text x="630" y="140" text-anchor="middle" font-size="11" fill="#880e4f">"종이컵 정리해서</text>
+          <text x="630" y="158" text-anchor="middle" font-size="11" fill="#880e4f">휴지통에 넣기"</text>
+          <text x="630" y="180" text-anchor="middle" font-size="11" font-weight="700" fill="#ec407a">✓ 성공</text>
+        </svg>
+      </div>
+      <p>HyVLA-0.5는 <strong>"인간 UMI 데이터로만 학습한 정책"</strong>을 두 개의 전혀 다른 로봇에 deploy하는 데 성공했다. 이것이 큰 의미를 갖는 이유는 <strong>새 로봇 도입 시마다 거기서 시연 데이터를 수집하지 않아도 되기 때문</strong>이다.</p>
+    </div>
+
+    <!-- 5. Action chunk -->
+    <div class="card card-accent">
+      <h3>⑤ Action Chunk: 한 번에 50개 동작 묶음 예측</h3>
+      <p>로봇 정책에 두 가지 방식이 있다:</p>
+      <ul style="margin-left:1.2rem;">
+        <li><strong>Step-by-step</strong>: 매 frame마다 다음 action 1개 예측 (1초에 50번 모델 호출)</li>
+        <li><strong>Chunk 예측</strong>: 한 번 호출에 향후 50 step의 action 50개를 한꺼번에 예측 → <strong>모델 호출 빈도 ↓, 동작 부드러움 ↑</strong></li>
+      </ul>
+      <p>HyVLA-0.5는 chunk 방식. 하지만 chunk와 chunk 사이에 <strong>"끊김"</strong>이 생길 수 있어, 이를 <strong>"베지어 곡선"</strong>으로 부드럽게 잇는 기법(Bézier stitching)을 도입했다.</p>
+    </div>
+
+    <!-- 6. Flow Matching -->
+    <div class="card card-accent">
+      <h3>⑥ Flow Matching: action을 "점진적으로 확정"하는 생성 방법</h3>
+      <p>Flow matching은 노이즈에서 시작해 점차 "정답에 가까운" 결과로 흘려보내는 생성 방식이다. Diffusion model의 친척으로, 동작을 <strong>연속값(continuous)</strong>으로 부드럽게 예측할 수 있어 로봇 제어에 적합하다.</p>
+      <div class="analogy">
+        <div class="analogy-title">비유: 안개 속에서 등대 찾기</div>
+        처음에는 짙은 안개(=noise) 속이다. 매 step마다 안개가 조금씩 걷히면서 "등대(=정답 action)"가 점점 또렷해진다. 10번 정도 걷어내면 등대 위치가 확정된다 — 이것이 flow matching의 inference 과정이다.
+      </div>
+    </div>
+  </section>
+
+  <!-- HyVLA-0.5 핵심 -->
+  <section>
+    <h2>HyVLA-0.5의 5단계 시스템</h2>
+    <p>이 논문의 핵심 메시지: <strong>"좋은 VLA 모델 하나"가 아니라, "좋은 robot learning 시스템 전체"가 필요하다</strong>. 시스템은 5단계로 구성된다.</p>
+
+    <div class="diagram-wrap">
+      <svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg">
+        <text x="400" y="30" text-anchor="middle" font-size="16" font-weight="700" fill="#4a148c">HyVLA-0.5 전체 파이프라인</text>
+
+        <!-- Stage 1 -->
+        <rect x="80" y="55" width="640" height="80" rx="12" fill="#fff7ed" stroke="#d97706" stroke-width="2"/>
+        <text x="120" y="85" font-size="14" font-weight="700" fill="#78350f">1️⃣ 데이터</text>
+        <text x="400" y="85" text-anchor="middle" font-size="13" fill="#78350f">Hy-UMI-10K: 1만 시간 인간 시연 (sub-mm 정밀, 70 task, 1M+ 에피소드)</text>
+        <text x="400" y="110" text-anchor="middle" font-size="11" fill="#92400e">손끝 부착 그리퍼 + 외부 모션캡처 케이지로 정밀 6축 동작 기록</text>
+        <line x1="400" y1="135" x2="400" y2="155" stroke="#7b1fa2" stroke-width="2" marker-end="url(#ar)"/>
+        <defs><marker id="ar" markerWidth="10" markerHeight="10" refX="6" refY="3" orient="auto"><polygon points="0 0, 6 3, 0 6" fill="#7b1fa2"/></marker></defs>
+
+        <!-- Stage 2 -->
+        <rect x="80" y="160" width="640" height="80" rx="12" fill="#dbeafe" stroke="#0369a1" stroke-width="2"/>
+        <text x="120" y="190" font-size="14" font-weight="700" fill="#0c4a6e">2️⃣ 모델</text>
+        <text x="400" y="190" text-anchor="middle" font-size="13" fill="#0c4a6e">4B MoT VLM 백본 + Flow-matching action expert + Compact memory</text>
+        <text x="400" y="215" text-anchor="middle" font-size="11" fill="#0369a1">"보고" "이해하고" "행동" — 시각/언어/동작 token에 modality-adaptive 처리</text>
+        <line x1="400" y1="240" x2="400" y2="260" stroke="#7b1fa2" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 3 -->
+        <rect x="80" y="265" width="640" height="80" rx="12" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="2"/>
+        <text x="120" y="295" font-size="14" font-weight="700" fill="#4a148c">3️⃣ 학습</text>
+        <text x="400" y="295" text-anchor="middle" font-size="13" fill="#4a148c">Pre-training (200K step on UMI) → SFT (Track A: 같은 로봇 / Track B: 다른 로봇)</text>
+        <text x="400" y="320" text-anchor="middle" font-size="11" fill="#6a1b9a">Track B는 타겟 로봇 시연 0건으로 학습 → cross-embodiment</text>
+        <line x1="400" y1="345" x2="400" y2="365" stroke="#7b1fa2" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 4 -->
+        <rect x="80" y="370" width="640" height="80" rx="12" fill="#fce4ec" stroke="#ec407a" stroke-width="2"/>
+        <text x="120" y="400" font-size="14" font-weight="700" fill="#880e4f">4️⃣ 강화학습</text>
+        <text x="400" y="400" text-anchor="middle" font-size="13" fill="#880e4f">FlowPRO (RPRO): 보상 모델 없이 실패→수정 페어로 학습</text>
+        <text x="400" y="425" text-anchor="middle" font-size="11" fill="#ad1457">사람이 실수하면 "되돌리고 고치기" 시연 → 자동으로 +/− 페어 생성 → 학습</text>
+        <line x1="400" y1="450" x2="400" y2="470" stroke="#7b1fa2" stroke-width="2" marker-end="url(#ar)"/>
+
+        <!-- Stage 5 -->
+        <rect x="80" y="475" width="640" height="55" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="2"/>
+        <text x="120" y="505" font-size="14" font-weight="700" fill="#065f46">5️⃣ 배포</text>
+        <text x="400" y="505" text-anchor="middle" font-size="13" fill="#065f46">비동기 추론 + 베지어 곡선으로 동작 부드럽게 잇기 (50Hz 제어)</text>
+      </svg>
+    </div>
+
+    <h3>🎯 가장 중요한 두 가지 혁신</h3>
+
+    <div class="card card-accent">
+      <h3>혁신 1: "동작 표현"을 로봇과 분리</h3>
+      <p>로봇마다 팔 길이도 관절 수도 다르다. 이걸 학습 시점에 모두 외우려 하면 새 로봇이 올 때마다 처음부터 학습해야 한다. HyVLA-0.5는 이걸 우회한다:</p>
+      <ul style="margin-left:1.2rem;">
+        <li>학습 시점: 단순히 "그리퍼가 다음 50 step에 어디로 갈지"의 <strong>delta-chunk (변화량)</strong>만 예측. 로봇이 누구든 무관.</li>
+        <li>배포 시점: 로봇 종류별로 inverse kinematics (역기구학)를 풀어 실제 관절 각도로 변환.</li>
+      </ul>
+      <div class="analogy">
+        <div class="analogy-title">비유: GPS 좌표 vs. 지하철 노선도</div>
+        "강남역으로 가라"는 추상적 목적지(GPS 좌표)는 자동차로도, 지하철로도, 도보로도 갈 수 있다. 반면 "2호선 7정거장 후 3번 출구"는 지하철 전용 명령이다. HyVLA-0.5는 GPS 좌표 방식으로 학습하고, 마지막에 로봇 종류에 맞춰 변환한다.
+      </div>
+    </div>
+
+    <div class="card card-accent">
+      <h3>혁신 2: 보상 함수 없이 강화학습 (FlowPRO)</h3>
+      <p>"USB를 정확히 꽂았는지" 같은 작업에서 보상을 어떻게 정의할까? 끝까지 꽂혔으면 +1, 아니면 0? 그러면 거의 모든 시도가 0이 되어 학습이 안 된다. FlowPRO의 해결책:</p>
+      <ol style="margin-left:1.2rem;">
+        <li>현재 정책으로 시도 → 사람이 보다가 "이건 안 되겠다" 싶으면 <strong>"되감기 + 직접 시범"</strong></li>
+        <li>되감기 전 행동 = ❌ negative trajectory, 사람 시범 = ✅ positive trajectory</li>
+        <li>"좋은 행동은 더 좋게, 나쁜 행동은 멀리하게" — contrastive 학습</li>
+        <li>여기에 <strong>"보상 값이 폭주하지 않게 잡아주는 제동기 (proximal regularizer)"</strong> 추가</li>
+      </ol>
+      <p>결과: 보상 모델, value 네트워크, critic 모두 불필요. 작업당 ≤100쌍의 페어 데이터로 99% 성공률 달성.</p>
+    </div>
+  </section>
+
+  <!-- 핵심 성과 -->
+  <section>
+    <h2>핵심 성과 (숫자로 보기)</h2>
+    <div class="stat-row">
+      <div class="stat-box">
+        <div class="num">10K hr</div>
+        <div class="label">Hy-UMI 데이터셋<br>(1M+ 에피소드)</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">90.1%</div>
+        <div class="label">RoboTwin 2.0<br>50개 작업 평균 (Randomized)</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">99%</div>
+        <div class="label">실제 정밀 작업<br>(Bottle, Cap, USB)</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">0건</div>
+        <div class="label">Cross-embodiment 시<br>타겟 로봇 시연 필요량</div>
+      </div>
+    </div>
+
+    <h3>📊 시뮬레이션 50개 작업 비교</h3>
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>Clean</th><th>Randomized</th></tr></thead>
+      <tbody>
+        <tr><td>π₀ (DeepMind 류)</td><td>65.9</td><td>58.4</td></tr>
+        <tr><td>π₀.₅</td><td>82.7</td><td>76.8</td></tr>
+        <tr><td>JoyAI-RA (강력 baseline)</td><td>90.5</td><td>89.3</td></tr>
+        <tr class="highlight-row"><td>HyVLA-0.5 (이 논문)</td><td>90.9</td><td>90.1</td></tr>
+        <tr><td>HyVLA-0.5 - memory encoder</td><td>88.8</td><td>88.6</td></tr>
+        <tr><td>HyVLA-0.5 - memory - UMI pre-training</td><td>88.1</td><td>87.9</td></tr>
+      </tbody>
+    </table>
+    <p>Compact memory encoder도, UMI pre-training도 모두 1~2점씩 기여한다.</p>
+
+    <h3>🤖 강화학습(FlowPRO) 후 실제 로봇 성공률</h3>
+    <table class="comp-table">
+      <thead><tr><th>방법</th><th>Bottle</th><th>Cap</th><th>USB</th><th>Zip</th></tr></thead>
+      <tbody>
+        <tr><td>DAgger (positive only)</td><td>93%</td><td>88%</td><td>86%</td><td>83%</td></tr>
+        <tr><td>π₀.₆* (advantage-cond.)</td><td>95%</td><td>95%</td><td>95%</td><td>89%</td></tr>
+        <tr class="highlight-row"><td>RPRO (이 논문)</td><td>99%</td><td>99%</td><td>98%</td><td>94%</td></tr>
+      </tbody>
+    </table>
+    <p>특히 시간(=완료 속도)도 RPRO가 모두 가장 빠르다 (Bottle: DAgger 27초 → RPRO 16초).</p>
+  </section>
+
+  <!-- 활용 -->
+  <section>
+    <h2>활용 분야</h2>
+    <p>이 시스템이 가능하게 하는 응용:</p>
+    <div class="pill-list">
+      <span class="pill">🧦 빨래 정리·접기</span>
+      <span class="pill">🍳 주방 정리 / 식기 배치</span>
+      <span class="pill">🔧 정밀 조립 (USB, 펜뚜껑)</span>
+      <span class="pill">🧹 청소·정돈</span>
+      <span class="pill">🤖 휴머노이드 로봇 운영</span>
+      <span class="pill">📦 물류 박스 분류</span>
+      <span class="pill">🦾 의수·재활 로봇</span>
+      <span class="pill">🏭 다품종 소량생산</span>
+    </div>
+    <p>특히 <strong>"새 로봇이 도입되어도 데이터 재수집 없이 즉시 작동"</strong>한다는 점이 산업적으로 중요하다 — 로봇 제조사가 바뀌어도 같은 정책 사용 가능.</p>
+  </section>
+
+  <!-- 한 줄 결론 -->
+  <section>
+    <h2>한 줄 결론</h2>
+    <div class="one-liner">
+      똑똑한 로봇은 <strong>"한 개의 거대한 모델"</strong>이 아니라, <strong>"데이터·모델·강화학습·배포가 모두 함께 설계된 통합 시스템"</strong>에서 나온다.
+    </div>
+  </section>
+
+  <!-- 한계 -->
+  <section>
+    <h2>이 연구의 한계</h2>
+
+    <div class="card card-orange">
+      <h3>⚠️ 모션캡처 케이지가 필요함</h3>
+      <p>sub-mm 정확도를 위해 외부 광학 모션캡처 시스템(케이지)이 필요. <strong>일반 가정·야외 환경에서는 데이터 수집 불가</strong>. 결국 데이터는 lab quality에 머문다.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Cross-embodiment 평가 task가 적음</h3>
+      <p>JAKA, Astribot 각각 1개 task에서만 검증. 더 다양한 task에서도 같은 패턴이 나오는지 추가 실험 필요.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Force(촉각) 통합이 후처리 add-on</h3>
+      <p>손끝 힘 센서 데이터는 base 모델에 통합되지 않고, Unitree G1 task에서만 별도 lightweight encoder로 augment. 진정한 통합 multi-modal 모델이 아님.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ Zero-shot 일반화 미달</h3>
+      <p>저자도 인정 — 현재 데이터 규모(10K hr)로는 zero-shot 작업(완전히 새로운 task에 즉시 적응) 능력 입증 어려움. π₀.₇ 같은 최근 모델이 zero-shot 조짐을 보이기 시작했지만 HyVLA-0.5는 그 단계에 미치지 못함.</p>
+    </div>
+
+    <div class="card card-orange">
+      <h3>⚠️ 안전성 검증 부족</h3>
+      <p>실제 로봇이 정책에 따라 위험한 동작을 할 가능성이나 emergency stop 등에 대한 분석이 없음. 산업 현장 배포 시 critical한 이슈.</p>
+    </div>
+  </section>
+
+  <!-- 산업 의미 -->
+  <section>
+    <h2>왜 중요한가</h2>
+
+    <div class="card card-green">
+      <h3>🏭 로봇 도입 비용 구조의 재설계</h3>
+      <p>지금까지는 새 로봇을 도입할 때마다 그 로봇용 데이터를 수집하고 정책을 다시 학습해야 했다. HyVLA-0.5는 <strong>"인간 시연 데이터로 한 번 학습 → 다양한 로봇에 deploy"</strong>를 가능하게 한다. 데이터 수집 비용이 1/N로 감소.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>💪 정밀·접촉 작업 자동화의 현실화</h3>
+      <p>USB 삽입(sub-mm 정밀), 지퍼 잠그기(접촉 동력학), 안경 접기(변형 가능 물체) 같은 "사람만 할 수 있다"고 여겨지던 작업들이 99% 성공률로 자동화. 의료기기 조립, 정밀 가전 조립 등 적용 가능.</p>
+    </div>
+
+    <div class="card card-green">
+      <h3>🌐 강화학습의 적용 장벽 완화</h3>
+      <p>FlowPRO는 보상 모델 없이도 RL이 가능함을 보였다. 이는 <strong>"보상 설계 = AI 박사 노동"</strong>이라는 큰 진입 장벽을 낮춰, 일반 robot 엔지니어도 RL을 실용적으로 사용할 수 있게 한다.</p>
+    </div>
+  </section>
+
+  <div class="version-link" style="margin-top:3rem;">
+    <a href="20260619_zhang_hyvla.html">전문가용 상세 요약 보기 &rarr;</a>
+  </div>
+
+</div>
+
+<div class="footer">
+  논문: Hy-Embodied-0.5-VLA: From Vision-Language-Action Models to a Real-World Robot Learning Stack<br>
+  저자: Tencent Robotics X × Tencent Hy Team · Tencent · 2026.06.12<br>
+  arXiv: <a href="https://arxiv.org/abs/2606.14409" style="color:#7b1fa2;">2606.14409</a> · <a href="https://github.com/Tencent-Hunyuan/Hy-Embodied-0.5-VLA" style="color:#7b1fa2;">GitHub</a> · <a href="https://huggingface.co/tencent/Hy-Embodied-0.5-VLA-UMI" style="color:#7b1fa2;">HF</a>
+</div>
+
+</body>
+</html>

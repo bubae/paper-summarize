@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hy-Embodied-0.5-VLA: From Vision-Language-Action Models to a Real-World Robot Learning Stack</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Hy-Embodied-0.5-VLA: From Vision-Language-Action Models to a Real-World Robot Learning Stack</h1>
+
+<div style="text-align:center; margin:1rem 0;">
+  <a href="20260619_zhang_hyvla_brief.html" style="display:inline-block; padding:8px 20px; border-radius:20px; font-size:0.9rem; font-weight:600; text-decoration:none; background:#e8f5e9; color:#2e7d32; border:1px solid #81c784;">개요 브리핑 버전 보기 &rarr;</a>
+</div>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Tencent Robotics X × Tencent Hy Team (감수: Han Hu, Zhengyou Zhang / 리더: He Zhang, Lingzhu Xiang / 핵심 기여자: Haitao Lin, Zeyu Huang, Minghui Wang, Dingyan Zhong, Yubo Dong, Yihao Wu, Yongming Rao 외)</li>
+  <li><strong>소속</strong>: Tencent Robotics X, Tencent Hy</li>
+  <li><strong>학회/저널</strong>: Tencent Hy Technical Report (arXiv preprint)</li>
+  <li><strong>연도</strong>: 2026 (Date: June 12, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.14409">arXiv:2606.14409v1</a> · <a href="https://github.com/Tencent-Hunyuan/Hy-Embodied-0.5-VLA">GitHub</a> · <a href="https://huggingface.co/tencent/Hy-Embodied-0.5-VLA-UMI">HF Model</a> · <a href="https://huggingface.co/datasets/tencent/Hy-Embodied-0.5-VLA-Data">HF Dataset</a></li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 진정한 generalist robot은 ##단일 VLA 모델##만으로 이루어지지 않는다. ##데이터 수집부터 실세계 deployment까지의 전체 robot learning stack##이 함께 설계되어야 한다. 현재 분야의 병목은 (1) teleoperation/UMI 데이터의 한계 (조작자 불편, 정밀도 부족, embodiment gap), (2) generalist VLM backbone이 manipulation에 최적화되지 않음, (3) imitation learning의 last-mile dexterity 부족 + reward/value model 없는 RL의 부재, (4) 고주파 servo 제어와 backbone latency 사이의 mismatch.</li>
+  <li><strong>해결</strong>: ##HyVLA-0.5## -- end-to-end robot learning stack. (a) 데이터: ##fingertip UMI + motion-capture cage##로 sub-millimeter 정밀도의 ##10K-hour ego-centric 데이터셋 (Hy-UMI-10K)## 수집. (b) 모델: ##Hy-Embodied-0.5 4B MoT VLM backbone## + ##flow-matching action expert## + ##compact memory encoder## + ##delta-chunk action representation##. (c) Post-training: ##Track-A (intra-embodiment) / Track-B (UMI-only cross-embodiment)## 두 트랙. (d) RL: ##FlowPRO (RPRO loss)## -- reward-free / critic-free Proximalized Preference Optimization. (e) Deployment: ##async inference + 큐빅 Bézier C¹-continuous chunk stitching##.</li>
+  <li><strong>왜 작동하는가</strong>: ##각 컴포넌트가 서로 독립된 병목을 해결##. (1) 고정밀 UMI 데이터가 last-cm/sub-mm precision의 학습 신호 제공. (2) Embodied-native backbone(Hy-Embodied-0.5-MoT)이 generic VLM 대비 더 빠르게 수렴 + 더 강한 spatial prior. (3) Delta-chunk + rel-EEF representation이 ##embodiment kinematics를 deployment로 분리##해서 cross-embodiment transfer 가능. (4) RPRO의 ##contrastive gradient cancellation + symmetric proximal regularizer##가 plain DPO의 reward-hacking을 막으면서 SFT 데이터와 동일 loss로 안전 co-training. (5) Async + Bézier가 backbone latency를 숨기고 chunk boundary jitter를 제거.</li>
+  <li><strong>비유</strong>: 좋은 셰프 한 명을 만드는 것이 아니라, ##식재료 수급(데이터) → 조리 도구(모델 아키텍처) → 레시피 개발(SFT) → 시식 후 보완(RL) → 서빙 시스템(deployment)##을 모두 갖춘 ##레스토랑 운영 체계## 자체를 만든 것. VLA 모델이 "셰프"라면 HyVLA-0.5는 "레스토랑 전체"다.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>End-to-end Robot Learning Stack</strong>: ##데이터 수집 → 모델링 → 사전학습 → SFT → RL post-training → deployment##까지 전체 stack을 함께 co-design한 최초의 통합 보고서. "VLA를 단일 policy가 아닌 production pipeline으로 다룬다"는 명시적 paradigm.</li>
+  <li><strong>Hy-UMI-10K 데이터셋</strong>: ##fingertip-attached UMI gripper + 외부 motion-capture cage##를 활용한 ##10,000+ hour, sub-millimeter 정밀, 6-DoF 6축## ego-centric 인간 시연 데이터. ##70 tasks × 6 task family (Laundry/Kitchen/Personal Care/Dexterous Tool/Storage/Cleaning)##, ##1M+ episodes##. ##공개 예정 2,000-hour subset##.</li>
+  <li><strong>HyVLA-0.5 모델 아키텍처</strong>: 4B MoT (Mixture-of-Transformers) embodied-native VLM backbone + dual-tower flow-matching action expert + ##compact memory encoder## (parameter-free temporal-spatial attention, K=1일 때 single-frame과 정확히 동일) + ##delta-chunk + relative end-effector frame## action representation.</li>
+  <li><strong>Track-A / Track-B 이중 post-training</strong>: ##Track-A##는 target-robot teleoperation 데이터로 intra-embodiment fine-tuning, ##Track-B##는 ##UMI 데이터만으로## morphologically 다른 robot에 cross-embodiment transfer (target robot teleoperation 0시간). JAKA K1 / Astribot S1에서 검증.</li>
+  <li><strong>FlowPRO / RPRO loss</strong>: ##Reward-free, critic-free, value-network-free## offline RL. Teleoperated intervention-and-rollback으로 paired (positive, negative) trajectory를 수집, ##flow-matching log-likelihood proxy + symmetric proximal regularizer + contrastive gradient cancellation## 3원리. ##Bottle/Cap/USB/Zip 4개 task에서 SR 99/99/99/94% (DAgger 대비 +6~16점, π₀.₆* 대비 +4~5점)##.</li>
+  <li><strong>Async + Bézier deployment</strong>: ##producer-consumer thread-safe action buffer##로 backbone forward pass와 servo execution을 overlap, ##cubic Bézier stitcher##가 chunk 경계에서 ##C¹-continuous transition## 보장. 학습 무관, plug-and-play.</li>
+  <li><strong>RoboTwin 2.0 SOTA</strong>: 50-task suite에서 ##Clean 90.9% / Randomized 90.1%## 달성, π₀ 대비 ##+25.0/+31.7##, π₀.₅ 대비 ##+8.2/+13.3## 압도적 우위. JoyAI-RA를 ##+0.4/+0.8## 앞섬.</li>
+  <li><strong>Cross-embodiment 실증</strong>: ##UMI 데이터만으로 post-train##된 정책이 JAKA K1의 "Put Away the Accessory", Astribot S1의 "Clean Up the Table" 둘 다에서 π₀, π₀.₅ 대비 명확한 우위 -- ##target-robot teleoperation 없이 morphologically 다른 robot에 deploy 가능##.</li>
+</ol>
+
+<!-- ============================================================ -->
+<h2>1. Introduction</h2>
+
+<p>최근 1년간 VLA(Vision-Language-Action) 모델은 폭발적으로 증가하며 차세대 ##embodied foundation model##의 후보로 부상했다. 그러나 진정한 generalist robot이 ##단일 모델 isolation##에서 등장하기는 어렵다. 데이터 수집부터 실세계 deployment까지 robust한 ##full robot learning stack##이 필요하다.</p>
+
+<p>본 보고서가 다루는 ##세 가지 결합된 병목##:</p>
+
+<h3>① 데이터 측면</h3>
+<ul>
+  <li><strong>Teleoperation</strong>: master-slave 인터페이스가 조작자에게 부자연스러운 자세 강요, ##haptic feedback 부재##, delicate manipulation 불가</li>
+  <li><strong>Hand-held UMI</strong> (Chi et al., 2024): 인간 데이터의 풍부한 behavioral diversity 제공하지만 ##coarse한 action label##, ##SLAM 의존 localization은 cumbersome handheld rig 필요##, fingertip-level force 미캡처</li>
+  <li><strong>Cross-embodiment gap</strong>: human/robot motion space의 embodiment gap, dynamics/actuation의 control gap, egocentric/wrist-mounted camera의 perception gap을 모두 다뤄야 함</li>
+</ul>
+
+<h3>② 아키텍처/학습 측면</h3>
+<ul>
+  <li>초기 VLA들은 ##autoregressive discrete action token## 기반 → execution speed와 control precision 양쪽 모두 제한</li>
+  <li>최근 VLM + flow-matching action expert ##coupling## 방식 (π₀ 류)이 등장했으나 ##foundational visual backbone이 robotic control용으로 명시적 engineering이 안 됨## -- generalist visual representation과 dense spatiotemporal reasoning 사이 gap 존재</li>
+  <li>Imitation learning만으로는 ##last-mile dexterity## 도달 어려움, continuous control RL은 ##brittle reward model이나 value network## 의존</li>
+</ul>
+
+<h3>③ Deployment 측면</h3>
+<p>고주파(50 Hz) closed-loop control을 실제 hardware에서 서빙하는 것은 first-class design target으로 거의 다뤄지지 않았다. 잘 학습된 policy도 servo period 내에 실행되지 않으면 무용지물.</p>
+
+<p>해결책: ##HyVLA-0.5##는 단일 모델이 아니라 ##데이터+모델+RL+deployment의 4-stage 통합 pipeline##이다. 각 단계가 별개의 병목을 다루지만 모두 같은 목표를 공유 -- ##plat-agnostic policy interface를 보존하면서 embodiment-specific 차이를 학습 코어 외부에서 흡수##하는 것.</p>
+
+<!-- ============================================================ -->
+<h2>2. Model Architecture</h2>
+
+<p>HyVLA-0.5는 ##VLA paradigm##을 따른다 -- pre-trained VLM이 broad semantic perception을 공급하고, 전용 action 모듈이 multi-modal context를 low-level robot control로 번역. 3 components:</p>
+
+<table>
+  <tr><th>구성</th><th>역할</th></tr>
+  <tr><td><strong>Backbone</strong></td><td>Hy-Embodied-0.5 (4B MoT VLM, modality-adaptive 계산 + native-resolution image encoding)</td></tr>
+  <tr><td><strong>Action Expert</strong></td><td>Conditional flow matching로 continuous action chunk 생성, dual-tower routing (VLM tower + action expert tower) + shared self-attention</td></tr>
+  <tr><td><strong>Compact Memory Encoder</strong></td><td>Image encoder를 video encoder로 확장, interleaved temporal-spatial attention으로 multi-frame history 압축</td></tr>
+</table>
+
+<h3>2.1 Problem Formulation</h3>
+
+<p>Manipulation을 ##goal-conditioned, chunk-level control problem##으로 정형화. Step $t$에서 policy가 multi-modal observation $\mathbf{o}_t$를 소비하고 future action chunk $\mathbf{A}_t$ 예측:</p>
+
+$$\mathbf{o}_t = (\mathcal{I}_t, \ell, \mathbf{s}_t), \quad \mathcal{I}_t = \{\mathbf{I}^v_{t-k}\}_{v=1:n}^{k=0:K-1}, \quad \mathbf{A}_t = (\mathbf{a}_t, \mathbf{a}_{t+1}, \ldots, \mathbf{a}_{t+H-1}) \tag{1}$$
+
+<p>여기서 $\mathcal{I}_t$는 multi-view multi-frame visual stream (n cameras × K frames), $\ell$은 language instruction, $\mathbf{s}_t$는 proprioceptive state, $H$는 action chunk horizon. ##Conditional distribution $p(\mathbf{A}_t | \mathbf{o}_t)$를 모델링##.</p>
+
+<p><strong>End-effector-frame (EEF) Representation</strong> (핵심 디자인):</p>
+<ul>
+  <li>Proprioceptive state $\mathbf{s}_t$와 action $\mathbf{a}_{t'}$를 모두 ##end-effector frame##에서 표현 -- ##embodiment-agnostic##</li>
+  <li>각 controlled arm: pose는 3-D Cartesian translation (xyz) + 6-D continuous rotation + 1-D normalized gripper command, ##총 $\mathbb{R}^{10}$ per arm##</li>
+  <li>Proprioceptive state $\mathbf{s}_t$는 embodiment root 기준 EEF, ##각 future action $\mathbf{a}_{t'}$는 $\mathbf{s}_t$를 reference frame으로 한 delta-chunk in relative EEF##</li>
+  <li>이것이 ##policy가 robot-specific joint kinematics로부터 decouple##되어 cross-embodiment transfer 가능한 이유</li>
+</ul>
+
+<p><strong>Optional Co-Training Tasks</strong>: VLM의 foundational vision-language reasoning과 spatial grounding을 보존하기 위해 next-token prediction auxiliary task 통합 -- $\mathcal{D}_{\text{ct}} = \mathcal{D}_{\text{VQA}} \cup \mathcal{D}_{\text{2D}} \cup \mathcal{D}_{\text{3D}}$ (VQA + 2D coords + 3D geometric params).</p>
+
+<h3>2.2 Hy-Embodied: Modality-Adaptive Computing Backbone</h3>
+
+<ul>
+  <li><strong>Backbone</strong>: Hy-Embodied-0.5-MoT (Tencent 자체 4B parameter compact embodied VLM, edge deployment 최적화)</li>
+  <li><strong>Native-resolution visual encoding</strong>: ##Hy-ViT 2.0## -- arbitrary input resolution 허용 native-resolution ViT, 더 큰 internal teacher로부터 distill</li>
+  <li><strong>Modality-adaptive Computation via MoT</strong>: 시각 token은 ##duplicated vision-specific parameter set##, 언어 token은 ##original language parameters##로 처리. ##Cross-modal interaction은 shared self-attention layer로만 한정##. 시각/텍스트 parameter independent update.</li>
+  <li>Bidirectional attention strictly among individual image의 visual token, language token에는 standard causal attention</li>
+</ul>
+
+<p><strong>Co-training Objective</strong>:</p>
+
+$$\mathcal{L}_{\text{ntp}}(\theta) = \mathbb{E}_{(\mathbf{c}, y) \sim \mathcal{D}_{\text{ct}}}\left[-\sum_{j=1}^M \log p_\theta(y_j | \mathbf{c}, y_{<j})\right] \tag{2}$$
+
+<h3>2.3 Action Expert with Dual-Tower Flow Matching</h3>
+
+<p>Action을 language-like token으로 discretize하지 않고 ##conditional flow matching## (Lipman et al., 2023)으로 $p(\mathbf{A}_t | \mathbf{o}_t)$ 직접 모델링.</p>
+
+<p><strong>Dual-tower Routing</strong>: MoT backbone 위에 ##VLM tower## (understanding) + ##action-expert tower## (generation) 분리. VLM tower는 modality-adaptive params, action expert는 ##projected robot state + noisy action token## $[\mathbf{s}_t, \mathbf{A}^\tau_t]$를 받아 continuous action velocity field 생성. 두 tower는 ##shared self-attention##으로 상호작용.</p>
+
+<p><strong>Block-wise Causal Attention</strong>: Token을 3 blocks $[\mathcal{I}_t, \ell], [\mathbf{s}_t], [\mathbf{a}^\tau_{t,0}, \ldots, \mathbf{a}^\tau_{t,H-1}]$로 분할. 각 block 내부는 bidirectional, ##block 간은 strictly causal##. Perception block은 robotics-specific block을 attend 못함 → VLM pre-training 분포 shift 최소화. State block은 keys/values 캐싱. Noisy-action block은 full prefix attend.</p>
+
+<p><strong>Flow-matching Objective</strong>:</p>
+
+$$\mathbf{A}^\tau_t = \tau \mathbf{A}_t + (1-\tau)\epsilon, \quad \epsilon \sim \mathcal{N}(0, \mathbf{I})$$
+
+$$\mathcal{L}_{\text{fm}}(\theta) = \mathbb{E}_{p(\mathbf{A}_t|\mathbf{o}_t), q(\mathbf{A}^\tau_t|\mathbf{A}_t)}\left[\|v_\theta(\mathbf{A}^\tau_t, \mathbf{o}_t) - (\epsilon - \mathbf{A}_t)\|_2^2\right] \tag{3}$$
+
+<p>여기서 $v_\theta$는 noise → target action 방향의 velocity field. Flow timestep $\tau \in [0, 1]$은 ##Beta distribution (high-noise regime skewed)##에서 sampling -- denoising 후반의 더 정보적인 단계 강조. 전체 objective: $\mathcal{L}(\theta) = \mathcal{L}_{\text{fm}}(\theta) + \lambda_{\text{ntp}} \mathcal{L}_{\text{ntp}}(\theta)$.</p>
+
+<p><strong>Inference</strong>: Forward Euler update $\mathbf{A}^{\tau+\delta}_t = \mathbf{A}^\tau_t + \delta v_\theta(\mathbf{A}^\tau_t, \mathbf{o}_t)$, ##10 integration steps## ($\delta = 0.1$). Conditioning observation prefix $\mathbf{o}_t$의 keys/values는 initial forward pass에서 캐싱되어 후속 steps에서 ##action token만 recompute## → 계산 절감.</p>
+
+<h3>2.4 Compact Memory Encoder with Temporal-Spatial Attention</h3>
+
+<p>$K$-frame multi-view history $\mathcal{I}_t$를 모두 backbone에 forward하면 ##visual token count가 K배##. 대신 image encoder를 ##video encoder로 확장##해 backbone 도달 전에 temporal dimension 압축.</p>
+
+<p><strong>Factorized Temporal-spatial Attention</strong> (Pi-MEM 따름):</p>
+<ul>
+  <li>Standard ViT의 patchify-then-attend 구조 유지, ##매 $L$ layer마다 temporal pass 1회 삽입##</li>
+  <li>해당 layer에 ##fixed sinusoidal temporal encoding $e(k)$## ($e(0) = \mathbf{0}$) 추가, ViT block의 ##same QKV와 output projection $W_O$ 재사용##</li>
+  <li>2-pass factorization:</li>
+</ul>
+
+$$\hat{V}_p = \text{CausalAttn}(Q_p, K_p, V_p) \quad \text{over } K \text{ frames at each patch } p \tag{4}$$
+
+$$\tilde{X}_k = W_O \text{Attn}(Q_k, K_k, \hat{V}_k) \quad \text{over } n \text{ patches within frame } k \tag{5}$$
+
+<p>Temporal pass는 ##causal attention## (현재/과거만, on-robot perception streaming에 부합), spatial pass는 frame 내부 standard bidirectional. ##Cost: $\mathcal{O}(n^2 K^2)$ → $\mathcal{O}(Kn^2 + nK^2)$##.</p>
+
+<p><strong>Token-count-preserving Compression</strong>: Video encoder upper layer에서 ##past frame patch representation을 discard##, ##current-frame token만 backbone에 forward##. Temporal attention이 historical context를 current-frame representation에 "bake"한 상태.</p>
+
+<p><strong>Parameter-free, Transfer-friendly Design</strong>: Single-image Hy-ViT 2.0 대비 ##새 learnable parameter 0개##. Two pass 모두 같은 QKV/$W_O$ projection 재사용, temporal encoding은 fixed sinusoid + learned table 아님. ##K=1일 때 causal temporal attention은 identity, $e(0) = \mathbf{0}$이라 input unchanged## → 각 augmented block이 정확히 pre-trained ViT block으로 reduce. ##Memory-augmented backbone이 Hy-Embodied-0.5 weight로 직접 초기화 가능, single-frame encoder가 special case.##</p>
+
+<!-- ============================================================ -->
+<h2>3. Pre-training and Supervised Fine-tuning</h2>
+
+<h3>3.1 Hy-UMI-10K: High-Fidelity Manipulation Dataset</h3>
+
+<p>HyVLA-0.5는 ##Hy-UMI-10K##로 사전학습 -- hand-held UMI 데이터셋, 10,000+ hour, in-house 수집.</p>
+
+<p><strong>Capture Device</strong> (Fig. 3):</p>
+<ul>
+  <li>Custom-designed hand-held UMI grippers, ##Changingtek CTAG2F90## 산업용 gripper 형태 (deployment gap 줄임)</li>
+  <li>Gripper 표면 가까이 mounted camera (좁은 공간 collision 최소화)</li>
+  <li>##Gripper joint의 rotary encoder##가 sub-millimeter accuracy로 openness 측정 (visual identification 불필요)</li>
+  <li>Gripper pose는 ##external optical motion-capture system##이 sub-millimeter precision의 6-DoF, single global Cartesian frame 추적</li>
+  <li>이 setup은 SLAM-based pose estimation 대비 ##정확도 우위##, fine motor skill task에 high-quality action label 제공</li>
+  <li>Gripper는 ##operator's own fingers에 attached## (mechanical trigger 아님) -- proprioception-aligned mapping, fingertip 6-D force/torque sensor 옵션</li>
+  <li>RGB-D 캡처되지만 현재 버전 HyVLA-0.5는 ##RGB만 학습##에 사용 (depth는 future stage)</li>
+</ul>
+
+<p><strong>Composition and Distribution</strong> (Fig. 4):</p>
+<ul>
+  <li>##1M+ episodes, 10K+ hours##, ##70 distinct tasks##</li>
+  <li>6 task families: <strong>Laundry Room (28.5%), Kitchen (19.2%), Personal Care &amp; Misc (13.8%), Dexterous/Tool-use (10.4%), Storage &amp; Organization (10.0%), Cleaning (5.7%)</strong></li>
+  <li>나머지는 long tail of diverse object categories와 environmental conditions</li>
+  <li>대상 object: rigid container, tableware, precision instrument, deformable fabric 등</li>
+</ul>
+
+<h3>3.2 Pre-training</h3>
+
+<table>
+  <tr><th>Hyperparameter</th><th>값</th></tr>
+  <tr><td>VLM init</td><td>Hy-Embodied-0.5-MoT checkpoint</td></tr>
+  <tr><td>Action expert</td><td>same architecture, randomly initialized, ##hidden 2048→1024, intermediate 6144→2048##, 370M params</td></tr>
+  <tr><td>Optimizer</td><td>AdamW, ##base LR $5 \times 10^{-5}$##</td></tr>
+  <tr><td>Schedule</td><td>1K step warmup → 160K step decay to peak/10 → 40K step constant</td></tr>
+  <tr><td>Total steps</td><td>200K</td></tr>
+  <tr><td>Global batch</td><td>1024</td></tr>
+  <tr><td>Precision</td><td>bfloat16 mixed</td></tr>
+  <tr><td>K (history)</td><td>##K=1## (single-image, video encoder reduces to single-image encoder)</td></tr>
+  <tr><td>Camera views</td><td>3 views @ 224×320</td></tr>
+  <tr><td>Action chunk</td><td>$H = 50$ @ 10 Hz</td></tr>
+</table>
+
+<p>Loader는 episode를 length-proportional 확률로 sample, 거기서 uniform random frame을 current frame으로, 50 step future action을 ground truth chunk로 사용. State/action 모두 dataset-wide mean/std normalized.</p>
+
+<h3>3.3 Supervised Fine-tuning</h3>
+
+<p>UMI pre-trained checkpoint에서 초기화하여 task-specific demo로 SFT. ##모든 parameter trainable##. ##K=6## (current + 5 historical frames) → video encoder 활성화.</p>
+
+<p><strong>두 트랙 구조</strong>:</p>
+<ul>
+  <li><strong>Track A (intra-embodiment)</strong>: target robot에서 teleoperation 데이터 수집 + 같은 robot에서 deploy. Dobot X-Trainer, ##task당 300 demos × 4 task = 18 hours##.</li>
+  <li><strong>Track B (cross-embodiment)</strong>: ##task-specific UMI demo만으로 fine-tune##, target-robot teleoperation 없음. Morphologically 다른 robot에 deploy. JAKA K1 (300 UMI demos, 1.2h), Astribot S1 (200 UMI demos, 1.5h).</li>
+  <li>Force-modality validation: Unitree G1 (1 task, 400 UMI demos, 2.2h)</li>
+</ul>
+
+<p><strong>Simulation</strong>: Aloha-AgileX bimanual setup on RoboTwin 2.0, ##50 manipulation tasks × (50 clean + 500 randomized) = 2.75K episodes##, 6M+ frames.</p>
+
+<p><strong>Post-training Recipe</strong> (실세계):</p>
+<ul>
+  <li>Action sampling 50 Hz, $H = 50$ horizon (1초), history interval 1초</li>
+  <li>60K step, batch 32, base LR $2.5 \times 10^{-5}$, 40K step decay</li>
+</ul>
+
+<p>RoboTwin 2.0은 더 큰 데이터로 stride 3 downsampling, $H = 20$, 5×stride history interval, batch 128.</p>
+
+<!-- ============================================================ -->
+<h2>4. Reinforcement Learning Post-Training (FlowPRO)</h2>
+
+<p>SFT 이후 ##failure-driven post-training##으로 deployment 성능 추가 개선. ##FlowPRO recipe## (Wu et al., 2026; arXiv:2606.05468) 따름.</p>
+
+<h3>4.1 Design Principles</h3>
+
+<p>Real-robot post-training의 3 family와 한계:</p>
+<table>
+  <tr><th>Family</th><th>한계</th></tr>
+  <tr><td>SFT/DAgger</td><td>Failure signal을 weak하게만 활용 -- vanilla SFT는 무시, DAgger는 expert 호출 trigger로만 사용</td></tr>
+  <tr><td>Reward/value-based RL</td><td>Reliable reward/value/advantage model 필요, contact-rich manipulation에서 dense reward 어려움</td></tr>
+  <tr><td>Preference-based RL (DPO 등)</td><td>Reward design bypass하지만 plain DPO는 ##reward-hacking failure mode## (정책이 $a^w$와 $a^l$ 둘 다로부터 drift)</td></tr>
+</table>
+
+<p>FlowPRO 3 design principles:</p>
+<ol>
+  <li><strong>(P1) Exploit failures directly</strong>: Negative trajectory를 discard 또는 re-label하지 않고, ##paired positive correction에 대한 per-state, per-chunk contrastive signal로 action-generation loss에 직접 feed##</li>
+  <li><strong>(P2) Avoid reward and critic models entirely</strong>: Frozen reference policy와 current policy의 ##flow-matching log-likelihood proxy##만으로 closed-form training signal. Dense-reward bottleneck 우회.</li>
+  <li><strong>(P3) Anchor the implicit reward</strong>: ##Symmetric proximal regularizer##가 implicit reward의 absolute magnitude exploding 방지 → plain-DPO의 reward-hacking 구조적으로 금지</li>
+</ol>
+
+<h3>4.2 Method: RPRO Loss</h3>
+
+<p>SFT-pretrained HyVLA-0.5 base policy 위에서 ##iterative offline-RL loop##. 각 round 3 step:</p>
+<ol>
+  <li>Teleoperated intervention-and-rollback으로 on-robot preference pair 수집</li>
+  <li>Sparse trajectory-level correction → ##Smooth Interpolation via cubic Bézier##로 dense per-state preference tuple 생성</li>
+  <li>RPRO loss를 mixed batch (new pairs + historical pairs + SFT data)에 적용</li>
+</ol>
+
+<p>Previous round의 policy가 다음 round의 reference $\pi_{\text{ref}}$.</p>
+
+<p><strong>RPRO loss 유도</strong>:</p>
+
+<p>State $s = (o, l)$, velocity field $v_\theta(a_t, t | s)$가 Gaussian noise $\epsilon$를 action chunk $a$로 transport. Linear interpolant $a_t = (1-t)\epsilon + ta$, conditional velocity $u(a_t | a) := a - \epsilon$. Per-sample flow-matching regression loss:</p>
+
+$$\ell_\theta(s, a) = \mathbb{E}_{t \sim \mathcal{U}[0,1], \epsilon \sim \mathcal{N}(0,I)}\left[\|v_\theta(a_t, t | s) - u(a_t | a)\|^2\right] \tag{6}$$
+
+<p>RPRO의 ##implicit-reward proxy##:</p>
+
+$$r_\theta(s, a) = \frac{\beta}{2}(\ell_{\text{ref}}(s, a) - \ell_\theta(s, a)) \tag{7}$$
+
+<p>이를 PRO pairwise objective에 대입한 ##flow-matching-adapted PRO loss##:</p>
+
+$$\mathcal{L}_{\text{PRO}}(\theta) = -\mathbb{E}_{(s, a^w, a^l) \sim \mathcal{D}}\Big[\underbrace{\log\sigma(r_\theta(s, a^w) - r_\theta(s, a^l))}_{\mathcal{L}_{\text{con}}: \text{ contrastive optimizer}} + \underbrace{\sum_{a \in \{a^w, a^l\}} \tfrac{1}{2}[\log\sigma(r_\theta(s, a)) + \log\sigma(-r_\theta(s, a))]}_{\mathcal{L}_{\text{reg}}: \text{ proximal regularizer}}\Big] \tag{8}$$
+
+<p>$\mathcal{L}_{\text{reg}}$는 ##$r_\theta(s, a) = 0$에서 minimum, $|r_\theta(s, a)|$에 따라 symmetric하게 grow##. Implicit reward 절댓값을 anchor → plain Flow-DPO의 reward-hacking 구조적 봉쇄.</p>
+
+<p><strong>최종 objective</strong> (base-policy 성능 보존 + $a^w$ direct regression):</p>
+
+$$\mathcal{L}_{\text{RPRO}}(\theta) = \lambda_{\text{PRO}} \mathcal{L}_{\text{PRO}}(\theta) + \lambda_{\text{SFT}} \mathcal{L}_{\text{SFT}}(\theta), \quad \mathcal{L}_{\text{SFT}}(\theta) = \mathbb{E}_{(s, a^w) \sim \mathcal{D}}[\ell_\theta(s, a^w)] \tag{9}$$
+
+<p><strong>Contrastive Gradient Cancellation</strong> (핵심 side-property): ##$a^w = a^l$일 때 $\nabla_\theta \mathcal{L}_{\text{con}} = 0$##, $\nabla_\theta \mathcal{L}_{\text{reg}}$와 $\nabla_\theta \mathcal{L}_{\text{SFT}}$만 active. ##이 덕분에 SFT-style demonstration을 동일 RPRO loss로 안전하게 batch 내 routing 가능##. 직관적으로 말하면, "선호되는 행동과 거부되는 행동이 같은 sample"은 contrastive signal을 만들지 않고 standard SFT처럼 작동.</p>
+
+<h3>4.3 Data Collection: Intervention-and-Rollback</h3>
+
+<p>Teleoperated intervention-and-rollback pipeline (Fig. 5)으로 paired $(\tau^w, \tau^l)$ 수집:</p>
+<ol>
+  <li>Current policy rollout 중 erroneous/dangerous action 관찰 시 operator intervene</li>
+  <li>System이 ##earlier state $s_{t-\Delta}$로 rewind##, executed segment를 ##negative trajectory $\tau^l$##로 기록</li>
+  <li>$t-\Delta$ observation을 visual reference로 retrieve (환경 변화/scene reset 대비)</li>
+  <li>Operator의 ##corrective demonstration from $s_{t-\Delta}$를 positive trajectory $\tau^w$##로 기록</li>
+</ol>
+
+<p>Single operator action으로 ##same initial state를 공유하는 naturally paired $(\tau^w, \tau^l)$## 산출. $\Delta$를 다양화하여 per-pair starting state 분산.</p>
+
+<h3>Smooth Interpolation and Batch Mixing</h3>
+
+<p>$\tau^w$와 $\tau^l$는 $s_{t-\Delta}$ 이후 diverge하므로, dense per-state tuple $(s, a^w, a^l)$을 위해 Smooth Interpolation:</p>
+<ul>
+  <li>State $M$ on $\tau^l$에 대해 weighted distance metric으로 closest point $M'$ on $\tau^w$ 찾기</li>
+  <li>$\tau^w$로의 transition point $J$를 거쳐 $M \to J \to N'$ (= $\tau^w$ 종료) 합성: ##cubic Bézier (positions) + Slerp (orientations) + linear interp (gripper)##</li>
+  <li>$\tau^w$ states 또는 $\mathcal{D}_{\text{SFT}}$ states에 대해서는 $a^w = a^l$ 설정 → contrastive gradient cancellation으로 SFT-like sample로 작용</li>
+</ul>
+
+<p><strong>Batch composition schedule</strong>:</p>
+<ul>
+  <li>Round-$k$ pairs $\mathcal{D}^k_{\text{pref}}$, historical pool $\mathcal{D}^{<k}_{\text{pref}} = \cup_{j<k} \mathcal{D}^j_{\text{pref}}$, SFT $\mathcal{D}_{\text{SFT}}$ 별도 buffer</li>
+  <li>$k=1$: 80/20 ($\mathcal{D}^k_{\text{pref}} / \mathcal{D}_{\text{SFT}}$)</li>
+  <li>$k \geq 2$: ##70/15/15## ($\mathcal{D}^k_{\text{pref}} / \mathcal{D}^{<k}_{\text{pref}} / \mathcal{D}_{\text{SFT}}$)</li>
+</ul>
+
+<p>이 schedule이 newest informative failure에 가중치, 이전 corrected sample을 replay하여 regression 방지, non-trivial SFT share로 base capability anchor.</p>
+
+<p><strong>FlowPRO Hyperparameters</strong> (Appendix C):</p>
+<ul>
+  <li>Iterations $k \in \{1, 2, 3\}$, round당 25,000 step, 총 75,000 step</li>
+  <li>Global batch 20 (5 samples/GPU), AdamW LR $1 \times 10^{-5}$ → $2.5 \times 10^{-6}$ cosine, 1K warmup, 15K decay</li>
+  <li>Distance metric: $d(M, M') = \|p_M - p_{M'}\|_2 + 0.5 \cdot d_{\text{geo}}(R_M, R_{M'}) + 0.2 \cdot |g_M - g_{M'}|$ ($p$ = EE position, $d_{\text{geo}}$ = SO(3) geodesic, $g$ = normalized gripper width)</li>
+  <li>Stage-2 checkpoint = $\theta$ 초기화 + frozen reference $\theta_{\text{ref}}$</li>
+  <li>Data scale: $\leq O(10^2)$ preference pair / task, X-Trainer rollout만</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>5. Deployment</h2>
+
+<p>3가지 runtime issue 처리:</p>
+<ol>
+  <li>End-effector delta chunk를 heterogeneous robot platform에 매핑</li>
+  <li>VLA prediction을 robot control rate에 서빙 (backbone slower than servo loop)</li>
+  <li>Independently predicted chunk → smooth motion stitching</li>
+</ol>
+
+<h3>5.1 Embodiment-Agnostic Platform Mapping</h3>
+
+<p>Policy outputs ##20-dim dual-arm action chunk## (10 dim/EE: 3-D Cartesian + first 2 rows of SO(3) rotation matrix + 1-D gripper). Action은 chunk 시작의 EE pose 기준 ##relative SE(3) prediction##.</p>
+
+<p>Deployment에서 embodiment-specific kinematics 처리:</p>
+<ul>
+  <li>Relative EE prediction × current absolute pose → world-frame target</li>
+  <li>Inverse Kinematics(IK)로 target robot의 joint command 산출</li>
+  <li>##Track A (intra-embodiment)##: world frame이 deployment와 data collection에서 동일</li>
+</ul>
+
+<p><strong>Track B (cross-embodiment)</strong>: 데이터 수집과 deployment가 다른 embodiment, 두 embodiment type별 매핑:</p>
+
+<p><em>Fixed-base arms (예: JAKA K1)</em>:</p>
+$$^WT_{G_{t+k}} = ^WT_{G_t} \cdot ^{G_t}T_{G_{t+k}} \tag{10}$$
+
+<p>Forward kinematics에서 $^WT_{G_t}$ 가져와 rel-EE chunk를 world frame으로 cast.</p>
+
+<p><em>Humanoid (예: Astribot S1)</em>: deterministic heuristic (Algorithm 1 in Appendix B.1)이 ##fixed chassis frame $^WT_C$## 추론, predicted gripper target에서 ##floating torso frame## 생성:</p>
+$$^CT_{G_{t+k}} = (^WT_C)^{-1} \cdot ^WT_{G_t} \cdot ^{G_t}T_{G_{t+k}} \tag{11}$$
+
+<p>Additional 24 head/torso dim (12 each: 3 position + 9 rotation)은 heuristic이 설정. 학습된 action interface는 Track A/B 모두에서 ##unchanged##.</p>
+
+<h3>5.2 Asynchronous Execution</h3>
+
+<p>High-capacity VLA가 robot servo loop보다 slow → synchronous execution은 robot idle. ##Producer-consumer runtime + thread-safe action buffer $\mathcal{B}$##:</p>
+<ul>
+  <li><strong>Inference thread</strong>: latest observation으로 policy query, $\mathcal{B}$를 smoothed action sequence로 ##overwrite##</li>
+  <li><strong>Execution thread</strong>: $\mathcal{B}$에서 control frequency로 command pop, recent pose를 tangent estimation용으로 기록</li>
+  <li>두 loop overlap → backbone latency를 continuous execution 뒤로 숨김</li>
+</ul>
+
+<h3>5.3 Latency-Aware Cubic Bézier Chunk Stitching</h3>
+
+<p>Async execution에서 delayed chunk를 ##motion discontinuity 없이## 현재 state에 reconnect 필요. ##Cubic Bézier segment##로 ##compact $C^1$-continuous connector##:</p>
+
+<p>Original chunk length $N$, ##stale prefix $K = \lceil N/\alpha \rceil$ ($K \leq N - 3$) 폐기##, 잔존 $\mathcal{F} = \{f_0, \ldots, f_{M-1}\}$, $M = N - K$. Last executed EE position $h_0$. Interior connection point $f_c$ with $c = \text{clip}(\lfloor \gamma M \rfloor, 1, M-2)$.</p>
+
+<p>Cubic Bézier segment $\mathbf{B}(t)$ satisfying:</p>
+
+$$\mathbf{B}(0) = h_0, \quad \mathbf{B}(1) = f_c, \quad \dot{\mathbf{B}}(0) \parallel \hat{d}_{\text{hist}}, \quad \dot{\mathbf{B}}(1) \parallel \hat{d}_{\text{fut}} \tag{13}$$
+
+<p>여기서 tangents:</p>
+
+$$\hat{d}_{\text{hist}} = \frac{h_0 - h_{-1}}{\|h_0 - h_{-1}\|}, \quad \hat{d}_{\text{fut}} = \frac{f_{c+1} - f_{c-1}}{\|f_{c+1} - f_{c-1}\|} \tag{14}$$
+
+<p>Control points:</p>
+
+$$\mathbf{P}_0 = h_0, \quad \mathbf{P}_1 = \mathbf{P}_0 + \lambda \hat{d}_{\text{hist}} \tag{15}$$
+$$\mathbf{P}_2 = \mathbf{P}_3 - \lambda \hat{d}_{\text{fut}}, \quad \mathbf{P}_3 = f_c \tag{16}$$
+
+<p>Tangent length $\lambda = \sigma \|\mathbf{P}_3 - \mathbf{P}_0\|$.</p>
+
+$$\mathbf{B}(t) = (1-t)^3 \mathbf{P}_0 + 3(1-t)^2 t \mathbf{P}_1 + 3(1-t) t^2 \mathbf{P}_2 + t^3 \mathbf{P}_3 \tag{17}$$
+
+<p>Position은 $\mathbb{R}^3$ smoothing, orientation은 SLERP, gripper command는 linear interpolation, ##각 arm은 independent## 처리. 결과 transition은 ##$C^1$-continuous, policy-agnostic##, embodiment-dependent params $\alpha, \gamma, \sigma$만 hyperparameter.</p>
+
+<!-- ============================================================ -->
+<h2>6. Evaluation</h2>
+
+<h3>6.1 Simulated Tasks: RoboTwin 2.0</h3>
+
+<p>50-task suite, ##task당 100 stochastic rollout 평균##. Clean / Randomized 설정.</p>
+
+<p><strong>실험 의도</strong>: HyVLA-0.5의 SFT 능력을 contemporary VLA system과 비교, UMI pre-training과 compact memory encoder의 기여 ablation.</p>
+
+<table>
+  <tr><th>Method</th><th>Clean</th><th>Randomized</th></tr>
+  <tr><td>π₀ (Black et al., 2024)</td><td>65.9</td><td>58.4</td></tr>
+  <tr><td>ABot-M0</td><td>81.2</td><td>80.4</td></tr>
+  <tr><td>π₀.₅</td><td>82.7</td><td>76.8</td></tr>
+  <tr><td>Qwen-VLA</td><td>86.1</td><td>87.2</td></tr>
+  <tr><td>LingBot-VLA</td><td>86.5</td><td>85.3</td></tr>
+  <tr><td>starVLA</td><td>88.2</td><td>88.3</td></tr>
+  <tr><td>Motus</td><td>88.7</td><td>87.0</td></tr>
+  <tr><td>JoyAI-RA</td><td>90.5</td><td>89.3</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>HyVLA-0.5</strong></td><td><strong>90.9</strong></td><td><strong>90.1</strong></td></tr>
+  <tr><td>w/o compact memory encoder</td><td>88.8</td><td>88.6</td></tr>
+  <tr><td>w/o memory encoder + UMI pre-training</td><td>88.1</td><td>87.9</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>HyVLA-0.5가 ##두 setting 모두 best## -- π₀ 대비 ##+25.0/+31.7 점##, π₀.₅ 대비 ##+8.2/+13.3 점##</li>
+  <li>Strongest competing method JoyAI-RA 대비도 ##+0.4/+0.8##</li>
+  <li>##Compact memory encoder 제거 시##: 90.9/90.1 → 88.8/88.6 (## -2.1/-1.5##)</li>
+  <li>##UMI pre-training 추가 제거##: 88.1/87.9 (compact memory 없이 ## -0.7/-0.7## 추가)</li>
+  <li>UMI corpus가 RoboTwin 2.0 synthetic rendering과 visually distant함에도 ##modest gain##. 실세계 task에서는 Sec 6.2가 보여줄 더 큰 benefit</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: Compact memory encoder와 UMI pre-training 모두 ##independent하게 incremental gain## 제공. Per-task breakdown (Table 3, Appendix A)에서 50 task 중 ##대부분이 90% 이상##, "hanging mug" 등 일부 long-horizon에서만 30%대.</p>
+
+<h3>6.2 Real-World Tasks</h3>
+
+<h4>Track A: Intra-Embodiment Fine-Tuning (Dobot X-Trainer, 4 tasks)</h4>
+
+<p>Tasks: <strong>Insert Bottles</strong> (sub-cm), <strong>Fold and Store Glasses</strong> (deformable), <strong>Set the Table</strong> (long-horizon spatial planning + 6-DoF placement), <strong>Zip Up the Pen Case</strong> (deformable, 지퍼 풀 트랙 따라가기).</p>
+
+<p><strong>Effect of UMI Pre-training</strong>: per-task SR (Figure 9)가 ##precision-critical task에서 일관된 패턴##. <em>Fold and Store Glasses</em>와 <em>Zip Up the Pen Case</em>에서 success는 ##소수 결정적 sub-step##에 의존 (안경 다리 안 슬립으로 접기, zipper slider 정확히 잡기). Hy-UMI-10K pre-training 없이는 ##정확히 그 critical moment에서 sub-cm positioning 불안정##, local error가 downstream 전파, failure mode dominate. Pre-training이 이 패턴 ##reverse##.</p>
+
+<p>이 task-level evidence가 Sec 6.1 simulation ablation을 ##corroborate##: ##Hy-UMI-10K pre-training의 핵심 가치는 precision-critical bottleneck에서 action distribution을 sharpen하는 것##.</p>
+
+<h4>Track B: Cross-Embodiment Transfer</h4>
+
+<ul>
+  <li><strong>JAKA K1</strong> -- "Put Away the Accessory" (sub-cm 정확도로 hair tie를 compartment 박스에 배치)</li>
+  <li><strong>Astribot S1</strong> -- "Clean Up the Table" (humanoid가 흩어진 종이컵을 휴지통에 sequential 투입)</li>
+</ul>
+
+<p>두 task 모두에서 HyVLA-0.5가 π₀, π₀.₅ 대비 ##markedly higher SR##. ##세 정책 모두 동일한 UMI 데이터로 post-train##된 점이 결정적 -- target-robot demonstration 0건. Gain의 출처는 ##pre-training##이 학습한 prior.</p>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: Large-scale, high-fidelity UMI pre-training이 ##embodiment-agnostic action prior##를 모델에 부여, deployment shift를 morphologically unseen robot에 survive 가능. 작은 UMI fine-tuning만으로 ##new platform에서 deployable performance recover##.</p>
+
+<h4>Force-Modality Validation (Unitree G1)</h4>
+
+<p>Hand-held UMI gripper가 tip force signal 기록 → force-aware/force-controlled manipulation 가능. Force discrimination task: 두 박스 grasp → ##더 가벼운 박스를 front basket에 배치##. Action expert를 ##2 lightweight TCN encoder + MLP projector##로 augment, ##50-step F/T window 인코딩 (~2M params)##. 작은 UMI demo set으로 post-train.</p>
+
+<p>박스-object 위치는 trial별 randomize → spatial memory만으로 풀 수 없음 → 정책이 ##grasp-phase force profile 비교 후 어느 박스 둘지 결정##. HyVLA-0.5가 trial 전반에서 ##reliably 가벼운 박스 선택## (Fig. 10) -- UMI workstation의 tactile signal이 actionable non-visual cue 제공.</p>
+
+<h3>6.3 Real-World Reinforcement (FlowPRO)</h3>
+
+<p>Bottle/Cap/USB/Zip 외에 ##USB Insertion (sub-mm precision), Pen-Cap Assembly (in-air bimanual coordination)## 추가. 모두 Dobot X-Trainer.</p>
+
+<p><strong>실험 의도</strong>: SFT 후 작은 데이터(task당 ≤100 pair)로 FlowPRO/RPRO가 추가 향상을 줄 수 있는가? DAgger와 ##π₀.₆*## (advantage-conditioned regression, 같은 +/− pair 사용하지만 preference signal을 ##contrastive loss 대신 conditioning token##으로 주입) 대비 우위?</p>
+
+<p><strong>설정</strong>: 동일 SFT checkpoint $\pi_{\text{ref}}$에서 시작, $K = 3$ rounds iterative post-training, 동일 data-collection budget. Per-seed SR은 $n=100$ randomized rollout, 3 training seed 평균.</p>
+
+<table>
+  <tr><th>Fine-tune</th><th>Bottle SR</th><th>Bottle CT(s)</th><th>Cap SR</th><th>Cap CT</th><th>USB SR</th><th>USB CT</th><th>Zip SR</th><th>Zip CT</th></tr>
+  <tr><td>DAgger</td><td>93±2.1%</td><td>27</td><td>88±1.8%</td><td>29</td><td>86±2.4%</td><td>25</td><td>83±2.0%</td><td>55</td></tr>
+  <tr><td>π₀.₆*</td><td>95±1.5%</td><td>24</td><td>95±1.2%</td><td>27</td><td>95±1.4%</td><td>23</td><td>89±1.6%</td><td>45</td></tr>
+  <tr style="background:#fff4e6;"><td><strong>RPRO</strong></td><td><strong>99±0.6%</strong></td><td><strong>16</strong></td><td><strong>99±0.7%</strong></td><td><strong>21</strong></td><td><strong>98±0.9%</strong></td><td><strong>22</strong></td><td><strong>94±1.1%</strong></td><td><strong>37</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>RPRO가 ##모든 4 task에서 best SR + best (shortest) CT##</li>
+  <li>RPRO vs DAgger: RPRO는 ##negative trajectory를 contrastive loss로 추가 활용##, $a^l$로부터의 push-away gradient가 정책을 nearby failure mode로부터 멀리 -- ##일관된 gain##</li>
+  <li>RPRO vs π₀.₆*: ##동일 preference data##, π₀.₆*는 advantage-conditioned regression -- pure regression objective + single conditioning token이 "improved/unimproved" partition 학습. RPRO는 ##preference signal을 action-generation loss에 직접 inject##, $\pi_\theta$를 per-state per-chunk로 $a^w$로 push, $a^l$로부터 push away -- 더 reliable + efficient execution</li>
+  <li>Per-iteration curve (Fig. 12): RPRO가 round 1-3 전반에서 DAgger와 π₀.₆*를 일관 dominate</li>
+</ul>
+
+<p><strong>이 결과가 뒷받침하는 주장</strong>: ##RPRO의 contrastive loss + symmetric proximal regularizer가 SFT-DAgger 류의 positive-only paradigm과 advantage-conditioned regression 모두를 능가##. Reward/value model 없이 small data ($O(10^2)$ pair/task)로 ##near-ceiling SR + 단축된 completion time## 달성.</p>
+
+<!-- ============================================================ -->
+<h2>7. Related Work (요약)</h2>
+
+<table>
+  <tr><th>분야</th><th>관련 연구</th><th>HyVLA-0.5 차별점</th></tr>
+  <tr><td>Generalist VLA</td><td>RT-2, OpenVLA (autoregressive discrete), π₀/π₀.₅ (flow-matching velocity), Gemini Robotics, GR00T N1, LingBot-VLA</td><td>##Continuous flow-matching## + ##MoT embodied-native backbone## + 10K-hour UMI 사전학습 + ##zero-shot cross-embodiment transfer protocol##</td></tr>
+  <tr><td>Embodied VLM Backbone</td><td>PaliGemma, Qwen-VL (general-purpose), RoboBrain, RynnBrain, Hy-Embodied-0.5</td><td>Hy-Embodied-0.5 prototype을 ##5K → 10K hour##로 2배 scaling, ##rel-EE representation##, FlowPRO RL stage 추가 → JAKA, Astribot S1 등 unseen platform 확장</td></tr>
+  <tr><td>UMI 류 데이터</td><td>UMI, DexUMI, EgoMI, HoMMI</td><td>UMI를 ##10K hour## scale, ##sub-millimeter motion-capture##, ##fingertip force sensor##, target-robot teleop 없는 Stage-2 protocol</td></tr>
+  <tr><td>Preference-based Continuous RL</td><td>HIL-SERL (reward-based), π₀.₆* (advantage-conditioned), Flow-DPO, GRAPE</td><td>FlowPRO/RPRO는 ##entirely critic- and reward-free##, ##proximal regularizer가 plain-DPO reward-hacking 구조적 forbid##, ##contrastive gradient cancellation으로 SFT sample 안전 co-train##</td></tr>
+  <tr><td>Async Inference / Action Smoothing</td><td>Inference-Time RTC, Training-Time RTC, VLASH</td><td>##Training-free, plug-and-play## cubic Bézier로 ##explicit $C^1$ continuity 보장##, Cartesian/joint space 모두 적용 가능</td></tr>
+</table>
+
+<!-- ============================================================ -->
+<h2>8. Discussion</h2>
+
+<p>HyVLA-0.5는 ##VLA를 standalone policy가 아니라 data + representation + policy refinement + deployment execution을 co-design한 deployable generalist robot##으로 다룬다. Cross-embodiment deployment는 model scale 너머의 ##complete component set##에 의존:</p>
+
+<ul>
+  <li>High-fidelity UMI 데이터 → precise manipulation prior</li>
+  <li>Compact memory encoder + rel-EE/delta-chunk representation → temporal context와 platform-specific kinematics 분리</li>
+  <li>FlowPRO → real failure를 compact offline refinement로 변환, large-scale online exploration 불필요</li>
+  <li>Async chunk stitching → real hardware latency 하에서 같은 checkpoint 실행 가능</li>
+</ul>
+
+<p>이들은 ##다른 bottleneck## (data quality, action representation, failure correction, deployment timing)을 다루지만 같은 목표 -- ##stable policy interface 보존하면서 embodiment-specific 차이를 학습 코어 외부에서 absorb##.</p>
+
+<h3>Future Work</h3>
+<ul>
+  <li><strong>Data side</strong>: Motion capture를 넘어 high-precision supervision 보존하는 방향 -- ##exoskeleton-based collection##이 promising route. ##2,000-hour self-collected UMI subset 공개 예정## (precision의 marginal value 연구 + visual augmentation 연구 지원)</li>
+  <li><strong>Real-world execution efficiency</strong>: success뿐 아니라 ##practical task cadence## 달성. Deployment-time adaptation + RL 결합이 핵심 다음 단계</li>
+  <li><strong>Embodied intelligence emergence</strong>: HyVLA-0.5는 ##zero-shot generalization##을 study하지 않음 (current data scale 부족 가설). π₀.₇ 같은 최근 시스템이 zero-shot 조짐을 보이기 시작 -- evaluation 자체를 어떻게 rigorously 하고, evaluation으로 model/pipeline iteration을 어떻게 drive할지가 open problem</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>9. 비판적 분석</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>Stack-level co-design의 명료한 그림</strong>: 데이터 → 모델 → SFT → RL → deployment까지 ##각 컴포넌트의 역할과 책임을 분리하면서 통합##. 후속 연구의 architecture template로 가치 큼.</li>
+  <li><strong>고정밀 데이터의 결정적 가치 실증</strong>: Mocap-based sub-mm UMI가 SLAM-based UMI 대비 ##precision-critical task에서 결정적##. RoboTwin 2.0 ablation (90.9 → 88.1)과 Track A real-robot에서 일관 입증.</li>
+  <li><strong>Cross-embodiment transfer 입증</strong>: ##Target-robot teleoperation 0시간##으로 morphologically 다른 robot에 deploy 가능 -- 산업적으로 매우 큰 의미. 비슷한 형태의 robot마다 별도 데이터 수집 필요라는 통념 도전.</li>
+  <li><strong>FlowPRO의 우아한 설계</strong>: Reward/critic 없는 RL은 매력적이고, ##contrastive gradient cancellation##은 SFT 데이터를 동일 loss로 안전 co-train하는 비자명한 시그널. ##Symmetric proximal regularizer##가 plain DPO 반복 패턴 (reward-hacking)을 구조적으로 막음.</li>
+  <li><strong>Async + Bézier deployment의 plug-and-play 성격</strong>: 학습 무관, 모든 chunk-based VLA에 retrofit 가능. Cubic Bézier C¹ continuity를 명시적 control point 공식으로 풀어 reproducible.</li>
+  <li><strong>Compact Memory Encoder의 zero-parameter 디자인</strong>: ##K=1 special case로 single-image encoder와 정확히 일치##, pre-trained Hy-ViT 2.0 weight 직접 초기화. Backward compatibility의 모범.</li>
+  <li><strong>실증의 폭</strong>: RoboTwin 2.0 50 task 시뮬레이션 + 4개 real platform (Dobot, JAKA, Astribot S1, Unitree G1) + 4 task RPRO. 단일 platform 결과가 아님.</li>
+  <li><strong>Open release</strong>: GitHub, HF model, HF dataset, 2K-hour UMI subset 공개 예정. 재현·검증·후속 연구 진입장벽 낮춤.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Mocap cage의 in-the-wild 부적합성</strong>: 저자도 인정 -- ##optical motion-capture system 의존##은 정밀도 우위지만 ##field deployment 환경에서 데이터 수집 불가##. 결과적으로 데이터는 lab-quality에 한정. "10K-hour scale"은 단일 lab의 한계 시사.</li>
+  <li><strong>Pre-training과 fine-tuning의 데이터 distribution gap</strong>: Egocentric UMI camera vs robot-mounted deployment camera ##시점/내재 차이##. 저자도 future work로 visual augmentation 언급. 현재 framework가 이 gap을 얼마나 학습 시 보상하는지 ablation 부족.</li>
+  <li><strong>UMI fine-tuning 데이터의 작은 규모</strong>: Track B에서 ##task당 200~300 demo / 1.2~1.5h##만으로 cross-embodiment transfer 입증 -- 인상적이지만 ##task 다양성##(JAKA에서 1 task, Astribot에서 1 task)이 좁다. "Put Away Accessory"와 "Clean Up Table" 외에 다른 task에서 같은 패턴이 나오는지 미검증.</li>
+  <li><strong>FlowPRO의 SR 이미 high baseline에서 측정</strong>: π₀.₆* 95% → RPRO 99%는 인상적이지만, ##기존이 낮은 task##(예: SFT만으로 50%)에서 RPRO가 어떤 효과인지 불명. "near-ceiling improvement"라는 claim 자체가 편향된 평가.</li>
+  <li><strong>π₀.₆* 비교의 implementation 동등성</strong>: π₀.₆*가 advantage-conditioned regression이라는 description은 있지만, 본 논문의 base policy는 HyVLA-0.5이고 π₀.₆*도 HyVLA-0.5 위에 inject한 형태. ##원본 π₀.₆와의 fair comparison##이 아닌 ##recipe 비교##임을 명확히 인식할 필요.</li>
+  <li><strong>Force modality는 후처리적 augment</strong>: Hand-held UMI가 force 기록한다는 설계는 매력적이지만, ##current HyVLA-0.5는 RGB만 학습##. Force는 G1 task에서 ##별도 lightweight encoder를 post-hoc bolt-on##. 설계 통합이 아니라 add-on 시연.</li>
+  <li><strong>RoboTwin 2.0 비교의 contemporary 방법 출처 미명시 정도</strong>: 표에 ABot-M0, Qwen-VLA, LingBot-VLA, starVLA, Motus, JoyAI-RA 다수 등장. 이들은 모두 같은 시기 출간된 reference robot policy로 보이며, ##모두 자체 보고 success rate 사용##이라 reproducibility 우려. 동일 inference budget/condition인지 불명.</li>
+  <li><strong>Pre-training 외 ablation 부족</strong>: MoT vs dense VLM, action-expert dual-tower vs single-tower, dual EEF prediction (rel-EEF + EEF) 등 핵심 설계의 isolated ablation이 없거나 appendix 수준에 머무름. End-to-end 결과만으로는 어느 설계가 결정적인지 판단 어려움.</li>
+  <li><strong>Hy-Embodied-0.5-MoT 자체의 학습 disclosure 부족</strong>: 4B MoT backbone이 ##embodied corpora##로 pre-train이라고만 적시. Pre-train data composition, 실제 효과는 unclear. ##"Generic VLM 대비 더 빠른 수렴 + 더 강한 spatial prior"##라는 claim도 직접 비교 ablation 부재.</li>
+  <li><strong>Latency 수치 부재</strong>: Async + Bézier가 deployment-friendly라는 강조에 비해, ##실제 backbone forward latency, action smoothing overhead, end-to-end loop time## 등 구체 수치 없음. "high-frequency closed-loop control"이 몇 Hz인지 직접 비교 어려움.</li>
+  <li><strong>Safety / Failure mode 분석 부재</strong>: Real-robot manipulation에서 hardware safety는 critical. RPRO 과정 중 사람 개입 (intervention-and-rollback) 외, ##정책이 unsafe behavior로 drift할 risk##나 emergency stop 등에 대한 분석 부재.</li>
+</ul>
+</div>
+
+<!-- ============================================================ -->
+<h2>10. Key Takeaways (이 논문에서 가져갈 것)</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>Stack-level Co-design Paradigm</strong>: VLA를 ##단일 policy 아닌 production stack##으로 설계. 데이터-모델-RL-deployment 각 단계가 별개 병목을 다루지만 ##stable policy interface 보존이라는 동일 목표##. 후속 연구의 reference architecture.</li>
+  <li><strong>Rel-EE / Delta-chunk Representation</strong>: ##Embodiment-specific kinematics를 deployment 단계로 분리하는 결정적 디자인 선택##. 학습 시점에 robot-agnostic, deployment 시점에 robot-specific. Cross-embodiment transfer의 enabler.</li>
+  <li><strong>Sub-mm 정밀 데이터의 가치</strong>: SLAM-based UMI 대신 ##motion-capture cage + fingertip-attached UMI##. Precision-critical task의 critical sub-step이 sub-cm 정확도에 의존, large-scale 고정밀 pre-train이 그 distribution을 sharpen. ##데이터 quality가 quantity만큼 중요##.</li>
+  <li><strong>Compact Memory의 Parameter-free 설계</strong>: Multi-frame history를 추가 parameter 없이 ##sinusoidal temporal encoding + 기존 QKV/$W_O$ 재사용 + temporal/spatial 2-pass factorization##. ##K=1 special case로 single-frame encoder와 정확히 동일## → pre-trained weight 직접 초기화 가능. ViT 류 변형의 backward-compatible 디자인 패턴.</li>
+  <li><strong>FlowPRO의 3 Design Principles</strong>: (P1) failure를 contrastive signal로 직접 활용, (P2) reward/critic/value 모두 제거, (P3) symmetric proximal regularizer로 implicit reward anchor. ##연락처 풍부 manipulation에서 dense reward design이 어려운 분야의 일반 recipe##.</li>
+  <li><strong>Contrastive Gradient Cancellation</strong>: $a^w = a^l$일 때 contrastive gradient가 0 → ##SFT-style 데이터를 동일 RPRO loss로 batch 내 라우팅 가능##. Multi-objective training에서 batch composition의 우아한 단순화 패턴.</li>
+  <li><strong>Smooth Interpolation for Sparse → Dense Pair</strong>: Trajectory-level intervention-and-rollback이 sparse하지만, cubic Bézier (positions) + Slerp (orientations) + linear (gripper) ##smooth interpolation##으로 per-state tuple 생성. Preference 데이터를 ##인간 효율성##과 ##학습 dense성##에서 모두 만족시키는 설계.</li>
+  <li><strong>Async Inference + Bézier Stitching</strong>: ##학습 무관, plug-and-play, embodiment 무관##, $C^1$-continuous. 모든 chunk-based VLA의 deployment 고질병 (chunk boundary jitter, backbone-servo speed gap) 해결. Production-grade VLA의 표준 component가 될 가능성.</li>
+  <li><strong>Cross-embodiment Transfer with Zero Target-Teleop</strong>: ##UMI 데이터만으로 humanoid (Astribot S1) 와 fixed-base arm (JAKA K1) 두 morphology## 모두에서 성공. 새 robot platform 도입 비용을 ##teleop infra 구축 → UMI demo 200~300개 수집##으로 줄이는 paradigm shift 가능.</li>
+  <li><strong>Force Modality는 lightweight encoder bolt-on으로</strong>: Tactile/F-T sensor를 base VLM에 통합하지 않고 ##50-step F/T window를 lightweight TCN + MLP projector (~2M params)##로 augment. Force-aware manipulation의 minimal-cost baseline.</li>
+</ol>
+</div>
+
+<!-- ============================================================ -->
+<h2>관련 연구 링크</h2>
+
+<ul>
+  <li><strong>π₀</strong> (Black et al., 2024; arXiv:2410.24164) -- VLA flow model for general robot control, 본 논문의 직접 baseline</li>
+  <li><strong>π₀.₅</strong> (Physical Intelligence, 2025; arXiv:2504.16054) -- VLA with open-world generalization</li>
+  <li><strong>π₀.₆*</strong> (Physical Intelligence, 2025; arXiv:2511.14759) -- VLA learning from experience, RPRO 직접 비교</li>
+  <li><strong>FlowPRO</strong> (Wu et al., 2026; arXiv:2606.05468) -- 본 논문의 RL recipe 출처</li>
+  <li><strong>UMI</strong> (Chi et al., 2024) -- Universal Manipulation Interface, Hy-UMI 데이터 모태</li>
+  <li><strong>Hy-Embodied-0.5</strong> (Tencent, 2025) -- 4B MoT VLM backbone</li>
+  <li><strong>RoboTwin 2.0</strong> (Chen et al., 2025; arXiv:2506.18088) -- 본 논문 sim 평가 벤치</li>
+  <li><strong>Flow Matching</strong> (Lipman et al., ICLR 2023) -- generative modeling 기반</li>
+  <li><strong>DPO</strong> (Rafailov et al., NeurIPS 2023) -- RPRO 비교 baseline</li>
+  <li><strong>Flow-DPO</strong> (Liu et al., 2025) / <strong>GRAPE</strong> (Zhang et al., 2024) -- preference-based continuous control 직접 경쟁</li>
+  <li><strong>OpenVLA</strong> (Kim et al., CoRL 2024) / <strong>RT-2</strong> (Brohan et al., CoRL 2023) -- autoregressive discrete VLA, paradigm 차별점</li>
+</ul>
+
+<!-- ============================================================ -->
+<h2>개인 메모</h2>
+
+<div class="personal-notes">
+<!-- Q&A, 추가 코멘트, 관련 아이디어 등이 누적 기록됩니다 -->
+</div>
+
+</div>
+</body>
+</html>
