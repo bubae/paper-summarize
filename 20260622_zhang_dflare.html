@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFLARE: Scaling Up Draft Capacity for Block Diffusion Speculative Decoding</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DFLARE: Scaling Up Draft Capacity for Block Diffusion Speculative Decoding</h1>
+<a class="brief-link" href="20260622_zhang_dflare_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Jiebin Zhang, Zhenghan Yu, Song Liu, Eugene J. Yu, Zheng Li, Dawei Zhu, Jiangshan Duo, Weimin Xiong, Yifan Song, Guanghua Yu, Jianchen Zhu, Sujian Li</li>
+  <li><strong>소속</strong>: 북경대학교 (Peking University), Tencent</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.02091">arXiv:2606.02091</a> | <a href="https://github.com/Tencent/AngelSlim">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: DFlash(block diffusion speculative decoding의 SOTA)는 ##모든 draft layer가 동일한 fused target context feature를 공유##하고 입력 받기 때문에 (1) 각 layer가 specialization할 여지가 없어 draft depth scaling이 saturate되고, (2) target hidden state와 draft hidden state가 동일 K/V projection을 공유해 표현 공간이 충돌한다.</li>
+  <li><strong>해결</strong>: ##Adaptive Layer-wise Fusion##(각 draft layer가 target hidden state의 softmax-normalized 가중 합을 layer별로 학습) + ##Heterogeneous KV projection##(target context와 draft state에 별도 projection 행렬) + ##Progressive position-weighted loss##(학습 중 γ를 점진적 증가시키는 curriculum). 거기에 학습 데이터를 800K → 2.4M으로 확장.</li>
+  <li><strong>왜 작동하는가</strong>: 각 draft layer가 서로 다른 입력(layer-specific fused feature)을 받으므로 specialization 가능 → depth scaling 회복. KV projection 분리로 두 정보원이 각자의 표현 공간을 가짐. Curriculum loss는 초기엔 쉬운 앞 토큰에 집중하다가 점차 어려운 뒤 토큰까지 균형 학습.</li>
+  <li><strong>비유</strong>: DFlash가 "모든 부서에 같은 회의록을 돌리는 회사"라면, DFLARE는 "부서별로 회의록의 다른 부분을 강조해 전달하는 회사". 결과적으로 부서가 늘어날수록 진짜 분업이 일어난다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Adaptive Layer-wise Fusion</strong>: 각 draft layer가 target hidden state의 layer-specific softmax-weighted 가중 합을 학습. T개 target layer에 대해 D×T scalar(D=draft layer 수)만 학습하면 됨 → ##negligible overhead로 9개 target layer까지 활용 가능## (DFlash 5개 대비).</li>
+  <li><strong>Heterogeneous KV Projection</strong>: target context와 draft masked-position에 별도 $W^t_K, W^t_V$ / $W^d_K, W^d_V$ projection 사용. 두 representational subspace 분리.</li>
+  <li><strong>Progressive Position-Weighted Loss</strong>: $\gamma$를 epoch마다 증가시키는 curriculum. 초기엔 앞 토큰 집중 → 점차 뒤 토큰까지 분산. ##fixed γ 대비 일관된 acceptance length 향상##.</li>
+  <li><strong>Scaling 입증</strong>: depth 5→7 layer, target layer 5→9개, training data 270K→800K→2.4M 모든 axis에서 ##DFlash 대비 일관된 향상## (DFlash는 5→7 layer로 가도 미미한 개선).</li>
+  <li><strong>실증</strong>: Qwen3-4B 5.52×, Qwen3-8B 5.46×, GPT-OSS-20B 3.91× 평균 wall-clock speedup. ##DFlash 대비 ~11%, ~8%, ~5% 개선##.</li>
+</ol>
+
+<h2>1. 배경: Block Diffusion Speculative Decoding</h2>
+
+<h3>1.1 Speculative decoding과 block diffusion drafting</h3>
+<p>Speculative decoding은 작은 draft 모델이 다중 토큰을 예측하고 큰 target 모델이 병렬 검증하는 방식. ##acceptance length(검증 단계당 채택되는 평균 토큰 수)##가 speedup의 핵심 지표.</p>
+
+<p>Block diffusion drafting (DFlash, SpecDiff-2 등)은 ##single forward pass로 block 내 모든 토큰을 동시 예측##하여 drafting cost를 토큰 수와 무관하게 만든다. drafting cost와 block size가 decouple되므로 더 큰 draft 모델 / 더 많은 토큰을 감당할 자유가 생긴다.</p>
+
+<h3>1.2 DFlash 복습 (이 논문의 baseline)</h3>
+<p>DFlash는 target hidden state $H^{(j)} \in \mathbb{R}^{L \times d}$를 $j=1, \ldots, T$ layer에서 추출하고, 각 position $t$에서:</p>
+$$\mathbf{c}_t = W_{\text{fc}}[\mathbf{h}_t^{(1)} ; \ldots ; \mathbf{h}_t^{(T)}] + \mathbf{b}_{\text{fc}}, \quad \mathbf{c}_t \in \mathbb{R}^d \quad (1)$$
+<p>이 context feature $\mathbf{c}_t$를 ##모든 draft layer의 KV cache에 동일하게 inject##. 따라서 모든 draft layer가 단 하나의 fused representation을 본다.</p>
+
+<h3>1.3 DFlash의 두 가지 coupled limitations</h3>
+<p>저자들의 분석:</p>
+<ul>
+  <li><strong>Depth scaling 한계</strong>: DFlash는 5-layer가 최적이고 더 추가해도 거의 개선이 없다. ##모든 layer가 같은 입력을 받으므로 specialization 여지가 없어 새로운 layer가 redundant##.</li>
+  <li><strong>Target knowledge 활용 한계</strong>: DFlash는 5개 target layer만 사용. T를 9개로 늘려도 의미 있는 개선이 없다. 모든 정보가 단일 fused vector로 압축되기 때문에 추가 layer가 dilute되거나 손실됨.</li>
+</ul>
+<p>중요한 관찰: ##이 두 한계는 coupled##되어 있다. layer specialization이 가능해야 더 많은 target layer 정보를 흡수할 수 있고, 더 많은 target 정보가 있어야 depth scaling이 의미 있다.</p>
+
+<h2>2. 방법 (Method)</h2>
+
+<h3>2.1 전체 구조 (Figure 2 요약)</h3>
+
+<blockquote><strong>[Figure 2 설명]</strong>: 왼쪽에 Target Model(Low/Mid/High decoder layers + Target LM Head, 각 layer에서 hidden state $h^{(l)}, h^{(m)}, h^{(h)}$ 추출). 가운데에 ##Layer-wise Fusion 블록 3개##(Draft Layer 1/2/3에 각각 대응, 각 fusion 박스가 softmax로 normalize된 [h^(l), h^(m), h^(h)]의 가중 합을 출력 → $f^{(1)}, f^{(2)}, f^{(3)}$). 오른쪽 Draft Stack에서 각 Draft Layer가 자신의 $f^{(i)}$를 ##Target KV Projection($W^t_K, W^t_V$)##으로 변환해 Bidirectional Attention에 inject. Draft 자체 입력은 별도 ##Draft KV Projection($W^d_K, W^d_V$)## 통해 K/V에 결합.</blockquote>
+
+<h3>2.2 Adaptive Layer Fusion of Target Hidden States</h3>
+<p>$T$개의 target layer에서 hidden state $\mathbf{h}_t^{(j)} \in \mathbb{R}^d$가 주어졌을 때, 각 draft layer $i$ ($i = 1, \ldots, D$)에 대해 layer-specific fusion:</p>
+$$\boldsymbol{\alpha}^{(i)} = \text{softmax}(W^{\text{fuse}}_{i,:}) \in \mathbb{R}^T$$
+$$\mathbf{f}_t^{(i)} = \text{RMSNorm}\left(\sum_{j=1}^T \alpha_j^{(i)} \mathbf{h}_t^{(j)}\right) \quad (3)$$
+
+<p>여기서 $W^{\text{fuse}} \in \mathbb{R}^{D \times T}$는 단 D×T개의 scalar weight. 직관적으로 말하면, ##각 draft layer가 "내가 어떤 target depth의 정보를 얼마나 가져갈지"를 스스로 학습##한다. 학습 후 $\boldsymbol{\alpha}^{(i)}$는 precompute되어 inference latency는 사실상 0.</p>
+
+<p>두 가지 결정적 장점:</p>
+<ul>
+  <li><strong>Extremely lightweight</strong>: D×T = 7×9 = 63개의 scalar parameter. target layer를 늘려도 비용 무시할 수준.</li>
+  <li><strong>Layer-specific</strong>: 각 draft layer가 다른 fusion coefficient를 학습 → 다른 입력 → ##specialization 가능##.</li>
+</ul>
+
+<h3>2.3 Heterogeneous KV Projection</h3>
+<p>DFlash는 target context와 draft masked position에 동일 K/V projection 사용:</p>
+$$\mathbf{K} = [\mathbf{C}W_K; \mathbf{x}_t W_K; \hat{\mathbf{X}}W_K], \quad \mathbf{V} = [\mathbf{C}W_V; \mathbf{x}_t W_V; \hat{\mathbf{X}}W_V] \quad (2)$$
+
+<p>저자들은 이를 분리:</p>
+$$\mathbf{K} = [\mathbf{F}^{(i)}W^t_K; \mathbf{x}_t W^d_K; \hat{\mathbf{X}}W^d_K], \quad \mathbf{V} = [\mathbf{F}^{(i)}W^t_V; \mathbf{x}_t W^d_V; \hat{\mathbf{X}}W^d_V] \quad (4)$$
+
+<p>여기서 $W^t_K, W^t_V$는 target context 전용, $W^d_K, W^d_V$는 target decode token과 masked draft position 공유. ##두 정보원(target context와 draft hidden state)이 각자의 representational subspace##를 갖는다.</p>
+
+<h3>2.4 Progressive Position-Weighted Loss</h3>
+<p>DFlash의 loss decay $w_k = \exp(-(k-1)/\gamma)$는 ##fixed γ##. 작은 γ는 앞 토큰 수렴은 빠르지만 뒷 토큰 학습 부족, 큰 γ는 뒷 토큰 학습 OK지만 앞 토큰 수렴 느림.</p>
+
+<p>저자들은 linear warmup:</p>
+$$\gamma(s) = \gamma_0 + \frac{s}{S}(\gamma_{\max} - \gamma_0)$$
+$$w_k(s) = \exp\left(-\frac{k-1}{\gamma(s)}\right) \quad (5)$$
+
+<p>여기서 $s$는 현재 step, $S$는 총 step 수. ##curriculum 효과##: 초반엔 small γ로 앞 토큰 집중 → 후반엔 large γ로 뒤 토큰까지 균등 학습. 구체적으로 $\gamma_0 = 4.5$로 시작해 epoch마다 +1 증가 (GPT-OSS-20B는 block 8이라 γ=4 고정).</p>
+
+<h3>2.5 학습 알고리즘 흐름</h3>
+<div class="flow-diagram">[Training step s]
+1. Target model이 sequence(prompt+response) 전체를 1회 forward
+   → T개 layer에서 h^(1), …, h^(T) 추출
+2. 각 draft layer i에서:
+   α^(i) = softmax(W^fuse[i, :])    # layer-specific weight
+   f^(i) = RMSNorm(Σ_j α^(i)_j h^(j))  # layer-specific fused feature
+3. Random anchor sampling → block 구성 (DFlash와 동일)
+4. Draft forward:
+   K_i = [f^(i) W^t_K ; x_t W^d_K ; X̂ W^d_K]
+   V_i = [f^(i) W^t_V ; x_t W^d_V ; X̂ W^d_V]
+   Q_i = [x_t ; X̂] W_Q
+   Output via bidirectional attention + MLP
+5. Loss = Σ_k w_k(s) · CE(prediction_k, target_k)
+   with γ(s) = γ_0 + (s/S)(γ_max - γ_0)</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 셋업</h3>
+<ul>
+  <li><strong>Target models</strong>: Qwen3-4B, Qwen3-8B, GPT-OSS-20B</li>
+  <li><strong>Draft 구조</strong>: 7 layer, block size 16 (GPT-OSS는 8), 9개 target layer (GPT-OSS는 7)</li>
+  <li><strong>Training data</strong>: Nemotron-Post-Training-Dataset-V2 + CodeAlpaca + Step-3.5-Flash-SFT ##2.4M 샘플##</li>
+  <li><strong>Hyperparameters</strong>: AdamW lr=6e-4, clip 1.0, cosine + 0.04 warmup, 6 epoch, max seq 3072, 512 anchor/seq, global batch 64</li>
+  <li><strong>Hardware</strong>: 32 H20 GPU, Qwen3-8B training ~160 GPU-hour, Qwen3-4B ~100h, GPT-OSS ~90h</li>
+  <li><strong>Baselines</strong>: vanilla AR decoding, EAGLE-3 (AngelSlim 체크포인트), DFlash (공식 체크포인트)</li>
+  <li><strong>Benchmarks</strong>: GSM8K, MATH-500, AIME25 (math), HumanEval, MBPP (code), MT-Bench (chat)</li>
+</ul>
+
+<h3>3.2 Main results (Table 1)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Method</th><th>GSM8K spd/τ</th><th>MATH500 spd/τ</th><th>AIME25 spd/τ</th><th>HumanEval spd/τ</th><th>MBPP spd/τ</th><th>MT-Bench spd/τ</th><th>Avg spd/τ</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Q3-4B (T=0)</td><td>EAGLE-3</td><td>2.56/3.76</td><td>2.57/3.70</td><td>2.46/3.58</td><td>2.52/3.58</td><td>2.41/3.51</td><td>2.39/3.57</td><td>2.49/3.62</td></tr>
+<tr><td>DFlash</td><td>5.31/6.51</td><td>6.20/7.80</td><td>5.78/7.31</td><td>4.62/6.65</td><td>4.89/6.13</td><td>3.13/4.40</td><td>4.99/6.47</td></tr>
+<tr><td><strong>DFLARE</strong></td><td><strong>6.00/7.93</strong></td><td><strong>6.76/8.97</strong></td><td><strong>6.31/8.35</strong></td><td><strong>5.41/7.17</strong></td><td><strong>5.30/7.08</strong></td><td><strong>3.33/5.30</strong></td><td><strong>5.52/7.47</strong></td></tr>
+<tr><td rowspan="3">Q3-8B (T=0)</td><td>EAGLE-3</td><td>2.43/3.53</td><td>2.42/3.55</td><td>2.34/3.51</td><td>2.46/3.67</td><td>2.26/3.31</td><td>2.20/3.25</td><td>2.35/3.47</td></tr>
+<tr><td>DFlash</td><td>5.28/6.53</td><td>5.78/7.88</td><td>5.32/7.11</td><td>4.62/6.54</td><td>4.81/5.97</td><td>2.85/4.30</td><td>5.05/6.39</td></tr>
+<tr><td><strong>DFLARE</strong></td><td><strong>6.02/7.88</strong></td><td><strong>6.72/8.95</strong></td><td><strong>6.21/8.12</strong></td><td><strong>5.42/7.08</strong></td><td><strong>5.16/6.86</strong></td><td><strong>3.23/5.09</strong></td><td><strong>5.46/7.33</strong></td></tr>
+<tr><td rowspan="2">GPT-20B (T=0)</td><td>DFlash</td><td>3.75/4.54</td><td>3.96/4.86</td><td>3.85/4.93</td><td>3.49/4.25</td><td>3.44/4.20</td><td>3.74/5.20</td><td>3.71/4.66</td></tr>
+<tr><td><strong>DFLARE</strong></td><td><strong>4.06/4.98</strong></td><td><strong>4.20/5.19</strong></td><td><strong>3.88/4.97</strong></td><td><strong>3.71/4.55</strong></td><td><strong>3.72/4.58</strong></td><td><strong>3.87/5.32</strong></td><td><strong>3.91/4.93</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험의 의도</strong>: DFlash의 SOTA 지위를 직접 갱신할 수 있는가? 다양한 model size와 benchmark에서 일관된 향상을 보이는가?</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##모든 모델, 모든 benchmark에서 DFlash 대비 1차원 개선## (Q3-8B 평균 +8%, Q3-4B +11%). 단일 outlier 없음.</li>
+  <li>##구조화된 출력(math, code)에서 효과 더 큼##: GSM8K +13%, MATH500 +9% vs MT-Bench +6%. open-ended generation은 효과 가장 작음.</li>
+  <li>##GPT-OSS-20B에서 절대 speedup이 낮음##: DFLARE 3.91× vs Qwen3 5.5×. 저자도 인정: "target과 draft 사이 representational gap이 크기 때문". 큰 모델일수록 적응이 어렵다.</li>
+  <li><strong>T=1 (stochastic)에서도 우위 유지</strong>: Q3-4B 평균 4.77× (DFlash 4.35×), Q3-8B 4.37× (DFlash 4.16×). ##sampling이 들어가도 strict 우위##.</li>
+</ul>
+
+<h3>3.3 SGLang throughput (Table 3, Qwen3-8B, H20)</h3>
+<table>
+<thead><tr><th>Task</th><th>Method</th><th>c=1</th><th>c=4</th><th>c=8</th><th>c=16</th><th>c=32</th></tr></thead>
+<tbody>
+<tr><td>GSM8K</td><td>Baseline</td><td>162.5</td><td>610.8</td><td>1058.8</td><td>1046.9</td><td>1053.7</td></tr>
+<tr><td></td><td>DFlash</td><td>596.6</td><td>1048.1</td><td>1057.6</td><td>1045.5</td><td>1068.6</td></tr>
+<tr><td></td><td><strong>DFLARE</strong></td><td><strong>642.6</strong></td><td><strong>1764.8</strong></td><td><strong>1815.2</strong></td><td><strong>1828.7</strong></td><td><strong>1809.3</strong></td></tr>
+<tr><td>HumanEval</td><td>Baseline</td><td>163.6</td><td>620.9</td><td>1158.2</td><td>1273.7</td><td>1212.0</td></tr>
+<tr><td></td><td>DFlash</td><td>561.1</td><td>1142.9</td><td>1178.7</td><td>1174.9</td><td>1149.9</td></tr>
+<tr><td></td><td><strong>DFLARE</strong></td><td>554.5</td><td><strong>1538.6</strong></td><td><strong>1650.2</strong></td><td><strong>1672.1</strong></td><td><strong>1796.9</strong></td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>: ##high concurrency(16, 32)에서 DFLARE의 우위가 더 두드러진다##. GSM8K c=32에서 DFLARE 1809.3 tok/s vs DFlash 1068.6 tok/s(+69%). 저자: "compute-bound 환경에서 DFLARE의 장점이 더 커진다". 이는 ##더 긴 acceptance length가 verification 비용을 amortize##하기 때문.</p>
+
+<h3>3.4 Ablation 1: Draft Layer 수 (Table 5, Qwen3-4B)</h3>
+<table>
+<thead><tr><th>Method</th><th>Layers</th><th>GSM8K spd/τ</th><th>MATH500 spd/τ</th><th>HumanEval spd/τ</th><th>Avg spd/τ</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">DFlash</td><td>5</td><td>5.30/6.57</td><td>6.17/7.70</td><td>4.61/5.71</td><td>4.98/6.30</td></tr>
+<tr><td>6</td><td>5.38/6.82</td><td>6.27/8.03</td><td>4.66/5.92</td><td>5.07/6.57</td></tr>
+<tr><td>7</td><td>5.43/7.06</td><td>6.31/8.26</td><td>4.65/6.12</td><td>5.16/6.67</td></tr>
+<tr><td rowspan="3">DFLARE</td><td>5</td><td>5.42/6.85</td><td>6.35/8.03</td><td><strong>4.73/5.88</strong></td><td>5.12/6.55</td></tr>
+<tr><td>6</td><td>5.56/7.13</td><td>6.32/8.19</td><td>4.71/6.03</td><td>5.13/6.72</td></tr>
+<tr><td>7</td><td><strong>5.58/7.29</strong></td><td><strong>6.37/8.41</strong></td><td>4.70/6.16</td><td><strong>5.16/6.90</strong></td></tr>
+</tbody>
+</table>
+<p><strong>이 실험이 뒷받침하는 주장</strong>: DFlash는 5→7로 가도 GSM8K speedup +0.13×에 그치는 반면, DFLARE는 7-layer에서 새로운 quality plateau에 도달. ##layer-wise fusion이 진짜 depth scaling을 가능케 한다##. acceptance length τ로 보면 DFlash 6.30→6.67 vs DFLARE 6.55→6.90: 동일 +0.35 증가지만 절대값에서 DFLARE가 우위.</p>
+
+<h3>3.5 Ablation 2: Target Layer 수 (Table 4, Qwen3-4B)</h3>
+<table>
+<thead><tr><th>Method</th><th>T</th><th>GSM8K τ</th><th>MATH500 τ</th><th>HumanEval τ</th><th>MBPP τ</th><th>Avg τ</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">DFlash</td><td>5</td><td>4.47</td><td>4.28</td><td>4.25</td><td>3.84</td><td>4.13</td></tr>
+<tr><td>7</td><td>4.55</td><td>4.34</td><td>4.33</td><td>3.88</td><td>4.18</td></tr>
+<tr><td>9</td><td>4.59</td><td>4.33</td><td>4.34</td><td>3.81</td><td>4.19</td></tr>
+<tr><td rowspan="3">DFLARE</td><td>5</td><td>4.83</td><td>4.52</td><td>4.55</td><td>4.07</td><td>4.38</td></tr>
+<tr><td>7</td><td>4.82</td><td>4.53</td><td>4.59</td><td>4.16</td><td>4.42</td></tr>
+<tr><td>9</td><td><strong>4.94</strong></td><td><strong>4.67</strong></td><td><strong>4.62</strong></td><td><strong>4.16</strong></td><td><strong>4.49</strong></td></tr>
+</tbody>
+</table>
+<p>##DFlash는 T=7→9에서 거의 정체##(4.18→4.19) vs ##DFLARE는 계속 향상##(4.42→4.49). target hidden state를 더 많이 흡수할 수 있다는 직접적 증거.</p>
+
+<h3>3.6 Ablation 3: 구성요소별 (Table 2, Qwen3-4B)</h3>
+<table>
+<thead><tr><th>Setting</th><th>GSM8K spd/τ</th><th>HumanEval spd/τ</th><th>MtBench spd/τ</th><th>Avg spd/τ</th></tr></thead>
+<tbody>
+<tr><td><strong>DFLARE (full)</strong></td><td><strong>3.80/4.94</strong></td><td>3.55/4.62</td><td>2.76/4.00</td><td><strong>3.37/4.52</strong></td></tr>
+<tr><td>− Softmax (raw weight)</td><td>3.70/4.85</td><td>3.45/4.53</td><td>2.77/4.02</td><td>3.31/4.47</td></tr>
+<tr><td>− KVProj (단일 W^t=W^d)</td><td>3.77/4.90</td><td>3.50/4.54</td><td>2.78/3.99</td><td>3.35/4.48</td></tr>
+<tr><td>− Loss (constant γ)</td><td>3.72/4.84</td><td>3.56/4.63</td><td>2.73/3.93</td><td>3.34/4.47</td></tr>
+<tr><td>+ FC (extra FC after fusion)</td><td>3.74/4.87</td><td>3.53/4.59</td><td>2.78/4.06</td><td>3.35/4.51</td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>:</p>
+<ul>
+  <li>##−Softmax가 가장 큰 손실##(avg 4.52→4.47): softmax normalization이 학습 안정성과 weight constraint를 동시에 제공. unnormalized weight는 진동.</li>
+  <li>−KVProj도 일관된 손실: heterogeneous projection이 필요함을 입증.</li>
+  <li>−Loss(constant γ): GSM8K에서 손실. progressive curriculum 효과 확인.</li>
+  <li>+FC: fusion 뒤 추가 FC layer를 더해도 ##개선 없음##. 즉 ##단순 weighted sum + RMSNorm이 충분##.</li>
+</ul>
+
+<h3>3.7 Ablation 4: Training Data Scaling (Table 6, Qwen3-8B)</h3>
+<table>
+<thead><tr><th>Data</th><th>GSM8K spd/τ</th><th>MATH500 spd/τ</th><th>AIME25 spd/τ</th><th>HumanEval spd/τ</th><th>MBPP spd/τ</th><th>MT-Bench spd/τ</th><th>Avg spd/τ</th></tr></thead>
+<tbody>
+<tr><td>270K</td><td>4.40/5.70</td><td>4.00/5.19</td><td>3.75/4.81</td><td>3.87/4.98</td><td>3.58/4.63</td><td>2.84/4.09</td><td>3.74/4.90</td></tr>
+<tr><td>800K</td><td>5.35/6.94</td><td>6.23/8.23</td><td>5.78/7.74</td><td>4.65/6.01</td><td>4.59/6.03</td><td>3.02/4.61</td><td>4.97/6.59</td></tr>
+<tr><td><strong>2.4M</strong></td><td><strong>6.02/7.88</strong></td><td><strong>6.72/8.95</strong></td><td><strong>6.21/8.12</strong></td><td><strong>5.42/7.08</strong></td><td><strong>5.16/6.86</strong></td><td><strong>3.23/5.09</strong></td><td><strong>5.46/7.33</strong></td></tr>
+</tbody>
+</table>
+<p>##log-scale data scaling에서 acceptance length가 단조 증가##(4.90 → 6.59 → 7.33). 저자: "DFLARE의 확대된 capacity를 활용하려면 더 많은 학습 데이터가 필요함". ##아직 saturate되지 않음## → 더 큰 데이터로 추가 개선 여지.</p>
+
+<h2>4. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>문제 정의의 명확성</strong>: DFlash의 두 한계(depth saturation, T saturation)가 ##coupled##되어 있다는 통찰. 단일 axis에서의 ablation으로는 절대 발견할 수 없는 진단.</li>
+  <li><strong>방법의 minimalism</strong>: 새로운 추가 parameter가 거의 0 (D×T scalar). +FC ablation에서 보듯 ##불필요한 capacity는 더하지 않았다##. Occam's razor.</li>
+  <li><strong>3-axis scaling 검증</strong>: depth, target layer, data 세 축 모두에서 ##DFlash 대비 일관 향상##을 수치로 보여줌. 단일 outlier 없음.</li>
+  <li><strong>학습 비용 투명</strong>: Qwen3-8B 학습에 32 H20 GPU × 5시간 = 160 GPU-hour 명시. ##DFlash 논문이 빠뜨린 정보를 충실히 보고##.</li>
+  <li><strong>SGLang production 평가</strong>: H20 GPU, concurrency 1~32 throughput 측정. ##DFlash 대비 high-concurrency에서 우위가 더 커진다##는 실용적 통찰.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>Incremental contribution</strong>: 본질적으로 DFlash의 fusion 메커니즘 개선 + KV projection 분리 + curriculum loss. ##핵심 아이디어는 DFlash의 KV injection##이고, 이를 layer-specific하게 만든 변형. 실용성은 높지만 conceptual novelty는 modest.</li>
+  <li><strong>GPT-OSS에서 효과 약화</strong>: Qwen 5.5× vs GPT-OSS 3.9×. ##저자도 인정하듯 큰 target model에서 representational gap이 problem##. 100B+ 규모에서 layer-wise fusion만으로 부족할 가능성.</li>
+  <li><strong>MT-Bench gap</strong>: math/code +9~13% vs MT-Bench +6%. ##open-ended generation에서 효과 감소##는 DFlash와 동일. fundamental한 diffusion drafter의 한계로 보임.</li>
+  <li><strong>EAGLE-3 비교의 데이터 불일치</strong>: EAGLE-3는 AngelSlim 공식 체크포인트(데이터 다름), DFlash와 DFLARE만 동일 2.4M 데이터로 학습. ##strict apples-to-apples는 DFlash와의 비교만 유효##.</li>
+  <li><strong>실제 latency 분해 부재</strong>: drafting time, verification time, fusion overhead 등 break-down 표가 없다. ##어떤 단계에서 시간이 줄었는지## 알기 어렵다.</li>
+  <li><strong>학습 데이터 augmentation의 효과 unclear</strong>: 데이터 양만 보고, 데이터 종류(Step-3.5-Flash-SFT 추가)의 효과는 분리 보고 안 됨. ##양인지 다양성인지## 확실치 않다.</li>
+  <li><strong>fusion weight $\boldsymbol{\alpha}^{(i)}$의 시각화 부재</strong>: 각 draft layer가 실제 어떤 target layer에 집중하는지 보여주면 strong evidence가 될 텐데 시각화 없음.</li>
+  <li><strong>Block size 변경/dynamic 처리 미언급</strong>: block size 16 고정. DFlash의 train-test mismatch ablation 같은 robustness 분석 부재.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"단일 fused representation은 모든 draft layer를 동일하게 만든다"</strong>: 이 한 통찰이 DFLARE의 전부. ##layer-specific input이 depth scaling의 필수 조건##. 이는 EAGLE-3, EAGLE-4 등 다른 speculative decoding 후속 연구에도 시사점.</li>
+  <li><strong>Lightweight layer-specific fusion이 generic 패턴</strong>: D×T scalar로 충분. ##더 많은 정보를 흡수하려면 capacity가 아니라 routing이 필요##하다는 점은 mixture-of-experts와 유사한 철학.</li>
+  <li><strong>Heterogeneous projection은 universal trick</strong>: 서로 다른 정보원이 같은 K/V space를 공유하면 손해. ##다양한 cross-attention 기반 모델에 적용 가능##한 일반 원리.</li>
+  <li><strong>Loss schedule는 curriculum 형태가 유리</strong>: fixed γ가 sub-optimal. ##early-easy → late-hard transition##이 acceptance length를 향상. RL 학습이나 다른 sequential decoding에도 응용 여지.</li>
+  <li><strong>Production 채택의 강력한 후보</strong>: ##Tencent AngelSlim 공식 toolkit에 통합##되어 deployment 검증. H20 GPU에서 concurrency 32 기준 1.7배+ throughput (DFlash 대비). ##serving cost 절감 직접 효과##.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

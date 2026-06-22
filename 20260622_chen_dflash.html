@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DFlash: Block Diffusion for Flash Speculative Decoding</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DFlash: Block Diffusion for Flash Speculative Decoding</h1>
+<a class="brief-link" href="20260622_chen_dflash_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Jian Chen, Yesheng Liang, Zhijian Liu</li>
+  <li><strong>소속</strong>: UC San Diego (Z-Lab)</li>
+  <li><strong>학회/저널</strong>: ICML 2026 (PMLR 306)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.06036">arXiv:2602.06036</a> | <a href="https://dflash.z-lab.ai">프로젝트 페이지</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 speculative decoding(EAGLE-3 등)은 draft 모델이 여전히 자기회귀적(autoregressive)으로 토큰을 한 개씩 생성하기 때문에 drafting 자체가 직렬 병목이며, 모델 capacity 제약으로 acceptance length가 빠르게 포화되어 실용 속도 향상이 2~3배에 그친다.</li>
+  <li><strong>해결</strong>: drafter를 ##경량 block diffusion 모델##로 교체하여 한 번의 forward pass로 γ개의 draft 토큰을 병렬 생성하고, target 모델의 중간 hidden feature를 KV cache에 직접 inject하여 모든 draft layer가 풍부한 컨텍스트로 조건화되게 한다.</li>
+  <li><strong>왜 작동하는가</strong>: drafting cost가 토큰 수에 무관해지므로 draft 모델을 더 깊게(5-layer 등) 만들어 quality(acceptance length τ)와 latency를 동시에 잡을 수 있다. KV injection은 deeper layer까지 target context를 잃지 않게 보존한다.</li>
+  <li><strong>비유</strong>: EAGLE-3가 "글자를 한 개씩 받아 적는 비서"라면, DFlash는 "초안 전체 빈칸을 한 번에 채우는 비서". 그것도 상사(target)의 메모(hidden feature)를 직접 참조하면서.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Diffusion drafter + speculative verification 결합</strong>: diffusion LM의 약점(생성 품질 저하, 많은 denoising step 필요)을 우회하면서 강점(parallel 생성)만 가져온다. 검증은 lossless이므로 품질은 target 모델로 보장.</li>
+  <li><strong>KV injection 조건화</strong>: target hidden feature를 모든 draft layer의 Key/Value에 영구 주입. EAGLE-3의 입력 단 fusion 대비 깊은 모델에서도 acceptance length가 계속 증가.</li>
+  <li><strong>Anchor 기반 random block sampling</strong>: 표준 block diffusion training과 달리, response에서 anchor 위치를 무작위 샘플링하고 그 다음 block_size−1 토큰을 마스킹. inference 시 bonus token에서 시작하는 패턴과 정확히 일치 + 데이터 증강 효과.</li>
+  <li><strong>Position-dependent loss decay</strong>: block 내 앞쪽 위치 오류가 뒤쪽 토큰을 모두 무효화하므로 $w_k = \exp(-(k-1)/\gamma)$로 가중치를 줘서 acceptance length를 균등 가중 대비 향상.</li>
+  <li><strong>실증적 압도</strong>: ##Qwen3-8B에서 EAGLE-3 대비 평균 2.4×, baseline 대비 최대 6.1× speedup##. SGLang(B200) production setup에서 concurrency 1~32 전 구간에서 EAGLE-3 대비 우위.</li>
+</ol>
+
+<h2>1. 배경: 왜 또 speculative decoding인가?</h2>
+
+<h3>1.1 Speculative decoding의 한계</h3>
+<p>Speculative decoding은 작은 <em>draft model</em>이 γ개의 후보 토큰을 제안하면, 큰 <em>target model</em>이 이를 병렬로 검증해 정확하면 받아들이고 틀리면 잘라내는 방식이다 (Leviathan et al., 2023). EAGLE 시리즈는 draft 모델이 target의 hidden feature를 활용하도록 발전해 왔으며, EAGLE-3는 SOTA로 약 2~3× speedup을 달성한다. 그러나 ##drafter 자체가 transformer 1-layer를 자기회귀적으로 γ번 돌려야 하기 때문에 drafting cost가 γ에 선형 증가##하고, 1-layer라는 얕은 capacity 때문에 acceptance length가 빠르게 포화된다.</p>
+
+<h3>1.2 Diffusion LM (dLLM)</h3>
+<p>Diffusion language model (LLaDA, Nie et al. 2025 등)은 마스킹된 토큰을 병렬로 denoise하는 방식으로 한 번에 여러 토큰을 생성한다. Fully parallel diffusion은 fixed-length 생성과 KV cache 부재 등의 문제로 AR 대비 quality가 낮고, Block diffusion (Arriola et al. 2025, Fast-dLLM v2, SDAR)이 그 절충점으로 등장했다. 하지만 standalone dLLM은 여전히 많은 denoising step과 품질 손실을 동반한다.</p>
+
+<h3>1.3 결합 동기</h3>
+<p>저자들은 핵심 질문을 다음과 같이 던진다: "Is there truly no free lunch? Can we build a diffusion drafter that is both lightweight and highly accurate?" 답은 두 가지 관찰에서 출발한다.</p>
+<ul>
+  <li><strong>The target knows best</strong>: 큰 AR 모델의 hidden feature는 미래 토큰에 대한 정보를 implicitly 인코딩한다(Samragh et al. 2025). 따라서 drafter가 처음부터 추론할 필요 없이 ##target의 깊은 context feature를 그대로 빌려쓰면 된다##.</li>
+  <li><strong>Drafting cost와 토큰 수의 디커플링</strong>: diffusion drafter의 draft cost는 γ에 거의 무관하므로 draft 모델을 더 깊게 만들 자유가 생긴다. quality와 latency를 동시에 잡는다.</li>
+</ul>
+
+<h2>2. Preliminaries: speedup 식과 AR vs Diffusion drafting</h2>
+
+<h3>2.1 Speculative decoding의 평균 토큰당 latency</h3>
+<p>Target model $\mathcal{M}_t$, draft model $\mathcal{M}_d$. 각 cycle마다 drafter가 γ개 토큰을 제안하고, $\tau \in [1, \gamma+1]$개가 accept된다 (bonus token 1개 포함). 평균 토큰당 latency는</p>
+$$L = \frac{T_{\text{draft}} + T_{\text{verify}}}{\tau} \quad (1)$$
+<p>$L_{\text{target}}$을 target의 AR 토큰당 latency라 할 때 speedup은 $\eta = L_{\text{target}} / L$. 직관적으로 말하면, speedup을 키우려면 ##acceptance length τ를 늘리거나 drafting overhead $T_{\text{draft}}$를 줄이거나## 둘 중 하나여야 한다.</p>
+
+<h3>2.2 AR vs Diffusion drafting cost</h3>
+<p>Autoregressive drafter의 cost는 forward pass latency $t_{\text{step}}$을 γ번 반복하므로</p>
+$$T_{\text{draft}}^{\text{AR}} = \gamma \cdot t_{\text{step}} \quad (2)$$
+<p>이를 관리 가능 수준으로 유지하기 위해 EAGLE-3는 drafter를 단 1 transformer layer로 제한한다. 결과적으로 draft quality(acceptance length) 또한 capacity 부족으로 saturate.</p>
+
+<p>Diffusion drafter는 γ개 토큰을 단일 forward pass로 생성:</p>
+$$T_{\text{draft}}^{\text{diff}} = t_{\text{parallel}} \quad (3)$$
+<p>현대 GPU에서 parallel op는 $t_{\text{parallel}} \ll \gamma \cdot t_{\text{step}}$. 따라서 ##moderate block size에서 drafting cost가 γ에 거의 둔감##. 결과적으로 5-layer DFlash가 EAGLE-3 1-layer보다 더 낮은 latency와 더 높은 acceptance length를 동시에 달성한다(Figure 3 참조).</p>
+
+<h2>3. 방법 (Method)</h2>
+
+<h3>3.1 Inference 디자인 (Figure 2 요약)</h3>
+
+<blockquote><strong>[Figure 2 설명]</strong>: 시스템은 prompt가 들어오면 (a) Target model이 prefill을 돌려 hidden feature를 생성, (b) 선택된 5개 layer의 hidden state를 concat → projection → "fused target context feature"로 압축, (c) 이 feature를 모든 draft layer의 K/V로 inject, (d) Draft layer들이 mask token 위치를 bidirectional attention으로 한 번에 채움, (e) Target LM head로 sampling, (f) Target model이 병렬 verify.</blockquote>
+
+<div class="flow-diagram">[1] Prefill: Target model이 prompt 전체를 forward pass
+       → hidden_state from layers {l_1, …, l_5}
+[2] Fusion: H_t = RMSNorm(W_c · [H^(l1); …; H^(l5)])  ∈ R^(D)
+       (target hidden dim → draft hidden dim으로 한 번에 매핑)
+[3] KV injection: 각 draft layer i에서
+       Q_i = W_i^Q H_d         (draft 토큰만 query)
+       K_i = [W_i^K H_t ; W_i^K H_d]    ← target feature를 K에 prepend
+       V_i = [W_i^V H_t ; W_i^V H_d]    ← V에도 동일
+[4] Parallel draft: mask 위치 γ개를 bidirectional attention으로 한 번에 예측
+[5] Sampling: Target LM head 공유 (parameter 절약)
+[6] Verify: Target model이 γ개 draft를 단일 forward pass로 검증, τ개 accept</div>
+
+<h3>3.2 KV injection이 acceptance length를 scale시키는 이유</h3>
+<p>EAGLE-3는 target hidden feature를 draft 모델의 token embedding과 입력 단에서 fusion한다. layer가 깊어질수록 이 정보가 dilute되어 acceptance length가 5-layer 이상에서 saturate된다.</p>
+
+<p>DFlash는 fused context feature를 ##persistent contextual information##으로 취급해 모든 draft layer의 K/V에 직접 주입한다. cache되어 drafting iteration에 걸쳐 재사용. 결과적으로 draft 모델은 매 layer마다 강한 conditioning을 받으며, acceptance length가 layer 수에 비례해 증가한다(Table 9 ablation).</p>
+
+<h3>3.3 Parallel diffusion drafting</h3>
+<p>모든 mask 토큰이 단일 forward pass에서 bidirectional attention으로 결정된다. AR drafter의 다중 sequential pass 대비 drafting latency가 큰 폭으로 줄고, 더 깊은 draft 모델을 감당할 수 있다.</p>
+
+<h3>3.4 Training</h3>
+
+<h4>3.4.1 KV injection (training-time)</h4>
+<p>Inference pipeline과 동일하게, clean prompt+response 전체를 target model에 통과시켜 hidden features를 추출·fuse → draft 모델의 K/V로 주입. clean과 masked 부분 모두에 대해 동일.</p>
+
+<h4>3.4.2 Anchor 기반 random block sampling (Figure 4 요약)</h4>
+
+<blockquote><strong>[Figure 4 설명]</strong>: 표준 block diffusion training은 response를 균등 block으로 나누고 각 block 내 임의 위치를 마스킹한다. DFlash는 (a) response에서 ##anchor 토큰을 random sampling##하고, (b) 각 anchor를 block의 첫 번째 위치로 두고, (c) 그 뒤 block_size−1 위치를 모두 mask. 따라서 draft 모델은 inference에서 직면할 패턴인 "직전 bonus token (clean) + 그 뒤 모두 mask"를 정확히 학습한다.</blockquote>
+
+<p>장점:</p>
+<ul>
+  <li><strong>Inference-time 일치</strong>: bonus token 패턴과 정확히 매칭 (mismatch 제거)</li>
+  <li><strong>데이터 증강</strong>: 같은 sequence에서 매 epoch마다 다른 anchor 샘플링 → coverage 향상</li>
+  <li><strong>Diverse target context</strong>: 다양한 anchor → 다양한 target feature에 노출</li>
+</ul>
+<p>Table 13: ##standard sampling 4.13× → anchor sampling 4.69× (Math500)##, τ는 4.94→5.64.</p>
+
+<h4>3.4.3 Sparse attention mask (training 효율)</h4>
+<p>여러 mask block을 단일 sequence에 concat하고, block 간 attention을 차단(invisible token)하는 sparse mask를 Flex Attention(Dong et al. 2024)으로 구현. 한 forward/backward pass로 여러 block을 동시 학습.</p>
+
+<h4>3.4.4 Long-context training trick</h4>
+<p>모든 epoch에서 sequence당 mask block 수를 고정(512 anchor)하고 anchor 위치만 무작위 sampling. EAGLE-3는 training-time tree test 때문에 long-context training이 비싸지만, DFlash는 이 트릭으로 비용을 bound 한다.</p>
+
+<h4>3.4.5 Position-dependent loss decay</h4>
+<p>block 내 위치 $k$의 token에 대한 가중치:</p>
+$$w_k = \exp\left(-\frac{k-1}{\gamma}\right) \quad (4)$$
+<p>직관적으로 말하면, draft block의 첫 토큰이 틀리면 그 뒤 모든 토큰이 무용지물이므로 ##앞쪽 위치를 더 중점적으로 학습##시킨다. Figure 5: loss decay 적용 시 수렴 속도와 최종 acceptance length 모두 향상.</p>
+
+<h4>3.4.6 Shared embedding & LM head</h4>
+<p>draft 모델의 token embedding layer와 LM head를 target model의 것을 공유하고 freeze. trainable parameter는 draft transformer layer뿐. → 가벼운 "diffusion adapter".</p>
+
+<h2>4. 실험 (Experiments)</h2>
+
+<h3>4.1 셋업</h3>
+<ul>
+  <li><strong>Target models</strong>: LLaMA-3.1-Instruct (8B), Qwen3 (4B, 8B, Coder-30B-A3B), Qwen3.5 (4B, 9B, 27B, 35B-A3B), Qwen3-Coder-Next, GPT-OSS (20B, 120B)</li>
+  <li><strong>Training data</strong>: Nvidia Nemotron-Post-Training-Dataset-V2 + CodeAlpaca에서 ~800K sample. ##원본 응답이 아니라 target model이 생성한 응답을 사용 (target alignment)##.</li>
+  <li><strong>Hyperparameters</strong>: AdamW lr=6e-4, gradient clip 1.0, cosine + 0.04 warmup, 6 epoch, max seq 3072 (Coder 4096), 512 anchor/sequence. γ for loss decay: block 16 → γ=7, block 10 → 5, block 8 → 4.</li>
+  <li><strong>Draft 구조</strong>: 5 layer (Qwen3 Coder는 8 layer), block size 16 (LLaMA 3.1은 10).</li>
+  <li><strong>벤치마크</strong>: Math (GSM8K, MATH-500, AIME25), Code (HumanEval, MBPP, LiveCodeBench), Chat (MT-Bench, Alpaca). H200 GPU.</li>
+  <li><strong>Baseline</strong>: Vanilla autoregressive decoding + EAGLE-3 (Li et al. 2025b).</li>
+</ul>
+
+<h3>4.2 Instruct 모델: Qwen3-4B / 8B (Table 1)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Method</th><th>GSM8K spd / τ</th><th>MATH-500 spd / τ</th><th>HumanEval spd / τ</th><th>MT-Bench spd / τ</th><th>Avg spd / τ</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Q3-4B (T=0)</td><td>EAGLE-3 (16)</td><td>1.99×/3.30</td><td>1.83×/3.08</td><td>1.84×/3.05</td><td>1.74×/3.02</td><td>1.81×/3.05</td></tr>
+<tr><td>EAGLE-3 (60)</td><td>2.27×/3.77</td><td>2.10×/3.52</td><td>2.12×/3.47</td><td>2.04×/3.49</td><td>2.08×/3.48</td></tr>
+<tr><td><strong>DFlash (16)</strong></td><td><strong>5.15×/6.53</strong></td><td><strong>6.09×/7.84</strong></td><td><strong>5.21×/6.64</strong></td><td><strong>2.85×/4.35</strong></td><td><strong>4.91×/6.54</strong></td></tr>
+<tr><td rowspan="3">Q3-8B (T=0)</td><td>EAGLE-3 (16)</td><td>1.94×/3.23</td><td>1.81×/3.02</td><td>1.89×/3.17</td><td>1.63×/2.83</td><td>1.76×/2.96</td></tr>
+<tr><td>EAGLE-3 (60)</td><td>2.23×/3.71</td><td>2.05×/3.49</td><td>2.17×/3.65</td><td>2.02×/3.40</td><td>2.08×/3.40</td></tr>
+<tr><td><strong>DFlash (16)</strong></td><td><strong>5.15×/6.54</strong></td><td><strong>6.08×/7.87</strong></td><td><strong>5.14×/6.50</strong></td><td><strong>2.75×/4.24</strong></td><td><strong>4.86×/6.49</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험의 의도</strong>: drafting interface(AR vs diffusion)를 동일 budget으로 비교하기 위해 EAGLE-3 tree size를 16(=DFlash block size)과 60(=EAGLE 원논문 max 설정) 두 가지로 보고.</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##DFlash는 EAGLE-3(60)보다 더 큰 acceptance length를 더 낮은 verification overhead로 달성##: tree size 16에서도 τ=7.84 (Q3-4B Math500) vs EAGLE-3(60) τ=3.52. drafting interface 자체의 효율 차이.</li>
+  <li>Math/Code에서 5×+ speedup, Chat(MT-Bench)에서 2.85×. ##구조화된 출력(수식, 코드)일수록 long-range 의존이 강해 diffusion bidirectional이 유리##.</li>
+  <li>Temperature=1에서도 DFlash가 평균 4.2× speedup, EAGLE-3(60)의 1.9× 대비 큰 우위 유지.</li>
+</ul>
+
+<h3>4.3 Reasoning model (thinking mode): Table 2</h3>
+<p><strong>의도</strong>: reasoning trace가 들어가는 thinking-on mode에서도 효과가 유지되는가? Q3-4B/8B를 thinking mode로 켜고 GPQA, MATH-500, AIME25에서 평가.</p>
+<p>결과: Qwen3-4B는 Speedup 4.23×/4.59×/4.39×(τ 5.23/5.74/5.54). T=1에서도 3.67~3.93×. 즉 ##long reasoning generation에서도 4× 안팎의 일관된 speedup##.</p>
+
+<h3>4.4 SGLang production serving (Table 3, B200, FA4)</h3>
+<table>
+<thead><tr><th>Task</th><th>Method</th><th>c=1</th><th>c=4</th><th>c=8</th><th>c=16</th><th>c=32</th><th>Avg τ</th></tr></thead>
+<tbody>
+<tr><td>Q3-4B Math500</td><td>Baseline</td><td>316</td><td>1145</td><td>2201</td><td>4100</td><td>7136</td><td>–</td></tr>
+<tr><td></td><td>DFlash</td><td><strong>1531 (4.8×)</strong></td><td><strong>4943 (4.3×)</strong></td><td><strong>9066 (4.1×)</strong></td><td><strong>14477 (3.5×)</strong></td><td><strong>20417 (2.9×)</strong></td><td>8.01</td></tr>
+<tr><td>Q3-8B Math500</td><td>DFlash</td><td>5.1×</td><td>4.5×</td><td>4.5×</td><td>3.9×</td><td>2.8×</td><td>8.01</td></tr>
+<tr><td>Q3-Coder MBPP</td><td>DFlash</td><td>3.2×</td><td>3.0×</td><td>3.2×</td><td>3.3×</td><td>3.1×</td><td>7.23</td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>: concurrency가 커질수록(GPU compute-bound 영역) speedup이 줄어드는 일반적 양상은 동일하나, ##concurrency 32에서도 1.9~3.1× 유지##. SGLang Spec-v2 scheduling overlap과 결합되어 production-grade 검증.</p>
+
+<h3>4.5 Long-context 적응 (Table 4)</h3>
+<p><strong>의도</strong>: 4K context로 훈련된 모델이 더 긴 context에서도 동작하는가? Qwen3.5-27B base draft를 LongAlign-10K 1.6K sample로 3 epoch fine-tune.</p>
+<p>결과: 8K-32K LongBench에서 ##base는 16K 이상에서 acceptance length가 떨어지지만, fine-tuned 버전은 32K context에서도 τ=3.56(gov_report) 유지##. 즉 minimal fine-tuning으로 long-context로 일반화.</p>
+
+<h3>4.6 LLaMA-3.1 (Table 5)</h3>
+<p>EAGLE-3 공식 체크포인트와 비교. SGLang Flashinfer backend (Spec-v2 미지원 → tree drafting OFF).</p>
+<ul>
+  <li>GSM8K (TPS): Baseline 249 → EAGLE-3(60) 1.9× concurrency=1에서, DFlash 2.4×.</li>
+  <li>Concurrency 16: EAGLE-3 0.9× (baseline보다 느려짐) vs DFlash 1.8×. ##EAGLE-3는 high-concurrency에서 baseline 대비 손해까지 발생##하지만 DFlash는 안정적.</li>
+</ul>
+
+<h3>4.7 Ablation: 모든 design choice가 효과 있음</h3>
+
+<h4>Number of draft layers (Table 6)</h4>
+<table>
+<thead><tr><th>Layer</th><th>Math500 spd/τ</th><th>HumanEval spd/τ</th><th>MT-Bench spd/τ</th></tr></thead>
+<tbody>
+<tr><td>3</td><td>4.69×/5.64</td><td>3.90×/4.61</td><td>2.38×/3.18</td></tr>
+<tr><td><strong>5</strong></td><td><strong>4.71×/5.99</strong></td><td>3.96×/4.94</td><td>2.35×/3.37</td></tr>
+<tr><td>8</td><td>4.64×/6.33</td><td>3.96×/5.29</td><td>2.23×/3.50</td></tr>
+</tbody>
+</table>
+<p>##τ는 layer 증가에 비례해 증가하지만, drafting latency도 증가하므로 5-layer가 speedup 측면에서 최적##. 8-layer는 acceptance length가 더 길지만 비용이 그만큼 든다. dataset/serving 조건에 따라 trade-off.</p>
+
+<h4>Number of target hidden features (Table 7)</h4>
+<p>3-hidden vs 5-hidden: 5-hidden이 일관되게 우위 (Math500 4.49×→4.69×). 단 offline training storage가 선형 증가.</p>
+
+<h4>Training-inference block size mismatch (Table 8)</h4>
+<table>
+<thead><tr><th>Train BS</th><th>Test BS</th><th>Math500 spd</th><th>HumanEval spd</th><th>MT-Bench spd</th></tr></thead>
+<tbody>
+<tr><td>b16</td><td>b16</td><td><strong>4.64×</strong></td><td><strong>3.96×</strong></td><td><strong>2.23×</strong></td></tr>
+<tr><td>b16</td><td>b8</td><td>3.87×</td><td>3.39×</td><td>2.09×</td></tr>
+<tr><td>b8</td><td>b16</td><td>3.78×</td><td>3.24×</td><td>2.09×</td></tr>
+<tr><td>b8</td><td>b8</td><td>3.97×</td><td>3.53×</td><td>2.22×</td></tr>
+</tbody>
+</table>
+<p>##큰 block size로 훈련한 모델은 작은 block로 generalize 잘 되지만(b16→b8), 그 반대는 안 된다##. 따라서 큰 block로 훈련하고 inference에서 동적으로 block size를 줄일 수 있는 옵션이 생긴다. block-8 model의 Math500 acceptance histogram에서 35.7%가 full block accept → block 8이 underutilized. block-16은 더 spread-out된 acceptance length 분포.</p>
+
+<h4>KV injection vs input fusion (Table 9)</h4>
+<table>
+<thead><tr><th>Variant</th><th>Injection</th><th>GSM8K τ/spd</th><th>HumanEval τ/spd</th><th>MT-Bench τ/spd</th></tr></thead>
+<tbody>
+<tr><td>EAGLE-3-5L (AR)</td><td>Input</td><td>4.2 / 2.1×</td><td>4.3 / 2.2×</td><td>3.1 / 1.4×</td></tr>
+<tr><td>DFlash-AR (AR drafting)</td><td>KV</td><td><strong>4.8 / 2.4×</strong></td><td><strong>4.6 / 2.3×</strong></td><td><strong>3.4 / 1.5×</strong></td></tr>
+<tr><td>DFlash (diffusion)</td><td>Input</td><td>3.5 / 2.9×</td><td>3.5 / 2.9×</td><td>2.6 / 2.0×</td></tr>
+<tr><td><strong>DFlash (diffusion)</strong></td><td>KV</td><td><strong>4.2 / 3.3×</strong></td><td><strong>4.0 / 3.2×</strong></td><td><strong>3.0 / 2.2×</strong></td></tr>
+</tbody>
+</table>
+<p><strong>이 실험이 뒷받침하는 주장</strong>: KV injection은 ##drafting interface(AR/diffusion)와 무관하게 input fusion보다 우월##하다. 즉 EAGLE-3 자체도 KV injection을 받아들이면 개선될 수 있다(범용적 발견).</p>
+
+<h4>Random anchor sampling (Table 13)</h4>
+<p>Standard block sampling 4.13× → Sample 4.69× (Math500). ##simple training-data 변경으로 +14% speedup##.</p>
+
+<h4>Loss decay (Figure 5)</h4>
+<p>9 epoch까지 학습 진행 시 수렴 속도와 최종 acceptance length 모두 향상.</p>
+
+<h4>Diffusion drafter without target feature (Table 10)</h4>
+<p>5-layer diffusion drafter를 ##target feature 조건화 없이## 학습 → GSM8K 2.83×, Math500 3.73×, AIME 3.43×. 즉 ##diffusion drafting 자체로는 modest 2~3× 정도이며, target context conditioning이 speedup 5×+의 핵심 driver##. "block diffusion만 쓰면 빨라진다"는 단순 주장 반박.</p>
+
+<h4>vLLM & 추가 모델 (Table 11, 12)</h4>
+<p>Qwen3.5 4B/9B/27B/35B-A3B, Qwen3-Coder-Next, GPT-OSS 20B/120B에서 DFlash가 모두 동작. vLLM SGLang Qwen3.5-9B에서 concurrency 1 4.0×, 32 1.9×.</p>
+
+<h2>5. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>아이디어의 elegance</strong>: "diffusion model의 약점은 standalone generation quality, 강점은 parallel decoding"이라는 명확한 분해. speculative decoding의 lossless guarantee가 약점을 무력화. ##drafter의 역할을 generation이 아닌 prediction adapter로 재정의##.</li>
+  <li><strong>실증의 광범위함</strong>: 4B~120B 7개 이상 모델, math/code/chat/reasoning 4 카테고리, Transformers/SGLang/vLLM 3 framework, H200/B200 2 hardware, concurrency 1~32. SOTA 비교(EAGLE-3) 외에 baseline 6.1×까지 보고.</li>
+  <li><strong>Production 의식</strong>: SGLang Spec-v2 scheduling, B200 FA4 backend 등 ##2025년 production stack에서 검증##. EAGLE-3가 high concurrency에서 baseline보다 느려지는 현상까지 보고하는 정직함.</li>
+  <li><strong>Ablation 깊이</strong>: layer 수, hidden feature 수, block size train/test mismatch, KV vs input, random anchor, loss decay — 모든 design choice를 분해해 기여도를 보여줌. 특히 ##DFlash-AR (AR drafting + KV injection)을 따로 보고##해 KV injection의 universality를 입증.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>훈련 비용 미보고</strong>: 800K sample × 6 epoch + 5-layer × 800M~3B target hidden feature offline cache. 절대적인 GPU-hour나 storage 수치가 빠져 있어 ##training cost는 비교가 어려움##.</li>
+  <li><strong>Chat (MT-Bench) 효과 약화</strong>: Math/Code에서 5×+ 인 반면 MT-Bench는 2.5~3×. open-ended generation은 diffusion bidirectional의 장점이 작아지는 듯하나 명시적 분석은 없다.</li>
+  <li><strong>EAGLE-3와의 비교 공정성</strong>: EAGLE-3는 official checkpoint를 사용했으나 ##동일 데이터로 retrained 비교는 LLaMA-3.1에서만 일부 (DFlash가 UltraChat+ShareGPT로 EAGLE-3와 동일 데이터로 학습된 케이스)##. Qwen3 비교는 다른 데이터+다른 모델 셋팅이므로 strict apples-to-apples는 아니다.</li>
+  <li><strong>Block size 동적 스케줄링</strong>: large block은 verification cost 증가로 compute-bound batch에서 손해. 저자도 dynamic block-size scheduling을 future work로 남김.</li>
+  <li><strong>Diffusion noise schedule 미언급</strong>: 표준 diffusion LM의 absorbing state 가정인지, 어떤 corrupting process를 쓰는지 본문에서 명시적 설명이 빈약. Arriola et al. 2025를 참조하는 것으로 보이나, 본 논문 단독 reproducibility에는 한계.</li>
+  <li><strong>Acceptance length 통계 분포 부재</strong>: 평균 τ만 보고. greedy 환경에서는 분산도 중요한데(특히 long reasoning), histogram이 Math500 block 8 단 한 군데만 언급됨.</li>
+  <li><strong>코드 공개의 시점</strong>: GitHub link는 있지만 ICML 2026 채택 paper로서 model checkpoint 공개 여부와 라이센스가 abstract만으로는 불분명.</li>
+</ul>
+</div>
+
+<h2>6. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Diffusion model을 그대로 쓰지 말고, parallel decoding 성질만 빌려라"</strong>: standalone dLLM의 quality 문제는 speculative verification으로 완전히 우회 가능. ##diffusion LM 연구의 실용 활용 path를 제시##.</li>
+  <li><strong>KV injection은 EAGLE 계열에도 즉시 적용 가능한 universal 개선</strong>: Table 9에서 DFlash-AR(AR drafter + KV injection)이 EAGLE-3-5L 대비 일관 우위. ##기존 EAGLE-3 코드베이스에 KV injection만 추가해도 +0.3~0.5× speedup 기대##.</li>
+  <li><strong>Drafter 디자인 자유도 증가</strong>: drafting cost가 토큰 수와 디커플되므로 drafter를 더 깊고 표현력 있게 만들 수 있다. ##speculative decoding 연구가 "더 좋은 drafter 아키텍처" 방향으로 본격적으로 전환되는 시점##.</li>
+  <li><strong>Production 적용 시 block size 16 + 5-layer 권장</strong>: layer 수와 block size의 trade-off를 ablation에서 깔끔히 정리. ##low concurrency엔 큰 block, high concurrency엔 작은 block의 dynamic 전략이 미래 방향##.</li>
+  <li><strong>Long reasoning 모델에서 특히 임팩트 큼</strong>: thinking mode에서 4×+ speedup 유지. ##reasoning model의 serving cost 절감에 직접 기여##할 수 있는 기술.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

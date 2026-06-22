@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EAGLE-3 — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #581c87, #7c3aed, #a78bfa); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #581c87; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #7c3aed, #a78bfa); border-radius: 3px; }
+  .card { background: #faf5ff; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e9d5ff; }
+  .card-accent { border-left: 5px solid #7c3aed; }
+  .card-green  { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #059669; }
+  .card-orange { background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #d97706; }
+  .card-red    { background: #fef2f2; border: 1px solid #fecaca; border-left: 5px solid #dc2626; }
+  .one-liner { background: linear-gradient(135deg, #7c3aed, #c084fc); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #faf5ff; border-radius: 12px; border: 1px solid #e9d5ff; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #faf5ff; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e9d5ff; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #7c3aed, #c084fc); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e9d5ff; }
+  .comp-table th { background: #581c87; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e9d5ff; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f3e8ff; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #7c3aed; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #7c3aed; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #7c3aed; padding: 0 0.4rem; }
+  .expert-link { display: inline-block; margin: 1rem 0; padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-decoration: none; font-size: 0.9rem; }
+  .expert-link:hover { background: rgba(255,255,255,0.3); }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e9d5ff; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">PKU & MSR & Waterloo &middot; 2025</div>
+  <h1>EAGLE-3</h1>
+  <p class="subtitle">"AI 가속 분야의 새로운 scaling law를 발견했다.<br>학습 데이터를 늘릴수록 추론 가속도 비례해 빨라진다."</p>
+  <a class="expert-link" href="20260622_li_eagle3.html">📘 전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  "Token 예측 한 가지만 잘하라.<br>그러면 데이터를 더 줄 때마다 더 빨라진다."
+</div>
+
+<section>
+  <h2>먼저 알아야 할 것: AI를 빠르게 만드는 비결</h2>
+
+  <div class="card card-accent">
+    <p>EAGLE-3는 <strong>"speculative decoding"</strong>이라는 AI 가속 기술의 진화 버전입니다. 먼저 이 분야의 핵심 개념들을 정리해봅시다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#581c87;">개념 1: 큰 AI는 한 글자씩 답한다</h3>
+  <p style="margin:0.8rem 0;">ChatGPT 같은 큰 AI는 답을 만들 때 한 글자(토큰)씩 차례로 생성합니다. 사람으로 치면 "안녕하세요"를 한 글자씩 곰곰히 생각해서 쓰는 것과 같습니다. 글자가 1000개면 큰 AI를 1000번 호출해야 합니다.</p>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#581c87;">개념 2: Speculative Decoding — 작은 비서가 미리 예측</h3>
+  <p style="margin:0.8rem 0;">이를 빠르게 하기 위해 <strong>작은 비서 AI(draft)</strong>가 먼저 여러 글자를 빠르게 예측하고, <strong>큰 AI(target)</strong>가 한 번에 검수합니다. 맞은 글자는 채택, 틀린 글자는 버립니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 230" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">Speculative Decoding의 동작</text>
+      <rect x="50" y="60" width="180" height="60" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="140" y="85" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">작은 비서 (Draft)</text>
+      <text x="140" y="105" font-size="10" fill="#92400e" text-anchor="middle">"AI는 사람을 돕는다"를 예측</text>
+
+      <text x="260" y="95" font-size="24" fill="#7c3aed">→</text>
+
+      <rect x="300" y="60" width="200" height="60" rx="12" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+      <text x="400" y="85" font-size="12" font-weight="700" fill="#1e3a8a" text-anchor="middle">큰 AI (Target)가 한 번에 검수</text>
+      <text x="400" y="105" font-size="10" fill="#1e3a8a" text-anchor="middle">"AI는 사람을 ✓ 돕는다 ✗"</text>
+
+      <text x="530" y="95" font-size="24" fill="#059669">→</text>
+
+      <rect x="560" y="60" width="120" height="60" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+      <text x="620" y="85" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">맞은 글자만</text>
+      <text x="620" y="105" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">채택</text>
+
+      <text x="350" y="170" font-size="12" fill="#475569" text-anchor="middle">→ 비서가 한 번에 N개 글자를 예측 = 큰 AI 1회 호출에 N개 글자 생성</text>
+      <text x="350" y="195" font-size="12" fill="#7c3aed" text-anchor="middle" font-weight="700">결과: 평균 3~4배 가속, 출력 품질은 100% 동일</text>
+    </svg>
+    <div class="diagram-caption">Speculative decoding의 기본 구조</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#581c87;">개념 3: EAGLE — 비서를 효율적으로 만든 방법</h3>
+  <p style="margin:0.8rem 0;"><strong>EAGLE</strong>(같은 저자의 이전 연구)은 비서를 따로 학습하는 대신, 큰 AI 내부의 "중간 생각(feature)"을 비서가 흉내내도록 학습시켰습니다. 그런데 이게 의외의 문제를 일으켰습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">EAGLE의 두 가지 한계</text>
+
+      <text x="175" y="60" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">한계 1: 강제된 정답 흉내</text>
+      <rect x="50" y="80" width="250" height="100" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="175" y="105" font-size="11" fill="#7f1d1d" text-anchor="middle">비서는 두 가지를 동시에 해야 함:</text>
+      <text x="175" y="125" font-size="11" fill="#7f1d1d" text-anchor="middle">① 다음 글자 맞히기</text>
+      <text x="175" y="143" font-size="11" fill="#7f1d1d" text-anchor="middle">② 큰 AI의 중간 생각 똑같이 흉내내기</text>
+      <text x="175" y="165" font-size="11" font-style="italic" fill="#dc2626" text-anchor="middle" font-weight="700">② 때문에 ①에 집중 못 함</text>
+
+      <text x="525" y="60" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">한계 2: 학습-시험 불일치</text>
+      <rect x="400" y="80" width="250" height="100" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="525" y="105" font-size="11" fill="#7f1d1d" text-anchor="middle">학습: 정답 input만 받음</text>
+      <text x="525" y="125" font-size="11" fill="#7f1d1d" text-anchor="middle">시험: 자기 예측을 input으로 받음</text>
+      <text x="525" y="145" font-size="11" font-style="italic" fill="#dc2626" text-anchor="middle" font-weight="700">→ 시험 때 처음 본 상황에 당황</text>
+      <text x="525" y="165" font-size="10" fill="#475569" text-anchor="middle">(exposure bias)</text>
+
+      <text x="350" y="220" font-size="13" font-weight="700" fill="#581c87" text-anchor="middle">결과: 데이터를 더 줘도 안 빨라짐</text>
+      <text x="350" y="245" font-size="12" fill="#475569" text-anchor="middle">EAGLE은 학습 데이터 8배 늘려도 가속이 거의 정체.</text>
+      <text x="350" y="265" font-size="12" fill="#475569" text-anchor="middle">큰 AI는 데이터가 늘수록 똑똑해지는데(scaling law),</text>
+      <text x="350" y="285" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">왜 비서는 그 효과를 누리지 못하는가? → EAGLE-3가 답한 질문</text>
+    </svg>
+    <div class="diagram-caption">EAGLE의 두 약점이 합쳐져 scaling 정체를 만든다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 강제 흉내내기 vs 정답만 맞히기</div>
+    <p>학생A에게 "답도 맞히고, 선생님 풀이 과정도 똑같이 적어라" 라고 하면 두 가지 신경쓰느라 답이 자주 틀립니다. 학생B에게 "답만 맞히면 돼" 라고 하면 답에 집중해 더 잘 맞힙니다. EAGLE이 A, EAGLE-3가 B.</p>
+  </div>
+</section>
+
+<section>
+  <h2>EAGLE-3의 세 가지 핵심 변화</h2>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">변화 1</div>
+      <div class="step-title">중간 생각 흉내 제거</div>
+      <div class="step-desc">Token 예측에만 집중</div>
+    </div>
+    <div class="step-arrow">+</div>
+    <div class="step-box">
+      <div class="step-num">변화 2</div>
+      <div class="step-title">여러 층의 정보 사용</div>
+      <div class="step-desc">low + mid + high 융합</div>
+    </div>
+    <div class="step-arrow">+</div>
+    <div class="step-box">
+      <div class="step-num">변화 3</div>
+      <div class="step-title">실전형 학습</div>
+      <div class="step-desc">학습 중에 시험처럼 풀게</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#581c87;">변화 1+3: Training-time Test (학습 중 시험 시뮬레이션)</h3>
+  <p style="margin:0.8rem 0;">EAGLE-3의 핵심은 <strong>학습할 때 시험 상황을 미리 시뮬레이션</strong>하는 것입니다. 비서가 첫 글자를 예측한 후, 그 결과를 다시 비서의 입력으로 넣어 두 번째 글자를 예측하도록 학습시킵니다. 시험에서 일어나는 일을 학습 단계에서 미리 경험시키는 거죠.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">EAGLE vs EAGLE-3: 학습 방식의 차이</text>
+
+      <text x="175" y="60" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">EAGLE의 학습</text>
+      <rect x="40" y="80" width="270" height="280" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="175" y="105" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">학습 시 (Training)</text>
+      <rect x="60" y="120" width="100" height="28" rx="6" fill="#94a3b8"/>
+      <text x="110" y="140" font-size="10" fill="#fff" text-anchor="middle">정답 input</text>
+      <text x="180" y="140" font-size="14" fill="#dc2626">→</text>
+      <rect x="200" y="120" width="90" height="28" rx="6" fill="#fbbf24"/>
+      <text x="245" y="140" font-size="10" fill="#fff" text-anchor="middle">예측</text>
+      <text x="175" y="180" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">시험 시 (Test)</text>
+      <rect x="60" y="200" width="100" height="28" rx="6" fill="#fb923c"/>
+      <text x="110" y="220" font-size="9" fill="#fff" text-anchor="middle">자기 예측 input</text>
+      <text x="180" y="220" font-size="14" fill="#dc2626">→</text>
+      <rect x="200" y="200" width="90" height="28" rx="6" fill="#fbbf24"/>
+      <text x="245" y="220" font-size="10" fill="#fff" text-anchor="middle">예측?</text>
+      <text x="175" y="260" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">학습 input ≠ 시험 input</text>
+      <text x="175" y="285" font-size="11" fill="#dc2626" text-anchor="middle">시험 때 처음 보는 상황</text>
+      <text x="175" y="320" font-size="14" fill="#dc2626" text-anchor="middle" font-weight="700">→ 누적 오차로 정확도 감소</text>
+
+      <text x="525" y="60" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">EAGLE-3의 학습</text>
+      <rect x="390" y="80" width="270" height="280" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="525" y="105" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">학습 시 (Training)</text>
+      <rect x="410" y="120" width="100" height="28" rx="6" fill="#94a3b8"/>
+      <text x="460" y="140" font-size="10" fill="#fff" text-anchor="middle">정답 input</text>
+      <text x="530" y="140" font-size="14" fill="#059669">→</text>
+      <rect x="550" y="120" width="90" height="28" rx="6" fill="#fbbf24"/>
+      <text x="595" y="140" font-size="10" fill="#fff" text-anchor="middle">예측 a₁</text>
+
+      <line x1="595" y1="148" x2="595" y2="165" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+      <text x="525" y="180" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">학습 시 step 2 (시뮬레이션)</text>
+      <rect x="410" y="200" width="100" height="28" rx="6" fill="#fb923c"/>
+      <text x="460" y="220" font-size="9" fill="#fff" text-anchor="middle">a₁을 input으로</text>
+      <text x="530" y="220" font-size="14" fill="#059669">→</text>
+      <rect x="550" y="200" width="90" height="28" rx="6" fill="#fbbf24"/>
+      <text x="595" y="220" font-size="10" fill="#fff" text-anchor="middle">예측 a₂</text>
+      <text x="525" y="260" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">학습 input ≈ 시험 input</text>
+      <text x="525" y="285" font-size="11" fill="#059669" text-anchor="middle">시험 상황을 미리 학습</text>
+      <text x="525" y="320" font-size="14" fill="#059669" text-anchor="middle" font-weight="700">→ 누적 오차 거의 없음</text>
+    </svg>
+    <div class="diagram-caption">학습 단계에서 시험 상황을 시뮬레이션하는 training-time test</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">학습-시험 일치의 비유: 모의고사</div>
+    <p>실제 수능 환경(소음, 시간 제약)에서 모의고사를 풀어본 학생이 진짜 시험에서 더 잘 봅니다. 교과서만 보고 시험을 본 학생은 진짜 시험장에서 당황하죠. EAGLE-3는 학습 단계에서 "실전 모의고사"를 시킨 셈입니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#581c87;">변화 2: Multi-Layer Feature Fusion</h3>
+  <p style="margin:0.8rem 0;">큰 AI는 30개 이상의 층(layer)을 가집니다. 각 층은 다른 종류의 정보를 만듭니다.</p>
+  <ul style="padding-left:1.5rem; margin:0.5rem 0;">
+    <li><strong>낮은 층(low)</strong>: 단어의 기본 패턴, 문법</li>
+    <li><strong>중간 층(mid)</strong>: 문장 의미, 관계</li>
+    <li><strong>높은 층(high)</strong>: 추상적 추론, 결론</li>
+  </ul>
+  <p style="margin:0.8rem 0;">EAGLE은 가장 높은 층만 사용했지만, EAGLE-3는 <strong>세 종류의 정보를 모두 합쳐서</strong> 비서에게 줍니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">EAGLE vs EAGLE-3: 사용하는 정보의 양</text>
+
+      <rect x="60" y="50" width="200" height="200" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="160" y="75" font-size="12" font-weight="700" fill="#7f1d1d" text-anchor="middle">EAGLE: 한 층만</text>
+      <rect x="80" y="90" width="160" height="22" rx="4" fill="#fecaca" opacity="0.5"/>
+      <text x="160" y="105" font-size="9" fill="#7f1d1d" text-anchor="middle">Low layer (안 씀)</text>
+      <rect x="80" y="115" width="160" height="22" rx="4" fill="#fecaca" opacity="0.5"/>
+      <text x="160" y="130" font-size="9" fill="#7f1d1d" text-anchor="middle">Mid layer (안 씀)</text>
+      <rect x="80" y="140" width="160" height="22" rx="4" fill="#dc2626"/>
+      <text x="160" y="155" font-size="9" fill="#fff" text-anchor="middle">High layer (사용)</text>
+      <text x="160" y="190" font-size="10" fill="#7f1d1d" text-anchor="middle" font-style="italic">"다음 글자에 특화된 정보"</text>
+      <text x="160" y="215" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">→ 한 글자 예측만 OK</text>
+      <text x="160" y="232" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">→ 다다음 글자엔 부족</text>
+
+      <rect x="440" y="50" width="200" height="200" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="540" y="75" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">EAGLE-3: 세 층 융합</text>
+      <rect x="460" y="90" width="160" height="22" rx="4" fill="#059669"/>
+      <text x="540" y="105" font-size="9" fill="#fff" text-anchor="middle">Low (문법, 패턴)</text>
+      <rect x="460" y="115" width="160" height="22" rx="4" fill="#10b981"/>
+      <text x="540" y="130" font-size="9" fill="#fff" text-anchor="middle">Mid (의미)</text>
+      <rect x="460" y="140" width="160" height="22" rx="4" fill="#059669"/>
+      <text x="540" y="155" font-size="9" fill="#fff" text-anchor="middle">High (결론)</text>
+      <text x="540" y="190" font-size="10" fill="#065f46" text-anchor="middle" font-style="italic">"다양한 깊이의 종합 정보"</text>
+      <text x="540" y="215" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">→ 여러 글자 예측 OK</text>
+      <text x="540" y="232" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">→ acceptance length ↑</text>
+
+      <text x="350" y="160" font-size="20" fill="#7c3aed">→</text>
+    </svg>
+    <div class="diagram-caption">low/mid/high feature를 모두 활용하면 비서가 더 멀리 내다볼 수 있다</div>
+  </div>
+</section>
+
+<section>
+  <h2>가장 중요한 발견: Inference Scaling Law</h2>
+
+  <div class="card card-accent">
+    <p>EAGLE-3의 가장 놀라운 발견은 <strong>"학습 데이터를 늘리면 추론도 빨라진다"</strong>는 새로운 scaling law입니다. 큰 AI는 데이터가 늘수록 똑똑해지는 게 잘 알려져 있지만, <strong>추론 가속 자체에도 같은 법칙이 적용</strong>된다는 것은 처음 발견되었습니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">학습 데이터를 8배 늘렸을 때 가속</text>
+
+      <line x1="100" y1="270" x2="600" y2="270" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="100" y1="60" x2="100" y2="270" stroke="#1e293b" stroke-width="1.5"/>
+
+      <text x="50" y="270" font-size="10" fill="#475569" text-anchor="middle">3×</text>
+      <text x="50" y="220" font-size="10" fill="#475569" text-anchor="middle">3.5×</text>
+      <text x="50" y="170" font-size="10" fill="#475569" text-anchor="middle">4×</text>
+      <text x="50" y="120" font-size="10" fill="#475569" text-anchor="middle">4.5×</text>
+
+      <!-- EAGLE-2 가로 -->
+      <circle cx="150" cy="250" r="5" fill="#94a3b8"/>
+      <circle cx="280" cy="248" r="5" fill="#94a3b8"/>
+      <circle cx="430" cy="246" r="5" fill="#94a3b8"/>
+      <circle cx="580" cy="244" r="5" fill="#94a3b8"/>
+      <line x1="150" y1="250" x2="280" y2="248" stroke="#94a3b8" stroke-width="2"/>
+      <line x1="280" y1="248" x2="430" y2="246" stroke="#94a3b8" stroke-width="2"/>
+      <line x1="430" y1="246" x2="580" y2="244" stroke="#94a3b8" stroke-width="2"/>
+
+      <!-- EAGLE-3 단조증가 -->
+      <circle cx="150" cy="160" r="5" fill="#7c3aed"/>
+      <circle cx="280" cy="140" r="5" fill="#7c3aed"/>
+      <circle cx="430" cy="115" r="5" fill="#7c3aed"/>
+      <circle cx="580" cy="90" r="5" fill="#7c3aed"/>
+      <line x1="150" y1="160" x2="280" y2="140" stroke="#7c3aed" stroke-width="2.5"/>
+      <line x1="280" y1="140" x2="430" y2="115" stroke="#7c3aed" stroke-width="2.5"/>
+      <line x1="430" y1="115" x2="580" y2="90" stroke="#7c3aed" stroke-width="2.5"/>
+
+      <text x="150" y="290" font-size="11" fill="#475569" text-anchor="middle">1×</text>
+      <text x="280" y="290" font-size="11" fill="#475569" text-anchor="middle">2×</text>
+      <text x="430" y="290" font-size="11" fill="#475569" text-anchor="middle">4×</text>
+      <text x="580" y="290" font-size="11" fill="#475569" text-anchor="middle">8×</text>
+      <text x="350" y="310" font-size="11" fill="#475569" text-anchor="middle">학습 데이터 양 (ShareGPT 대비)</text>
+
+      <rect x="430" y="50" width="15" height="15" fill="#94a3b8"/>
+      <text x="450" y="62" font-size="10" fill="#475569">EAGLE-2 (이전): 정체</text>
+      <rect x="430" y="70" width="15" height="15" fill="#7c3aed"/>
+      <text x="450" y="82" font-size="10" fill="#581c87" font-weight="700">EAGLE-3: 데이터에 비례 증가</text>
+    </svg>
+    <div class="diagram-caption">EAGLE-3는 학습 데이터를 늘릴수록 가속이 비례 증가한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 운동선수의 연습량</div>
+    <p>EAGLE은 어떤 기술 제약 때문에 연습을 아무리 많이 해도 일정 수준 이상 못 갑니다. EAGLE-3는 그 제약을 풀어내서 ##연습할수록 빨라지는 정상적 선수##가 되었습니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">6.5×</div>
+      <div class="label">최대 wall-clock 가속</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1.4×</div>
+      <div class="label">EAGLE-2 대비 개선</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">100%</div>
+      <div class="label">품질 보존 (lossless)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+38%</div>
+      <div class="label">SGLang batch=64</div>
+    </div>
+  </div>
+
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크 (Vicuna 13B)</th>
+      <th>Vanilla</th>
+      <th>EAGLE-2</th>
+      <th>EAGLE-3</th>
+    </tr>
+    <tr>
+      <td>MT-bench (대화)</td>
+      <td>1.00×</td>
+      <td>4.26×</td>
+      <td class="highlight-row" style="background:#f3e8ff;">5.58×</td>
+    </tr>
+    <tr>
+      <td>HumanEval (코딩)</td>
+      <td>1.00×</td>
+      <td>4.96×</td>
+      <td class="highlight-row" style="background:#f3e8ff;">6.47×</td>
+    </tr>
+    <tr>
+      <td>GSM8K (수학)</td>
+      <td>1.00×</td>
+      <td>4.22×</td>
+      <td class="highlight-row" style="background:#f3e8ff;">5.32×</td>
+    </tr>
+    <tr>
+      <td>Alpaca</td>
+      <td>1.00×</td>
+      <td>4.25×</td>
+      <td class="highlight-row" style="background:#f3e8ff;">5.16×</td>
+    </tr>
+    <tr>
+      <td>CNN/DM</td>
+      <td>1.00×</td>
+      <td>3.40×</td>
+      <td class="highlight-row" style="background:#f3e8ff;">5.01×</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>기존 대비 무엇이 다른가?</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>비교 항목</th>
+      <th>EAGLE / EAGLE-2</th>
+      <th>EAGLE-3</th>
+    </tr>
+    <tr>
+      <td>비서의 목표</td>
+      <td>토큰 + 큰 AI 흉내</td>
+      <td>오직 토큰</td>
+    </tr>
+    <tr>
+      <td>사용하는 큰 AI 정보</td>
+      <td>한 층 (top)</td>
+      <td>세 층 (low+mid+high)</td>
+    </tr>
+    <tr>
+      <td>학습 input</td>
+      <td>정답만</td>
+      <td>학습 + 실전 시뮬레이션</td>
+    </tr>
+    <tr>
+      <td>데이터 추가 효과</td>
+      <td>거의 없음 (saturate)</td>
+      <td>비례 증가</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>실제 가속 (V-13B 평균)</td>
+      <td>4.22×</td>
+      <td>5.51×</td>
+    </tr>
+  </table>
+
+  <div class="analogy">
+    <div class="analogy-title">한 줄로 정리</div>
+    <p>EAGLE이 "두 가지 일을 시켜서 결국 어느 것도 못 하는 비서"였다면, EAGLE-3는 "한 가지 일에 집중하고, 실전 연습까지 시킨 비서". 그래서 학습 데이터를 늘려도 보상받는다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="350" cy="150" r="60" fill="#faf5ff" stroke="#7c3aed" stroke-width="2"/>
+      <text x="350" y="148" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">EAGLE-3</text>
+      <text x="350" y="168" font-size="10" fill="#581c87" text-anchor="middle">활용처</text>
+
+      <circle cx="100" cy="80" r="50" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="100" y="78" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">SGLang</text>
+      <text x="100" y="95" font-size="9" fill="#065f46" text-anchor="middle">+38% throughput</text>
+      <line x1="145" y1="115" x2="290" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="600" cy="80" r="50" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="600" y="78" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">vLLM</text>
+      <text x="600" y="95" font-size="9" fill="#92400e" text-anchor="middle">batch 56까지 가속</text>
+      <line x1="555" y1="115" x2="410" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="100" cy="220" r="50" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="100" y="218" font-size="11" font-weight="700" fill="#1e3a8a" text-anchor="middle">코드 어시</text>
+      <text x="100" y="235" font-size="9" fill="#1e3a8a" text-anchor="middle">+6.5× 가속</text>
+      <line x1="145" y1="200" x2="290" y2="170" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="600" cy="220" r="50" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="600" y="218" font-size="11" font-weight="700" fill="#991b1b" text-anchor="middle">추론 모델</text>
+      <text x="600" y="235" font-size="9" fill="#991b1b" text-anchor="middle">DeepSeek-R1 5×</text>
+      <line x1="555" y1="200" x2="410" y2="170" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="350" cy="270" r="40" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="350" y="268" font-size="11" font-weight="700" fill="#0c4a6e" text-anchor="middle">챗봇</text>
+      <text x="350" y="285" font-size="9" fill="#0c4a6e" text-anchor="middle">5.58×</text>
+      <line x1="350" y1="230" x2="350" y2="210" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+    </svg>
+    <div class="diagram-caption">EAGLE-3는 production framework에 이미 통합되어 즉시 사용 가능</div>
+  </div>
+</section>
+
+<section>
+  <h2>비유로 다시 정리하기</h2>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 1: 신입사원 교육</div>
+    <p>EAGLE은 신입사원에게 "선배의 보고서를 그대로 따라 써라"라고 교육. EAGLE-3는 "그냥 잘 쓰면 돼"라고 두고 실전 미팅을 미리 시켜봄. 후자가 데이터(연습량)에 비례해 더 빨리 성장.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 2: 운전 학원</div>
+    <p>EAGLE은 도로 표지판 외우기에 시간 많이 씀. EAGLE-3는 표지판은 적당히 보고 실제 도로 운전을 연습. 진짜 시험장에서 후자가 잘함.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 3: 다이어트와 운동의 부담</div>
+    <p>EAGLE은 "살 빼고 + 근육 키우기"를 동시에 시켜서 둘 다 어중간. EAGLE-3는 "살 빼기"만 집중해서 효과 명확. 비서의 capacity를 한 곳에 몰아주는 효과.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 4: 책의 정보 추출</div>
+    <p>EAGLE은 책 마지막 페이지의 결론만 보고 답함. EAGLE-3는 서론, 본론, 결론을 모두 합쳐 답함. 결론만으론 다음 페이지를 예측하기 어렵다.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 5: 모의고사 효과</div>
+    <p>실전과 똑같은 형식의 모의고사를 본 학생은 시험장에서 당황 안 함. 교과서만 본 학생은 형식이 낯설어 실수. EAGLE-3의 training-time test가 정확히 이 모의고사 역할.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "한 가지에 집중하라.<br>그러면 데이터가 늘수록 더 좋아진다."
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 1. 학습 비용 증가</h3>
+    <p>Training-time test는 학습 중에 step 2, 3까지 시뮬레이션하므로 ##학습 시간이 증가##. 논문은 구체 GPU시간을 공개하지 않음.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 2. 모델별 따로 학습 필요</h3>
+    <p>각 큰 AI에 맞춰 비서를 새로 학습해야 함. Vicuna용 EAGLE-3는 LLaMA에 못 씀. 따라서 매번 큰 AI가 업데이트되면 비서도 재학습 필요.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 3. 405B+ 모델 미검증</h3>
+    <p>실험은 8B~70B 범위. 405B/671B 같은 매우 큰 모델에서의 효과는 GPU 자원 제약으로 검증 못함.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 4. Scaling law의 한계점 미발견</h3>
+    <p>데이터 8배까지만 보고. 더 늘리면 언젠가 saturate될 것이지만, 어디서 정체될지는 미답.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 5. 이미 후속 연구가 더 빠른 결과 (DFlash, DFLARE)</h3>
+    <p>EAGLE-3 자체는 autoregressive drafter라 여전히 비서가 한 글자씩 만들어야 함. 후속 ##diffusion 기반 비서(DFlash, DFLARE)가 EAGLE-3 대비 2~2.5배 더 빠른 가속을 달성##.</p>
+  </div>
+</section>
+
+<section>
+  <h2>역사적 위치</h2>
+  <div class="card card-accent">
+    <p>EAGLE-3는 <strong>speculative decoding 연구의 transitional milestone</strong>입니다.</p>
+    <ul style="margin-top:0.6rem; padding-left:1.5rem;">
+      <li>2023: Speculative sampling 제안 (Leviathan)</li>
+      <li>2024: EAGLE, EAGLE-2 (feature-level 자기회귀)</li>
+      <li>2025: <strong>EAGLE-3 (scaling law 발견)</strong></li>
+      <li>2026: DFlash, DFLARE (diffusion drafter로 EAGLE-3 추월)</li>
+    </ul>
+    <p style="margin-top:0.6rem;">EAGLE-3의 ##multi-layer fusion 아이디어는 후속 연구(DFlash의 KV injection)에 직접 영향##을 줬습니다.</p>
+  </div>
+</section>
+
+<div class="footer">
+  <p>EAGLE-3: Scaling up Inference Acceleration of LLMs via Training-Time Test</p>
+  <p>Yuhui Li, Fangyun Wei, Chao Zhang, Hongyang Zhang · PKU & MSR & Waterloo · 2025</p>
+  <p><a href="https://arxiv.org/abs/2503.01840" style="color:#7c3aed;">arXiv:2503.01840</a> | <a href="20260622_li_eagle3.html" style="color:#7c3aed;">전문가용 상세 요약</a></p>
+</div>
+
+</div>
+</body>
+</html>

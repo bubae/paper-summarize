@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Medusa: Simple LLM Inference Acceleration Framework with Multiple Decoding Heads</h1>
+<a class="brief-link" href="20260622_cai_medusa_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Tianle Cai, Yuhong Li, Zhengyang Geng, Hongwu Peng, Jason D. Lee, Deming Chen, Tri Dao</li>
+  <li><strong>소속</strong>: Princeton University, Together AI, UIUC, CMU, U. Connecticut</li>
+  <li><strong>학회/저널</strong>: ICML 2024 (PMLR 235)</li>
+  <li><strong>연도</strong>: 2024</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2401.10774">arXiv:2401.10774</a> | <a href="https://github.com/FasterDecoding/Medusa">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Speculative decoding은 별도의 작은 draft model 필요 → ##학습/배포/distribution shift 모두 부담##. 게다가 distributed serving 환경에서 두 모델 동기화는 추가 복잡도. "draft model 없이 그냥 LLM 자체를 빠르게 할 수 없을까?"</li>
+  <li><strong>해결</strong>: Backbone LLM 자체에 ##K개의 추가 decoding head##(Medusa heads)를 붙여서 한 번의 forward pass로 token $t+1, t+2, \ldots, t+K+1$를 ##병렬 예측##. 거기에 ##tree-based attention##으로 head별 top-s 예측을 Cartesian product로 만든 다중 후보를 한 번에 검증.</li>
+  <li><strong>왜 작동하는가</strong>: 단일 forward pass에서 last hidden state로 다중 미래 토큰을 예측하는 게 가능하다는 사실. 추가된 head는 단순 FFN+residual로 매우 가볍고 backbone weight를 활용 → ##low cost로 multi-token prediction 능력##.</li>
+  <li><strong>비유</strong>: 표준 LLM이 "다음 글자만 보는 비서"라면, Medusa는 "다음 5글자를 동시에 추측하고, 그 모든 조합을 한꺼번에 검증하는 비서". 비유 그대로 '메두사' 머리 여러 개.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Medusa heads</strong>: Backbone LLM의 last hidden state에 K개의 lightweight decoding head 부착. 각 head $k$가 position $t+k+1$의 token 분포를 예측. ##draft model 불필요##.</li>
+  <li><strong>Tree-based attention</strong>: K개 head의 top-$s_k$ 예측을 Cartesian product → $\prod s_k$개 candidate continuation을 ##단일 forward pass##에서 attention mask로 분리해 동시 검증.</li>
+  <li><strong>Medusa-1 (frozen backbone)</strong>: Backbone 고정, Medusa head만 학습. ##단일 GPU에서 7B를 5시간 학습##(quantized backbone과 결합 가능).</li>
+  <li><strong>Medusa-2 (joint training)</strong>: Backbone + heads joint training. 더 높은 acceptance rate. ##Combined loss + differential learning rate + heads warmup## 세 트릭으로 backbone quality 보존.</li>
+  <li><strong>Typical acceptance</strong>: Rejection sampling보다 효율적인 acceptance scheme. Temperature를 deviation budget으로 사용해 typical 후보만 채택. ##higher acceptance + similar quality##.</li>
+  <li><strong>Self-distillation</strong>: Public dataset이 없는 경우(RLHF 모델 등) 모델 자신의 출력으로 학습 데이터 생성. ##데이터 부재 해결##.</li>
+  <li><strong>실증</strong>: Vicuna 7B/13B/33B + Zephyr 7B에서 ##Medusa-1 2.18×, Medusa-2 2.83× wall-clock speedup## (MT-Bench, batch 1, A100). Coding task에서 3.62× 최대.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 LLM inference의 memory-bound 문제</h3>
+<p>LLM inference는 ##memory-bandwidth-bound##: 매 forward pass마다 모든 모델 parameter를 High-Bandwidth Memory(HBM)에서 accelerator cache로 옮겨야 함. 한 번 옮긴 parameter로 단일 token만 생성 → ##arithmetic intensity##(FLOP/byte 비율)가 매우 낮음.</p>
+
+<p>해결 방향:</p>
+<ul>
+  <li>(a) Arithmetic intensity 증가: 한 번 옮긴 weight로 더 많은 연산 수행</li>
+  <li>(b) Decoding step 수 감소: speculative decoding 방향</li>
+</ul>
+
+<h3>1.2 Speculative decoding의 한계</h3>
+<p>Speculative decoding(Leviathan et al. 2022, Chen et al. 2023)은 별도의 작은 draft model을 사용. 하지만:</p>
+<ul>
+  <li>적절한 draft model 확보가 어려움 (특히 새로운 모델 family).</li>
+  <li>Draft model이 별도 pre-training 필요 → ##275 A100-hour##(Miao et al. 2023 사례).</li>
+  <li>Distribution shift: draft와 original의 출력 분포 불일치.</li>
+  <li>Distributed serving: 두 모델 관리 복잡도.</li>
+</ul>
+
+<h3>1.3 Stern et al. 2018의 blockwise parallel decoding 부활</h3>
+<p>저자들은 ##Stern et al. (2018)의 blockwise parallel decoding##에서 영감. 원래 NMT/Image SR 분야의 방법인데, LLM serving에 적용 가능한지 재조명. 핵심 아이디어: 모델 위에 multiple prediction head를 부착.</p>
+
+<h2>2. 방법 (Methodology)</h2>
+
+<h3>2.1 전체 구조 (Figure 1 요약)</h3>
+
+<blockquote><strong>[Figure 1 설명]</strong>: 왼쪽 Original Model — Embedding → Transformer Layers → LM Head ("It is difficult"). 오른쪽 위에 Medusa Heads 3개가 transformer 마지막 hidden state $h_t$에 연결. 각각이 top-$k$ 예측 출력 — Head 1: "It, I, As", Head 2: "is, ', the", Head 3: "difficult, is, '". 이 top-$k$ 예측들이 Cartesian product로 결합되어 candidate continuation 만들어짐. 마지막에 ##tree-based attention##으로 모든 후보를 단일 forward에서 동시 검증. 가장 긴 accepted prefix 채택.</blockquote>
+
+<h3>2.2 Medusa Heads (Section 2.1.1)</h3>
+
+<p>$h_t \in \mathbb{R}^d$를 backbone의 마지막 hidden state (position $t$)라 할 때, $k$-th head는 position $t+k+1$ token 분포를 예측:</p>
+
+$$p_t^{(k)} = \text{softmax}\left(W_2^{(k)} \cdot \left(\text{SiLU}(W_1^{(k)} \cdot h_t) + h_t\right)\right) \quad (1)$$
+
+<p>여기서 $W_1^{(k)} \in \mathbb{R}^{d \times d}$, $W_2^{(k)} \in \mathbb{R}^{d \times V}$. ##단일 FFN layer + residual connection + SiLU activation##. 즉 LLaMA의 standard FFN과 구조 동일.</p>
+
+<p>초기화 trick: $W_2^{(k)}$는 original LM head와 동일하게 초기화 (모든 head가 처음엔 same predictor), $W_1^{(k)}$는 0으로 초기화. ##residual을 통해 처음엔 base 모델과 동일한 분포##에서 출발 → 안정적 학습.</p>
+
+<p>$p_t^{(0)}$는 backbone의 원래 LM head 예측. Notation 일관성을 위해 0-th head로 정의.</p>
+
+<h3>2.3 Tree Attention (Section 2.1.2)</h3>
+
+<blockquote><strong>[Figure 2 설명]</strong>: $s_1 = 2, s_2 = 3$인 경우 — Head 1의 top-2 ("It", "I")와 Head 2의 top-3 ("is", "'", "the"). Cartesian product = $2 \times 3 = 6$ candidate. Tree 구조: Root → 2 branches (It, I) → 각각 3 branches → 6 leaf. 각 candidate는 root에서 leaf까지 path. ##Attention mask##는 각 token이 자신의 ancestor만 attend하게 설계. Positional encoding도 ##tree depth에 맞춰 조정##. 결과적으로 batch size 늘리지 않고 6개 후보를 1회 forward에서 검증.</blockquote>
+
+<p>Cumulative candidate 수: $\sum_{k=1}^K \prod_{i=1}^k s_i$. ##batch size 확장 없이 추가 token 처리##.</p>
+
+<h3>2.4 Sparse Tree Construction (Section 2.3.3)</h3>
+<p>Cartesian product는 단순하나 ##모든 head의 top 예측이 같은 acceptance rate를 가지지 않는다##. Calibration dataset으로 각 head의 top-$i$ 예측 accuracy $a_i^{(k)}$를 측정. Candidate sequence $[i_1, \ldots, i_k]$의 expected acceptance ≈ $\prod_{j=1}^k a_j^{(i_j)}$ (independence 가정).</p>
+
+<p>Tree construction: ##greedy node 추가##. 빈 tree에서 시작, 매 step마다 expected acceptance contribution이 가장 큰 node를 tree에 추가. Total node 수가 desired 값에 도달할 때까지 반복. ##acceptance length 기댓값을 최대화##하는 tree.</p>
+
+<h3>2.5 Training Strategies</h3>
+
+<h4>Medusa-1: Frozen backbone (Section 2.2.1)</h4>
+<p>Backbone freeze, Medusa head만 학습.</p>
+$$\mathcal{L}_{\text{Medusa-1}} = \sum_{k=1}^K -\lambda_k \log p_t^{(k)}(y_{t+k+1}) \quad (1)$$
+
+<p>$\lambda_k = 0.8^k$ (k-th power of 0.8): ##k가 클수록 예측이 어려우므로 가중치 감소##. backbone freeze이므로 quantization과 호환 → ##단일 consumer GPU에서 학습 가능##.</p>
+
+<h4>Medusa-2: Joint training (Section 2.2.2)</h4>
+<p>Backbone + heads joint training. 3가지 트릭:</p>
+<ul>
+  <li><strong>Combined loss</strong>: $\mathcal{L}_{\text{Medusa-2}} = \mathcal{L}_{\text{LM}} + \lambda_0 \mathcal{L}_{\text{Medusa-1}}$, 여기서 $\mathcal{L}_{\text{LM}} = -\log p_t^{(0)}(y_{t+1})$. ##Backbone의 next-token 예측 능력 보존##.</li>
+  <li><strong>Differential learning rates</strong>: Backbone은 작은 lr, Medusa head는 큰 lr. ##backbone capability 유지하면서 head 빠른 수렴##.</li>
+  <li><strong>Heads warmup</strong>: 2-stage 학습. Stage 1: Medusa-1로 head만 학습. Stage 2: backbone + heads joint training. ##초기 large gradient로 backbone 파라미터 distort 방지##.</li>
+</ul>
+
+<h3>2.6 Typical Acceptance (Section 2.3.1)</h3>
+
+<p>Rejection sampling의 비효율: temperature를 올리면 acceptance rate가 떨어지고, draft가 original과 분포 다르면 다 reject. ##Truncation sampling (Hewitt et al. 2022)##에서 영감.</p>
+
+<p>Candidate $(x_{n+1}, \ldots, x_{n+K+1})$에 대해 다음 조건이면 accept:</p>
+$$p_{\text{original}}(x_{n+k}|x_1, \ldots, x_{n+k-1}) > \min\left(\epsilon, \delta \exp(-H(p_{\text{original}}(\cdot|x_1, \ldots, x_{n+k-1})))\right)$$
+
+<p>여기서 $H$는 entropy. $\epsilon$는 hard threshold, $\delta$는 entropy-dependent threshold. 직관적으로 말하면, ##원본 모델이 그 후보를 합리적이라고 여길 만큼 충분히 높은 확률을 부여하면 accept##. Distribution이 평평할 때(높은 entropy)는 threshold도 작아짐.</p>
+
+<p>Empirical: $\epsilon = \sqrt{\alpha}$로 설정. 첫 token은 unconditional greedy decoding(보장). 가장 긴 accepted prefix 선택.</p>
+
+<h3>2.7 Self-Distillation (Section 2.3.2)</h3>
+
+<p>Public training data가 없거나 RLHF로 분포가 변한 경우, ##모델 자신의 출력으로 dataset 생성##:</p>
+<ol>
+  <li>Seed prompt set 선정 (ShareGPT, UltraChat).</li>
+  <li>모델이 자체적으로 response 생성. Zephyr 같은 self-talk 가능 모델은 prompt 한 개로도 multi-turn 생성.</li>
+  <li>Vicuna-33B 같은 single-turn 모델은 prompt를 순차 feed.</li>
+</ol>
+
+<p>Medusa-2 backbone training 시 ##추가 KL distillation loss##:</p>
+$$\mathcal{L}_{\text{LM-distill}} = \text{KL}(p_{\text{original}, t}^{(0)} \| p_t^{(0)})$$
+
+<p>그러나 두 모델 동시 메모리 부담. ##LoRA 활용##: backbone에 LoRA adapter, LoRA OFF면 original 분포. ##추가 메모리 없이 self-distillation##.</p>
+
+<h3>2.8 알고리즘 흐름</h3>
+<div class="flow-diagram">[Inference]
+1. Backbone forward → h_t (last hidden state) + p_t^(0)
+2. 각 Medusa head k가 h_t로부터 top-s_k 예측 p_t^(k)
+3. Cartesian product (or sparse tree)로 candidate 생성
+4. Tree attention mask + 조정된 positional encoding으로
+   모든 candidate를 backbone에 1회 forward 검증
+5. Typical acceptance로 가장 긴 valid prefix 선택
+6. 그 prefix를 다음 decoding step의 input으로 사용</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 셋업</h3>
+<ul>
+  <li><strong>Models</strong>: Vicuna 7B/13B (public SFT), Vicuna 33B (private SFT, self-distillation 필요), Zephyr 7B (RLHF, self-distillation 필요)</li>
+  <li><strong>Benchmark</strong>: MT-Bench (multi-turn chat)</li>
+  <li><strong>Hardware</strong>: NVIDIA A100 PCIE GPU (batch=1 가정)</li>
+  <li><strong>Training data</strong>: Vicuna 7B/13B에서 ShareGPT 2 epoch. Vicuna-33B와 Zephyr-7B는 self-distill로 ~100K 샘플.</li>
+  <li><strong>Heads</strong>: K=5 (empirically 충분, 4도 OK), $\lambda_k = 0.8^k$.</li>
+</ul>
+
+<h3>3.2 Main Results (Figure 3, Table 1)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Method</th><th>Speedup</th><th>Quality (MT-Bench)</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Vicuna 7B</td><td>Baseline (w/o Medusa)</td><td>1.00× (45 tok/s)</td><td>6.17</td></tr>
+<tr><td>Medusa-1</td><td>2.18×</td><td>6.23 (+0.06)</td></tr>
+<tr><td>Medusa-2</td><td><strong>2.83×</strong></td><td>6.18 (+0.01)</td></tr>
+<tr><td rowspan="3">Vicuna 13B</td><td>Baseline</td><td>1.00× (~30 tok/s)</td><td>6.57</td></tr>
+<tr><td>Medusa-1</td><td>2.33×</td><td>—</td></tr>
+<tr><td>Medusa-2</td><td><strong>2.83×</strong></td><td>6.43 (-0.14)</td></tr>
+<tr><td rowspan="2">Vicuna 33B</td><td>Medusa-2 (self-distill)</td><td>2.35×</td><td>7.18 (+0.05)</td></tr>
+<tr><td>SpecDecoding (개별 draft)</td><td>1.60×</td><td>—</td></tr>
+<tr><td>Zephyr 7B</td><td>Medusa-2 (self-distill)</td><td>2.66×</td><td>7.25 (-0.07)</td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험의 의도</strong>: Medusa-1 vs Medusa-2의 trade-off, ##self-distillation의 효과##, speculative decoding 대비.</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Medusa-1은 quality 무손실(+0.01~0.06)##: backbone freeze이므로 next-token 분포 동일. 직접적 보장.</li>
+  <li>##Medusa-2가 +0.65× 추가 가속##: joint training으로 head accuracy 향상. quality 손실 거의 없음(-0.14 max).</li>
+  <li>Vicuna 33B에서 ##speculative decoding의 1.60× 대비 Medusa-2 2.35×##. self-distillation으로도 SpS 능가.</li>
+  <li>Zephyr 7B에서 Medusa-2 2.66×, RLHF 모델에도 적용 가능.</li>
+</ul>
+
+<h3>3.3 Category breakdown (Figure 3b, Vicuna 7B Medusa-2)</h3>
+<table>
+<thead><tr><th>Category</th><th>Speedup</th></tr></thead>
+<tbody>
+<tr><td>Humanities</td><td>2.58×</td></tr>
+<tr><td>Reasoning</td><td>2.58×</td></tr>
+<tr><td>Roleplay</td><td>2.7×</td></tr>
+<tr><td>Writing</td><td>2.72×</td></tr>
+<tr><td>STEM</td><td>2.77×</td></tr>
+<tr><td>Math</td><td>3.01×</td></tr>
+<tr><td><strong>Coding</strong></td><td><strong>3.29×</strong></td></tr>
+<tr><td><strong>Extraction</strong></td><td><strong>3.62×</strong></td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>: ##Templated 출력(coding, extraction)에서 가속 최고##. 자유 응답(humanities, reasoning)에서 가속 최저. Predictability와 speedup의 직접 상관.</p>
+
+<h3>3.4 Ablation: Configuration of Tree Attention (Figure 4)</h3>
+
+<blockquote><strong>[Figure 4 설명]</strong>: x-축이 candidate token 수, y-축이 (a) acceptance rate, (b) speed (tok/s). Random dense tree (blue dots, $s_k = 1$로 균일)와 optimized sparse tree (red stars, calibration-aware). Sparse tree (64 nodes)가 dense tree (256 nodes)보다 acceptance rate 높고 speed 빠름. ##Tree size가 커지면 acceptance는 log scale로 증가하지만 overhead로 speed 감소## (compute-bound).</blockquote>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: tree construction이 단순 Cartesian product보다 효율적. ##calibration-driven sparse tree로 acceptance와 speed의 sweet spot 찾기##. tree size = 256에서 dense는 speed가 매우 떨어지나 sparse는 적절히 유지.</p>
+
+<h3>3.5 Ablation: Typical Acceptance Thresholds (Figure 5)</h3>
+<p>Vicuna-7B writing/roleplay(temperature 0.7)에서 $\epsilon$ 0.01~0.25 스윕. ##$\epsilon$이 클수록 acceptance rate ↑, quality ↓##. Default random sampling이 greedy보다 점수 높음(creativity tasks). $\epsilon$ 큰 typical sampling이 random sampling과 비슷.</p>
+
+<h3>3.6 Ablation: 두 단계 Fine-Tuning (Table 2)</h3>
+<table>
+<thead><tr><th>Setting</th><th>Quality</th><th>Speedup</th></tr></thead>
+<tbody>
+<tr><td>Baseline</td><td>6.17</td><td>N/A</td></tr>
+<tr><td>Direct Fine-tuning (warmup 없이)</td><td><strong>5.925 (-0.245)</strong></td><td>—</td></tr>
+<tr><td>Medusa-1</td><td>6.23</td><td>2.18×</td></tr>
+<tr><td>Medusa-2 (warmup)</td><td>6.18</td><td>2.83×</td></tr>
+</tbody>
+</table>
+<p>##Direct joint training은 quality 큰 손실##(-0.245). Medusa-2의 ##heads warmup 전략 필수##. Medusa-1 → Medusa-2의 2-stage가 정답.</p>
+
+<h3>3.7 Speedup Decomposition (Table 3)</h3>
+<table>
+<thead><tr><th>Technique</th><th>Speedup</th></tr></thead>
+<tbody>
+<tr><td>Medusa-1 heads w/o tree attention</td><td>~1.5×</td></tr>
+<tr><td>+ tree attention</td><td>~1.9×</td></tr>
+<tr><td>+ optimized tree configuration</td><td>~2.2×</td></tr>
+<tr><td><strong>+ Medusa-2 training</strong></td><td><strong>~2.8×</strong></td></tr>
+</tbody>
+</table>
+<p>각 기술의 marginal 효과를 깔끔히 분해. ##Medusa heads alone 1.5× → tree attention +0.4× → optimized config +0.3× → Medusa-2 training +0.6×##.</p>
+
+<h2>4. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>패러다임의 명확한 단순화</strong>: "draft model을 제거하라"는 단일 통찰. ##별도 모델 학습/배포/관리의 부담을 완전히 제거##. 코드베이스에 5 epoch FFN-style head 부착으로 끝.</li>
+  <li><strong>Distributed serving 친화</strong>: 두 모델 동기화가 없으므로 ##기존 LLM serving infrastructure에 minimal change##로 통합. TensorRT, HuggingFace TGI 채택 사례 (논문 작성 시점 기준).</li>
+  <li><strong>Memory 효율</strong>: Medusa-1 + quantization으로 ##단일 consumer GPU에서 7B 모델 학습 가능##(5시간 A100). QLoRA 수준 democratization.</li>
+  <li><strong>실용적 design choices</strong>: heads warmup, differential lr, self-distillation, sparse tree — 모두 ##production에서 발생할 실제 문제##(quality 손실, 데이터 부재)를 정면 해결.</li>
+  <li><strong>Ablation의 완성도</strong>: speedup 분해 표(Table 3)에서 각 contribution의 marginal effect를 보여줌. tree size, typical threshold, two-stage 등 design knob를 모두 검증.</li>
+  <li><strong>역사적 의의</strong>: ##Speculative decoding 연구의 새 방향## 제시. 이후 EAGLE, HASS, Hydra 등이 multiple decoding head 아이디어를 발전시킴. DeepSeek-v3의 Multi-Token Prediction도 이 lineage.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>Token-level autoregression 제한</strong>: Head $k$가 head $k-1$의 출력을 직접 참조하지 못함 (parallel prediction). 따라서 ##먼 token일수록 accuracy 급락##(empirically $\lambda_k = 0.8^k$로 가중치 감소). 후속 연구 EAGLE은 feature-level autoregression으로 이 한계 극복.</li>
+  <li><strong>Batch size = 1 가정</strong>: 본문이 단일 사용자 시나리오 중심. ##Higher batch에서의 효과는 미보고##. 후속 EAGLE-2, EAGLE-3 등에서 batch=64까지 효과 측정. (논문 끝 "can be generalized to larger batch-size settings"라고만 언급)</li>
+  <li><strong>Medusa-2의 quality 손실 가능성</strong>: Vicuna 13B에서 -0.14, Zephyr에서 -0.07. ##잘 visible하진 않지만 quality drift는 존재##. self-distillation으로 부분 완화하나 완전히 해결되진 않음.</li>
+  <li><strong>Tree size의 hardware-specific tuning</strong>: ##최적 tree size가 model size, GPU, batch에 따라 다름##. A100 외의 hardware에서 재calibration 필요. production deployment 시 추가 engineering 부담.</li>
+  <li><strong>Cumulative candidate explosion</strong>: K=5, $s_k = 4$이면 candidate ~1024개. ##검증 forward pass의 sequence length 확장##으로 memory/compute 증가. Tree pruning이 필수.</li>
+  <li><strong>Typical acceptance의 quality guarantee 약함</strong>: Rejection sampling은 ##lossless 보장##(분포 동일). Typical acceptance는 heuristic으로 ##strict한 lossless 보장 없음##. 단 empirically quality 유사.</li>
+  <li><strong>EAGLE/EAGLE-3에 의해 추월됨</strong>: 2024 이후 EAGLE 시리즈가 Medusa의 2.83× 대비 ##5×+ speedup##. feature-level autoregression이 multi-token parallel prediction보다 강력함을 입증. ##Medusa는 historical milestone##.</li>
+  <li><strong>33B 이상 scaling 부족</strong>: 33B까지만 실험. 70B/405B 같은 더 큰 모델에서의 효과 미보고. ##scale에 따른 다른 동작## 가능성.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Draft model을 제거할 수 있다"</strong>: ##단순함이 강력함##. 하나의 모델에 여러 head를 붙이는 minimal change로 2.83× 가속. Production deployment의 friction 0에 가까움.</li>
+  <li><strong>Tree attention은 candidate diversity의 일반 패턴</strong>: ##단일 batch 확장 없이 다중 후보 검증##. Beam search, contrastive decoding 등 다른 multi-candidate 알고리즘에도 적용 가능.</li>
+  <li><strong>Quantization과의 호환성</strong>: Medusa-1은 backbone freeze이므로 ##INT8/INT4 quantized backbone에 그대로 부착##. 메모리 한정 환경에 매력적.</li>
+  <li><strong>Self-distillation으로 데이터 문제 해결</strong>: RLHF/proprietary 모델에 적용하는 일반 패턴. ##public seed prompt + 자체 응답 생성##.</li>
+  <li><strong>다음 세대의 출발점</strong>: EAGLE, EAGLE-2/3, HASS, Hydra가 모두 Medusa의 multiple-head 아이디어를 기반으로 발전. DeepSeek-v3의 MTP도 Medusa lineage. ##speculative decoding 연구의 분기점##.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

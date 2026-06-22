@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EAGLE-3: Scaling up Inference Acceleration via Training-Time Test</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>EAGLE-3: Scaling up Inference Acceleration of LLMs via Training-Time Test</h1>
+<a class="brief-link" href="20260622_li_eagle3_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuhui Li, Fangyun Wei, Chao Zhang, Hongyang Zhang</li>
+  <li><strong>소속</strong>: 북경대학교 (Peking University), Microsoft Research, University of Waterloo, Vector Institute</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2025)</li>
+  <li><strong>연도</strong>: 2025 (v3, 2025-04-23)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2503.01840">arXiv:2503.01840</a> | <a href="https://github.com/SafeAILab/EAGLE">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: EAGLE/EAGLE-2는 ##draft model이 target의 top-layer feature를 재현(regress)하도록 강제##되어 (1) feature-level autoregression의 표현력이 token loss 외 feature loss에 의해 묶이고, (2) training data를 늘려도 성능이 saturate된다. 즉 LLM 학습 데이터 scaling law의 혜택을 받지 못한다.</li>
+  <li><strong>해결</strong>: ##두 가지 변화##. (1) Feature regression loss($l_{\text{fea}}$) 제거 → draft model이 token 예측에만 집중. (2) top-layer feature 대신 ##low/mid/high level feature를 fusion##해 풍부한 multi-layer context로 conditioning. 추가로 (3) ##training-time test##: 학습 중에 draft model의 예측을 다음 step의 input으로 feeding하여 multi-step inference 분포 mismatch를 학습.</li>
+  <li><strong>왜 작동하는가</strong>: feature constraint가 사라지면 model capacity가 모두 token 예측에 쓰이고, multi-layer fusion은 단일 layer 대비 더 풍부한 정보 제공. training-time test는 inference 시의 ##누적 오차## 분포를 학습 시 직접 노출시켜 robust해진다.</li>
+  <li><strong>비유</strong>: EAGLE이 "모범 답안을 똑같이 베끼며 푸는 학생"이라면, EAGLE-3는 "##답안 형식 무시하고 정답만 맞히는 학생##". 거기에 ##모의고사를 실제 시험처럼 풀게 만들어 시험불안을 미리 학습##시킨 학생.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Training-time test 아키텍처</strong>: 학습 시 draft model의 multi-step 예측을 simulate하여, inference에서 발생하는 distribution shift를 학습 단계에 통합. ##feature regression loss를 제거##하고 token prediction에만 집중.</li>
+  <li><strong>Multi-layer feature fusion</strong>: top-layer feature 대신 low/mid/high feature를 concat → FC layer로 fuse한 $g$ vector를 draft input으로 사용. ##단일 layer 정보의 한계 극복##.</li>
+  <li><strong>Inference acceleration scaling law 발견</strong>: ##새 아키텍처는 training data가 8배 증가할 때 speedup이 비례 증가##(MT-bench LLaMA-3.1-8B 기준 3.6×→4.4×). EAGLE은 ~3.2×에서 정체. LLM 학습 데이터 scaling law가 speculative decoding에도 적용됨을 입증.</li>
+  <li><strong>실증</strong>: 5개 task × 5개 모델에서 최대 ##6.5× speedup, EAGLE-2 대비 1.4× 개선##. Vicuna-13B HumanEval 6.47×. SGLang batch 64에서 38% throughput 증가.</li>
+</ol>
+
+<h2>1. 배경 (Preliminaries)</h2>
+
+<h3>1.1 Speculative sampling 복습</h3>
+<p>Speculative sampling (Leviathan et al. 2023, Chen et al. 2023): draft model이 $k$ token $\hat{T}_{j+1:j+k}$를 autoregressive하게 생성하고 probability $\hat{p}$ 기록. Target model이 한 번의 forward pass로 검증, token $\hat{t}_{j+i}$의 accept prob = $\min(1, p_{j+i}(\hat{t}_{j+i})/\hat{p}_{j+i}(\hat{t}_{j+i}))$. Reject 시 $\text{norm}(\max(0, p - \hat{p}))$ 분포에서 resample하고 그 뒤 draft는 폐기.</p>
+
+<p>핵심 metric:</p>
+<ul>
+  <li><strong>Speedup ratio</strong>: vanilla AR 대비 wall-clock 속도 비율</li>
+  <li><strong>Acceptance length $\tau$</strong>: drafting-verification cycle당 평균 accept된 token 수</li>
+  <li><strong>Acceptance rate $n$-$\alpha$</strong>: ##앞 $n$개 token이 모두 accept된 조건에서 다음 token의 accept 확률##. EAGLE처럼 multi-step에서 input에 자기 예측을 쓰는 모델은 이 metric이 핵심.</li>
+</ul>
+
+<h3>1.2 EAGLE / EAGLE-2 복습 (이 논문의 출발점)</h3>
+<p>EAGLE의 아이디어: draft model이 vanilla speculative sampling처럼 작은 LLM을 새로 학습하는 게 아니라, ##target model의 top-layer feature를 autoregressive하게 예측##. 그 후 target의 LM head로 token으로 변환.</p>
+
+<p>EAGLE의 loss:</p>
+$$\mathcal{L} = l_{\text{fea}} + l_{\text{token}}$$
+<p>여기서 $l_{\text{fea}}$는 draft feature와 target top-layer feature의 regression loss, $l_{\text{token}}$은 token CE loss. EAGLE-2는 dynamic draft tree (acceptance rate 기반 pruning) 추가.</p>
+
+<h3>1.3 EAGLE의 두 가지 한계</h3>
+
+<h4>(a) Feature regression constraint의 한계</h4>
+<p>저자들의 분석: $l_{\text{fea}}$는 draft가 target top-layer feature와 일치하도록 강제한다. 이는 ##draft model의 표현력을 제한##한다. Token prediction을 ultimate goal로 보면, feature regression은 부가 제약(over-constraint)일 뿐.</p>
+
+<p>실험적 증거 (Figure 3, 4): $l_{\text{fea}}$를 제거하면 1-$\alpha$ (step 1)가 향상되지만, draft output $\hat{a}_{t+1}$이 ground-truth $f_{t+1}$에서 멀어져 step 2부터 input이 training distribution을 벗어남 → 2-$\alpha$가 폭락. 단순 제거만으론 안 됨.</p>
+
+<h4>(b) Top-layer feature의 한계</h4>
+<p>LM head는 full-rank이므로 top-layer feature의 정보는 ##next token logit에 unique하게 매핑##된다. 이걸 그대로 쓰면 "다다음 토큰"을 예측하는 데 정보가 부족하다. ##Intermediate (low/mid) layer는 더 일반적 표현##을 담고 있어 multi-step prediction에 유리.</p>
+
+<h2>2. 방법 (Method): EAGLE-3</h2>
+
+<h3>2.1 Training-time test (핵심 아키텍처)</h3>
+
+<blockquote><strong>[Figure 3 설명]</strong>: 위쪽은 EAGLE — Training 시 feature loss $l_{\text{fea}}$를 사용. Test 시 draft가 자신의 예측 $\hat{f}$를 다음 step input으로 사용. Training/Test 분포 mismatch. 가운데는 EAGLE + $l_{\text{fea}}$ removal — feature loss는 제거했지만 training은 여전히 ground-truth feature만 사용. Test에서 draft 예측 $\hat{a}$이 ground-truth와 멀어져 step 2에서 입력이 distribution 밖. 아래쪽은 EAGLE-3 — ##Training 시 draft model의 예측을 다음 step의 input으로 직접 사용##해서 inference 분포를 학습 단계에 simulate. Token prediction loss만 사용.</blockquote>
+
+<p>구체적으로, training-time test에서 ##unconstrained vector $a$##(EAGLE의 $f$ 대체)를 draft model의 출력으로 정의하고, 이를 다음 step input에 feed back. 이 과정을 학습 중에 simulate.</p>
+
+<p>이렇게 하면 EAGLE-3의 input이 training 시에도 test 시처럼 ##draft 자신의 출력##이 되므로 distribution mismatch가 사라진다. Feature regression loss 없이 token CE loss만 사용.</p>
+
+<h3>2.2 Multi-layer Feature Fusion</h3>
+
+<blockquote><strong>[Figure 5 설명]</strong>: Target model이 prefix "How can"을 처리한 뒤 next token "I"를 생성. 이때 ##low feature $l$, mid feature $m$, high feature $h$##를 모두 추출. 각각이 $k$-dim. Concat → FC layer로 $3k \to k$ projection → fused feature $g$. 그 다음 draft model에서 token embedding $e$와 $g$를 concat하여 input.</blockquote>
+
+<p>구체적 inference pipeline:</p>
+<ul>
+  <li>Step ①: Prefill에서 "I"가 생성되면, $g_{\text{how}}, g_{\text{can}}$ + embedding $e_{\text{I}}$로 draft에 입력 → output $a_{\text{I}}$ → LM head → sample "do".</li>
+  <li>Step ②: $g$를 재사용하려면 "I"에 대한 target의 $g_{\text{I}}$가 필요하지만, "I"는 아직 target에서 verify되지 않음. 대신 draft의 자기 출력 $a_{\text{I}}$를 사용. 이를 다음 token embedding $e_{\text{do}}$와 concat → draft → $a_{\text{do}}$ → "are".</li>
+  <li>Step ③: 마찬가지로 $a_{\text{do}}$를 사용.</li>
+</ul>
+
+<p>즉 draft의 multi-step prediction에서 $g$를 새로 못 받는 상황을 ##$a$로 대체##해야 하고, 이 대체된 $a$의 분포를 학습 시 노출하는 것이 training-time test.</p>
+
+<h3>2.3 Attention Mask 설계 (Figure 6)</h3>
+
+<blockquote><strong>[Figure 6 설명]</strong>: 학습 시 prefix가 "How can I"이면 (1) Step 1: 표준 causal triangular mask로 $a_{\text{how}}, a_{\text{can}}, a_{\text{I}}$ 출력. (2) Step 2 (simulated): input이 "How can I are we do"로 확장. 여기서 "are"의 query는 "How", "can", "I"의 key만 보고, "we"는 "How", "can", "I", "are"의 key, "do"는 "How", "can", "I", "we"... 형태로 ##diagonal-only한 sparse attention##. (3) Step 3: 또 한 step 확장. 모든 attention mask가 diagonal-only이므로 matrix mult 대신 ##vector dot product로만 계산##해 efficient.</blockquote>
+
+<h3>2.4 Training algorithm 흐름</h3>
+<div class="flow-diagram">[Training Step]
+1. Target model이 prefix "How can I" 전체 forward
+   → l, m, h (low/mid/high) extracted
+   → g = FC([l; m; h])
+2. Step 1 (native): draft input = [g_t ⊕ e_{t+1}]
+   → predict a_{t+1}, loss_token_1
+3. Step 2 (simulated): draft input = [a_{t+1} ⊕ e_{t+2}]
+   → predict a_{t+2}, loss_token_2
+4. Step 3 (simulated): draft input = [a_{t+2} ⊕ e_{t+3}]
+   → predict a_{t+3}, loss_token_3
+5. Total loss = sum of token CE losses (no l_fea)
+6. Attention mask: diagonal-only for steps 2, 3</div>
+
+<h2>3. 실험 (Experiments)</h2>
+
+<h3>3.1 셋업</h3>
+<ul>
+  <li><strong>Target models</strong>: Vicuna-13B, LLaMA-3.1-Instruct 8B, LLaMA-3.3-Instruct 70B, DeepSeek-R1-Distill-LLaMA 8B</li>
+  <li><strong>Tasks</strong>: MT-bench (multi-turn chat), HumanEval (code), GSM8K (math), Alpaca (instruction following), CNN/DM (summarization)</li>
+  <li><strong>Training data</strong>: ShareGPT + UltraChat-200K (~68K + 464K). DeepSeek-R1는 추가로 OpenThoughts-114k-math.</li>
+  <li><strong>Training</strong>: AdamW, (β1, β2)=(0.9, 0.95), grad clip 0.5, lr=5e-5. Target model이 직접 응답 생성한 데이터 사용.</li>
+  <li><strong>Baselines</strong>: SpS, PLD, Medusa, Lookahead, Hydra, EAGLE, EAGLE-2, HASS</li>
+  <li><strong>Metrics</strong>: speedup, $\tau$, $n$-$\alpha$</li>
+</ul>
+
+<h3>3.2 Main results (Table 1, T=0)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Method</th><th>MT-bench spd/τ</th><th>HumanEval spd/τ</th><th>GSM8K spd/τ</th><th>Alpaca spd/τ</th><th>CNN/DM spd/τ</th><th>Mean spd/τ</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">V 13B</td><td>EAGLE</td><td>3.07/3.98</td><td>3.58/4.39</td><td>3.08/3.97</td><td>3.03/3.95</td><td>2.49/3.52</td><td>3.05/3.96</td></tr>
+<tr><td>EAGLE-2</td><td>4.26/4.83</td><td>4.96/5.41</td><td>4.22/4.79</td><td>4.25/4.89</td><td>3.40/4.21</td><td>4.22/4.83</td></tr>
+<tr><td><strong>EAGLE-3</strong></td><td><strong>5.58/6.65</strong></td><td><strong>6.47/7.54</strong></td><td><strong>5.32/6.29</strong></td><td><strong>5.16/6.17</strong></td><td><strong>5.01/6.47</strong></td><td><strong>5.51/6.62</strong></td></tr>
+<tr><td rowspan="2">L31 8B</td><td>EAGLE-2</td><td>3.16/4.05</td><td>3.66/4.71</td><td>3.39/4.24</td><td>3.28/4.12</td><td>2.65/3.45</td><td>3.23/4.11</td></tr>
+<tr><td><strong>EAGLE-3</strong></td><td><strong>4.40/6.13</strong></td><td><strong>4.85/6.74</strong></td><td><strong>4.48/6.23</strong></td><td><strong>4.82/6.70</strong></td><td><strong>3.65/5.34</strong></td><td><strong>4.44/6.23</strong></td></tr>
+<tr><td rowspan="2">L33 70B</td><td>EAGLE-2</td><td>2.83/3.67</td><td>3.12/4.09</td><td>2.83/3.69</td><td>3.03/3.92</td><td>2.44/3.55</td><td>2.85/3.78</td></tr>
+<tr><td><strong>EAGLE-3</strong></td><td><strong>4.11/5.63</strong></td><td><strong>4.79/6.52</strong></td><td><strong>4.34/6.15</strong></td><td><strong>4.30/6.09</strong></td><td><strong>3.27/5.02</strong></td><td><strong>4.12/5.88</strong></td></tr>
+<tr><td rowspan="2">DSL 8B</td><td>EAGLE-2</td><td>2.92/3.80</td><td>3.42/4.29</td><td>3.40/4.40</td><td>3.01/3.80</td><td>3.53/3.33</td><td>3.26/3.92</td></tr>
+<tr><td><strong>EAGLE-3</strong></td><td><strong>4.05/5.58</strong></td><td><strong>4.59/6.38</strong></td><td><strong>5.01/6.93</strong></td><td><strong>3.65/5.37</strong></td><td><strong>3.52/4.92</strong></td><td><strong>4.16/5.84</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##모든 모델, 모든 task에서 EAGLE-2 대비 1.2~1.6× 추가 가속##.</li>
+  <li>HumanEval에서 가장 큰 효과 (V-13B 6.47×): ##code generation은 templated structure가 많아 draft가 쉽게 맞춤##.</li>
+  <li>DSL 8B의 GSM8K에서 5.01×, $\tau$=6.93: reasoning model + math benchmark조합에서 특히 강함. OpenThoughts-114k-math 추가 학습 효과.</li>
+  <li>Temperature=1 (stochastic sampling) 시에도 평균 4.6×~5.7× (Vicuna 4.65×). EAGLE-2 대비 마찬가지 1.2~1.3× 향상.</li>
+</ul>
+
+<h3>3.3 Scaling Law 발견 (Figure 1)</h3>
+
+<blockquote><strong>[Figure 1 설명]</strong>: x-축이 ShareGPT 대비 데이터 양 비율(1, 2, 4, 8). y-축이 (a) Speedup ratio, (b) Acceptance length τ. EAGLE-2는 데이터 8배에도 거의 평평한 곡선 (speedup ~3.2×, τ ~4.1). ##EAGLE-3는 단조 증가하는 곡선##(speedup 3.6×→4.4×, τ 5.2→6.1).</blockquote>
+
+<p><strong>이 실험의 의도</strong>: training data 증가가 speculative decoding 가속에 미치는 영향. 즉 ##LLM 학습 scaling law가 draft 모델에도 적용되는가##?</p>
+
+<p><strong>결과</strong>: EAGLE은 feature regression constraint 때문에 학습 데이터를 더 많이 줘도 새로 배울 게 제한적. EAGLE-3는 제약이 풀려 ##데이터 양에 비례한 가속##. 이는 ##추론 가속의 새 scaling law##.</p>
+
+<h3>3.4 Acceptance rate 분포 (Figure 7)</h3>
+<blockquote><strong>[Figure 7 설명]</strong>: MT-bench LLaMA-3.1-8B에서 EAGLE은 step이 진행될수록 acceptance rate가 0.72→0.50로 ##대폭 감소##. EAGLE-3는 ~0.78 수준으로 ##거의 일정##. training-time test가 누적 오차를 완화한 직접 증거.</blockquote>
+
+<h3>3.5 Ablation (Table 2, LLaMA-3.1-8B)</h3>
+<table>
+<thead><tr><th>Method</th><th>MT-bench spd/τ</th><th>GSM8K spd/τ</th></tr></thead>
+<tbody>
+<tr><td>EAGLE-2</td><td>2.92/4.05</td><td>3.39/4.24</td></tr>
+<tr><td>+ remove $l_{\text{fea}}$ + training-time test</td><td>3.82/5.37</td><td>3.77/5.22</td></tr>
+<tr><td><strong>+ fused features (low/mid/high)</strong></td><td><strong>4.40/6.13</strong></td><td><strong>4.48/6.23</strong></td></tr>
+</tbody>
+</table>
+<p><strong>이 실험이 뒷받침하는 주장</strong>:</p>
+<ul>
+  <li>##두 contribution 모두 의미 있음##: (1) training-time test로 +0.9× speedup, (2) multi-layer fusion으로 추가 +0.6× speedup.</li>
+  <li>fea constraint 제거 + training-time test는 거의 동일한 변경이므로 함께 측정. 둘 다 필요.</li>
+</ul>
+
+<h3>3.6 Production framework: SGLang (Table 3)</h3>
+<table>
+<thead><tr><th>Batch size</th><th>2</th><th>4</th><th>8</th><th>16</th><th>24</th><th>32</th><th>48</th><th>56</th><th>64</th></tr></thead>
+<tbody>
+<tr><td>EAGLE</td><td>1.40×</td><td>1.38×</td><td>1.23×</td><td>1.02×</td><td>0.93×</td><td>0.94×</td><td>0.88×</td><td>0.99×</td><td>0.99×</td></tr>
+<tr><td><strong>EAGLE-3</strong></td><td><strong>1.81×</strong></td><td><strong>1.82×</strong></td><td><strong>1.62×</strong></td><td><strong>1.48×</strong></td><td><strong>1.39×</strong></td><td><strong>1.32×</strong></td><td><strong>1.38×</strong></td><td><strong>1.34×</strong></td><td><strong>1.38×</strong></td></tr>
+</tbody>
+</table>
+<p><strong>패턴</strong>:</p>
+<ul>
+  <li>##EAGLE은 batch 16 이상에서 baseline보다 느려짐## (compute-bound에서 redundant compute가 해 됨).</li>
+  <li>EAGLE-3는 batch 64에서도 1.38× 유지. ##higher acceptance length가 verification overhead를 amortize##.</li>
+  <li>SGLang single H100 batch=1 throughput: vanilla 158 tok/s → EAGLE-2 244 tok/s → ##EAGLE-3 373 tok/s##.</li>
+</ul>
+
+<h3>3.7 vLLM (Table 5, RTX3090, LLaMA-3.1-8B)</h3>
+<p>EAGLE 최대 throughput improvement는 batch=24에서, EAGLE-3는 ##batch=56까지 가속 유지##. EAGLE-3 batch=56에서 1.21×, EAGLE은 0.82×.</p>
+
+<h2>4. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>문제 정의의 깊이</strong>: EAGLE의 두 한계(feature constraint, top-layer 한계)를 명확히 분리하고, ##feature constraint 단순 제거는 distribution mismatch로 실패##함을 실증 후 training-time test로 해결. logical step이 깔끔.</li>
+  <li><strong>Scaling law 발견</strong>: ##추론 가속에 scaling law가 적용된다##는 사실은 매우 fundamental한 발견. 단일 시점 SOTA 달성을 넘어 future scaling의 방향성 제시.</li>
+  <li><strong>Multi-model 검증</strong>: 13B (chat), 8B (instruct), 70B (large), R1 (reasoning) 네 가지 모델에서 일관 향상. ##모델 카테고리 cross-cut##.</li>
+  <li><strong>Production framework 통합</strong>: SGLang/vLLM에서 batch 64까지 가속 유지. EAGLE이 high-batch에서 실패하는 양상을 정직히 보고하고, EAGLE-3가 그를 해결.</li>
+  <li><strong>Ablation의 명료성</strong>: Table 2가 단 3행으로 두 contribution의 marginal 효과를 깔끔히 분리.</li>
+  <li><strong>Implementation 효율</strong>: training-time test의 attention mask가 diagonal-only이므로 ##matrix multiplication 대신 vector dot product로 최적화##. 학습 비용 control.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>Multi-step의 수</strong>: 본문에서 "Step 2, 3"까지만 표시. ##training-time에서 simulate하는 step 수가 inference 시 draft 트리 깊이와 어떻게 관련##되는지 디테일 부족.</li>
+  <li><strong>Lossless 보장의 검증 부재</strong>: speculative sampling은 이론적으로 lossless이나, EAGLE-3가 unconstrained $a$를 쓰므로 ##numerical drift가 sampling에 미치는 영향## 검증 unclear.</li>
+  <li><strong>$l_{\text{fea}}$ 제거의 generality</strong>: HASS, Falcon 등 다른 feature-prediction 기반 방법에도 같은 변경이 효과적일까? 본문은 EAGLE-3 specific하게만 보고.</li>
+  <li><strong>Training cost 보고 없음</strong>: training-time test는 다중 step simulate으로 학습 시간 증가 가능. ##GPU hour나 wall-clock training time##이 명시 안 됨.</li>
+  <li><strong>R1 (reasoning) 결과의 차이</strong>: DSL 8B GSM8K 5.01×로 다른 모델 대비 유난히 높음. 이게 OpenThoughts-114k-math 추가 데이터 때문인지 R1 architectural 특성인지 불확실.</li>
+  <li><strong>EAGLE-3 attention mask와 KV cache 호환성</strong>: production framework integration 시 attention mask 변경이 KV cache 관리에 미치는 영향을 SGLang팀이 별도 검증했다고만 언급. ##구현 세부의 black box##.</li>
+  <li><strong>Feature fusion FC layer의 input dim 폭증</strong>: target model의 $k$가 LLaMA-3 8B면 4096. low/mid/high concat 시 12288 → 4096 FC. parameter는 5M+. 이 부분이 draft model 크기에 미치는 영향 정량화 부재.</li>
+  <li><strong>새 scaling law의 saturation point 미탐색</strong>: 8× data까지만 보고. 더 늘리면 어디서 정체될까?</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Feature regression이 token prediction의 적이다"</strong>: 표면적으로 feature loss가 도움 될 것 같지만, ##over-constraint로 token capacity를 갉아먹는다##. 다른 distillation 방식에도 적용 가능한 일반 원리.</li>
+  <li><strong>Training-time test = "exposure bias 해결의 일반 패턴"</strong>: NMT의 scheduled sampling, RNN의 teacher forcing 문제와 유사. ##학습-추론 mismatch 해결의 보편 원리##를 speculative decoding에 적용한 사례.</li>
+  <li><strong>Multi-layer feature는 더 풍부하다</strong>: top-layer만 쓰는 다양한 distillation/probe 연구에 시사. ##low/mid/high concat + FC##는 minimal cost로 정보 풍부화.</li>
+  <li><strong>Inference acceleration scaling law의 존재</strong>: data를 늘리면 가속이 늘어난다는 사실은 ##LLM 학습 scaling law를 speedup에 그대로 transfer## 가능함을 시사. EAGLE-3 후속 연구(DFlash, DFLARE)의 토대.</li>
+  <li><strong>Production 채택의 강력한 후보 (이미 채택됨)</strong>: ##SGLang/vLLM 통합 완료##, EAGLE-2 대체. 모든 후속 speculative decoding 연구의 baseline.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

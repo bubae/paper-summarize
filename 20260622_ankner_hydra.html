@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hydra: Sequentially-Dependent Draft Heads for Medusa Decoding</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Hydra: Sequentially-Dependent Draft Heads for Medusa Decoding</h1>
+<a class="brief-link" href="20260622_ankner_hydra_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zachary Ankner, Rishab Parthasarathy, Aniruddha Nrusimha, Christopher Rinard, Jonathan Ragan-Kelley, William Brandon</li>
+  <li><strong>소속</strong>: MIT, MosaicML</li>
+  <li><strong>학회/저널</strong>: COLM 2024</li>
+  <li><strong>연도</strong>: 2024</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2402.05109">arXiv:2402.05109</a> | <a href="https://github.com/zankner/Hydra">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Medusa의 draft head들이 ##sequentially independent##하다. Head $i$는 base model의 hidden state $h_{t-1}$만 보고 $i$번째 미래 토큰을 예측하므로, 같은 candidate continuation 내의 이전 draft token들($\hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1}$)을 ##전혀 인지하지 못한다##. 자연어의 강한 순차 의존성을 고려할 때 이건 분명히 손해.</li>
+  <li><strong>해결</strong>: ##Hydra heads##. 각 draft head $i$가 hidden state $h_{t-1}$ + 이전 candidate token들의 embedding $E_{\hat{x}_{t+1}}, \ldots, E_{\hat{x}_{t+i-1}}$를 ##concatenate##하여 입력 받음. drop-in replacement.</li>
+  <li><strong>왜 작동하는가</strong>: Head 2가 Head 1의 출력을 알게 되면, "If Head 1 says X, then most likely Y" 같은 ##조건부 분포##를 학습할 수 있다. acceptance length가 평균 +0.46 토큰 증가.</li>
+  <li><strong>Hydra++</strong>: 추가로 (1) head MLP를 4-layer로 확장, (2) self-distillation training objective, (3) prefix attention layer 추가. Medusa 대비 1.31×, vanilla AR 대비 2.70× throughput.</li>
+  <li><strong>비유</strong>: Medusa heads가 "한 회사 전체의 미래를 각자 따로 예측하는 부서들"이라면, Hydra는 "1팀 결과를 보고 그 위에 2팀이 예측을 쌓는 ##연쇄적 부서##".</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Sequential dependence의 명확한 진단</strong>: Medusa head들의 ##sequential independence##가 acceptance rate의 핵심 손실 원인임을 분석. 분석은 단순하지만 통찰적: $p_{\text{draft}}(\hat{x}_{t+i}|x_{\leq t}, \hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1}) = p_{\text{draft}}(\hat{x}_{t+i}|x_{\leq t-1})$ (조건부가 prior token에 의존하지 않음).</li>
+  <li><strong>Hydra heads (drop-in replacement)</strong>: $f_{\text{Hydra},i}(h_{t-1}, x_t, \hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1})$. 단순 MLP 입력 확장으로 ##Medusa 대비 acceptance length +0.46##, throughput 1.10×.</li>
+  <li><strong>Hydra++의 design space 탐색</strong>: 3가지 추가 개선. (a) 4-layer MLP scaling, (b) self-distillation, (c) prefix attention (base model에 추가 self-attention decoder layer를 ##draft model 전용 hidden state 생성##). 누적 ##1.31× Medusa, 2.70× AR##.</li>
+  <li><strong>Batch 환경 검증</strong>: batch 1~8까지 throughput 측정. ##batch 8에서도 Hydra++가 Medusa 대비 우위 유지##.</li>
+  <li><strong>Typical Acceptance에서 quality 보존</strong>: non-greedy 환경에서 Hydra++ ##posterior threshold 0.15에서 base model과 동일 quality##(MT-Bench LLM-judge 점수). Medusa나 일반 Hydra는 미달.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 Speculative decoding 복습</h3>
+<p>Base model이 비쌈 → 작은 draft model이 candidate continuation 제안 → base model이 single forward pass로 검증. ##Acceptance length 평균이 클수록 throughput↑##. 검증 기준은 (a) rejection sampling(lossless), (b) greedy acceptance(base의 top-1과 일치하면 채택), (c) typical acceptance(임계값 기반).</p>
+
+<h3>1.2 Tree decoding</h3>
+<p>Single candidate continuation을 ##candidate tree##로 일반화. 각 node에 자식 $m$개. Static tree(설계 시 fixed)가 일반적. Tree 위치별 token이 single sequence로 packing되고 attention mask로 parent만 attend.</p>
+
+<h3>1.3 Draft heads as draft model (Stern et al. 2018, Medusa)</h3>
+<p>독립 학습된 작은 LM 대신 ##base model의 hidden state $h_{t-1}$에 다는 lightweight head들##. Stern et al. 2018의 정의:</p>
+$$p_{\text{draft}}(x_{t+i}|x_{\leq t-1}) = f_{\text{draft},i}(h_{t-1}) \quad (1)$$
+<p>Medusa는 이 framework의 특정 구현: tree-based candidate, single-layer MLP + residual head.</p>
+
+<h3>1.4 Sequential independence의 문제</h3>
+<p>핵심 관찰: $h_{t-1}$은 ##이미 verify된 sequence##의 함수일 뿐, candidate continuation 내의 draft token에 의존하지 않는다. 따라서:</p>
+$$p_{\text{draft}}(\hat{x}_{t+i}|x_{\leq t}, \hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1}) = p_{\text{draft}}(\hat{x}_{t+i}|x_{\leq t-1})$$
+
+<p>직관적으로 말하면, ##Medusa Head 5는 Head 1, 2, 3, 4가 무엇을 예측했는지 전혀 모른다##. 자연어 처리에서 next token 예측은 prior tokens에 강하게 의존하는데, 이 강한 의존성을 무시.</p>
+
+<h2>2. Hydra Heads (Section 3)</h2>
+
+<h3>2.1 핵심 변경 (Figure 1)</h3>
+
+<blockquote><strong>[Figure 1 설명]</strong>: 왼쪽이 Existing Draft Heads — base model의 hidden state만 input. Head 1 → "Go", Head 2 → "Fast"를 독립적으로 예측. 오른쪽이 Hydra Draft Heads — Head 1이 "Go"를 예측하면 ##그 결과의 embedding이 Head 2의 추가 input##으로 들어감. Head 2는 hidden state + "Go" embedding을 함께 보고 "Fast" 예측. lines going into a head represent inputs to the draft head.</blockquote>
+
+<p>구체적 정의:</p>
+$$p_{\text{draft}}(\hat{x}_{t+i}|x_{\leq t}, \hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1}) = f_{\text{Hydra},i}(h_{t-1}, x_t, \hat{x}_{t+1}, \ldots, \hat{x}_{t+i-1})$$
+
+<p>Basic Hydra head architecture: single hidden layer MLP, input은 $h_{t-1}$과 candidate continuation 토큰들의 embedding $E_{x_t}, E_{\hat{x}_{t+1}}, \ldots, E_{\hat{x}_{t+i-1}}$를 feature dimension으로 concat.</p>
+
+<h3>2.2 왜 이게 의미 있는가</h3>
+<p>Head $i$가 head $1, \ldots, i-1$의 출력에 conditional해지므로:</p>
+<ul>
+  <li>"If 'How' then most likely 'are'" 같은 ##2-gram 수준의 conditional distribution##을 학습 가능</li>
+  <li>Tree에서 다른 branches는 서로 다른 conditional이 적용 → ##higher acceptance rate##</li>
+  <li>Hydra head는 여전히 단일 forward pass에서 ##모든 candidate continuation에 대해 병렬 계산## (tree attention처럼)</li>
+</ul>
+
+<h2>3. Hydra++: Design Space Exploration (Section 3.1)</h2>
+
+<p>저자들이 Hydra 위에 효과적인 변경 3가지를 발견:</p>
+
+<h3>3.1 Scaling — MLP를 4-layer로 확장</h3>
+<p>Medusa의 single-layer MLP를 ##4-layer##로 확장. 5-layer 이상은 추가 이득 없음. ##capacity가 sequential dependence를 충분히 활용하기 위해 필요##함을 시사.</p>
+
+<h3>3.2 Distillation — Self-distillation objective</h3>
+<p>Zhou et al. 2024 따라, ground-truth token 대신 base model의 분포를 target으로 학습. ##Draft heads의 출력 분포가 base model 분포와 align##. 이는 acceptance rate를 직접 끌어올림.</p>
+
+<p>구체적으로, base model의 next-token 분포 $p_{\text{base}}(x|x_{\leq t-1})$를 target으로 cross-entropy:</p>
+$$\mathcal{L}_{\text{distill}} = \text{KL}(p_{\text{base}}\|p_{\text{Hydra}})$$
+
+<h3>3.3 Prefix Attention — base model에 1개 self-attention layer 추가</h3>
+<p>핵심 아이디어: draft model이 ##가장 최근의 토큰뿐 아니라 context 전체##에서 정보 가져오게 함. base model에 추가 self-attention decoder layer를 부착하고, ##이 layer는 오직 draft model용 hidden state 생성##에만 쓰임. 매 decoding step마다 1회만 query.</p>
+
+<p>장점: base model의 verified KV cache를 활용한 추가 attention pass. ##draft head MLP에 들어가는 hidden state가 더 정보 풍부##.</p>
+
+<h2>4. Decoding Tree Discovery (Section 4)</h2>
+
+<p>Hydra도 Medusa처럼 ##static tree topology##(offline 계산) 사용. 그러나 최적 tree는 setup마다 다름(base model, draft model, batch size, hardware).</p>
+
+<p>2-stage 알고리즘:</p>
+<ol>
+  <li><strong>Proposal tree 시퀀스 생성</strong>: $T_1, \ldots, T_N$ (size 1, ..., N). $T_1$은 trivial. Step $i$에서 sample text로 speculative decoding simulate, ##existing node의 child를 추가하면 acceptance length 향상이 가장 큰 것을 선택##해 $T_i$를 만듦.</li>
+  <li><strong>Throughput 측정</strong>: 각 $T_i$를 실제 inference config에서 측정해 throughput max인 tree 선택.</li>
+</ol>
+
+<p>$N=100$, 100-question Alpaca subset 사용.</p>
+
+<h2>5. 학습 / 평가 설정</h2>
+<ul>
+  <li><strong>Models</strong>: Vicuna 7B, 13B, 33B (LLaMA conversation-fine-tuned). Base model frozen.</li>
+  <li><strong>Data</strong>: ShareGPT (multi-turn conversations)</li>
+  <li><strong>Training</strong>: 8× A100 80GB, HuggingFace Trainer, AdamW (β1=0.9, β2=0.999), cosine LR with warmup, peak LR 1e-3. Hydra/Medusa는 1 epoch (1 epoch 후 saturate), ##Hydra++는 10 epoch##.</li>
+  <li><strong>Hardware (eval)</strong>: 7B/13B는 A100-40GB, 33B는 A100-80GB.</li>
+  <li><strong>Benchmark</strong>: MT-Bench (multi-turn). 기본은 greedy verification이라 quality는 base model과 동일 → throughput만 측정.</li>
+</ul>
+
+<h2>6. 실험 (Experiments)</h2>
+
+<h3>6.1 Batch=1 throughput (Figure 2)</h3>
+
+<table>
+<thead><tr><th>Base Model</th><th>Method</th><th>Throughput (Tok/S)</th><th>Speedup vs AR</th><th>Avg Accept Length</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">Vicuna 7B</td><td>Baseline</td><td>~50</td><td>1.00×</td><td>1.00×</td></tr>
+<tr><td>Medusa</td><td>~107</td><td>2.13×</td><td>2.58×</td></tr>
+<tr><td>Hydra</td><td>~117</td><td>2.36×</td><td>3.04×</td></tr>
+<tr><td><strong>Hydra++</strong></td><td><strong>~135</strong></td><td><strong>2.70×</strong></td><td><strong>3.70×</strong></td></tr>
+<tr><td rowspan="4">Vicuna 13B</td><td>Baseline</td><td>~35</td><td>1.00×</td><td>1.00×</td></tr>
+<tr><td>Medusa</td><td>~69</td><td>1.97×</td><td>2.60×</td></tr>
+<tr><td>Hydra</td><td>~76</td><td>2.17×</td><td>3.06×</td></tr>
+<tr><td><strong>Hydra++</strong></td><td><strong>~88</strong></td><td><strong>2.50×</strong></td><td><strong>3.72×</strong></td></tr>
+<tr><td rowspan="4">Vicuna 33B</td><td>Baseline</td><td>~20</td><td>1.00×</td><td>1.00×</td></tr>
+<tr><td>Medusa</td><td>~38</td><td>1.91×</td><td>2.95×</td></tr>
+<tr><td>Hydra</td><td>~46</td><td>2.23×</td><td>—</td></tr>
+<tr><td><strong>Hydra++</strong></td><td><strong>~51</strong></td><td><strong>2.53×</strong></td><td><strong>3.62×</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Hydra (vanilla)는 Medusa 대비 +10~11% throughput##: sequential dependence만으로 의미 있는 개선.</li>
+  <li>##Hydra++는 Medusa 대비 +27~31%##: scaling + distillation + prefix attention의 누적.</li>
+  <li>Acceptance length: Hydra++ 3.62~3.72 vs Medusa 2.58~2.95. ##+0.7~1.1 token 증가##.</li>
+  <li>전 model size에서 일관: ##sequential dependence의 효과가 base model size에 무관##.</li>
+</ul>
+
+<h3>6.2 Batched inference (Figure 3, Vicuna 7B)</h3>
+<p>Batch 1, 2, 4, 8 측정. Throughput과 latency 모두 보고.</p>
+<ul>
+  <li>Batch 1: Hydra++ 2.70× (AR 대비), Medusa 2.13×, ratio Hydra++/Medusa = 1.27×</li>
+  <li>Batch 8: Hydra++ 1.63× (AR 대비), Medusa 약간 낮음. ratio Hydra++/Medusa ≈ 1.2×</li>
+</ul>
+<p>##Speculative decoding의 효과는 batch가 클수록 감소##(compute-bound로 전환). 하지만 Hydra++가 Medusa보다 일관 우위.</p>
+
+<h3>6.3 Typical Acceptance Quality (Figure 4)</h3>
+
+<blockquote><strong>[Figure 4 설명]</strong>: Posterior threshold $\epsilon \in \{0.05, 0.10, 0.15, 0.20, 0.25\}$, temperature 0.7, $\alpha = \sqrt{\epsilon}$. (a) Average acceptance length: Hydra++ ~3.7로 일정, Medusa ~2.6. (b) MT-Bench LLM-judge score: ##Hydra++ at $\epsilon=0.15$가 base model 점수 ~7.65에 도달##. Medusa와 vanilla Hydra는 base model 점수 도달 못함.</blockquote>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##quality preservation이 head accuracy의 함수##. Hydra++의 더 정확한 head가 typical acceptance에서도 quality를 회복. ##Medusa는 단순 향상으론 quality gap을 못 메움##.</p>
+
+<h2>7. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>진단의 명확성</strong>: "Medusa head들이 sequentially independent하다"는 한 문장의 진단. 식 $p(\hat{x}_{t+i}|...) = p(\hat{x}_{t+i}|x_{\leq t-1})$로 명료히 표현. ##핵심 약점을 발견하는 능력##.</li>
+  <li><strong>최소 침습적 수정</strong>: 입력 concatenation 한 줄 변경으로 +0.46 acceptance length. ##drop-in replacement##라 기존 Medusa pipeline에 그대로 통합 가능.</li>
+  <li><strong>Design space exploration의 완성도</strong>: scaling, distillation, prefix attention 3개를 ##sequential dependence와 직교##하게 발견. 누적 효과 +27~31%.</li>
+  <li><strong>Batched inference 평가</strong>: Medusa 원논문이 미보고한 batched setting에서도 일관 효과. ##production deployment 관련 통찰##.</li>
+  <li><strong>Typical acceptance quality 관점</strong>: ##non-distribution-preserving sampling에서 quality를 base model 수준으로 회복##할 수 있는 첫 draft-head 방법. lossy sampling 도입 시 head accuracy의 결정적 역할 입증.</li>
+  <li><strong>Tree discovery 알고리즘</strong>: data-driven 방식으로 optimal tree topology 발견. ##반복 가능한 procedure##로 deployment마다 calibrate 가능.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>여전히 Medusa의 한계 상속</strong>: Hydra++도 ##draft head 패러다임##이라 base model의 layer당 표현력을 그대로 활용하지 못함. 이후 EAGLE이 feature-level autoregression으로 더 큰 가속(5×+) 달성하며 Hydra를 추월.</li>
+  <li><strong>Prefix Attention의 cost 미정량화</strong>: base model에 추가 self-attention decoder layer는 ##model parameters를 증가시킴##(forward cost도 +5% 수준일 수). 학습 cost와 추가 메모리는 본문에서 명확히 분해 안 됨.</li>
+  <li><strong>Hydra++의 10 epoch 학습</strong>: Hydra (1 epoch) 대비 ##10배 더 긴 학습##. 학습 비용 trade-off가 본문에서 명확히 분석되지 않음.</li>
+  <li><strong>Greedy verification 중심</strong>: 본 평가는 대부분 greedy. typical acceptance는 별도 ablation. ##rejection sampling##(strict lossless)에서의 효과는 미보고.</li>
+  <li><strong>33B 이상 미검증</strong>: Vicuna 33B까지. ##70B+ 모델에서의 효과##는 후속 EAGLE 시리즈에서나 확인됨.</li>
+  <li><strong>EAGLE과의 비교 부재 (concurrent work)</strong>: 저자도 "concurrent work EAGLE"이라 인정하나 본문에선 직접 비교 안 됨. ##sequential dependence vs feature-level autoregression##이라는 같은 직관을 다른 각도에서 시도한 두 연구.</li>
+  <li><strong>Distillation 데이터 출처</strong>: self-distillation을 위해 base model의 분포를 사용. ##어떤 prompt set에서 distillation 분포를 추출했는지##(ShareGPT인지 별도인지) 본문에서 모호.</li>
+  <li><strong>Tree calibration cost</strong>: 100 question simulate으로 tree 찾기. ##deployment마다 재calibrate##해야 하는 부담.</li>
+</ul>
+</div>
+
+<h2>8. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Independence is a bug, not a feature"</strong>: Medusa의 design choice였던 sequential independence가 사실은 성능 손실. ##간단한 input concatenation으로 해결##되는 fundamental 결함. 새 architecture를 설계할 때 어떤 conditional structure를 만드는지 항상 고려해야 함.</li>
+  <li><strong>Acceptance length가 throughput의 직접 driver</strong>: +0.46 token → +10~11% throughput. ##draft head accuracy의 marginal value를 정량화##.</li>
+  <li><strong>Self-distillation은 boilerplate 개선 패턴</strong>: ground-truth label 대신 base model 분포로 학습 → 어떤 draft model에도 적용 가능한 일반 trick. 후속 EAGLE/EAGLE-3도 비슷한 접근 활용.</li>
+  <li><strong>Typical acceptance에서 head accuracy가 결정적</strong>: lossy sampling 환경에선 head accuracy가 quality 보존의 bottleneck. ##acceptance criterion과 head 디자인의 coupling##을 인지해야 함.</li>
+  <li><strong>EAGLE에 영향 (concurrent work)</strong>: 같은 시기 Concurrent하게 발표된 EAGLE이 비슷한 직관(feature-level autoregression)을 다른 각도에서 적용. Hydra는 ##draft head 패러다임의 마지막 milestone##이자 EAGLE의 zeitgeist.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
