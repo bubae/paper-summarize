@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimpleTIR: End-to-End Reinforcement Learning for Multi-Turn Tool-Integrated Reasoning</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>SimpleTIR: End-to-End Reinforcement Learning for Multi-Turn Tool-Integrated Reasoning</h1>
+<a class="brief-link" href="20260622_xue_simpletir_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhenghai Xue*, Longtao Zheng*, Qian Liu†, Yingru Li, Xiaosen Zheng, Zejun Ma, Bo An (*공동 제1저자, †교신저자)</li>
+  <li><strong>소속</strong>: Nanyang Technological University (NTU) Singapore, TikTok Singapore</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2025)</li>
+  <li><strong>연도</strong>: 2025 (v2, 2025-09-03)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2509.02479">arXiv:2509.02479</a> | GitHub | HuggingFace</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: ReTool 같은 Multi-turn TIR(Tool-Integrated Reasoning)을 ##cold-start SFT 없이 base model에서 직접 RL(Zero-RL)##로 학습하려 하면 ##gradient explosion과 performance collapse##가 발생. 그 이유는 ##외부 tool feedback이 base model의 pretrained 분포에서 OOD##라서 ##저확률 토큰##이 누적되고, 후속 turn에서 distribution drift가 compound되어 ##gradient norm이 폭발##.</li>
+  <li><strong>해결</strong>: ##Void turn filtering##. 매 trajectory에서 (a) ##완전한 code block도 final answer도 없는 turn (void turn)##을 식별하고, (b) 이를 포함하는 ##trajectory 전체를 policy update에서 제외##. void turn은 distributional drift의 ##관찰 가능한 증상##이므로 ##문제 trajectory의 강력한 heuristic##.</li>
+  <li><strong>왜 작동하는가</strong>: void turn을 가진 trajectory를 제외하면 (a) ##저확률 토큰의 backprop 차단 → gradient explosion 해소##, (b) ##잘못된 credit assignment 시정## (성공한 초기 turn이 후속 collapse로 penalty 받지 않음). cold-start SFT 의존을 제거하면서 ##Zero-RL의 emergent capability## 보존.</li>
+  <li><strong>비유</strong>: ReTool이 "선생님 강의(SFT)로 도구 사용 기본을 가르친 후 시험으로 깎는 학생"이라면, SimpleTIR은 "##강의 없이## 시험만 보면서 깎되, ##망친 답안지(void turn 포함)를 점수 계산에서 통째로 빼는## 시스템".</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Multi-turn TIR의 instability 원인 진단</strong>: ##저확률 토큰 누적##이 (a) unclipped importance ratio + (b) sustained probability-dependent gradient term을 통해 ##gradient explosion##을 일으킴을 ##gradient norm formula(Proposition 3.1)##로 수학적으로 입증.</li>
+  <li><strong>Void turn 정의 및 식별 휴리스틱</strong>: ##complete code block도 final answer도 없는 turn##. distributional drift의 ##관찰 가능한 manifestation##. 성공 trajectory에선 거의 없고 문제 trajectory에선 빈발 → strong filter.</li>
+  <li><strong>SimpleTIR 알고리즘</strong>: void turn 포함 trajectory를 ##GRPO update에서 entire trajectory mask##. plug-and-play, ##cost 거의 0##, base model 직접 Zero-RL 가능.</li>
+  <li><strong>실증</strong>: Qwen2.5-7B base → AIME24 22.1 (text-only) → ##50.5 (SimpleTIR)##, Naive multi-turn은 collapse. Qwen2.5-32B에서 ##AIME24 59.9, MATH500 92.9, Olympiad 63.7##. ##Zero-RL 패러다임의 SOTA##.</li>
+  <li><strong>Emergent reasoning patterns</strong>: cold-start SFT가 ##반복적 패턴 강요##와 달리 SimpleTIR은 ##Cross Validation, Progressive Reasoning, Error Correction Loop##의 3가지 패턴을 자율 학습. ReTool 대비 ##Progressive Reasoning 18.9%→46.5%, Error Correction 25.8%→38.0%##.</li>
+</ol>
+
+<h2>1. 배경 (Introduction & Preliminaries)</h2>
+
+<h3>1.1 Multi-turn TIR의 약속과 한계</h3>
+<p>Tool-Integrated Reasoning(TIR)은 LLM이 ##code interpreter, search engine 등 도구와 multi-turn 상호작용##하며 추론. ReTool, ToRL, Effective TIR, ARPO 등이 explore. 그러나:</p>
+<ul>
+  <li>##Training instability와 gradient explosion##이 자주 발생 (Wang et al. 2025, Mai et al. 2025, Baronio et al. 2025, Moonshot AI 2025)</li>
+  <li>##일반적 해결책: cold-start SFT##로 base model을 alignment 후 RL — 안정성은 얻지만 ##novel reasoning strategy 발견을 제한##</li>
+</ul>
+
+<h3>1.2 Zero-RL과 그 가치</h3>
+<p>DeepSeek-R1이 입증한 ##Zero-RL paradigm##: base model에서 cold-start SFT 없이 직접 outcome reward RL → ##emergent reasoning 능력## 발견. SFT 분포 제약 없이 모델이 ##자유롭게 explore##.</p>
+
+<h3>1.3 Hierarchical MDP Formulation</h3>
+<p>저자들은 multi-turn TIR을 ##two-level MDP##로 modeling:</p>
+
+<p><strong>High-level MDP</strong> $\mathcal{M}_H = \langle \mathcal{S}_H, \mathcal{A}_H, T_H, R_H, \gamma_H \rangle$:</p>
+<ul>
+  <li>State $S_k = (q, l_0, f_0, \ldots, l_{k-1}, f_{k-1})$ — 이전 모든 response와 tool feedback</li>
+  <li>Action $L_k$ — current turn의 entire response</li>
+  <li>Transition $S_{k+1} = S_k \circ (l_k, f_k)$</li>
+  <li>Reward $R_H(o) = R(o)$ — terminal reward</li>
+</ul>
+
+<p><strong>Low-level MDP</strong> $\mathcal{M}_L$: token-level action, no intrinsic reward.</p>
+
+<h3>1.4 GRPO with Feedback Masking</h3>
+<p>Group Relative Policy Optimization (DeepSeek):</p>
+$$\hat{A}_i = \frac{r_i - \text{mean}(\{r_j\}_{j=1}^G)}{F_{\text{norm}}(\{r_j\}_{j=1}^G)}$$
+
+<p>Feedback token masking: 환경 제공 토큰 $f_k$를 loss 계산에서 제외:</p>
+$$\mathcal{J}_{\text{TIR}}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^G \frac{1}{\sum_t m_{i,t}} \sum_{t=1}^{|o_i|} m_{i,t} \cdot L_{\text{CLIP}}(\theta, i, t)\right] \quad (1)$$
+
+<p>$m_{i,t}$: response token이면 1, feedback이면 0. $L_{\text{CLIP}}$는 standard PPO clipped surrogate.</p>
+
+<h2>2. 진단: 왜 Multi-turn TIR이 불안정한가? (Section 3.1, 3.2)</h2>
+
+<h3>2.1 Single-turn vs Multi-turn 비교 (Figure 2)</h3>
+
+<blockquote><strong>[Figure 2 설명]</strong>: 4 sub-plots. (a) AIME24 Score: Naive multi-turn (red) 초기엔 baseline matching하다가 ~400 step부터 0에 가까워짐. Naive single-turn (blue)은 0.4까지 smooth 상승. (b) Grad Norm: multi-turn은 점점 spike, single-turn은 안정. (c) Response Length: multi-turn은 짧아지다가 다시 길어지나 unstable, single-turn은 monotonic 상승. (d) Code Use Frequency: multi-turn은 0.4→0으로 폭락(##도구 사용 포기##), single-turn은 1.0 유지.</blockquote>
+
+<p><strong>관찰</strong>: 같은 RL setup에서 single-turn은 smooth하게 학습되는데 multi-turn은 ##performance collapse##. 차이는 ##feedback loop의 multi-turn 특성##.</p>
+
+<h3>2.2 저확률 토큰의 emergence (Figure 3)</h3>
+
+<blockquote><strong>[Figure 3 설명]</strong>: Y-axis log-scale token probability. X-axis는 trajectory의 turn 1~4. ##Turn 1 with Tool Call##: 토큰 probability가 -2~0 (높음). ##Turn 2/3 with Tool Call##: -2~-10에 가끔 spike (Tool feedback 후 저확률 토큰 등장). ##Turn 4 with Collapsed Response##: 거의 모든 토큰이 -8 ~ -10 (collapse 상태, nonsensical).</blockquote>
+
+<p><strong>원인</strong>: External interpreter feedback이 ##base model의 pretrained 분포와 OOD##. feedback token이 loss에서 masked되더라도, ##다음 turn의 generation이 이 OOD context에 conditioned되어 stochastic해짐##. 점차 누적되어 turn 4에서 ##complete collapse##.</p>
+
+<h3>2.3 Gradient Explosion (Proposition 3.1)</h3>
+
+<p>token $c$의 logit $z_t$에 대한 policy gradient의 L2 norm:</p>
+$$\left\|\nabla_{z_t} \mathcal{J}_{\text{TIR}}\right\|_2 = \frac{m_{i,t}}{\sum_j m_{i,j}} \cdot \rho_{i,t}(\theta) \cdot g_{i,t} \cdot |\hat{A}_i| \cdot \sqrt{1 - 2P(c) + \sum_{j \in \mathcal{A}} P(j)^2} \quad (3)$$
+
+<p>두 가지 dominant 효과:</p>
+<ul>
+  <li><strong>Unclipped Importance Ratio</strong>: $\rho_{i,t}(\theta) = \pi_\theta(o_{i,t}|o_{i,<t}) / \pi_{\theta_{\text{old}}}(o_{i,t}|o_{i,<t})$. negative-rewarded trajectory($\hat{A}_i < 0$)에서 ##ratio가 위로 unbounded##. token이 $\pi_{\theta_{\text{old}}}$에서 매우 낮은 확률로 생성됐다면 분모 $\pi_{\theta_{\text{old}}}(c|\cdot)$가 ##minute##. 작은 update에도 $\rho$ 폭발 → ##gradient spike##.</li>
+  <li><strong>Probability-dependent term</strong>: $\sqrt{1 - 2P(c) + \sum_j P(j)^2}$. $P(c)$가 작으면 $1 - 2P(c) \approx 1$. confident distribution이면 $\sum_j P(j)^2$ 크게 유지 → ##gradient norm sustained## (감소 안 됨).</li>
+</ul>
+
+<h3>2.4 Misaligned Credit Assignment</h3>
+<p>저확률 토큰은 ##later turn에 prevalent##(Figure 3). sparse terminal reward 환경에서 ##마지막 turn의 fail이 전체 sequence에 single negative reward##. ##초기 turn의 correct, high-prob reasoning이 unfairly penalized##. policy가 ##safer single-turn generation으로 collapse##.</p>
+
+<h2>3. SimpleTIR (Section 3.3)</h2>
+
+<h3>3.1 Void Turn 정의</h3>
+
+<p>##Void turn##: an LLM response that contains ##neither a complete code block nor a final answer##. Typical examples:</p>
+<ul>
+  <li>Partial code (e.g. <code>&lt;code&gt;def solve(</code> without closing)</li>
+  <li>Repetitive text</li>
+  <li>Premature EOS — empty/incomplete response</li>
+</ul>
+
+<p>##Distributional drift의 manifestation##: high generation stochasticity → premature EOS or syntactic incompleteness. successful trajectories에선 rare, 문제 trajectories에선 빈발 → ##powerful heuristic##.</p>
+
+<h3>3.2 알고리즘 (Figure 4)</h3>
+
+<blockquote><strong>[Figure 4 설명]</strong>: 3-step pipeline. (1) ##Agent-Env Interaction##: Agent가 Code 생성 → Result → Multiple Turns 반복. (2) ##Trajectory Filtering##: {Reasoning 1, Code 1, Reasoning 2, Incomplete Code ✗}처럼 ##Void Turn 발견 시 Stop Generation##. (3) ##Reinforcement Learning##: Valid Trajectory만 {Reasoning 1, Code 1, Reasoning 2, Code 2, Results ✓} GRPO update.</blockquote>
+
+<div class="flow-diagram">[SimpleTIR Algorithm]
+For each rollout batch:
+  1. Generate G trajectories from current policy
+  2. For each trajectory o_i:
+     For each turn k:
+       Check: does turn contain complete code block OR final answer?
+       If neither → mark as "void turn"
+  3. If any turn is void → mark entire trajectory as void
+  4. Filter: exclude void trajectories from policy loss computation
+  5. Apply GRPO on remaining valid trajectories</div>
+
+<h3>3.3 왜 작동하는가</h3>
+<ul>
+  <li><strong>Gradient explosion 차단</strong>: 저확률 token이 누적된 trajectory가 update에서 제거 → 폭발적 gradient의 source가 사라짐.</li>
+  <li><strong>Credit assignment 시정</strong>: void turn 포함 trajectory만 제거. 정상 다단계 reasoning은 보상받음.</li>
+  <li><strong>Trajectory-level filtering의 일반성</strong>: 특정 RL algorithm에 의존 안 함(GRPO만 아니라 PPO, REINFORCE에도 적용 가능).</li>
+</ul>
+
+<h3>3.4 Implementation Details</h3>
+<ul>
+  <li>##No chat template## (base model 사용): OOD special tokens 피함. Tool output 앞에 "Code Execution Result:" prefix.</li>
+  <li>##final_answer function prefix##: 모든 code block 시작에 'final_answer' helper 함수 prepend → simple tasks는 single turn에서 종료 가능.</li>
+  <li>##Strict generation stop##: complete code block이 형성되면 즉시 stop, 실제 tool feedback 추가 후 다음 turn. ##모델이 tool output을 hallucinate하지 못하게##.</li>
+</ul>
+
+<h2>4. 실험 (Experiments)</h2>
+
+<h3>4.1 Setup</h3>
+<ul>
+  <li><strong>Framework</strong>: VeRL + Search-R1, ##Sandbox Fusion## (async code interpreter)</li>
+  <li><strong>Training Data</strong>: Math3-5 (SimpleRL), Deepscaler</li>
+  <li><strong>Base Models</strong>: Qwen2.5-7B, Qwen2.5-32B (unaligned base, no SFT)</li>
+  <li><strong>Hyperparameters</strong>: rollout batch 512, mini-batch 128, max response 16K (→ 24K), max 5 turns (→ 10)</li>
+  <li><strong>Evaluation</strong>: Math500, AIME24, AIME25, AMC23, Hmmt Feb 25, Olympiad. avg@32 (32-sample average), temperature 1</li>
+  <li><strong>Baselines</strong>:
+    <ul>
+      <li>Non-TIR Zero-RL: SimpleRL-Zoo, DAPO</li>
+      <li>TIR + cold-start: ReTool (32B-Math-Instruct base), ARPO, ToRL, Effective TIR (Qwen2.5-Math)</li>
+      <li>Zero-RL + TIR: Zero-TIR (Mai et al. 2025)</li>
+    </ul>
+  </li>
+</ul>
+
+<h3>4.2 Main Results (Table 1)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>TIR</th><th>Zero RL</th><th>From</th><th>AIME24</th><th>AIME25</th><th>MATH500</th><th>Olympiad</th><th>AMC23</th><th>Hmmt 25</th></tr></thead>
+<tbody>
+<tr><td colspan="10"><strong>Qwen2.5-7B 기반</strong></td></tr>
+<tr><td>Qwen2.5-7B (base)</td><td>✗</td><td>/</td><td>Base</td><td>3.2</td><td>1.1</td><td>51.9</td><td>15.4</td><td>21.7</td><td>0.0</td></tr>
+<tr><td>SimpleRL-Zoo-7B</td><td>✗</td><td>✓</td><td>Base</td><td>15.6</td><td>–</td><td>78.2</td><td>40.4</td><td>62.5</td><td>–</td></tr>
+<tr><td>ToRL-7B</td><td>✓</td><td>✗</td><td>Math-Inst</td><td>40.2</td><td>27.9</td><td>82.2</td><td>49.9</td><td>75.0</td><td>–</td></tr>
+<tr><td>Effective TIR-7B</td><td>✓</td><td>✗</td><td>Math</td><td>42.3</td><td>29.2</td><td>86.4</td><td>–</td><td>74.2</td><td>–</td></tr>
+<tr><td>ARPO-7B</td><td>✓</td><td>✗</td><td>Inst</td><td>30.0</td><td>30.0</td><td>78.8</td><td>–</td><td>–</td><td>–</td></tr>
+<tr><td>ZeroTIR-7B</td><td>✓</td><td>✓</td><td>Base</td><td>39.6</td><td>29.0</td><td>80.2</td><td>–</td><td>–</td><td>22.5</td></tr>
+<tr><td><strong>SimpleTIR-7B</strong></td><td>✓</td><td>✓</td><td>Base</td><td><strong>50.5</strong></td><td><strong>30.9</strong></td><td><strong>88.4</strong></td><td><strong>54.8</strong></td><td><strong>79.1</strong></td><td><strong>29.7</strong></td></tr>
+<tr><td colspan="10"><strong>Qwen2.5-32B 기반</strong></td></tr>
+<tr><td>DAPO</td><td>✗</td><td>✓</td><td>Base</td><td>50.0</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>
+<tr><td>ReTool</td><td>✓</td><td>✗</td><td>Math-Inst</td><td>67.0</td><td>49.3</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>
+<tr><td>ZeroTIR-32B</td><td>✓</td><td>✓</td><td>Base</td><td>48</td><td>27</td><td>87.8</td><td>–</td><td>–</td><td>20.0</td></tr>
+<tr><td><strong>SimpleTIR-32B</strong></td><td>✓</td><td>✓</td><td>Base</td><td><strong>59.9</strong></td><td><strong>49.2</strong></td><td><strong>92.9</strong></td><td><strong>63.7</strong></td><td><strong>91.6</strong></td><td><strong>34.6</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험의 의도</strong>: (a) Zero-RL TIR이 cold-start TIR과 견줄 수 있는가, (b) SimpleTIR이 같은 Zero-RL 환경에서 SOTA인가, (c) base model size scaling.</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##SimpleTIR-7B AIME24 50.5##가 ##ToRL-7B (Math-Instruct from) 40.2, Effective TIR 42.3##보다 우월. ##cold-start specialized model 능가##.</li>
+  <li>##SimpleTIR-32B AIME24 59.9 vs ReTool 67.0##: ReTool은 Math-Instruct cold-start이므로 ##base model의 차이##가 큼. ##AIME25에선 동등##(49.2 vs 49.3) → AIME24의 격차는 Math-Instruct의 AIME24 특화 가능성.</li>
+  <li>##MATH500 92.9, Olympiad 63.7##: 32B에서 SOTA. ##Zero-RL TIR로 cold-start 의존 없이 최고 성능##.</li>
+  <li>##ZeroTIR-32B (Mai et al.) vs SimpleTIR-32B##: 같은 Zero-RL + TIR setting에서 ##AIME24 48 → 59.9 (+11.9), AIME25 27 → 49.2 (+22.2), MATH500 87.8 → 92.9##. ##void turn filtering의 직접적 효과##.</li>
+</ul>
+
+<h3>4.3 Number of Turns Scaling (Figure 5 top)</h3>
+<p>Max turns 1, 5, 10 비교:</p>
+<ul>
+  <li>Max=1 (single-turn): smooth 학습이지만 ##빠르게 plateau##</li>
+  <li>Max=5: SimpleTIR with 10 turns가 200 step부터 5-turn 체크포인트 resume</li>
+  <li>Number of Turns: 1 → 2.5~3까지 빠르게 증가하다가 ##stable## (적정 수렴)</li>
+  <li>Response Length & MATH500: ##max turn 늘릴수록 향상##</li>
+  <li>AIME24: max turn에 ##일관된 benefit 미보임##. 어떤 task는 few turn, 어떤 task는 many turn 필요</li>
+</ul>
+
+<h3>4.4 Filtering Strategy Ablation (Table 2, Figure 5 bottom)</h3>
+
+<table>
+<thead><tr><th>Method</th><th>AIME24</th><th>MATH500</th></tr></thead>
+<tbody>
+<tr><td>SimpleTIR-7B (void turn filter)</td><td><strong>50.5</strong></td><td><strong>88.4</strong></td></tr>
+<tr><td>Naive Multi-Turn (no filter)</td><td>20.8</td><td>73.1</td></tr>
+<tr><td>Low Prob Filtering</td><td>23.3</td><td>72.8</td></tr>
+<tr><td>High Ratio Filtering</td><td>26.3</td><td>75.0</td></tr>
+<tr><td>Stop Generation w/o Filtering</td><td>26.1</td><td>77.3</td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>:</p>
+<ul>
+  <li>##Naive (no filter) 20.8 vs SimpleTIR 50.5##: ##2.4× 차이##. void turn filter가 결정적.</li>
+  <li>대안 ##Low Prob Filtering##(가장 낮은 token prob mask) 23.3, ##High Ratio Filtering##(가장 높은 importance ratio mask) 26.3: 약간의 개선 그치고 ##gradient explosion 해결 못함##. ##threshold tuning 어렵고 credit assignment 문제 해결 못함##.</li>
+  <li>##Stop Generation w/o Filtering## 26.1: void turn에서 generation 중단하지만 trajectory를 update에 포함 → ##credit assignment 문제 잔존##. ##SimpleTIR의 entire trajectory masking이 핵심##.</li>
+</ul>
+
+<h3>4.5 Reasoning Pattern Diversity (Table 3, Figure 6)</h3>
+
+<blockquote><strong>[Figure 6 설명]</strong>: 3가지 emergent pattern 시각화. (1) ##Cross Validation##: 같은 답을 다른 method로 계산해 비교. Code 1 (solve_a()), Code 2 (solve_b()) → 두 result 일치 확인 → Validated Results. (2) ##Progressive Reasoning##: Code 1 (solve_step1()) → Result 1 → Code 2 (solve_step2()) → Result 2 → Code 3 (solve_step3()) → Final. (3) ##Error Correction Loop##: Code (buggy_func()) → Initial Result (에러) → "Retry If Error" 분기 → 수정된 Code → Final Result.</blockquote>
+
+<table>
+<thead><tr><th>Pattern</th><th>Progressive Reasoning (%)</th><th>Cross Verification (%)</th><th>Error Correction (%)</th></tr></thead>
+<tbody>
+<tr><td>ReTool</td><td>18.9</td><td>82.4</td><td>25.8</td></tr>
+<tr><td><strong>SimpleTIR-32B</strong></td><td><strong>46.5</strong></td><td><strong>86.0</strong></td><td><strong>38.0</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>SimpleTIR이 ##Progressive Reasoning ~2.5×##, ##Error Correction +12.2 percentage points##.</li>
+  <li>##cold-start SFT가 패턴 단조성을 강요##하는 반면, ##Zero-RL이 pattern 다양성을 보존##. RL이 SFT 분포에 묶이지 않고 ##novel reasoning patterns 발견##.</li>
+  <li>Cross Verification은 둘 다 높은 빈도 (82~86%): math reasoning의 universal pattern.</li>
+</ul>
+
+<h2>5. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>진단의 수학적 명료성</strong>: gradient norm formula(Eq. 3)와 두 가지 dominant term 분석. ##multi-turn TIR instability의 root cause를 첫 정량 분석##. blackbox empirical observation을 넘어 theoretical foundation 제공.</li>
+  <li><strong>해결책의 우아함</strong>: void turn은 ##관찰 가능한 거시 현상##. 미시적 token-level filtering(low prob, high ratio) 대비 ##threshold-free, robust##. 1줄 추가로 plug-and-play.</li>
+  <li><strong>Zero-RL 패러다임의 가치 입증</strong>: cold-start SFT 의존 제거하면서 ##emergent diverse patterns 보존##. RL의 본질적 강점(exploration)을 다시 살림. Table 3가 정량적 증거.</li>
+  <li><strong>실증의 광범위함</strong>: Qwen2.5-7B/32B 두 size, 6개 math benchmark, 다양한 baseline (non-TIR, cold-start TIR, Zero-RL TIR). 최근 SOTA(ReTool)과 직접 비교 후 동등하거나 우월.</li>
+  <li><strong>Ablation의 명료성</strong>: Naive vs Low Prob vs High Ratio vs Stop-without-filter vs SimpleTIR. ##각 alternative가 왜 실패하는지##를 명확히 분리.</li>
+  <li><strong>SOTA pattern emergence</strong>: ReTool 대비 ##Progressive Reasoning 2.5×, Error Correction +47%##. ##Zero-RL이 더 풍부한 cognitive behavior 발견함을 입증##.</li>
+  <li><strong>Implementation details의 공개</strong>: no chat template, final_answer prefix, strict generation stop 등 ##실용적 trick들을 명시##. reproducibility.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>Math benchmark만</strong>: 6개 math benchmark만 평가. ##coding, agent (SWE-bench, GAIA), open-ended task에서 효과 unclear##. ReTool과 같은 한계.</li>
+  <li><strong>Void turn의 task-specific 정의</strong>: "complete code block OR final answer"은 ##math TIR 특화##. ##general agent (web browsing, file editing)##에서 void turn의 일반적 정의가 필요. paper는 generality를 주장하나 실증 없음.</li>
+  <li><strong>Filtered trajectory의 비율 미보고</strong>: 학습 중 ##몇 %의 trajectory가 void로 제외##되는가? 초기엔 많고 후기엔 적을 텐데 그 dynamics가 부재. ##sample efficiency 평가에 결정적 정보##.</li>
+  <li><strong>"Stop Generation w/o Filtering" vs full SimpleTIR의 분리</strong>: Stop Generation은 void turn에서 generation 중단(여기까진 같음). ##단지 trajectory를 update에 포함##. Table 2에서 26.1% vs 50.5%로 ##2배 차이##. ##trajectory filtering이 generation stopping보다 압도적으로 중요##. 이 분리가 명료한 evidence.</li>
+  <li><strong>AIME24에서 max turn scaling 무효</strong>: Figure 5 top에서 AIME24 점수는 max turn에 ##일관된 향상 미보임##. SimpleTIR의 한계를 명시. 어떤 task가 multi-turn benefit을 받는지 ##task-level 분석 부재##.</li>
+  <li><strong>ReTool과의 비교의 공정성</strong>: ReTool은 ##Math-Instruct cold-start##, SimpleTIR은 ##base from scratch##. AIME24에서 ReTool 67 vs SimpleTIR 32B 59.9 — SimpleTIR이 더 어려운 setup에서 ##59.9##인데 ReTool이 우월하다고만 보면 잘못. AIME25에선 동등(49.2 vs 49.3).</li>
+  <li><strong>32B가 7B 대비 AIME24 향상 적음</strong>: SimpleTIR 7B 50.5 vs 32B 59.9 — model size 4.5×인데 ##+9.4 pts##. scaling이 효율적이지 않음. ##cold-start SFT가 보강된 cold-start ReTool##이 32B에서 67%인 점과 대비.</li>
+  <li><strong>Gradient norm 시각화의 ad-hoc</strong>: Figure 1 right에서 gradient norm spike를 보이나 ##정량적 reduction (X% lower)이나 statistical significance##는 없음.</li>
+  <li><strong>Compute cost 분해 부재</strong>: 32B base model RL 학습 cost. ##GPU-hour, training step time##이 보고 안 됨.</li>
+  <li><strong>Sandbox 보안 / scalability</strong>: Sandbox Fusion async interpreter 외 보안 메커니즘 미상.</li>
+</ul>
+</div>
+
+<h2>6. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"Tool feedback이 OOD라는 사실"</strong>: external interpreter output은 base model의 pretrained 분포와 다르고, 이게 ##distributional drift##의 시작점. 모든 tool-augmented RL에서 의식해야 할 fundamental 관찰.</li>
+  <li><strong>"Macro symptom"으로 filtering</strong>: token-level low prob, importance ratio처럼 ##미시적 signal은 threshold tuning이 어렵고 robustness 낮음##. ##void turn 같은 거시적 manifestation##을 잡는 게 strong filter. ##NaN gradient##, ##repetition##, ##incomplete responses## 같은 다른 macro signal에도 transferable.</li>
+  <li><strong>"Trajectory-level vs Token-level masking"</strong>: ##void turn을 가진 trajectory 전체##를 mask. 단순 ##void turn만 mask## (Stop Generation w/o filter)는 ##credit assignment 문제 해결 못함##. ##entire trajectory 단위가 GRPO/PPO의 advantage 계산에 일관##.</li>
+  <li><strong>Zero-RL이 pattern diversity의 핵심</strong>: cold-start SFT는 ##안정성을 얻지만 패턴 다양성을 잃는다##. SFT 분포 제약 없이 ##base에서 직접 RL##이 ##emergent capability##(self-correction, cross-validation, progressive reasoning)를 발견. DeepSeek-R1 패러다임의 ##tool-use 확장##.</li>
+  <li><strong>"Hierarchical MDP framing"</strong>: high-level (turn) + low-level (token) MDP로 multi-turn agent를 모델링. ##credit assignment 문제##를 ##temporal 두 level##로 분해. agent RL의 일반 framework.</li>
+  <li><strong>ReTool의 cold-start와 SimpleTIR의 Zero-RL는 trade-off</strong>: ReTool은 ##안정성 + pattern bias##, SimpleTIR은 ##안정성 + pattern diversity##. void turn filtering 덕에 Zero-RL이 cold-start 없이 안정해짐 → ##다양성을 잃지 않으면서 안정성을 얻음##.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

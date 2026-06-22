@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ReTool: Reinforcement Learning for Strategic Tool Use in LLMs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; margin: 0.5rem 0 1rem 0; padding: 0.4rem 0.8rem; background: #e8f4fd; border-radius: 6px; color: #2196F3; text-decoration: none; font-size: 0.9em; }
+  .brief-link:hover { background: #d0e8fa; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>ReTool: Reinforcement Learning for Strategic Tool Use in LLMs</h1>
+<a class="brief-link" href="20260622_feng_retool_brief.html">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Jiazhan Feng*, Shijue Huang*, Xingwei Qu, Ge Zhang, Yujia Qin, Baoquan Zhong, Chengquan Jiang, Jinxin Chi, Wanjun Zhong† (*공동 제1저자, †교신저자)</li>
+  <li><strong>소속</strong>: ByteDance Seed</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2025)</li>
+  <li><strong>연도</strong>: 2025 (v2, 2025-04-17)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2504.11536">arXiv:2504.11536</a> | <a href="https://retool-rl.github.io/">프로젝트 페이지</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: DeepSeek-R1 같은 ##순수 텍스트 reasoning model##은 long CoT(Chain-of-Thought)는 잘 하지만, ##정밀 계산, 기하 추론, 복잡한 방정식 풀이##처럼 ##symbolic computation##이 필요한 영역에서 한계. SFT 기반 tool-integrated reasoning은 ##특정 데이터 분포에 imitate##할 뿐 ##언제·어떻게 도구를 부를지를 adaptively 결정##하지 못함.</li>
+  <li><strong>해결</strong>: ##Code Interpreter(CI) 호출을 reasoning 안에 dynamic 삽입하면서 RL로 학습##. (1) Cold-start SFT로 CI 호출 패턴을 가르치고, (2) ##outcome-based reward(PPO)로 multi-turn real-time code execution rollout##을 통해 ##언제·어떻게 도구를 부를지를 RL로 자율 발견##.</li>
+  <li><strong>왜 작동하는가</strong>: SFT가 모범 패턴 모방에 그치는 반면, RL은 ##task outcome을 직접 reward##로 받아 ##도구 호출 timing, code selection, self-correction##을 trial-and-error로 최적화. 검증 가능 보상(rule-based equivalence)이 RLVR의 깨끗한 신호.</li>
+  <li><strong>비유</strong>: Toolformer가 "도구가 도움 되는지 자기 평가하는 학생"이라면, ReTool은 "##정답이 맞으면 +1, 틀리면 -1이라는 게임에서 도구를 언제 쓸지 trial-and-error로 배우는 학생##". 그리고 그 학생은 ##틀린 코드를 보고 스스로 수정하는 "aha moment"##를 발견.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>CI-integrated RL framework</strong>: PPO rollout 안에 ##multi-turn real-time code execution##을 직접 삽입. 텍스트 + 코드 + interpreter feedback이 한 trajectory 안에서 흘러감.</li>
+  <li><strong>Cold-start + RL의 2-stage</strong>: (1) high-quality CoT 데이터를 ##수학 추론 데이터(OpenThoughts 등)##에서 모아 ##manual calculation 부분을 code snippets로 replace한 dataset $\mathcal{D}_{CI}$##를 생성, (2) Qwen2.5-32B-Instruct를 cold-start SFT한 후 outcome reward로 RL.</li>
+  <li><strong>"Aha moment"의 emergent self-correction</strong>: ##explicit 학습 데이터 없이## 모델이 interpreter error feedback을 보고 ##"Oops, let's correct that"##라고 reflect한 후 코드를 수정하는 행동을 RL 단계에서 학습.</li>
+  <li><strong>SOTA on AIME</strong>: Qwen2.5-32B 기반 ReTool이 ##AIME2024에서 67.0%, AIME2025에서 49.3%##. ##400 training steps##만에 text-based RL의 1080 step 결과(40%)를 능가. ##OpenAI o1-preview 27.9%##까지 격차.</li>
+  <li><strong>Behavior analysis</strong>: RL 진행에 따라 ##response length 40% 감소(token 효율 향상)##, code ratio 98% 도달, code lines 5배 증가, ##code invocation timing이 점점 앞당겨짐## 등 emergent 패턴 보고.</li>
+</ol>
+
+<h2>1. 배경 (Background)</h2>
+
+<h3>1.1 RL-trained reasoning models의 한계</h3>
+<p>OpenAI o1, DeepSeek-R1 등은 RL로 long CoT 능력을 학습해 추론 강함. ##메타인지(metacognition)##까지 흉내 — self-correct, deliberate thinking. 그러나 다음 영역은 ##순수 텍스트로 풀기 어려움##:</p>
+<ul>
+  <li>기하 추론 (정밀 좌표 계산)</li>
+  <li>큰 수의 산술 / 모듈러 연산</li>
+  <li>complex 방정식 풀이</li>
+  <li>case enumeration with verification</li>
+</ul>
+
+<h3>1.2 기존 tool-integrated reasoning</h3>
+<p>Tool-integrated reasoning (Chen et al. PoT, Gao et al. PAL)이 ##Python code execution을 reasoning에 결합##. 그러나 두 접근의 문제:</p>
+<ul>
+  <li><strong>Prompting</strong> (PoT, PAL): ##in-context fixed 패턴## — 새로운 task에 generalize 어려움.</li>
+  <li><strong>SFT</strong> (Qwen2.5-Math-72B-Instruct-TIR 등): 잘 만들어진 데이터셋의 ##패턴을 imitate##할 뿐. ##언제 도구를 부를지의 strategic decision## 학습 못함.</li>
+</ul>
+
+<h3>1.3 RL의 약속</h3>
+<p>RL은 ##outcome-based feedback##으로 (a) flexibility 있게 reasoning trajectory를 explore하고, (b) ##error recovery, adaptive timing## 같은 nuanced behavior를 발견 가능. 다만 RL-tool-use은 ##rollout 중 외부 sandbox와 interactive##해야 하므로 system-level 도전 多. ReTool은 이 갭을 해결.</p>
+
+<h2>2. 방법 (Methodology)</h2>
+
+<h3>2.1 Overall pipeline</h3>
+<p>2-stage: (1) Cold-start SFT, (2) CI-integrated RL.</p>
+
+<h3>2.2 Cold-Start for Tool-Integrated Reasoning Foundation</h3>
+
+<h4>2.2.1 Text-only reasoning dataset $\mathcal{D}_{\text{init}}$ 구성</h4>
+<ul>
+  <li>OpenThoughts 등 open-source math reasoning datasets에서 시작</li>
+  <li>Human expert curation + DeepSeek-R1 evaluation의 dual verification으로 invalid samples 제거</li>
+</ul>
+
+<h4>2.2.2 Code-integrated dataset $\mathcal{D}_{CI}$ 생성</h4>
+<p>$\mathcal{D}_{\text{init}}$의 reasoning trace에서 ##manual calculation 부분을 자동으로 식별##하고 ##해당 부분을 code snippet + interpreter execution 결과로 replace##:</p>
+
+<div class="flow-diagram">For each (question, reasoning_trace, answer) in D_init:
+  1. Apply structured prompt template
+  2. Identify computation steps in trace
+  3. Replace with <code>…</code> + <interpreter>result</interpreter>
+  4. Format verification: ensure <code></code> tag syntax 일관성
+  5. Answer verification: final output이 ground-truth와 일치하는가
+  6. Pass → add to D_CI</div>
+
+<p>SFT를 $\mathcal{D}_{CI}$로 진행 → 모델이 ##when and how to invoke CI##의 ##baseline pattern## 학습.</p>
+
+<h3>2.3 ReTool RL (Figure 2)</h3>
+
+<blockquote><strong>[Figure 2 설명]</strong>: (a) Text-based RL training: Policy LLM이 single sequence 생성 → Reward → Advantage. (b) ReTool RL training: Policy LLM의 rollout 중 ##Code Sandbox##와 ##interleaved 상호작용##. Question 입력 → LLM 텍스트 생성 → code 생성 → Sandbox 실행 → interpreter feedback → LLM이 그 결과 보고 다음 텍스트 생성 → 최종 답에 Reward. 색상: text는 회색, code는 초록, interpreter feedback은 청록, final result는 보라.</blockquote>
+
+<h4>2.3.1 PPO objective</h4>
+
+<p>표준 PPO를 수정해 ##rollout이 interleaved code execution을 포함##:</p>
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{(q,a) \sim \mathcal{D}, o_{\leq t} \sim \pi_{\theta_{\text{old}}}(\cdot | q)} \left[ \min\left( \frac{\pi_\theta(o_t | q, o_{<t}; \mathcal{CI})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{<t}; \mathcal{CI})} \hat{A}_t, \text{clip}\left(\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}, 1-\varepsilon, 1+\varepsilon\right) \hat{A}_t \right) \right]$$
+
+<p>$\mathcal{CI}$는 code interpreter context. 직관적으로 말하면 ##policy gradient를 계산할 때 interpreter feedback이 context의 일부##로 들어감.</p>
+
+<h4>2.3.2 Reward design</h4>
+
+<p>Rule-based outcome reward만 사용:</p>
+$$R(a, \hat{a}) = \begin{cases} 1, & \text{is\_equivalent}(a, \hat{a}) \\ -1, & \text{otherwise} \end{cases}$$
+
+<p>여기서 $a$는 ground-truth, $\hat{a}$는 모델 예측. ##code executability reward는 사용하지 않음## — diverse problem-solving behavior를 위해 ##outcome-only feedback##만으로 충분하다고 판단.</p>
+
+<h4>2.3.3 Rollout with Interleaved Code Execution</h4>
+
+<div class="flow-diagram">[Rollout step]
+1. Policy LLM이 text t_1 생성
+2. Code termination trigger </code> 감지 → generation pause
+3. 생성된 code c_1을 parse → Code Sandbox에 전송
+4. Sandbox 실행 결과 f_1 (success result or error message)
+5. f_1을 <interpreter></interpreter> 태그로 wrap → context에 추가
+6. LLM이 t_2 생성 재개
+7. 최종 answer o 출력까지 반복
+8. Hybrid trajectory: [t_1 ⊕ c_1 ⊕ f_1 ⊕ … ⊕ o]</div>
+
+<p>중요: ##successful execution 결과와 error message 모두## 모델에 feedback. error도 학습 신호 (self-correction의 토대).</p>
+
+<h4>2.3.4 Training details</h4>
+<ul>
+  <li><strong>Framework</strong>: VeRL (volcengine/verl)</li>
+  <li><strong>RL alg</strong>: PPO</li>
+  <li><strong>Cold-start</strong>: 2 epoch</li>
+  <li><strong>Optimizer</strong>: AdamW, lr=1e-6</li>
+  <li><strong>Max sequence length</strong>: 16384 tokens</li>
+  <li><strong>Mini-batch size</strong>: 512</li>
+  <li><strong>KL coefficient</strong>: 0.0 (즉 reference policy 제약 없음)</li>
+  <li><strong>Backbone</strong>: Qwen2.5-32B-Instruct (main), DeepSeek-R1-Distill-Qwen-32B (Stronger backbone variant)</li>
+</ul>
+
+<h4>2.3.5 System-level 최적화</h4>
+<ul>
+  <li><strong>Interpreter Feedback Mask</strong>: $<\!\!\text{interpreter}\!\!>$ feedback을 ##loss 계산에서 mask out##. 외부 토큰이 ##policy gradient에 ghost gradient##를 만들지 않도록.</li>
+  <li><strong>KV-Cache Reuse</strong>: code 실행 시 ##기존 KV cache를 모두 cache##하고 interpreter feedback만 추가 계산. ##메모리 cost 절감##.</li>
+  <li><strong>Asynchronous Sandbox</strong>: pod pool에서 ##load-balancing##. 느린 thread가 전체를 막지 않게 parallel environment interaction.</li>
+</ul>
+
+<h2>3. 실험 (Experiment)</h2>
+
+<h3>3.1 Setup</h3>
+<ul>
+  <li><strong>Benchmarks</strong>: AIME 2024, AIME 2025 (MATH Olympiad)</li>
+  <li><strong>Evaluation</strong>: temperature=1.0, top-p=0.7, 32회 반복 평균 (pass@1)</li>
+  <li><strong>Baselines</strong>: Qwen2.5-Math-72B-Instruct, Qwen2.5-Math-72B-Instruct-TIR, Sky-T1, OpenAI o1-preview, DeepSeek-R1-Zero-Qwen-32B, QwQ-32B-Preview, s1-32B, Qwen2.5-32B-Instruct (text-based RL)</li>
+</ul>
+
+<h3>3.2 Main Results (Table 1)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>AIME 2024 pass@1</th><th>AIME 2025 pass@1</th></tr></thead>
+<tbody>
+<tr><td colspan="3"><strong>Existing Baselines</strong></td></tr>
+<tr><td>Qwen2.5-Math-72B-Instruct</td><td>30.0</td><td>–</td></tr>
+<tr><td>Qwen2.5-Math-72B-Instruct-TIR (SFT tool use)</td><td>40.0</td><td>–</td></tr>
+<tr><td>Sky-T1</td><td>43.3</td><td>–</td></tr>
+<tr><td>OpenAI o1-preview</td><td>44.6</td><td>37.9</td></tr>
+<tr><td>DeepSeek-R1-Zero-Qwen-32B</td><td>47.0</td><td>–</td></tr>
+<tr><td>QWQ-32B-Preview</td><td>50.0</td><td>33.5</td></tr>
+<tr><td>s1-32B</td><td>56.7</td><td>–</td></tr>
+<tr><td colspan="3"><strong>CI-powered RL (Ours)</strong></td></tr>
+<tr><td><strong>ReTool (Qwen2.5-32B-Instruct)</strong></td><td><strong>67.0</strong></td><td><strong>49.3</strong></td></tr>
+<tr><td><strong>ReTool (DeepSeek-R1-Distill-Qwen-32B)</strong></td><td><strong>72.5</strong></td><td><strong>54.3</strong></td></tr>
+<tr><td colspan="3"><strong>Ablations on Qwen2.5-32B-Instruct</strong></td></tr>
+<tr><td>w/o Training (Base Model)</td><td>26.7</td><td>–</td></tr>
+<tr><td>w/o CI (Text-based RL)</td><td>40.0</td><td>36.7</td></tr>
+<tr><td>w/o RL (only Cold-start)</td><td>40.9</td><td>34.5</td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험의 의도</strong>: (a) CI integration이 RL 성능에 미치는 영향, (b) cold-start만으로 충분한지, (c) text-based RL 대비 효율성.</p>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##ReTool (Qwen2.5-32B) 67% vs Text-based RL 40% (1080 step)##. ##400 step만에 60% gap 폭으로 능가##. step 효율 2.7×+.</li>
+  <li>OpenAI o1-preview 44.6% 대비 ##+22.4 percentage points##. AIME 2024 SOTA 갱신.</li>
+  <li>DeepSeek-R1-Distill backbone에 적용 시 ##72.5% (AIME 2024)##. ##stronger backbone이 RL 효과를 amplify##.</li>
+  <li>Cold-start only 40.9% ≈ Text-based RL 40%: ##cold-start 자체만으론 text-based RL과 동등##. RL이 결정적.</li>
+  <li>Base model 26.7% → Cold-start 40.9% (+14.2): ##데이터 quality 자체로도 의미 있는 향상##.</li>
+  <li>Cold-start (40.9%) → Full ReTool (67%): ##RL이 단독으로 +26.1 percentage points##. 거의 두 배. ##RL이 도구 사용 strategy를 학습##하는 게 핵심.</li>
+</ul>
+
+<h3>3.3 CI-related Behavior Evolution (Figure 3)</h3>
+
+<blockquote><strong>[Figure 3 설명]</strong>: 6 sub-plots. (a) Response Length: 첫 40 step에서 1000→200으로 급강하, 이후 200→700 완만 증가. (b) Code Ratio: 0%→98%까지 monotonic 증가. (c) Code Lines: 5→50 (5×). (d) Total Test Set Correct Code Counts: 1K→5K. (e) Code Pass Rate: correct response의 code는 100%에 근접, incorrect는 90→85 감소 추세. (f) Code Invocation Timing: response 길이 대비 code 시작 위치 비율이 0.61→0.51 (점점 앞당겨짐).</blockquote>
+
+<p>각 패턴의 해석:</p>
+<ul>
+  <li><strong>Response Length (a)</strong>: ##40% 감소##(10k→6k). 초기엔 verbose text reasoning이 code로 ##replace##되고, 이후 더 다양한 code 사용으로 약간 증가. ##token 효율 향상의 직접 증거##.</li>
+  <li><strong>Code Ratio (b)</strong>: 학습 끝엔 ##98% 문제에서 코드 사용##. 도구 활용이 ##universal habit##이 됨.</li>
+  <li><strong>Code Lines (c)</strong>: ##5배 증가##. 복잡한 strategy 발전.</li>
+  <li><strong>Correct Code Counts (d)</strong>: ##5배 증가##. 도구 활용 빈도와 질 모두 향상.</li>
+  <li><strong>Code Pass Rate (e)</strong>: correct response의 코드는 거의 100% 실행. incorrect response에서 ##90→85% 하락 추세##: code execution failure가 reasoning failure와 ##correlate##됨.</li>
+  <li><strong>Code Invocation Timing (f)</strong>: ##0.61→0.51##. 모델이 ##더 이른 시점에## 도구를 부르게 됨. "결정 후 검증"이 아니라 "초기 setup에 도구 사용".</li>
+</ul>
+
+<h3>3.4 "Aha Moment": Emergent Self-correction (Figure 4)</h3>
+
+<blockquote><strong>[Figure 4 설명]</strong>: AIME problem 사례. 학생 응답 — Python 코드 작성 중 `def test_specific_N(N_values)`에서 ##`greedy` 함수가 정의되지 않음##. Interpreter feedback: `NameError: name 'greedy' is not defined`. 학생의 reflection: ##"Oops, the functions need to be defined in the same scope. Let's correct that:"##. 이어서 코드를 수정해 `def greedy(N)`를 추가하고 재실행해 정답 도출.</blockquote>
+
+<p><strong>의미</strong>: ##self-correction에 대한 explicit 학습 데이터 없음##. RL이 ##metacognitive capability##를 emergent하게 학습. interpreter error → 모델이 자체 reflect → 수정. 이는 ##agent의 일반 능력 (debugging)##으로 generalize 가능.</p>
+
+<h3>3.5 Code Purpose Analysis (Figure 5)</h3>
+
+<blockquote><strong>[Figure 5 설명]</strong>: Doubao-1.5-pro로 code의 primary purpose를 classify한 word clouds. (a) Before RL: ##calculation 79.1%##, verification 10.7%, probability calc 4.45%, data processing 3.12%, computation 1.34%. (b) After RL: ##calculation 51.4%, optimization 7.50%, verification 8.64%, solution search 3.82%, geometric calculation 4.65%, probability 2.31%##.</blockquote>
+
+<p><strong>패턴</strong>: ##단순 calculation 비중이 79.1%→51.4%로 감소##, ##optimization, geometric calc, solution search 등 다양한 use case## 등장. ##도구 활용의 다양성이 RL로 커짐##. metacognitive development의 증거.</p>
+
+<h3>3.6 CI-powered vs Text-based Reasoning Case Study (Figure 6)</h3>
+
+<blockquote><strong>[Figure 6 설명]</strong>: 같은 AIME 문제. Text-based: 수동 modular arithmetic 계산을 길게 수행, 중간에 cancellation 패턴 추출하려 시도, 최종 답 629 (오답). CI-powered (Ours): `mod_1000 = 1000 % 7` 등 ##간결한 코드##로 modular value 계산 → Python loop으로 valid N 탐색 → 정답 699 도출.</blockquote>
+
+<p><strong>의미</strong>: 같은 모델 backbone에서 ##text reasoning이 numerical error로 인해 실패##하는 케이스를 ##CI가 깔끔히 해결##. ReTool의 가치를 시각적으로 입증.</p>
+
+<h2>4. 종합 평가</h2>
+
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>패러다임의 전환</strong>: Toolformer의 SFT 기반 학습이 ##패턴 모방의 ceiling##을 노출한 후, ##RL이 strategic 도구 사용을 학습하게 함##. ##RLVR(verifiable reward)## 시대에 도구 사용을 어떻게 학습할지의 모범 사례.</li>
+  <li><strong>SOTA 결과의 강력함</strong>: AIME 2024에서 ##OpenAI o1-preview를 +22.4 pts 초과##(67% vs 44.6%). ##academic open 32B 모델이 closed o1을 능가##한 첫 사례 중 하나. AIME 2025에서도 49.3% vs 37.9%.</li>
+  <li><strong>RL의 sample efficiency</strong>: ##400 step만에 text-based RL 1080 step 결과 능가##. 2.7×+ 효율. ##도구 활용이 RL 학습 가속의 lever##임을 보임.</li>
+  <li><strong>"Aha moment" 발견</strong>: ##explicit 라벨 없는 self-correction의 emergence##. DeepSeek-R1의 "aha moment"가 텍스트 reasoning에서 발견된 것의 ##도구 사용 버전##. RL의 metacognitive capability 발견 능력 입증.</li>
+  <li><strong>Behavior analysis의 깊이</strong>: 6가지 metric(response length, code ratio, code lines, correct counts, pass rate, invocation timing)을 ##학습 단계별로 tracking##. ##학습 trajectory를 정량적으로 해부##. 단순 final score만 보고하는 다른 RL 논문 대비 우월.</li>
+  <li><strong>System-level engineering</strong>: Interpreter Feedback Mask, KV-Cache Reuse, Asynchronous Sandbox 등 ##production-grade infrastructure 세부##를 명시. reproducibility와 deployment 시사.</li>
+  <li><strong>Cold-start vs RL ablation의 명료성</strong>: cold-start만 40.9% vs full ReTool 67%. ##RL이 +26.1 pts 단독 기여##. SFT가 아니라 RL이 진짜 driver임을 ablation으로 확실히.</li>
+</ul>
+
+<h3>한계 및 의문점</h3>
+<ul>
+  <li><strong>Math benchmark 한정</strong>: AIME 2024/2025만 평가. ##coding tasks, general agent benchmarks (SWE-bench, AgentBench)에서의 효과 unclear##. 일반 agent로의 transferability는 미증.</li>
+  <li><strong>Single tool (CI)만</strong>: Python interpreter만 사용. ##multi-tool (search, browser, calculator) 환경에서의 effects unclear##. Toolformer의 5-tool 다양성 대비 좁음.</li>
+  <li><strong>KL coefficient 0</strong>: reference policy 제약 없음. ##reward hacking 또는 catastrophic drift 위험##. 본문은 reward function 단순화로 hacking 알리지만, 33B 모델의 general capability 검증(MMLU, HumanEval 등)이 부재.</li>
+  <li><strong>Cold-start 데이터의 합성 방법</strong>: OpenThoughts에서 reasoning trace를 가져와 code로 replace하는데, ##어떻게 calculation을 자동 식별##하는지 디테일이 약함. structured prompt template이 Figure 8 (appendix)에 있으나 본문에선 black box.</li>
+  <li><strong>Rule-based reward의 한계</strong>: AIME 같은 numerical answer task에 적합. ##open-ended problem (proof generation, code generation)에선 reward 정의가 어려움##.</li>
+  <li><strong>Code execution time의 reward 반영 부재</strong>: 1초 코드 vs 10분 코드가 같은 outcome reward. ##cost-aware policy## 없음. production에선 중요.</li>
+  <li><strong>Cold-start 없이 RL only 실험 부재</strong>: cold-start의 필수성을 보이는 ablation은 있으나(40.9%), ##RL from-scratch (cold-start없이)의 결과 미보고##. RL stability에 cold-start가 필수인지 명시 없음.</li>
+  <li><strong>Response length 40% 감소의 trade-off</strong>: 효율 좋으나 ##reasoning depth가 줄어든 것 아닌지## 검증 부재. AIME 같은 수렴적 문제에선 OK지만, ##탐색적 문제에는 손해## 가능.</li>
+  <li><strong>Code self-correction의 빈도/효과 정량화 부재</strong>: "aha moment" 사례 1개만 제시. ##trained 모델이 평균 몇 번 self-correct하는가, self-correct 후 정답률은##? 미보고.</li>
+  <li><strong>Stronger backbone 효과의 분리 부재</strong>: DeepSeek-R1-Distill-Qwen-32B + ReTool이 72.5%. 이 중 R1 distillation의 contribution과 ReTool RL의 contribution을 ##분리하지 않음##.</li>
+  <li><strong>Concurrent RL+tool 연구 비교 부재</strong>: 본문이 언급한 "concurrent work [8] applied RL to tool usage on Qwen2.5-Math 1.5B/7B"와 직접 비교 없음. ReTool의 우월성 입증은 정량적이지 않음.</li>
+  <li><strong>Sandbox 보안</strong>: code execution sandbox의 ##보안 격리 메커니즘## 미명시. RL이 ##sandbox escape 패턴##을 학습할 위험.</li>
+</ul>
+</div>
+
+<h2>5. Key Takeaways</h2>
+
+<div class="takeaways">
+<ol>
+  <li><strong>"SFT는 도구 패턴을 모방, RL은 도구 strategy를 학습"</strong>: 둘은 본질이 다름. ##패턴 모방의 ceiling을 RL로 깨야 함##. Toolformer→ReTool은 self-supervised → outcome-driven의 진화.</li>
+  <li><strong>RLVR + Tool은 강력한 조합</strong>: ##verifiable reward (rule-based answer matching)##이 있는 도메인(math, code, formal verification)에선 RL이 빠르게 수렴. 이 framework는 다른 verifiable domain에 즉시 transfer 가능.</li>
+  <li><strong>"Aha moment"는 emergent behavior</strong>: DeepSeek-R1 텍스트 reasoning에서 발견된 self-correction이 ##도구 사용에도 emerge##. RL이 metacognition을 가르치는 일반 패턴.</li>
+  <li><strong>System-level engineering이 필수</strong>: interleaved code execution은 ##KV-cache management, async sandbox, feedback masking## 등 system 디테일이 결정적. RL+tool 연구는 ML algorithm뿐 아니라 distributed system 도전.</li>
+  <li><strong>Tool invocation timing의 strategic learning</strong>: RL이 진행되면서 모델이 ##더 이른 시점에 도구를 부름##(0.61→0.51). "결정 후 검증" → "초기 setup". ##human expert와 비슷한 패턴##. agent design의 inspiration.</li>
+  <li><strong>32B 모델이 o1을 이긴다</strong>: 적절한 도구 + RL이 ##모델 scale의 갭을 메움##. open research가 closed model을 따라잡는 방법론.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

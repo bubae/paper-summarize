@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SimpleTIR — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #831843, #db2777, #ec4899); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #831843; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #db2777, #ec4899); border-radius: 3px; }
+  .card { background: #fdf2f8; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #fbcfe8; }
+  .card-accent { border-left: 5px solid #db2777; }
+  .card-green  { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #059669; }
+  .card-orange { background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #d97706; }
+  .card-red    { background: #fef2f2; border: 1px solid #fecaca; border-left: 5px solid #dc2626; }
+  .one-liner { background: linear-gradient(135deg, #db2777, #ec4899); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #fdf2f8; border-radius: 12px; border: 1px solid #fbcfe8; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #fdf2f8; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #fbcfe8; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #db2777, #ec4899); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #fbcfe8; }
+  .comp-table th { background: #831843; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #fbcfe8; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fce7f3; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #db2777; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #db2777; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #db2777; padding: 0 0.4rem; }
+  .expert-link { display: inline-block; margin: 1rem 0; padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-decoration: none; font-size: 0.9rem; }
+  .expert-link:hover { background: rgba(255,255,255,0.3); }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #fbcfe8; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">NTU & TikTok &middot; 2025</div>
+  <h1>SimpleTIR</h1>
+  <p class="subtitle">"AI에게 도구 사용을 가르치려 RL을 했더니<br>학습이 폭발했다. 그 원인과 해결을 찾았다."</p>
+  <a class="expert-link" href="20260622_xue_simpletir.html">📘 전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  "망친 답안지를 통째로 제외하라.<br>그러면 사전 학습 없이도 강화학습이 안정적이다."
+</div>
+
+<section>
+  <h2>먼저 알아야 할 것: TIR과 Zero-RL</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 두 개념을 알아야 합니다.</p>
+    <ol style="margin-top:0.8rem; padding-left:1.5rem;">
+      <li><strong>Tool-Integrated Reasoning (TIR)</strong>: AI가 추론 중에 ##Python 코드를 짜서 실행##하고, 그 결과를 다시 보고 추론을 이어가는 방식. ReTool 같은 방법이 대표적.</li>
+      <li><strong>Zero-RL</strong>: DeepSeek R1이 입증한 패러다임으로, ##사전 SFT(supervised fine-tuning) 없이 base model에서 직접 강화학습##. 모델이 ##자유롭게 새로운 추론 패턴을 발견##할 수 있는 장점.</li>
+    </ol>
+    <p style="margin-top:0.8rem;">자연스러운 시도: <strong>"TIR을 Zero-RL로 학습하면 자유롭게 도구 사용 전략을 발견하지 않을까?"</strong></p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#831843;">문제: 학습이 폭발한다</h3>
+  <p style="margin:0.8rem 0;">결과는 실패였습니다. ##Multi-turn TIR을 base model에서 직접 RL##하면 학습 그래디언트가 폭발(gradient explosion)하고 성능이 무너집니다(performance collapse).</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">Naive Multi-turn TIR 학습 실패</text>
+
+      <line x1="50" y1="220" x2="650" y2="220" stroke="#1e293b" stroke-width="1"/>
+      <line x1="50" y1="60" x2="50" y2="220" stroke="#1e293b" stroke-width="1"/>
+
+      <text x="40" y="225" font-size="10" fill="#475569" text-anchor="end">0%</text>
+      <text x="40" y="160" font-size="10" fill="#475569" text-anchor="end">20%</text>
+      <text x="40" y="100" font-size="10" fill="#475569" text-anchor="end">40%</text>
+      <text x="40" y="65" font-size="10" fill="#475569" text-anchor="end">50%</text>
+
+      <path d="M70,210 L130,170 L200,160 L270,165 L340,180 L420,195 L500,210 L600,220" stroke="#db2777" stroke-width="2.5" fill="none"/>
+      <text x="500" y="195" font-size="10" fill="#dc2626" font-weight="700">Naive Multi-turn (붕괴)</text>
+
+      <path d="M70,200 L130,170 L200,140 L270,110 L340,95 L420,80 L500,75 L600,70" stroke="#059669" stroke-width="2.5" fill="none"/>
+      <text x="500" y="70" font-size="10" fill="#059669" font-weight="700">SimpleTIR (안정)</text>
+
+      <text x="350" y="250" font-size="11" fill="#475569" text-anchor="middle">학습 step (0 → 1200)</text>
+      <text x="350" y="270" font-size="11" fill="#831843" text-anchor="middle" font-weight="700">기존 multi-turn RL은 ##학습할수록 성능이 떨어짐##</text>
+    </svg>
+    <div class="diagram-caption">Naive 방식은 시간이 지날수록 더 못 풀게 됨</div>
+  </div>
+</section>
+
+<section>
+  <h2>왜 폭발하는가? 진단</h2>
+
+  <h3 style="margin-top:1rem; font-size:1.2rem; color:#831843;">원인: Tool 피드백이 "이상한 입력"이라서</h3>
+  <p style="margin:0.8rem 0;">AI는 ##문장 예측##으로 사전 학습됐습니다. 그런데 외부 Python 인터프리터가 만든 출력(예: <code>NameError: 'x' is not defined</code>)은 ##AI가 본 적 없는 종류의 텍스트##입니다. 이런 ##OOD(Out-Of-Distribution) 입력##이 다음 추론을 ##불안정하게## 만듭니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">Multi-turn에서 저확률 토큰의 누적</text>
+
+      <rect x="50" y="60" width="140" height="50" rx="8" fill="#10b981"/>
+      <text x="120" y="80" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Turn 1</text>
+      <text x="120" y="98" font-size="10" fill="#fff" text-anchor="middle">정상 (확률 높음)</text>
+
+      <text x="200" y="90" font-size="20" fill="#94a3b8">→</text>
+
+      <rect x="230" y="60" width="140" height="50" rx="8" fill="#fbbf24"/>
+      <text x="300" y="80" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">Tool 피드백 (OOD)</text>
+      <text x="300" y="98" font-size="10" fill="#92400e" text-anchor="middle">NameError 등</text>
+
+      <text x="380" y="90" font-size="20" fill="#94a3b8">→</text>
+
+      <rect x="410" y="60" width="140" height="50" rx="8" fill="#fbbf24"/>
+      <text x="480" y="80" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">Turn 2</text>
+      <text x="480" y="98" font-size="10" fill="#92400e" text-anchor="middle">약간 흔들림</text>
+
+      <line x1="350" y1="125" x2="350" y2="145" stroke="#dc2626" stroke-width="2"/>
+
+      <rect x="50" y="155" width="140" height="50" rx="8" fill="#fb923c"/>
+      <text x="120" y="175" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Tool 피드백 2</text>
+      <text x="120" y="193" font-size="10" fill="#fff" text-anchor="middle">또 OOD</text>
+
+      <text x="200" y="185" font-size="20" fill="#94a3b8">→</text>
+
+      <rect x="230" y="155" width="140" height="50" rx="8" fill="#fb923c"/>
+      <text x="300" y="175" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Turn 3</text>
+      <text x="300" y="193" font-size="10" fill="#fff" text-anchor="middle">더 불안정</text>
+
+      <text x="380" y="185" font-size="20" fill="#dc2626">→</text>
+
+      <rect x="410" y="155" width="140" height="50" rx="8" fill="#dc2626"/>
+      <text x="480" y="175" font-size="11" font-weight="700" fill="#fff" text-anchor="middle">Turn 4: 붕괴</text>
+      <text x="480" y="193" font-size="10" fill="#fff" text-anchor="middle">"void turn"</text>
+
+      <rect x="50" y="240" width="600" height="80" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="350" y="265" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">결과: void turn 발생</text>
+      <text x="350" y="285" font-size="11" fill="#7f1d1d" text-anchor="middle">"void turn" = 완전한 코드 블록도, 최종 답도 없는 turn</text>
+      <text x="350" y="305" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">→ 이런 trajectory에서 gradient가 폭발</text>
+    </svg>
+    <div class="diagram-caption">Tool 피드백의 OOD 효과가 누적되어 결국 의미 없는 응답으로 붕괴</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 말을 잘하던 사람이 외국어를 듣고 헷갈리는 상황</div>
+    <p>한국어로 잘 대화하던 사람이 외국어(tool output) 한 마디를 듣고 약간 흔들립니다. 또 외국어를 듣고 더 흔들리고... 4번째 대화에선 ##혼잣말 같은 알 수 없는 소리##(void turn)를 합니다. 이 사람의 행동을 보고 학습하면 모든 게 망가집니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#831843;">왜 gradient가 폭발하는가? 수학적 진단</h3>
+  <p style="margin:0.8rem 0;">저확률 토큰은 두 가지 방식으로 gradient를 폭발시킵니다.</p>
+
+  <div class="card card-orange">
+    <p><strong>원인 1 — Importance Ratio 폭발</strong>: 토큰을 ##아주 낮은 확률##로 생성한 후 그게 ##틀린 답##이라면, 그 토큰의 확률을 줄이려는 gradient가 ##무한대 가까이 커짐##.</p>
+    <p style="margin-top:0.5rem;"><strong>원인 2 — Probability-dependent 항</strong>: 토큰 확률이 낮을수록 gradient norm을 키우는 ##수식의 다른 항##도 크게 유지됨.</p>
+    <p style="margin-top:0.5rem;">두 요인이 결합해 ##gradient norm spike##가 빈발 → 모델이 ##안정적으로 학습 불가##.</p>
+  </div>
+</section>
+
+<section>
+  <h2>SimpleTIR의 해결: Void Turn Filtering</h2>
+
+  <div class="card card-accent">
+    <p>핵심 통찰: ##저확률 토큰을 token-level로 찾기 어렵다##. 하지만 그 ##관찰 가능한 결과##인 "void turn"은 쉽게 식별 가능. void turn 한 개라도 포함된 trajectory를 통째로 학습에서 제외하면 문제 해결.</p>
+  </div>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">단계 1</div>
+      <div class="step-title">Trajectory 생성</div>
+      <div class="step-desc">여러 turn 추론 진행</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">단계 2</div>
+      <div class="step-title">Void Turn 검사</div>
+      <div class="step-desc">완전한 코드/답이 없는 turn?</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">단계 3</div>
+      <div class="step-title">전체 Trajectory 제외</div>
+      <div class="step-desc">하나라도 발견되면 update 제외</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">SimpleTIR의 동작 원리</text>
+
+      <text x="100" y="65" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Trajectory 1 (정상)</text>
+      <rect x="40" y="75" width="100" height="30" rx="6" fill="#94a3b8"/>
+      <text x="90" y="95" font-size="10" fill="#fff" text-anchor="middle">추론 1</text>
+      <text x="148" y="95" font-size="14" fill="#94a3b8">→</text>
+      <rect x="165" y="75" width="100" height="30" rx="6" fill="#10b981"/>
+      <text x="215" y="95" font-size="10" fill="#fff" text-anchor="middle">코드 1 ✓</text>
+      <text x="273" y="95" font-size="14" fill="#94a3b8">→</text>
+      <rect x="290" y="75" width="100" height="30" rx="6" fill="#94a3b8"/>
+      <text x="340" y="95" font-size="10" fill="#fff" text-anchor="middle">추론 2</text>
+      <text x="398" y="95" font-size="14" fill="#94a3b8">→</text>
+      <rect x="415" y="75" width="100" height="30" rx="6" fill="#10b981"/>
+      <text x="465" y="95" font-size="10" fill="#fff" text-anchor="middle">코드 2 ✓</text>
+      <text x="523" y="95" font-size="14" fill="#94a3b8">→</text>
+      <rect x="540" y="75" width="100" height="30" rx="6" fill="#059669"/>
+      <text x="590" y="95" font-size="10" fill="#fff" text-anchor="middle">최종답 ✓</text>
+
+      <text x="650" y="95" font-size="14" fill="#059669" font-weight="700">✓ 학습 포함</text>
+
+      <text x="100" y="160" font-size="12" font-weight="700" fill="#0f172a" text-anchor="middle">Trajectory 2 (void turn 포함)</text>
+      <rect x="40" y="170" width="100" height="30" rx="6" fill="#94a3b8"/>
+      <text x="90" y="190" font-size="10" fill="#fff" text-anchor="middle">추론 1</text>
+      <text x="148" y="190" font-size="14" fill="#94a3b8">→</text>
+      <rect x="165" y="170" width="100" height="30" rx="6" fill="#10b981"/>
+      <text x="215" y="190" font-size="10" fill="#fff" text-anchor="middle">코드 1 ✓</text>
+      <text x="273" y="190" font-size="14" fill="#94a3b8">→</text>
+      <rect x="290" y="170" width="100" height="30" rx="6" fill="#94a3b8"/>
+      <text x="340" y="190" font-size="10" fill="#fff" text-anchor="middle">추론 2</text>
+      <text x="398" y="190" font-size="14" fill="#dc2626">→</text>
+      <rect x="415" y="170" width="100" height="30" rx="6" fill="#dc2626"/>
+      <text x="465" y="186" font-size="9" fill="#fff" text-anchor="middle">불완전 코드</text>
+      <text x="465" y="198" font-size="9" fill="#fff" text-anchor="middle">(void turn) ✗</text>
+
+      <text x="650" y="190" font-size="14" fill="#dc2626" font-weight="700">✗ 학습 제외</text>
+
+      <rect x="50" y="240" width="600" height="100" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+      <text x="350" y="265" font-size="13" font-weight="700" fill="#831843" text-anchor="middle">결과</text>
+      <text x="350" y="290" font-size="11" fill="#831843" text-anchor="middle">✓ 폭발적 gradient의 source 제거</text>
+      <text x="350" y="310" font-size="11" fill="#831843" text-anchor="middle">✓ 정상 추론을 펼친 trajectory만 학습 → credit 올바르게 할당</text>
+      <text x="350" y="330" font-size="11" fill="#db2777" text-anchor="middle" font-weight="700">✓ 추가 비용 거의 0 (단순 if-then)</text>
+    </svg>
+    <div class="diagram-caption">void turn을 가진 trajectory는 통째로 학습에서 제외</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 학생의 시험 답안 채점</div>
+    <p>학생들이 시험을 봤는데 일부 답안지에 ##판독 불가한 낙서##가 섞여 있습니다. 그런 답안지를 학습 데이터에 포함하면 채점 기준이 망가지죠. SimpleTIR은 "##낙서 있는 답안지는 통째로 빼라##"고 합니다. 깨끗한 답안지로만 학습.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">왜 token-level가 아니라 trajectory-level?</div>
+    <p>"낙서가 있는 단어만 지우고 나머지는 채점"하면 ##나머지가 어떻게 점수를 받아야 할지 헷갈립니다##(credit assignment 문제). 답안지 전체를 빼면 깔끔. 마찬가지로 trajectory 전체를 빼는 게 token-level masking보다 효과적.</p>
+  </div>
+</section>
+
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">22.1→50.5</div>
+      <div class="label">AIME24 (Qwen-7B)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">59.9</div>
+      <div class="label">AIME24 (32B, Zero-RL SOTA)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">2.4×</div>
+      <div class="label">Naive multi-turn 대비</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">0</div>
+      <div class="label">cold-start SFT 의존</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#831843;">Filtering 방식의 비교 (Qwen-7B AIME24)</h3>
+
+  <table class="comp-table">
+    <tr>
+      <th>방법</th>
+      <th>AIME24 점수</th>
+      <th>설명</th>
+    </tr>
+    <tr>
+      <td>Naive multi-turn (필터 없음)</td>
+      <td>20.8</td>
+      <td>학습 폭발, baseline보다 낮음</td>
+    </tr>
+    <tr>
+      <td>Low Probability Filtering</td>
+      <td>23.3</td>
+      <td>저확률 토큰만 마스킹 — 효과 미미</td>
+    </tr>
+    <tr>
+      <td>High Importance Ratio Filtering</td>
+      <td>26.3</td>
+      <td>높은 ratio 토큰만 마스킹</td>
+    </tr>
+    <tr>
+      <td>Stop Generation w/o Filtering</td>
+      <td>26.1</td>
+      <td>void turn에서 generation만 중단</td>
+    </tr>
+    <tr class="highlight-row">
+      <td><strong>SimpleTIR (전체 trajectory 제외)</strong></td>
+      <td><strong>50.5</strong></td>
+      <td>void turn 있으면 trajectory 통째 제외</td>
+    </tr>
+  </table>
+
+  <div class="card card-accent" style="margin-top:1rem;">
+    <p>##단순 token-level filtering이나 generation 중단만으로는 부족##. ##trajectory 전체를 제외##해야 credit assignment 문제까지 해결.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#831843;">발견된 추론 패턴 (ReTool vs SimpleTIR)</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">SimpleTIR이 발견한 3가지 추론 패턴</text>
+
+      <rect x="40" y="60" width="180" height="150" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+      <text x="130" y="85" font-size="12" font-weight="700" fill="#831843" text-anchor="middle">Cross Validation</text>
+      <text x="130" y="110" font-size="10" fill="#475569" text-anchor="middle">같은 답을 두 가지</text>
+      <text x="130" y="125" font-size="10" fill="#475569" text-anchor="middle">방법으로 계산해</text>
+      <text x="130" y="140" font-size="10" fill="#475569" text-anchor="middle">교차 검증</text>
+      <text x="130" y="175" font-size="12" fill="#db2777" text-anchor="middle" font-weight="700">SimpleTIR 86.0%</text>
+      <text x="130" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">ReTool 82.4%</text>
+
+      <rect x="260" y="60" width="180" height="150" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+      <text x="350" y="85" font-size="12" font-weight="700" fill="#831843" text-anchor="middle">Progressive Reasoning</text>
+      <text x="350" y="110" font-size="10" fill="#475569" text-anchor="middle">단계별로 코드를</text>
+      <text x="350" y="125" font-size="10" fill="#475569" text-anchor="middle">조금씩 발전시키며</text>
+      <text x="350" y="140" font-size="10" fill="#475569" text-anchor="middle">문제 해결</text>
+      <text x="350" y="175" font-size="12" fill="#db2777" text-anchor="middle" font-weight="700">SimpleTIR 46.5%</text>
+      <text x="350" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">ReTool 18.9% (2.5×↑)</text>
+
+      <rect x="480" y="60" width="180" height="150" rx="12" fill="#fdf2f8" stroke="#db2777" stroke-width="1.5"/>
+      <text x="570" y="85" font-size="12" font-weight="700" fill="#831843" text-anchor="middle">Error Correction</text>
+      <text x="570" y="110" font-size="10" fill="#475569" text-anchor="middle">코드 오류 발생 시</text>
+      <text x="570" y="125" font-size="10" fill="#475569" text-anchor="middle">분석 후 수정</text>
+      <text x="570" y="140" font-size="10" fill="#475569" text-anchor="middle">("Retry If Error")</text>
+      <text x="570" y="175" font-size="12" fill="#db2777" text-anchor="middle" font-weight="700">SimpleTIR 38.0%</text>
+      <text x="570" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">ReTool 25.8%</text>
+    </svg>
+    <div class="diagram-caption">Zero-RL이 cold-start SFT보다 더 다양한 패턴 발견</div>
+  </div>
+</section>
+
+<section>
+  <h2>기존 대비 무엇이 다른가?</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>비교 항목</th>
+      <th>ReTool (2025 4월)</th>
+      <th>SimpleTIR (2025 9월)</th>
+    </tr>
+    <tr>
+      <td>Cold-start SFT</td>
+      <td>필요 (Math-Instruct 기반)</td>
+      <td>불필요 (Zero-RL)</td>
+    </tr>
+    <tr>
+      <td>학습 안정성</td>
+      <td>SFT로 stable</td>
+      <td>void turn filter로 stable</td>
+    </tr>
+    <tr>
+      <td>패턴 다양성</td>
+      <td>SFT 분포에 묶임</td>
+      <td>자유롭게 발견</td>
+    </tr>
+    <tr>
+      <td>Progressive Reasoning</td>
+      <td>18.9%</td>
+      <td>46.5%</td>
+    </tr>
+    <tr>
+      <td>Error Correction</td>
+      <td>25.8%</td>
+      <td>38.0%</td>
+    </tr>
+    <tr>
+      <td>AIME24 (32B)</td>
+      <td>67.0 (Math-Inst base)</td>
+      <td>59.9 (base from scratch)</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>AIME25 (32B)</td>
+      <td>49.3</td>
+      <td>49.2 (동등)</td>
+    </tr>
+  </table>
+
+  <div class="card card-accent" style="margin-top:1rem;">
+    <p>##ReTool은 cold-start로 안정성을 사고 다양성을 잃음##. SimpleTIR은 ##void turn filtering으로 두 가지 모두## 얻음.</p>
+  </div>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="350" cy="150" r="60" fill="#fdf2f8" stroke="#db2777" stroke-width="2"/>
+      <text x="350" y="148" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">SimpleTIR</text>
+      <text x="350" y="168" font-size="10" fill="#831843" text-anchor="middle">활용처</text>
+
+      <circle cx="120" cy="80" r="50" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="120" y="78" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">수학 추론</text>
+      <text x="120" y="95" font-size="9" fill="#92400e" text-anchor="middle">올림피아드</text>
+      <line x1="170" y1="105" x2="295" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="580" cy="80" r="50" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="580" y="78" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">에이전트 학습</text>
+      <text x="580" y="95" font-size="9" fill="#065f46" text-anchor="middle">multi-turn RL</text>
+      <line x1="530" y1="105" x2="405" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="80" cy="220" r="50" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="80" y="218" font-size="11" font-weight="700" fill="#1e3a8a" text-anchor="middle">코드 생성</text>
+      <text x="80" y="235" font-size="9" fill="#1e3a8a" text-anchor="middle">실행+수정</text>
+      <line x1="130" y1="200" x2="290" y2="175" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="620" cy="220" r="50" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="620" y="218" font-size="11" font-weight="700" fill="#5b21b6" text-anchor="middle">웹 브라우징</text>
+      <text x="620" y="235" font-size="9" fill="#5b21b6" text-anchor="middle">multi-step search</text>
+      <line x1="570" y1="200" x2="410" y2="175" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="350" cy="270" r="40" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="350" y="268" font-size="11" font-weight="700" fill="#0c4a6e" text-anchor="middle">과학 연구</text>
+      <text x="350" y="285" font-size="9" fill="#0c4a6e" text-anchor="middle">RL paradigm</text>
+      <line x1="350" y1="235" x2="350" y2="210" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+    </svg>
+    <div class="diagram-caption">multi-turn agent RL이 필요한 모든 영역에 적용 가능한 일반 원리</div>
+  </div>
+</section>
+
+<section>
+  <h2>비유로 다시 정리</h2>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 1: 외국어 듣고 헷갈리는 한국어</div>
+    <p>한국어 잘하던 사람이 외국어 한 마디 듣고 약간 헷갈리고, 또 듣고 더 헷갈리고... 결국 ##혼잣말 같은 알 수 없는 소리##. 이 사람의 마지막 대답만 보고 학습하면 모든 게 망가짐.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 2: 답안지 통째로 빼기</div>
+    <p>학생들 답안지 중 ##판독 불가한 낙서##가 섞인 답안지는 통째로 채점에서 제외. 깨끗한 답안지만으로 채점 기준 학습. 부분 마스킹보다 깔끔.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 3: 손이 꼬인 신입사원</div>
+    <p>신입이 첫 일은 잘했는데 그 후 도구 사용에 헷갈려 ##점점 일이 꼬이고 마지막엔 손도 못 댐##. 그 일과의 전체 결과로 신입을 평가하면 부당. SimpleTIR은 "##꼬인 일과 전체는 평가에서 빼고 정상적 일과만 평가##".</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 4: void turn = 멈춤 신호</div>
+    <p>야구 경기에서 ##공이 굴러 멈추면 죽은공##(dead ball) 처리. SimpleTIR의 void turn도 ##추론이 죽은 시점##의 명확한 신호. 미시적 토큰 확률을 보지 않고 거시적 멈춤만 보면 됨.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 5: 게임 캐릭터의 죽음 처리</div>
+    <p>RPG에서 캐릭터가 죽으면 그 ##플레이 세션 전체##의 보상을 무효화. 죽기 직전의 행동만 페널티 줘서는 ##정상 플레이까지 페널티##. SimpleTIR이 똑같이 ##trajectory 단위##로 처리.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 6: 강의 없는 자유 학습</div>
+    <p>SFT 사전 학습이 ##커리큘럼 따라 가르치는 학원##이라면, Zero-RL은 ##시험 점수만 보고 학생이 자유롭게 공부##. 후자가 ##더 다양한 학습법##을 발견. SimpleTIR이 후자를 안정적으로 가능케 함.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "망친 시도를 통째로 빼라.<br>그러면 자유로운 학습이 안정적이다."
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 1. 수학 task만 평가</h3>
+    <p>AIME, MATH, Olympiad 6개 math benchmark만. ##코딩, agent task (SWE-bench), 웹 브라우징##에서의 효과는 미지수.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 2. Void turn 정의가 task 특화</h3>
+    <p>"complete code block OR final answer"는 ##수학 TIR 특화##. 일반 agent (예: web browsing)에서 void turn을 어떻게 정의할지는 ##추가 연구 필요##.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 3. ReTool과의 비교 공정성</h3>
+    <p>ReTool은 ##Math-Instruct cold-start##, SimpleTIR은 ##base from scratch##. 둘은 다른 setup. 같은 base에서 비교한 ZeroTIR 대비로는 SimpleTIR이 압도적이지만, ReTool 67% vs SimpleTIR 59.9% (AIME24)는 base의 차이가 큼.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 4. Filtered trajectory 비율 미보고</h3>
+    <p>학습 중 ##몇 %의 trajectory가 void로 제외##되는지 미공개. ##sample efficiency 평가 어려움##.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 5. Max turn에 따른 task 의존성</h3>
+    <p>Math500은 turn 늘릴수록 향상하지만 ##AIME24는 일관된 향상 없음##. 어떤 task가 multi-turn benefit을 받는지 ##task-level 분석 부재##.</p>
+  </div>
+</section>
+
+<section>
+  <h2>역사적 위치</h2>
+
+  <div class="card card-accent">
+    <p>SimpleTIR은 ##tool-use RL의 instability 문제를 깔끔히 해결##한 milestone입니다.</p>
+    <ul style="margin-top:0.6rem; padding-left:1.5rem;">
+      <li>2023 2월: Toolformer — self-supervised tool learning</li>
+      <li>2025 1월: DeepSeek R1 — Zero-RL paradigm 입증 (text reasoning)</li>
+      <li>2025 4월: ReTool — RL + tool 결합 (cold-start SFT 필요)</li>
+      <li>2025 7월: Effective TIR, ARPO 등 — 다양한 cold-start TIR</li>
+      <li>2025 8월: ZeroTIR (Mai et al.) — 첫 Zero-RL TIR 시도</li>
+      <li>2025 9월: <strong>SimpleTIR</strong> — void turn filtering으로 Zero-RL TIR 안정화 + SOTA</li>
+    </ul>
+    <p style="margin-top:0.6rem;">##Zero-RL TIR##의 진정한 첫 SOTA로, ##DeepSeek-R1 패러다임을 tool-use에 확장##.</p>
+  </div>
+</section>
+
+<section>
+  <h2>FAQ</h2>
+
+  <div class="card card-accent">
+    <p><strong>Q: ReTool과 어떤 차이?</strong></p>
+    <p style="margin-top:0.5rem;">A: ReTool은 ##cold-start SFT 후 RL##. SimpleTIR은 ##base에서 직접 RL##. ReTool은 안정성을 SFT로 얻고 패턴 다양성을 잃음. SimpleTIR은 void turn filter로 둘 다 얻음.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>Q: void turn은 정확히 어떻게 식별?</strong></p>
+    <p style="margin-top:0.5rem;">A: turn의 응답이 (a) 완전한 <code>&lt;code&gt;...&lt;/code&gt;</code> 블록도 없고 (b) <code>final_answer</code>도 없으면 void. 단순 규칙으로 식별.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>Q: 왜 token-level masking이 부족했나?</strong></p>
+    <p style="margin-top:0.5rem;">A: ##credit assignment 문제##. 일부 token만 mask해도 trajectory 전체의 advantage는 한 reward에 의존. ##망친 부분만 빼면 정상 부분이 잘못된 점수##를 받음. 통째로 빼야 함.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>Q: SimpleTIR이 다른 분야에 적용 가능?</strong></p>
+    <p style="margin-top:0.5rem;">A: 일반 원리(##distributional drift 식별 + trajectory-level filtering##)는 모든 multi-turn agent RL에 적용 가능. 다만 void turn의 정확한 정의는 ##task별로 customize 필요##.</p>
+  </div>
+</section>
+
+<div class="footer">
+  <p>SimpleTIR: End-to-End Reinforcement Learning for Multi-Turn Tool-Integrated Reasoning</p>
+  <p>Xue, Zheng, Liu et al. · NTU & TikTok Singapore · 2025</p>
+  <p><a href="https://arxiv.org/abs/2509.02479" style="color:#db2777;">arXiv:2509.02479</a> | <a href="20260622_xue_simpletir.html" style="color:#db2777;">전문가용 상세 요약</a></p>
+</div>
+
+</div>
+</body>
+</html>

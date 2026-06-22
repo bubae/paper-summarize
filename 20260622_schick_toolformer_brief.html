@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Toolformer — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #312e81, #4f46e5, #818cf8); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.95; max-width: 640px; margin: 0 auto; }
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #312e81; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #4f46e5, #818cf8); border-radius: 3px; }
+  .card { background: #eef2ff; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #c7d2fe; }
+  .card-accent { border-left: 5px solid #4f46e5; }
+  .card-green  { background: #f0fdf4; border: 1px solid #bbf7d0; border-left: 5px solid #059669; }
+  .card-orange { background: #fffbeb; border: 1px solid #fde68a; border-left: 5px solid #d97706; }
+  .card-red    { background: #fef2f2; border: 1px solid #fecaca; border-left: 5px solid #dc2626; }
+  .one-liner { background: linear-gradient(135deg, #4f46e5, #818cf8); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #eef2ff; border-radius: 12px; border: 1px solid #c7d2fe; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #eef2ff; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #c7d2fe; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #4f46e5, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #c7d2fe; }
+  .comp-table th { background: #312e81; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #c7d2fe; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #e0e7ff; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #4f46e5; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #4f46e5; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #4f46e5; padding: 0 0.4rem; }
+  .expert-link { display: inline-block; margin: 1rem 0; padding: 0.6rem 1.2rem; background: rgba(255,255,255,0.2); border-radius: 8px; color: #fff; text-decoration: none; font-size: 0.9rem; }
+  .expert-link:hover { background: rgba(255,255,255,0.3); }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #c7d2fe; }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">FAIR Meta &middot; NeurIPS 2023</div>
+  <h1>Toolformer</h1>
+  <p class="subtitle">"AI에게 계산기, 검색엔진, 사전을 옆에 놓고<br>스스로 언제 도구를 쓸지 가르치자."</p>
+  <a class="expert-link" href="20260622_schick_toolformer.html">📘 전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  "정답을 가르치지 마라.<br>도구 사용이 도움이 되는지 AI가 스스로 판단하게 하라."
+</div>
+
+<section>
+  <h2>먼저 알아야 할 것: LLM은 못하는 게 많다</h2>
+
+  <div class="card card-accent">
+    <p>ChatGPT 같은 큰 AI는 글쓰기, 번역, 요약은 잘하지만, 다음과 같은 ##기본적인 일에 의외로 약합니다##:</p>
+    <ul style="margin-top:0.6rem; padding-left:1.5rem;">
+      <li><strong>계산</strong>: "27 + 4 × 2" 같은 단순 산수도 자주 틀림</li>
+      <li><strong>최신 정보</strong>: "오늘 환율" 같은 실시간 정보 모름</li>
+      <li><strong>정확한 사실</strong>: 위키피디아에 있는 사실도 자주 거짓 답변(hallucination)</li>
+      <li><strong>저자원 언어</strong>: 힌디어, 베트남어 번역 부정확</li>
+      <li><strong>날짜 인지</strong>: "오늘 무슨 요일?"에도 답 못함</li>
+    </ul>
+    <p style="margin-top:0.8rem;">반면 ##계산기, 위키피디아 검색, 번역기, 캘린더## 같은 작은 도구들은 이 일들을 완벽하게 처리합니다. 그래서 자연스러운 질문: <strong>"AI가 이 도구들을 알아서 쓰면 안 될까?"</strong></p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#312e81;">기존 접근법의 한계</h3>
+  <p style="margin:0.8rem 0;">"AI에게 도구를 가르치자"는 생각은 새롭지 않습니다. 하지만 기존 방법은 두 가지 큰 문제가 있었어요.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#312e81" text-anchor="middle">기존 접근법의 두 가지 문제</text>
+
+      <rect x="50" y="60" width="280" height="170" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="190" y="85" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">방법 1: 사람이 일일이 가르침</text>
+      <text x="190" y="115" font-size="10" fill="#7f1d1d" text-anchor="middle">"이 질문엔 이 도구를 써라"</text>
+      <text x="190" y="135" font-size="10" fill="#7f1d1d" text-anchor="middle">→ 수만 개 예시를 사람이 작성</text>
+      <text x="190" y="170" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">❌ 비용 비쌈</text>
+      <text x="190" y="190" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">❌ 사람이 유용하다고 생각한 것이</text>
+      <text x="190" y="205" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">  AI에게 유용하지 않을 수 있음</text>
+
+      <rect x="370" y="60" width="280" height="170" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="510" y="85" font-size="13" font-weight="700" fill="#7f1d1d" text-anchor="middle">방법 2: 특정 task 전용 setup</text>
+      <text x="510" y="115" font-size="10" fill="#7f1d1d" text-anchor="middle">"수학 문제풀이 시 계산기 쓰는"</text>
+      <text x="510" y="135" font-size="10" fill="#7f1d1d" text-anchor="middle">  hard-coded 프롬프트</text>
+      <text x="510" y="170" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">❌ 일반 대화에선 못 씀</text>
+      <text x="510" y="190" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">❌ AI의 다재다능함을 잃음</text>
+      <text x="510" y="210" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">❌ 어떤 도구가 필요한지 미리 알아야</text>
+    </svg>
+    <div class="diagram-caption">기존 방법들은 비싸거나, 특정 task에 갇혀 있다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 신입사원 교육의 두 방식</div>
+    <p><strong>방법 1 (사람 라벨링):</strong> 선배가 "이런 상황엔 엑셀, 이런 상황엔 캘린더"라고 일일이 가르침. 시간 오래 걸리고, 선배 기준이 신입에게 안 맞을 수 있음.</p>
+    <p style="margin-top:0.5rem;"><strong>방법 2 (task별 setup):</strong> 신입에게 "재무 회의용 매뉴얼"만 줌. 영업회의에선 못 씀.</p>
+    <p style="margin-top:0.5rem;"><strong>Toolformer 방법:</strong> 신입 책상에 도구들을 놓아두고, 일을 빨리 끝내게 해준 도구 사용 패턴만 보상. 신입이 스스로 발견.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Toolformer의 핵심 아이디어</h2>
+
+  <div class="card card-accent">
+    <p>Toolformer는 사람이 라벨링 없이 ##AI가 자체 판단으로## 도구 사용을 학습합니다. 핵심 통찰: <strong>"AI가 다음 단어를 예측할 때 도구를 쓰면 더 잘 예측되는가?"</strong> 이 질문에 자체 답할 수 있습니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#312e81;">3단계 학습 파이프라인</h3>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">단계 1</div>
+      <div class="step-title">후보 호출 생성</div>
+      <div class="step-desc">"여기서 도구 쓰면 좋을 듯" 위치 샘플링</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">단계 2</div>
+      <div class="step-title">실제 API 호출</div>
+      <div class="step-desc">진짜 계산기·검색기로 결과 받기</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">단계 3</div>
+      <div class="step-title">유용성 필터</div>
+      <div class="step-desc">예측 정확도 높아진 호출만 유지</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#312e81" text-anchor="middle">예시: "Pittsburgh는 ___로 알려져 있다"라는 텍스트 학습</text>
+
+      <rect x="50" y="50" width="600" height="50" rx="8" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="350" y="80" font-size="12" fill="#1e3a8a" text-anchor="middle" font-weight="700">원본 텍스트: "Pittsburgh is also known as the Steel City"</text>
+
+      <line x1="350" y1="105" x2="350" y2="125" stroke="#4f46e5" stroke-width="2"/>
+
+      <rect x="50" y="125" width="600" height="55" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="350" y="145" font-size="11" font-weight="700" fill="#312e81" text-anchor="middle">단계 1: AI가 후보 질문 생성</text>
+      <text x="200" y="167" font-size="10" fill="#475569" text-anchor="middle">후보 1: "What other name is Pittsburgh known by?"</text>
+      <text x="500" y="167" font-size="10" fill="#475569" text-anchor="middle">후보 2: "Which country is Pittsburgh in?"</text>
+
+      <line x1="350" y1="185" x2="350" y2="205" stroke="#4f46e5" stroke-width="2"/>
+
+      <rect x="50" y="205" width="600" height="50" rx="8" fill="#eef2ff" stroke="#4f46e5" stroke-width="1.5"/>
+      <text x="350" y="225" font-size="11" font-weight="700" fill="#312e81" text-anchor="middle">단계 2: 실제 QA 호출 (Atlas 모델)</text>
+      <text x="200" y="245" font-size="10" fill="#475569" text-anchor="middle">답 1: "Steel City"</text>
+      <text x="500" y="245" font-size="10" fill="#475569" text-anchor="middle">답 2: "United States"</text>
+
+      <line x1="350" y1="260" x2="350" y2="280" stroke="#4f46e5" stroke-width="2"/>
+
+      <rect x="50" y="280" width="600" height="55" rx="8" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="350" y="300" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">단계 3: 어느 호출이 "Steel City" 예측에 도움?</text>
+      <text x="200" y="320" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">✓ 후보 1 채택 (답이 "Steel City")</text>
+      <text x="500" y="320" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">✗ 후보 2 거부 (답이 도움 안 됨)</text>
+    </svg>
+    <div class="diagram-caption">"Steel City"라는 다음 단어 예측에 도움이 되는 호출만 유지</div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#312e81;">유용성 필터의 수학</h3>
+  <p style="margin:0.8rem 0;">"도구가 도움 됐는지"를 어떻게 측정할까요? AI는 다음 단어를 예측할 때 ##확률##을 계산합니다. 도구 결과를 본 후 정답에 대한 확률이 ##더 높아지면## 도구가 도움 된 것이죠.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#312e81" text-anchor="middle">"도구 호출 후 'Steel City' 확률" 비교</text>
+
+      <rect x="50" y="60" width="280" height="60" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="190" y="85" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">A. 도구 사용 안 함</text>
+      <text x="190" y="105" font-size="11" fill="#7f1d1d" text-anchor="middle">"Steel City" 예측 확률: 5%</text>
+
+      <rect x="370" y="60" width="280" height="60" rx="8" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="510" y="85" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">B. 도구 부르되 결과 없음</text>
+      <text x="510" y="105" font-size="11" fill="#7f1d1d" text-anchor="middle">"Steel City" 예측 확률: 5%</text>
+
+      <rect x="50" y="140" width="600" height="60" rx="8" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+      <text x="350" y="165" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">C. 도구 부르고 결과 ("Steel City") 받음</text>
+      <text x="350" y="185" font-size="13" fill="#065f46" text-anchor="middle" font-weight="700">"Steel City" 예측 확률: 95% ← 도움 됐다!</text>
+
+      <text x="350" y="225" font-size="11" fill="#312e81" text-anchor="middle" font-weight="700">결과: C가 A/B보다 충분히 좋으면 → 이 호출은 유용 → 학습에 포함</text>
+    </svg>
+    <div class="diagram-caption">3가지 시나리오를 비교해 도구의 진짜 효용 측정</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 신입의 도구 사용 평가</div>
+    <p>신입사원이 작성한 보고서를 평가할 때, "엑셀을 썼는지"가 아니라 "엑셀을 써서 보고서가 더 정확해졌는지"를 평가하는 것. 도구 자체가 목적이 아니라 도구로 인한 결과 개선이 평가 기준.</p>
+  </div>
+</section>
+
+<section>
+  <h2>학습된 도구들</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>도구</th>
+      <th>예시 질문</th>
+      <th>응답</th>
+    </tr>
+    <tr>
+      <td>❓ Question Answering</td>
+      <td>"기사단 본부 어디?"</td>
+      <td>"New Haven, Connecticut"</td>
+    </tr>
+    <tr>
+      <td>📖 위키피디아 검색</td>
+      <td>"낚시 릴 종류"</td>
+      <td>"Spin fishing은 fly fishing과 bait casting..."</td>
+    </tr>
+    <tr>
+      <td>🧮 계산기</td>
+      <td>"27 + 4 × 2"</td>
+      <td>"35"</td>
+    </tr>
+    <tr>
+      <td>📅 캘린더</td>
+      <td>(질문 없음)</td>
+      <td>"오늘은 2023년 1월 30일 월요일"</td>
+    </tr>
+    <tr>
+      <td>🌐 번역기</td>
+      <td>"sûreté nucléaire"</td>
+      <td>"nuclear safety"</td>
+    </tr>
+  </table>
+
+  <p style="margin:0.8rem 0;">중요한 건 ##단일 모델이 5개 도구를 자율적으로 골라 씀##. "이 질문엔 계산기, 저 질문엔 번역기"를 명령받지 않고 ##스스로 결정##.</p>
+</section>
+
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">26×</div>
+      <div class="label">작은 모델로 GPT-3 능가</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4.4×</div>
+      <div class="label">수학 성능 향상 (MAWPS)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">5</div>
+      <div class="label">자율 사용 도구 수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">0</div>
+      <div class="label">사람의 라벨링</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#312e81;">놀라운 결과: 6.7B가 175B를 이긴다</h3>
+
+  <table class="comp-table">
+    <tr>
+      <th>벤치마크</th>
+      <th>GPT-J (6.7B 기본)</th>
+      <th>Toolformer (6.7B)</th>
+      <th>GPT-3 (175B)</th>
+    </tr>
+    <tr>
+      <td>LAMA SQuAD (사실 검색)</td>
+      <td>17.8</td>
+      <td class="highlight-row" style="background:#e0e7ff;">33.8</td>
+      <td>26.8</td>
+    </tr>
+    <tr>
+      <td>LAMA T-REx</td>
+      <td>31.9</td>
+      <td class="highlight-row" style="background:#e0e7ff;">53.5</td>
+      <td>39.8</td>
+    </tr>
+    <tr>
+      <td>MAWPS (수학)</td>
+      <td>9.9</td>
+      <td class="highlight-row" style="background:#e0e7ff;">44.0</td>
+      <td>19.8</td>
+    </tr>
+    <tr>
+      <td>ASDiv (수학)</td>
+      <td>7.5</td>
+      <td class="highlight-row" style="background:#e0e7ff;">40.4</td>
+      <td>14.0</td>
+    </tr>
+    <tr>
+      <td>SVAMP (수학)</td>
+      <td>5.2</td>
+      <td class="highlight-row" style="background:#e0e7ff;">29.4</td>
+      <td>10.0</td>
+    </tr>
+  </table>
+
+  <div class="card card-accent" style="margin-top:1rem;">
+    <p>##GPT-J(6.7B)가 GPT-3(175B)보다 26배 작은데 더 좋은 점수##. 단, 모든 task에서 그런 건 아닙니다 (QA에서는 GPT-3가 여전히 더 좋음).</p>
+  </div>
+
+  <h3 style="margin-top:2rem; font-size:1.2rem; color:#312e81;">발견: 도구 사용은 ~775M 파라미터에서 emerge</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#312e81" text-anchor="middle">모델 크기와 도구 활용 능력의 관계</text>
+
+      <line x1="80" y1="250" x2="650" y2="250" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="80" y1="70" x2="80" y2="250" stroke="#1e293b" stroke-width="1.5"/>
+
+      <text x="60" y="255" font-size="10" fill="#475569" text-anchor="end">낮음</text>
+      <text x="60" y="80" font-size="10" fill="#475569" text-anchor="end">높음</text>
+      <text x="60" y="160" font-size="11" fill="#475569" text-anchor="end" font-weight="700">성능</text>
+
+      <line x1="200" y1="65" x2="200" y2="250" stroke="#dc2626" stroke-width="2" stroke-dasharray="5"/>
+      <text x="200" y="58" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">~775M (도구 emerge)</text>
+
+      <path d="M120,240 L160,238 L200,235 L260,210 L350,175 L450,135 L550,100" stroke="#4f46e5" stroke-width="2.5" fill="none"/>
+      <text x="450" y="125" font-size="10" fill="#4f46e5" font-weight="700">도구 사용 (Toolformer)</text>
+
+      <path d="M120,235 L160,235 L200,235 L260,220 L350,205 L450,190 L550,170" stroke="#94a3b8" stroke-width="2.5" fill="none" stroke-dasharray="4"/>
+      <text x="450" y="195" font-size="10" fill="#94a3b8">도구 없음</text>
+
+      <text x="120" y="270" font-size="10" fill="#475569" text-anchor="middle">124M</text>
+      <text x="200" y="270" font-size="10" fill="#475569" text-anchor="middle">355M</text>
+      <text x="260" y="270" font-size="10" fill="#475569" text-anchor="middle">775M</text>
+      <text x="350" y="270" font-size="10" fill="#475569" text-anchor="middle">1.6B</text>
+      <text x="550" y="270" font-size="10" fill="#475569" text-anchor="middle">6.7B</text>
+      <text x="350" y="290" font-size="11" fill="#475569" text-anchor="middle">모델 크기</text>
+    </svg>
+    <div class="diagram-caption">작은 모델은 도구 줘봐야 못 씀. ~775M부터 도구 활용 능력 emerge</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 아이의 도구 사용</div>
+    <p>3살 아이에게 계산기를 줘도 못 씀. 8살부터는 단순 계산기 사용 가능. 12살부터는 복잡한 도구도 활용. AI도 마찬가지로 ##일정 capacity 이상부터## 도구를 의미 있게 활용.</p>
+  </div>
+</section>
+
+<section>
+  <h2>기존 대비 무엇이 다른가?</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>비교 항목</th>
+      <th>기존 방법</th>
+      <th>Toolformer</th>
+    </tr>
+    <tr>
+      <td>사람 라벨링</td>
+      <td>수만 개 필요</td>
+      <td>0개 (자기지도)</td>
+    </tr>
+    <tr>
+      <td>도구 선택</td>
+      <td>사전 고정</td>
+      <td>AI가 자율 결정</td>
+    </tr>
+    <tr>
+      <td>일반성</td>
+      <td>task 한정</td>
+      <td>모든 task</td>
+    </tr>
+    <tr>
+      <td>유용성 기준</td>
+      <td>사람 직관</td>
+      <td>AI의 예측 정확도</td>
+    </tr>
+    <tr class="highlight-row">
+      <td>6.7B vs GPT-3 175B</td>
+      <td>비교 불가</td>
+      <td>능가 (LAMA, 수학)</td>
+    </tr>
+  </table>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="350" cy="150" r="60" fill="#eef2ff" stroke="#4f46e5" stroke-width="2"/>
+      <text x="350" y="150" font-size="14" font-weight="700" fill="#312e81" text-anchor="middle">Toolformer</text>
+      <text x="350" y="170" font-size="10" fill="#312e81" text-anchor="middle">활용처</text>
+
+      <circle cx="120" cy="80" r="50" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="120" y="78" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">ChatGPT</text>
+      <text x="120" y="95" font-size="9" fill="#92400e" text-anchor="middle">Plugins</text>
+      <line x1="170" y1="105" x2="295" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="580" cy="80" r="50" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="580" y="78" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">GPT-4</text>
+      <text x="580" y="95" font-size="9" fill="#065f46" text-anchor="middle">Function Call</text>
+      <line x1="530" y1="105" x2="405" y2="135" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="80" cy="220" r="50" fill="#dbeafe" stroke="#2563eb" stroke-width="1.5"/>
+      <text x="80" y="218" font-size="11" font-weight="700" fill="#1e3a8a" text-anchor="middle">LangChain</text>
+      <text x="80" y="235" font-size="9" fill="#1e3a8a" text-anchor="middle">Agent</text>
+      <line x1="130" y1="200" x2="290" y2="175" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="620" cy="220" r="50" fill="#fce7f3" stroke="#be185d" stroke-width="1.5"/>
+      <text x="620" y="218" font-size="11" font-weight="700" fill="#831843" text-anchor="middle">Claude</text>
+      <text x="620" y="235" font-size="9" fill="#831843" text-anchor="middle">Tool Use</text>
+      <line x1="570" y1="200" x2="410" y2="175" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+
+      <circle cx="350" cy="270" r="40" fill="#e0f2fe" stroke="#0284c7" stroke-width="1.5"/>
+      <text x="350" y="268" font-size="11" font-weight="700" fill="#0c4a6e" text-anchor="middle">ReAct</text>
+      <text x="350" y="285" font-size="9" fill="#0c4a6e" text-anchor="middle">Agent</text>
+      <line x1="350" y1="235" x2="350" y2="210" stroke="#94a3b8" stroke-width="1.5" stroke-dasharray="4"/>
+    </svg>
+    <div class="diagram-caption">Toolformer가 연 길: 후속 모든 tool-using AI 시스템의 시발점</div>
+  </div>
+</section>
+
+<section>
+  <h2>비유로 다시 정리</h2>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 1: 신입사원의 사무용품 사용</div>
+    <p>신입 책상에 계산기, 사전, 시계, 전화기를 놓고, "일을 더 잘하게 한 도구 사용 패턴만 보상". 신입은 알아서 어떤 일에 어떤 도구를 쓸지 발견.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 2: 학습된 어휘력</div>
+    <p>아이가 "내일 비 와?" 같은 질문에 답할 때, 책에서 외운 게 아니라 "엄마에게 물어보면 더 잘 안다"를 학습. 도구(엄마)가 어떻게 도움 되는지 자체 발견.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 3: 작가의 자료 조사</div>
+    <p>소설가가 "한국 수도는?"이라고 쓸 때 매번 위키피디아를 펴는 게 아니라, 본인이 모르는 부분만 정확히 검색. AI도 "내가 모르는 부분"에서만 도구 호출.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 4: 시험에서 계산기 사용</div>
+    <p>학생이 시험에서 계산기를 쓸지 결정할 때 기준은 "내가 손으로 풀 수 있나?". Toolformer도 "내가 다음 단어 예측할 수 있나?"가 기준.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 5: 아이의 emergence</div>
+    <p>아이는 일정 나이 이상이 되어야 도구를 효과적으로 씀. 너무 어리면 계산기 줘도 단순 누르기만 함. AI도 ##775M 파라미터 이상##에서 도구 활용 능력이 나타남.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유 6: 학습 자료 vs 자가 학습</div>
+    <p>"선생님이 만든 모범 답안 외우기"(사람 라벨링) vs "내가 풀어본 시험 중 정답률 높았던 풀이 방식 분석"(자가 학습). 후자가 본인에게 진짜 맞는 방식. Toolformer가 후자.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "AI에게 도구를 가르치지 마라.<br>도구가 도움 되는지 AI가 스스로 판단하게 하라."
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 1. 도구를 연속해서 못 씀</h3>
+    <p>"오늘 날짜를 캘린더로 알아낸 후 그 날짜에 QA로 정보 검색" 같은 ##chain##을 못 함. 각 호출이 독립.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 2. 검색 결과 재조회 못 함</h3>
+    <p>위키 검색 결과가 부족할 때 쿼리를 ##재구성하거나 다른 페이지로 이동## 못 함. WebGPT/ChatGPT browse처럼 ##interactive 사용 불가##.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-bottom:0.6rem; color:#92400e;">⚠️ 3. Sample inefficient</h3>
+    <p>100만 문서에서 ##계산기 유용 사례 1,000건##만 추출. 학습 데이터 효율 낮음.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 4. 도구 호출 비용 무시</h3>
+    <p>API 호출의 ##비용/latency가 학습 신호에 반영 안 됨##. 작은 perplexity 이득만 있어도 도구 호출. production에선 cost-aware 필요.</p>
+  </div>
+
+  <div class="card card-red">
+    <h3 style="margin-bottom:0.6rem; color:#991b1b;">⚠️ 5. 강한 모델에서 도구 효용 감소</h3>
+    <p>LLaMA 7B 같은 강한 base에서는 ##Wikipedia search tool의 효용이 거의 사라짐##. 강한 모델은 도구 없이도 잘 함. ##도구 강도 < 모델 강도이면 도구 무의미##.</p>
+  </div>
+</section>
+
+<section>
+  <h2>역사적 위치</h2>
+
+  <div class="card card-accent">
+    <p>Toolformer는 ##LLM agent 시대의 시작##입니다.</p>
+    <ul style="margin-top:0.6rem; padding-left:1.5rem;">
+      <li>2023 2월: <strong>Toolformer</strong> (NeurIPS 2023) — self-supervised tool learning 패러다임</li>
+      <li>2023 3월: ChatGPT plugins 출시 — Toolformer의 production 구현</li>
+      <li>2023 6월: GPT-4 function calling — 표준화된 tool interface</li>
+      <li>2023 후반: ReAct, LangChain, AutoGPT — multi-step / interactive 도구 사용</li>
+      <li>2024+: ToolBench, Gorilla, MetaGPT — 수천 개 API 라이브러리</li>
+    </ul>
+    <p style="margin-top:0.6rem;">Toolformer의 ##self-supervised + perplexity filtering## 아이디어는 후속 RLAIF, self-improvement, agent fine-tuning 등에 직접 영향.</p>
+  </div>
+</section>
+
+<section>
+  <h2>FAQ</h2>
+
+  <div class="card card-accent">
+    <p><strong>Q: ChatGPT의 도구 사용과 어떻게 다른가요?</strong></p>
+    <p style="margin-top:0.5rem;">A: ChatGPT plugins는 OpenAI가 fine-tune한 production 시스템. Toolformer는 그 이전의 academic baseline. 핵심 패러다임(self-supervised tool learning + filtering)이 ChatGPT plugins에 영향을 줬습니다.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>Q: 일반 사용자가 어떻게 활용?</strong></p>
+    <p style="margin-top:0.5rem;">A: 직접 활용은 없습니다. 하지만 ChatGPT, Claude, Gemini의 도구 사용 능력의 ##연구적 토대##. 사용자가 LLM에게 "위키 검색해줘"라고 부탁할 수 있는 능력의 시작점.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p><strong>Q: 왜 GPT-3 175B을 이겼나요?</strong></p>
+    <p style="margin-top:0.5rem;">A: ##도구가 작은 specialized model의 능력을 빌려옴##. 계산기는 큰 모델보다 정확한 계산을 함. AI가 그 도구를 활용하면 자기 크기보다 큰 능력을 발휘.</p>
+  </div>
+</section>
+
+<div class="footer">
+  <p>Toolformer: Language Models Can Teach Themselves to Use Tools</p>
+  <p>Schick et al. · FAIR Meta · NeurIPS 2023</p>
+  <p><a href="https://arxiv.org/abs/2302.04761" style="color:#4f46e5;">arXiv:2302.04761</a> | <a href="20260622_schick_toolformer.html" style="color:#4f46e5;">전문가용 상세 요약</a></p>
+</div>
+
+</div>
+</body>
+</html>
