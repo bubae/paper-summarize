@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Privacy-Aware Split Inference with Speculative Decoding for LLMs over WANs</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Privacy-Aware Split Inference with Speculative Decoding for Large Language Models over Wide-Area Networks</h1>
+
+<p style="margin-top:0.5rem;"><a href="20260623_cunningham_privsplit_brief.html" style="color:#4a90d9;">개요 브리핑 버전 보기 →</a></p>
+
+<h2>메타데이터</h2>
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Michael Cunningham</li>
+  <li><strong>소속</strong>: 명시되지 않음 (단독 저자, 코드 저장소 <code>github.com/coder903/split-inference</code>)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.CR)</li>
+  <li><strong>연도</strong>: 2026년 2월</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2602.16760">arXiv:2602.16760</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기업이 HIPAA/ITAR/변호사-의뢰인 비밀 등 규제 환경에서 LLM을 쓰려면 (a) 데이터를 평문으로 클라우드 API에 보내거나, (b) 동형암호(HE)/MPC/TEE 같이 100~1000배 느려지는 보안 기법을 써야 한다. WAN(광역망) 환경에서 토큰별 round-trip 비용이 80~100ms에 달해 split inference도 8~11 tok/s밖에 안 나온다.</li>
+  <li><strong>해결</strong>: 트랜스포머의 ##임베딩·언임베딩 층은 로컬, 중간 층은 클라우드##로 분할하여 raw 토큰이 네트워크를 떠나지 않게 하고, ##lookahead decoding을 WAN split inference에 처음 적용##해 매 round-trip당 1.2~1.6 토큰을 통과시켜 8.7~9.3 tok/s (Mistral 7B)와 7.8~8.7 tok/s (NeMo 12B)를 달성한다. 기본 split (2 local layers) 시 ~59% 토큰이 inversion 공격에 복원되나, 8 local layers로 늘리면 ~35%로 감소 (throughput 영향 미미).</li>
+  <li><strong>왜 작동하는가</strong>: WAN RTT(~80ms)가 클라우드 forward pass(~16~21ms)의 3~5배라서 GPU가 네트워크 대기로 idle한다. Jacobi 반복으로 여러 후보 토큰을 한 round-trip에 검증하면, 단일 토큰을 처리하는 비용 안에서 여러 토큰이 채택될 수 있다. Greedy argmax 하에서 lookahead 출력은 sequential과 token-identical하므로 품질 손실 0.</li>
+  <li><strong>비유</strong>: 미국-서울 간 비행기에 사람을 한 번에 한 명만 태워 보내면 비효율적이다. 좌석을 다 채워 보내면, 어차피 같은 비행 시간 안에 더 많은 사람이 도착한다. lookahead는 한 round-trip 안에 5개 후보 토큰을 묶어 보내 그중 채택되는 것만 커밋한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>비대칭 layer split의 명시적 동기 부여</strong>: 임베딩/언임베딩 층을 로컬에 두고 중간 transformer 층만 클라우드로 보내, ##raw 토큰 ID와 vocabulary 매핑이 신뢰 경계를 절대 넘지 않는다는 architectural privacy 보장##.</li>
+  <li><strong>Lookahead decoding을 split inference에 처음 적용</strong>: Fu et al.의 lookahead decoding[6]을 WAN 환경에 이식하여 ##round-trip latency를 1.2~5 accepted tokens에 amortize##한다.</li>
+  <li><strong>경험적 inversion attack 평가</strong>: split depth가 privacy-performance trade-off의 조절 노브임을 정량화 — 2 local layers (split after layer 1) 시 ~59% 토큰 복원, 8 local layers (split after layer 7) 시 ~35%, throughput 영향 미미.</li>
+  <li><strong>n-gram speculation의 통계적 안정성 입증</strong>: 7B와 12B에서 acceptance rate 1.21~1.25 tok/step으로 ##모델 크기에 거의 독립적##임을 확인 (코드에서 최대 1.57).</li>
+  <li><strong>품질의 형식적 검증</strong>: greedy argmax 하에서 lookahead 출력이 sequential과 ##token-identical (zero quality degradation)##임을 4개 prompt × 200 token × 2 모델로 100% 일치 확인.</li>
+  <li><strong>NeMo 12B 스케일링 검증</strong>: 40-layer 12B를 4.9GB 로컬 VRAM으로 운용, 7B와 동일 RTT에서 throughput 일치 (RTT-to-compute 비율의 우호적 변화).</li>
+  <li><strong>RTT decomposition 모델</strong>: per-step time = RTT + fixed_overhead 분해로 <6.2% cross-validation error로 임의의 RTT에서 throughput 투영 가능 (공정한 cross-provider 비교).</li>
+  <li><strong>실제 deployment engineering 기록</strong>: VAST.ai의 Virginia proxy routing 같은 cloud provider 특유의 함정과 SSH tunnel 엔지니어링을 학술 문헌에서 보기 드물게 명시적으로 보고.</li>
+</ol>
+
+<h2>배경 지식 (Background)</h2>
+
+<h3>Split Computing이란</h3>
+<p>Split computing은 DNN 추론을 신뢰 경계(edge ↔ cloud)에서 분할 실행하는 기법으로, Neurosurgeon (ASPLOS 2017)이 CNN 분야에서 시작했다. 핵심 trade-off는 다음과 같다:</p>
+<ul>
+  <li><strong>Early split (얕은 곳에서 분할)</strong>: 로컬 연산량은 적지만, 중간 representation이 raw input과 비슷해 압축이 어렵고 복원 공격에 취약.</li>
+  <li><strong>Late split (깊은 곳에서 분할)</strong>: 중간 representation이 추상화되어 압축률·privacy가 좋지만, 로컬 연산 부담이 큼.</li>
+</ul>
+
+<p>LLM에 적용된 split computing 선행 연구로는 Sung et al.의 mixed-precision quantization 기반 split, EdgeShard의 dynamic programming 배치, MDI-LLM의 recurrent pipeline parallelism, exo의 P2P 추론 등이 있으나, ##대부분 throughput·resource를 최적화 대상으로 삼고 privacy를 1차 design goal로 두지 않았다##.</p>
+
+<h3>Speculative Decoding과 Lookahead Decoding</h3>
+<p>Speculative decoding (Leviathan et al., Chen et al., 둘 다 2023)은 작은 draft 모델이 후보 토큰을 만들고 target 모델이 병렬 검증하여 2~3× 가속을 얻는다. 그러나 draft 모델을 별도로 유지·배포해야 하는 부담이 있다.</p>
+
+<p>Jacobi decoding (Santilli et al., ACL 2023)은 autoregressive 생성을 ##fixed-point iteration 문제##로 재구성한다. $k$개 미래 토큰 위치를 임의로 초기화하고, transformer를 통과시켜 새로운 $k$ 토큰을 얻기를 수렴까지 반복한다. CLLMs (ICML 2024)는 consistency 학습으로 수렴을 개선했고, Fu et al.의 lookahead decoding [6]은 별도 draft 모델 없이 ##Jacobi 반복 trajectory에서 등장하는 n-gram을 후보로 캐싱##한다.</p>
+
+<p>이 논문에서 "draft"가 의미하는 것은 별도 small draft model이 아니라 ##target model 자체의 과거 Jacobi iteration 상에서 우연히 등장한 n-gram 시퀀스##다. 이러한 후보들이 후속 iteration에서 한 forward pass 내에 검증되면, 채택된 토큰들이 한꺼번에 커밋된다.</p>
+
+<h3>왜 WAN 환경이 단일 머신과 다른가</h3>
+<p>단일 머신에서 lookahead는 ##GPU idle time##을 메우지만, WAN split inference에서는 ##network idle time##을 메우는 역할로 바뀐다. 단일 머신의 $k$-token forward pass는 1-token과 거의 같은 비용 (GPU 병렬성)인 반면, WAN에서는 ##forward pass 비용 자체보다 network round-trip이 5배 이상 큰## 비대칭 구조다. 이 때문에 lookahead의 효과가 1.5~2×에서 더 극대화된다.</p>
+
+<h3>Threat Model (위협 모델)</h3>
+<p>본 논문은 ##semi-honest cloud## (= honest-but-curious)를 가정한다. 클라우드는:</p>
+<ul>
+  <li>레이어 2-29(7B 기준)의 모델 가중치를 알고 있다.</li>
+  <li>해당 레이어들을 통과하는 중간 activation을 모두 본다.</li>
+  <li>임베딩 행렬, LM head 가중치, 레이어 0-1과 30-31의 가중치는 모른다.</li>
+  <li>계산 자체는 정직하게 수행하나, 입력 정보를 추론하려 시도한다.</li>
+</ul>
+
+<p><strong>핵심 가정</strong>: 로컬 레이어 가중치가 ##public weights와 구별##되어야 한다 (예: LoRA fine-tuning). 이 가정이 깨지면 (클라우드가 동일한 공개 모델의 layer 0-1 가중치를 그대로 다운로드 가능하다면) privacy 경계가 크게 약화된다.</p>
+
+<h3>Model Inversion 공격 — SipIt 정리</h3>
+<p>Nikolaou et al. [32]의 SipIt 결과는 ##transformer hidden state가 input token에 대해 injective##임을 증명한다 — 즉 서로 다른 입력은 서로 다른 hidden representation을 만들며, 전체 모델 가중치에 접근 가능하면 hidden state에서 linear time으로 정확한 토큰을 복원할 수 있다. 본 논문이 이 결과를 어떻게 회피하는지가 5.2절의 핵심이다.</p>
+
+<h2>System Architecture</h2>
+
+<h3>레이어 분할 (Layer Partitioning)</h3>
+
+<p>핵심 원칙: ##embedding과 unembedding 레이어는 절대 클라우드에 두지 않는다.## 가운데 transformer block만 클라우드로 보내고, 입력/출력 양쪽에 일부 transformer block을 로컬에 둘 수 있다 (privacy depth 조절 가능).</p>
+
+<p><strong>Mistral 7B Instruct (32 layers, hidden_dim=4096)</strong>:</p>
+<table>
+<thead><tr><th>Component</th><th>Location</th><th>Layers</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>Token embedding</td><td>Local (3090)</td><td>-</td><td>Token IDs → hidden states</td></tr>
+<tr><td>Layers 0-1</td><td>Local (3090)</td><td>0, 1</td><td>Initial transformer processing</td></tr>
+<tr><td>Layers 2-29</td><td>Cloud</td><td>2-29</td><td>Bulk computation (28 layers)</td></tr>
+<tr><td>Layers 30-31</td><td>Local (3090)</td><td>30, 31</td><td>Final transformer processing</td></tr>
+<tr><td>RMS norm + LM head</td><td>Local (3090)</td><td>-</td><td>Hidden states → logits → tokens</td></tr>
+</tbody>
+</table>
+
+<p><strong>Mistral NeMo 12B Instruct (40 layers, hidden_dim=5120, GQA 8 KV heads)</strong>: 동일한 구조로 layers 2-37이 클라우드.</p>
+
+<p>이 partitioning이 보장하는 것:</p>
+<ul>
+  <li><strong>Raw 토큰이 로컬을 떠나지 않는다</strong>: 토큰 ID → 벡터 변환은 로컬에서만.</li>
+  <li><strong>중간 activation만 네트워크 통과</strong>: 4096-dim float16 vector per token (~8KB/token for 7B, ~10KB/token for 12B).</li>
+  <li><strong>클라우드는 vocabulary mapping에 접근 불가</strong>: 임베딩/LM head 가중치가 없어 어떤 activation이 어떤 토큰에 대응하는지 직접 알 수 없다.</li>
+</ul>
+
+<h3>Transport Layer</h3>
+<p>HTTP/JSON, HTTP/binary, WebSocket을 비교한 끝에 ##WebSocket binary protocol## 채택. 프레임 포맷:</p>
+<div class="flow-diagram">[4 bytes: header length][JSON header][tensor bytes (float16)]</div>
+
+<p>JSON header는 tensor shape, prompt/generation 플래그, KV-cache crop 위치, attention mask shape를 담는다. Tensor는 ##base64 없이 raw float16 bytes##로 전송 — base64의 ~33% 팽창과 encode/decode CPU 비용을 회피.</p>
+
+<p>Transport 최적화 단계별 throughput (Mistral 7B):</p>
+<table>
+<thead><tr><th>Transport</th><th>Encoding</th><th>Throughput</th></tr></thead>
+<tbody>
+<tr><td>HTTP/Flask</td><td>torch.save + base64</td><td>1.4 tok/s</td></tr>
+<tr><td>HTTP/Flask</td><td>numpy + base64</td><td>3.9 tok/s</td></tr>
+<tr><td>HTTP/Flask</td><td>numpy + base64 (3090 relay)</td><td>5.3 tok/s</td></tr>
+<tr><td>WebSocket</td><td>binary float16</td><td>7.8 tok/s</td></tr>
+<tr><td>WebSocket + lookahead</td><td>binary float16</td><td>13~17 tok/s</td></tr>
+</tbody>
+</table>
+
+<h3>KV-Cache 관리</h3>
+<p>핵심 결정: ##레이어 2-29(클라우드 측)의 KV-cache는 클라우드에서 유지##. 네트워크로 전송하지 않음 — KV-cache 크기는 sequence length에 선형으로 증가하여 곧 대역폭을 압도하기 때문.</p>
+
+<p>HuggingFace의 <code>DynamicCache</code>로 세션별 캐시 관리. Non-prompt generation step에서는 ##새 토큰의 hidden state(~8KB)만 전송##. 세션 ID로 lifecycle 관리, 5분 비활성 시 자동 만료.</p>
+
+<p>Jacobi/lookahead용 추가 기능:</p>
+<ul>
+  <li><strong>Cache cropping</strong>: 투기 블록이 거부될 때 체크포인트로 롤백.</li>
+  <li><strong>Cache relocation</strong>: n-gram speculation으로 검증 윈도우가 이동할 때 KV entries를 이동.</li>
+  <li><strong>Custom attention masks</strong>: 병렬 토큰 검증에 필요한 비표준 causal mask 지원.</li>
+</ul>
+
+<h3>Networking and Tunnel Engineering</h3>
+
+<p><strong>중요 발견</strong>: ##cloud provider의 네트워킹 아키텍처가 지리적 거리보다 latency를 훨씬 더 좌우한다.## Texas의 동일한 RTX 4090 GPU에 대해:</p>
+<table>
+<thead><tr><th>Provider</th><th>Geographic Distance</th><th>Measured RTT</th><th>Throughput</th></tr></thead>
+<tbody>
+<tr><td>VAST.ai (Texas)</td><td>~800 miles</td><td>200~400ms</td><td>1.2 tok/s</td></tr>
+<tr><td>RunPod (Texas)</td><td>~800 miles</td><td>80~100ms</td><td>11~17 tok/s</td></tr>
+</tbody>
+</table>
+
+<p>VAST.ai는 SSH 트래픽을 Virginia의 proxy server를 거치도록 강제 — GPU의 지리적 위치와 무관. RunPod은 직접 SSH 접속을 허용하여 ##2~4× 낮은 latency##.</p>
+
+<p><strong>Tunnel 아키텍처</strong>: 로컬 GPU 서버는 NAT 뒤에 있고 클라우드 인스턴스 IP는 일시적이므로, 로컬에서 클라우드로 SSH tunnel을 열어 HTTP health-check 포트와 WebSocket 포트를 forward한다. 이는 ##학술 문헌에서 거의 다루지 않는 deployment 현실##이지만 public cloud 인프라에서는 필수.</p>
+
+<h2>Decoding Strategies for Split Inference</h2>
+
+<h3>Sequential Decoding (Baseline)</h3>
+<p>매 토큰마다 한 번의 완전한 local-cloud-local round trip:</p>
+<div class="flow-diagram">1. Local: Embed token, process through layers 0-1 → hidden state (8KB)
+2. Network: Send hidden state + position embeddings to cloud
+3. Cloud: Process through layers 2-29 with KV-cache → hidden state (8KB)
+4. Network: Return hidden state to local
+5. Local: Process through layers 30-31, norm, LM head → next token</div>
+
+<p>~85ms RTT (HyperStack)에서 7.8 tok/s, ~80ms RTT (RunPod)에서 10.9 tok/s.</p>
+
+<h3>Jacobi Parallel Decoding</h3>
+<p>$k$개 미래 토큰 위치를 초기화하고 수렴할 때까지 반복. 매 iteration에서 $k$ 위치를 한 forward pass로 병렬 처리. Effective throughput:</p>
+
+$$\text{tok/s} = \frac{k}{\text{iterations} \times \text{RTT}}$$
+
+<p>직관적으로 말하면, $k$개 토큰을 동시에 다듬어 가다가 수렴하면 $k$개를 한꺼번에 커밋한다. 그러나 WAN에서 ##vanilla Jacobi는 수렴이 나빠 iteration당 1-2 토큰만 커밋##되어 ~1.5 tok/s — sequential보다도 느리다 (큰 텐서 전송 오버헤드 때문).</p>
+
+<h3>Lookahead Decoding (논문의 주요 모드)</h3>
+
+<p>Lookahead decoding [6]은 Jacobi 수렴 문제를 ##trajectory 자체에서 n-gram 후보를 수확##하여 해결. Jacobi iteration 도중 등장하는 토큰 시퀀스를 ##n-gram cache##에 보관하고, 이후 iteration에서 매칭되면 1-5 토큰을 한 round trip에 커밋.</p>
+
+<p><strong>왜 split inference에서 특히 효과적인가</strong>:</p>
+<ol>
+  <li><strong>매 round trip이 비싸다</strong> (~100ms vs ~3ms locally) — 다중 토큰에 amortize하면 효과 극대.</li>
+  <li><strong>검증 비용이 미미하다</strong>: 5 candidate 검증 비용 = 1 토큰 생성 비용 (한 round trip).</li>
+  <li><strong>구조적 텍스트에서 n-gram speculation이 자주 성공</strong>: 코드, 템플릿, 반복 콘텐츠 — 기업 use case에 흔함.</li>
+</ol>
+
+<p>A100 클라우드 ~80ms RTT에서 8-9 tok/s 달성 (sequential ~8 tok/s 대비), acceptance rate 1.2~1.6 tok/step. RunPod의 낮은 RTT에서는 13~17 tok/s.</p>
+
+<h3>Attention Mask Engineering</h3>
+<p>중요한 구현 디테일: PyTorch의 <code>scaled_dot_product_attention</code>에 <code>is_causal=True</code>를 쓰면 ##query/key 길이를 기준으로 relative causal mask를 만든다.## KV-cache에 이미 커밋된 토큰이 있으면 이 relative mask가 잘못된 attention 패턴을 생성 — speculative position $i$가 attend하면 안 되는 KV entries에 attend하게 됨.</p>
+
+<p>해결: 명시적 attention mask 구성:</p>
+<pre><code>attn_mask = torch.full(
+    (1, 1, k, kv_len), float('-inf'),
+    device='cuda', dtype=torch.float16)
+for i in range(k):
+    attn_mask[0, 0, i, :committed_len + i + 1] = 0.0</code></pre>
+
+<p>이 mask를 WebSocket 프레임에 함께 전송 (~2KB 추가 대역폭) — 작은 비용으로 ##catastrophic attention 오류를 예방##.</p>
+
+<h2>Privacy Analysis</h2>
+
+<h3>Threat Model 상세</h3>
+<p>Semi-honest cloud 가정. 클라우드가 ##모델 가중치를 안다는 것## 자체가 큰 정보 — Nikolaou et al. [32]의 SipIt는 ##full weights가 있으면 hidden state에서 정확한 토큰 복원이 linear time 가능##함을 증명. 본 논문이 이를 회피하는 메커니즘이 5.2절의 핵심.</p>
+
+<p>Malicious cloud (활성 공격)는 ##scope 밖## — 이를 막으려면 verifiable computing이나 다중 provider redundancy가 필요.</p>
+
+<h3>Privacy Properties and Limitations</h3>
+
+<p><strong>What is guaranteed</strong>: Raw 토큰 ID와 token embedding이 로컬을 떠나지 않는다 — ##structural property##이지 statistical property가 아니다.</p>
+
+<p><strong>What is NOT guaranteed</strong>: SipIt 결과에 의해 hidden state가 input에 대해 injective. 다만 본 논문 setting은 다음 요소들로 완화:</p>
+
+<ol>
+  <li><strong>Weight access requirement</strong>: SipIt 공격은 input ↔ observation 사이의 모든 레이어 가중치를 요구. 본 시스템에서 클라우드는 layer 0-1, embedding matrix, LM head, 그리고 결정적으로 ##로컬 레이어에 적용된 임의의 fine-tuning##에 접근 불가.</li>
+  <li><strong>Depth of transformation</strong>: He et al. [4]은 split depth에 따라 inversion 정확도가 감소함을 보임. 본 논문은 이를 ##직접 측정##:</li>
+</ol>
+
+<table>
+<thead><tr><th>Split After Layer</th><th>Local Layers</th><th>Top-1 Accuracy</th><th>Top-5 Accuracy</th></tr></thead>
+<tbody>
+<tr><td>Layer 1 (default)</td><td>2</td><td>58.8%</td><td>62.0%</td></tr>
+<tr><td>Layer 3</td><td>4</td><td>44.3%</td><td>49.8%</td></tr>
+<tr><td>Layer 5</td><td>6</td><td>44.8%</td><td>56.6%</td></tr>
+<tr><td>Layer 7</td><td>8</td><td>34.8%</td><td>46.2%</td></tr>
+<tr><td>Random baseline</td><td>-</td><td>0.003%</td><td>0.016%</td></tr>
+</tbody>
+</table>
+
+<p>공격은 3-layer MLP (4096→2048→2048→32000)를 ##~880 (activation, token ID) 페어##로 학습한 결과. 다양한 텍스트(일반 지식, 코드, 의료, 법률, 대화)에서 추출. 이는 ##lower bound##: sequence-level context를 쓰는 더 정교한 공격자나 큰 학습 셋은 더 높은 정확도를 얻을 수 있다.</p>
+
+<p>해석: 기본 2-layer split에서 ##~59% 토큰이 복원 가능## — 이론적 취약성 확인. 8-layer split로 늘리면 ##~35%##로 떨어지지만 0이 되지는 않는다.</p>
+
+<ol start="3">
+  <li><strong>Symmetric vulnerability</strong>: 출력 측도 동일하게 2 layers (LM head 직전) — 입력과 출력 양쪽에서 동등한 깊이를 두어야 보호가 대칭.</li>
+</ol>
+
+<h3>Privacy 접근법 비교</h3>
+<table>
+<thead><tr><th>Approach</th><th>Guarantee Type</th><th>What It Prevents</th><th>Overhead</th><th>Status</th></tr></thead>
+<tbody>
+<tr><td>Homomorphic Encryption</td><td>Cryptographic</td><td>Any information leakage</td><td>100~1000× slower</td><td>Research only</td></tr>
+<tr><td>Secure MPC</td><td>Cryptographic</td><td>Any information leakage</td><td>8~50× slower</td><td>Emerging</td></tr>
+<tr><td>TEE-based</td><td>Hardware-attested</td><td>Observation of computation</td><td>2~3× slower</td><td>Requires SGX/TDX</td></tr>
+<tr><td><strong>Split inference (이 논문)</strong></td><td>Architectural</td><td>Raw text leaving device</td><td>3~5× slower</td><td>Deployable today</td></tr>
+<tr><td>No privacy (cloud API)</td><td>None</td><td>Nothing</td><td>1× (baseline)</td><td>Standard practice</td></tr>
+</tbody>
+</table>
+
+<p>저자는 ##"computational privacy" 용어 사용을 의식적으로 피한다## — formal security 개념과의 혼동을 막기 위함. 대신 "architectural privacy"로 명명하여 구조적 분리가 cryptographic·hardware 보장보다 약함을 명시.</p>
+
+<h3>Privacy 강화 방안</h3>
+<ul>
+  <li><strong>Local layer 증가</strong>: 2→8 layers로 inversion 35% 감소, 추가 비용 layer당 ~3ms (RTT ~100ms 대비 무시 가능).</li>
+  <li><strong>Local layer fine-tuning</strong>: LoRA 등으로 layer 0-1 + embedding을 organization-specific하게 수정 — SipIt 공격 벡터 직접 차단. 다만 ##random LoRA perturbation만으로는 부족## (adaptive attacker가 perturbed activations에 retrain 가능); 진정으로 private한 가중치여야 함.</li>
+  <li><strong>Split point randomization</strong>: 세션/요청마다 split depth를 무작위로 — 모든 transformer 레이어가 동일한 hidden dim을 공유 (4096)하므로 tensor shape만으로는 알 수 없음. 다만 activation magnitude 분포가 layer별로 다를 수 있어 통계적 식별 가능성은 추가 연구 필요.</li>
+  <li><strong>Calibrated noise</strong>: Split-and-Denoise [26]처럼 transmitted activation에 differential privacy 노이즈 — formal $(\epsilon, \delta)$-DP 보장 가능, 품질 trade-off.</li>
+  <li><strong>Activation compression</strong>: int8 quantization으로 lossy하게 정보 함량 감소.</li>
+</ul>
+
+<h2>Experimental Results</h2>
+
+<h3>Setup</h3>
+<ul>
+  <li><strong>Local</strong>: NVIDIA RTX 3090 24GB, Manjaro Linux</li>
+  <li><strong>Cloud (primary)</strong>: NVIDIA A100 80GB PCIe, HyperStack ($1.35/hr)</li>
+  <li><strong>Cloud (비교)</strong>: NVIDIA RTX 4090 24GB, RunPod US-TX-3 ($0.59/hr)</li>
+  <li><strong>Models</strong>: Mistral 7B Instruct v0.3 (32 layers, fp16), Mistral NeMo 12B Instruct (40 layers, fp16)</li>
+  <li><strong>Network</strong>: SSH tunnel over public Internet, RTT ~78-85ms</li>
+  <li><strong>Decoding</strong>: greedy argmax (재현성)</li>
+</ul>
+
+<h3>실험이 답하려는 핵심 질문</h3>
+<ol>
+  <li>WAN에서 split inference가 실용적 속도(8 tok/s 이상)에 도달할 수 있는가? → §6.2</li>
+  <li>네트워크 vs 컴퓨트가 어떻게 wall time을 구성하는가? → §6.3 (RTT decomposition)</li>
+  <li>Lookahead의 n-gram size와 prompt category가 acceptance에 어떻게 영향? → §6.4 (ablation)</li>
+  <li>Lookahead가 sequential과 동일한 토큰을 생성하는가? → §6.5 (quality verification)</li>
+  <li>Cloud provider 차이가 성능에 어떻게 작용? → §6.6</li>
+  <li>더 큰 모델(70B, 405B)로 확장 시 어떻게 변할까? → §7 (scaling analysis)</li>
+</ol>
+
+<h3>Performance Results</h3>
+
+<p><strong>Optimization progression</strong>:</p>
+<table>
+<thead><tr><th>Configuration</th><th>tok/s</th><th>vs Baseline</th><th>Category</th></tr></thead>
+<tbody>
+<tr><td>HTTP + torch.save (A100 Montreal)</td><td>1.4</td><td>1.0×</td><td>Transport</td></tr>
+<tr><td>HTTP + numpy serialization</td><td>3.9</td><td>2.8×</td><td>Transport</td></tr>
+<tr><td>3090 relay (Mac → 3090 → cloud)</td><td>5.3</td><td>3.8×</td><td>Transport</td></tr>
+<tr><td>WebSocket binary protocol</td><td>7.8</td><td>5.6×</td><td>Transport</td></tr>
+<tr><td>+ Lookahead decoding (HyperStack, ~85ms)</td><td>8.7</td><td>6.2×</td><td>Algorithmic</td></tr>
+<tr><td>Provider switch to RunPod (~80ms)</td><td>10.9</td><td>7.8×</td><td>Infrastructure</td></tr>
+<tr><td>+ Lookahead on lower-RTT link</td><td>13~17</td><td>9~12×</td><td>Combined</td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##RTT 감소와 speculation은 additive가 아니라 multiplicative## — HyperStack+lookahead → RunPod+sequential가 +2.2 tok/s 향상을 주는 반면, 고-latency 링크에서 lookahead만 더하면 +0.9 tok/s에 그침. 낮은 RTT에서는 lookahead가 더 효과적으로 작동.</p>
+
+<p><strong>베이스라인 대비</strong>:</p>
+<table>
+<thead><tr><th>Setup</th><th>tok/s</th><th>% of local-only</th></tr></thead>
+<tbody>
+<tr><td>RTX 3090 local-only (all 32 layers)</td><td>~39</td><td>100%</td></tr>
+<tr><td>Split: 3090 + cloud 4090 (lookahead)</td><td>13~17</td><td>33~44%</td></tr>
+<tr><td>Split: 3090 + cloud 4090 (sequential)</td><td>~11</td><td>28%</td></tr>
+<tr><td>Cloud API (typical, incl. queuing)</td><td>30~60</td><td>-</td></tr>
+</tbody>
+</table>
+
+<p>흥미로운 위치 지정: ##split inference의 의도는 local-only를 대체하는 것이 아니라, 로컬에서 못 돌리는 큰 모델(70B+)에 대해 클라우드 API에 평문 전송하는 것의 대안##임. 비교 기준은 "split vs local-native"가 아니라 "split-with-privacy vs plaintext-to-cloud-API".</p>
+
+<h3>Latency Decomposition (RTT 분해 모델)</h3>
+
+<p>핵심 통찰: per-step time을 ##RTT## (provider-dependent)와 ##fixed_overhead## (RTT-independent)로 분리:</p>
+
+$$\text{per\_step\_time} = \text{RTT} + \text{fixed\_overhead}$$
+
+<p><strong>Mistral 7B (sequential, A100, ~78ms RTT)</strong>:</p>
+<table>
+<thead><tr><th>Component</th><th>Time (ms)</th><th>% of Total</th></tr></thead>
+<tbody>
+<tr><td>Network round trip</td><td>77.4</td><td>64%</td></tr>
+<tr><td>Local GPU (layers 0-1, 30-31, norm, lm_head)</td><td>26.2</td><td>22%</td></tr>
+<tr><td>Cloud GPU (layers 2-29)</td><td>15.9</td><td>13%</td></tr>
+<tr><td>Serialization + framing</td><td>1.0</td><td>1%</td></tr>
+<tr><td><strong>Per-step wall time</strong></td><td><strong>120.2</strong></td><td><strong>100%</strong></td></tr>
+<tr><td>Fixed overhead (RTT-independent)</td><td>42.9</td><td>-</td></tr>
+</tbody>
+</table>
+
+<p><strong>Mistral NeMo 12B (sequential, A100, ~79ms RTT)</strong>:</p>
+<table>
+<thead><tr><th>Component</th><th>Time (ms)</th><th>% of Total</th></tr></thead>
+<tbody>
+<tr><td>Network round trip</td><td>78.5</td><td>63%</td></tr>
+<tr><td>Local GPU</td><td>24.4</td><td>20%</td></tr>
+<tr><td>Cloud GPU (layers 2-37)</td><td>21.1</td><td>17%</td></tr>
+<tr><td>Serialization + framing</td><td>1.0</td><td>1%</td></tr>
+<tr><td><strong>Per-step wall time</strong></td><td><strong>124.7</strong></td><td><strong>100%</strong></td></tr>
+<tr><td>Fixed overhead</td><td>46.3</td><td>-</td></tr>
+</tbody>
+</table>
+
+<p>관찰: ##네트워크 RTT가 63~64%로 지배##. 12B가 36 cloud layers를 7B의 28 layers 대비 5ms (21 vs 16ms) 더 쓰는 데 그치는 것은 A100 80GB의 컴퓨트 활용도를 보여줌.</p>
+
+<p><strong>RTT projection model</strong>: acceptance rate는 RTT 독립적이므로 임의의 target RTT에서 throughput 예측 가능:</p>
+
+$$\text{projected\_tok/s} = \frac{\text{acceptance\_rate}}{(\text{target\_RTT} + \text{fixed\_overhead})/1000}$$
+
+<p>직관적으로 말하면, 네트워크 비용은 줄일 수 있지만 fixed_overhead는 floor — 같은 RTT에서 7B와 12B가 비슷한 throughput을 내는 이유.</p>
+
+<p>Cross-validation error: sequential 1.2~2.4%, lookahead 4.5~6.2%. 12B lookahead는 더 큰 speculative batch 때문에 naive projection을 따르지 않아 measured-adjusted 값으로 보정.</p>
+
+<p><strong>Prefill latency</strong>: 초기 prompt 처리는 전체 prompt의 hidden states를 단일 forward pass로 클라우드에 전송 — 7B에서 100-token prompt 기준 ##~800 KB## (8 KB × 100), 12B에서는 ~1 MB (10 KB/token). 단일 round trip에 완료되며 generation per-token throughput에는 영향 없음. 그러나 ##time-to-first-token에 100~500ms 추가##되어 (Discussion §8.3 한계로 명시) — chunked prefill 또는 prefill-decode disaggregation으로 개선 가능.</p>
+
+<p><strong>Target RTT별 projected throughput</strong>:</p>
+<table>
+<thead><tr><th>RTT</th><th>7B Seq</th><th>7B LA</th><th>12B Seq</th><th>12B LA*</th></tr></thead>
+<tbody>
+<tr><td>20ms</td><td>15.9</td><td>18.6</td><td>15.1</td><td>15.2</td></tr>
+<tr><td>40ms</td><td>12.1</td><td>13.6</td><td>11.6</td><td>11.6</td></tr>
+<tr><td>60ms</td><td>9.7</td><td>10.7</td><td>9.4</td><td>9.4</td></tr>
+<tr><td>80ms</td><td>8.1</td><td>8.8</td><td>7.9</td><td>8.0</td></tr>
+<tr><td>100ms</td><td>7.0</td><td>7.5</td><td>6.8</td><td>6.9</td></tr>
+<tr><td>120ms</td><td>6.1</td><td>6.5</td><td>6.0</td><td>6.1</td></tr>
+<tr><td>150ms</td><td>5.2</td><td>5.4</td><td>5.1</td><td>5.2</td></tr>
+</tbody>
+</table>
+
+<p>##20ms RTT (regional co-location)에서 15~19 tok/s — interactive 속도에 근접##. 이는 partnership 기반 배포(8.4절)의 정량적 근거.</p>
+
+<h3>Lookahead Ablation</h3>
+
+<p><strong>실험 의도</strong>: lookahead의 n-gram size와 prompt category가 acceptance rate / throughput에 미치는 영향. 4 categories (code, structured, creative, conversational) × n=3-7 × 8 prompts (각 100 토큰 생성) × {7B, 12B} on A100 ~78ms RTT.</p>
+
+<p><strong>Throughput by n-gram size (7B, all prompt types averaged)</strong>:</p>
+<table>
+<thead><tr><th>N-gram Size</th><th>tok/s</th><th>Acceptance Rate</th><th>Match Rate</th></tr></thead>
+<tbody>
+<tr><td>Sequential</td><td>8.3</td><td>1.00 tok/step</td><td>-</td></tr>
+<tr><td><strong>n=3</strong></td><td><strong>9.3</strong></td><td><strong>1.21 tok/step</strong></td><td><strong>14.4%</strong></td></tr>
+<tr><td>n=4</td><td>9.2</td><td>1.23 tok/step</td><td>13.7%</td></tr>
+<tr><td>n=5</td><td>8.9</td><td>1.23 tok/step</td><td>13.4%</td></tr>
+<tr><td>n=6</td><td>9.1</td><td>1.25 tok/step</td><td>13.7%</td></tr>
+<tr><td>n=7</td><td>8.3</td><td>1.25 tok/step</td><td>13.2%</td></tr>
+</tbody>
+</table>
+
+<p><strong>12B 동일 분석</strong>: n=3에서 8.7 tok/s, acceptance 1.21 tok/step — ##7B와 거의 동일##.</p>
+
+<p>관찰 패턴:</p>
+<ul>
+  <li>Acceptance rate가 ##모델 크기에 무관##: 7B와 12B 모두 1.21 tok/step @ n=3, 1.23~1.25 plateau @ n=5-6. ##언어 통계와 n-gram pool dynamics가 모델 capacity보다 acceptance를 좌우##함을 강력히 시사 (이는 §7의 70B/405B 투영 시 1.2~1.3 acceptance 가정의 근거).</li>
+  <li>##n=3이 최고 throughput##: acceptance가 가장 낮은데도 최고 처리량. 이유: 큰 n-gram은 per-step cloud compute 오버헤드 증가 (큰 speculative batch), marginal acceptance gain을 상회.</li>
+</ul>
+
+<p><strong>Prompt category별 (7B, n=5)</strong>:</p>
+<table>
+<thead><tr><th>Category</th><th>Lookahead</th><th>Acceptance</th><th>vs Sequential (8.3)</th></tr></thead>
+<tbody>
+<tr><td>Code</td><td>10.5</td><td>1.43</td><td>1.27×</td></tr>
+<tr><td>Structured</td><td>8.0</td><td>1.20</td><td>0.96×</td></tr>
+<tr><td>Creative</td><td>8.2</td><td>1.12</td><td>0.99×</td></tr>
+<tr><td>Conversational</td><td>8.8</td><td>1.17</td><td>1.06×</td></tr>
+</tbody>
+</table>
+
+<p><strong>12B, n=5</strong>: Code 10.4 tok/s, acceptance ##1.57## — ##큰 모델이 더 예측 가능한 코드 패턴을 생성##하여 n-gram pool이 잘 작동함을 시사.</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: lookahead의 효과는 ##content type에 강하게 의존## — code/templates처럼 반복 패턴이 많은 콘텐츠에서 1.27~1.30× 가속, creative text에서는 거의 break-even. ~80ms RTT의 ##break-even acceptance rate가 1.15~1.20## — 이 임계값 아래에서는 큰 speculative batch의 per-step 오버헤드가 이득을 잠식.</p>
+
+<p><strong>Note on greedy decoding</strong>: 모든 측정이 greedy argmax. Temperature/top-k/top-p sampling은 n-gram acceptance를 낮춰 reported speedup은 ##stochastic decoding에 대한 upper bound##로 해석되어야 함.</p>
+
+<h3>Output Quality Verification</h3>
+
+<p><strong>실험 의도</strong>: speculative/parallel decoding이 출력 분포를 바꾸는가? Greedy argmax 하에서 sequential vs lookahead가 token-identical인지 검증.</p>
+
+<p><strong>Protocol</strong>: 4 test prompts × 200 tokens × {sequential, lookahead} × {7B, 12B}. 비교: (1) 토큰 일치, (2) per-token log-probability, (3) raw logit 차이.</p>
+
+<table>
+<thead><tr><th>Model</th><th>Tokens Identical</th><th>Avg Seq Self-PPL</th><th>Avg LA Self-PPL</th><th>Max Logit Diff</th></tr></thead>
+<tbody>
+<tr><td>Mistral 7B</td><td><strong>Yes (all 4/4)</strong></td><td>1.21</td><td>8.48</td><td>29.0</td></tr>
+<tr><td>NeMo 12B</td><td><strong>Yes (all 4/4)</strong></td><td>1.18</td><td>13.29</td><td>38.3</td></tr>
+</tbody>
+</table>
+
+<p>결과: ##모든 토큰이 sequential과 lookahead 사이에서 동일## — greedy argmax 보장. 동일한 forward pass를 거치고 argmax를 선택하므로 ##batching 방식과 무관하게 결과가 동일##해야 한다.</p>
+
+<p>Self-perplexity의 큰 차이 (1.21 vs 8.48)는 ##float16 누적 차이##: lookahead는 batched attention으로 여러 speculative position을 동시에 계산하여 incremental single-token attention과는 다른 floating-point rounding이 누적. ##argmax 선택은 영향받지 않음## — 이는 float16 연산에서 예상되는 동작.</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: speculative decoding의 일반적 우려인 "출력 품질이 저하되지 않는가"가 ##greedy 하에서 완전히 해소##. Sampling 환경에서는 별도 검증 필요.</p>
+
+<h3>Cloud Provider Comparison</h3>
+<table>
+<thead><tr><th>Provider</th><th>GPU</th><th>Method</th><th>RTT</th><th>Cost/hr</th><th>Usability</th></tr></thead>
+<tbody>
+<tr><td>HyperStack</td><td>A100 80GB PCIe</td><td>Direct SSH</td><td>~78~85ms</td><td>$1.35</td><td>IP changes on reboot</td></tr>
+<tr><td>RunPod</td><td>RTX 4090 Texas</td><td>Direct SSH</td><td>80~100ms</td><td>$0.59</td><td>Persistent volumes</td></tr>
+<tr><td>VAST.ai</td><td>RTX 4090 Texas</td><td>Proxied SSH</td><td>200~400ms</td><td>~$0.50</td><td>Unusable for split inference</td></tr>
+</tbody>
+</table>
+
+<p>##VAST.ai의 proxy 라우팅은 문서화되지 않은 함정## — pod 위치와 무관하게 모든 SSH가 중간 proxy를 거침. 학술 문헌에서 다루지 않는 실무적 정보.</p>
+
+<h2>Scaling Analysis</h2>
+
+<h3>RTT-to-Compute Ratio</h3>
+
+<p>핵심 관찰: 네트워크 RTT는 ##대체로 고정##(모델 크기 무관)인 반면 클라우드 compute는 모델 크기에 ##비례##해 증가. 비율이 1×에 가까울수록 split inference의 오버헤드가 이론적 최소에 근접.</p>
+
+<table>
+<thead><tr><th>Model</th><th>Hidden Dim</th><th>Activation/Token</th><th>Cloud Compute/Token</th><th>Network RTT</th><th>RTT-to-Compute</th></tr></thead>
+<tbody>
+<tr><td>Mistral 7B</td><td>4,096</td><td>8 KB</td><td>16ms (measured)</td><td>~78ms</td><td>4.9×</td></tr>
+<tr><td>NeMo 12B</td><td>5,120</td><td>10 KB</td><td>21ms (measured)</td><td>~79ms</td><td>3.8×</td></tr>
+<tr><td>LLaMA 70B</td><td>8,192</td><td>16 KB</td><td>~30-50ms (est.)</td><td>~80ms</td><td>1.6~2.7×</td></tr>
+<tr><td>LLaMA 405B</td><td>16,384</td><td>32 KB</td><td>~100-200ms (est.)</td><td>~80ms</td><td>0.4~0.8×</td></tr>
+</tbody>
+</table>
+
+<p>비율 감소의 메커니즘:</p>
+<ol>
+  <li>Cloud-side layer 수가 모델 깊이에 선형 증가.</li>
+  <li>Per-layer compute가 hidden_dim에 ##quadratic## (attention is $O(d^2)$).</li>
+  <li>Network transfer는 hidden_dim에 ##linear##만 (8KB → 32KB, 4× 증가가 58× 큰 모델에 대해서).</li>
+</ol>
+
+<p>직관적으로 말하면, ##모델이 커질수록 split inference 오버헤드의 비율이 더 작아진다.## 큰 모델일수록 GPU가 network 대기로 idle한 비율이 줄고 compute로 메워진다.</p>
+
+<p><strong>Projected throughput at ~80ms RTT</strong>:</p>
+<table>
+<thead><tr><th>Model</th><th>Fixed Overhead</th><th>Per-Token Time</th><th>Split Seq</th><th>Split + LA</th><th>Acceptance</th></tr></thead>
+<tbody>
+<tr><td>7B</td><td>43ms (measured)</td><td>120ms (measured)</td><td>8.3 tok/s</td><td>8.8 tok/s</td><td>1.17</td></tr>
+<tr><td>12B</td><td>46ms (measured)</td><td>125ms (measured)</td><td>8.0 tok/s</td><td>8.0 tok/s</td><td>1.23</td></tr>
+<tr><td>70B (est.)</td><td>~60-80ms</td><td>~140-160ms</td><td>~6-7 tok/s</td><td>~8-9 tok/s</td><td>~1.2-1.3</td></tr>
+<tr><td>405B (est.)</td><td>~130-230ms</td><td>~210-310ms</td><td>~3-5 tok/s</td><td>~4-6 tok/s</td><td>~1.2-1.3</td></tr>
+</tbody>
+</table>
+
+<p>##12B가 1.7× 더 많은 파라미터에도 7B와 동일 throughput##: A100이 36 cloud layers (12B)를 28 layers (7B) 대비 단 5ms 더 빨리 처리 (21 vs 16ms), 로컬 compute도 비슷 (24~26ms).</p>
+
+<p>중요 caveat: 70B/405B 추정치의 한계 — (1) KV-cache 메모리가 모델/시퀀스에 따라 증가, (2) 405B의 32KB/token activation은 여전히 작지만 대역폭 한계 가능, (3) 큰 모델은 multi-GPU cloud setup이 필요해 inter-GPU 통신 오버헤드 추가.</p>
+
+<h3>Local Memory Requirements</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Embedding + Head</th><th>Local Layers</th><th>KV-Cache (local, 2K ctx)</th><th>Peak Local VRAM</th></tr></thead>
+<tbody>
+<tr><td>7B</td><td>~1 GB</td><td>~0.5 GB</td><td>~0.1 GB</td><td><strong>2.0 GB (measured)</strong></td></tr>
+<tr><td>12B</td><td>~2.7 GB</td><td>~1.5 GB</td><td>~0.2 GB</td><td><strong>4.9 GB (measured)</strong></td></tr>
+<tr><td>70B (est.)</td><td>~4 GB</td><td>~4 GB</td><td>~0.5 GB</td><td>~9 GB (est.)</td></tr>
+<tr><td>405B</td><td>~8-16 GB</td><td>~8-16 GB</td><td>~2-4 GB</td><td>~20-36 GB (est.)</td></tr>
+</tbody>
+</table>
+
+<p>12B의 더 큰 VRAM 발자국은 ##131K vocabulary## (vs 32K for 7B) 때문 — embedding/LM head가 4×. RTX 3090 (24GB)이 70B의 로컬 부분을 처리할 수 있으며, 405B는 RTX A6000 48GB 같은 워크스테이션급 GPU가 필요.</p>
+
+<h2>Discussion</h2>
+
+<h3>Novelty</h3>
+<ol>
+  <li><strong>Privacy 동기 + embedding boundary 분할 + empirical evaluation</strong>: 선행 split computing은 latency/energy 최적화 중심. Split-and-Denoise [26]는 embedding에 noise를 추가해 전송하나 ##본 논문은 token-to-vector mapping 자체를 로컬에 유지##하고 post-transformer hidden states만 전송. ##Inversion attack 측정##으로 split depth가 privacy-throughput trade-off의 dial임을 정량화.</li>
+  <li><strong>Lookahead decoding for network latency amortization</strong>: lookahead는 GPU 병렬성을 위해 설계되었으나, ##round-trip 비용이 forward pass보다 30-100× 큰 환경##에서 더 효과적.</li>
+  <li><strong>Empirical deployment engineering</strong>: SSH tunneling, ephemeral IP, cross-machine SSH key 관리 — 학술 split computing 문헌과 deployable systems 사이의 gap을 메움.</li>
+  <li><strong>Inverse scaling of overhead</strong>: 7B와 12B의 measured 결과가 ##모델이 커지면 RTT-to-compute 비율이 좋아짐##을 처음 정량 증명.</li>
+  <li><strong>RTT decomposition model</strong>: <6.2% CV error로 cross-provider 비교와 throughput 투영 가능.</li>
+</ol>
+
+<h3>Concurrent Work와의 관계</h3>
+<p><strong>DSSD (ICML 2025)</strong>: 가장 가까운 concurrent work — split inference + speculative decoding for edge-cloud. 본 논문과의 차이: (1) 별도 draft 모델 대신 ##lookahead 사용 (추가 모델 불필요)##, (2) privacy를 primary motivation으로 명시, (3) 실제 WAN 측정(시뮬 X).</p>
+
+<p><strong>CROSS-SEC</strong>: WAN latency를 layerwise KV-cache overlapping으로 다룸 — 본 접근과 ##complementary##, 결합 가능.</p>
+
+<h3>Limitations (저자가 명시)</h3>
+<ul>
+  <li><strong>No formal privacy guarantees</strong>: architectural privacy ≠ cryptographic. 8-layer split로 ~35% 복원, 0이 아님.</li>
+  <li><strong>Two models tested</strong>: Mistral 가족(MistralForCausalLM)만. LLaMA, GPT-NeoX 등 다른 아키텍처에서의 검증 필요.</li>
+  <li><strong>Consumer hardware</strong>: RTX 3090 사용. Enterprise는 A6000/L40으로 더 많은 local layer 가능.</li>
+  <li><strong>Lookahead effectiveness varies</strong>: code 1.43~1.57, creative 1.06~1.12. ~80ms RTT의 break-even은 1.15~1.20.</li>
+  <li><strong>Prefill latency not optimized</strong>: 전체 prompt를 단일 forward pass로 처리 — 100~500ms TTFT 추가. Chunked prefill, prefill-decode disaggregation으로 개선 가능.</li>
+</ul>
+
+<h3>Partnership Model</h3>
+
+<p>실용적 deployment 비전: 로컬 SDK + 파트너 inference provider. Partner의 infrastructure 특성별 throughput 투영:</p>
+
+<table>
+<thead><tr><th>Partner Infrastructure</th><th>Est. RTT</th><th>7B Seq</th><th>7B LA</th><th>12B LA*</th></tr></thead>
+<tbody>
+<tr><td>Standard GPU cloud (A100, ~80ms)</td><td>~80ms</td><td>8.1</td><td>8.8</td><td>8.0</td></tr>
+<tr><td>Regional cloud (same metro)</td><td>~40ms</td><td>12.1</td><td>13.6</td><td>11.6</td></tr>
+<tr><td>Co-located inference partner</td><td>~20ms</td><td>15.9</td><td>18.6</td><td>15.2</td></tr>
+<tr><td>Same-rack co-location</td><td>~5ms</td><td>20.9</td><td>23.9</td><td>19.6</td></tr>
+</tbody>
+</table>
+
+<p>5ms RTT (same-rack)에서는 fixed_overhead (~48ms)가 per-step time을 지배 — 더 큰 가속은 RTT 감소가 아니라 ##compute 최적화##(quantization, 더 빠른 GPU)에서 와야 한다.</p>
+
+<h2>알고리즘 흐름도</h2>
+
+<div class="flow-diagram">[Sequential Decoding]
+입력 토큰 → Local: embed + layer 0-1 → hidden(8KB)
+       → [Network ~80ms] → Cloud: layer 2-29 + KV cache → hidden(8KB)
+       → [Network ~80ms] → Local: layer 30-31 + norm + LM head → next token
+       (반복 → ~8 tok/s @ 80ms RTT)
+
+[Lookahead Decoding]
+n-gram pool 초기화 (빈 상태)
+반복:
+  Local: 현재 토큰 + 후보 n-gram k개 → embed + layer 0-1 → hidden block
+      → [Network ~80ms] → Cloud: layer 2-29 with custom attention mask
+                        → hidden block + KV cache cropping (rejected branches)
+      → [Network ~80ms] → Local: layer 30-31 + LM head → next token + verify candidates
+      → Jacobi trajectory에서 새 n-gram 수확하여 pool에 추가
+      → 채택된 후보들 commit (1~5 tokens per round trip)
+  → (acceptance rate 1.2~1.6 → 8~13 tok/s @ 80ms RTT)</div>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Engineering 충실도</strong>: HTTP → WebSocket → binary float16 → 3090 relay → lookahead까지 1.4 → 17 tok/s의 ##optimization chain을 단계별로 기록##. 학술 논문에서 보기 드물게 실무 deployment에 즉시 도움이 되는 내용.</li>
+  <li><strong>RTT decomposition 모델의 실용성</strong>: <6.2% CV error로 임의의 RTT에서 throughput 투영 가능 → provider 선택 및 SLA 계획에 직접 활용 가능. 8.4절의 partnership scaling 시나리오가 단순한 추측이 아니라 ##validated projection##.</li>
+  <li><strong>Privacy claim의 honesty</strong>: "architectural privacy"라는 신중한 용어 선택, computational/cryptographic privacy와의 명시적 구분, ##inversion attack을 직접 실행하여 35~59% 복원##됨을 정직히 공개. 학술적 책임 의식이 돋보임.</li>
+  <li><strong>Acceptance rate의 모델 크기 독립성 발견</strong>: 7B와 12B가 1.21 tok/step으로 거의 동일. 이는 70B/405B 투영의 정당한 근거가 되며, n-gram speculation의 일반화 가능성을 시사.</li>
+  <li><strong>Output quality의 형식적 검증</strong>: greedy argmax 하에서 token-identical을 4 prompt × 200 token × 2 model로 100% 확인. speculative decoding의 가장 흔한 우려에 대한 명확한 답.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>단독 저자, 소속 미상</strong>: 학술 환경의 peer review 없이 단독 개인이 작성. Github 저장소 <code>coder903/split-inference</code>의 신원도 익명. 결과의 재현성은 코드 공개로 보장되나, 연구 환경의 검증 부재는 한계.</li>
+  <li><strong>Inversion attack의 약점</strong>: 3-layer MLP, 880 sample, position-independent. ##sequence-aware attacker## (예: language model prior 사용)나 10K+ sample로 학습 시 35~59% 수치가 크게 오를 수 있음을 ##저자도 인정##. 즉, ##보고된 inversion accuracy는 매우 보수적 lower bound##.</li>
+  <li><strong>Critical assumption의 fragility</strong>: 로컬 layer 가중치가 public weights와 구별되어야 한다는 가정. ##공개 모델 그대로 쓰는 경우 privacy 경계가 사실상 무너짐##. LoRA로 fine-tuning한 layer가 진정으로 private한 가중치인지(adaptive attacker retrain 불가)는 5.3절에서 추가 연구로 미룸 — 핵심 가정이 검증 안 됨.</li>
+  <li><strong>Lookahead의 한계 시나리오</strong>: creative text에서 1.06~1.12 acceptance, structured에서 0.96~0.99× sequential — ##기업 use case에 많은 dialog/customer support 같은 비반복 텍스트에서 lookahead의 실제 이득이 제한적##. 코드 use case에 편향된 marketing 가능성.</li>
+  <li><strong>RTT decomposition 모델의 가정</strong>: per-step time = RTT + fixed_overhead가 lookahead에서 4.5~6.2% error. 12B lookahead 투영은 naive projection이 안 맞아 측정값으로 보정 — ##큰 모델/큰 speculative batch에서 모델의 정확도가 어떻게 떨어지는지##는 불명확. 405B 투영(0.4~0.8× RTT-to-compute)의 신뢰도는 낮음.</li>
+  <li><strong>실험 규모의 작음</strong>: ablation 8 prompts (category당 2), inversion 1100 sample (test 221), seed 반복 미보고. ±10% run-to-run variance를 저자도 명시. 더 큰 규모와 통계적 유의성 검증이 필요.</li>
+  <li><strong>Real-world WAN 다양성 부재</strong>: 미국 내부 RTT 78-100ms만 측정. 대륙 간(예: 한국→미국 ~150ms, 한국→유럽 ~250ms), 모바일/위성 link 등에서의 검증 없음.</li>
+  <li><strong>Threat model의 narrow함</strong>: semi-honest만 다룸. 실제 enterprise에서 클라우드가 malicious일 가능성, 또는 traffic analysis side-channel은 미고려.</li>
+  <li><strong>vs DSSD 비교 부재</strong>: 가장 가까운 concurrent work인 DSSD (ICML 2025)와의 ##직접 throughput 비교 없음## — "다르다"는 정성적 언급만. 정량 비교 절실.</li>
+</ul>
+
+<h3>개선 제안</h3>
+<ul>
+  <li><strong>Sequence-aware inversion attack 평가</strong>: GPT-2 small을 attacker로 사용해 inter-token dependency 활용. 실제 worst-case privacy를 더 정직히 측정.</li>
+  <li><strong>Fine-tuned local layer의 inversion robustness</strong>: LoRA로 fine-tune한 layer 0-1로 split하여 inversion attack을 재훈련 — 5.3절의 가설을 실험으로 검증.</li>
+  <li><strong>LLaMA/Qwen 등 다른 architecture로 일반화 검증</strong>: 현재 Mistral 가족만. acceptance rate의 architecture 독립성이 정말 성립하는가?</li>
+  <li><strong>Multi-region 측정</strong>: 대륙 간 link (≥150ms RTT)에서 lookahead 효과 검증.</li>
+  <li><strong>Stochastic decoding에서의 acceptance</strong>: temperature 0.7 등 실무에 흔한 setting에서 reported 1.2~1.5×가 얼마나 유지되는지.</li>
+  <li><strong>DSSD/CROSS-SEC와 정량 비교</strong>: 동일 hardware/network에서 head-to-head.</li>
+  <li><strong>Privacy depth의 dynamic 조절</strong>: 사용자/요청 sensitivity에 따라 split point를 동적으로 결정하는 메커니즘 (현재는 정적).</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>WAN split inference는 RTT amortization 문제다</strong>: 80~100ms RTT가 per-token wall time의 60~64%를 차지하는 환경에서, lookahead처럼 ##round-trip당 multiple token을 통과##시키는 기법이 1차 leverage. 일반적인 GPU-utilization 중심 speculative decoding 사고방식과 다른 contextualization 필요.</li>
+  <li><strong>Embedding boundary split = architectural privacy의 적정 sweet spot</strong>: cryptographic 기법(100~1000× 느림)과 plaintext API(0× privacy) 사이의 ##3~5× overhead로 raw token leakage 차단##. Formal guarantee는 아니지만, 규제 산업의 실용적 baseline.</li>
+  <li><strong>RTT-to-compute ratio가 inverse scaling</strong>: 모델이 커질수록 split inference의 상대적 overhead가 감소 — 405B에서 ratio가 1× 이하로 떨어져 ##사실상 native에 가까운 효율##. 따라서 이 접근은 작은 모델보다 ##큰 모델에 더 적합##하다는 역설.</li>
+  <li><strong>Acceptance rate는 model-size invariant</strong>: 7B와 12B의 동일한 1.21 tok/step. n-gram speculation이 ##언어 통계에 의존##하고 모델 capacity에 의존하지 않음을 시사 — 70B+에서도 유효할 강력한 prior.</li>
+  <li><strong>Deployment engineering이 알고리즘만큼 중요</strong>: VAST.ai proxy 같은 ##cloud provider 특유의 latency 함정##, SSH tunnel, ephemeral IP — 학술 논문이 좀처럼 다루지 않는 영역이 실 throughput을 결정. Optimization chain 1.4→17 tok/s에서 ##transport 최적화가 5.6× (절반 이상)## 기여.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
