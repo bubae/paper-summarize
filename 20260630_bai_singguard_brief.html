@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SingGuard — 정책 따라 변하는 AI 안전 검열관</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+
+  .hero { background: linear-gradient(135deg, #064e3b, #047857, #10b981); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .version-link { text-align: right; padding: 1rem 1.5rem 0; max-width: 820px; margin: 0 auto; }
+  .version-link a { color: #047857; font-size: 0.9rem; text-decoration: none; }
+  .version-link a:hover { text-decoration: underline; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #064e3b; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #047857, #10b981); border-radius: 3px; }
+
+  .card { background: #ecfdf5; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #a7f3d0; }
+  .card-accent { border-left: 5px solid #047857; }
+  .card-green { border-left: 5px solid #059669; background: #f0fdf4; border-color: #bbf7d0; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; border-color: #fde68a; }
+  .card-red { border-left: 5px solid #dc2626; background: #fef2f2; border-color: #fecaca; }
+
+  .one-liner { background: linear-gradient(135deg, #047857, #0284c7); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #ecfdf5; border-radius: 12px; border: 1px solid #a7f3d0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #ecfdf5; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #a7f3d0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #047857, #0284c7); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #a7f3d0; }
+  .comp-table th { background: #064e3b; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #a7f3d0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #d1fae5; font-weight: 700; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #047857; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #047857; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #047857; padding: 0 0.4rem; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #a7f3d0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Ant Group · AI Security Lab · 2026</div>
+  <h1>SingGuard</h1>
+  <p class="subtitle">"AI 검열관이 정책을 실시간으로 받아<br>그에 맞춰 판단하도록 학습시키기"</p>
+</div>
+
+<div class="version-link">
+  <a href="20260630_bai_singguard.html">← 전문가용 상세 요약 보기</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  "기존 검열관은 외운 법전대로 판단,<br><strong>SingGuard는 매 사건마다 새 법령을 받아 적용한다</strong>"
+</div>
+
+<section>
+  <h2>먼저 알아야 할 것 1: AI Guardrail이 뭔가?</h2>
+
+  <div class="card card-accent">
+    <p>ChatGPT, Gemini, Claude 같은 AI 모델은 점점 더 의료, 금융, 법률 같은 <strong>고위험 분야</strong>에 배포됩니다. 그런데 AI가 부적절한 내용(음란물, 폭력, 사기 조언, 차별 발언 등)을 생성하거나 도와주면 큰 문제입니다.</p>
+    <p style="margin-top: 0.8rem;"><strong>Guardrail (가드레일)</strong>은 이 위험을 막는 <strong>안전 검열관 AI</strong>입니다. 사용자 질문이나 AI 응답을 보고 "안전한가, 위험한가"를 판정합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">AI Guardrail의 역할</text>
+
+      <rect x="40" y="60" width="120" height="60" rx="10" fill="#3b82f6"/>
+      <text x="100" y="85" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">사용자</text>
+      <text x="100" y="105" font-size="10" fill="#fff" text-anchor="middle">질문/이미지</text>
+
+      <text x="175" y="95" font-size="20" fill="#047857">→</text>
+
+      <rect x="200" y="60" width="160" height="60" rx="10" fill="#047857" stroke="#064e3b" stroke-width="3"/>
+      <text x="280" y="83" font-size="13" fill="#fff" text-anchor="middle" font-weight="700">🛡️ Guardrail</text>
+      <text x="280" y="105" font-size="10" fill="#fff" text-anchor="middle">안전 검사</text>
+
+      <text x="375" y="85" font-size="20" fill="#059669">→</text>
+      <text x="395" y="78" font-size="9" fill="#059669">SAFE</text>
+
+      <text x="375" y="115" font-size="20" fill="#dc2626">→</text>
+      <text x="395" y="125" font-size="9" fill="#dc2626">UNSAFE</text>
+
+      <rect x="430" y="40" width="120" height="40" rx="8" fill="#059669"/>
+      <text x="490" y="65" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">AI에 전달</text>
+
+      <rect x="430" y="100" width="120" height="40" rx="8" fill="#dc2626"/>
+      <text x="490" y="125" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">차단</text>
+
+      <text x="360" y="180" font-size="13" fill="#064e3b" text-anchor="middle" font-weight="700">두 가지 검사 위치</text>
+      <text x="200" y="210" font-size="11" fill="#475569">① 사용자 질문 검사 (Query)</text>
+      <text x="200" y="230" font-size="9" fill="#94a3b8">"폭탄 만드는 법 알려줘" → 차단</text>
+      <text x="400" y="210" font-size="11" fill="#475569">② AI 답변 검사 (Response)</text>
+      <text x="400" y="230" font-size="9" fill="#94a3b8">"답변에 실제 제조법 포함" → 차단</text>
+    </svg>
+    <div class="diagram-caption">Guardrail은 입력과 출력 양쪽에서 안전성을 검사한다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🛡️ 비유: "공항 보안 검색대"</div>
+    공항 보안 검색대는 모든 승객(사용자 질문)과 짐(AI 답변)을 검사합니다. 위험물이 있으면 차단하고, 안전하면 통과시킵니다. AI Guardrail이 바로 LLM의 보안 검색대입니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 2: 기존 Guardrail의 한계 — "고정 법전"</h2>
+
+  <div class="card card-accent">
+    <p>기존 Guardrail(Llama Guard, Qwen3Guard 등)은 학습할 때 <strong>고정 카테고리</strong>(폭력, 성적, 사기 등)를 정해두고 그것만 판단할 수 있게 훈련됩니다. 그러나 실제 배포에서는:</p>
+    <ul style="margin-top: 0.8rem; padding-left: 1.5rem;">
+      <li><strong>의료 챗봇</strong>: "처방전 없이 약 추천" 금지 — 일반 챗봇엔 없는 규칙</li>
+      <li><strong>아동 교육 앱</strong>: 일반 챗봇은 OK인 내용도 금지</li>
+      <li><strong>국가별 규제</strong>: 정치 콘텐츠 규정이 나라마다 다름</li>
+      <li><strong>새 위험 등장</strong>: AI 음성 사기 등 새 패턴은 학습 데이터에 없음</li>
+    </ul>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">고정 법전 vs 정책-적응 Guardrail</text>
+
+      <!-- 기존 -->
+      <rect x="20" y="50" width="330" height="290" rx="12" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="185" y="75" font-size="14" font-weight="700" fill="#7f1d1d" text-anchor="middle">기존 Guardrail</text>
+      <text x="185" y="95" font-size="11" fill="#7f1d1d" text-anchor="middle">"학습 때 외운 법전"</text>
+
+      <rect x="40" y="115" width="290" height="100" rx="8" fill="#fff" stroke="#dc2626"/>
+      <text x="185" y="135" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">고정 카테고리 (변경 불가)</text>
+      <text x="185" y="160" font-size="10" fill="#475569" text-anchor="middle">R1: 폭력 / R2: 성적 / R3: 사기</text>
+      <text x="185" y="180" font-size="10" fill="#475569" text-anchor="middle">R4: 자해 / R5: 차별</text>
+      <text x="185" y="200" font-size="9" fill="#94a3b8" text-anchor="middle">(학습 시점에 고정됨)</text>
+
+      <text x="185" y="240" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">❌ 의료 도메인 추가 시?</text>
+      <text x="185" y="260" font-size="10" fill="#7f1d1d" text-anchor="middle">→ 새 데이터로 재학습 필요</text>
+      <text x="185" y="280" font-size="10" fill="#7f1d1d" text-anchor="middle">→ 비용·시간 막대</text>
+      <text x="185" y="310" font-size="11" font-weight="700" fill="#7f1d1d" text-anchor="middle">"외운 것 외엔 못 함"</text>
+
+      <!-- SingGuard -->
+      <rect x="370" y="50" width="330" height="290" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="535" y="75" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">SingGuard ⭐</text>
+      <text x="535" y="95" font-size="11" fill="#065f46" text-anchor="middle">"실시간 정책 입력"</text>
+
+      <rect x="390" y="115" width="290" height="100" rx="8" fill="#fff" stroke="#059669"/>
+      <text x="535" y="135" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">Default 정책 (기본) +</text>
+      <text x="535" y="160" font-size="10" fill="#065f46" text-anchor="middle">실시간 새 규칙 추가/수정</text>
+      <text x="535" y="180" font-size="9" fill="#475569" text-anchor="middle">"의료 도메인: 처방 금지"</text>
+      <text x="535" y="195" font-size="9" fill="#475569" text-anchor="middle">"아동 모드: 단어 강화"</text>
+      <text x="535" y="210" font-size="9" fill="#475569" text-anchor="middle">"한국 규제: ..."</text>
+
+      <text x="535" y="240" font-size="12" font-weight="700" fill="#047857" text-anchor="middle">✅ 의료 도메인 추가 시?</text>
+      <text x="535" y="260" font-size="10" fill="#065f46" text-anchor="middle">→ 프롬프트에 새 규칙 추가</text>
+      <text x="535" y="280" font-size="10" fill="#065f46" text-anchor="middle">→ 즉시 적용 (재학습 불요)</text>
+      <text x="535" y="310" font-size="11" font-weight="700" fill="#065f46" text-anchor="middle">"규칙을 실시간 따른다"</text>
+    </svg>
+    <div class="diagram-caption">SingGuard의 핵심: 정책을 학습 시점에 고정하지 않고 추론 시점에 받는다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">⚖️ 비유: "외운 판사 vs 법령 받는 판사"</div>
+    <strong>기존 Guardrail</strong>은 "내가 학교에서 배운 형법대로만 판결할 거야"라는 판사. 새 법령이 나와도 적용 못 합니다.<br>
+    <strong>SingGuard</strong>는 사건마다 "오늘 적용할 법령은 이것입니다"라고 받아, 그 법령에 따라 case-by-case로 판결하는 판사. 같은 사건도 적용 법령에 따라 판결이 달라집니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 3: Cross-Modal Hidden Intent</h2>
+
+  <div class="card card-accent">
+    <p>이미지와 텍스트가 <strong>각각은 안전</strong>한데, <strong>합치면 위험</strong>한 경우가 있습니다. 이를 <strong>Cross-Modal Hidden Intent</strong>(교차 모달 숨은 의도) 공격이라 부릅니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">Cross-Modal Hidden Intent 예시</text>
+
+      <!-- 이미지 -->
+      <rect x="30" y="60" width="180" height="180" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="120" y="85" font-size="12" font-weight="700" fill="#475569" text-anchor="middle">📷 이미지</text>
+
+      <!-- 화학 실험실 그림 -->
+      <rect x="60" y="100" width="120" height="100" rx="6" fill="#cbd5e1"/>
+      <text x="120" y="130" font-size="11" fill="#475569" text-anchor="middle">[화학 실험실]</text>
+      <text x="120" y="150" font-size="10" fill="#94a3b8" text-anchor="middle">비커, 가스 마스크</text>
+      <text x="120" y="170" font-size="10" fill="#94a3b8" text-anchor="middle">화학약품 진열</text>
+
+      <text x="120" y="220" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">✓ 단독으론 안전</text>
+      <text x="120" y="232" font-size="9" fill="#94a3b8" text-anchor="middle">(교과서 그림)</text>
+
+      <!-- 텍스트 -->
+      <rect x="240" y="60" width="180" height="180" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="330" y="85" font-size="12" font-weight="700" fill="#475569" text-anchor="middle">💬 텍스트</text>
+
+      <rect x="270" y="110" width="120" height="80" rx="6" fill="#fff" stroke="#cbd5e1"/>
+      <text x="330" y="135" font-size="10" fill="#475569" text-anchor="middle">"이 사진에 보이는</text>
+      <text x="330" y="155" font-size="10" fill="#475569" text-anchor="middle">초록색 액체와</text>
+      <text x="330" y="175" font-size="10" fill="#475569" text-anchor="middle">갈색 가루를 섞으면?"</text>
+
+      <text x="330" y="220" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">✓ 단독으론 안전</text>
+      <text x="330" y="232" font-size="9" fill="#94a3b8" text-anchor="middle">(단순 호기심)</text>
+
+      <text x="450" y="155" font-size="24" fill="#dc2626" text-anchor="middle">+</text>
+
+      <!-- 결합 결과 -->
+      <rect x="490" y="60" width="200" height="180" rx="12" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+      <text x="590" y="85" font-size="12" font-weight="700" fill="#7f1d1d" text-anchor="middle">⚠️ 결합 결과</text>
+
+      <text x="590" y="115" font-size="11" fill="#7f1d1d" text-anchor="middle">"화학 약품 사진 + </text>
+      <text x="590" y="133" font-size="11" fill="#7f1d1d" text-anchor="middle">반응 질문"</text>
+
+      <text x="590" y="165" font-size="11" fill="#7f1d1d" text-anchor="middle">= 위험한 화학 반응</text>
+      <text x="590" y="183" font-size="11" fill="#7f1d1d" text-anchor="middle">조합 알려달라는 의도</text>
+
+      <text x="590" y="215" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">❌ UNSAFE</text>
+      <text x="590" y="232" font-size="9" fill="#7f1d1d" text-anchor="middle">(숨은 jailbreak 시도)</text>
+
+      <!-- 화살표 -->
+      <line x1="120" y1="245" x2="450" y2="280" stroke="#dc2626" stroke-width="2" stroke-dasharray="5"/>
+      <line x1="330" y1="245" x2="450" y2="280" stroke="#dc2626" stroke-width="2" stroke-dasharray="5"/>
+      <line x1="450" y1="280" x2="590" y2="245" stroke="#dc2626" stroke-width="2" stroke-dasharray="5"/>
+
+      <text x="360" y="305" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">단독 검사는 통과 → 결합 시 위험 의도 등장</text>
+    </svg>
+    <div class="diagram-caption">이미지와 텍스트 각각은 검열을 통과하지만, 결합되면 jailbreak 의도가 드러난다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🕵️ 비유: "암호 편지"</div>
+    스파이가 "오늘 날씨가 좋다"라는 평범한 글과 "23시 만남" 사진을 각자 보냅니다. 검열 시스템은 단독으로 보면 모두 안전합니다. 하지만 <strong>두 메시지를 합치면</strong> "23시에 만나라"는 비밀 명령이 됩니다. AI에 대한 jailbreak도 이런 패턴을 점점 활용합니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 4: Fast vs Slow Reasoning</h2>
+
+  <div class="card card-accent">
+    <p>AI가 "이 콘텐츠가 안전한가?"를 판단할 때 두 가지 모드가 가능합니다:</p>
+    <ul style="margin-top: 0.8rem; padding-left: 1.5rem;">
+      <li><strong>Fast</strong>: 직관적으로 "안전/위험" 즉답 (빠름, 단순한 경우에 충분)</li>
+      <li><strong>Slow</strong>: 단계별 추론을 거쳐 결정 (느리지만, 애매한 경우에 필요)</li>
+    </ul>
+    <p style="margin-top: 0.8rem;">기존 Guardrail은 둘 중 하나에만 특화됐습니다. SingGuard는 <strong>둘 다 + 중간(Hybrid)</strong>을 제공합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">3가지 추론 모드</text>
+
+      <!-- Fast -->
+      <rect x="20" y="50" width="220" height="180" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="130" y="75" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Fast (즉답)</text>
+
+      <text x="130" y="105" font-size="11" fill="#065f46" text-anchor="middle">"unsafe"</text>
+      <text x="130" y="125" font-size="9" fill="#475569" text-anchor="middle">(첫 토큰만 출력)</text>
+
+      <text x="130" y="160" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">⚡ ~50ms</text>
+      <text x="130" y="180" font-size="10" fill="#065f46" text-anchor="middle">대용량 트래픽용</text>
+      <text x="130" y="200" font-size="10" fill="#065f46" text-anchor="middle">단순한 case</text>
+
+      <!-- Hybrid -->
+      <rect x="250" y="50" width="220" height="180" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="360" y="75" font-size="14" font-weight="700" fill="#92400e" text-anchor="middle">Hybrid (자동 분기)</text>
+
+      <text x="360" y="105" font-size="10" fill="#92400e" text-anchor="middle">자신감 ≥ τ?</text>
+      <text x="360" y="125" font-size="9" fill="#475569" text-anchor="middle">→ Yes: Fast 종료</text>
+      <text x="360" y="140" font-size="9" fill="#475569" text-anchor="middle">→ No: Slow 계속</text>
+
+      <text x="360" y="170" font-size="13" font-weight="700" fill="#d97706" text-anchor="middle">⚖️ ~100~300ms</text>
+      <text x="360" y="190" font-size="10" fill="#92400e" text-anchor="middle">대부분 use case</text>
+      <text x="360" y="208" font-size="10" fill="#92400e" text-anchor="middle">정확도-지연 균형</text>
+
+      <!-- Slow -->
+      <rect x="480" y="50" width="220" height="180" rx="12" fill="#fce7f3" stroke="#be185d" stroke-width="1.5"/>
+      <text x="590" y="75" font-size="14" font-weight="700" fill="#831843" text-anchor="middle">Slow (전체 추론)</text>
+
+      <text x="590" y="100" font-size="9" fill="#831843" text-anchor="middle">Rule 1: not-hit</text>
+      <text x="590" y="115" font-size="9" fill="#831843" text-anchor="middle">Rule 2: HIT</text>
+      <text x="590" y="130" font-size="9" fill="#831843" text-anchor="middle">Rule 3: N/A</text>
+      <text x="590" y="148" font-size="10" fill="#475569" text-anchor="middle">→ Final: unsafe</text>
+
+      <text x="590" y="175" font-size="13" font-weight="700" fill="#be185d" text-anchor="middle">🐢 ~1000ms+</text>
+      <text x="590" y="195" font-size="10" fill="#831843" text-anchor="middle">감사·법무 검토</text>
+      <text x="590" y="213" font-size="10" fill="#831843" text-anchor="middle">새 정책 적용</text>
+    </svg>
+    <div class="diagram-caption">3가지 모드를 선택할 수 있어 use case에 맞게 정확도-지연 tradeoff 조절 가능</div>
+  </div>
+</section>
+
+<section>
+  <h2>핵심 아이디어 — 3단계 학습</h2>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STAGE 1</div>
+      <div class="step-title">Policy-Conditioned SFT</div>
+      <div class="step-desc">정책 인지하는<br>2.5M+600K 학습 데이터</div>
+    </div>
+    <span class="step-arrow">→</span>
+    <div class="step-box">
+      <div class="step-num">STAGE 2</div>
+      <div class="step-title">Fast-Slow DAPO</div>
+      <div class="step-desc">강화학습으로<br>"새 정책 따르기" 학습</div>
+    </div>
+    <span class="step-arrow">→</span>
+    <div class="step-box">
+      <div class="step-num">STAGE 3</div>
+      <div class="step-title">2B Distillation</div>
+      <div class="step-desc">8B 능력을 2B로<br>경량 배포</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; color:#064e3b;">Stage 1: Policy-Conditioned SFT의 핵심 — 4가지 정책 변경 시나리오</h3>
+  <p style="margin: 0.8rem 0;">SingGuard의 가장 큰 비밀: <strong>같은 콘텐츠에 대해 정책에 따라 다른 정답을 가르치기</strong>.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>시나리오</th><th>이전 정책</th><th>새 정책</th><th>기대 판정</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>unsafe → unsafe</td><td>위반 규칙 없음</td><td>위반 규칙 1개 추가</td><td>UNSAFE</td></tr>
+      <tr><td>safe → safe</td><td>관련 규칙 없음</td><td>여전히 관련 규칙 없음</td><td>SAFE</td></tr>
+      <tr><td>unsafe → safe</td><td>위반 규칙 존재</td><td>해당 규칙 삭제</td><td>SAFE</td></tr>
+      <tr><td>safe → unsafe</td><td>위반 규칙 없음</td><td>새 규칙 추가로 위반</td><td>UNSAFE</td></tr>
+    </tbody>
+  </table>
+
+  <div class="card card-green">
+    <p>예: "오늘 일찍 잘게요"라는 텍스트는 정책 A에서는 안전. 그런데 "사용자가 약속을 어기는 표현은 unsafe"라는 새 규칙이 들어오면 같은 텍스트가 unsafe로 바뀝니다. <strong>같은 콘텐츠 → 다른 정책 → 다른 정답</strong>을 학습 데이터로 직접 보여줘서 모델이 "외운 답"이 아닌 "현재 규칙"을 따르도록 강제합니다.</p>
+  </div>
+
+  <h3 style="margin-top:2rem; color:#064e3b;">Stage 2: Fast-Slow Decoupled DAPO의 영리한 트릭</h3>
+  <p style="margin: 0.8rem 0;">강화학습 단계에서 첫 토큰(빠른 판단)이 잘못되면 이후 reasoning이 단지 "합리화"만 하는 문제가 있습니다. SingGuard는 <strong>첫 토큰을 RL 학습에서 무시</strong>해 reasoning이 자유롭게 첫 판단을 뒤집을 수 있게 합니다.</p>
+
+  <div class="analogy">
+    <div class="analogy-title">🎤 비유: "첫인상의 함정"</div>
+    면접관이 "이 사람 안 좋아 보여"라고 첫 1초에 판단하면, 이후 인터뷰에서 좋은 답을 들어도 자기 첫인상을 합리화하려고 합니다. <strong>SingGuard는 면접관에게 "첫인상은 무시하고 인터뷰 내용으로만 평가"하도록 훈련</strong>합니다. 그러면 reasoning이 첫 직관을 뒤집을 수 있습니다.
+  </div>
+
+  <h3 style="margin-top:2rem; color:#064e3b;">Stage 3: 2B 모델로 8B 능력 압축</h3>
+  <p style="margin: 0.8rem 0;">8B 모델이 너무 비싸다면? 2B 학생 모델이 답안을 쓰고, 8B 교사 모델이 토큰 단위로 첨삭하는 <strong>On-Policy Distillation</strong>으로 2B에 8B의 핵심 능력을 transfer.</p>
+</section>
+
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">0.9092</div>
+      <div class="label">Multimodal F1<br>(GPT-5.1: 0.83)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">0.7415</div>
+      <div class="label">Dynamic Policy<br>(Qwen3-VL-8B: 0.65)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">56,340</div>
+      <div class="label">SingGuard-Bench<br>샘플 수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">80+</div>
+      <div class="label">세부 위험<br>카테고리</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top: 1.5rem; color:#064e3b;">6개 벤치마크 family 평균 F1 비교</h3>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>벤치마크</th><th>SingGuard-8B</th><th>최고 오픈소스 baseline</th><th>GPT-5.1 (closed)</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight-row"><td>Multimodal Safety</td><td><strong>0.9092</strong></td><td>LLaVAShield 0.8842</td><td>0.8349</td></tr>
+      <tr class="highlight-row"><td>Image Safety</td><td>0.9099 (4B: <strong>0.9141</strong>)</td><td>GuardReasoner-VL 0.8570</td><td>0.8114</td></tr>
+      <tr class="highlight-row"><td>Text Query</td><td><strong>0.8740</strong></td><td>YuFeng-XGuard 0.8666</td><td>0.8599</td></tr>
+      <tr class="highlight-row"><td>Text Response</td><td>0.8770 (4B: <strong>0.8799</strong>)</td><td>Qwen3VL-235B 0.8497</td><td>0.7804</td></tr>
+      <tr class="highlight-row"><td>Multilingual Query</td><td><strong>0.8872</strong></td><td>YuFeng-XGuard 0.8648</td><td>0.7007</td></tr>
+      <tr class="highlight-row"><td>Multilingual Response</td><td><strong>0.8988</strong></td><td>GuardReasoner 0.8411</td><td>0.8177</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top: 1.5rem; color:#064e3b;">Dynamic Policy Evaluation — 핵심 성과</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">정책 변경 시 적응 능력</text>
+
+      <!-- bars -->
+      <line x1="80" y1="240" x2="660" y2="240" stroke="#475569" stroke-width="1.5"/>
+      <line x1="80" y1="60" x2="80" y2="240" stroke="#475569" stroke-width="1.5"/>
+
+      <!-- Y labels -->
+      <text x="70" y="65" font-size="10" fill="#475569" text-anchor="end">0.8</text>
+      <text x="70" y="155" font-size="10" fill="#475569" text-anchor="end">0.5</text>
+      <text x="70" y="245" font-size="10" fill="#475569" text-anchor="end">0.2</text>
+
+      <!-- Qwen3-VL-8B: 0.6465 -->
+      <rect x="120" y="155" width="80" height="85" fill="#dc2626"/>
+      <text x="160" y="145" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">0.6465</text>
+      <text x="160" y="265" font-size="9" fill="#475569" text-anchor="middle">Qwen3-VL-8B</text>
+
+      <!-- Qwen3-32B-Thinking: 0.7085 -->
+      <rect x="230" y="138" width="80" height="102" fill="#d97706"/>
+      <text x="270" y="128" font-size="10" fill="#d97706" text-anchor="middle" font-weight="700">0.7085</text>
+      <text x="270" y="265" font-size="9" fill="#475569" text-anchor="middle">Qwen3-32B</text>
+      <text x="270" y="277" font-size="8" fill="#94a3b8" text-anchor="middle">Thinking</text>
+
+      <!-- SingGuard-fast: 0.7195 -->
+      <rect x="340" y="135" width="80" height="105" fill="#059669"/>
+      <text x="380" y="125" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">0.7195</text>
+      <text x="380" y="265" font-size="9" fill="#475569" text-anchor="middle">SingGuard-fast</text>
+
+      <!-- SingGuard-hybrid: 0.7383 -->
+      <rect x="450" y="130" width="80" height="110" fill="#059669"/>
+      <text x="490" y="120" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">0.7383</text>
+      <text x="490" y="265" font-size="9" fill="#475569" text-anchor="middle">SingGuard-hybrid</text>
+
+      <!-- SingGuard-slow: 0.7415 -->
+      <rect x="560" y="120" width="80" height="120" fill="#047857" stroke="#000" stroke-width="2"/>
+      <text x="600" y="110" font-size="11" fill="#047857" text-anchor="middle" font-weight="700">0.7415 ⭐</text>
+      <text x="600" y="265" font-size="9" fill="#475569" text-anchor="middle">SingGuard-slow</text>
+    </svg>
+    <div class="diagram-caption">정책이 변경되는 dynamic 환경에서 SingGuard가 baseline 대비 +10~15%p 향상</div>
+  </div>
+
+  <div class="card card-green">
+    <strong>이 결과의 의미:</strong> 학습 때 본 적 없는 새 규칙이 들어와도 SingGuard는 그 규칙을 <strong>실제로 따른다</strong>. Qwen3-VL이나 GPT-5.1 같은 일반 VLM은 "외운 패턴"으로 답하지만, SingGuard는 "현재 정책에 비춰" 판단합니다.
+  </div>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#064e3b" text-anchor="middle">SingGuard 활용 시나리오</text>
+
+      <ellipse cx="360" cy="180" rx="90" ry="40" fill="#064e3b"/>
+      <text x="360" y="178" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">SingGuard</text>
+      <text x="360" y="195" font-size="9" fill="#fff" text-anchor="middle">정책-적응 검열관</text>
+
+      <g transform="translate(80, 50)">
+        <circle cx="50" cy="50" r="50" fill="#3b82f6" opacity="0.85"/>
+        <text x="50" y="42" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">의료 챗봇</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">진단 위험,</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">처방 금지</text>
+      </g>
+      <line x1="170" y1="100" x2="280" y2="170" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(540, 50)">
+        <circle cx="50" cy="50" r="50" fill="#7c3aed" opacity="0.85"/>
+        <text x="50" y="42" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">금융 서비스</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">투자 권유,</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">개인정보</text>
+      </g>
+      <line x1="540" y1="100" x2="440" y2="170" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(30, 250)">
+        <circle cx="50" cy="50" r="50" fill="#d97706" opacity="0.85"/>
+        <text x="50" y="42" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">법률 어시스턴트</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">법률 자문 한계,</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">관할 차이</text>
+      </g>
+      <line x1="120" y1="260" x2="280" y2="200" stroke="#d97706" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(295, 275)">
+        <circle cx="50" cy="50" r="50" fill="#059669" opacity="0.85"/>
+        <text x="50" y="42" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">아동 교육</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">엄격 모드,</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">언어 강화</text>
+      </g>
+      <line x1="345" y1="290" x2="360" y2="220" stroke="#059669" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(590, 250)">
+        <circle cx="50" cy="50" r="50" fill="#dc2626" opacity="0.85"/>
+        <text x="50" y="42" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">국가별 규제</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">정치·문화</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">맞춤 정책</text>
+      </g>
+      <line x1="600" y1="250" x2="440" y2="190" stroke="#dc2626" stroke-width="1" stroke-dasharray="3"/>
+    </svg>
+    <div class="diagram-caption">하나의 모델이 각 도메인의 정책을 실시간으로 받아 적용</div>
+  </div>
+</section>
+
+<section>
+  <h2>기존 방법 대비 장점</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>측면</th><th>Llama Guard 등 (고정)</th><th>GuardReasoner (always-reasoning)</th><th>SingGuard</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>정책 변경 시</td><td>재학습 필요</td><td>제한적</td><td><strong>즉시 적용</strong></td></tr>
+      <tr><td>이미지 + 텍스트</td><td>일부만 지원</td><td>지원</td><td><strong>완전 지원 + 교차 의도</strong></td></tr>
+      <tr><td>지연 속도</td><td>빠름 (단답)</td><td>느림 (항상 reasoning)</td><td><strong>3단 조절 가능</strong></td></tr>
+      <tr><td>설명 가능성</td><td>없음 (label만)</td><td>있음 (free-form)</td><td><strong>Rule-by-rule auditable</strong></td></tr>
+      <tr><td>다국어</td><td>제한적</td><td>제한적</td><td><strong>강력 (영어/중국어/...)</strong></td></tr>
+      <tr><td>경량 배포</td><td>가능</td><td>어려움 (큰 모델 필요)</td><td><strong>2B OPD로 가능</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>한계와 주의사항</h2>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 정책 품질에 의존 (저자 인정)</h3>
+    <p>SingGuard의 판단 품질은 입력된 정책의 명확성·일관성에 의존합니다. 실제 production에서 정책이 <strong>애매하거나 충돌하면</strong> SingGuard도 inconsistent한 판단을 내릴 수 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ Long-tail 위험 패턴 한계</h3>
+    <p>80+ 카테고리로 광범위하지만, 실제 세계의 <strong>새로 등장하는 abuse 패턴</strong>(예: 새 jailbreak 기법)은 미리 커버할 수 없습니다. 지속적 업데이트와 인간 review가 필요합니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 합성 데이터 의존</h3>
+    <p>학습 데이터의 상당 부분이 다른 LLM(Gemini, Kimi, Qwen, GLM)이 자동 annotation한 합성 데이터입니다. <strong>실제 사용자 트래픽과의 distribution 차이</strong>가 잔존할 수 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ Hybrid 모드의 calibration</h3>
+    <p>Hybrid early exit이 token confidence에 의존하지만, <strong>distribution shift 하에서 confidence가 잘못 calibrated될 가능성</strong>이 있어 safety-critical case를 놓칠 수 있습니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "AI 검열관은 학습 시점에 고정된 법전 대신,<br>
+    <strong>배포 시점에 정책을 받아 그에 맞춰 판단해야 한다.</strong><br>
+    SingGuard는 그 방향의 실질적 구현이다."
+  </div>
+</section>
+
+</div>
+
+<div class="version-link" style="text-align: center;">
+  <a href="20260630_bai_singguard.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="footer">
+  Bai et al. · AI Security Lab, Ant Group · arXiv:2606.22873 · 2026<br>
+  Brief 요약 by paper_summarize · 2026-06-30
+</div>
+
+</body>
+</html>

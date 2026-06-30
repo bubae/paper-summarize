@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agents-A1 — 35B로 1T급에 도전하는 AI 에이전트</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #581c87, #7c3aed, #a855f7);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .version-link { text-align: right; padding: 1rem 1.5rem 0; max-width: 820px; margin: 0 auto; }
+  .version-link a { color: #7c3aed; font-size: 0.9rem; text-decoration: none; }
+  .version-link a:hover { text-decoration: underline; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #581c87; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #7c3aed, #a855f7); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #faf5ff; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e9d5ff; }
+  .card-accent { border-left: 5px solid #7c3aed; }
+  .card-green  { border-left: 5px solid #059669; background: #f0fdf4; border-color: #bbf7d0; }
+  .card-orange { border-left: 5px solid #d97706; background: #fffbeb; border-color: #fde68a; }
+  .card-red    { border-left: 5px solid #dc2626; background: #fef2f2; border-color: #fecaca; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #7c3aed, #db2777);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #faf5ff; border-radius: 12px; border: 1px solid #e9d5ff; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #faf5ff; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e9d5ff; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #7c3aed, #db2777); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e9d5ff; }
+  .comp-table th { background: #581c87; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e9d5ff; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f3e8ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Step flow ── */
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #7c3aed; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #7c3aed; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #7c3aed; padding: 0 0.4rem; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e9d5ff; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Shanghai AI Lab · 2026</div>
+  <h1>Agents-A1</h1>
+  <p class="subtitle">35배 작은 AI 모델이 1조 파라미터급 거대 모델에<br>"긴 작업 수행" 능력에서 어떻게 도전할까?</p>
+</div>
+
+<div class="version-link">
+  <a href="20260630_agentsA1_horizon-scaling.html">← 전문가용 상세 요약 보기</a>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+  "파라미터를 늘리지 말고, <br><strong>작업의 깊이(Horizon)를 확장하자</strong>"
+</div>
+
+<section>
+  <h2>먼저 알아야 할 것 1: AI 에이전트란?</h2>
+
+  <div class="card card-accent">
+    <p>요즘 AI는 단순히 질문에 답하는 챗봇을 넘어, <strong>스스로 도구를 사용하고 결과를 검증하며 다음 단계를 결정하는 "에이전트"</strong>로 진화하고 있습니다. 코드를 작성·실행하고, 웹 검색으로 증거를 찾고, 실패하면 전략을 바꿉니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">일반 챗봇 vs AI 에이전트</text>
+
+      <!-- 챗봇 -->
+      <rect x="40" y="50" width="280" height="200" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="180" y="75" font-size="13" font-weight="700" fill="#475569" text-anchor="middle">일반 챗봇</text>
+
+      <rect x="70" y="95" width="100" height="35" rx="8" fill="#3b82f6"/>
+      <text x="120" y="118" font-size="11" fill="#fff" text-anchor="middle">질문</text>
+
+      <text x="195" y="118" font-size="20" fill="#475569">→</text>
+
+      <rect x="220" y="95" width="80" height="35" rx="8" fill="#475569"/>
+      <text x="260" y="118" font-size="11" fill="#fff" text-anchor="middle">AI</text>
+
+      <text x="180" y="155" font-size="20" fill="#475569" text-anchor="middle">↓</text>
+
+      <rect x="100" y="170" width="160" height="35" rx="8" fill="#10b981"/>
+      <text x="180" y="193" font-size="11" fill="#fff" text-anchor="middle">한 번에 답변 종료</text>
+
+      <text x="180" y="230" font-size="10" fill="#94a3b8" text-anchor="middle">짧은 turn, 외부 도구 없음</text>
+
+      <!-- 에이전트 -->
+      <rect x="380" y="50" width="300" height="200" rx="12" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="530" y="75" font-size="13" font-weight="700" fill="#581c87" text-anchor="middle">AI 에이전트</text>
+
+      <rect x="400" y="95" width="80" height="30" rx="6" fill="#7c3aed"/>
+      <text x="440" y="115" font-size="10" fill="#fff" text-anchor="middle">질문</text>
+
+      <text x="490" y="115" font-size="15" fill="#7c3aed">→</text>
+
+      <rect x="510" y="95" width="80" height="30" rx="6" fill="#7c3aed" opacity="0.8"/>
+      <text x="550" y="115" font-size="10" fill="#fff" text-anchor="middle">계획 수립</text>
+
+      <text x="600" y="115" font-size="15" fill="#7c3aed">→</text>
+
+      <rect x="620" y="95" width="50" height="30" rx="6" fill="#7c3aed" opacity="0.7"/>
+      <text x="645" y="115" font-size="10" fill="#fff" text-anchor="middle">도구</text>
+
+      <text x="645" y="135" font-size="15" fill="#7c3aed" text-anchor="middle">↓</text>
+      <rect x="595" y="148" width="80" height="30" rx="6" fill="#d97706" opacity="0.8"/>
+      <text x="635" y="168" font-size="10" fill="#fff" text-anchor="middle">결과 관찰</text>
+
+      <text x="585" y="178" font-size="15" fill="#7c3aed">←</text>
+
+      <rect x="500" y="148" width="80" height="30" rx="6" fill="#dc2626" opacity="0.8"/>
+      <text x="540" y="168" font-size="10" fill="#fff" text-anchor="middle">검증/수정</text>
+
+      <text x="490" y="175" font-size="15" fill="#7c3aed">↓</text>
+      <rect x="430" y="195" width="80" height="30" rx="6" fill="#059669"/>
+      <text x="470" y="215" font-size="10" fill="#fff" text-anchor="middle">다시 도구</text>
+
+      <text x="530" y="245" font-size="10" fill="#94a3b8" text-anchor="middle">긴 turn, 외부 도구·검증·반복</text>
+    </svg>
+    <div class="diagram-caption">에이전트는 단일 응답이 아니라, 여러 단계의 의사결정 chain을 이룬다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎯 비유: "주문 받는 직원" vs "프로젝트 매니저"</div>
+    일반 챗봇은 "커피 한 잔 주세요"에 즉시 답하는 매장 직원과 같습니다.<br>
+    AI 에이전트는 "신제품 출시 보고서 작성"을 받아서 → 자료 조사 → 데이터 수집 → 분석 → 초안 작성 → 검토 → 수정의 <strong>며칠짜리 프로젝트를 끌고 가는 매니저</strong>입니다. 도구도 쓰고, 실패하면 다시 시도하고, 중간 결과를 검증합니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 2: "Long-Horizon"의 의미</h2>
+
+  <div class="card card-accent">
+    <p><strong>Horizon</strong>이란 "AI가 한 번의 작업에서 다루는 결정/단계의 길이"입니다. 챗봇 답변은 보통 1~2 turn이지만, 진짜 어려운 작업(연구 보고서, 코드 디버깅, 머신러닝 실험)은 <strong>수십~수백 turn에 걸친 trajectory</strong>가 필요합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">짧은 Horizon vs 긴 Horizon</text>
+
+      <!-- 짧은 horizon -->
+      <text x="60" y="65" font-size="12" font-weight="700" fill="#475569">짧은 Horizon (일반 챗봇):</text>
+      <g transform="translate(60, 80)">
+        <rect x="0" y="0" width="50" height="30" rx="6" fill="#94a3b8"/>
+        <text x="25" y="20" font-size="10" fill="#fff" text-anchor="middle">질문</text>
+        <text x="60" y="20" font-size="15" fill="#475569">→</text>
+        <rect x="80" y="0" width="50" height="30" rx="6" fill="#475569"/>
+        <text x="105" y="20" font-size="10" fill="#fff" text-anchor="middle">답변</text>
+      </g>
+      <text x="60" y="135" font-size="10" fill="#94a3b8">총 2 단계, ~1K tokens</text>
+
+      <!-- 긴 horizon -->
+      <text x="60" y="170" font-size="12" font-weight="700" fill="#7c3aed">긴 Horizon (Agents-A1 학습 trajectory):</text>
+      <g transform="translate(60, 185)">
+        <rect x="0" y="0" width="40" height="25" rx="5" fill="#7c3aed"/>
+        <text x="20" y="17" font-size="9" fill="#fff" text-anchor="middle">계획</text>
+        <text x="42" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="55" y="0" width="40" height="25" rx="5" fill="#a855f7"/>
+        <text x="75" y="17" font-size="9" fill="#fff" text-anchor="middle">검색</text>
+        <text x="97" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="110" y="0" width="40" height="25" rx="5" fill="#d97706"/>
+        <text x="130" y="17" font-size="9" fill="#fff" text-anchor="middle">관찰</text>
+        <text x="152" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="165" y="0" width="40" height="25" rx="5" fill="#059669"/>
+        <text x="185" y="17" font-size="9" fill="#fff" text-anchor="middle">코드</text>
+        <text x="207" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="220" y="0" width="40" height="25" rx="5" fill="#dc2626"/>
+        <text x="240" y="17" font-size="9" fill="#fff" text-anchor="middle">검증</text>
+        <text x="262" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="275" y="0" width="40" height="25" rx="5" fill="#a855f7"/>
+        <text x="295" y="17" font-size="9" fill="#fff" text-anchor="middle">재계획</text>
+        <text x="317" y="17" font-size="12" fill="#7c3aed">→</text>
+        <text x="335" y="17" font-size="14" fill="#475569">⋯</text>
+        <text x="360" y="17" font-size="12" fill="#7c3aed">→</text>
+        <rect x="375" y="0" width="40" height="25" rx="5" fill="#475569"/>
+        <text x="395" y="17" font-size="9" fill="#fff" text-anchor="middle">정답</text>
+      </g>
+      <text x="60" y="235" font-size="10" fill="#7c3aed">총 100+ 단계, ##평균 45K tokens## (~책 한 챕터 분량)</text>
+    </svg>
+    <div class="diagram-caption">Agents-A1의 학습 데이터는 평균 45,000 토큰의 긴 trajectory다 — 단순 QA의 45배 분량</div>
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 3: AI 스케일링의 두 갈래</h2>
+
+  <div class="card card-accent">
+    <p>지금까지 AI를 더 똑똑하게 만드는 정석은 <strong>"모델을 더 키우는 것"</strong>이었습니다. GPT-3 (175B) → GPT-4 → 현재 1조(1T) 파라미터급. 이 논문은 다른 길을 제안합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">두 가지 스케일링 전략</text>
+
+      <!-- 좌측: Parameter Scaling -->
+      <rect x="30" y="50" width="320" height="240" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="190" y="75" font-size="14" font-weight="700" fill="#92400e" text-anchor="middle">Route 1: Parameter Scaling</text>
+      <text x="190" y="95" font-size="11" fill="#92400e" text-anchor="middle">"모델 크기를 키운다"</text>
+
+      <!-- 모델 크기 비교 -->
+      <circle cx="100" cy="160" r="20" fill="#d97706" opacity="0.5"/>
+      <text x="100" y="195" font-size="10" fill="#475569" text-anchor="middle">35B</text>
+
+      <circle cx="190" cy="160" r="40" fill="#d97706" opacity="0.7"/>
+      <text x="190" y="215" font-size="10" fill="#475569" text-anchor="middle">175B</text>
+
+      <circle cx="290" cy="160" r="60" fill="#d97706" opacity="0.9"/>
+      <text x="290" y="235" font-size="10" fill="#475569" text-anchor="middle">1T+</text>
+
+      <text x="190" y="265" font-size="11" fill="#92400e" text-anchor="middle">💸 자원 비용 30배+</text>
+
+      <!-- 우측: Horizon Scaling -->
+      <rect x="370" y="50" width="320" height="240" rx="12" fill="#f3e8ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="530" y="75" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">Route 2: Horizon Scaling ✨</text>
+      <text x="530" y="95" font-size="11" fill="#581c87" text-anchor="middle">"의사결정 깊이를 키운다"</text>
+
+      <!-- 작은 모델이지만 긴 trajectory -->
+      <circle cx="430" cy="155" r="25" fill="#7c3aed" opacity="0.8"/>
+      <text x="430" y="160" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">35B</text>
+
+      <text x="475" y="160" font-size="20" fill="#7c3aed">+</text>
+
+      <!-- trajectory chain -->
+      <rect x="495" y="140" width="30" height="30" rx="4" fill="#7c3aed"/>
+      <rect x="528" y="140" width="30" height="30" rx="4" fill="#a855f7"/>
+      <rect x="561" y="140" width="30" height="30" rx="4" fill="#d97706"/>
+      <rect x="594" y="140" width="30" height="30" rx="4" fill="#059669"/>
+      <rect x="627" y="140" width="30" height="30" rx="4" fill="#dc2626"/>
+
+      <text x="560" y="195" font-size="10" fill="#581c87" text-anchor="middle">긴 trajectory + 도구 + 검증</text>
+      <text x="530" y="265" font-size="11" fill="#581c87" text-anchor="middle">💡 같은 모델 크기로 더 큰 효과</text>
+    </svg>
+    <div class="diagram-caption">파라미터를 키우는 대신, 학습 trajectory의 길이와 품질을 키운다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎓 비유: "수재 늘리기" vs "현장 경험 쌓기"</div>
+    Parameter Scaling은 IQ가 높은 천재를 더 많이 모으는 것입니다. 효과적이지만 비쌉니다.<br>
+    Horizon Scaling은 보통 사람에게 <strong>실패와 성공 사례, 도구 사용법, 검증 방법을 풍부하게 가르치는 것</strong>입니다. 머리는 같은데, 경험과 절차가 풍부해져서 어려운 프로젝트도 끝까지 끌고 갑니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 4: KAG — "작업 매뉴얼" 인프라</h2>
+
+  <div class="card card-accent">
+    <p>긴 trajectory를 학습시키려면 단순 텍스트 corpus로는 부족합니다. <strong>증거(Evidence), 행동(Action), 관찰(Observation), 검증(Verifier)</strong>이 모두 연결된 구조가 필요합니다. 이를 <strong>Knowledge-Action Graph (KAG)</strong>라 부릅니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">KAG: 작업 과정 전체를 기록하는 그래프</text>
+
+      <!-- 일반 텍스트 corpus -->
+      <rect x="30" y="50" width="200" height="280" rx="12" fill="#f1f5f9" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="130" y="75" font-size="12" font-weight="700" fill="#475569" text-anchor="middle">일반 텍스트 corpus</text>
+
+      <rect x="50" y="95" width="160" height="30" rx="6" fill="#fff" stroke="#94a3b8"/>
+      <text x="130" y="115" font-size="10" fill="#475569" text-anchor="middle">"파리는 프랑스의 수도"</text>
+
+      <rect x="50" y="135" width="160" height="30" rx="6" fill="#fff" stroke="#94a3b8"/>
+      <text x="130" y="155" font-size="10" fill="#475569" text-anchor="middle">"에펠탑 1889년 완공"</text>
+
+      <rect x="50" y="175" width="160" height="30" rx="6" fill="#fff" stroke="#94a3b8"/>
+      <text x="130" y="195" font-size="10" fill="#475569" text-anchor="middle">"센 강이 도시를 가로지름"</text>
+
+      <text x="130" y="240" font-size="10" fill="#94a3b8" text-anchor="middle">✗ 답에 어떻게 도달했는지</text>
+      <text x="130" y="255" font-size="10" fill="#94a3b8" text-anchor="middle">✗ 어떤 도구를 썼는지</text>
+      <text x="130" y="270" font-size="10" fill="#94a3b8" text-anchor="middle">✗ 검증 결과는?</text>
+      <text x="130" y="285" font-size="10" fill="#94a3b8" text-anchor="middle">✗ 실패는?</text>
+      <text x="130" y="310" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">"사실의 정적 모음"</text>
+
+      <!-- KAG -->
+      <rect x="270" y="50" width="420" height="280" rx="12" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="480" y="75" font-size="12" font-weight="700" fill="#581c87" text-anchor="middle">Knowledge-Action Graph (KAG)</text>
+
+      <!-- 4가지 노드 타입 -->
+      <circle cx="340" cy="130" r="25" fill="#3b82f6"/>
+      <text x="340" y="135" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">Evidence</text>
+
+      <circle cx="450" cy="130" r="25" fill="#7c3aed"/>
+      <text x="450" y="135" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Action</text>
+
+      <circle cx="560" cy="130" r="25" fill="#d97706"/>
+      <text x="560" y="128" font-size="9" fill="#fff" text-anchor="middle" font-weight="700">Observa</text>
+      <text x="560" y="140" font-size="9" fill="#fff" text-anchor="middle" font-weight="700">tion</text>
+
+      <circle cx="640" cy="130" r="25" fill="#dc2626"/>
+      <text x="640" y="135" font-size="10" fill="#fff" text-anchor="middle" font-weight="700">Verifier</text>
+
+      <!-- 화살표들 -->
+      <line x1="365" y1="130" x2="425" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowB1)"/>
+      <line x1="475" y1="130" x2="535" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowB1)"/>
+      <line x1="585" y1="130" x2="615" y2="130" stroke="#7c3aed" stroke-width="1.5" marker-end="url(#arrowB1)"/>
+      <defs>
+        <marker id="arrowB1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#7c3aed"/></marker>
+      </defs>
+
+      <!-- 설명 -->
+      <text x="340" y="180" font-size="9" fill="#475569" text-anchor="middle">"파리는"</text>
+      <text x="340" y="193" font-size="9" fill="#475569" text-anchor="middle">"수도"</text>
+      <text x="450" y="180" font-size="9" fill="#475569" text-anchor="middle">검색 호출:</text>
+      <text x="450" y="193" font-size="9" fill="#475569" text-anchor="middle">"capital France"</text>
+      <text x="560" y="180" font-size="9" fill="#475569" text-anchor="middle">검색 결과:</text>
+      <text x="560" y="193" font-size="9" fill="#475569" text-anchor="middle">"Paris"</text>
+      <text x="640" y="180" font-size="9" fill="#475569" text-anchor="middle">정답 일치</text>
+      <text x="640" y="193" font-size="9" fill="#475569" text-anchor="middle">✓</text>
+
+      <text x="480" y="240" font-size="10" fill="#581c87" text-anchor="middle">✓ 답에 어떻게 도달했는지 trajectory</text>
+      <text x="480" y="255" font-size="10" fill="#581c87" text-anchor="middle">✓ 어떤 도구를 어떤 인자로 호출했는지</text>
+      <text x="480" y="270" font-size="10" fill="#581c87" text-anchor="middle">✓ 검증 결과 (성공/실패)</text>
+      <text x="480" y="285" font-size="10" fill="#581c87" text-anchor="middle">✓ 실패한 시도도 보존 (학습 신호)</text>
+      <text x="480" y="310" font-size="11" font-weight="700" fill="#7c3aed" text-anchor="middle">"문제 해결 과정의 동영상"</text>
+    </svg>
+    <div class="diagram-caption">KAG는 4-tuple (C_d, A_d, O_d, V_d) — corpus, action, observation, verifier로 정의된다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">📓 비유: "백과사전" vs "현장 실습 일지"</div>
+    일반 텍스트 corpus는 <strong>백과사전</strong>입니다 — "에펠탑은 324m"라는 사실은 있지만, 누가 어떻게 그 높이를 측정했는지, 잘못된 측정은 어떻게 걸러냈는지의 과정은 없습니다.<br>
+    KAG는 <strong>현장 실습 일지</strong>입니다 — 측정 도구, 측정 행위, 관측 결과, 검증 절차가 모두 timestamp와 함께 기록됩니다. 같은 측정을 다른 학생에게 가르칠 때, "어떻게"를 가르칠 수 있습니다.
+  </div>
+</section>
+
+<section>
+  <h2>먼저 알아야 할 것 5: Distillation — "전문가 → 일반화" 전달</h2>
+
+  <div class="card card-accent">
+    <p>각 도메인(검색, 과학, 코딩, 도구 사용 등)별로 <strong>전문가 모델(Teacher)</strong>을 학습한 뒤, 그들의 능력을 하나의 <strong>학생 모델(Student)</strong>에 전달합니다. 이를 <strong>Distillation(증류)</strong>이라 부릅니다. Agents-A1의 핵심은 <strong>On-Policy Distillation</strong> — 학생이 자기 출력으로 답을 만들고, 그 답에 teacher가 직접 점수를 줍니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">Multi-Teacher Distillation</text>
+
+      <!-- 6 Teachers -->
+      <g transform="translate(50, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#3b82f6" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Search</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(검색 전문)</text>
+      </g>
+      <g transform="translate(160, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#7c3aed" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Science</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(과학 전문)</text>
+      </g>
+      <g transform="translate(270, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#d97706" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Coding</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(MLE 전문)</text>
+      </g>
+      <g transform="translate(380, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#059669" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Inst.Follow</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(지시 전문)</text>
+      </g>
+      <g transform="translate(490, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#dc2626" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Tool</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(도구 전문)</text>
+      </g>
+      <g transform="translate(600, 60)">
+        <rect x="0" y="0" width="100" height="60" rx="10" fill="#db2777" opacity="0.8"/>
+        <text x="50" y="22" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Agentic</text>
+        <text x="50" y="40" font-size="9" fill="#fff" text-anchor="middle">Teacher</text>
+        <text x="50" y="53" font-size="8" fill="#fff" text-anchor="middle">(일반 전문)</text>
+      </g>
+
+      <!-- 화살표 → 학생 -->
+      <line x1="100" y1="120" x2="320" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="210" y1="120" x2="340" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="320" y1="120" x2="360" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="430" y1="120" x2="380" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="540" y1="120" x2="400" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+      <line x1="650" y1="120" x2="420" y2="220" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+
+      <!-- 라우터 -->
+      <ellipse cx="360" cy="180" rx="60" ry="20" fill="#fff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="360" y="185" font-size="11" fill="#581c87" text-anchor="middle" font-weight="700">Domain Router</text>
+
+      <!-- 학생 -->
+      <rect x="280" y="220" width="160" height="60" rx="12" fill="#581c87"/>
+      <text x="360" y="245" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">Agents-A1 Student</text>
+      <text x="360" y="265" font-size="10" fill="#fff" text-anchor="middle">35B 통합 모델</text>
+
+      <!-- 설명 -->
+      <text x="360" y="305" font-size="11" fill="#475569" text-anchor="middle">각 질문은 도메인 라벨에 따라 해당 teacher에게만 라우팅됨</text>
+    </svg>
+    <div class="diagram-caption">6개 도메인 전문가 모델이 하나의 35B 학생에게 token-level 신호로 전달</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🏫 비유: "전공 교수 6명 → 학생 1명"</div>
+    검색 전문 교수, 과학 전문 교수, 코딩 전문 교수가 따로 있습니다. 학생이 검색 문제를 풀 때는 검색 교수가 채점하고, 과학 문제를 풀 때는 과학 교수가 채점합니다. <strong>이 채점이 누적되어 학생은 6개 과목 전부에 능통한 한 명의 종합 인재로 자랍니다</strong>.<br>
+    핵심은 <strong>학생이 직접 답을 쓰고(on-policy), 교수가 그 답에 직접 첨삭</strong>한다는 점입니다. 다른 학생의 모범답안을 베끼는 게 아닙니다.
+  </div>
+</section>
+
+<section>
+  <h2>핵심 아이디어 — Agents-A1의 3단계 학습</h2>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STAGE 1</div>
+      <div class="step-title">Full-Domain SFT</div>
+      <div class="step-desc">100K trajectories<br>(평균 45K tokens)</div>
+    </div>
+    <span class="step-arrow">→</span>
+    <div class="step-box">
+      <div class="step-num">STAGE 2</div>
+      <div class="step-title">Teacher 학습</div>
+      <div class="step-desc">6개 도메인별<br>전문가 모델</div>
+    </div>
+    <span class="step-arrow">→</span>
+    <div class="step-box">
+      <div class="step-num">STAGE 3</div>
+      <div class="step-title">Multi-Teacher OPD</div>
+      <div class="step-desc">학생이 답 쓰고<br>teacher가 채점</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; color:#581c87;">Stage 1: Full-Domain Supervised Fine-Tuning</h3>
+  <p style="margin: 0.8rem 0;">Qwen3.5-35B-A3B(35B MoE)에서 시작해, <strong>5개 도메인 × 100K trajectory</strong>로 광범위 SFT. trajectory 평균 길이가 45K tokens인 것이 핵심 — 긴 문제 해결 과정 전체를 학습.</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">100K</div>
+      <div class="label">학습 trajectory 수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">45K</div>
+      <div class="label">평균 토큰 길이</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">131K</div>
+      <div class="label">최대 컨텍스트</div>
+    </div>
+  </div>
+
+  <h3 style="margin-top:2rem; color:#581c87;">Stage 2: Domain-Level Teacher Training</h3>
+  <p style="margin: 0.8rem 0;">각 도메인마다 <strong>specialize된 전문가 모델</strong>을 만듭니다. SFT만으로는 부족한 경우 강화학습(RL)도 추가합니다.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>Teacher</th><th>학습 방법</th><th>특수 처리</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Search Teacher</td><td>SFT + GRPO RL</td><td>repetition/efficiency 페널티</td></tr>
+      <tr><td>Science Teacher</td><td>Two-stage SFT</td><td>reasoning 먼저 → tool 후속</td></tr>
+      <tr><td>Instruction-Following</td><td>2-stage GRPO RL</td><td>dynamic sampling (무의미 group 제거)</td></tr>
+      <tr><td>Tool-Calling Teacher</td><td>SFT + PAPO RL</td><td>64개 hard task로 효율적 향상</td></tr>
+      <tr><td>MLE Teacher</td><td>SFT (trajectory)</td><td>solution tree 탐색</td></tr>
+      <tr><td>Agentic Teacher</td><td>SFT</td><td>multi-turn 대화</td></tr>
+    </tbody>
+  </table>
+
+  <h3 style="margin-top:2rem; color:#581c87;">Stage 3: Multi-Teacher On-Policy Distillation</h3>
+  <p style="margin: 0.8rem 0;">6명의 전문가의 능력을 1명의 학생에게 통합. 핵심 혁신 두 가지:</p>
+
+  <ul style="margin: 1rem 0; padding-left: 1.5rem;">
+    <li style="margin-bottom: 0.5rem;"><strong>Salient Vocabulary Alignment (SVA)</strong>: 단순히 한 토큰의 확률을 맞추는 게 아니라, teacher가 "가장 가능성 있는 top-k 후보" 전체의 분포 모양을 학생에게 정렬.</li>
+    <li><strong>Domain-Normalized Loss</strong>: 도메인마다 token 길이가 달라도 균등하게 학습 (instruction-following 짧다고 무시되지 않음).</li>
+  </ul>
+
+  <div class="analogy">
+    <div class="analogy-title">🎯 비유: "정답 한 글자 채점" vs "답안 전체 첨삭"</div>
+    기존 distillation은 학생 답안의 한 글자를 보고 "이 자리에 'A'를 썼는지" 채점합니다. 만약 'B'를 썼더라도, 'B'와 비슷한 'D'도 잘못된 답이라는 걸 가르치지 못합니다.<br>
+    SVA는 "이 자리에 들어갈 수 있는 정답 후보 top-5(A, C, F, M, T)"를 teacher가 알려주고, <strong>학생의 5개 후보 확률을 정답 후보 5개에 정확히 맞추도록</strong> 학습합니다. 잘못된 옵션들은 동시에 억제됩니다.
+  </div>
+</section>
+
+<section>
+  <h2>핵심 성과 — 35B로 1T급을 이기다</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">56.4</div>
+      <div class="label">SEAL-0<br>(1T 모델 최고: 55.0)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">80.6</div>
+      <div class="label">IFBench<br>(1T 최고: 75.9)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">46.4</div>
+      <div class="label">HiPhO<br>(1T 최고: 43.3)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">40.0</div>
+      <div class="label">FS-R<br>(1T 최고: 26.7)</div>
+    </div>
+  </div>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>벤치마크</th><th>Agents-A1 (35B)</th><th>Kimi-K2.6 (1T)</th><th>DeepSeek-V4 (1T)</th><th>GPT-5.5</th></tr>
+    </thead>
+    <tbody>
+      <tr class="highlight-row"><td>SEAL-0 (deep search)</td><td><strong>56.4</strong></td><td>50.5</td><td>55.0</td><td>42.3</td></tr>
+      <tr class="highlight-row"><td>HiPhO (physics olympiad)</td><td><strong>46.4</strong></td><td>41.1</td><td>38.7</td><td>43.3</td></tr>
+      <tr class="highlight-row"><td>FS-O (frontier science)</td><td><strong>79.0</strong></td><td>73.0</td><td>76.0</td><td>78.0</td></tr>
+      <tr class="highlight-row"><td>FS-R (frontier research)</td><td><strong>40.0</strong></td><td>17.9</td><td>13.3</td><td>26.7</td></tr>
+      <tr class="highlight-row"><td>IFBench (instruction)</td><td><strong>80.6</strong></td><td>71.8</td><td>73.5</td><td>75.9</td></tr>
+      <tr><td>BrowseComp</td><td>75.5</td><td>83.2</td><td>83.4</td><td><strong>84.4</strong></td></tr>
+      <tr><td>SciCode</td><td>44.3</td><td>53.5</td><td>50.0</td><td><strong>56.1</strong></td></tr>
+      <tr><td>MLE-Bench-Lite</td><td>43.9</td><td>62.1</td><td>63.6</td><td><strong>72.7</strong></td></tr>
+    </tbody>
+  </table>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">12시간 동안의 자동 ML 최적화 — Whale Call Detection</text>
+
+      <!-- X axis -->
+      <line x1="60" y1="270" x2="680" y2="270" stroke="#475569" stroke-width="1.5"/>
+      <text x="370" y="295" font-size="11" fill="#475569" text-anchor="middle">시간 (시)</text>
+      <text x="60" y="290" font-size="10" fill="#475569" text-anchor="middle">0</text>
+      <text x="370" y="290" font-size="10" fill="#475569" text-anchor="middle">6</text>
+      <text x="680" y="290" font-size="10" fill="#475569" text-anchor="middle">12</text>
+
+      <!-- Y axis -->
+      <line x1="60" y1="50" x2="60" y2="270" stroke="#475569" stroke-width="1.5"/>
+      <text x="30" y="160" font-size="11" fill="#475569" text-anchor="middle" transform="rotate(-90 30 160)">AUC</text>
+      <text x="50" y="55" font-size="10" fill="#475569" text-anchor="end">1.0</text>
+      <text x="50" y="160" font-size="10" fill="#475569" text-anchor="end">0.8</text>
+      <text x="50" y="265" font-size="10" fill="#475569" text-anchor="end">0.5</text>
+
+      <!-- Trajectory -->
+      <polyline points="60,225 90,225 100,215 130,215 150,200 200,200 220,175 280,170 290,135 340,128 360,90 420,88 440,75 500,70 530,60 600,58 650,55 680,55"
+                fill="none" stroke="#7c3aed" stroke-width="3"/>
+
+      <!-- Annotations -->
+      <circle cx="150" cy="200" r="5" fill="#059669"/>
+      <text x="160" y="208" font-size="10" fill="#059669">audio aug +0.13</text>
+
+      <circle cx="280" cy="170" r="5" fill="#d97706"/>
+      <text x="290" y="178" font-size="10" fill="#d97706">temporal shift +0.10</text>
+
+      <circle cx="420" cy="88" r="5" fill="#a855f7"/>
+      <text x="430" y="96" font-size="10" fill="#a855f7">Mel-CNN +0.08</text>
+
+      <circle cx="600" cy="58" r="5" fill="#dc2626"/>
+      <text x="540" y="50" font-size="11" fill="#dc2626" font-weight="700">AUC 0.9935 (gold!)</text>
+
+      <text x="80" y="240" font-size="10" fill="#475569">Initial CNN: 0.58</text>
+    </svg>
+    <div class="diagram-caption">Agents-A1이 자동으로 데이터 진단 → augmentation → temporal shift 식별 → ensemble 등 5단계 개선을 수행</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">⏱ 12시간 동안 일어난 일</div>
+    <strong>0시간:</strong> 단순 CNN으로 AUC 0.58 (운에 가까움)<br>
+    <strong>3시간:</strong> 오디오 노이즈/게인 변화 augmentation 추가 → 0.71<br>
+    <strong>5시간:</strong> 학습/테스트 데이터 시간 분포 차이 발견, 가장 최근 날짜로 훈련 → 0.81<br>
+    <strong>7시간:</strong> Mel-spectrogram CNN ensemble 도입 → 0.93<br>
+    <strong>10시간:</strong> Heavy augmentation (10x) + tuning → <strong>0.9935 (Kaggle 금메달급)</strong>
+    <p style="margin-top:0.8rem;">사람 ML 엔지니어처럼 진단·아이디어·실행·평가·반복을 12시간 끌고 갔습니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>두 번째 사례 — 지구과학 데이터 분석</h2>
+
+  <div class="card card-green">
+    <p>2008년 사이클론 Nargis(미얀마에 큰 피해를 준 열대 폭풍)의 진행 경로를 분석하라는 과제를 받자, Agents-A1은 <strong>완전히 스스로</strong>:</p>
+    <ul style="margin: 0.8rem 0; padding-left: 1.5rem;">
+      <li>IBTrACS(국제 폭풍 트랙 데이터셋)를 데이터 소스로 자동 식별</li>
+      <li>데이터 추출 → 정제 → 파생 지표 계산 (속도, 진행 방향 변화)</li>
+      <li>WMO/IMD와 JTWC/USA 두 기관의 풍속 추정치를 <strong>각자 보존</strong> (서로 다른 운영 관례를 섞지 않음)</li>
+      <li>5가지 시각화 (트랙 지도, 풍속 진화, 위경도, 진행 속도, 진행 방향) 생성</li>
+      <li>벵골만에서 발생 → 북서진 → NE 재회전 → 미얀마 상륙 의 진화를 정확히 재구성</li>
+    </ul>
+    <p style="margin-top:0.8rem;">이는 단순 도구 호출이 아닌, <strong>계획·코딩·실행·결과 검증·과학적 해석·보고서 작성</strong>이 모두 통합된 closed loop입니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>기존 1T 모델 대비 장점</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr><th>측면</th><th>1T급 모델 (Kimi-K2.6, DeepSeek-V4)</th><th>Agents-A1 (35B)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>파라미터 수</td><td>~1조 (1T)</td><td><strong>35B (활성화 A3B)</strong></td></tr>
+      <tr><td>학습 비용</td><td>거대 (수천 GPU × 수개월)</td><td><strong>~30배 작은 모델 기반</strong></td></tr>
+      <tr><td>추론 비용 (서빙)</td><td>매우 비쌈</td><td><strong>훨씬 저렴</strong></td></tr>
+      <tr><td>검증·도구 중심 작업</td><td>강함</td><td><strong>일부 분야 더 강함 (SEAL-0, FS-R 등)</strong></td></tr>
+      <tr><td>광범위 일반 지식</td><td>매우 강함</td><td>1T 대비 약함 (BrowseComp 등)</td></tr>
+      <tr><td>긴 process 안정성</td><td>강함 (큰 capacity)</td><td>약함 (MLE-Bench 등)</td></tr>
+      <tr><td>재현성·연구 활용</td><td>거의 불가능</td><td><strong>가능 (코드/모델 공개)</strong></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section>
+  <h2>활용 분야</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#581c87" text-anchor="middle">Agents-A1 활용 시나리오</text>
+
+      <!-- 중앙 -->
+      <ellipse cx="360" cy="200" rx="90" ry="40" fill="#581c87"/>
+      <text x="360" y="195" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">Agents-A1</text>
+      <text x="360" y="215" font-size="10" fill="#fff" text-anchor="middle">35B 다목적 에이전트</text>
+
+      <!-- 5개 분야 -->
+      <g transform="translate(100, 80)">
+        <circle cx="50" cy="50" r="50" fill="#3b82f6" opacity="0.85"/>
+        <text x="50" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Deep Research</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">웹 검색 +</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">분석 보고서</text>
+      </g>
+      <line x1="180" y1="135" x2="280" y2="190" stroke="#3b82f6" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(540, 80)">
+        <circle cx="50" cy="50" r="50" fill="#7c3aed" opacity="0.85"/>
+        <text x="50" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Scientific Research</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">물리·화학·생물</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">문제 해결</text>
+      </g>
+      <line x1="540" y1="135" x2="440" y2="190" stroke="#7c3aed" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(50, 280)">
+        <circle cx="50" cy="50" r="50" fill="#d97706" opacity="0.85"/>
+        <text x="50" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">ML Engineering</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">자동 모델 개발</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">(Kaggle gold)</text>
+      </g>
+      <line x1="130" y1="290" x2="280" y2="220" stroke="#d97706" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(295, 305)">
+        <circle cx="50" cy="50" r="50" fill="#059669" opacity="0.85"/>
+        <text x="50" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Earth Science</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">데이터 분석 +</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">시각화 + 해석</text>
+      </g>
+      <line x1="345" y1="320" x2="360" y2="240" stroke="#059669" stroke-width="1" stroke-dasharray="3"/>
+
+      <g transform="translate(590, 280)">
+        <circle cx="50" cy="50" r="50" fill="#dc2626" opacity="0.85"/>
+        <text x="50" y="40" font-size="11" fill="#fff" text-anchor="middle" font-weight="700">Tool Calling</text>
+        <text x="50" y="58" font-size="9" fill="#fff" text-anchor="middle">고객 서비스</text>
+        <text x="50" y="72" font-size="9" fill="#fff" text-anchor="middle">예약·검색</text>
+      </g>
+      <line x1="600" y1="290" x2="440" y2="220" stroke="#dc2626" stroke-width="1" stroke-dasharray="3"/>
+    </svg>
+    <div class="diagram-caption">하나의 35B 모델이 5개 이상의 long-horizon agent 시나리오를 커버</div>
+  </div>
+</section>
+
+<section>
+  <h2>한계와 주의점</h2>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 1T 모델을 모든 면에서 이기진 않음</h3>
+    <p>BrowseComp(웹 검색 광범위 지식), SciCode(연구 코딩), MLE-Bench-Lite(end-to-end ML 엔지니어링)에서는 여전히 1T 모델이 우세합니다. 특히 <strong>안정된 long-process 메모리</strong>가 필요한 작업에서 모델 capacity의 한계가 드러납니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 평가 공정성 이슈</h3>
+    <p>Agents-A1은 도구 사용 환경에서 평가됐고, 비교 1T 모델은 도구 없는 환경에서 평가됐습니다. 또한 $\tau^2$-Bench의 Qwen baseline 결과가 공식(81.2)과 재현(32.5) 사이에 차이가 있어, 일부 개선폭은 과대평가 가능성이 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 기본 능력의 부족 (저자 인정)</h3>
+    <p>저자도 future work에서 인정했듯이, long-horizon에서 필요한 <strong>몇 가지 atomic ability</strong>가 아직 부족합니다:</p>
+    <ul style="margin-top:0.5rem; padding-left:1.5rem;">
+      <li>"reasoning 전에 계획 세우기"</li>
+      <li>"act 전에 reflection 하기"</li>
+      <li>"긴 context의 핵심 정보 요약"</li>
+      <li>"과거 중요 정보 식별"</li>
+    </ul>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color:#92400e; margin-bottom:0.5rem;">⚠️ 재현성과 generalization</h3>
+    <p>학습에 사용된 GPU 시간·총 토큰 수가 명시되지 않았고, 동일 레시피가 Qwen 이외의 다른 base 모델(Llama, DeepSeek 등 35B)에 적용 가능한지는 검증되지 않았습니다. 즉, <strong>"35B + horizon scaling = 1T급"</strong>이 보편적인 공식인지, Qwen 특화 현상인지 단정하기 어렵습니다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "모델을 키우는 대신, <strong>작업 trajectory를 키우자</strong> — <br>
+    검증 가능한 도메인에서는 35B로도 1T를 이길 수 있다"
+  </div>
+</section>
+
+</div>
+
+<div class="version-link" style="text-align: center;">
+  <a href="20260630_agentsA1_horizon-scaling.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="footer">
+  Agents-A1 Team, Shanghai AI Laboratory · arXiv:2606.30616 · 2026<br>
+  Brief 요약 by paper_summarize · 2026-06-30
+</div>
+
+</body>
+</html>

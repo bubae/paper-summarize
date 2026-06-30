@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AsyncOPD: How Stale Can On-Policy Distillation Be?</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>AsyncOPD: How Stale Can On-Policy Distillation Be?</h1>
+
+<p style="text-align: right; margin-top: -0.5rem;"><a href="20260630_kang_asyncopd_brief.html" style="color:#4a90d9;">개요 브리핑 버전 보기 →</a></p>
+
+<h2>메타데이터</h2>
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Wonjun Kang, Kevin Galim, Seunghyuk Oh, Minjun Kang, Sanghyun Park, Donghoon Kim, Minjae Lee, Minseo Kim, Rishabh Tiwari, Yuchen Zeng, Hyung Il Koo, Kangwook Lee</li>
+  <li><strong>소속</strong>: FuriosaAI, Ajou University, UC Berkeley, Microsoft Research, KRAFTON, Ludo Robotics</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026 (Jun)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.24143">arXiv:2606.24143</a> · <a href="https://github.com/furiosa-ai/async-opd">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-Policy Distillation(OPD)은 LLM post-training의 핵심 기법이지만, ##strict synchronous pipeline에서는 rollout 생성이 학습 시간을 지배##해 학습 GPU가 idle 상태가 된다. 비동기화하면 stale-policy 데이터 문제가 발생.</li>
+  <li><strong>해결</strong>: 비동기 OPD에서 KL direction·policy-gradient surrogate·teacher-cache 세 축을 체계적으로 분석. ##current student로 advantage $A_\theta$를 recompute하고 clipping 없는 reverse-KL OPD/IS surrogate + multi-sample Monte Carlo cache##가 stale에 가장 robust.</li>
+  <li><strong>왜 작동하는가</strong>: forward-KL은 teacher-weighted라 stale rollout에 robust한 반면, reverse-KL은 student-weighted라 vulnerable. 그러나 reverse-KL에서 ##advantage를 stop-gradient로 freeze하지 않고 학습 시점 student로 재계산##하면 token-level signal이 회복된다. teacher-score cache의 support-mismatch는 multi-sample MC로 분산을 줄여 해결.</li>
+  <li><strong>비유</strong>: 교사가 매번 학생 답을 받자마자 채점하면 동기적(synchronous) 학습. 대신 ##교사가 어제의 학생 답을 오늘 채점##해도 (1) 채점 기준이 학생의 어제 답에 의존하지 않게 하고 (2) 어제 학생이 한 답 외의 가능성도 여러 개 미리 채점해 두면 학습 효율은 1.6~3.8배 빨라지면서도 품질은 유지.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>비동기 OPD에서 staleness 영향의 첫 체계적 연구</strong>: prefix-level/action-level staleness를 구분하고, ##teacher-cache constraint(full-vocabulary logit을 caching·transfer하기 너무 비싸다)## 하에서 estimator design을 분석.</li>
+  <li><strong>KL direction이 stale-data 문제를 결정한다는 발견 (Finding 1)</strong>: forward KL은 teacher-weighted라 stale rollout에 robust하지만 ##reverse KL은 student-weighted라 vulnerable##. cached teacher score가 current student의 action을 cover하지 못하면서 발생하는 support-ownership 차이.</li>
+  <li><strong>reverse-KL surrogate 비교 (Finding 2)</strong>: PPO-style clipping이나 advanced async-RL surrogate (Decoupled PPO, M2PO)를 시도해도 ##단순 OPD-specific surrogate (learner-time $A_\theta$ recompute + no clipping)##보다 낫지 않음. clipping은 오히려 유용한 signal을 제거.</li>
+  <li><strong>multi-sample Monte Carlo cache (Finding 3)</strong>: stale top-$k$ support는 support-mismatch로 bias가 있지만, one-sample MC는 importance sampling으로 correctable하되 high-variance. ##각 prefix에서 multiple local sample을 caching##해 MC variance를 줄이면 large staleness에서도 robust.</li>
+  <li><strong>AsyncOPD 시스템과 오픈소스</strong>: 완전 비동기 OPD 파이프라인. Qwen3-{1.7B,4B,8B}-Base에서 ##strict sync 대비 1.6~3.8배 throughput 향상##하면서 AIME24/25, AMC accuracy를 유지.</li>
+</ol>
+
+<h2>배경 지식</h2>
+
+<h3>On-Policy Distillation (OPD)이란?</h3>
+<p>OPD [Agarwal et al. 2024 (GKD), MiniLLM (Gu et al.), TIP, G-OPD]는 학생이 자기 자신의 rollout을 만든 뒤, teacher가 그 prefix에 대해 dense token-level feedback을 주는 post-training 방식이다. RL과 다르게 ##reward가 아니라 teacher의 분포 자체가 supervision##이라 small student model의 학습에 효율적이다. 최근에는 self-distillation, multi-teacher distillation으로도 확장.</p>
+
+<h3>Synchronous OPD의 병목</h3>
+<p>strict synchronous 파이프라인은 다음 순서로 진행:</p>
+<ol>
+  <li>Stage 1: student rollout — 학생 정책 $p_\theta$로 trajectory 생성</li>
+  <li>Stage 2: teacher scoring — teacher $q$가 visited prefix에 대해 logit 계산</li>
+  <li>Stage 3: learner update — student가 KL-loss로 update</li>
+</ol>
+<p>각 update는 새 rollout을 기다리므로 ##학습 GPU가 rollout이 끝날 때까지 idle##. reasoning task는 rollout이 길어 이 병목이 더 심각.</p>
+
+<h3>Asynchronous RL의 해결책</h3>
+<p>Async RL (AReaL, Decoupled PPO, M2PO 등)은 rollout worker가 ##이전 rollout을 학생이 학습하는 동안 새 rollout을 생성##하도록 stage를 decouple한다. 이는 stale-policy data를 만든다 — rollout은 $p_{\text{old}}$에서 왔지만 update는 $p_\theta$가 받는다.</p>
+
+<h3>OPD의 추가 제약: Teacher-Cache Constraint</h3>
+<p>RL은 reward가 scalar라 cache가 쉽지만, OPD는 ##full-vocabulary teacher logit이 필요##하다 (KL 계산용). 이를 모든 prefix·모든 token에 대해 caching·transmitting하는 것은 비현실적. 따라서 실제 구현은:</p>
+<ul>
+  <li><strong>Sparse top-$k$</strong>: 각 prefix에서 top-$k$ token만 cache</li>
+  <li><strong>Monte Carlo (MC)</strong>: rollout 시점 분포에서 몇 개 action만 sample해서 cache</li>
+</ul>
+<p>비동기에서는 cache가 $p_{\text{old}}$ 시점에 만들어지지만, learner는 현재 $p_\theta$에서 update해야 하므로 ##support mismatch## (cache에 없는 action을 update해야 함) 문제가 발생.</p>
+
+<h2>방법론 1 — OPD Preliminaries (수식 정리)</h2>
+
+<h3>Forward-KL OPD (식 1)</h3>
+<p>fixed prefix $s$에서 forward-KL은 teacher-weighted:</p>
+
+$$D_F(\theta; s) = \mathrm{KL}(q(\cdot|s) \| p_\theta(\cdot|s)) = \sum_{a \in \mathcal{V}} q(a|s) (\log q(a|s) - \log p_\theta(a|s))$$
+
+<p>gradient는:</p>
+
+$$\nabla_\theta D_F(\theta; s) = -\sum_{a \in \mathcal{V}} q(a|s) \nabla_\theta \log p_\theta(a|s)$$
+
+<blockquote>직관적으로 말하면, "##teacher 분포로 가중 평균##된 log-likelihood gradient"라 student가 어떤 action을 sampling했든 teacher의 $q$가 weight를 결정한다.</blockquote>
+
+<h3>Reverse-KL OPD (식 2-3)</h3>
+<p>같은 prefix에서 reverse-KL은 student-weighted:</p>
+
+$$D_R(\theta; s) = \mathrm{KL}(p_\theta(\cdot|s) \| q(\cdot|s)) = -\sum_{a \in \mathcal{V}} p_\theta(a|s) (\log q(a|s) - \log p_\theta(a|s))$$
+
+<p>미분하면 (식 3):</p>
+
+$$\nabla_\theta D_R(\theta; s) = -\sum_{a \in \mathcal{V}} p_\theta(a|s) \underbrace{(\log q(a|s) - \log p_\theta(a|s))}_{A(a,s) = \log q - \log p} \nabla_\theta \log p_\theta(a|s)$$
+
+<p>이 형태는 ##policy-gradient estimator##와 동일 — $A(a,s) = \log q(a|s) - \log p_\theta(a|s)$가 token-level advantage 역할.</p>
+
+<h3>PPO-style Surrogate (식 4)</h3>
+<p>behavior policy $p_{\text{beh}}$에서 sample $a \sim p_{\text{beh}}$, ratio $\rho_\theta(a,s) = p_\theta(a|s) / p_{\text{beh}}(a|s)$, clipped ratio $\bar{\rho}_\theta = \mathrm{clip}(\rho_\theta, 1-\epsilon, 1+\epsilon)$:</p>
+
+$$L_{\mathrm{PPO}}(\theta; A_{\mathrm{beh}}) = -\mathbb{E}_{a \sim p_{\mathrm{beh}}} [\min(\rho_\theta \mathrm{sg}(A_{\mathrm{beh}}), \bar{\rho}_\theta \mathrm{sg}(A_{\mathrm{beh}}))]$$
+
+<p>$\mathrm{sg}(\cdot)$는 stop-gradient. behavior-time signal $A_{\mathrm{beh}}$는 frozen.</p>
+
+<h3>Sparse Top-$k$ / Monte Carlo Implementations</h3>
+<p>실용적 OPD는 finite support 위에서 KL 계산:</p>
+<ul>
+  <li><strong>Sparse top-$k$</strong>: support $S(s)$ 선택 후 renormalized KL — 식 (8)-(10) (Appendix A.1):
+    $$S_\theta(s) = \mathrm{TopK}(p_\theta(\cdot|s), k), \quad \tilde{p}_\theta^S(a|s) = \frac{p_\theta(a|s) \mathbf{1}[a \in S]}{Z_p^S(s)}$$
+  </li>
+  <li><strong>MC reverse-KL</strong>: $A_\theta(a, s) = \log q(a|s) - \log p_\theta(a|s)$로 one-sample (식 12) 또는 multi-sample (식 13):
+    $$\hat{g}_m(s) = -\frac{1}{m} \sum_{i=1}^m A_\theta(a_i, s) \nabla_\theta \log p_\theta(a_i|s)$$
+  </li>
+</ul>
+
+<h2>방법론 2 — Asynchronous OPD Setup</h2>
+
+<h3>3-Stage Cached Pipeline (Fig. 1)</h3>
+<div class="flow-diagram">[Stage 1: Student Rollout] (at p_old, time t_roll)
+  └─ Generate trajectories, cache prefixes s and actions C_old(s)
+       │
+       ▼
+[Stage 2: Teacher Scoring]
+  └─ teacher q scores cached actions C_score(s)
+       │
+       ▼
+[Stage 3: Student Update] (at p_θ, time t_train > t_roll)
+  └─ Compute current local OPD gradient
+     • Can recompute log p_θ(a|s) for a ∈ C_score(s)
+     • Cannot recover teacher logits for missing actions
+
+Staleness Δ_batch = t_train - t_roll  (rollout이 얼마나 오래된 student snapshot에서 왔는가)</div>
+
+<h3>Teacher-Cache Constraint의 핵심</h3>
+<p>full-vocabulary teacher logit caching·transfer는 ##async pipeline에서 매우 비싸므로## 실용 구현은 sparse top-$k$ 또는 MC sample로 제한. 비동기일 때 두 가지 추가 staleness 발생:</p>
+<ul>
+  <li><strong>prefix-level staleness</strong>: 학습 시점의 $p_\theta$가 만들었을 prefix와 다른 prefix가 cache에 있음</li>
+  <li><strong>action-level staleness</strong>: cache의 action은 $p_{\text{old}}$에서 sample됐지만, current $p_\theta$의 high-mass action과 다를 수 있음</li>
+</ul>
+<p>저자는 ##action-level staleness가 estimator design으로 직접 다룰 수 있는 영역##이라 명시.</p>
+
+<h2>핵심 발견 1 — Forward vs Reverse KL Under Staleness (Section 4)</h2>
+
+<h3>실험 의도</h3>
+<p>같은 stale cache에 forward KL과 reverse KL을 적용하면 어떤 차이가 있는가? KL direction이 staleness 영향을 결정하는가?</p>
+
+<h3>실험 결과 (Fig. 2)</h3>
+<p>Qwen3-4B-Base 학생 + Qwen3-30B-A3B-Instruct teacher, DeepMath 57,630 problems로 학습.</p>
+<table>
+<thead><tr><th>Benchmark</th><th>Stale 0 (sync)</th><th>Stale 64 (heavy async)</th></tr></thead>
+<tbody>
+<tr><td>Reverse KL (AIME24)</td><td>~36%</td><td>~22%</td></tr>
+<tr><td>Forward KL (AIME24)</td><td>~30%</td><td>~28%</td></tr>
+<tr><td>Reverse KL (AMC)</td><td>~70%</td><td>~50%</td></tr>
+<tr><td>Forward KL (AMC)</td><td>~60%</td><td>~55%</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong> ##Reverse KL은 zero-staleness에서 더 높지만, staleness가 커지면 더 빠르게 떨어지고 결국 forward KL에 추월##됨. 이유는 forward KL이 teacher-weighted라 stale student action sample을 current-student expectation으로 convert할 필요가 없고, reverse KL은 student-weighted라 cached support 밖의 action에 의존하기 때문.</p>
+
+<blockquote><strong>Finding 1.</strong> Forward KL is teacher-weighted and robust to rollout staleness, whereas reverse KL is student-weighted and vulnerable to rollout staleness.</blockquote>
+
+<p>저자는 이후 분석을 reverse-KL OPD에 집중 (실용 OPD에서 더 흔하고 더 vulnerable하기 때문).</p>
+
+<h2>핵심 발견 2 — Reverse-KL Policy-Gradient Surrogates (Section 5)</h2>
+
+<h3>실험 의도</h3>
+<p>reverse-KL의 stale-data 문제를 ##async-RL에서 stale을 안정화하기 위해 제안된 기법들(Decoupled PPO, M2PO)##이 해결할 수 있을까? 아니면 OPD-specific한 다른 surrogate가 더 나은가?</p>
+
+<h3>네 가지 surrogate 비교 (식 6-7)</h3>
+<p>2×2 ablation: advantage를 $A_{\text{old}}$ (rollout 시점) vs $A_\theta$ (learner 시점) 사용 × clipping 유무.</p>
+
+$$L_{\text{old}}^{\text{clip}}(\theta) = -\mathbb{E}_{a \sim p_{\text{old}}} [\min(\rho_\theta \mathrm{sg}(A_{\text{old}}), \bar{\rho}_\theta \mathrm{sg}(A_{\text{old}}))]$$
+$$L_{\text{old}}^{\text{noclip}}(\theta) = -\mathbb{E}_{a \sim p_{\text{old}}} [\rho_\theta \mathrm{sg}(A_{\text{old}})]$$
+$$L_\theta^{\text{clip}}(\theta) = -\mathbb{E}_{a \sim p_{\text{old}}} [\min(\rho_\theta \mathrm{sg}(A_\theta), \bar{\rho}_\theta \mathrm{sg}(A_\theta))]$$
+$$L_\theta^{\text{noclip}}(\theta) = -\mathbb{E}_{a \sim p_{\text{old}}} [\rho_\theta \mathrm{sg}(A_\theta)]$$
+
+<p>$L_\theta^{\text{noclip}}$이 ##OPD/IS identity## — exact old-to-current importance-sampling identity (식 5):</p>
+
+$$D_R(\theta; s) = -\mathbb{E}_{a \sim p_\theta}[A_\theta(a,s)] = -\mathbb{E}_{a \sim p_{\text{old}}}[\rho_\theta(a,s) A_\theta(a,s)]$$
+
+<h3>실험 결과 (Fig. 3, Fig. 4, Table 1a)</h3>
+<p><strong>2×2 ablation (Fig. 3):</strong></p>
+<table>
+<thead><tr><th>Variant</th><th>특징</th><th>Stale 64+ 안정성</th></tr></thead>
+<tbody>
+<tr><td>$A_{\text{old}}$ + clip (PPO-style)</td><td>baseline frozen advantage</td><td>중간 (clip이 도움)</td></tr>
+<tr><td>$A_{\text{old}}$ + no clip</td><td>frozen advantage, no clip</td><td>나쁨 (high-ratio tail 폭주)</td></tr>
+<tr><td>$A_\theta$ + clip</td><td>recomputed, clipped</td><td>나쁨 (clipping이 유용한 signal 제거)</td></tr>
+<tr><td><strong>$A_\theta$ + no clip (OPD/IS)</strong></td><td>recomputed, unclipped</td><td><strong>최고 (모든 staleness)</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>Advanced async-RL surrogate (Fig. 4):</strong> ##Decoupled PPO와 M2PO는 OPD/IS surrogate를 능가하지 못함##. Decoupled PPO는 readability를 위해 clip해야 할 정도로 낮은 accuracy.</p>
+
+<p><strong>Table 1a — staleness-sensitivity slope</strong> (more negative = worse degradation):</p>
+<table>
+<thead><tr><th>Benchmark</th><th>$A_{\text{old}}$ clip</th><th>$A_{\text{old}}$</th><th>$A_\theta$ clip</th><th>$A_\theta$ (OPD/IS)</th><th>$A_{\text{old}}$ M2PO</th><th>$A_\theta$ M2PO</th></tr></thead>
+<tbody>
+<tr><td>AIME24</td><td>-1.44</td><td>-3.99</td><td>-1.64</td><td><strong>-0.69</strong></td><td>-0.66</td><td>-1.00</td></tr>
+<tr><td>AIME25</td><td>-1.42</td><td>-3.69</td><td>-1.88</td><td><strong>-0.38</strong></td><td>-0.81</td><td>-0.81</td></tr>
+<tr><td>AMC</td><td>-3.06</td><td>-8.00</td><td>-4.06</td><td><strong>-1.12</strong></td><td>-1.75</td><td>-1.72</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong> ##$A_\theta$ no clip은 모든 벤치마크에서 가장 작은 slope (degradation)##. clipping은 $A_{\text{old}}$의 staleness를 줄이는 데 도움이 되지만, $A_\theta$를 recompute하면 이미 high-percentile ratio tail이 줄어들어 clip이 오히려 useful signal을 제거함 (Fig. 5).</p>
+
+<blockquote><strong>Finding 2.</strong> The most effective reverse-KL correction is to recompute $A_\theta$ at learner time without clipping; advanced asynchronous RL surrogates such as decoupled PPO and M2PO do not improve over it.</blockquote>
+
+<h2>핵심 발견 3 — Cached Supports Under Staleness (Section 6)</h2>
+
+<h3>두 가지 cached-support estimator 비교</h3>
+
+<h4>Sparse top-$k$: stale-support biased</h4>
+<p>cache는 rollout-time support $S_{\text{old}}(s) = \mathrm{TopK}(p_{\text{old}}(\cdot|s), k)$ 위에서 만들어지지만, current student의 support $S_\theta(s) = \mathrm{TopK}(p_\theta(\cdot|s), k)$와 다를 수 있다. ##stale top-$k$ support 내에서 reweighting해도 missing teacher score를 복구할 수 없다## — fixed-support mismatch.</p>
+
+<h4>One-sample MC: correctable but high-variance</h4>
+<p>sample $a \sim p_{\text{old}}(\cdot|s)$ + $\log p_{\text{old}}(a|s)$ cache → IS estimator가 ##expectation에서 exact##. 하지만 single sample은 high variance.</p>
+
+<h4>제안: Multi-sample MC (Fig. 8)</h4>
+<p>각 prefix $s_t$에서 ##multiple local next-token sample## $a_{t,1}, \ldots, a_{t,m} \sim p_{\text{old}}(\cdot|s_t)$를 함께 cache하고 average. learner-time에서 IS-corrected gradient (식 15):</p>
+
+$$\hat{L}_m^{\text{MC}}(\theta; s_t) = -\frac{1}{m} \sum_{i=1}^m \rho_\theta(a_{t,i}, s_t) \mathrm{sg}(A_\theta(a_{t,i}, s_t)), \quad \rho_\theta(a,s) = \frac{p_\theta(a|s)}{p_{\text{old}}(a|s)}$$
+
+<p>$m$ samples를 averaging해 Monte Carlo variance를 줄임. ##async에서는 prefix를 multiple action으로 branch하는 RL 비용이 크지만, OPD는 local next-token sample만 추가하면 되어 저렴##.</p>
+
+<h3>실험 결과 (Fig. 6, Fig. 7, Table 1b, Table 6)</h3>
+<p><strong>Sparse top-$k$ vs one-sample MC (Fig. 6):</strong> one-sample MC + IS가 sparse top-$k$ + reweighting보다 staleness 증가 시 robust. reweighting이 sparse top-$k$의 missing-support 문제를 해결할 수 없음을 입증.</p>
+
+<p><strong>multi-sample MC (Fig. 7, Table 1b):</strong> $m \in \{4, 16, 64\}$ 비교 — $m = 4$가 이미 large staleness에서 명확한 jump를 만들며, $m=4, 16, 64$는 큰 차이 없음.</p>
+
+<p>Table 6 (variance ratio):</p>
+<table>
+<thead><tr><th>$m$</th><th>Fixed-prefix ratio $R_m^{\text{local}}$</th><th>Sequence-level ratio $R_m^{\text{seq}}$</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>1.000</td><td>1.000</td></tr>
+<tr><td>4</td><td>0.255</td><td>0.338</td></tr>
+<tr><td>16</td><td>0.0588</td><td>0.152</td></tr>
+<tr><td>64</td><td>0.0149</td><td>0.112</td></tr>
+</tbody>
+</table>
+
+<p>$m=64$에서 local variance는 $1/64 = 1.56\%$ reference에 거의 일치 (1.49%), sequence-level은 11.2%로 reduction.</p>
+
+<blockquote><strong>Finding 3.</strong> One-sample MC is more effective than stale sparse top-$k$; multi-sample MC further improves this estimator by reducing one-sample variance while preserving MC correctability.</blockquote>
+
+<h2>AsyncOPD 시스템 (Section 7)</h2>
+
+<h3>Scheduler 비교 (Fig. 9)</h3>
+<ul>
+  <li><strong>Synchronous</strong>: 모든 stage가 barriered. 학습 GPU idle.</li>
+  <li><strong>Step-off (VeRL [19])</strong>: $k$-step-off로 rollout lag을 고정, 그러나 ##complete rollout batch를 기다림##.</li>
+  <li><strong>AsyncOPD</strong>: completed items만 teacher scoring으로 consume, scored batch가 ready되면 learner update — ##in-flight prefix는 유지##하면서 weight sync 시점에만 worker 일시정지.</li>
+</ul>
+
+<h3>실험 설정 (Table 3 — Experimental Settings)</h3>
+<ul>
+  <li>Student: Qwen3-{1.7B, 4B, 8B}-Base (thinking-disabled)</li>
+  <li>Teacher: Qwen3-30B-A3B-Instruct-2507</li>
+  <li>Training data: DeepMath 57,630 problems (difficulty ≥ 6)</li>
+  <li>Prompt/response: 2,048 / 16,384 tokens</li>
+  <li>200 training iterations, batch 256, mini-batch 64 (4 optimizer updates per step)</li>
+  <li>Optimizer: AdamW, lr $3 \times 10^{-6}$, weight decay 0.01</li>
+  <li>Rollout: temperature 1.0, top-$p$ 1.0, no top-$k$ truncation</li>
+  <li>Hardware: 8×B200 single node, vLLM rollout/scoring, PyTorch FSDP</li>
+  <li>비교: strict sync vs two-step-off vs AsyncOPD ($\tau = 4$)</li>
+</ul>
+
+<h3>실험 결과 (Table 2)</h3>
+<p>training throughput (tok/s) · pipeline overlap · AIME24 Avg@32:</p>
+
+<table>
+<thead><tr><th>Student</th><th>Scheduler</th><th colspan="3">MC64</th><th colspan="3">MC1</th></tr>
+<tr><th></th><th></th><th>Train tok/s (× sync)</th><th>Overlap</th><th>Avg@32</th><th>Train tok/s (× sync)</th><th>Overlap</th><th>Avg@32</th></tr></thead>
+<tbody>
+<tr><td rowspan="3">Qwen3-1.7B-Base</td><td>Strict sync</td><td>8.7k (1.00×)</td><td>0.81</td><td><strong>8.85</strong></td><td>8.6k (1.00×)</td><td>0.82</td><td><strong>8.65</strong></td></tr>
+<tr><td>Two-step-off</td><td>14.2k (1.64×)</td><td>1.49</td><td>8.23</td><td>18.5k (2.15×)</td><td>1.65</td><td>8.12</td></tr>
+<tr><td><strong>AsyncOPD</strong></td><td><strong>23.4k (2.70×)</strong></td><td><strong>2.13</strong></td><td>9.38</td><td><strong>28.1k (3.28×)</strong></td><td><strong>2.31</strong></td><td>8.44</td></tr>
+<tr><td rowspan="3">Qwen3-4B-Base</td><td>Strict sync</td><td>9.5k (1.00×)</td><td>0.81</td><td><strong>25.00</strong></td><td>8.1k (1.00×)</td><td>0.82</td><td>23.33</td></tr>
+<tr><td>Two-step-off</td><td>12.4k (1.30×)</td><td>1.64</td><td>23.85</td><td>12.9k (1.60×)</td><td>1.65</td><td>23.54</td></tr>
+<tr><td><strong>AsyncOPD</strong></td><td><strong>15.8k (1.66×)</strong></td><td><strong>2.19</strong></td><td>25.00</td><td><strong>16.4k (2.03×)</strong></td><td><strong>2.27</strong></td><td>23.44</td></tr>
+<tr><td rowspan="3">Qwen3-8B-Base</td><td>Strict sync</td><td>7.5k (1.00×)</td><td>0.81</td><td>26.56</td><td>6.5k (1.00×)</td><td>0.84</td><td>28.44</td></tr>
+<tr><td>Two-step-off</td><td>11.6k (1.55×)</td><td>1.76</td><td>26.56</td><td>9.6k (1.47×)</td><td>1.63</td><td><strong>28.85</strong></td></tr>
+<tr><td><strong>AsyncOPD</strong></td><td><strong>14.5k (1.94×)</strong></td><td><strong>2.24</strong></td><td>28.65</td><td><strong>10.6k (1.63×)</strong></td><td><strong>2.17</strong></td><td>27.50</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong></p>
+<ul>
+  <li>##모든 setting에서 AsyncOPD가 최고 throughput과 overlap##. MC64에서 1.66×–2.70× sync 대비, MC1에서 1.63×–3.28×.</li>
+  <li>##Avg@32 accuracy는 best/tied-best##: 1.7B에서 9.38 (strict 8.85 능가), 4B MC64에서 25.00 (sync와 동일), 8B MC64에서 28.65 (sync 26.56 능가).</li>
+  <li>##다단계 throughput-accuracy tradeoff 없음## — async가 strict-sync 정확도를 회복하거나 능가하면서 빠름.</li>
+</ul>
+
+<h2>알고리즘 흐름도</h2>
+<div class="flow-diagram">[Rollout Worker]
+  • Student p_old (snapshot from past)
+  • Generate trajectory; for each prefix s_t:
+      sample m local next-token candidates a_{t,1..m} ~ p_old(·|s_t)
+      cache (s_t, a_{t,1..m}, log p_old(a_{t,i}|s_t))
+       │
+       ▼ (continuous streaming, not batched)
+[Teacher Scoring Worker]
+  • For each cached prefix and its m actions:
+      compute teacher score log q(a|s)  (single GPU)
+       │
+       ▼ (as soon as scored batch is ready)
+[Learner Worker]
+  • Student p_θ (current)
+  • For each (s, a_i, log p_old(a_i|s), log q(a_i|s)):
+      recompute A_θ(a_i, s) = log q(a_i|s) - log p_θ(a_i|s)
+      compute ρ_θ(a_i, s) = p_θ(a_i|s) / p_old(a_i|s)
+      gradient: -(1/m) Σ_i ρ_θ(a_i, s) · sg(A_θ(a_i, s)) · ∇ log p_θ(a_i|s)
+                                              ↑              ↑
+                                       NO clipping,    advantage at θ
+                                                       (not frozen at old)
+  • AdamW update → new snapshot
+       │
+       ▼ weight sync (worker pauses only here)</div>
+
+<h2>실험 결과 요약</h2>
+
+<h3>실험 의도와 핵심 질문</h3>
+<p>이 논문은 다음 질문에 답한다:</p>
+<ol>
+  <li>비동기 OPD의 staleness 문제는 forward vs reverse KL에 어떻게 다르게 작용하는가?</li>
+  <li>reverse-KL의 stale 문제는 async-RL surrogate로 해결 가능한가? 아니면 OPD-specific surrogate가 필요한가?</li>
+  <li>teacher cache의 sparse top-$k$ vs MC sample 중 어느 것이 better, 그리고 variance는 어떻게 줄일 수 있는가?</li>
+  <li>실제 비동기 OPD 시스템에서 throughput-accuracy tradeoff는 어떤가?</li>
+</ol>
+
+<h3>결과 요약</h3>
+<table>
+<thead><tr><th>질문</th><th>답</th><th>증거</th></tr></thead>
+<tbody>
+<tr><td>1. KL direction</td><td>forward = robust, reverse = vulnerable</td><td>Fig. 2 (stale 64에서 reverse-KL이 forward-KL에 추월됨)</td></tr>
+<tr><td>2. Reverse-KL surrogate</td><td>$A_\theta$ recompute + no clip이 최선</td><td>Fig. 3, 4, Table 1a, async-RL surrogate 미개선</td></tr>
+<tr><td>3. Cache estimator</td><td>one-sample MC가 sparse top-$k$ 능가; multi-sample MC 더 좋음</td><td>Fig. 6, 7, Table 6 ($m=64$에서 local variance 1.49%)</td></tr>
+<tr><td>4. 시스템 성능</td><td>1.66×–3.28× throughput, accuracy 유지/향상</td><td>Table 2</td></tr>
+</tbody>
+</table>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>분석의 깊이</strong>: KL direction → policy-gradient surrogate → cache estimator의 세 축을 ##독립 변수로 분리##해 ablation하는 방식이 인상적. 각 finding이 명확한 mechanism을 통해 설명됨.</li>
+  <li><strong>이론과 실증의 연결</strong>: OPD/IS identity (식 5)가 ##exact##임을 보이고 (importance sampling을 통한 변환), 이를 실험적으로 $A_\theta$ no-clip의 우월성으로 검증.</li>
+  <li><strong>실용성</strong>: AsyncOPD는 단순 이론 분석이 아니라 ##8×B200 단일 노드에서 작동하는 시스템##. Qwen3-{1.7B, 4B, 8B}로 scale variance 검증.</li>
+  <li><strong>오픈소스</strong>: GitHub 코드 공개 (https://github.com/furiosa-ai/async-opd).</li>
+  <li><strong>Async-RL 기법의 한계 드러내기</strong>: Decoupled PPO, M2PO 같은 ##async-RL stable이 OPD에 그대로 transfer되지 않음##을 실증. 이는 OPD-specific 연구의 가치를 분명히 함.</li>
+</ul>
+
+<h3>약점·의문</h3>
+<ul>
+  <li><strong>Math domain 단일 평가</strong>: AIME24/25, AMC만으로 평가. ##reasoning(코딩), instruction following, multi-turn agent## 등 다른 도메인에서도 같은 패턴이 유지될지 불명.</li>
+  <li><strong>Single 8-GPU node 한계</strong>: 저자도 limitation으로 인정. multi-node distributed environment에서 ##network bandwidth가 teacher logit transfer를 더 제약##할 수 있어, dense KL 가능성이 변동.</li>
+  <li><strong>Teacher size 고정</strong>: Qwen3-30B-A3B-Instruct 하나만 사용. ##teacher-student size gap이 작을 때 (예: self-distillation)##나 더 클 때 staleness 영향이 달라질 가능성.</li>
+  <li><strong>Dense KL과의 비교 부재</strong>: dense full-vocabulary KL은 cache mismatch가 없지만 ##저자가 "scale 어려움" 이유로 분석에서 제외##. 만약 KDFlow [29] 같은 방식으로 dense KL을 async에 적용한다면 multi-sample MC 대비 더 나을 수도 있음.</li>
+  <li><strong>$\tau = 4$ 고정</strong>: AsyncOPD experiment에서 staleness $\tau = 4$만 사용. 더 aggressive async (예: $\tau = 16, 32$)에서도 accuracy 유지 가능한지 알 수 없음 — Table 2의 추세를 보면 1.7B MC1에서 ##sync 8.65 vs async 8.44##로 약간 떨어지는 신호가 있음.</li>
+  <li><strong>Multi-sample MC overhead</strong>: $m=4$ 이상에서 rollout-time forward pass cost가 늘어남. paper는 "local next-token sample은 저렴"이라 주장하지만 ##정확한 wall-clock overhead 측정은 부재##.</li>
+  <li><strong>MC64 vs MC1 비교 모호</strong>: Table 2에서 MC64가 모든 throughput에서 MC1보다 좋지 않은 경우가 있음 (1.7B에서 MC1이 더 빠름). 이는 multi-sample MC의 cost가 accuracy 향상보다 크다는 신호일 수 있는데, 이에 대한 직접 분석은 없음.</li>
+</ul>
+
+<h3>한계의 자체 인정</h3>
+<p>저자는 conclusion에서 명시:</p>
+<ul>
+  <li>Dense full-vocabulary KL의 async setting은 다루지 않음 — KDFlow [29]가 hidden state transfer로 sync OPD에서 가능성을 보였지만, async로 확장은 future work.</li>
+  <li>Single 8-GPU node에 국한 — multi-node cluster scaling은 future work.</li>
+</ul>
+</div>
+
+<h2>Key Takeaways (이 논문에서 가져갈 것)</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>비동기 OPD를 구현한다면 reverse-KL이 더 risky하다</strong>: forward-KL이 stale에 robust하므로 보수적 선택. 하지만 reverse-KL을 쓰고 싶다면 다음 처방을 따른다.</li>
+  <li><strong>reverse-KL OPD의 처방전: $A_\theta$ recompute + no clipping</strong>: rollout 시점 advantage $A_{\text{old}}$를 freeze하지 말고 ##학습 시점 $p_\theta$로 advantage를 다시 계산##. clipping은 오히려 유용한 signal을 제거.</li>
+  <li><strong>Sparse top-$k$ cache는 stale support mismatch가 본질적 약점</strong>: ##stale support 안에서 reweight해도 missing teacher score는 복구되지 않음##. one-sample MC + IS가 expectation에서 exact correctable.</li>
+  <li><strong>Multi-sample MC의 가성비</strong>: $m=4$만으로도 large-staleness 안정성에 큰 향상. ##async OPD에서 prefix branching이 RL보다 저렴##하기 때문에 multi-sample이 자연스러운 선택.</li>
+  <li><strong>Async-RL 기법은 OPD에 그대로 적용되지 않는다</strong>: Decoupled PPO, M2PO 등은 OPD의 teacher-cache constraint와 manage differently. ##OPD-specific surrogate가 필요##.</li>
+  <li><strong>1.6×–3.8× throughput은 실용적으로 큰 의미</strong>: reasoning task OPD가 production-scale에서 점점 중요해지는 만큼, ##단일 노드 8 GPU에서 2배+ 향상##은 cost-effective.</li>
+  <li><strong>OPD/IS identity</strong>: $\mathbb{E}_{a \sim p_\theta}[A_\theta(a,s)] = \mathbb{E}_{a \sim p_{\text{old}}}[\rho_\theta(a,s) A_\theta(a,s)]$ — 이 exact identity가 unclipped IS surrogate의 이론적 정당성. RL의 PPO-style clipping과 다른 OPD만의 처방.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,527 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SingGuard: A Policy-Adaptive Multimodal LLM Guardrail with Dynamic Reasoning</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>SingGuard: A Policy-Adaptive Multimodal LLM Guardrail with Dynamic Reasoning</h1>
+
+<p style="text-align: right; margin-top: -0.5rem;"><a href="20260630_bai_singguard_brief.html" style="color:#4a90d9;">개요 브리핑 버전 보기 →</a></p>
+
+<h2>메타데이터</h2>
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yichen Bai, Liangbo He, Zongyi Li, Bingyan Liao, Shenglin Yin (core); Yan Hong, Hongcheng Li, Siyuan Li, Chuanbiao Song, Kedong Xiu, Chao Xu, Tingting Xu, Zijian Yu; Shiwen Cui, Jun Lan (corresponding)</li>
+  <li><strong>소속</strong>: AI Security Lab, Ant Group (Inclusion AI)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026 (Jun)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.22873">arXiv:2606.22873</a> · <a href="https://github.com/inclusionAI/Sing-Guard">GitHub</a></li>
+  <li><strong>모델</strong>: SingGuard-{2B, 4B, 8B} (Qwen3-VL 계열 기반 VLM guardrail)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 VLM(Vision-Language Model) guardrail은 ##고정 taxonomy##와 ##fixed inference path(direct answer or always-reasoning)##에 의존. 배포 환경마다 정책이 바뀌고(health, finance, legal, regional 등) 모든 case에 동일 reasoning을 적용하면 비효율적.</li>
+  <li><strong>해결</strong>: ##policy-adaptive multimodal guardrail SingGuard##. runtime에 자연어 rule 집합을 입력받아 rule-by-rule matching을 수행. fast/hybrid/slow 3개 inference 모드를 fast-slow decoupled DAPO RL로 학습 — 쉬운 case는 fast token으로 즉답, 어려운 case는 slow policy-grounded reasoning.</li>
+  <li><strong>왜 작동하는가</strong>: ##unified hierarchical taxonomy (8 dim × 27 cat × 80+ leaf risk)##를 default policy로 두되, ##dynamic-rule-conditioned 학습 데이터##로 동일 content가 active rule에 따라 다른 label을 받도록 supervision. 첫 fast token을 RL update에서 mask하여 ##anchoring effect 제거##.</li>
+  <li><strong>비유</strong>: 기존 guardrail이 "##고정 법전을 외운 판사##"라면, SingGuard는 "##각 사건마다 적용 법령(active policy)을 새로 받아 case-by-case로 적용하고, 단순 case는 즉결로, 애매한 case는 상세 reasoning으로 판단하는 판사##".</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Policy-adaptive multimodal guardrail family</strong>: SingGuard-{2B, 4B, 8B} — runtime에 자연어 rule을 입력받아 multimodal QA와 assistant-response moderation 모두 지원. classification 모델이 아니라 ##instruction-following 모델##로 formulate.</li>
+  <li><strong>Fast-slow inference spectrum with decoupled DAPO RL</strong>: <code>&lt;fast&gt; → &lt;reasoning&gt; → &lt;answer&gt;</code> output grammar. fast mode는 첫 binary token만으로 즉답, hybrid는 confidence τ로 early exit, slow는 rule-by-rule reasoning. ##fast-slow decoupled DAPO##로 첫 fast token을 RL에서 mask하여 anchoring 제거.</li>
+  <li><strong>SingGuard-Bench (56,340 examples)</strong>: ##80+ fine-grained risk type, 35 underlying datasets, 6 benchmark families (image/multimodal/text-query/text-response/multilingual/dynamic-rule)##. ##cross-modal hidden-intent## (image와 text 각각은 안전하지만 결합 시 unsafe), ##dynamic-rule split## (rule이 매번 바뀜) 포함.</li>
+  <li><strong>3-level safety taxonomy + dynamic rule construction</strong>: 8 primary dim × 27 secondary cat × 80+ leaf risk. ##unsafe→safe, unsafe→unsafe, safe→unsafe, safe→safe## 4가지 policy-shift configuration을 supervision으로 사용해 ##memorized taxonomy prior 방지##.</li>
+  <li><strong>SOTA 결과</strong>: 6개 benchmark family 35 dataset 평균 F1 모두 best (image 0.9141, multimodal 0.9092 등). ##dynamic-rule eval에서 0.6465 → 0.7415## (Qwen3-VL-8B 대비). 2B → 4B → 8B 모두 strong (deployment cost-flexible).</li>
+</ol>
+
+<h2>배경 지식</h2>
+
+<h3>VLM Guardrail이란?</h3>
+<p>Vision-Language Model(VLM)이 점차 medical, financial, enterprise 같은 high-stakes domain에 배포되면서, ##content moderation을 위한 안전 분류기##가 필수. Guardrail은 다음을 판정:</p>
+<ul>
+  <li>사용자 query가 정책 위반인지 (query moderation)</li>
+  <li>모델 응답이 harmful assistance를 제공하는지 (response moderation)</li>
+  <li>image-only 안전한지, image+text 결합 시 unsafe intent가 있는지</li>
+</ul>
+
+<h3>기존 Guardrail의 한계</h3>
+<p>본 논문은 기존 guardrail이 다음 한계를 가진다고 정리:</p>
+<ol>
+  <li><strong>Fixed taxonomy</strong>: Llama Guard, WildGuard, Qwen3Guard, LlavaGuard 등은 ##사전 정의된 카테고리##에 분류. 배포 시 새 정책 (예: 의료 도메인 특화 rule)을 추가하려면 retrain 필요.</li>
+  <li><strong>Single modality 또는 narrow scope</strong>: 텍스트 전용이거나 image-only. cross-modal hidden intent (image와 text 결합 risk)는 다루지 못함.</li>
+  <li><strong>Fixed inference path</strong>: GuardReasoner, GuardReasoner-VL 등은 항상 reasoning을 거침 → ##단순 case에서 latency 낭비##. 반대로 Llama Guard 등은 direct answer만 → ##boundary case에서 부족##.</li>
+  <li><strong>Memorized prior</strong>: prompt에 새 rule을 넣어도 모델이 학습 시점 taxonomy에 의존, runtime rule을 무시.</li>
+</ol>
+
+<h3>SingGuard의 새 정의</h3>
+<p>SingGuard는 safety classification을 ##instruction-following task로 재정의##. 입력은 (target content $x$, active policy $P = \{r_1, \ldots, r_n\}$). 출력은 structured (safety label $y$, optional reasoning $z$, triggered rule $c$):</p>
+
+$$f_\theta(x, P) \to (y, z, c)$$
+
+<p>여기서 $y \in \{\text{safe}, \text{unsafe}\}$, $c \in \mathcal{T}(P) \cup \{\text{Safe}\}$ ($\mathcal{T}(P)$는 active policy의 valid category/rule title 집합). ##fixed-label classifier가 아니라 supplied policy에 grounded된 decision##.</p>
+
+<h3>DAPO (Decoupled Advantage Policy Optimization)란?</h3>
+<p>DAPO [Yu et al. 2025]는 reasoning LLM의 RL 학습에서 group-relative advantage를 사용하는 GRPO 변형. SingGuard는 DAPO에 ##fast-slow decoupling## (첫 fast token mask)을 추가한 변형을 사용.</p>
+
+<h2>방법론 1 — Task Formulation과 Policy Taxonomy</h2>
+
+<h3>Task Formulation (Eq. 1, 2)</h3>
+<p>입력 instance:</p>
+
+$$x = (q, I, a)$$
+
+<p>$q$는 user query, $I$는 zero or more images, $a$는 assistant response (response-level moderation 시). Query-only, image-only, image-text, response-only, full conversation 모두 cover.</p>
+
+<p>Active policy $P = \{r_1, \ldots, r_n\}$가 주어지면:</p>
+
+$$f_\theta(x, P) \to (y, z, c)$$
+
+<p>$z$는 optional policy-grounded reasoning trace, $c$는 final triggered category. ##The final answer is bound to the active policy $P$: uncovered risks may be labeled safe, newly introduced rules must be enforced##.</p>
+
+<h3>Safety Policy Taxonomy (Table 14)</h3>
+<table>
+<thead><tr><th>Primary Dim</th><th>Secondary Cat</th><th>Leaf Risk</th></tr></thead>
+<tbody>
+<tr><td>8</td><td>27</td><td>80+</td></tr>
+</tbody>
+</table>
+
+<p>커버 영역: ##sexual content, real-world crime / public safety, unethical behavior, cybersecurity / info manipulation, agent safety, politically sensitive, animal abuse, benign content##. 이 taxonomy는 default. inference 시 ##full taxonomy 또는 subset / 확장 / 새 domain rule##로 즉시 instantiate 가능.</p>
+
+<h2>방법론 2 — Data Collection and Annotation</h2>
+
+<h3>4 보완 corpus (총 ~2.5M text + 600K multimodal samples)</h3>
+<ol>
+  <li><strong>Re-annotated open-source data</strong>: AIGC, BeaverTails-V, MMDS, UnsafeBench, visual jailbreak 등을 unified taxonomy로 re-label.</li>
+  <li><strong>Policy-grounded synthetic data</strong>: long-tail / cross-modal gap 보완.</li>
+  <li><strong>Dynamic rule-conditioned data</strong>: 동일 content가 active rule에 따라 label이 바뀌도록 구성.</li>
+  <li><strong>CoT supervision</strong>: ##rule-by-rule verification trace##를 가르치는 ~1M reasoning sample.</li>
+</ol>
+
+<h3>2-Level Consistency Check</h3>
+<p>모든 sample은 ##0.9 이상 accuracy 검증된 ensemble annotation pipeline##을 통과:</p>
+<ul>
+  <li><strong>L0</strong>: binary safe/unsafe decision 일치</li>
+  <li><strong>L1</strong>: fine-grained risk category 일치</li>
+</ul>
+<p>L0 실패는 폐기, L1 실패는 hard case로 dynamic data pool로 routing.</p>
+
+<h3>Dynamic Rule Data Construction (핵심 novelty)</h3>
+<p>##Static guardrail은 surface content pattern과 fixed label 사이의 shortcut을 학습##. 본 논문은 동일 content가 active rule에 따라 다른 label을 받도록 supervision:</p>
+
+<h4>(a) Policy-view diversification</h4>
+<ul>
+  <li><strong>Full rules</strong>: complete safety taxonomy 제공</li>
+  <li><strong>Subset rules</strong>: 일부만 활성화</li>
+  <li><strong>Single-rule views</strong>: 하나만 relevant or irrelevant</li>
+  <li><strong>Merged or rewritten rules</strong>: 여러 rule을 압축/재작성</li>
+</ul>
+
+<h4>(b) Counterfactual supervision (policy-shift 4가지)</h4>
+<table>
+<thead><tr><th>Configuration</th><th>Base Rules</th><th>Dynamic Rules</th><th>Expected Verdict</th></tr></thead>
+<tbody>
+<tr><td>unsafe→unsafe (case 1)</td><td>0 matching + 1-2 non-matching</td><td>1 matching + 1-2 non-matching</td><td>Unsafe</td></tr>
+<tr><td>safe→safe (case 2)</td><td>1-2 non-matching</td><td>1-2 non-matching</td><td>Safe</td></tr>
+<tr><td>unsafe→safe (case 3)</td><td>0 matching + 1-2 non-matching</td><td>0 matching + 1-2 non-matching</td><td>Safe</td></tr>
+<tr><td>safe→unsafe (case 4)</td><td>1-2 non-matching</td><td>1 matching + 1-2 non-matching</td><td>Unsafe</td></tr>
+</tbody>
+</table>
+
+<p>각 500 sample × 4 case = ##2,000 dynamic-rule examples##. 같은 content가 정책 변경에 따라 label이 ##flip##되는 supervision을 통해 모델이 ##memorized prior가 아닌 active policy를 따르도록## 강제.</p>
+
+<h2>방법론 3 — Stage 1: Policy-Conditioned Cold-Start SFT</h2>
+
+<h3>Unified Training Schema</h3>
+<p>모든 SFT sample은 두 가지 compact form 중 하나:</p>
+<ul>
+  <li><strong>Fast form</strong>: 첫 token은 <code>safe</code> 또는 <code>unsafe</code>, 이어 <code>&lt;answer&gt;rule_title&lt;/answer&gt;</code></li>
+  <li><strong>Slow form</strong>: opening decision + <code>&lt;reasoning&gt; ... &lt;/reasoning&gt;</code> + reviewed <code>&lt;answer&gt;</code></li>
+</ul>
+<p>Hybrid inference 시 이 field들을 reuse: confident case는 binary label만 emit, otherwise slow path 계속.</p>
+
+<h3>Rule-by-Rule Policy Grounding</h3>
+<p>Reasoning trace $z$는 free-form rationale이 아니라 ##structured rule-by-rule policy match##:</p>
+
+$$z = (z_{\text{summary}}, m_1, \ldots, m_n, z_{\text{final}})$$
+
+<ul>
+  <li>$z_{\text{summary}}$: content 설명 (text, image, image-text relation, response context)</li>
+  <li>$m_i \in \{\text{hit}, \text{not-hit}, \text{not-applicable}\}$: 각 rule $r_i$에 대한 per-rule judgment, observable evidence에 기반</li>
+  <li>$z_{\text{final}}$: rule check들을 aggregate한 final decision</li>
+</ul>
+
+<blockquote>직관적으로 말하면, reasoning이 ##free-form 변명##이 아니라 "##rule 1: not-hit (이유), rule 2: hit (이유)... → final: unsafe (rule 2 by triggered)##"의 ##auditable trace##. unsafe verdict는 triggered rule과 evidence를 ##노출##해야 하고, safe는 어떤 active rule도 fire하지 않음을 명시.</blockquote>
+
+<h3>SFT Loss (Eq. 3)</h3>
+<p>3 field-level term의 autoregressive log-likelihood:</p>
+
+$$\mathcal{L}_{\text{SFT}} = \lambda_{\text{cls}} \mathcal{L}_{\text{cls}}(y_{\text{cls}} | X) + \lambda_{\text{reason}} \mathcal{L}_{\text{reason}}(y_{\text{reason}} | X, y_{\text{cls}}) + \lambda_{\text{cat}} \mathcal{L}_{\text{cat}}(y_{\text{cat}} | X, y_{\text{cls}}, y_{\text{reason}})$$
+
+<p>$\mathcal{L}_{\text{reason}}$은 fast-only sample에서 masked out. $\lambda$들은 field-level loss weight.</p>
+
+<h2>방법론 4 — Stage 2: Fast-Slow Decoupled DAPO</h2>
+
+<h3>Motivation: Fast Token의 Anchoring Effect</h3>
+<p>SFT 이후 ##첫 fast judgment가 overly sticky##해질 수 있다. fast token이 emit되면 이후 reasoning span이 단순히 그 token을 ##rationalize##할 뿐, 독립적으로 policy를 check해 final answer를 correct하지 못함. ##특히 dynamic-rule case에서## memorized prior가 unreliable한데, 모델이 첫 token을 anchor로 삼으면 학습이 회복 불가능.</p>
+
+<h3>DAPO Sampling (Eq. 4-6)</h3>
+<p>각 training query와 active policy에 대해 $G$개의 candidate output:</p>
+
+$$\mathcal{O} = \{o_1, \ldots, o_G\}, \quad o_i = (y_{\text{cls}}^{(i)}, z^{(i)}, y_{\text{ans}}^{(i)})$$
+
+<p>Two-level safety reward (Eq. 5):</p>
+
+$$R = 0.8 R_{\text{binary}} + 0.2 R_{\text{category}}$$
+
+<p>$R_{\text{binary}}$는 safe/unsafe correctness, $R_{\text{category}}$는 active-rule correctness in <code>&lt;answer&gt;</code>. ##binary 비중을 크게 (0.8)## 둔 이유: moderation은 ##먼저 correct polarity##가 핵심.</p>
+
+<p>Group-relative advantage (Eq. 6):</p>
+
+$$A_i = \frac{R_i - \mathrm{mean}(\{R_j\}_{j=1}^G)}{\mathrm{std}(\{R_j\}_{j=1}^G) + \epsilon}$$
+
+<h3>Fast-Slow Decoupling</h3>
+<p>핵심 트릭: ##rollout이 SFT schema로 full response를 생성한 뒤, reward function이 outcome reward를 last valid response token에 placement##. ##Trainer는 첫 response position을 0으로 set##한 뒤 DAPO advantage 계산 및 actor update.</p>
+
+<p>결과:</p>
+<ul>
+  <li>그룹-normalized outcome reward는 ##complete slow-format answer##로 계산</li>
+  <li>첫 token은 reward도 policy-gradient loss도 받지 않음 → ##low-latency prefix 역할##만</li>
+  <li>이후 <code>&lt;reasoning&gt;</code>·<code>&lt;answer&gt;</code> token은 ##group-relative reward로 optimize##되어, sampled trajectory가 unreliable initial judgment를 ##correct하고 right category로 정정##하면 credit을 받음</li>
+</ul>
+
+<blockquote>직관적으로 말하면, ##첫 token은 "임시 의견"으로 만들고, slow path가 그걸 검증하거나 뒤집을 자유##를 주는 것. memorized prior가 틀린 dynamic-rule case에서 모델이 reasoning으로 회복할 수 있게 된다.</blockquote>
+
+<h2>방법론 5 — Inference Modes (Eq. 7-8)</h2>
+
+<h3>3 Inference Modes</h3>
+<ol>
+  <li><strong>Fast judgment</strong>: 첫 safe/unsafe token + <code>&lt;answer&gt;</code>만 emit. low-latency online moderation. RI-Mask로 multiple active rule parallel check 지원.</li>
+  <li><strong>Policy-grounded reasoning (slow)</strong>: 첫 decision을 provisional로 두고 ##active policy에 대해 reasoning##, reviewed answer emit.</li>
+  <li><strong>Hybrid reasoning</strong>: confidence-based early exit. 초기 binary decision의 normalized confidence (Eq. 7):
+    $$s(y_0) = \frac{p_\theta(y_0 | x, P)}{p_\theta(\text{safe} | x, P) + p_\theta(\text{unsafe} | x, P)}$$
+
+    threshold (Eq. 8):
+    $$y_0 \in \{\text{safe}, \text{unsafe}\} \wedge s(y_0) \geq \tau$$
+
+    confidence $\geq \tau$면 즉시 종료, 아니면 slow reasoning 계속. $\tau$는 ##accuracy-latency tradeoff 제어##.
+  </li>
+</ol>
+
+<h2>방법론 6 — On-Policy Distillation for 2B</h2>
+
+<h3>왜 추가 distillation이 필요한가</h3>
+<p>2B 모델은 8B 대비 ##reasoning capacity gap##이 큼. 특히 newly introduced dynamic rule, boundary rule with exemption, long-tail risk category, reasoning trace로 initial fast judgment를 revise해야 하는 case에서 약함. 이는 ##label-coverage problem이 아니라 behavior-alignment problem##: 2B가 "##강한 모델이 active rule을 어떻게 해석하고 uncertain generation으로부터 어떻게 회복하는지##"를 학습해야 함.</p>
+
+<h3>OPD Objective (Eq. 9)</h3>
+<p>Agarwal et al. 2024의 GKD framework. 2B student $\pi_\theta$가 자기 response $\hat{y}$를 sample한 뒤, frozen 8B teacher $\pi_\phi^{\text{teacher}}$가 token-level target 제공:</p>
+
+$$\mathcal{L}_{\text{GKD}} = \mathbb{E}_{x \sim \mathcal{D}, \hat{y} \sim \pi_\theta(\cdot|x)} \big[\alpha D_{\text{KL}}(\pi_\phi^{\text{teacher}} \| \pi_\theta) + (1-\alpha) D_{\text{KL}}(\pi_\theta \| \pi_\phi^{\text{teacher}})\big]$$
+
+<p>##Bidirectional KL##: forward KL은 teacher의 high-prob decision을 cover, reverse KL은 student state space에서 sharper on-policy signal. ##Student-written response 위에서 teacher가 평가하기 때문에, teacher가 student의 typical error (dynamic rule, edge case, long-tail)에 directly exposed## → student가 "polished teacher output을 imitate"가 아니라 "weak reasoning path를 repair"하도록 학습.</p>
+
+<h2>SingGuard-Bench (Section 3)</h2>
+
+<h3>기존 벤치마크 한계와 SingGuard-Bench의 보강</h3>
+
+<table>
+<thead><tr><th>Benchmark</th><th>Scale</th><th>Image-only</th><th>Image-text</th><th>Cross-modal hidden intent</th><th>Dynamic policy</th><th>Fine-grained taxonomy</th></tr></thead>
+<tbody>
+<tr><td>MM-SafetyBench</td><td>5,040</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>Limited</td></tr>
+<tr><td>UnsafeBench</td><td>2,040</td><td>✓</td><td>✗</td><td>✗</td><td>✗</td><td>✓</td></tr>
+<tr><td>VLGuard</td><td>1,000</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>Limited</td></tr>
+<tr><td>JailBreakV-28K</td><td>28,000</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>Limited</td></tr>
+<tr><td>SPA-VL</td><td>7,530</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>✓</td></tr>
+<tr><td>BeaverTails-V</td><td>1,180</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>✓</td></tr>
+<tr><td>MMDS</td><td>4,484</td><td>✗</td><td>✓</td><td>Partial</td><td>✗</td><td>✓</td></tr>
+<tr><td>VLSBench</td><td>2,241</td><td>✗</td><td>✓</td><td>✗</td><td>✗</td><td>Limited</td></tr>
+<tr><td><strong>SingGuard-Bench</strong></td><td><strong>56,340</strong></td><td><strong>✓</strong></td><td><strong>✓</strong></td><td><strong>✓</strong></td><td><strong>✓</strong></td><td><strong>80+ types</strong></td></tr>
+</tbody>
+</table>
+
+<h3>4 Complementary Axes</h3>
+<ol>
+  <li><strong>Sample type</strong>: adversarial attack, direct harmful, benign-sensitive, dynamic-rule</li>
+  <li><strong>Risk-category coverage</strong>: A-G unsafe taxonomy + keyword-level semantic coverage</li>
+  <li><strong>Attack method</strong>: cross-modal hidden-intent + typography/patch shuffle</li>
+  <li><strong>Dynamic policy</strong>: per-sample policy set (matching + non-matching rules)</li>
+</ol>
+
+<h3>주요 통계</h3>
+<ul>
+  <li>40,663 image samples, 13,677 multimodal samples, 2,000 dynamic-rule samples</li>
+  <li>78 leaf nodes, 2,124 keywords per language (English/Chinese)</li>
+  <li>Benign-sensitive: ~68.4% of image samples (precision 측정용)</li>
+  <li>Cross-modal subtypes: IUTS (image-unsafe/text-safe), ISTU (image-safe/text-unsafe), IUTU (reinforced), ISTS (hidden-intent attack)</li>
+</ul>
+
+<h2>실험 결과</h2>
+
+<h3>실험 의도와 핵심 질문</h3>
+<ol>
+  <li>SingGuard가 ##image, multimodal, text query/response, multilingual 등 6개 family##에서 균등 성능을 보이는가?</li>
+  <li>##Dynamic policy## evaluation에서 active rule을 실제로 follow하는가? 아니면 memorized prior로 fallback하는가?</li>
+  <li>##Fast-slow decoupled DAPO##의 효과는 무엇인가? Ablation으로 검증.</li>
+  <li>##2B OPD##가 8B teacher의 능력을 얼마나 transfer하는가?</li>
+</ol>
+
+<h3>결과 1: Multimodal Safety (Table 4)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>VLGuard</th><th>JailBreakV</th><th>SPA-VL</th><th>MMDS-Q</th><th>MMDS-R</th><th>VLSBench</th><th>MM-Safety</th><th>BeaverTails-V</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Gemini3-Pro (closed)</td><td>0.857</td><td>0.972</td><td>0.660</td><td>0.671</td><td>0.547</td><td>0.868</td><td>0.876</td><td>0.672</td><td>0.766</td></tr>
+<tr><td>GPT-5.1 (closed)</td><td>0.894</td><td>0.982</td><td>0.717</td><td>0.802</td><td>0.882</td><td>0.856</td><td>0.772</td><td>0.834</td></tr>
+<tr><td>Qwen3-VL-235B</td><td>0.883</td><td>0.937</td><td>0.701</td><td>0.720</td><td>0.739</td><td>0.875</td><td>0.881</td><td>0.794</td><td>0.816</td></tr>
+<tr><td>LLaVAShield</td><td>0.901</td><td><strong>0.996</strong></td><td>0.591</td><td><strong>0.965</strong></td><td><strong>0.993</strong></td><td><strong>0.993</strong></td><td>0.641</td><td>0.884</td></tr>
+<tr><td>SingGuard-2B</td><td>0.939</td><td>0.950</td><td>0.778</td><td>0.969</td><td>0.896</td><td>0.960</td><td>0.840</td><td>0.804</td><td>0.892</td></tr>
+<tr><td>SingGuard-4B</td><td>0.929</td><td>0.969</td><td>0.776</td><td>0.960</td><td>0.872</td><td>0.953</td><td>0.860</td><td>0.833</td><td>0.894</td></tr>
+<tr><td><strong>SingGuard-8B</strong></td><td><strong>0.951</strong></td><td>0.972</td><td><strong>0.788</strong></td><td>0.985</td><td>0.896</td><td>0.966</td><td>0.881</td><td>0.831</td><td><strong>0.909</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong></p>
+<ul>
+  <li>##SingGuard-8B가 모든 open-source 최고 평균 (0.909), closed GPT-5.1 (0.834)보다도 우월##.</li>
+  <li>SingGuard-2B (0.892)·4B (0.894)도 이미 open-source baseline 능가 — ##family 전체가 Pareto-shift##.</li>
+  <li>Jailbreak-style benchmark (JailBreakV, VLSBench, MM-Safety)는 ##jailbreak-trained guard에 saturated## → 단일 aggregate가 refusal-template overfit를 가릴 수 있음.</li>
+  <li>MMDS-Q (query) vs MMDS-R (response) 차이: LlamaGuard3-Vision, Qwen3-VL-8B는 ##15-30점 떨어짐##, SingGuard는 7점 이내 → ##policy-conditioned supervision이 intent detection ↔ assistance detection 양쪽으로 transfer##.</li>
+</ul>
+
+<h3>결과 2: Image Safety (Table 5)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>UnsafeBench</th><th>NSFW</th><th>Hateful Memes</th><th>Weapon</th><th>Crime Scene</th><th>Violence</th><th>Avg F1</th></tr></thead>
+<tbody>
+<tr><td>Gemini3-Pro</td><td>0.496</td><td>0.800</td><td>0.872</td><td>0.872</td><td>0.736</td><td>0.895</td><td>0.778</td></tr>
+<tr><td>GuardReasoner-VL</td><td><strong>0.842</strong></td><td>0.869</td><td><strong>0.868</strong></td><td>0.903</td><td>0.809</td><td>0.852</td><td>0.857</td></tr>
+<tr><td>LLaVAShield</td><td>0.609</td><td>0.873</td><td>0.659</td><td>0.884</td><td>0.810</td><td><strong>1.000</strong></td><td>0.829</td></tr>
+<tr><td>SingGuard-2B</td><td>0.778</td><td>0.915</td><td>0.847</td><td>0.955</td><td>0.923</td><td><strong>1.000</strong></td><td>0.903</td></tr>
+<tr><td><strong>SingGuard-4B</strong></td><td>0.800</td><td>0.919</td><td>0.850</td><td><strong>0.977</strong></td><td><strong>0.939</strong></td><td><strong>1.000</strong></td><td><strong>0.914</strong></td></tr>
+<tr><td>SingGuard-8B</td><td>0.788</td><td><strong>0.919</strong></td><td>0.857</td><td>0.972</td><td>0.923</td><td><strong>1.000</strong></td><td>0.910</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong></p>
+<ul>
+  <li>SingGuard-4B (0.9141)이 최고 평균. ##2B/8B도 0.90+##.</li>
+  <li>##Text-trained guard들 (LlamaGuard3-Vision, LlamaGuard4)는 image-only에서 collapse##: LlamaGuard3-Vision은 weapon에서 F1 = 0.0025, violence에서 0.1875 → 텍스트 supervision만으론 visual harm 인식 불가.</li>
+  <li>Hateful Memes (이미지+OCR text+social context)는 모든 모델 < 0.87 — ##multi-hop visual reasoning이 필요한 가장 어려운 slice##.</li>
+</ul>
+
+<h3>결과 3: Text Query/Response (Tables 6, 7)</h3>
+<ul>
+  <li><strong>Text Query (Table 6)</strong>: SingGuard-8B가 ##XGuard Test, WildGuardMix, XSTest, ExpGuardTest에서 best##. Avg F1 0.8740 — Yu-Feng-XGuard 0.8666·Qwen3Guard-strict 0.8493 능가.</li>
+  <li><strong>Text Response (Table 7)</strong>: SingGuard-4B가 best avg F1 0.8799. ##response moderation은 단순 harmful intent 인식이 아니라 actionable detail 제공 여부 판단##이라 query-only 모델이 떨어짐. SingGuard는 양 setting에서 stable.</li>
+</ul>
+
+<h3>결과 4: Multilingual (Tables 8, 9)</h3>
+<ul>
+  <li><strong>Query (Table 8)</strong>: ##SingGuard-8B가 PolyGuardPrompts F1 0.8802, RTP-LX F1 0.8941, avg F1 0.8872##. RTP-LX에서 다른 baseline은 15-35 점 손실 (Qwen3Guard-loose 0.8407 → 0.5198) — ##non-English에서 under-flagging##. SingGuard는 robust.</li>
+  <li><strong>Response (Table 9)</strong>: SingGuard-8B avg F1 0.8988. GraniteGuardian은 RTP-LX 0.9734 best but recall 0.9999 (over-flagging), GPT-5.1 RTP-LX recall 0.4485 (under-flagging).</li>
+</ul>
+
+<h3>결과 5: SingGuard-Bench Split (Table 10)</h3>
+
+<table>
+<thead><tr><th>Model</th><th>Image F1</th><th>Multimodal F1</th><th>Attack F1</th></tr></thead>
+<tbody>
+<tr><td>GuardReasoner-VL-7B</td><td>0.706</td><td>0.959</td><td>0.507</td></tr>
+<tr><td>LLaVAShield-7B</td><td>0.511</td><td>0.950</td><td>0.735</td></tr>
+<tr><td>SafeGuard-VL-RL</td><td>0.700</td><td>0.892</td><td>0.580</td></tr>
+<tr><td>Qwen3-VL-8B</td><td>0.634</td><td>0.642</td><td>0.493</td></tr>
+<tr><td><strong>SingGuard-8B</strong></td><td><strong>0.808</strong></td><td><strong>0.892</strong></td><td>0.905</td></tr>
+<tr><td>SingGuard-4B</td><td><strong>0.876</strong></td><td>0.983</td><td>0.749</td></tr>
+<tr><td>SingGuard-2B</td><td>0.809</td><td>0.990</td><td><strong>0.916</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석:</strong> ##SingGuard-2B가 cross-modal attack F1 0.916 best## — adversarial composition setting에서 강함. LLaVAShield의 highest recall (image 0.991, multimodal 0.997, attack 0.977)은 over-flagging 신호.</p>
+
+<h3>결과 6: Dynamic Policy Evaluation (Table 11) — 핵심 contribution</h3>
+
+<table>
+<thead><tr><th>Model</th><th>unsafe2unsafe</th><th>safe2safe</th><th>unsafe2safe</th><th>safe2unsafe</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-VL-8B</td><td>0.524</td><td>0.944</td><td>0.738</td><td>0.380</td><td>0.6465</td></tr>
+<tr><td>Qwen3-VL-32B</td><td>0.562</td><td><strong>0.952</strong></td><td><strong>0.764</strong></td><td>0.406</td><td>0.6710</td></tr>
+<tr><td>Qwen3-8B-Thinking</td><td>0.612</td><td>0.918</td><td>0.704</td><td>0.492</td><td>0.6815</td></tr>
+<tr><td>Qwen3-32B-Thinking</td><td>0.648</td><td>0.932</td><td>0.736</td><td>0.518</td><td>0.7085</td></tr>
+<tr><td>SingGuard-fast</td><td>0.764</td><td>0.892</td><td>0.680</td><td>0.542</td><td>0.7195</td></tr>
+<tr><td><strong>SingGuard-slow</strong></td><td>0.758</td><td>0.916</td><td>0.722</td><td><strong>0.570</strong></td><td><strong>0.7415</strong></td></tr>
+<tr><td>SingGuard-hybrid</td><td><strong>0.766</strong></td><td>0.913</td><td>0.711</td><td>0.563</td><td>0.7383</td></tr>
+</tbody>
+</table>
+
+<p><strong>이 실험이 뒷받침하는 주장:</strong> ##SingGuard-slow가 policy-shift에서 baseline 능가, 특히 safe2unsafe (0.380 → 0.570)##. 즉, 학습 시점 default taxonomy에 없던 새 rule이 active일 때 SingGuard는 ##실제로 그 rule을 follow##하는 반면, Qwen3-VL은 memorized prior로 fallback하여 safe로 잘못 판단. ##정책 적응성의 직접적 증거##.</p>
+
+<h3>결과 7: Ablation (Table 12)</h3>
+
+<table>
+<thead><tr><th colspan="6">(a) Training-stage and inference-mode ablation</th></tr>
+<tr><th>Method</th><th>Image</th><th>Multimodal</th><th>Text Query</th><th>Text Response</th><th>Dynamic</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-VL-8B baseline</td><td>0.715</td><td>0.649</td><td>0.781</td><td>0.792</td><td>0.6465</td></tr>
+<tr><td>SingGuard SFT</td><td>0.892</td><td>0.887</td><td>0.872</td><td>0.872</td><td>0.6790</td></tr>
+<tr><td>SingGuard RL (slow)</td><td>0.819</td><td>0.909</td><td>0.879</td><td>0.879</td><td><strong>0.7415</strong></td></tr>
+<tr><td>SingGuard-fast</td><td>0.906</td><td>0.902</td><td>0.874</td><td>0.877</td><td>0.7195</td></tr>
+<tr><td><strong>SingGuard-hybrid</strong></td><td><strong>0.909</strong></td><td><strong>0.909</strong></td><td>0.876</td><td>0.878</td><td>0.7383</td></tr>
+</tbody>
+</table>
+
+<p>##RL slow-mode variant가 image, multimodal, dynamic-policy benchmark 모두 improve##. fast mode는 SFT 성능을 유지하면서 latency 훨씬 낮음. hybrid는 ##middle operating point##.</p>
+
+<table>
+<thead><tr><th colspan="6">(b) 2B OPD Distillation</th></tr>
+<tr><th>Method</th><th>Image</th><th>Multimodal</th><th>Text Query</th><th>Text Response</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>SingGuard-2B-OPD</td><td>0.9029 (+0.0273)</td><td>0.8924 (+0.0392)</td><td>0.8631 (+0.0007)</td><td><strong>0.8775 (+0.0163)</strong></td><td>0.8840 (+0.0209)</td></tr>
+<tr><td>SingGuard-2B (Student)</td><td>0.8756</td><td>0.8532</td><td>0.8624</td><td>0.8612</td><td>0.8631</td></tr>
+<tr><td>SingGuard-8B (Teacher)</td><td>0.8799</td><td>0.9092</td><td>0.8631</td><td>0.8770</td><td>0.8925</td></tr>
+<tr><td>Qwen3-VL-8B</td><td>0.7153</td><td>0.6493</td><td>0.7810</td><td>0.7920</td><td>0.7344</td></tr>
+</tbody>
+</table>
+
+<p>##OPD가 2B의 avg를 0.8631 → 0.8840으로 +0.0209 향상##. 8B teacher (0.8925)에 근접 — ##teacher의 broad safety behavior를 compact model로 transfer 성공##.</p>
+
+<h2>알고리즘 흐름도</h2>
+<div class="flow-diagram">[Input]
+  • content x = (q, I, a)
+  • active policy P = {r_1, ..., r_n}  ← runtime에 자연어 rule
+       │
+       ▼
+[SingGuard f_θ(x, P)]
+  • emit first token: safe / unsafe  ← fast judgment
+       │
+       ├─ Hybrid mode: confidence s(y_0) ≥ τ ?
+       │     ├─ YES → 종료, fast answer 반환
+       │     └─ NO → slow path 계속 ↓
+       │
+       ▼
+[Slow Reasoning (rule-by-rule)]
+  • z_summary: content describe
+  • For r_1: hit / not-hit / not-applicable (with evidence)
+  • For r_2: ...
+  • ...
+  • z_final: aggregate
+       │
+       ▼
+[Output]
+  • y ∈ {safe, unsafe}
+  • z: structured reasoning trace (auditable)
+  • c ∈ T(P) ∪ {Safe}: triggered rule title
+
+[Training Pipeline]
+  Stage 1: Policy-Conditioned Cold-Start SFT
+    • 2.5M text + 600K multimodal samples
+    • 4 policy-view diversification + 4 policy-shift configurations
+    • Unified <fast> → <reasoning> → <answer> grammar
+
+  Stage 2: Fast-Slow Decoupled DAPO
+    • Group sampling G outputs
+    • Two-level reward: R = 0.8 R_binary + 0.2 R_category
+    • Mask first response position (no reward, no policy-gradient)
+    • → fast token = provisional, slow path can revise
+
+  Stage 3 (for 2B): On-Policy GKD Distillation from 8B
+    • Bidirectional KL on student-written prefix</div>
+
+<h2>비판적 분석</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>실용적으로 중요한 문제 정의</strong>: ##fixed taxonomy가 production에서 안 통한다##는 점은 명확한 deployment pain point. health, finance, legal 등 도메인마다 정책이 다른 현실을 직접 다룸.</li>
+  <li><strong>벤치마크 contribution이 크다</strong>: 56,340 examples × 6 family × dynamic-rule split — ##기존 benchmark가 놓치는 cross-modal hidden intent와 policy-following을 모두 cover##.</li>
+  <li><strong>Fast-slow decoupling은 영리한 아이디어</strong>: 첫 token mask로 anchoring을 끄는 트릭은 ##단순하면서 효과가 큼##. dynamic-rule case에서 fast가 틀려도 slow가 회복.</li>
+  <li><strong>구조화된 reasoning</strong>: 단순 free-form CoT가 아니라 ##rule-by-rule judgment (hit/not-hit/N-A)##로 auditable. compliance·legal review에서 중요.</li>
+  <li><strong>모델 family + OPD</strong>: 2B/4B/8B 모두 strong + 2B OPD로 8B teacher 능력 transfer — deployment cost-flexibility 입증.</li>
+  <li><strong>오픈소스</strong>: GitHub 코드·모델 공개로 reproducibility.</li>
+</ul>
+
+<h3>약점·의문</h3>
+<ul>
+  <li><strong>Policy 품질 의존성 (저자도 인정)</strong>: 결정의 quality는 inference 시점 active policy에 의존. ##ambiguous, incomplete, conflicting rule이면 SingGuard도 inconsistent##. 실제 production에서 policy는 자주 ambiguous하므로 LLM-generated 자연어 rule의 robust handling은 별도 연구가 필요.</li>
+  <li><strong>Long-tail / emerging abuse pattern</strong>: SingGuard-Bench가 80+ risk를 cover하지만 ##real-world policy의 long tail은 exhaustive하지 못함##. 새 abuse pattern이 등장하면 추가 학습 또는 dynamic rule update 필요. 그런데 dynamic rule만으로 학습 안된 patterns이 잘 generalize되는지의 직접 검증 부족.</li>
+  <li><strong>Synthetic / model-assisted annotation의 한계</strong>: 학습 데이터의 큰 부분이 ##multi-model voting (Gemini, Kimi, Qwen, GLM)으로 annotated##. ##teacher bias, annotation artifact, 실제 user traffic과의 distributional mismatch##를 완전히 제거할 수 없음.</li>
+  <li><strong>Confidence calibration</strong>: hybrid early exit이 ##token-level confidence##에 의존하지만, calibration이 ##distribution shift 하에서 잘 작동하는지 평가 부족##. 미캐러브된 confidence로 early exit하면 safety-critical case를 miss할 수 있음.</li>
+  <li><strong>Adversarial attack 일부에서 약함</strong>: Table 4의 Jailbreak-style benchmark에서 ##LLaVAShield 등 jailbreak-trained guard가 더 강함##. SingGuard가 broad coverage를 우선해 specific attack family에서는 saturation 못 따라감.</li>
+  <li><strong>Reasoning latency</strong>: slow mode는 image safety F1을 0.906(fast) → 0.819(slow)로 ##오히려 떨어뜨림## (Table 12a). RL slow가 dynamic-policy는 개선하지만 ##일반 safety는 fast가 더 나은 case도 있음## — 따라서 hybrid mode가 실용적이지만 selection criteria가 명확하지 않음.</li>
+  <li><strong>Image safety에서 4B > 8B</strong>: Table 5에서 SingGuard-4B (0.914)가 8B (0.910)을 능가 — ##scaling이 monotonic하지 않음##. 8B가 RL 단계에서 reasoning에 비중을 두어 image visual feature 활용이 약해질 가능성. ablation 부족.</li>
+  <li><strong>다국어 데이터의 폭</strong>: PolyGuardPrompts와 RTP-LX만 평가. ##실제 deployment에서는 더 다양한 언어##와 codeswitch가 등장하는데, 평가 범위 제한.</li>
+  <li><strong>Anchoring effect의 정량적 입증 부족</strong>: fast-slow decoupling이 anchoring을 제거한다는 직접 증거 (예: fast token mask 없이 학습한 ablation)가 명시적으로 제시되지 않음. Table 12a의 RL vs SFT 비교만으로는 ##mask 자체의 효과##와 ##RL의 효과##를 분리할 수 없음.</li>
+</ul>
+
+<h3>한계의 자체 인정</h3>
+<p>저자는 Section 7에서:</p>
+<ul>
+  <li>Policy quality 의존성</li>
+  <li>Long-tail policy를 exhaustively cover 불가</li>
+  <li>Synthetic data + multi-model verification의 bias 잔존</li>
+  <li>Hybrid early exit의 calibration robustness 불확실</li>
+  <li>Future: stronger calibration, broader human evaluation, transparent uncertainty reporting</li>
+</ul>
+</div>
+
+<h2>Key Takeaways (이 논문에서 가져갈 것)</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Production guardrail은 policy-adaptive해야 한다</strong>: fixed taxonomy로 학습된 모델은 health, finance, legal 등 ##도메인별 또는 지역별 정책 변경에 대응 불가##. runtime에 자연어 rule을 받아 처리하는 instruction-following formulation이 필요.</li>
+  <li><strong>Dynamic-rule supervision은 정책 적응성 학습의 열쇠</strong>: ##동일 content를 active rule에 따라 다른 label로 supervise##해야 모델이 memorized prior가 아닌 supplied rule을 따른다. 4가지 policy-shift configuration (unsafe→unsafe, safe→safe, unsafe→safe, safe→unsafe)이 핵심.</li>
+  <li><strong>Rule-by-rule reasoning trace는 free-form CoT보다 낫다</strong>: ##hit/not-hit/not-applicable## 구조는 audit-friendly하며, compliance·legal review에서 즉시 활용 가능. unsafe verdict가 어떤 rule을 trigger했는지 명시.</li>
+  <li><strong>Fast-slow inference spectrum + decoupled RL</strong>: 모든 case에 reasoning을 적용하는 것은 비효율적. ##첫 binary token으로 confidence-based early exit##, 어려운 case만 slow reasoning. 첫 token mask로 anchoring 제거가 핵심 트릭.</li>
+  <li><strong>Two-level reward design</strong>: $R = 0.8 R_{\text{binary}} + 0.2 R_{\text{category}}$ — moderation은 ##correct polarity가 first priority##, fine-grained category는 secondary. 비율이 importnat.</li>
+  <li><strong>Query vs Response moderation은 다른 task</strong>: 같은 모델이 query intent와 assistant assistance를 모두 잘 다루려면 ##둘 다 cover하는 supervision##이 필요. 본 논문의 MMDS-Q vs MMDS-R 결과가 이를 입증.</li>
+  <li><strong>2B model + OPD = 8B teacher 능력의 거의 그대로</strong>: ##GKD bidirectional KL on student rollout##으로 broad safety behavior가 compact model로 transfer (0.8631 → 0.8840). production-cost 줄이는 실용적 레시피.</li>
+  <li><strong>Cross-modal hidden-intent attack은 별도로 다뤄야</strong>: image와 text 각각은 안전한데 결합 시 unsafe — ##단일 modality 분류기로는 불가##. multimodal training data와 평가가 필수.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
