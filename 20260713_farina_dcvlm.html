@@ -1,0 +1,391 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataComp-VLM: Improved Open Datasets for Vision-Language Models</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DataComp-VLM: Improved Open Datasets for Vision-Language Models</h1>
+
+<p style="text-align:right;"><a href="20260713_farina_dcvlm_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Matteo Farina*, Vishaal Udandarao*, Thao Nguyen*, Selim Kuzucu*, Maximilian Böther† 외 30+ 명 (Ludwig Schmidt‡ & Nikhil Parthasarathy‡ 공동 지도)</li>
+  <li><strong>소속</strong>: University of Trento, Tübingen AI Center (Univ. of Tübingen), Univ. of Cambridge, Stanford, Max Planck IS, Google, ETH Zürich, LAION, Juelich SC, Google DeepMind, KAUST, MIT, Toyota RI, FBK, Univ. of Washington</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (v2)</li>
+  <li><strong>연도</strong>: 2026 (Jun 30, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.28551">arXiv:2606.28551</a> · <a href="https://github.com/mlfoundations/dcvlm">Code (GitHub)</a> · <a href="https://www.datacomp.ai/dcvlm">Website</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: VLM(Vision-Language Model)의 성능은 학습 데이터의 <em>구성</em>에 크게 좌우되지만, 어떤 데이터셋을 얼마의 비율로 섞을지 결정하는 curation 전략에 대한 <strong>systematic benchmark가 부재</strong>했다. VLM 논문마다 다른 평가 벤치마크를 써서 fair comparison도 어려웠다.</li>
+  <li><strong>해결</strong>: ##DCVLM##(DataComp for VLMs)이라는 controlled benchmark를 제안. 160개 open dataset을 4가지 data type (image-caption, multimodal document, text-only, instruction-tuning)으로 정리한 6T-token pool을 만들고, 1B-8B model + 6.25B-200B token의 4단계 스케일링 사다리에서 curation 전략을 평가할 수 있게 한다. 52개 downstream benchmark로 평가. 1000+ 실험으로 두 가지 핵심 발견: <strong>(1) 필터링은 이제 효과가 없다</strong>, <strong>(2) 데이터 혼합(mixing) 비율이 진짜 lever이며 instruction-heavy mix가 scale better</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: DataComp/DCLM 시절에는 raw CommonCrawl에서 filter가 노이즈를 걷어냈지만, 현대 VLM 학습셋은 이미 upstream에서 상당한 curation이 되어 있어 downstream filter의 marginal utility가 감소한다 (다이어그램 4 참조). 반대로 mixing 비율은 이 aggregate 구조에 <em>대응하는 lever</em>. 특히 instruction-tuning 데이터가 많을수록 model size × token budget이 커질수록 gain이 커진다.</li>
+  <li><strong>비유</strong>: 이미 정성껏 손질된 재료들을 모아둔 마트에서, 다시 재료를 <em>골라내는</em>(filter) 것보다 <em>어떤 재료를 얼마나 섞을지</em>(mix)가 훨씬 중요하다. 그리고 요리사 실력이 좋을수록(model scale), 매콤한 양념(instruction data)이 더 살아난다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>DCVLM 벤치마크</strong>: VLM 학습을 위한 첫 <em>data-centric</em> benchmark. 4가지 data type × 160 datasets × 6T token pool. Fixed model architecture + training recipe로 오직 data curation strategy만 비교 가능하게 함.</li>
+  <li><strong>Principled scaling ladder</strong>: small(1B, 6.25B), medium(2B, 25B), large(4B, 100B), x-large(8B, 200B) 4단계. 각 단계 사이에 8× compute increase (2× 모델 크기, 4× 토큰) → 작은 스케일 발견이 큰 스케일로 <em>transfer되는지</em>를 명시적으로 검증.</li>
+  <li><strong>52-benchmark evaluation suite</strong>: 65 candidate 벤치마크에서 stability(seed variance) + monotonicity(small→medium 개선 여부)로 필터링. 9 domain (General, Knowledge, OCR & Charts, Vision, MTL, Text-only, Safety, Hallucination, Reasoning) 커버. Validation (13) / Core (33) / Extended (52) 3중 tier.</li>
+  <li><strong>"Filtering ≠ Mixing" 원칙</strong>: 60+ filter configuration을 테스트해도 no-filter baseline 대비 <strong>어떤 filter도 significant improvement 없음</strong>. 대신 image-caption vs instruction-tuning 비율(mixing) 변경만으로 <strong>+2~5pp gain</strong>.</li>
+  <li><strong>Instruction-heavy mixture가 scale better</strong>: 1B×6.25B에서는 <em>worst</em>였지만 4B×25B에서는 <em>best</em>가 되는 <strong>crossover 패턴</strong>. 작은 규모에서 얻은 mixture ranking을 큰 규모에 그대로 적용하면 최적을 놓친다.</li>
+  <li><strong>DCVLM-BASELINE 데이터셋</strong>: 이 발견을 반영한 데이터 mix (10% image-caption, 5% multimodal doc, 15% text-only, 70% instruction-tuning). 8B model + 200B token에서 <strong>Core-33 63.6% 달성</strong>, 이전 최고 open dataset FINEVISION 대비 ##+5.4pp##.</li>
+  <li><strong>Pretraining→SFT transfer</strong>: pretraining-only metric이 post-SFT 성능을 Pearson $r=0.99$로 예측. 그리고 mixture ranking은 Qwen2.5-Base와 Qwen2.5-Instruct 초기화 간에 preserved ($r=0.97$).</li>
+</ol>
+
+<h2>1. Background</h2>
+
+<h3>1.1 VLM(Vision-Language Model)이란?</h3>
+<p>Modern autoregressive VLM은 세 구성 요소로 이루어진다:</p>
+<ul>
+  <li><strong>Vision encoder</strong> (예: InternViT, SigLIP): 이미지를 token으로 인코딩</li>
+  <li><strong>Language model backbone</strong> (예: Qwen2.5): 텍스트와 vision token을 함께 처리</li>
+  <li><strong>Connector</strong> (2-layer MLP projector 등): vision token을 LM 임베딩 공간에 매핑</li>
+</ul>
+
+<p>초기 "VLM pretraining"은 connector만 image-caption pair로 학습했지만, SoTA VLM(예: InternVL, Qwen-VL)은 모든 파라미터를 학습하고 다양한 data type을 통합한다.</p>
+
+<h3>1.2 Data-Centric Benchmark의 계보</h3>
+<ul>
+  <li><strong>DataComp</strong> (Gadre et al., 2023): contrastive VLM(CLIP)용 data curation benchmark. Raw web crawl에서 필터링이 중요.</li>
+  <li><strong>DCLM</strong> (Li et al., 2024): LM pretraining data curation. FastText classifier로 high-quality sample filter → 큰 gain.</li>
+  <li><strong>FineWeb, Nemotron-CC, OlmoASR</strong>: 각기 다른 domain의 data curation.</li>
+  <li><strong>DCVLM (본 논문)</strong>: autoregressive VLM data curation의 첫 systematic benchmark.</li>
+</ul>
+
+<h3>1.3 왜 VLM data curation이 어려운가?</h3>
+<ol>
+  <li><strong>Aggregation-based regime</strong>: raw web crawl(DCLM)과 달리, VLM은 이미 curation된 datasets을 aggregate한다. 이 aggregation 하에서 무엇이 실제로 성능을 이끄는지 불명확.</li>
+  <li><strong>Scale mismatch</strong>: 기존 open dataset은 millions 규모. SoTA VLM은 trillions of tokens 사용 → 실험 가능한 curation 범위 제한.</li>
+  <li><strong>Design space 폭발</strong>: data type × model scale × training budget = 너무 넓어 exhaustive experiment 불가.</li>
+  <li><strong>Evaluation의 부재</strong>: 논문마다 다른 benchmark suite → fair comparison 어려움.</li>
+</ol>
+
+<h3>1.4 데이터 필터링 vs 데이터 혼합(mixing)</h3>
+<ul>
+  <li><strong>Filtering</strong>: 저품질 sample 제거 (예: CLIP-score threshold, quality classifier).</li>
+  <li><strong>Mixing</strong>: 서로 다른 data type/source의 비율 조정.</li>
+</ul>
+<p>Filter는 "무엇을 뺄 것인가", mixing은 "무엇을 얼마나 넣을 것인가". 두 접근이 서로 다른 lever임을 명시적으로 대조하는 것이 본 논문의 핵심 주장.</p>
+
+<h2>2. The DCVLM Benchmark</h2>
+
+<h3>2.1 Data Pool Construction (Section 3.1)</h3>
+
+<p>4가지 data type × 160 datasets × 6T multimodal tokens (InternVL-2.5 tokenizer 기준):</p>
+
+<table>
+<tr><th>Data Type</th><th>설명</th><th>대표 sources</th></tr>
+<tr><td>① Image-caption pairs</td><td>Web crawl된 image-alt-text pair (CLIP-score 필터링됨). 저품질(DataComp-1B, ReLAION-2B)~고품질(ShareGPT-4o, Pixmo-Cap).</td><td>DataComp-1B, ReLAION-2B, ShareGPT-4o, Pixmo-Cap</td></tr>
+<tr><td>② Multimodal interleaved documents</td><td>웹사이트, PDF, 학술 논문에서 스크레이핑한 이미지-텍스트 시퀀스. Least curated (URL-based & heuristic filtering만).</td><td>MINT-1T-HTML, MINT-1T-PDF, WanJuan, OmniCorpus, Multimodal-Textbook</td></tr>
+<tr><td>③ Text-only data</td><td>Multimodal 학습 중 언어 능력 유지용. Instruction-tuning 및 science/knowledge 데이터 포함.</td><td>FLAN, SlimOrca, Dolly, Numina-Math-1.5, xCoder80k</td></tr>
+<tr><td>④ Multimodal instruction-tuning data</td><td>Human/model-generated QA pairs (하나 이상 이미지 근거). 8 capability로 분류: knowledge, chart/table, general-QA, grounding & counting, math, naive OCR, OCR-QA, science.</td><td>-</td></tr>
+</table>
+
+<p><strong>Decontamination</strong>: Train-test overlap 방지를 위해 pool을 52-benchmark Extended eval suite와 대조. Multimodal sample은 ResNet-50 SSCD embedding cosine-sim > 0.75 필터링, text-only는 MinHash Jaccard similarity > 0.55 필터링.</p>
+
+<h3>2.2 Model Architecture and Training Recipe (Section 3.2)</h3>
+
+<p><strong>Fixed recipe (InternVL3 style)</strong>:</p>
+<ul>
+  <li>Vision encoder: <strong>InternViT-300M</strong></li>
+  <li>Projector: 2-layer MLP</li>
+  <li>Language backbone: Qwen2.5-Base ({0.5B, 1.5B, 3B, 7B})</li>
+  <li><strong>AnyRes tiling</strong>: 이미지를 dynamic하게 448×448 tile로 분할, 각 tile은 pixel shuffling 후 256 visual token으로 인코딩</li>
+  <li>Optimizer: AdamW, 3% linear warmup + cosine decay, peak LR $2 \times 10^{-5}$</li>
+</ul>
+
+<h3>2.3 Scaling Ladder (Section 3.3)</h3>
+
+<table>
+<tr><th>Scale</th><th>N (Model)</th><th>D (Tokens)</th><th>Vision init.</th><th>LLM init.</th><th>H100 hrs</th><th>Pool</th></tr>
+<tr><td>small</td><td>1B</td><td>6.25B</td><td>InternViT-300M</td><td>Qwen2.5-0.5B</td><td>80</td><td>187.5B</td></tr>
+<tr><td>medium</td><td>2B</td><td>25B</td><td>InternViT-300M</td><td>Qwen2.5-1.5B</td><td>640</td><td>750B</td></tr>
+<tr><td>large</td><td>4B</td><td>100B</td><td>InternViT-300M</td><td>Qwen2.5-3B</td><td>5,120</td><td>3T</td></tr>
+<tr><td>x-large</td><td>8B</td><td>200B</td><td>InternViT-300M</td><td>Qwen2.5-7B</td><td>20,480</td><td>6T</td></tr>
+</table>
+
+<p><strong>설계 원칙</strong>: 각 스케일 step은 8× compute increase (2× 모델, 4× 토큰). Pool-to-training token ratio를 <strong>30×로 고정</strong>하여 각 scale에서 aggressive filtering을 실험 가능하게 함 (participants can filter down to 1/30 of the pool without hitting repetition).</p>
+
+<h3>2.4 Evaluation Protocol (Section 3.4)</h3>
+
+<p><strong>65 candidate → 52 benchmark 필터링 프로토콜</strong>:</p>
+<ol>
+  <li>9 domain 기반 candidate 선정 (majority consensus from InternVL, Qwen-VL, Nemotron, FineVision, InternVL3.5 논문)</li>
+  <li>Stability filtering: high seed variance benchmark 제거</li>
+  <li>Monotonicity filtering: small→medium에서 개선되지 않는 benchmark 제거</li>
+</ol>
+
+<p><strong>3-tier nested structure</strong>:</p>
+<ul>
+  <li><strong>Validation set (13)</strong>: rapid iteration용</li>
+  <li><strong>Core set (33)</strong>: main results tier</li>
+  <li><strong>Extended set (52)</strong>: 전체 분석. Safety, Hallucination, Reasoning benchmark 포함 (post-training targeted)</li>
+</ul>
+
+<p>9 domain: General Understanding, Knowledge-Centric, OCR & Charts, Vision-Centric, Multilingual, Text-Only, Safety, Hallucination, Reasoning.</p>
+
+<h2>3. Towards a Strong Baseline on DCVLM (Section 4)</h2>
+
+<p><strong>Base mixture (unless otherwise stated)</strong>: 75% image-caption, 18% text-only, 4% multimodal document, 3% instruction-tuning (length-proportional sampling).</p>
+
+<h3>3.1 Data Filtering (Section 4.1)</h3>
+
+<p><strong>실험 의도</strong>: 60+ filter configuration을 medium scale에서 테스트하여 quality-based filtering이 VLM 학습에서 유효한지 확인.</p>
+
+<p><strong>테스트된 filter family</strong>:</p>
+<ul>
+  <li><strong>CLIP-score filters</strong>: OpenAI CLIP ViT-L/14, DFN-CLIP, SigLIP-2-B/16@384</li>
+  <li><strong>Text quality classifiers</strong>: DCLM fastText, Nemotron-quality, Mixtral-educational quality</li>
+  <li><strong>Multimodal filters</strong>: UniFilter (Qwen2.5-1.5B, Qwen3-0.6B)</li>
+  <li><strong>Perplexity-based</strong>: text-only PPL (excluding image tokens), multimodal PPL (including image tokens), Conditional Mutual Information (difference between two)</li>
+</ul>
+
+<h4>Local vs Global filtering (두 filtering paradigm)</h4>
+<ul>
+  <li><strong>Local filtering</strong>: 각 source dataset 내에서 percentile threshold 독립 적용. Global mixture 보존.</li>
+  <li><strong>Global filtering</strong>: 전체 pool에서 하나의 threshold 적용. Score distribution이 dataset마다 다르므로 <em>implicit하게 mixture를 reshape</em>.</li>
+</ul>
+
+<p>Small scale에서는 top-10%, medium에서는 top-40% 유지 (smaller model이 more aggressive filter를 benefit한다는 prior evidence).</p>
+
+<h4>결과 (Figure 3)</h4>
+
+<div class="flow-diagram">Filter                             Local Δ    Global Δ
+Conditional MI                     -3.3       -5.1
+DCLM FastText                      -3.1       -
+UniFilter (Qwen2.5-1.5B)          -0.8       -1.7
+UniFilter (Qwen3-0.6B)             -0.9       -2.2
+Text-Only PPL                      -0.3       -0.7
+Multimodal PPL                     -0.3       -0.3
+NVIDIA Nemotron                    -0.3       -0.3
+NVIDIA Mixtral                    +0.1       -0.3
+OpenAI CLIP                        0.0       +0.6
+DFN-CLIP                           0.0       +0.3
+SigLIP-2                          +0.2       +0.8   ← 최고
+</div>
+
+<p><strong>결과 분석</strong>:</p>
+<ol>
+  <li><strong>어떤 filter도 no-filter baseline을 significant하게 능가하지 못한다</strong>. Best case인 SigLIP-2 global filtering도 <strong>+0.8pp</strong>만 (prior work 예상 대비 훨씬 작음).</li>
+  <li>Local vs Global filtering 결과가 <em>notably different</em>. Global filtering이 mixture를 reshape하므로 실질적 gain은 filtering이 아닌 implicit mixing change에서 유래 가능성 시사.</li>
+  <li>일부 filter (Conditional MI, DCLM FastText, UniFilter)는 오히려 <strong>성능 저해</strong>.</li>
+</ol>
+
+<h4>왜 filter가 도움이 안 되나? (Figure 4)</h4>
+<p>본 논문의 pool은 <em>이미 upstream curation</em>이 상당히 진행되었기 때문. 검증을 위해 저자들은:</p>
+<ul>
+  <li>Original pool에서 3개 sub-pool 생성 (25%, 65%, 100% "pre-filtered" data)</li>
+  <li>각 sub-pool에 additional CLIP-score filtering 적용</li>
+  <li>Small-scale gain 측정</li>
+</ul>
+
+<p><strong>결과</strong>: 25% pre-filtered일 때 downstream filter gain +2.4pp, 65%에서 +1.3pp, 100%에서 +0.6pp로 <strong>diminishing returns</strong>. Additional filter on top of already-curated data operates in a regime of diminishing returns.</p>
+
+<h3>3.2 Data Mixing (Section 4.2)</h3>
+
+<p><strong>실험 의도</strong>: Base mixture 위에서 filtering이 무효하다면, mixing 비율이 진짜 lever인지 검증.</p>
+
+<p>세 mixture를 image-caption ↔ instruction-tuning axis에서 비교 (text-only 15%, multimodal doc 5% 고정):</p>
+<ul>
+  <li><strong>Caption-heavy</strong>: 65% image-caption + 15% instruction-tuning</li>
+  <li><strong>Balanced</strong>: 40% image-caption + 40% instruction-tuning</li>
+  <li><strong>Instruction-heavy</strong>: 10% image-caption + 70% instruction-tuning</li>
+</ul>
+
+<p>3 model size (1B, 2B, 4B) × 3 token budget (6.25B, 12.5B, 25B) grid에서 평가.</p>
+
+<h4>Instruction-heavy mixtures scale better (Figure 5)</h4>
+
+<div class="flow-diagram">Model Size × Tokens        Best mixture
+1B × 6.25B                Caption-heavy (41.0) > Balanced (39.4) > Inst-heavy (37.1)
+1B × 25B                  Balanced (42.0) ~ Inst-heavy (41.6) > Caption-heavy (41.0)
+2B × 6.25B                Inst-heavy (48.4) ~ Balanced (48.1) > Caption-heavy (47.9)
+2B × 25B                  Inst-heavy (51.7) > Balanced (50.5) > Caption-heavy (50.0)
+4B × 6.25B                Balanced (52.5) ~ Caption-heavy (52.2) > Inst-heavy (51.8)
+4B × 25B                  Inst-heavy (55.8) > Balanced (54.8) > Caption-heavy (54.4)
+</div>
+
+<p><strong>Crossover 패턴</strong>: Instruction-heavy가 <em>1B×6.25B에서 worst</em>였다가 <em>4B×25B에서 best</em>가 된다. <strong>가장 가파른 scaling slope</strong>를 가진다.</p>
+
+<p><strong>Practical implication</strong>: ##Mixture rankings at small scale do not transfer to larger scales##. Small scale (1B×6.25B) 최적화만 하면 Caption-heavy를 선택해서 결국 Instruction-heavy가 우승하는 큰 scale의 최적을 <em>놓친다</em>. Scale-aware data curation이 필요.</p>
+
+<h4>Repeatability of instruction-tuning data (Table 2)</h4>
+<p><strong>Concern</strong>: Instruction-tuning dataset은 web-crawled image-caption 대비 훨씬 작음. 70% allocation은 token budget을 채우기 위한 extreme repetition을 요구할 수 있음.</p>
+
+<p>Medium scale에서 non-instruction 데이터 고정, instruction-tuning data를 2×, 4×, 8× subsample하여 repetition factor 유도:</p>
+
+<table>
+<tr><th>Configuration</th><th>Core Avg</th></tr>
+<tr><td>Instruction-heavy, unique (repetition ~1×)</td><td>51.7</td></tr>
+<tr><td>Instruction-heavy, ~2×</td><td>50.2</td></tr>
+<tr><td>Instruction-heavy, ~4×</td><td>49.8</td></tr>
+<tr><td>Instruction-heavy, ~8×</td><td>48.6</td></tr>
+<tr><td>Balanced (unique data)</td><td>50.9</td></tr>
+<tr><td>Caption-heavy (unique data)</td><td>50.3</td></tr>
+<tr><td>Base mix</td><td>48.8</td></tr>
+</table>
+
+<p><strong>분석</strong>: Repetition doubling마다 0.5~1.0% 감소. Instruction-heavy 2× repetition (50.2)이 여전히 Caption-heavy unique (50.3)와 대등. 4×에서도 base mix (48.8) 대비 상회 (49.8). ##8× 정도에서만 크게 저하 (48.6)##. Practical takeaway: <em>good mixture의 이득이 moderate data repetition의 비용을 압도한다</em>.</p>
+
+<h3>3.3 Control Experiments (Section 4.3)</h3>
+
+<h4>Pretraining results transfer post-SFT (Figure 6 left)</h4>
+<p><strong>Concern</strong>: SFT (Supervised Fine-Tuning)가 instruction-tuning data를 다시 쓰기 때문에, pretraining stage의 instruction-heavy mixture 이점이 사라지는가?</p>
+
+<p><strong>실험</strong>: 27개 pretrained checkpoint (3 mix × 3 model size × 3 token budget)을 두 SFT dataset (LLaVA-665K, Mammoth-VL-12M)으로 fine-tuning, 총 54 SFT run.</p>
+
+<p><strong>결과</strong>: Pearson $r=0.99$, Spearman $\rho=0.99$. <strong>Pretraining ordering이 완벽하게 보존</strong>. Pretraining-only metric으로 curation research 진행이 정당화됨.</p>
+
+<h4>Robust to LM initialization (Figure 6 right)</h4>
+<p>Qwen2.5-Base 대신 <strong>Qwen2.5-Instruct</strong>로 초기화해도 (3 mix × 3 token budget × 2B model), mixture ranking이 preserved. Pearson $r=0.97$. 특히 larger token budget에서 강한 일치.</p>
+
+<h2>4. Scaling Up: DCVLM-BASELINE (Section 5)</h2>
+
+<p>이 발견을 바탕으로 <strong>DCVLM-BASELINE</strong> mixture를 제안:</p>
+
+<div class="flow-diagram">- Image-Caption data:       10%
+- Multimodal Documents:      5%
+- Text-Only data:           15%
+- Instruction-Tuning data:  70%
+</div>
+
+<p>Medium/Large 스케일에서 최적. Small 스케일은 Caption-heavy가 실제 최적이지만 <em>simplicity</em>를 위해 통일 mixture 사용. 각 data type 내에서는 length-proportional sampling으로 sub-source 선택.</p>
+
+<h3>4.1 Baseline 비교 (Table 3)</h3>
+
+<p>비교 대상: <strong>LLaVA-OneVision-1.5</strong> (LLAVA-OV-1.5-Midtraining-85M), <strong>NEMOTRON-VL-2</strong>, <strong>FINEVISION</strong> (previous SoTA open pretraining dataset). Reference: InternVL 8B models.</p>
+
+<table>
+<tr><th>Method</th><th>Model</th><th>Tokens</th><th>Gen</th><th>Know</th><th>OCR</th><th>Vision</th><th>MTL</th><th>Text</th><th><strong>Core Avg</strong></th></tr>
+<tr><td colspan="9"><strong>small (1B × 6.25B)</strong></td></tr>
+<tr><td>LLaVA-OneVision-1.5</td><td>1B</td><td>6.25B</td><td>22.4</td><td>34.8</td><td>8.2</td><td>27.8</td><td>13.5</td><td>6.9</td><td>17.6</td></tr>
+<tr><td>Nemotron-VL-2</td><td>1B</td><td>6.25B</td><td>20.0</td><td>39.7</td><td>7.9</td><td>33.5</td><td>16.1</td><td>20.7</td><td>22.1</td></tr>
+<tr><td>FineVision</td><td>1B</td><td>6.25B</td><td>40.1</td><td>45.6</td><td>35.0</td><td>41.0</td><td>28.2</td><td>36.2</td><td>36.2</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>DCVLM-Baseline</strong></td><td>1B</td><td>6.25B</td><td>40.5</td><td>43.6</td><td>33.0</td><td>39.1</td><td>25.4</td><td>34.7</td><td><strong>36.5</strong></td></tr>
+<tr><td colspan="9"><strong>medium (2B × 25B)</strong></td></tr>
+<tr><td>FineVision</td><td>2B</td><td>25B</td><td>55.3</td><td>62.6</td><td>51.9</td><td>45.8</td><td>40.6</td><td>46.3</td><td>50.6</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>DCVLM-Baseline</strong></td><td>2B</td><td>25B</td><td>62.3</td><td>60.5</td><td>45.8</td><td>47.3</td><td>44.2</td><td>47.8</td><td><strong>51.7</strong></td></tr>
+<tr><td colspan="9"><strong>large (4B × 100B)</strong></td></tr>
+<tr><td>FineVision</td><td>4B</td><td>100B</td><td>59.0</td><td>70.7</td><td>58.9</td><td>39.1</td><td>45.1</td><td>51.2</td><td>54.2</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>DCVLM-Baseline</strong></td><td>4B</td><td>100B</td><td>68.4</td><td>67.6</td><td>54.1</td><td>57.2</td><td>50.9</td><td>53.8</td><td><strong>58.9</strong></td></tr>
+<tr><td colspan="9"><strong>x-large (8B × 200B)</strong></td></tr>
+<tr><td>FineVision</td><td>8B</td><td>200B</td><td>63.5</td><td>72.8</td><td>57.5</td><td>49.6</td><td>48.4</td><td>55.7</td><td>58.2</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>DCVLM-Baseline</strong></td><td>8B</td><td>200B</td><td>73.0</td><td>73.0</td><td>53.4</td><td>63.5</td><td>56.1</td><td>61.1</td><td><strong>63.6</strong></td></tr>
+<tr><td colspan="9"><em>Reference (closed data)</em></td></tr>
+<tr><td>InternVL-2.5-8B</td><td>8B</td><td>~98B</td><td>68.2</td><td>70.7</td><td>52.2</td><td>52.3</td><td>45.6</td><td>63.3</td><td>60.0</td></tr>
+<tr><td>InternVL-3-8B</td><td>8B</td><td>~200B</td><td>78.8</td><td>81.1</td><td>64.1</td><td>65.1</td><td>60.7</td><td>61.4</td><td>68.5</td></tr>
+<tr><td>InternVL-3.5-8B</td><td>8B</td><td>~250B</td><td>77.2</td><td>80.2</td><td>63.6</td><td>63.7</td><td>59.7</td><td>63.1</td><td>68.1</td></tr>
+</table>
+
+<p><strong>주요 결과</strong>:</p>
+<ul>
+  <li>vs FINEVISION gain은 scale에 따라 <strong>증가</strong>: small +0.3, medium +1.1, large +4.7, x-large +5.4pp</li>
+  <li>##4B model on DCVLM-BASELINE (100B tokens) ≈ 8B model on FINEVISION (200B tokens)## — 4× compute reduction</li>
+  <li>52-task Extended eval에서 x-large DCVLM-Baseline이 60.5% vs FINEVISION x-large 56.6% (+3.9pp)</li>
+  <li>Large-scale DCVLM-Baseline (Core 56.0)이 x-large FINEVISION과 거의 대등</li>
+</ul>
+
+<p><strong>Reference와의 차이</strong>: InternVL-3-8B(68.5)와 DCVLM-Baseline 8B(63.6)의 gap은 여전히 존재. 이는 InternVL의 <em>closed proprietary data</em> + 더 긴 학습(200-250B), post-training 등에서 유래. DCVLM은 open data & pretraining-only 실험이라는 constraint 하에서 SoTA.</p>
+
+<h2>5. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ol>
+  <li><strong>Systematic scale-aware benchmark</strong>: 4-scale ladder가 curation strategy의 scaling behavior를 명시적으로 검증한다. Data curation research에서 "small scale finding은 large scale로 transfer되지 않는다"는 것이 실증됨.</li>
+  <li><strong>1000+ 실험의 규모</strong>: Filter family(60+), mixture(3+), scale(4), post-SFT(54 run) — data curation 분야에서 매우 큰 규모의 controlled experiment.</li>
+  <li><strong>"Filtering ≠ Mixing" 원칙</strong>: Data-centric AI 담론을 filter 중심에서 mixture 중심으로 옮긴 명확한 evidence. 이 발견 자체가 향후 연구 방향에 실질적 영향.</li>
+  <li><strong>Pretraining→SFT transfer의 실증</strong>: $r=0.99$의 near-perfect correlation은 pretraining-only metric으로 data research를 진행하는 것을 정당화. 큰 SFT cost 없이 curation experiment 가능.</li>
+  <li><strong>Open release</strong>: 데이터 pool (160 datasets), evaluation suite (52 benchmarks), model checkpoint at 4 scales, experimental infrastructure. 재현 가능성과 후속 연구 확장성.</li>
+  <li><strong>Repeatability tolerance</strong>: Instruction-heavy가 8× repetition까지도 gracefully degrade한다는 실증적 결과는 실무자에게 매우 유용. Instruction dataset은 web crawl보다 작지만 repeat이 가능함을 보임.</li>
+</ol>
+
+<h3>약점 및 열린 질문</h3>
+<ol>
+  <li><strong>Vision encoder 고정의 제약</strong>: InternViT-300M만 사용. Vision encoder scaling이 data mixing 최적점에 영향을 미치는지에 대한 실험 없음. 다른 encoder (SigLIP, DINOv3 등)로 결과가 유지되는지 불확실.</li>
+  <li><strong>Data type의 4개 분류의 과단순화</strong>: "instruction-tuning"이 8개 capability(chart, OCR, math 등)를 포함한다. Instruction-heavy 이점이 특정 capability에 유래하는지 vs 전반적 diversity에 유래하는지 구분 없음.</li>
+  <li><strong>InternVL SoTA와의 큰 gap 미해명</strong>: InternVL-3-8B (68.5) vs DCVLM-Baseline 8B (63.6)의 4.9pp gap. Data mix 외에 어떤 요소가 이 gap을 만드는가? Vision encoder(InternViT), longer training, post-training이 각각 얼마나 기여하는지 breakdown 부재.</li>
+  <li><strong>Filter의 완전한 부재는 아님</strong>: SigLIP-2 global filter가 +0.8pp라는 통계적으로는 significant한 gain을 준다. "no significant improvement"라는 주장은 다소 강하며, +0.8pp가 large scale에서 얼마인지 확인 없음.</li>
+  <li><strong>Multimodal document의 낮은 비중 (5%)</strong>: MINT-1T 같은 대규모 interleaved document가 5%만 사용된 근거 부족. Recent 연구(예: Chameleon)에서 interleaved document의 중요성 강조 → 이 결과와 상반될 가능성.</li>
+  <li><strong>Language backbone의 종속성</strong>: Qwen2.5만 사용. Llama-3, Mistral 등 다른 backbone에서 mixture ranking이 유지되는지 확실치 않음 (Qwen2.5-Instruct도 Qwen family 내 variant).</li>
+  <li><strong>Reasoning benchmark의 상대적 소외</strong>: Reasoning, Safety, Hallucination이 Extended tier에만 포함. Core benchmark는 Reasoning이 없어 modern VLM의 핵심 능력(chain-of-thought, tool use)을 반영하지 못함.</li>
+  <li><strong>Compute cost의 심각성</strong>: x-large 실험 하나가 20,480 H100 hours. 이 규모의 benchmark를 다른 팀이 재현·확장할 수 있는지 실질적으로 의문. Open dataset은 공유했지만 실제 실험 재현은 대형 조직만 가능.</li>
+</ol>
+
+<h3>후속 연구 방향</h3>
+<ul>
+  <li>Data type의 fine-grained mixing (instruction-tuning sub-category 별 최적화)</li>
+  <li>Multimodal document의 역할 재검증</li>
+  <li>Vision encoder scaling과 data mix 상호작용</li>
+  <li>Multilingual과 low-resource language data의 curation</li>
+  <li>Post-training 시 curation strategy도 함께 최적화하는 unified data recipe</li>
+  <li>DCVLM benchmark를 활용한 다른 참가자의 결과 (competition 성격)</li>
+</ul>
+
+</div>
+
+<h2>6. Key Takeaways — 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>VLM 데이터 curation에서 filter는 죽었다, mix가 왕이다</strong>: Aggregation-based regime에서 quality filter는 marginal 이득만 준다. 대신 image-caption vs instruction-tuning 비율이 실질적 lever.</li>
+  <li><strong>Instruction-heavy mixture가 scale better</strong>: 4B×25B에서 55.8%, 8B×200B에서 63.6%. 큰 model + 긴 학습일수록 instruction-tuning 비중을 <strong>70%</strong>까지 올려야 한다.</li>
+  <li><strong>Small scale mixture ranking은 transfer되지 않는다</strong>: 1B×6.25B에서 Caption-heavy가 최적이지만 4B×25B에서는 Instruction-heavy가 최적. Curation 결정은 target scale의 sub-scale에서 실증해야 한다.</li>
+  <li><strong>Moderate repetition은 감수 가치 있음</strong>: Instruction data 4× repetition도 unique caption-heavy와 대등 (Core 49.8 vs 50.3). Instruction dataset의 크기 부족은 큰 barrier가 아님.</li>
+  <li><strong>Pretraining metric = post-SFT metric</strong>: Pearson $r=0.99$. Pretraining-only 실험으로 data research가 가능. SFT run 없이 curation strategy 비교.</li>
+  <li><strong>Backbone-agnostic finding</strong>: Qwen2.5-Base와 Qwen2.5-Instruct에서 mixture ranking 유지 ($r=0.97$). 초기화 선택이 data curation 결론에 영향 미미.</li>
+  <li><strong>DCVLM-Baseline은 open VLM 학습의 새 SoTA</strong>: 200B token / 8B model에서 Core-33 63.6%. Prior best open dataset FINEVISION 대비 +5.4pp. 후속 open VLM 연구의 default 데이터.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

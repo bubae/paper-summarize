@@ -1,0 +1,857 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LingBot-Vision — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, #065f46, #059669, #10b981);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #065f46; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #059669, #10b981); border-radius: 3px; }
+  section h3 { margin-top: 2rem; font-size: 1.2rem; color: #065f46; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #059669; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #059669, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #065f46; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #d1fae5; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #059669; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #059669; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #059669; padding: 0 0.4rem; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .top-link { text-align: right; padding: 1rem 1.5rem; }
+  .top-link a { color: #059669; text-decoration: none; font-weight: 500; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Ant Group (Robbyant) · 2026</div>
+  <h1>LingBot-Vision</h1>
+  <p class="subtitle">"AI가 세상의 <b>경계선</b>을 배우게 하자"<br>로봇이 세상을 정확히 보게 만드는 새로운 학습법</p>
+</div>
+
+<div class="container">
+
+<div class="top-link">
+  <a href="20260713_fu_lingbot.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="one-liner">
+  "AI에게 이미지를 대충 외우게 하지 말고,<br>
+  가장 어려운 곳(윤곽선)을 열심히 배우게 하자.<br>
+  그러면 로봇이 세상을 정확히 볼 수 있다."
+</div>
+
+<!-- ===== 배경지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 크게 <strong>다섯 가지</strong>를 먼저 알아야 합니다. Vision Foundation Model이 무엇인지, 왜 자율주행/로봇에는 부족한지, 그리고 이 논문의 핵심인 <strong>Boundary(경계) 아이디어</strong>가 무엇인지 순서대로 살펴봅니다.</p>
+  </div>
+
+  <h3>개념 1: Vision Foundation Model이란?</h3>
+  <p>ChatGPT처럼, 이미지에도 "만능 기초 모델"이 있습니다. 대표적으로 <strong>DINO, DINOv2, DINOv3, SigLIP, V-JEPA</strong>입니다. 이들은 대량의 이미지로 학습되어 다양한 task (분류, 검색, 세그멘테이션 등)에 활용됩니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Vision Foundation Model의 활용</text>
+
+      <!-- Foundation Model -->
+      <rect x="270" y="55" width="180" height="80" rx="12" fill="#059669"/>
+      <text x="360" y="90" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">Foundation Model</text>
+      <text x="360" y="115" font-size="11" fill="#fff" text-anchor="middle">(DINOv2, DINOv3, ...)</text>
+
+      <text x="360" y="150" font-size="11" fill="#475569" text-anchor="middle">↓ 여러 task에 활용</text>
+
+      <!-- Downstream tasks -->
+      <rect x="30" y="180" width="130" height="70" rx="8" fill="#dbeafe" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="95" y="205" font-size="11" font-weight="700" fill="#1976d2" text-anchor="middle">이미지 분류</text>
+      <text x="95" y="223" font-size="10" fill="#475569" text-anchor="middle">"이건 강아지"</text>
+
+      <rect x="175" y="180" width="130" height="70" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="240" y="205" font-size="11" font-weight="700" fill="#d97706" text-anchor="middle">세그멘테이션</text>
+      <text x="240" y="223" font-size="10" fill="#475569" text-anchor="middle">픽셀별 라벨링</text>
+
+      <rect x="320" y="180" width="130" height="70" rx="8" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5"/>
+      <text x="385" y="205" font-size="11" font-weight="700" fill="#7b1fa2" text-anchor="middle">깊이 추정</text>
+      <text x="385" y="223" font-size="10" fill="#475569" text-anchor="middle">거리 계산</text>
+
+      <rect x="465" y="180" width="130" height="70" rx="8" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="530" y="205" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">로봇 인식</text>
+      <text x="530" y="223" font-size="10" fill="#475569" text-anchor="middle">물체 조작</text>
+
+      <rect x="610" y="180" width="90" height="70" rx="8" fill="#fee2e2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="655" y="205" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">검색</text>
+      <text x="655" y="223" font-size="10" fill="#475569" text-anchor="middle">유사 이미지</text>
+
+      <!-- 연결선 -->
+      <line x1="360" y1="135" x2="95" y2="180" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+      <line x1="360" y1="135" x2="240" y2="180" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+      <line x1="360" y1="135" x2="385" y2="180" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+      <line x1="360" y1="135" x2="530" y2="180" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+      <line x1="360" y1="135" x2="655" y2="180" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+    </svg>
+    <div class="diagram-caption">Foundation model = "이미지 이해의 기초"를 제공하는 모델</div>
+  </div>
+
+  <h3>개념 2: Self-Supervised Learning (자기지도학습)</h3>
+  <p>Foundation model은 어떻게 학습될까? 사람이 라벨을 다는 것은 불가능하니 <strong>이미지 자체로부터 학습</strong>합니다. 이를 <strong>Self-Supervised Learning (SSL)</strong>이라 부릅니다. 대표적 방법이 <strong>Self-Distillation</strong>입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Self-Distillation의 원리 (Teacher-Student)</text>
+
+      <!-- Teacher -->
+      <rect x="30" y="60" width="200" height="100" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="130" y="90" font-size="14" font-weight="700" fill="#d97706" text-anchor="middle">Teacher</text>
+      <text x="130" y="112" font-size="11" fill="#475569" text-anchor="middle">(원본 이미지 봄)</text>
+      <text x="130" y="135" font-size="10" fill="#94a3b8" text-anchor="middle">EMA로 조금씩 업데이트</text>
+
+      <!-- 화살표 -->
+      <path d="M 230 110 Q 300 90, 370 110" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#arr)"/>
+      <defs>
+        <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+          <path d="M0,0 L8,3 L0,6" fill="#059669"/>
+        </marker>
+      </defs>
+      <text x="300" y="105" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">supervise</text>
+
+      <!-- Student -->
+      <rect x="370" y="60" width="200" height="100" rx="12" fill="#dbeafe" stroke="#1976d2" stroke-width="2"/>
+      <text x="470" y="90" font-size="14" font-weight="700" fill="#1976d2" text-anchor="middle">Student</text>
+      <text x="470" y="112" font-size="11" fill="#475569" text-anchor="middle">(가려진 이미지 봄)</text>
+      <text x="470" y="135" font-size="10" fill="#94a3b8" text-anchor="middle">gradient로 학습</text>
+
+      <!-- 원리 설명 -->
+      <rect x="30" y="190" width="640" height="110" rx="12" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="350" y="215" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">핵심 아이디어:</text>
+      <text x="350" y="240" font-size="11" fill="#475569" text-anchor="middle">"원본을 본 선생님(Teacher)의 답을, 가려진 이미지를 본 학생(Student)이 맞추도록 학습"</text>
+      <text x="350" y="265" font-size="11" fill="#475569" text-anchor="middle">이 과정에서 이미지의 <b>본질적 특징</b>을 학습하게 됨</text>
+      <text x="350" y="288" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">사람 라벨 없이 대량 이미지로 학습 가능</text>
+    </svg>
+    <div class="diagram-caption">Self-Distillation: 자기 자신의 예측을 target으로 학습</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 사수와 부사수 관계</div>
+    <p>사수(Teacher)가 문서 원본을 보고 요약을 만들면, 부사수(Student)는 <strong>구멍이 뚫린 문서</strong>를 보고도 사수의 요약을 예측해야 합니다. 이렇게 반복하면 부사수는 "구멍 부분을 채우려면 어떤 맥락을 봐야 하는가"를 자연스럽게 학습합니다.</p>
+  </div>
+
+  <h3>개념 3: 왜 기존 SSL은 로봇에 부족한가?</h3>
+  <p>기존 방법(DINO, DINOv2 등)은 "이 이미지가 무엇인가"(semantic)에 초점을 맞춥니다. 하지만 로봇/자율주행에는 "이 물체가 <strong>정확히 어디까지</strong>인가", "이 표면과 저 표면 사이의 <strong>정확한 경계</strong>"가 훨씬 중요합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Semantic vs Spatial 인식의 차이</text>
+
+      <!-- Semantic -->
+      <rect x="30" y="55" width="315" height="290" rx="12" fill="#dbeafe" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="187" y="85" font-size="14" font-weight="700" fill="#0d47a1" text-anchor="middle">Semantic (의미)</text>
+      <text x="187" y="110" font-size="11" fill="#475569" text-anchor="middle">"이건 강아지"</text>
+      <text x="187" y="130" font-size="11" fill="#475569" text-anchor="middle">"저건 자동차"</text>
+
+      <!-- Blob 형태 (경계 불분명) -->
+      <ellipse cx="187" cy="200" rx="80" ry="45" fill="#1976d2" opacity="0.4"/>
+      <ellipse cx="187" cy="200" rx="60" ry="35" fill="#1976d2" opacity="0.6"/>
+      <text x="187" y="205" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">"강아지"</text>
+
+      <text x="187" y="280" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">경계가 흐릿함</text>
+      <text x="187" y="300" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">"어디까지가 강아지지?"</text>
+      <text x="187" y="320" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 물체를 잡을 수 없음</text>
+
+      <!-- Spatial -->
+      <rect x="375" y="55" width="315" height="290" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="85" font-size="14" font-weight="700" fill="#059669" text-anchor="middle">Spatial (공간)</text>
+      <text x="532" y="110" font-size="11" fill="#475569" text-anchor="middle">"강아지의 정확한 윤곽"</text>
+      <text x="532" y="130" font-size="11" fill="#475569" text-anchor="middle">"바닥에서의 거리 = 2.3m"</text>
+
+      <!-- 명확한 윤곽 -->
+      <path d="M 490 180 Q 470 165, 480 200 Q 470 240, 500 245 Q 530 255, 560 245 Q 585 235, 580 200 Q 590 175, 570 175 Q 530 168, 490 180 Z"
+            fill="none" stroke="#059669" stroke-width="2.5"/>
+      <text x="532" y="215" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">"강아지"</text>
+      <line x1="480" y1="200" x2="450" y2="200" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="435" y="205" font-size="9" fill="#dc2626" text-anchor="middle">경계</text>
+
+      <text x="532" y="280" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">경계가 명확함</text>
+      <text x="532" y="300" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">"이 픽셀은 강아지에 포함"</text>
+      <text x="532" y="320" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 로봇이 정확히 잡을 수 있음</text>
+    </svg>
+    <div class="diagram-caption">기존 SSL은 "이게 뭐다"만 배움. 로봇은 "정확히 어디"를 알아야 함.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 사진 찍는 취미 vs 초상화 그리기</div>
+    <p>인스타그램용 사진 찍는 사람(기존 SSL)은 "이 사진에 뭐가 있는지"를 봅니다. 반면 초상화를 그리는 화가(LingBot-Vision)는 "얼굴과 배경의 <strong>정확한 경계</strong>, 광대의 선, 콧등의 굽어짐"까지 세밀하게 본 다음 그림을 그립니다. 로봇은 초상화가처럼 세상을 봐야 합니다.</p>
+  </div>
+
+  <h3>개념 4: Boundary(경계) — 이미지에서 가장 중요한 곳</h3>
+  <p>이미지에서 <strong>모든 픽셀이 똑같이 중요하지 않습니다</strong>. 하늘 한복판 픽셀은 주변만 봐도 알 수 있지만, 물체의 윤곽 픽셀은 <strong>절대 이웃 픽셀에서 복사</strong>할 수 없습니다. 이곳이 정보의 밀도가 가장 높습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Interior vs Boundary 픽셀의 정보량</text>
+
+      <!-- Sky background -->
+      <rect x="30" y="60" width="640" height="80" fill="#93c5fd"/>
+      <!-- Ground -->
+      <rect x="30" y="140" width="640" height="100" fill="#84cc16"/>
+
+      <!-- Object (car) -->
+      <rect x="280" y="130" width="180" height="55" rx="8" fill="#dc2626"/>
+      <circle cx="315" cy="185" r="15" fill="#1e293b"/>
+      <circle cx="425" cy="185" r="15" fill="#1e293b"/>
+
+      <!-- Interior 표시 -->
+      <circle cx="150" cy="100" r="8" fill="#fff" stroke="#1e293b" stroke-width="2"/>
+      <line x1="150" y1="108" x2="150" y2="180" stroke="#1e293b" stroke-width="1.5"/>
+      <text x="150" y="200" font-size="10" fill="#1e293b" text-anchor="middle" font-weight="700">Interior</text>
+      <text x="150" y="215" font-size="9" fill="#059669" text-anchor="middle" font-weight="700">이웃과 같음</text>
+      <text x="150" y="228" font-size="9" fill="#059669" text-anchor="middle">쉽게 복원 가능</text>
+
+      <!-- Boundary 표시 -->
+      <circle cx="280" cy="140" r="8" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+      <line x1="280" y1="148" x2="280" y2="255" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="280" y="275" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">Boundary</text>
+      <text x="280" y="290" font-size="9" fill="#dc2626" text-anchor="middle" font-weight="700">이웃과 다름 (자동차↔하늘)</text>
+
+      <!-- Interior 2 -->
+      <circle cx="370" cy="155" r="8" fill="#fff" stroke="#1e293b" stroke-width="2"/>
+      <text x="500" y="155" font-size="10" fill="#1e293b" font-weight="700">Interior (자동차 안)</text>
+      <text x="500" y="170" font-size="9" fill="#059669" font-weight="700">이웃 = 같은 자동차</text>
+    </svg>
+    <div class="diagram-caption">Boundary 픽셀은 정보 밀도가 가장 높다 (이웃으로 복원 불가)</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 신문 기사에서 헤드라인</div>
+    <p>신문 기사의 본문 한 문장을 지우면 앞뒤 문맥에서 대충 복원할 수 있습니다. 그러나 <strong>헤드라인이 지워지면 기사의 핵심을 잃습니다</strong>. 이미지에서 Boundary는 헤드라인과 같습니다. 정보 밀도가 가장 높은 곳입니다.</p>
+  </div>
+
+  <h3>개념 5: Masked Modeling — 학습의 핵심 기법</h3>
+  <p>Vision SSL의 표준 학습법은 <strong>Masked Modeling</strong>입니다. 이미지의 일부를 가리고 나머지로부터 복원하는 훈련. 문제는 <strong>어떤 부분을 가릴 것인가</strong>입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Random Masking vs Boundary Forcing</text>
+
+      <!-- Random Masking -->
+      <rect x="30" y="60" width="315" height="270" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="187" y="85" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">① Random Masking (기존)</text>
+
+      <!-- 이미지 grid -->
+      <g transform="translate(60, 105)">
+        <!-- 배경 -->
+        <rect x="0" y="0" width="240" height="140" fill="#93c5fd"/>
+        <rect x="0" y="80" width="240" height="60" fill="#84cc16"/>
+        <rect x="80" y="60" width="80" height="35" rx="4" fill="#dc2626"/>
+        <!-- Random mask 격자 -->
+        <g fill="#1e293b" opacity="0.8">
+          <rect x="20" y="20" width="30" height="30"/>
+          <rect x="100" y="10" width="30" height="30"/>
+          <rect x="180" y="30" width="30" height="30"/>
+          <rect x="40" y="90" width="30" height="30"/>
+          <rect x="170" y="110" width="30" height="30"/>
+        </g>
+      </g>
+
+      <text x="187" y="270" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">랜덤하게 mask</text>
+      <text x="187" y="290" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 하늘/땅 같은 쉬운 곳도 mask</text>
+      <text x="187" y="310" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 어려운 곳(경계)은 놓칠 수도</text>
+
+      <!-- Boundary Forcing -->
+      <rect x="375" y="60" width="315" height="270" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="85" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">② Boundary Forcing (본 논문)</text>
+
+      <!-- 이미지 grid -->
+      <g transform="translate(405, 105)">
+        <!-- 배경 -->
+        <rect x="0" y="0" width="240" height="140" fill="#93c5fd"/>
+        <rect x="0" y="80" width="240" height="60" fill="#84cc16"/>
+        <rect x="80" y="60" width="80" height="35" rx="4" fill="#dc2626"/>
+        <!-- Boundary mask (경계선 따라) -->
+        <g fill="#1e293b" opacity="0.8">
+          <!-- 자동차 윤곽 -->
+          <rect x="75" y="55" width="10" height="10"/>
+          <rect x="90" y="55" width="10" height="10"/>
+          <rect x="110" y="55" width="10" height="10"/>
+          <rect x="135" y="55" width="10" height="10"/>
+          <rect x="155" y="55" width="10" height="10"/>
+          <rect x="155" y="70" width="10" height="10"/>
+          <rect x="155" y="85" width="10" height="10"/>
+          <rect x="140" y="90" width="10" height="10"/>
+          <rect x="115" y="90" width="10" height="10"/>
+          <rect x="90" y="90" width="10" height="10"/>
+          <rect x="75" y="85" width="10" height="10"/>
+          <rect x="75" y="70" width="10" height="10"/>
+          <!-- 지평선 -->
+          <rect x="0" y="75" width="10" height="10"/>
+          <rect x="20" y="75" width="10" height="10"/>
+          <rect x="185" y="75" width="10" height="10"/>
+          <rect x="205" y="75" width="10" height="10"/>
+        </g>
+      </g>
+
+      <text x="532" y="270" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">경계선 위주로 mask</text>
+      <text x="532" y="290" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 가장 어려운 부분을 학습</text>
+      <text x="532" y="310" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">→ 진짜 공간 이해 능력 습득</text>
+    </svg>
+    <div class="diagram-caption">Boundary Forcing: "가장 정보 밀도 높은 곳"을 강제로 학습</div>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>LingBot-Vision의 핵심 아이디어</h2>
+
+  <div class="card card-accent">
+    <p>LingBot-Vision은 <strong>Masked Boundary Modeling</strong>이라는 새 학습법을 제안합니다. 세 가지 축이 있습니다: (1) 경계를 강제로 mask, (2) 경계를 categorical하게 표현, (3) 경계 자체를 자체 예측.</p>
+  </div>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">Teacher가 경계 예측</div>
+      <div class="step-desc">Online으로<br>boundary field 생성</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">경계 토큰 forcing</div>
+      <div class="step-desc">Student mask set에<br>경계 위치 강제 추가</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">Categorical 학습</div>
+      <div class="step-desc">경계를 K-bin<br>분류 문제로</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 4</div>
+      <div class="step-title">A-contrario 검증</div>
+      <div class="step-desc">가짜 경계 제거<br>깨끗한 target</div>
+    </div>
+  </div>
+
+  <h3>혁신 1: 경계를 native learning signal로 승격</h3>
+  <p>기존 SSL에서 경계는 <strong>학습의 부산물</strong>이었습니다. LingBot-Vision은 경계를 <strong>학습의 주 목표</strong>로 만듭니다. Teacher가 online에서 boundary field를 예측하고, 이 정보를 학습에 활용합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Boundary Field: 이미지의 모든 픽셀이 경계 정보를 저장</text>
+
+      <!-- Image -->
+      <rect x="30" y="60" width="180" height="150" fill="#e5e7eb"/>
+      <rect x="70" y="100" width="100" height="70" rx="5" fill="#dc2626"/>
+      <text x="120" y="230" font-size="11" fill="#1e293b" text-anchor="middle" font-weight="700">원본 이미지</text>
+
+      <!-- 화살표 -->
+      <text x="240" y="140" font-size="20" fill="#059669" font-weight="700">→</text>
+
+      <!-- Boundary field -->
+      <rect x="260" y="60" width="180" height="150" fill="#f8fafc" stroke="#059669" stroke-width="1.5"/>
+      <!-- Boundary lines -->
+      <rect x="300" y="100" width="100" height="70" fill="none" stroke="#dc2626" stroke-width="2"/>
+      <!-- 각 픽셀이 저장하는 정보 시각화 -->
+      <g stroke="#059669" stroke-width="0.5">
+        <line x1="320" y1="90" x2="320" y2="100"/>
+        <line x1="340" y1="85" x2="340" y2="100"/>
+        <line x1="360" y1="85" x2="360" y2="100"/>
+        <line x1="380" y1="90" x2="380" y2="100"/>
+        <line x1="290" y1="130" x2="300" y2="130"/>
+        <line x1="285" y1="150" x2="300" y2="150"/>
+      </g>
+      <text x="350" y="230" font-size="11" fill="#1e293b" text-anchor="middle" font-weight="700">Boundary Field</text>
+
+      <!-- Sample pixel 확대 -->
+      <text x="470" y="140" font-size="20" fill="#059669" font-weight="700">→</text>
+
+      <rect x="490" y="80" width="200" height="180" rx="8" fill="#f0fdf4" stroke="#059669" stroke-width="1.5"/>
+      <text x="590" y="105" font-size="12" font-weight="700" fill="#065f46" text-anchor="middle">각 픽셀이 저장하는 4-D 벡터</text>
+      <text x="510" y="135" font-size="10" fill="#475569">📏 d: 가장 가까운 경계까지 거리</text>
+      <text x="510" y="160" font-size="10" fill="#475569">🧭 θ: 경계로의 방향</text>
+      <text x="510" y="185" font-size="10" fill="#475569">📐 φ¹, φ²: 경계 양끝점 각도</text>
+      <text x="590" y="220" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">이 4개 값으로</text>
+      <text x="590" y="235" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">경계 선분 완전 표현</text>
+    </svg>
+    <div class="diagram-caption">Boundary Field: sparse한 경계를 dense한 field로 변환</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: GPS 신호와 도로 지도</div>
+    <p>휴대폰의 GPS는 자기 위치와 <strong>가장 가까운 도로까지의 거리·방향</strong>을 저장합니다. 여러 휴대폰의 이 정보를 합치면 도로 지도 전체를 복원할 수 있습니다. Boundary Field도 각 픽셀이 "가장 가까운 경계까지의 거리와 방향"을 저장하고, 여러 픽셀의 정보를 합쳐 경계선을 복원하는 방식입니다.</p>
+  </div>
+
+  <h3>혁신 2: Categorical Reparameterization — 회귀를 분류로</h3>
+  <p>거리, 각도 같은 <strong>연속값</strong>을 EMA teacher-student로 학습하면 collapse합니다. LingBot-Vision은 이 문제를 우아하게 해결합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Continuous Regression vs Categorical Classification</text>
+
+      <!-- Continuous -->
+      <rect x="30" y="55" width="315" height="230" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="187" y="85" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">Continuous (실패)</text>
+      <text x="187" y="115" font-size="11" fill="#475569" text-anchor="middle">거리 = 3.245 (실수)</text>
+      <text x="187" y="135" font-size="11" fill="#475569" text-anchor="middle">각도 = 47.3° (실수)</text>
+      <text x="187" y="165" font-size="11" fill="#475569" text-anchor="middle">↓ EMA teacher 학습</text>
+      <text x="187" y="200" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">Drift & Collapse</text>
+      <text x="187" y="225" font-size="10" fill="#94a3b8" text-anchor="middle">모든 값이 같은 곳으로 수렴</text>
+      <text x="187" y="245" font-size="10" fill="#94a3b8" text-anchor="middle">→ 학습 실패</text>
+
+      <!-- Categorical -->
+      <rect x="375" y="55" width="315" height="230" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="85" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">Categorical (성공)</text>
+      <text x="532" y="115" font-size="11" fill="#475569" text-anchor="middle">거리 3.245 → bin #16 (0-32)</text>
+      <text x="532" y="135" font-size="11" fill="#475569" text-anchor="middle">각도 47.3° → bin #4 (0-32)</text>
+      <text x="532" y="165" font-size="11" fill="#475569" text-anchor="middle">↓ 확률 분포로 학습</text>
+      <text x="532" y="200" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Stable & Effective</text>
+      <text x="532" y="225" font-size="10" fill="#94a3b8" text-anchor="middle">Semantic self-distillation과</text>
+      <text x="532" y="245" font-size="10" fill="#94a3b8" text-anchor="middle">동일한 안정성 machinery 상속</text>
+    </svg>
+    <div class="diagram-caption">회귀 → 분류 변환의 우아함: collapse 방지 + free validation</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 절대 온도 vs 온도 범주</div>
+    <p>날씨 앱에서 "온도 = 23.4°C"라고 말하는 것과 "온도는 '따뜻함' 범주"라고 말하는 것은 다릅니다. 후자는 대충의 범주만 맞으면 되므로 <strong>안정적이고 오차에 강합니다</strong>. LingBot-Vision도 정확한 실수 대신 32개 범주(bin) 중 하나로 표현하여 학습을 안정화합니다.</p>
+  </div>
+
+  <h3>혁신 3: Bootstrapping — 스크래치에서 경계 발견</h3>
+  <p>흥미로운 chicken-and-egg 문제가 있습니다. Teacher가 경계를 예측해야 학습이 시작되는데, 초기 상태에선 아직 학습이 안 됐으니 경계 예측이 잘 안됩니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">Finding 1: Corner Point만 있으면 경계 emerges</text>
+
+      <!-- Corner points -->
+      <rect x="30" y="60" width="200" height="200" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="130" y="85" font-size="12" font-weight="700" fill="#1e293b" text-anchor="middle">① Corner Points만</text>
+      <!-- Random dots -->
+      <circle cx="60" cy="110" r="4" fill="#dc2626"/>
+      <circle cx="180" cy="110" r="4" fill="#dc2626"/>
+      <circle cx="90" cy="200" r="4" fill="#dc2626"/>
+      <circle cx="180" cy="200" r="4" fill="#dc2626"/>
+      <circle cx="120" cy="150" r="4" fill="#dc2626"/>
+      <text x="130" y="245" font-size="10" fill="#94a3b8" text-anchor="middle">Corner 몇 개</text>
+
+      <text x="270" y="165" font-size="16" fill="#059669" font-weight="700">+</text>
+
+      <!-- Random field -->
+      <rect x="310" y="60" width="200" height="200" rx="8" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="410" y="85" font-size="12" font-weight="700" fill="#1e293b" text-anchor="middle">② 무작위 field</text>
+      <g stroke="#94a3b8" stroke-width="0.3">
+        <line x1="325" y1="95" x2="325" y2="255"/>
+        <line x1="345" y1="95" x2="345" y2="255"/>
+        <line x1="365" y1="95" x2="365" y2="255"/>
+        <line x1="385" y1="95" x2="385" y2="255"/>
+        <line x1="405" y1="95" x2="405" y2="255"/>
+        <line x1="425" y1="95" x2="425" y2="255"/>
+        <line x1="445" y1="95" x2="445" y2="255"/>
+        <line x1="465" y1="95" x2="465" y2="255"/>
+        <line x1="485" y1="95" x2="485" y2="255"/>
+        <line x1="315" y1="105" x2="505" y2="105"/>
+        <line x1="315" y1="125" x2="505" y2="125"/>
+        <line x1="315" y1="145" x2="505" y2="145"/>
+        <line x1="315" y1="165" x2="505" y2="165"/>
+        <line x1="315" y1="185" x2="505" y2="185"/>
+        <line x1="315" y1="205" x2="505" y2="205"/>
+        <line x1="315" y1="225" x2="505" y2="225"/>
+        <line x1="315" y1="245" x2="505" y2="245"/>
+      </g>
+      <text x="410" y="245" font-size="10" fill="#94a3b8" text-anchor="middle">아무 값이나</text>
+
+      <text x="540" y="165" font-size="16" fill="#059669" font-weight="700">=</text>
+
+      <!-- Coherent segments -->
+      <rect x="570" y="60" width="120" height="200" rx="8" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="630" y="85" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">경계 emerges!</text>
+      <line x1="580" y1="110" x2="680" y2="110" stroke="#059669" stroke-width="2"/>
+      <line x1="590" y1="200" x2="680" y2="200" stroke="#059669" stroke-width="2"/>
+      <line x1="620" y1="150" x2="680" y2="150" stroke="#059669" stroke-width="2"/>
+      <text x="630" y="245" font-size="10" fill="#059669" text-anchor="middle" font-weight="700">일관된 선분</text>
+    </svg>
+    <div class="diagram-caption">신기한 발견: Corner points만 있으면 랜덤 field로도 usable한 경계 emerge</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 점 잇기 그림</div>
+    <p>어릴 때 "점 잇기(dot-to-dot)" 그림을 그려봤을 것입니다. 점의 위치가 정해져 있으면 <strong>대충 이어도 인식 가능한 그림이 나옵니다</strong>. LingBot-Vision의 발견도 이와 같습니다: corner point만 있으면 그 사이의 자세한 정보는 부정확해도, 대충 이어붙여도 usable한 경계선을 얻을 수 있습니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>핵심 성과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">0.296</div>
+      <div class="label">NYUv2 RMSE ↓<br>(전체 1위)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">7×</div>
+      <div class="label">7B DINOv3보다<br>파라미터 적음</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">23×</div>
+      <div class="label">0.3B 학생이<br>7B teacher와 대등</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1/3</div>
+      <div class="label">DINOv3 대비<br>학습 sample 수</div>
+    </div>
+  </div>
+
+  <h3>Depth Estimation (깊이 추정)</h3>
+  <p>로봇이 물체까지의 거리를 정확히 재는 것은 조작에 필수. NYU-Depth v2에서 LingBot-Vision이 <strong>모든 크기 모델을 능가</strong>합니다.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>모델</th>
+        <th>파라미터</th>
+        <th>NYUv2 RMSE ↓</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DINOv3</td>
+        <td>7B</td>
+        <td>0.309</td>
+      </tr>
+      <tr>
+        <td>V-JEPA 2.1 ViT-G</td>
+        <td>2B</td>
+        <td>0.307</td>
+      </tr>
+      <tr>
+        <td>DINOv2</td>
+        <td>1B</td>
+        <td>0.372</td>
+      </tr>
+      <tr>
+        <td>SigLIP 2</td>
+        <td>1B</td>
+        <td>0.494</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>LingBot-Vision</td>
+        <td>1B</td>
+        <td>0.296 (최고!)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Video Object Segmentation (영상 객체 추적)</h3>
+  <p>영상에서 첫 프레임에 지정한 물체를 이후 프레임에서 추적. LingBot-Vision은 image로만 학습했음에도 <strong>video로 학습한 V-JEPA보다 잘합니다</strong>.</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>모델</th>
+        <th>파라미터</th>
+        <th>DAVIS</th>
+        <th>YouTube-VOS</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>DINOv3</td>
+        <td>7B</td>
+        <td>71.1</td>
+        <td>74.1</td>
+      </tr>
+      <tr>
+        <td>V-JEPA 2.1 (video로 학습)</td>
+        <td>1B</td>
+        <td>68.1</td>
+        <td>72.3</td>
+      </tr>
+      <tr>
+        <td>DINOv2</td>
+        <td>1B</td>
+        <td>63.9</td>
+        <td>65.6</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>LingBot-Vision (image로만 학습)</td>
+        <td>1B</td>
+        <td>70.0</td>
+        <td>73.5</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Data Scaling의 이점</h3>
+  <p>더 많은 데이터가 <strong>LingBot-Vision의 강점을 amplify</strong>합니다. DINOv2는 20M에서 saturate하지만 LingBot-Vision은 계속 개선.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#065f46" text-anchor="middle">데이터 규모에 따른 성능 (Depth Completion)</text>
+
+      <line x1="100" y1="280" x2="680" y2="280" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="100" y1="280" x2="100" y2="60" stroke="#1e293b" stroke-width="1.5"/>
+
+      <text x="390" y="310" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="700">Training Data 규모</text>
+      <text x="35" y="170" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="700" transform="rotate(-90, 35, 170)">정확도 (D_102) ↑</text>
+
+      <text x="90" y="285" font-size="10" fill="#64748b" text-anchor="end">0.65</text>
+      <text x="90" y="220" font-size="10" fill="#64748b" text-anchor="end">0.72</text>
+      <text x="90" y="155" font-size="10" fill="#64748b" text-anchor="end">0.78</text>
+      <text x="90" y="90" font-size="10" fill="#64748b" text-anchor="end">0.85</text>
+
+      <text x="200" y="298" font-size="10" fill="#64748b" text-anchor="middle">3M</text>
+      <text x="400" y="298" font-size="10" fill="#64748b" text-anchor="middle">20M</text>
+      <text x="600" y="298" font-size="10" fill="#64748b" text-anchor="middle">150M</text>
+
+      <!-- DINOv2 line -->
+      <polyline points="200,240 400,175 600,172" stroke="#1976d2" stroke-width="3" fill="none"/>
+      <circle cx="200" cy="240" r="5" fill="#1976d2"/>
+      <circle cx="400" cy="175" r="5" fill="#1976d2"/>
+      <circle cx="600" cy="172" r="5" fill="#1976d2"/>
+      <text x="620" y="167" font-size="11" fill="#1976d2" font-weight="700">DINOv2</text>
+      <text x="620" y="182" font-size="9" fill="#94a3b8">(saturate)</text>
+
+      <!-- LingBot-Vision line -->
+      <polyline points="200,245 400,140 600,90" stroke="#059669" stroke-width="3" fill="none"/>
+      <circle cx="200" cy="245" r="5" fill="#059669"/>
+      <circle cx="400" cy="140" r="5" fill="#059669"/>
+      <circle cx="600" cy="90" r="5" fill="#059669"/>
+      <text x="620" y="85" font-size="11" fill="#059669" font-weight="700">LingBot-Vision</text>
+      <text x="620" y="100" font-size="9" fill="#059669" font-weight="700">(계속 개선!)</text>
+
+      <text x="360" y="55" font-size="11" fill="#059669" text-anchor="middle" font-style="italic">→ 좋은 pretraining은 data scale에 amplify</text>
+    </svg>
+    <div class="diagram-caption">데이터가 늘어날수록 두 방법의 격차가 커진다</div>
+  </div>
+
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 SSL과의 차이</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>측면</th>
+        <th>기존 SSL (DINO, DINOv2 등)</th>
+        <th>LingBot-Vision</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Masking 방식</td>
+        <td>Random (내용 무관)</td>
+        <td>Boundary-forced (경계 강제 mask)</td>
+      </tr>
+      <tr>
+        <td>학습 목표</td>
+        <td>Semantic invariance</td>
+        <td>Semantic + Geometric (co-emerge)</td>
+      </tr>
+      <tr>
+        <td>Boundary 취급</td>
+        <td>학습의 부산물</td>
+        <td>Native learning signal</td>
+      </tr>
+      <tr>
+        <td>Dense feature 품질</td>
+        <td>Fragile at scale (Gram anchoring 등 필요)</td>
+        <td>Robust by design</td>
+      </tr>
+      <tr>
+        <td>모델 크기 (dense 최고)</td>
+        <td>7B (DINOv3)</td>
+        <td>1B (7× 절감)</td>
+      </tr>
+      <tr>
+        <td>학습 데이터</td>
+        <td>1.7B (DINOv3)</td>
+        <td>161M (10× 절감)</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>어디에 유용한가?</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="360" cy="200" r="60" fill="#059669"/>
+      <text x="360" y="195" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">LingBot</text>
+      <text x="360" y="215" font-size="11" fill="#fff" text-anchor="middle">Vision</text>
+
+      <g transform="translate(120, 80)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Robotics</text>
+        <text x="0" y="12" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Grasping</text>
+      </g>
+      <line x1="170" y1="105" x2="300" y2="175" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(600, 80)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">자율</text>
+        <text x="0" y="12" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">주행</text>
+      </g>
+      <line x1="550" y1="105" x2="420" y2="175" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(80, 240)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">AR/VR</text>
+      </g>
+      <line x1="135" y1="235" x2="300" y2="215" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(640, 240)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Depth</text>
+        <text x="0" y="12" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Camera</text>
+      </g>
+      <line x1="585" y1="235" x2="420" y2="215" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(200, 360)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Object</text>
+        <text x="0" y="12" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Tracking</text>
+      </g>
+      <line x1="240" y1="330" x2="330" y2="255" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(520, 360)">
+        <circle cx="0" cy="0" r="45" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">3D</text>
+        <text x="0" y="12" font-size="11" fill="#065f46" text-anchor="middle" font-weight="700">Reconstruction</text>
+      </g>
+      <line x1="480" y1="330" x2="390" y2="255" stroke="#059669" stroke-width="1.5" stroke-dasharray="3"/>
+    </svg>
+    <div class="diagram-caption">공간 이해가 필요한 모든 응용 (embodied AI, robotics 등)</div>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+  <div class="one-liner">
+    "Vision AI가 다음 단계로 나아가려면,<br>
+    <b>세상의 경계선</b>을 배워야 한다.<br>
+    그러면 로봇도 세상을 정확히 볼 수 있다."
+  </div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점 및 열린 문제</h2>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 1: 이미지 분류에서의 trade-off</h3>
+    <p>ImageNet-1K linear probing에서 LingBot-Vision (86.32%)이 DINOv2 (87.00%), DINOv3-7B (87.87%)보다 약간 뒤진다. Model capacity를 localized structure에 invest한 trade-off. Global recognition-heavy 응용에서는 다른 model이 유리할 수 있다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 2: Corner Point Detector의 blackbox</h3>
+    <p>Frozen single-block ViT를 corner detector로 사용하지만, 어떻게 학습되었는지 세부 설명 부족. 다른 domain (indoor vs outdoor, synthetic 이미지)에서 robust한지 미검증.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 3: Curved boundary 처리</h3>
+    <p>이미지 boundary를 straight line segment로 모델링. 곡선은 short segment의 chain으로 approximate하지만 이 approximation error가 downstream 성능에 미치는 영향 불분명.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 4: Ant Group 내부 데이터</h3>
+    <p>2B web image의 in-house pool 성격 불투명. 재현성과 fairness에 대한 우려. DINOv2/v3의 공개 데이터와 완전한 비교 어렵다.</p>
+  </div>
+
+</section>
+
+<div style="text-align:center; margin: 3rem 0;">
+  <a href="20260713_fu_lingbot.html" style="display: inline-block; padding: 1rem 2rem; background: #059669; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700;">전문가용 상세 요약 보기 →</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p><strong>LingBot-Vision: Vision Pretraining for Dense Spatial Perception</strong></p>
+  <p>Zelin Fu, Bin Tan, Changjiang Sun 외 · Ant Group · arXiv:2607.05247 · 2026</p>
+</div>
+
+</body>
+</html>

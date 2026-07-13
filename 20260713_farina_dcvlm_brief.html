@@ -1,0 +1,834 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DataComp-VLM — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, #b45309, #d97706, #f59e0b);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #b45309; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #d97706, #f59e0b); border-radius: 3px; }
+  section h3 { margin-top: 2rem; font-size: 1.2rem; color: #b45309; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #d97706; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #d97706, #f59e0b);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #d97706, #f59e0b); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #b45309; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fef3c7; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #d97706; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #d97706; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #d97706; padding: 0 0.4rem; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .top-link { text-align: right; padding: 1rem 1.5rem; }
+  .top-link a { color: #d97706; text-decoration: none; font-weight: 500; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">Farina et al. · 30+ institutions · 2026</div>
+  <h1>DataComp-VLM</h1>
+  <p class="subtitle">이미지+텍스트 이해 AI를 학습시키는 데이터,<br>어떻게 골라야 할까? 1000+ 실험으로 밝힌 답</p>
+</div>
+
+<div class="container">
+
+<div class="top-link">
+  <a href="20260713_farina_dcvlm.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="one-liner">
+  "요즘 AI 학습 데이터는 <b>골라내기(filter)</b>가 아니라<br>
+  <b>비율 조절(mix)</b>이 진짜 승부처.<br>
+  그리고 큰 모델일수록 '지시문 위주'로 섞어야 한다"
+</div>
+
+<!-- ===== 배경지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>이 논문을 이해하려면 크게 <strong>다섯 가지</strong>를 먼저 알아야 합니다. VLM이 무엇인지, 데이터가 왜 그렇게 중요한지, "Filtering vs Mixing"이 의미하는 게 무엇인지, 그리고 "Scaling Ladder"라는 실험 설계 방식입니다.</p>
+  </div>
+
+  <h3>개념 1: VLM(Vision-Language Model)이란?</h3>
+  <p>ChatGPT는 텍스트만 이해합니다. 반면 <strong>VLM</strong>은 이미지+텍스트를 동시에 이해합니다. 예를 들어 GPT-4V, Claude 3.5, Gemini 등이 VLM입니다. "이 사진에 뭐가 있어?" 같은 질문에 답할 수 있습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">VLM의 구조</text>
+
+      <!-- Input: Image -->
+      <rect x="30" y="60" width="120" height="80" rx="8" fill="#059669"/>
+      <text x="90" y="105" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">이미지 입력</text>
+      <text x="90" y="125" font-size="11" fill="#fff" text-anchor="middle">📷</text>
+
+      <!-- Vision Encoder -->
+      <line x1="150" y1="100" x2="180" y2="100" stroke="#059669" stroke-width="2"/>
+      <rect x="180" y="60" width="130" height="80" rx="8" fill="#dcfce7" stroke="#059669" stroke-width="2"/>
+      <text x="245" y="90" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">Vision Encoder</text>
+      <text x="245" y="108" font-size="10" fill="#059669" text-anchor="middle">(ViT)</text>
+      <text x="245" y="125" font-size="10" fill="#475569" text-anchor="middle">이미지 → 토큰</text>
+
+      <!-- Connector -->
+      <line x1="310" y1="100" x2="340" y2="100" stroke="#059669" stroke-width="2"/>
+      <rect x="340" y="70" width="110" height="60" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="395" y="95" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Connector</text>
+      <text x="395" y="115" font-size="10" fill="#475569" text-anchor="middle">(MLP)</text>
+
+      <!-- Text input -->
+      <rect x="30" y="180" width="120" height="60" rx="8" fill="#1976d2"/>
+      <text x="90" y="205" font-size="12" fill="#fff" text-anchor="middle" font-weight="700">텍스트 질문</text>
+      <text x="90" y="225" font-size="10" fill="#fff" text-anchor="middle">"이 사진은?"</text>
+
+      <line x1="150" y1="210" x2="180" y2="210" stroke="#1976d2" stroke-width="2"/>
+      <rect x="180" y="180" width="130" height="60" rx="8" fill="#dbeafe" stroke="#1976d2" stroke-width="2"/>
+      <text x="245" y="215" font-size="11" fill="#1e3a5f" text-anchor="middle" font-weight="700">Text Tokenizer</text>
+
+      <line x1="310" y1="210" x2="340" y2="210" stroke="#1976d2" stroke-width="2"/>
+
+      <!-- LLM backbone -->
+      <rect x="470" y="80" width="220" height="150" rx="12" fill="#4527a0"/>
+      <text x="580" y="140" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">LLM Backbone</text>
+      <text x="580" y="160" font-size="11" fill="#fff" text-anchor="middle">(Qwen2.5 등)</text>
+      <text x="580" y="185" font-size="10" fill="#fff" text-anchor="middle">이미지 토큰 + 텍스트</text>
+      <text x="580" y="200" font-size="10" fill="#fff" text-anchor="middle">함께 처리</text>
+
+      <!-- 연결선 -->
+      <line x1="450" y1="100" x2="470" y2="120" stroke="#059669" stroke-width="2"/>
+      <line x1="340" y1="210" x2="470" y2="180" stroke="#1976d2" stroke-width="2"/>
+
+      <!-- 출력 -->
+      <text x="360" y="290" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">→ "이 사진은 강아지와 공이 있는 정원입니다"</text>
+    </svg>
+    <div class="diagram-caption">VLM: Vision Encoder + Connector + LLM Backbone의 세 부분</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 통역이 있는 회의</div>
+    <p>VLM은 "이미지 전문가(Vision Encoder), 통역사(Connector), 최종 결정자(LLM)"가 있는 회의와 같습니다. 이미지 전문가가 사진을 보고 특징을 뽑아내고(토큰화), 통역사가 그것을 결정자의 언어로 바꾸고, 결정자가 텍스트 질문과 함께 종합해서 답변합니다.</p>
+  </div>
+
+  <h3>개념 2: 데이터가 왜 그렇게 중요한가?</h3>
+  <p>AI 성능은 크게 세 가지에 의해 결정됩니다: <strong>모델 구조, 학습 방법, 학습 데이터</strong>. 이 논문은 다른 두 개를 고정하고 <strong>오직 데이터만</strong> 변경하여 어떤 데이터가 좋은지 실험합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">AI 성능을 결정하는 3요소</text>
+
+      <rect x="30" y="60" width="200" height="160" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="130" y="90" font-size="14" font-weight="700" fill="#64748b" text-anchor="middle">① 모델 구조</text>
+      <text x="130" y="120" font-size="11" fill="#475569" text-anchor="middle">Transformer? Mamba?</text>
+      <text x="130" y="140" font-size="11" fill="#475569" text-anchor="middle">몇 층?</text>
+      <text x="130" y="175" font-size="12" fill="#64748b" text-anchor="middle" font-weight="700">✅ 고정</text>
+      <text x="130" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">(InternVL3 스타일)</text>
+
+      <rect x="260" y="60" width="200" height="160" rx="12" fill="#f8fafc" stroke="#94a3b8" stroke-width="1.5"/>
+      <text x="360" y="90" font-size="14" font-weight="700" fill="#64748b" text-anchor="middle">② 학습 방법</text>
+      <text x="360" y="120" font-size="11" fill="#475569" text-anchor="middle">Learning rate?</text>
+      <text x="360" y="140" font-size="11" fill="#475569" text-anchor="middle">Optimizer?</text>
+      <text x="360" y="175" font-size="12" fill="#64748b" text-anchor="middle" font-weight="700">✅ 고정</text>
+      <text x="360" y="195" font-size="10" fill="#94a3b8" text-anchor="middle">(AdamW, cosine LR)</text>
+
+      <rect x="490" y="60" width="200" height="160" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+      <text x="590" y="90" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">③ 학습 데이터</text>
+      <text x="590" y="120" font-size="11" fill="#475569" text-anchor="middle">어떤 데이터?</text>
+      <text x="590" y="140" font-size="11" fill="#475569" text-anchor="middle">어떤 비율?</text>
+      <text x="590" y="175" font-size="12" fill="#d97706" text-anchor="middle" font-weight="700">🎯 실험 대상</text>
+      <text x="590" y="195" font-size="10" fill="#b45309" text-anchor="middle">"이걸 최적화하자"</text>
+    </svg>
+    <div class="diagram-caption">Data-Centric 접근: 모델·방법 고정하고 데이터만 최적화</div>
+  </div>
+
+  <h3>개념 3: VLM의 데이터는 어떻게 생겼나?</h3>
+  <p>VLM 학습 데이터는 크게 <strong>4가지 종류</strong>가 섞여 있습니다. 각각 다른 목적을 갖습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">4가지 데이터 종류</text>
+
+      <rect x="30" y="60" width="315" height="150" rx="12" fill="#dbeafe" stroke="#1976d2" stroke-width="1.5"/>
+      <text x="187" y="88" font-size="13" font-weight="700" fill="#0d47a1" text-anchor="middle">① 이미지-캡션 쌍</text>
+      <text x="187" y="115" font-size="11" fill="#475569" text-anchor="middle">웹에서 크롤링한</text>
+      <text x="187" y="132" font-size="11" fill="#475569" text-anchor="middle">이미지+짧은 설명</text>
+      <text x="187" y="165" font-size="11" fill="#1976d2" text-anchor="middle" font-weight="700">예: LAION, DataComp-1B</text>
+      <text x="187" y="185" font-size="10" fill="#94a3b8" text-anchor="middle">"고양이 사진" — 저품질 다량</text>
+
+      <rect x="375" y="60" width="315" height="150" rx="12" fill="#dcfce7" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="88" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">② 멀티모달 문서</text>
+      <text x="532" y="115" font-size="11" fill="#475569" text-anchor="middle">웹사이트, PDF, 논문</text>
+      <text x="532" y="132" font-size="11" fill="#475569" text-anchor="middle">이미지+긴 텍스트 뒤섞임</text>
+      <text x="532" y="165" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">예: MINT-1T, OmniCorpus</text>
+      <text x="532" y="185" font-size="10" fill="#94a3b8" text-anchor="middle">교과서, 위키피디아 페이지 등</text>
+
+      <rect x="30" y="230" width="315" height="150" rx="12" fill="#f5f3ff" stroke="#7c3aed" stroke-width="1.5"/>
+      <text x="187" y="258" font-size="13" font-weight="700" fill="#7c3aed" text-anchor="middle">③ 텍스트 전용</text>
+      <text x="187" y="285" font-size="11" fill="#475569" text-anchor="middle">이미지 없는 순수 텍스트</text>
+      <text x="187" y="302" font-size="11" fill="#475569" text-anchor="middle">언어 능력 유지용</text>
+      <text x="187" y="335" font-size="11" fill="#7c3aed" text-anchor="middle" font-weight="700">예: FLAN, Numina-Math</text>
+      <text x="187" y="355" font-size="10" fill="#94a3b8" text-anchor="middle">수학 문제, 지식 QA 등</text>
+
+      <rect x="375" y="230" width="315" height="150" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="532" y="258" font-size="13" font-weight="700" fill="#d97706" text-anchor="middle">④ 지시문 튜닝 데이터</text>
+      <text x="532" y="285" font-size="11" fill="#475569" text-anchor="middle">질문-답변 형식</text>
+      <text x="532" y="302" font-size="11" fill="#475569" text-anchor="middle">이미지 기반</text>
+      <text x="532" y="335" font-size="11" fill="#d97706" text-anchor="middle" font-weight="700">예: 차트 QA, OCR, 수학</text>
+      <text x="532" y="355" font-size="10" fill="#94a3b8" text-anchor="middle">"이 차트에서 X 값은?" — 고품질 소량</text>
+    </svg>
+    <div class="diagram-caption">VLM은 이 4가지를 <b>어떻게 섞느냐</b>가 관건</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 학생의 학습 자료</div>
+    <p>학생이 시험공부할 때 (1) 사전 예문(image-caption), (2) 교과서 전체(멀티모달 문서), (3) 문제집(텍스트), (4) 기출문제(지시문 튜닝)를 모두 봅니다. 각각의 <strong>비율을 어떻게 잡을지</strong>가 학습 효율을 결정합니다. 이 논문은 "어떤 비율이 최선인가"를 묻습니다.</p>
+  </div>
+
+  <h3>개념 4: Filtering vs Mixing — 두 가지 다른 lever</h3>
+  <p>이 논문의 핵심 주장을 이해하려면 데이터 처리의 두 접근을 구분해야 합니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">Filtering vs Mixing</text>
+
+      <!-- Filtering -->
+      <rect x="30" y="60" width="315" height="290" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="187" y="85" font-size="14" font-weight="700" fill="#dc2626" text-anchor="middle">Filtering (골라내기)</text>
+
+      <!-- Before -->
+      <text x="187" y="115" font-size="11" fill="#475569" text-anchor="middle" font-weight="700">전체 pool:</text>
+      <g transform="translate(50, 125)">
+        <rect x="0" y="0" width="30" height="20" rx="3" fill="#dc2626"/>
+        <rect x="35" y="0" width="30" height="20" rx="3" fill="#dc2626"/>
+        <rect x="70" y="0" width="30" height="20" rx="3" fill="#dc2626"/>
+        <rect x="105" y="0" width="30" height="20" rx="3" fill="#059669"/>
+        <rect x="140" y="0" width="30" height="20" rx="3" fill="#dc2626"/>
+        <rect x="175" y="0" width="30" height="20" rx="3" fill="#059669"/>
+        <rect x="210" y="0" width="30" height="20" rx="3" fill="#dc2626"/>
+        <rect x="245" y="0" width="30" height="20" rx="3" fill="#059669"/>
+      </g>
+      <text x="187" y="170" font-size="10" fill="#94a3b8" text-anchor="middle" font-style="italic">품질 좋음(녹색) + 품질 나쁨(빨강)</text>
+
+      <text x="187" y="200" font-size="11" fill="#475569" text-anchor="middle">↓ CLIP-score, 텍스트 quality filter</text>
+
+      <text x="187" y="225" font-size="11" fill="#475569" text-anchor="middle" font-weight="700">필터링 후:</text>
+      <g transform="translate(120, 235)">
+        <rect x="0" y="0" width="30" height="20" rx="3" fill="#059669"/>
+        <rect x="35" y="0" width="30" height="20" rx="3" fill="#059669"/>
+        <rect x="70" y="0" width="30" height="20" rx="3" fill="#059669"/>
+      </g>
+
+      <text x="187" y="290" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">→ 이 논문의 결과:</text>
+      <text x="187" y="310" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">"별 효과 없음"</text>
+      <text x="187" y="330" font-size="10" fill="#94a3b8" text-anchor="middle">Best filter: +0.8pp만</text>
+
+      <!-- Mixing -->
+      <rect x="375" y="60" width="315" height="290" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="85" font-size="14" font-weight="700" fill="#059669" text-anchor="middle">Mixing (비율 조절)</text>
+
+      <!-- 파이차트 A -->
+      <text x="450" y="115" font-size="11" fill="#475569" text-anchor="middle" font-weight="700">Mix A (caption-heavy)</text>
+      <circle cx="450" cy="160" r="30" fill="#1976d2"/>
+      <path d="M 450 160 L 450 130 A 30 30 0 0 1 476 175 Z" fill="#d97706"/>
+      <path d="M 450 160 L 476 175 A 30 30 0 0 1 435 187 Z" fill="#7c3aed"/>
+      <text x="450" y="215" font-size="10" fill="#475569" text-anchor="middle">65% 이미지-캡션</text>
+
+      <!-- 파이차트 B -->
+      <text x="615" y="115" font-size="11" fill="#475569" text-anchor="middle" font-weight="700">Mix B (instruction-heavy)</text>
+      <circle cx="615" cy="160" r="30" fill="#d97706"/>
+      <path d="M 615 160 L 615 130 A 30 30 0 0 1 641 175 Z" fill="#1976d2"/>
+      <path d="M 615 160 L 641 175 A 30 30 0 0 1 605 188 Z" fill="#7c3aed"/>
+      <text x="615" y="215" font-size="10" fill="#475569" text-anchor="middle">70% 지시문</text>
+
+      <text x="532" y="260" font-size="11" fill="#475569" text-anchor="middle">↕ 서로 다른 mix로 실험</text>
+
+      <text x="532" y="290" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">→ 이 논문의 결과:</text>
+      <text x="532" y="310" font-size="12" fill="#059669" text-anchor="middle" font-weight="700">"진짜 lever!"</text>
+      <text x="532" y="330" font-size="10" fill="#94a3b8" text-anchor="middle">Instruction-heavy: +5.4pp</text>
+    </svg>
+    <div class="diagram-caption">이 논문의 핵심 발견: Filter는 죽었다, Mix가 왕이다</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 슈퍼마켓에서 재료 사기</div>
+    <p>1980년대에는 시장에서 <strong>썩은 재료</strong>를 골라내는 안목이 요리 실력을 좌우했습니다(Filtering). 그러나 요즘은 슈퍼마켓 재료가 이미 다 신선합니다. 이제는 <strong>어떤 재료를 얼마나 사서 섞을지</strong>(Mixing)가 요리를 결정합니다. VLM 데이터도 이미 curator들이 pre-filter를 해놓은 상태이기 때문에, 다시 filter를 걸어도 별로 안 좋아지는 것입니다.</p>
+  </div>
+
+  <h3>개념 5: Scaling Ladder — 작은 실험에서 큰 실험으로</h3>
+  <p>"작은 스케일 실험 결과가 큰 스케일에서도 성립한다"는 가정을 <strong>실증적으로 검증</strong>하기 위해 4단계 사다리를 설계했습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">4-Scale Ladder (Compute 8× 증가씩)</text>
+
+      <!-- Small -->
+      <rect x="60" y="240" width="120" height="60" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="120" y="265" font-size="12" font-weight="700" fill="#b45309" text-anchor="middle">Small</text>
+      <text x="120" y="285" font-size="10" fill="#475569" text-anchor="middle">1B × 6.25B tokens</text>
+      <text x="120" y="320" font-size="10" fill="#94a3b8" text-anchor="middle">80 H100 hrs</text>
+
+      <text x="205" y="275" font-size="20" fill="#d97706" text-anchor="middle">→</text>
+      <text x="205" y="290" font-size="9" fill="#d97706" text-anchor="middle">8×</text>
+
+      <!-- Medium -->
+      <rect x="230" y="220" width="120" height="80" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="290" y="250" font-size="12" font-weight="700" fill="#b45309" text-anchor="middle">Medium</text>
+      <text x="290" y="270" font-size="10" fill="#475569" text-anchor="middle">2B × 25B</text>
+      <text x="290" y="320" font-size="10" fill="#94a3b8" text-anchor="middle">640 hrs</text>
+
+      <text x="375" y="275" font-size="20" fill="#d97706" text-anchor="middle">→</text>
+      <text x="375" y="290" font-size="9" fill="#d97706" text-anchor="middle">8×</text>
+
+      <!-- Large -->
+      <rect x="400" y="190" width="120" height="110" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="460" y="230" font-size="12" font-weight="700" fill="#b45309" text-anchor="middle">Large</text>
+      <text x="460" y="255" font-size="10" fill="#475569" text-anchor="middle">4B × 100B</text>
+      <text x="460" y="320" font-size="10" fill="#94a3b8" text-anchor="middle">5,120 hrs</text>
+
+      <text x="545" y="275" font-size="20" fill="#d97706" text-anchor="middle">→</text>
+      <text x="545" y="290" font-size="9" fill="#d97706" text-anchor="middle">8×</text>
+
+      <!-- X-Large -->
+      <rect x="570" y="140" width="120" height="160" rx="8" fill="#fed7aa" stroke="#c2410c" stroke-width="2"/>
+      <text x="630" y="200" font-size="12" font-weight="700" fill="#9a3412" text-anchor="middle">X-Large</text>
+      <text x="630" y="225" font-size="10" fill="#475569" text-anchor="middle">8B × 200B</text>
+      <text x="630" y="320" font-size="10" fill="#94a3b8" text-anchor="middle">20,480 hrs</text>
+
+      <text x="360" y="90" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">💡 Small에서 얻은 결과가</text>
+      <text x="360" y="110" font-size="12" fill="#dc2626" text-anchor="middle" font-weight="700">Large에서도 유지되는가?</text>
+      <text x="360" y="130" font-size="11" fill="#dc2626" text-anchor="middle" font-style="italic">이 논문의 답: NO! (Mixture ranking이 crossover)</text>
+    </svg>
+    <div class="diagram-caption">4단계 스케일링 사다리로 curation 전략의 scaling behavior 검증</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 요리 대회의 규모별 예선</div>
+    <p>지역 예선(small)에서 우승한 메뉴가 <strong>전국 결선(x-large)에서도 우승한다는 보장이 없습니다</strong>. 오히려 지역 예선에서는 5등이었던 요리가 전국 결선에서 우승할 수 있습니다. 이 논문의 발견도 이와 같습니다: 작은 실험에서 낮았던 mixture가 큰 실험에서 최고가 되는 <strong>역전 현상(crossover)</strong>이 있습니다.</p>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>DCVLM의 핵심 아이디어</h2>
+
+  <div class="card card-accent">
+    <p>이 논문은 새 알고리즘이 아니라 <strong>새로운 실험 방법론</strong>을 제안합니다. 데이터 curation 전략을 공정하게 비교할 수 있는 벤치마크입니다.</p>
+  </div>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">Pool 구성</div>
+      <div class="step-desc">160 dataset<br>6T tokens</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">Data 큐레이션</div>
+      <div class="step-desc">Filter or Mix<br>하기</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">VLM 학습</div>
+      <div class="step-desc">4-scale<br>사다리</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 4</div>
+      <div class="step-title">평가</div>
+      <div class="step-desc">52 benchmark<br>9 domain</div>
+    </div>
+  </div>
+
+  <h3>발견 1: 필터링은 이제 안 통한다</h3>
+  <p>60개 이상의 filter 조합(CLIP-score, 텍스트 quality, multimodal filter 등)을 medium scale에서 테스트했지만 <strong>어느 것도 no-filter baseline을 significant하게 능가하지 못했습니다</strong>.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">Filter 성능 (vs no-filter baseline, medium scale)</text>
+
+      <line x1="80" y1="280" x2="680" y2="280" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="80" y1="60" x2="680" y2="60" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3"/>
+      <text x="65" y="65" font-size="10" fill="#94a3b8" text-anchor="end">+2</text>
+      <line x1="80" y1="170" x2="680" y2="170" stroke="#94a3b8" stroke-width="1"/>
+      <text x="65" y="175" font-size="10" fill="#94a3b8" text-anchor="end">0</text>
+      <line x1="80" y1="280" x2="680" y2="280" stroke="#94a3b8" stroke-width="1"/>
+      <text x="65" y="285" font-size="10" fill="#94a3b8" text-anchor="end">-6</text>
+
+      <!-- Bars (음수 = filter가 baseline보다 나쁨) -->
+      <!-- Conditional MI -->
+      <rect x="90" y="170" width="35" height="86" fill="#dc2626"/>
+      <text x="107" y="270" font-size="9" fill="#dc2626" text-anchor="middle">Cond MI</text>
+      <text x="107" y="165" font-size="9" fill="#dc2626" text-anchor="middle">-3.3</text>
+
+      <!-- DCLM FastText -->
+      <rect x="140" y="170" width="35" height="82" fill="#dc2626"/>
+      <text x="157" y="270" font-size="9" fill="#dc2626" text-anchor="middle">FastText</text>
+      <text x="157" y="165" font-size="9" fill="#dc2626" text-anchor="middle">-3.1</text>
+
+      <!-- UniFilter -->
+      <rect x="190" y="170" width="35" height="45" fill="#f59e0b"/>
+      <text x="207" y="270" font-size="9" fill="#f59e0b" text-anchor="middle">UniFilter</text>
+      <text x="207" y="165" font-size="9" fill="#f59e0b" text-anchor="middle">-1.7</text>
+
+      <!-- Multimodal PPL -->
+      <rect x="240" y="170" width="35" height="10" fill="#94a3b8"/>
+      <text x="257" y="270" font-size="9" fill="#94a3b8" text-anchor="middle">MM PPL</text>
+      <text x="257" y="165" font-size="9" fill="#94a3b8" text-anchor="middle">-0.3</text>
+
+      <!-- Text PPL -->
+      <rect x="290" y="170" width="35" height="15" fill="#94a3b8"/>
+      <text x="307" y="270" font-size="9" fill="#94a3b8" text-anchor="middle">Text PPL</text>
+      <text x="307" y="165" font-size="9" fill="#94a3b8" text-anchor="middle">-0.7</text>
+
+      <!-- Nemotron -->
+      <rect x="340" y="170" width="35" height="10" fill="#94a3b8"/>
+      <text x="357" y="270" font-size="9" fill="#94a3b8" text-anchor="middle">Nemotron</text>
+      <text x="357" y="165" font-size="9" fill="#94a3b8" text-anchor="middle">-0.3</text>
+
+      <!-- Mixtral -->
+      <rect x="390" y="167" width="35" height="3" fill="#059669"/>
+      <text x="407" y="270" font-size="9" fill="#059669" text-anchor="middle">Mixtral</text>
+      <text x="407" y="163" font-size="9" fill="#059669" text-anchor="middle">+0.1</text>
+
+      <!-- OpenAI CLIP -->
+      <rect x="440" y="150" width="35" height="20" fill="#059669"/>
+      <text x="457" y="270" font-size="9" fill="#059669" text-anchor="middle">CLIP</text>
+      <text x="457" y="145" font-size="9" fill="#059669" text-anchor="middle">+0.6</text>
+
+      <!-- DFN -->
+      <rect x="490" y="160" width="35" height="10" fill="#059669"/>
+      <text x="507" y="270" font-size="9" fill="#059669" text-anchor="middle">DFN</text>
+      <text x="507" y="155" font-size="9" fill="#059669" text-anchor="middle">+0.3</text>
+
+      <!-- SigLIP -->
+      <rect x="540" y="140" width="35" height="30" fill="#22c55e"/>
+      <text x="557" y="270" font-size="9" fill="#22c55e" text-anchor="middle">SigLIP-2</text>
+      <text x="557" y="135" font-size="9" fill="#22c55e" text-anchor="middle" font-weight="700">+0.8 (best)</text>
+
+      <text x="360" y="310" font-size="11" fill="#dc2626" text-anchor="middle" font-style="italic">Best filter도 +0.8pp만 → 기대 대비 매우 작음. 대부분은 baseline과 같거나 저하.</text>
+    </svg>
+    <div class="diagram-caption">모든 filter가 baseline 근처 → filter 시대는 끝났다</div>
+  </div>
+
+  <h3>발견 2: 데이터 혼합 비율 (Mixing)이 진짜 lever</h3>
+  <p>Image-caption과 instruction-tuning의 비율을 조절해봤습니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">Instruction-heavy가 Scale에 따라 최고가 되는 crossover</text>
+
+      <!-- 축 -->
+      <line x1="80" y1="270" x2="680" y2="270" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="80" y1="270" x2="80" y2="60" stroke="#1e293b" stroke-width="1.5"/>
+
+      <text x="380" y="300" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="700">Scale (모델 크기 × 토큰 예산)</text>
+      <text x="35" y="170" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="700" transform="rotate(-90, 35, 170)">Core Avg (%)</text>
+
+      <text x="70" y="270" font-size="10" fill="#64748b" text-anchor="end">35</text>
+      <text x="70" y="215" font-size="10" fill="#64748b" text-anchor="end">42.5</text>
+      <text x="70" y="160" font-size="10" fill="#64748b" text-anchor="end">50</text>
+      <text x="70" y="105" font-size="10" fill="#64748b" text-anchor="end">57.5</text>
+
+      <!-- X labels -->
+      <text x="150" y="290" font-size="10" fill="#64748b" text-anchor="middle">1B×6.25B</text>
+      <text x="300" y="290" font-size="10" fill="#64748b" text-anchor="middle">1B×25B</text>
+      <text x="450" y="290" font-size="10" fill="#64748b" text-anchor="middle">2B×25B</text>
+      <text x="600" y="290" font-size="10" fill="#64748b" text-anchor="middle">4B×25B</text>
+
+      <!-- Caption-heavy (빨간색) -->
+      <polyline points="150,240 300,220 450,225 600,190" stroke="#dc2626" stroke-width="2.5" fill="none"/>
+      <circle cx="150" cy="240" r="4" fill="#dc2626"/>
+      <circle cx="300" cy="220" r="4" fill="#dc2626"/>
+      <circle cx="450" cy="225" r="4" fill="#dc2626"/>
+      <circle cx="600" cy="190" r="4" fill="#dc2626"/>
+      <text x="620" y="180" font-size="10" fill="#dc2626" font-weight="700">Caption-heavy</text>
+
+      <!-- Balanced (녹색) -->
+      <polyline points="150,225 300,205 450,215 600,175" stroke="#059669" stroke-width="2.5" fill="none"/>
+      <circle cx="150" cy="225" r="4" fill="#059669"/>
+      <circle cx="300" cy="205" r="4" fill="#059669"/>
+      <circle cx="450" cy="215" r="4" fill="#059669"/>
+      <circle cx="600" cy="175" r="4" fill="#059669"/>
+      <text x="620" y="165" font-size="10" fill="#059669" font-weight="700">Balanced</text>
+
+      <!-- Instruction-heavy (파란색) -->
+      <polyline points="150,255 300,210 450,200 600,160" stroke="#1976d2" stroke-width="3" fill="none"/>
+      <circle cx="150" cy="255" r="5" fill="#1976d2"/>
+      <circle cx="300" cy="210" r="5" fill="#1976d2"/>
+      <circle cx="450" cy="200" r="5" fill="#1976d2"/>
+      <circle cx="600" cy="160" r="5" fill="#1976d2"/>
+      <text x="620" y="150" font-size="10" fill="#1976d2" font-weight="700">Instruction-heavy</text>
+
+      <!-- Crossover 화살표 -->
+      <text x="130" y="270" font-size="9" fill="#dc2626">Worst!</text>
+      <text x="600" y="145" font-size="9" fill="#1976d2" font-weight="700">Best!</text>
+    </svg>
+    <div class="diagram-caption">Instruction-heavy: 작은 스케일에서 꼴찌 → 큰 스케일에서 우승 (crossover)</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">비유: 아이 vs 어른의 학습법</div>
+    <p>초등학생(작은 모델)에게는 <strong>그림책과 짧은 설명</strong>(caption-heavy)이 효과적입니다. 그러나 대학생(큰 모델)은 <strong>기출문제 위주의 심화 학습</strong>(instruction-heavy)이 훨씬 낫습니다. 데이터 mix도 마찬가지로 <strong>모델의 지적 성숙도에 맞춰</strong> 조절해야 합니다.</p>
+  </div>
+
+  <h3>발견 3: Small scale의 결과는 Large로 이동하지 않는다</h3>
+  <p>1B×6.25B에서 Caption-heavy가 최적이었지만, 4B×25B에서는 Instruction-heavy가 최적. 이것은 데이터 curation 연구의 근본적 문제를 드러냅니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">"Scale-Aware Data Curation"의 필요성</text>
+
+      <rect x="30" y="60" width="315" height="160" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="187" y="85" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">잘못된 접근</text>
+      <text x="187" y="115" font-size="11" fill="#475569" text-anchor="middle">Small scale에서 최적을 찾고</text>
+      <text x="187" y="132" font-size="11" fill="#475569" text-anchor="middle">→ Large에 그대로 적용</text>
+      <text x="187" y="165" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">문제: Caption-heavy 선택</text>
+      <text x="187" y="185" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">→ 실제 최적(Inst-heavy) 놓침</text>
+
+      <rect x="375" y="60" width="315" height="160" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="532" y="85" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">이 논문의 권고</text>
+      <text x="532" y="115" font-size="11" fill="#475569" text-anchor="middle">여러 스케일에서 검증</text>
+      <text x="532" y="132" font-size="11" fill="#475569" text-anchor="middle">→ Trend 확인</text>
+      <text x="532" y="165" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">Scale-aware 결정</text>
+      <text x="532" y="185" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">→ Instruction-heavy 선택</text>
+    </svg>
+    <div class="diagram-caption">Curation은 여러 스케일에서 검증되어야 한다</div>
+  </div>
+
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>핵심 성과: DCVLM-Baseline</h2>
+
+  <div class="card card-accent">
+    <p>이 논문의 발견을 바탕으로 만든 <strong>DCVLM-BASELINE</strong> 데이터셋 mix가 이전 최고 open dataset을 크게 능가합니다.</p>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">+5.4pp</div>
+      <div class="label">FINEVISION 대비<br>(x-large)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">63.6%</div>
+      <div class="label">Core-33<br>8B×200B</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">4×</div>
+      <div class="label">Compute 절약<br>(4B ≈ 8B)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">70%</div>
+      <div class="label">Instruction<br>비중</div>
+    </div>
+  </div>
+
+  <h3>DCVLM-Baseline의 mix</h3>
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>데이터 종류</th>
+        <th>비율</th>
+        <th>역할</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Image-Caption</td>
+        <td>10%</td>
+        <td>웹 크롤 스타일의 기본 이미지 이해</td>
+      </tr>
+      <tr>
+        <td>Multimodal Documents</td>
+        <td>5%</td>
+        <td>PDF/논문 등 긴 문서 이해</td>
+      </tr>
+      <tr>
+        <td>Text-Only</td>
+        <td>15%</td>
+        <td>언어 능력 유지</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>Instruction-Tuning</td>
+        <td>70%</td>
+        <td>실제 사용자 질문에 답하는 능력</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>기존 최고 open dataset과의 비교</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="25" font-size="14" font-weight="700" fill="#b45309" text-anchor="middle">Core-33 성능 (Scale별)</text>
+
+      <line x1="80" y1="260" x2="680" y2="260" stroke="#1e293b" stroke-width="1.5"/>
+      <line x1="80" y1="260" x2="80" y2="60" stroke="#1e293b" stroke-width="1.5"/>
+
+      <text x="380" y="290" font-size="12" fill="#1e293b" text-anchor="middle" font-weight="700">Scale</text>
+
+      <text x="70" y="260" font-size="10" fill="#64748b" text-anchor="end">15</text>
+      <text x="70" y="210" font-size="10" fill="#64748b" text-anchor="end">30</text>
+      <text x="70" y="160" font-size="10" fill="#64748b" text-anchor="end">45</text>
+      <text x="70" y="110" font-size="10" fill="#64748b" text-anchor="end">60</text>
+      <text x="70" y="70" font-size="10" fill="#64748b" text-anchor="end">75</text>
+
+      <!-- Bar groups: small, medium, large, x-large -->
+      <g transform="translate(150, 0)">
+        <text x="0" y="278" font-size="10" fill="#64748b" text-anchor="middle">Small</text>
+        <rect x="-30" y="140" width="20" height="120" fill="#94a3b8"/>
+        <text x="-20" y="135" font-size="8" fill="#94a3b8" text-anchor="middle">FV 36.2</text>
+        <rect x="-5" y="138" width="20" height="122" fill="#d97706"/>
+        <text x="5" y="133" font-size="8" fill="#d97706" text-anchor="middle" font-weight="700">DCVLM 36.5</text>
+      </g>
+
+      <g transform="translate(300, 0)">
+        <text x="0" y="278" font-size="10" fill="#64748b" text-anchor="middle">Medium</text>
+        <rect x="-30" y="92" width="20" height="168" fill="#94a3b8"/>
+        <text x="-20" y="87" font-size="8" fill="#94a3b8" text-anchor="middle">FV 50.6</text>
+        <rect x="-5" y="88" width="20" height="172" fill="#d97706"/>
+        <text x="5" y="83" font-size="8" fill="#d97706" text-anchor="middle" font-weight="700">DCVLM 51.7</text>
+      </g>
+
+      <g transform="translate(450, 0)">
+        <text x="0" y="278" font-size="10" fill="#64748b" text-anchor="middle">Large</text>
+        <rect x="-30" y="80" width="20" height="180" fill="#94a3b8"/>
+        <text x="-20" y="75" font-size="8" fill="#94a3b8" text-anchor="middle">FV 54.2</text>
+        <rect x="-5" y="64" width="20" height="196" fill="#d97706"/>
+        <text x="5" y="59" font-size="8" fill="#d97706" text-anchor="middle" font-weight="700">DCVLM 58.9</text>
+      </g>
+
+      <g transform="translate(600, 0)">
+        <text x="0" y="278" font-size="10" fill="#64748b" text-anchor="middle">X-Large</text>
+        <rect x="-30" y="67" width="20" height="193" fill="#94a3b8"/>
+        <text x="-20" y="62" font-size="8" fill="#94a3b8" text-anchor="middle">FV 58.2</text>
+        <rect x="-5" y="49" width="20" height="211" fill="#d97706"/>
+        <text x="5" y="44" font-size="8" fill="#d97706" text-anchor="middle" font-weight="700">DCVLM 63.6</text>
+      </g>
+
+      <!-- Legend -->
+      <rect x="470" y="60" width="15" height="10" fill="#94a3b8"/>
+      <text x="490" y="70" font-size="10" fill="#475569">FineVision (prior best)</text>
+      <rect x="470" y="80" width="15" height="10" fill="#d97706"/>
+      <text x="490" y="90" font-size="10" fill="#475569">DCVLM-Baseline (ours)</text>
+    </svg>
+    <div class="diagram-caption">Gap이 scale에 따라 커진다: 0.3pp → 5.4pp</div>
+  </div>
+
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 접근과의 차이</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>측면</th>
+        <th>기존 접근</th>
+        <th>DCVLM</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>주요 lever</td>
+        <td>Quality filter (CLIP-score 등)</td>
+        <td>Data mixing 비율</td>
+      </tr>
+      <tr>
+        <td>Scale 검증</td>
+        <td>단일 스케일 실험</td>
+        <td>4-scale 사다리로 transfer 검증</td>
+      </tr>
+      <tr>
+        <td>평가 벤치마크</td>
+        <td>논문마다 다름 → fair comparison 어려움</td>
+        <td>표준화된 52-benchmark suite</td>
+      </tr>
+      <tr>
+        <td>재현성</td>
+        <td>Proprietary data → 재현 어려움</td>
+        <td>160 open dataset + 모든 checkpoint 공개</td>
+      </tr>
+      <tr>
+        <td>실험 규모</td>
+        <td>수 개~수십 개</td>
+        <td>1000+ controlled 실험</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>실무적 함의</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <circle cx="360" cy="160" r="60" fill="#d97706"/>
+      <text x="360" y="155" font-size="14" fill="#fff" text-anchor="middle" font-weight="700">DCVLM</text>
+      <text x="360" y="175" font-size="11" fill="#fff" text-anchor="middle">Insights</text>
+
+      <g transform="translate(120, 70)">
+        <circle cx="0" cy="0" r="45" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">VLM</text>
+        <text x="0" y="12" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Training</text>
+      </g>
+      <line x1="170" y1="95" x2="300" y2="145" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(600, 70)">
+        <circle cx="0" cy="0" r="45" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Data</text>
+        <text x="0" y="12" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Research</text>
+      </g>
+      <line x1="550" y1="95" x2="420" y2="145" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(80, 220)">
+        <circle cx="0" cy="0" r="45" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Open</text>
+        <text x="0" y="12" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Community</text>
+      </g>
+      <line x1="135" y1="205" x2="300" y2="175" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(640, 220)">
+        <circle cx="0" cy="0" r="45" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Scaling</text>
+        <text x="0" y="12" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Law</text>
+      </g>
+      <line x1="585" y1="205" x2="420" y2="175" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3"/>
+
+      <g transform="translate(360, 290)">
+        <circle cx="0" cy="0" r="45" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="-5" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Benchmark</text>
+        <text x="0" y="12" font-size="11" fill="#b45309" text-anchor="middle" font-weight="700">Standard</text>
+      </g>
+      <line x1="360" y1="245" x2="360" y2="220" stroke="#d97706" stroke-width="1.5" stroke-dasharray="3"/>
+    </svg>
+    <div class="diagram-caption">Data curation 연구의 새 표준</div>
+  </div>
+</section>
+
+<!-- ===== 한 줄 결론 ===== -->
+<section>
+  <div class="one-liner">
+    "요즘 데이터는 이미 신선하다.<br>
+    골라내지 말고, 잘 섞어라.<br>
+    그리고 스케일에 따라 레시피를 바꿔라."
+  </div>
+</section>
+
+<!-- ===== 한계점 ===== -->
+<section>
+  <h2>한계점 및 열린 문제</h2>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 1: Vision encoder 고정</h3>
+    <p>InternViT-300M만 사용. Vision encoder scaling이 mixing 결정에 미치는 영향은 미검증. 다른 encoder (SigLIP, DINOv3)에서 결과가 유지되는지 불확실.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 2: 상용 SoTA와의 여전한 gap</h3>
+    <p>InternVL-3-8B (Core 68.5) vs DCVLM-Baseline 8B (63.6) 사이 4.9pp gap 존재. 이 gap이 data mix 외에 vision encoder, post-training, longer training 중 어디서 오는지 breakdown 없음.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 3: Data type의 4개 분류가 과단순</h3>
+    <p>"Instruction-tuning"이 chart QA, OCR, math 등 8개 sub-capability를 포함. Instruction-heavy 이점이 특정 sub-type에서 오는지, 전반적 diversity에서 오는지 세밀한 분석 부족.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="color: #d97706; margin-top: 0;">한계 4: 재현 비용의 심각성</h3>
+    <p>X-large 실험 하나가 20,480 H100 hours. 이런 규모의 benchmark를 다른 팀이 실제로 재현·확장할 수 있는지 실질적으로 의문. 대형 조직만 활용 가능.</p>
+  </div>
+
+</section>
+
+<div style="text-align:center; margin: 3rem 0;">
+  <a href="20260713_farina_dcvlm.html" style="display: inline-block; padding: 1rem 2rem; background: #d97706; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 700;">전문가용 상세 요약 보기 →</a>
+</div>
+
+</div>
+
+<div class="footer">
+  <p><strong>DataComp-VLM: Improved Open Datasets for Vision-Language Models</strong></p>
+  <p>Matteo Farina et al. · 30+ institutions · arXiv:2606.28551 · 2026</p>
+</div>
+
+</body>
+</html>

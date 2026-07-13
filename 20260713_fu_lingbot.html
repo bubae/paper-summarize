@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LingBot-Vision: Vision Pretraining for Dense Spatial Perception</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>LingBot-Vision: Vision Pretraining for Dense Spatial Perception</h1>
+
+<p style="text-align:right;"><a href="20260713_fu_lingbot_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zelin Fu*, Bin Tan*, Changjiang Sun, Shaohui Liu, Kecheng Zheng, Yinghao Xu, Xing Zhu, Yujun Shen, Nan Xue† (Project Lead)</li>
+  <li><strong>소속</strong>: Ant Group (Robbyant)</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (Jul 6, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.05247">arXiv:2607.05247</a> · <a href="https://technology.robbyant.com/lingbot-vision">Website</a> · <a href="https://github.com/robbyant/lingbot-vision">GitHub</a> · <a href="https://huggingface.co/collections/robbyant/lingbot-vision">Checkpoints</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Modern visual foundation model (DINO, DINOv2, DINOv3, SigLIP, V-JEPA)은 semantic invariance를 최적화하기 때문에 <strong>dense spatial perception</strong> (depth 추정, edge/boundary 파악 등)에서 약하다. Robotics·embodied AI는 pixel 단위의 정확한 공간 이해를 요구하는데, 기존 SSL objective는 이를 <em>byproduct</em>로만 얻어 protective machinery (Gram anchoring, feature upsampler)가 계속 필요했다.</li>
+  <li><strong>해결</strong>: ##Masked Boundary Modeling##이라는 self-distillation paradigm 도입. Teacher가 online에서 <em>boundary field</em>(전 pixel마다 그 pixel이 boundary line-segment로부터의 거리·방향을 저장)를 예측하고, 이 boundary-bearing token들을 학생의 masked set에 <strong>강제로 포함</strong>시켜 "geometry로 routing된 mask"를 만든다. 여기에 <em>categorical reparameterization of boundary fields</em>로 continuous regression을 K-bin classification으로 변환하여 self-distillation의 stability를 상속받는다.</li>
+  <li><strong>왜 작동하는가</strong>: Boundary는 이미지에서 가장 information-dense한 위치. Interior token은 이웃에서 copy로 recover 가능하지만 boundary token은 반드시 surrounding context에서 geometry를 <em>재구성</em>해야 한다. Teacher의 own boundary prediction으로 masking을 routing하면 semantic reconstruction이 가장 취약한 곳(경계)에 정확히 well-posed geometric objective가 공급되어 semantic과 geometric representation이 <em>co-emerge</em>한다.</li>
+  <li><strong>비유</strong>: 미술 학생이 스케치를 배울 때 <strong>윤곽선을 정확히 잡는 것</strong>이 관건이다. 색칠은 나중에 배워도 되지만 윤곽이 틀리면 그림 전체가 무너진다. LingBot-Vision은 SSL 학습에서 "가장 어려운 곳(윤곽)을 가장 열심히 배우도록" 강제하는 것이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Boundary-centric SSL 패러다임</strong>: 기존 SSL은 boundary를 <em>output</em>으로 취급했다. 본 논문은 boundary를 <em>native learning signal</em>로 재정의. 인간 label, 외부 edge detector, pretrained backbone 없이 raw image에서 bootstrap.</li>
+  <li><strong>Masked Boundary Modeling</strong>: Teacher가 online에서 boundary field를 예측 → boundary-bearing token을 학생의 masked set에 forcing → geometry로 routed된 학습. Semantic self-distillation과 competitive하지 않고 <strong>co-emergent</strong>.</li>
+  <li><strong>Categorical Reparameterization of Boundary Fields</strong>: Continuous boundary field를 K-bin categorical distribution으로 discretize. Dense self-distillation의 collapse 방지 + a-contrario null hypothesis (uniform bin distribution)의 native connection.</li>
+  <li><strong>Free Boundary Validation</strong>: A-contrario theory로 uniform bin distribution이 "no boundary" 가정에 해당. Deviation from uniformity가 boundary strength의 principled measure를 free로 제공.</li>
+  <li><strong>Scaling: LingBot-Vision</strong>: 1B ViT-g/16 backbone, 161M curated 이미지 (DINOv2의 142M과 comparable, DINOv3의 1.7B보다 10× 작음). ##NYU-Depth v2 linear-probing 최고 RMSE 0.296##으로 7B DINOv3 (0.309), 2B V-JEPA 2.1 (0.307) 능가.</li>
+  <li><strong>Distillation family</strong>: ViT-L (300M), ViT-B (86M), ViT-S (21M) 학생. 0.3B 학생이 <strong>NYUv2에서 7B DINOv3와 동등</strong> (0.310 vs 0.309), ##23× 적은 파라미터##.</li>
+  <li><strong>LingBot-Depth 2.0</strong>: Encoder init을 LingBot-Vision으로 교체 + 3M → 150M training data scaling. 14 depth completion benchmark 중 대부분에서 leading performance. DINOv2 init 대비 hardest block-mask setting에서 개선폭이 <strong>data scaling과 함께 증가</strong> (washing out 대신).</li>
+</ol>
+
+<h2>1. Background</h2>
+
+<h3>1.1 Dense Spatial Perception이란?</h3>
+<p>Pixel-level의 spatial structure를 복원하는 task. Depth estimation (each pixel의 카메라로부터 거리), semantic segmentation (each pixel의 category), video object segmentation (temporal 일관성 있는 mask propagation), edge/boundary detection 등이 해당. Robotics, embodied AI, world model에서 필수.</p>
+
+<h3>1.2 SSL 계열의 Limitations</h3>
+
+<h4>Self-Distillation (DINO, iBOT, DINOv2, DINOv3)</h4>
+<p>Student ViT $f_\theta$와 EMA teacher $f_{\bar\theta}$가 있고 (momentum $\lambda$ toward 1으로 annealing):</p>
+$$\bar\theta \leftarrow \lambda \bar\theta + (1-\lambda) \theta \quad (1)$$
+
+<p><strong>Image-level distillation (DINO)</strong>: Projection head $h$로 class token을 C prototype 확률로 매핑. Teacher는 centering + sharpening.</p>
+$$\mathbf{p}^t = \text{softmax}\left(\frac{h_{\bar\theta}(\mathbf{z}^{\text{cls}}) - \mathbf{c}}{\tau_t}\right), \quad \mathbf{p}^s = \text{softmax}\left(\frac{h_\theta(\mathbf{z}^{\text{cls}})}{\tau_s}\right) \quad (2)$$
+
+$$\mathcal{L}_{\text{DINO}} = -\mathbf{p}^t(\mathbf{x}^{(1)})^\top \log \mathbf{p}^s(\mathbf{x}^{(2)}) \quad (3)$$
+
+<p>Temperature $\tau_t < \tau_s$ (teacher sharpening) + center $\mathbf{c}$ (EMA of teacher outputs, Sinkhorn-Knopp normalization)이 constant distribution collapse 방지.</p>
+
+<p><strong>Patch-level distillation (iBOT)</strong>: Student patch token subset $\mathcal{M} \subset \{1,\dots,N\}$을 mask하고 shared mask token으로 대체. Patch projection head $g$로:</p>
+$$\mathcal{L}_{\text{iBOT}} = -\frac{1}{|\mathcal{M}|} \sum_{i \in \mathcal{M}} \mathbf{q}_i^{t\top} \log \mathbf{q}_i^s, \quad \mathbf{q}_i = \text{softmax}\left(\frac{g(\mathbf{z}_i^p) - \mathbf{c}_{\text{iBOT}}}{\tau}\right) \quad (4)$$
+
+<h4>Random Masking의 정형적 결함</h4>
+<p>Mask $\mathcal{M} \sim p_{\text{mask}}(\cdot; r)$가 <strong>content-agnostic</strong>: token의 depiction과 무관하게 sample. 그런데 이미지에서 token의 <em>recovery 난이도</em>는 크게 다르다: flat homogeneous region의 token은 이웃으로부터 predictable, boundary를 straddle하는 token은 <em>irreducible structural information</em>을 담는다.</p>
+
+<h4>SSL 계열의 실용적 한계</h4>
+<ul>
+  <li><strong>DINOv2</strong>: Dense feature quality가 scale에서 fragile → per-token speckle</li>
+  <li><strong>DINOv3</strong>: Long training schedule에서 dense feature map이 degrade → <em>Gram anchoring</em>이라는 corrective mechanism 도입</li>
+  <li><strong>SigLIP 2</strong>: Language supervision이 whole-image 정보 위주 → dense prediction에서 blocky noise</li>
+  <li><strong>V-JEPA</strong>: JEPA는 pixel-level nuisance modeling 회피하지만 background bleed 문제</li>
+</ul>
+
+<h3>1.3 Boundary/Attraction Field Representation</h3>
+<p>Boundary detection의 classical 방법: Sobel, Canny operator부터 statistical detector (LSD)까지. 본 논문은 두 아이디어를 계승:</p>
+
+<ol>
+  <li><strong>A-contrario theory</strong> (Desolneux et al.): Structure는 structureless null model 하에서 unlikely할 때만 meaningful → 임의 threshold 없이 statistical validation.</li>
+  <li><strong>Attraction field / Boundary field</strong>: 각 pixel이 boundary segment로부터의 vectorized geometry (distance + orientation)를 저장 → dense supervision 신호. Sparse boundary detection → dense field representation.</li>
+</ol>
+
+<h3>1.4 Boundary Field의 구조 (Section 3.3, Figure 4)</h3>
+<p>Image boundaries를 straight line segment set $L = \{\ell_j\}_{j=1}^M$으로 모델링 (곡선은 short segment의 chain). 각 pixel $p$ near segment는 4-D attribute vector:</p>
+
+$$\mathbf{a}(p) = (d_p, \theta_p, \phi_p^1, \phi_p^2) \quad (7)$$
+
+<p>여기서:</p>
+<ul>
+  <li>$d_p$: nearest segment까지 거리</li>
+  <li>$\theta_p$: segment로의 direction</li>
+  <li>$\phi_p^1, \phi_p^2$: pixel $p$에서 본 segment endpoint 각도 (segment 위치 특정)</li>
+</ul>
+
+<p>Support region $S_\ell = \{p: d_p \leq \tau_d\}$의 여러 pixel이 <em>같은 segment</em>에 대한 정보를 저장 → <em>deliberately redundant</em>. Segment $L$은 support pixel의 vote aggregation으로 decode.</p>
+
+<p><strong>Why line segments over edge maps?</strong> Edge pixel은 individual filter response → arbitrary threshold. Line segment는 many support pixel로 뒷받침되는 single hypothesis → a-contrario null (uniform orientation)에 대해 statistically test 가능.</p>
+
+<h2>2. Boundary-centric Masked Representation Modeling</h2>
+
+<h3>2.1 Boundary-Forcing Masked Modeling (Section 3.2)</h3>
+
+<h4>Boundary token 정의</h4>
+<p>Teacher의 online boundary prediction (label 없이, Section 3.4)을 pixel map으로 rasterize. Token $i$가 boundary token일 조건: patch $i$ (예: $P \times P = 16 \times 16$) 안을 boundary line이 통과.</p>
+
+$$\mathcal{B} = \{i \in \{1,\dots,N\}: \text{predicted boundary intersects patch}(i)\} \quad (5)$$
+
+<p>Boundary map을 token grid에 max-pool하여 획득.</p>
+
+<h4>Boundary-forcing routing</h4>
+<p>$\mathcal{B}$를 학생의 random mask $\mathcal{M}$에 <em>강제로</em> 추가:</p>
+$$\mathcal{M}^+ = \mathcal{M} \cup \mathcal{B} \quad (6)$$
+
+<p>Every masked token은 semantic iBOT objective $\mathcal{L}_{\text{iBOT}}$를 받고, boundary token은 <strong>additionally</strong> categorical boundary objective $\mathcal{L}_{\text{bnd}}$를 받는다. Class token은 여전히 $\mathcal{L}_{\text{DINO}}$.</p>
+
+<h4>Why forcing works?</h4>
+<p>Boundary는 이미지의 least redundant region: interior token은 neighbor로 copy 가능하지만 <strong>boundary token은 context로만 recover</strong>. Forcing이 학생에게 "정확히 무엇을 free로 얻을 수 없는지"를 hide → surrounding context에서 boundary geometry 재구성 compelled.</p>
+
+<p>Semantic target이 두 region이 meet하는 곳에서 inherently ambiguous하므로 이 routing이 <strong>conventional masked modeling이 가장 취약한 곳</strong>에 well-posed objective 공급.</p>
+
+<h3>2.2 Categorical Reparameterization of Boundary Fields (Section 3.3)</h3>
+
+<p><strong>Continuous regression의 실패</strong>: Boundary field $\mathbf{a}(p)$를 $\ell_1$/$\ell_2$ loss로 직접 regression하면 teacher-student EMA loop에서 <em>drift and collapse</em>. Continuous target은 semantic branch의 centering·sharpening machinery를 exploit할 수 없기 때문.</p>
+
+<p><strong>Per-pixel classification으로 변환</strong>: 각 field channel의 range를 K bin으로 discretize. Boundary position $p$와 channel $c \in \{d, \theta, \phi^1, \phi^2\}$의 (validated) teacher value $a^c(p)$를 soft categorical label:</p>
+
+$$\bar y_k^c(p) \propto \exp\left(-\delta^c(k, a^c(p))^2 / \tau_\ell\right), \quad k = 1, \dots, K \quad (8)$$
+
+<p>여기서 $\delta^c$는 bin $k$의 center와 value $a^c(p)$ 사이 거리, $\tau_\ell$은 label temperature. Orientation channel $\theta$는 $2\pi$로 wrap하므로 bins는 circular이고 $\delta^\theta$는 arc distance. Label은 <em>narrow</em>(bin 몇 개만) — over-smoothing은 target을 uniform으로 밀어 신호를 지운다.</p>
+
+<p>Student의 boundary head는 채널별 distribution $\hat y^c(p)$ 예측:</p>
+$$\mathcal{L}_{\text{bnd}} = -\frac{1}{|\mathcal{B}|} \sum_{p \in \mathcal{B}} \sum_c \bar y^c(p)^\top \log \hat y^c(p) \quad (9)$$
+
+<h4>Categorical의 이점</h4>
+<ol>
+  <li><strong>Self-distillation의 stability 상속</strong>: Teacher distribution을 centering (Sinkhorn-Knopp normalized) + sharpening 후 student supervision → semantic self-distillation과 <em>동일한 collapse 방지 기제</em>. Bespoke regularizer 불필요.</li>
+  <li><strong>A-contrario null과의 native connection</strong>: "No boundary" null hypothesis = uniform bin distribution. Deviation from uniformity = <em>free</em> boundary strength measure (Number-of-False-Alarms, NFA).</li>
+  <li><strong>Non-boundary region의 자연스러운 처리</strong>: Non-boundary target은 simply uniform bin distribution → 별도 background class 불필요.</li>
+</ol>
+
+<h3>2.3 Online Generation of Boundary Targets (Section 3.4)</h3>
+
+<p><strong>Bootstrapping problem</strong>: ViT는 scratch initialization → 처음엔 valid boundary target 못 만듦. Self-distillation은 첫 step부터 target 필요 → chicken-and-egg.</p>
+
+<h4>Finding 1: Boundaries emerge from corner points (Section 3.2)</h4>
+<p>주요 관찰: <em>Sparse corner point가 주어지면, boundary field 값이 uniformly random이어도 corner-anchored line fragment로 decode된다</em>. Coherent line segment는 direction channel이 image gradient의 <em>parameter-free level-line orientation</em>으로 guided될 때 emerge. Corner point 없이는 decoding 실패.</p>
+
+<p>실증: Figure 3에서 두 이미지에 대해 corner point를 fix하고 boundary field value 5개 random draw. Bottom rows에서 field가 uniform random이어도 corner-anchored segment가 나오며 short and fragmented. Top rows에서 direction channel만 gradient orientation guided시 coherent, near-identical segment.</p>
+
+<h4>Voting redundancy로 인한 emergence</h4>
+<p>Segment는 support region의 many pixel이 same underlying segment에 vote → many weak vote aggregation은 noise에 robust. Field가 pixel-accurate하기 훨씬 전에 decoded geometry meaningful. Teacher는 student보다 <em>조금 나은 boundary predictor</em>면 usable signal 생성 (EMA update가 이를 보장).</p>
+
+<h4>Teacher-side pipeline (4단계)</h4>
+<ol>
+  <li>Global view에서 dense boundary field 예측</li>
+  <li>Frozen single-block ViT (corner-point detector)가 sparse corner point localize</li>
+  <li>Corner + field로 candidate segment $L$ set을 vote aggregation으로 decode (Section 3.3)</li>
+  <li>A-contrario test (Appendix B)로 unsupported segment 폐기 → validated segment를 clean target field $\mathbf{a}(\cdot)$로 re-render. <em>이 validated target</em>만이 student를 supervise.</li>
+</ol>
+
+<h4>Token-level head for a dense field</h4>
+<p>Boundary field는 sub-token resolution ($P \times P$ patch 내부의 각 pixel)이지만 backbone은 $P \times P$ patch당 하나의 feature 출력. Lightweight <em>boundary head</em>: 각 patch token을 small MLP로 처리, output을 $r \times r$ position tile (stride $s = P/r$, we use $s = 2$)로 expand & rearrange. 각 position feature는 $\ell_2$-normalized onto unit sphere, K learned bin prototype에 대해 채널별 score. Prototype: DINO projection head와 유사, bias-free linear layer with unit-normalized weight → logit은 cosine similarity로 by construction bounded. Teacher-student head 공유 (teacher는 EMA copy).</p>
+
+<h3>2.4 Training Objective (Section 3.5)</h3>
+
+<p>전체 loss:</p>
+
+$$\mathcal{L} = \mathcal{L}_{\text{DINO}} + \lambda_i \mathcal{L}_{\text{iBOT}} + \lambda_b \mathcal{L}_{\text{bnd}} + \lambda_k \mathcal{L}_{\text{KoLeo}} \quad (10)$$
+
+<ul>
+  <li>$\mathcal{L}_{\text{DINO}}$: view pair 간 class token distillation</li>
+  <li>$\mathcal{L}_{\text{iBOT}}$: $\mathcal{M}^+$ 전체 masked token에 대한 계산 (boundary token 포함)</li>
+  <li>$\mathcal{L}_{\text{bnd}}$: $\mathcal{B} \subset \mathcal{M}^+$의 boundary position에 대해서만 계산 → boundary token은 <em>dual supervision</em></li>
+  <li>$\mathcal{L}_{\text{KoLeo}}$ (weight $\lambda_k = 0.1$): batch 내 class token feature를 spread하는 regularizer</li>
+</ul>
+
+<p>모든 teacher quantity (semantic distribution + validated boundary target)은 stop-gradient. Local view는 image-level distillation만 supervise.</p>
+
+<h2>3. Proof of Concept on ImageNet-1K (Section 3.6)</h2>
+
+<p><strong>실험 의도</strong>: 스케일업 전에 각 design choice가 실제로 효과 있는지 small scale에서 격리 검증.</p>
+
+<p><strong>Setup</strong>: ViT-L/16을 ImageNet-1K로 pretrain. DINO+iBOT baseline과 identical config 하에서 비교. Probe: IN-1K $k$-NN classification (global semantics), NYU-Depth v2 linear probe (dense geometry).</p>
+
+<table>
+<tr><th>Variant</th><th>IN-1K k-NN top-1 ↑</th><th>NYUv2 δ₁ ↑</th><th>NYUv2 RMSE ↓</th></tr>
+<tr><td>DINO+iBOT baseline</td><td>81.6%</td><td>81.4%</td><td>0.474</td></tr>
+<tr><td>+ categorical boundary target (geometric only)</td><td>81.8%</td><td>84.4%</td><td>0.446</td></tr>
+<tr><td>+ dual supervision (iBOT loss on boundary tokens)</td><td>82.0%</td><td>84.7%</td><td>0.443</td></tr>
+<tr><td>+ RoPE backbone (final recipe)</td><td><strong>82.4%</strong></td><td><strong>84.9%</strong></td><td><strong>0.440</strong></td></tr>
+<tr><td>w/ boundary forcing, semantic target only</td><td>81.4%</td><td>81.2%</td><td>0.481</td></tr>
+</table>
+
+<h4>Ablation 분석</h4>
+<ul>
+  <li><strong>Categorical boundary target</strong>이 dense improvement의 대부분 (+3.0 δ₁, RMSE 0.474→0.446) 담당 → cost to classification 없음</li>
+  <li><strong>Dual supervision</strong>이 +0.2 k-NN, +0.3 δ₁ 추가 → semantic·geometric objective가 <em>complementary</em></li>
+  <li><strong>RoPE backbone</strong>: +0.4 k-NN, +0.2 δ₁ (backbone modernization, orthogonal)</li>
+  <li><strong>Boundary forcing만, semantic target only</strong>: baseline과 <em>동등 또는 약간 낮음</em> (δ₁ 81.2 vs 81.4) → mask는 <em>where</em> 결정, gain은 <em>what is reconstructed there</em>에서 유래</li>
+</ul>
+
+<p><strong>결론</strong>: Boundary supervision은 dense geometry에 gain, global semantic에 손실 없음. Semantic과 geometric objective가 <em>co-emerge</em>. 이 실험 결과가 scaling으로 그대로 transfer.</p>
+
+<h2>4. LingBot-Vision: Scaling (Section 4)</h2>
+
+<h3>4.1 Training Data Curation (Section 4.1)</h3>
+
+<p>DINOv2 curation pipeline follow, but on own data source. Uncurated side: in-house pool of ~2B web image. Curated side: open-source dataset을 seed로 사용 + query-based retrieval from uncurated pool. Seeds:</p>
+<ul>
+  <li>ImageNet-1k, ImageNet-21k</li>
+  <li>Google Landmarks v2 (GLDv2)</li>
+  <li>Mapillary-SLS</li>
+  <li>ADE20K, NYU-Depth v2, SUN-RGBD, Cityscapes, VOC 등 20+ downstream 관련 데이터</li>
+</ul>
+
+<p>Retrieval은 pretrained DINOv2 ViT-B로 image embedding 계산. Large seed: $k$-NN retrieval. Small seed: cluster-based retrieval. Deduplication 후 retrieved 부분 ~143M.</p>
+
+<p>총 corpus: <strong>160.75M 이미지</strong> (약 5/6가 retrieval-curated). ImageNet-21k (13.15M), ImageNet-1k (1.28M), GLDv2 clean split (1.58M), Mapillary-SLS (1.46M)이 as-is 포함.</p>
+
+<p><strong>DINOv2 (142M), DINOv3 (1.69B)와 비교</strong>: LingBot-Vision은 DINOv2와 comparable, DINOv3보다 <strong>1 order magnitude 작음</strong>. DINOv2/v3의 concept-rebalancing clustering이나 hierarchical curation 대신 <em>single retrieval encoder over 2B pool</em>. 그럼에도 LingBot-Vision이 dense task에서 능가 → gain이 pretraining objective에서 유래 (data advantage가 아님).</p>
+
+<h3>4.2 Distributed Training and Efficiency (Section 4.2)</h3>
+
+<h4>Sparse and fused boundary computation</h4>
+<p>Boundary head는 never densely run. Boundary token $\mathcal{B}$ (small fraction)만 sub-token resolution으로 unfold + bin prototype scoring. Head cost는 image size 아닌 boundary token 수와 scale. Soft label과 cross-entropy를 K bin over 4 channel로 naive하게 materialize하면 memory 지배 → four label construction (circular arc-distance channel 포함)과 categorical cross-entropy를 <em>single custom kernel</em>로 fuse.</p>
+
+<h4>Online target generation as batched GPU work</h4>
+<p>Teacher-side pipeline (Section 3.4)의 field decoding, corner-line pairing, a-contrario test, validated segment re-rendering을 모두 <em>batched CUDA kernel</em>로 end-to-end 구현. 두 stage 특별 주의:</p>
+<ul>
+  <li><strong>Corner-line pairing</strong>: Distance between corner point와 candidate segment endpoint를 pairwise 계산. Naïve materialization은 memory intensive → distance computation과 argmin reduction을 <strong>fuse</strong>, memory linear.</li>
+  <li><strong>A-contrario test of LSD</strong>: Sequential CPU design → reformulate as per-candidate reduction over support pixel → batch 내 모든 candidate segment 병렬 validate.</li>
+</ul>
+
+<p>Segment de-duplication을 CPU에서 하면 stall → host round-trip 완전 제거해야 target generation이 나머지 step과 clean하게 overlap. Final recipe에서 boundary target 생성이 total step time의 small fraction만 추가.</p>
+
+<h3>4.3 Implementation Details (Section 4.3)</h3>
+
+<p>DINOv3 stagging follow: long self-distillation pretraining → Gram-anchoring phase (late training에서 dense feature quality 회복) → short high-resolution adaptation.</p>
+
+<h4>Budget</h4>
+<ul>
+  <li>Pretraining: 300k iterations, global batch size 3072</li>
+  <li>Gram anchoring: 100k iterations</li>
+  <li>High-resolution adaptation: 100k iterations at 512px</li>
+  <li>Total: 500k iterations</li>
+  <li>DINOv3와 비교: 1M + 100k + 30k iterations at batch size 4096 → <strong>LingBot-Vision은 DINOv3 sample 수의 1/3 미만</strong></li>
+</ul>
+
+<h4>Backbone and heads</h4>
+<ul>
+  <li>Backbone: <strong>ViT-g/16, ~1.1B params</strong>, SwiGLU FFN, RoPE (fp32 computed), 4 register tokens</li>
+  <li>Boundary head (Section 3.4): 3-layer per-token MLP, head dim 512, output stride $s=2$, learnable tile positional embedding, $K=32$ bin per field channel</li>
+  <li>DINO & iBOT projection heads: DINOv2 스타일, separate iBOT head</li>
+  <li>Frozen corner-point detector: single-block ViT, backbone보다 orders of magnitude 작음</li>
+</ul>
+
+<h4>Pretraining hyperparams</h4>
+<ul>
+  <li>AdamW, base LR scales as $\sqrt{\text{bs}/1024}$, linear warmup, cosine decay</li>
+  <li>Weight decay: 0.04 → 0.2 (cosine)</li>
+  <li>Teacher temperature: 0.04 → 0.07 in first 30k iterations</li>
+  <li>EMA teacher momentum: 0.994 → 1.0</li>
+  <li>$\lambda_i = \lambda_b = 1$, $\lambda_k = 0.1$</li>
+  <li>Global crop 256px, local crop 112px</li>
+  <li>Stability: teacher target at non-boundary position은 <em>uniform random</em> label로 채움 (constant background value 대신) → trivial all-background solution 제거</li>
+</ul>
+
+<h4>Model distillation for efficiency</h4>
+<p>Flagship ViT-g 훈련 후 smaller backbone으로 distill: <strong>300M ViT-L, 86M ViT-B, 21M ViT-S</strong>. DINOv2/v3의 distillation practice follow: frozen ViT-g가 EMA teacher를 replace, smaller student는 semantic + boundary-aware representation 상속. Same iteration budget as pretraining stage per student. Gram-anchoring phase skip (frozen teacher에서 drift 안 일어남), high-resolution adaptation at 512px for 100k iterations. Global batch size 3072. Schedule은 DINOv3의 1M + 250k iterations at batch 4096보다 훨씬 짧음.</p>
+
+<h2>5. Results (Section 5)</h2>
+
+<h3>5.1 PCA of Patch Features (Section 5.1.1, Figure 6)</h3>
+<p>Frozen patch features의 top 3 PCA component를 RGB로 매핑. LingBot-Vision (rightmost)이 objects를 coherent, sharply bounded region으로 resolve: individual car & lane structure in traffic scene, hen silhouettes clean separated from wire fence, snake의 winding contour, marmot 주변의 flower stalk 등 fine structure. Baseline의 characteristic failure:</p>
+<ul>
+  <li>DINOv2: per-token speckle</li>
+  <li>SigLIP 2: blocky noise from salient objects</li>
+  <li>V-JEPA 2.1: background texture bleed</li>
+</ul>
+
+<h3>5.2 Linear Probing on Depth Estimation (Section 5.1.2, Table 2)</h3>
+
+<p>Single linear layer decoder, ViT backbone frozen. NYUv2 (RMSE↓), KITTI (RMSE↓).</p>
+
+<table>
+<tr><th>Method</th><th>Param</th><th>NYUv2 ↓</th><th>KITTI ↓</th></tr>
+<tr><td colspan="4"><strong>Models greater than 2B</strong></td></tr>
+<tr><td>Web-DINO</td><td>7B/14</td><td>0.466</td><td>3.158</td></tr>
+<tr><td>DINOv3</td><td>7B/16</td><td>0.309</td><td>2.346</td></tr>
+<tr><td>V-JEPA 2.1 ViT-G</td><td>2B/16</td><td>0.307</td><td>2.461</td></tr>
+<tr><td colspan="4"><strong>Models less than 2B</strong></td></tr>
+<tr><td>AM-RADIOv2.5</td><td>1B/14</td><td>0.340</td><td>2.918</td></tr>
+<tr><td>SigLIP 2</td><td>1B/16</td><td>0.494</td><td>3.273</td></tr>
+<tr><td>DINOv2</td><td>1B/14</td><td>0.372</td><td>2.624</td></tr>
+<tr><td>DINOv3 ViT-H+</td><td>0.8B/16</td><td>0.352</td><td>2.635</td></tr>
+<tr><td>V-JEPA 2.1 ViT-g</td><td>1B/16</td><td>0.350</td><td>2.601</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>LingBot-Vision ViT-g</strong></td><td>1B/16</td><td><strong>0.296</strong></td><td>2.552</td></tr>
+</table>
+
+<p><strong>결과 분석</strong>:</p>
+<ul>
+  <li>1B ViT-g/16 LingBot-Vision이 <strong>NYUv2 RMSE 0.296</strong>으로 전체 table 최고. 7B DINOv3 (0.309, 7× 큼)와 2B V-JEPA 2.1 (0.307, 2× 큼) 능가.</li>
+  <li>Same-scale competitor AM-RADIOv2.5 (0.340) 대비 <strong>13% lower</strong> RMSE.</li>
+  <li>DINOv3 ViT-H+ (0.352) 대비 <strong>16% lower</strong>, DINOv2 (0.372) 대비 <strong>20% lower</strong>.</li>
+  <li>KITTI에서는 2B 미만 모델 중 최고, 7B DINOv3 (2.346)과 2B V-JEPA 2.1 (2.461)에게만 뒤짐.</li>
+  <li>Patch size 16으로 이 결과 → patch-14 competitor보다 <strong>coarser token grid</strong>에서 달성.</li>
+</ul>
+
+<p><strong>Why it works</strong>: Depth는 surface interior에서 smooth하고 occlusion boundary에서 sharp하게 변한다. Linear decoder는 representation deficiency를 compensate 못 함 → boundary-oriented pretraining이 target하는 정확한 regime. Object interior가 coherent region에 매핑되고 transition이 crisp하게 유지되면 depth completion에서 큰 margin. NYUv2 (indoor)에서 margin이 KITTI (outdoor, road/sky 지배)보다 큼.</p>
+
+<h3>5.3 Semantic Segmentation Linear Probing (Section 5.1.3)</h3>
+<p>ADE20K, Cityscapes, VOC12에서 mIoU.</p>
+
+<table>
+<tr><th>Method</th><th>Param</th><th>ADE20K</th><th>Cityscapes</th><th>VOC12</th></tr>
+<tr><td>DINOv3</td><td>7B/16</td><td>55.9</td><td>81.1</td><td>86.6</td></tr>
+<tr><td>DINOv3 ViT-H+</td><td>0.8B/16</td><td>54.8</td><td>79.5</td><td>85.8</td></tr>
+<tr><td>DINOv2</td><td>1B/14</td><td>49.5</td><td>75.6</td><td>83.1</td></tr>
+<tr><td>PEspatial</td><td>2B/14</td><td>49.3</td><td>73.2</td><td>82.7</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>LingBot-Vision ViT-g</strong></td><td>1B/16</td><td>53.5</td><td>79.6</td><td>87.5</td></tr>
+</table>
+
+<p><strong>결과</strong>: DINOv3 ViT-H+ (7B teacher distilled)에 매우 가깝고 (ADE20K 53.5 vs 54.8), Cityscapes에서 match (79.6 vs 79.5), VOC12에서 lead (87.5 vs 85.8). DINOv2 (49.5 ADE20K) 대비 consistent +4 mIoU. Task-oriented post-training PEspatial 능가 (+4.2 mIoU ADE20K). DINOv3 family와의 gap 유일 (2.4 mIoU ADE20K vs 7B DINOv3).</p>
+
+<p><strong>강조</strong>: LingBot-Vision은 <em>single self-supervised objective from scratch</em>로 pretrain — strongest dense baseline은 7B teacher (DINOv3 ViT-H+)에서 distillation이나 task-oriented post-training (PEspatial)에 의존.</p>
+
+<h3>5.4 Video Understanding (Section 5.2)</h3>
+
+<h4>Video Object Segmentation (Table 3)</h4>
+<p>DAVIS-2017 & YouTube-VOS: training-free label propagation (first-frame GT mask를 top-$k$ attention over frozen patch features로 propagate). $\mathcal{J}\&\mathcal{F}$-Mean report.</p>
+
+<table>
+<tr><th>Method</th><th>Param</th><th>DAVIS-S</th><th>YT-VOS-S</th></tr>
+<tr><td>DINOv3</td><td>7B/16</td><td>71.1</td><td>74.1</td></tr>
+<tr><td>DINOv3 ViT-H+</td><td>0.8B/16</td><td>71.1</td><td>74.0</td></tr>
+<tr><td>DINOv2</td><td>1B/14</td><td>63.9</td><td>65.6</td></tr>
+<tr><td>V-JEPA 2.1 ViT-g</td><td>1B/16</td><td>68.1</td><td>72.3</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>LingBot-Vision ViT-g</strong></td><td>1B/16</td><td>70.0</td><td>73.5</td></tr>
+</table>
+
+<p><strong>결과</strong>: DINOv3 ViT-H+ (71.1, 74.0)와 on par. DINOv2 대비 same size에서 <strong>+6.1, +7.9 point</strong>. Video-pretrained V-JEPA 2.1 ViT-g가 1.9, 1.2 point trailing → <em>video training</em>이 아닌 boundary-oriented image pretraining이 temporal consistency에도 유리.</p>
+
+<h4>Boundary Token Tracking (Section 5.2.2, Figure 7)</h4>
+<p>세 다른 성격의 video에서 boundary-token query를 track: robot head camera (manipulation episode), 자체 촬영 cat video, home camera pan. 각 frame에서 cosine similarity를 boundary token에 매칭 (local window around previous position). Query feature는 best match로 update하되 first-frame template에 anchor. Fine-tuning/temporal supervision 없이 <em>drift 없이 appearance change 추적</em>.</p>
+
+<p>모든 regime에서 query lock in: robot의 gripper finger와 pitcher, cat의 head/flank query가 body 전체 turn 따라감, static window frame query는 그대로. Camera pan에서 large viewpoint change 견디고 re-entered plant re-acquire. Similarity response는 <em>selective</em>, 장면 전반으로 diffuse하지 않음.</p>
+
+<h3>5.5 Global and Dense Task Distilled Models (Section 5.3)</h3>
+
+<h4>ImageNet-1K Linear Probing (Table 4)</h4>
+<table>
+<tr><th>Model</th><th>IN-1K Linear</th><th>IN-1K k-NN</th></tr>
+<tr><td>LingBot-Vision (Ours)</td><td>86.32</td><td>83.39</td></tr>
+<tr><td>DINOv2</td><td>87.00</td><td>83.68</td></tr>
+<tr><td>DINOv3</td><td>87.87</td><td>85.68</td></tr>
+<tr><td>Franca</td><td>84.50</td><td>81.11</td></tr>
+<tr><td>SigLIP2</td><td>87.33</td><td>84.75</td></tr>
+</table>
+
+<p>ImageNet-1K linear에서 LingBot-Vision (86.32)는 DINOv2 (87.00), DINOv3-7B (87.87)에 약간 뒤짐. 이는 boundary-oriented pretraining이 model capacity를 <em>localized structure</em>에 invest하고 image-level invariance는 상대적으로 덜 emphasize하는 <em>trade-off</em>. Dense task에서의 우위가 이 trade-off의 justification.</p>
+
+<h4>Distilled Models Across Scales (Table 5)</h4>
+
+<table>
+<tr><th>Size</th><th>Model</th><th>IN1k Linear</th><th>NYU ↓</th><th>KITTI ↓</th><th>ADE</th><th>City</th></tr>
+<tr><td rowspan="4">L</td><td>DINOv2</td><td>86.43</td><td>0.411</td><td>3.243</td><td>48.63</td><td>74.51</td></tr>
+<tr><td>DINOv3</td><td>87.31</td><td>0.351</td><td>2.643</td><td>55.00</td><td>79.28</td></tr>
+<tr><td>SigLIP 2</td><td>85.67</td><td>0.516</td><td>3.641</td><td>42.99</td><td>62.51</td></tr>
+<tr style="background:#e8f5e9;"><td>LingBot-Vision</td><td>86.38</td><td><strong>0.310</strong></td><td><strong>2.574</strong></td><td>52.75</td><td>78.75</td></tr>
+<tr><td rowspan="4">B</td><td>DINOv2</td><td>84.27</td><td>0.429</td><td>3.416</td><td>48.25</td><td>77.30</td></tr>
+<tr><td>DINOv3</td><td>84.79</td><td>0.371</td><td>2.826</td><td>51.74</td><td>77.30</td></tr>
+<tr><td>V-JEPA 2.1</td><td>-</td><td>0.410</td><td>2.883</td><td>41.38</td><td>64.99</td></tr>
+<tr style="background:#e8f5e9;"><td>LingBot-Vision</td><td><strong>85.05</strong></td><td><strong>0.339</strong></td><td>2.793</td><td>51.44</td><td>77.17</td></tr>
+<tr><td rowspan="3">S</td><td>DINOv2</td><td>80.76</td><td>0.447</td><td>3.568</td><td>44.86</td><td>71.44</td></tr>
+<tr><td>DINOv3</td><td>80.37</td><td>0.405</td><td>2.851</td><td>46.51</td><td>73.38</td></tr>
+<tr style="background:#e8f5e9;"><td>LingBot-Vision</td><td><strong>82.22</strong></td><td><strong>0.383</strong></td><td>3.784</td><td>47.01</td><td>64.34</td></tr>
+</table>
+
+<p><strong>Insight</strong>:</p>
+<ul>
+  <li>Distilled family가 teacher의 profile을 <em>every size에서 preserve</em>.</li>
+  <li>ViT-L: DINOv2와 global accuracy 대등 (86.38 vs 86.43 linear)하면서 NYUv2 RMSE <strong>25% 감소</strong> (0.310 vs 0.411).</li>
+  <li>##0.3B student가 NYUv2 0.310으로 7B DINOv3 (0.309)와 대등## → <strong>23× 적은 파라미터</strong>.</li>
+  <li>ViT-B: linear 85.05가 이 size class 최고, depth 최고 (0.339 NYUv2, 2.793 KITTI).</li>
+  <li>ViT-S: linear probing (82.22), NYUv2 (0.383), ADE20K (47.01)에서 최고.</li>
+</ul>
+
+<h3>5.6 Encoder Initialization Study (Table 6)</h3>
+<p>Same MDM (masked depth modeling) pipeline을 different encoder init으로 훈련. Block-mask + sparse benchmark 8개 + Hammer + ClearGrasp + Lingbot 실제 sensor 캡처. LingBot-Vision init이 ViT-L과 ViT-g/16 대부분에서 leading. Depth completion이 정확히 object boundary와 material transition에서 uncertainty를 concentrate하는데, 이것이 LingBot-Vision의 boundary-anchored feature가 encode하는 정확한 structure.</p>
+
+<h3>5.7 Data Scaling (Figure 8)</h3>
+<p>MDM training data를 3M → 20M → 150M로 확대할 때 depth completion 개선. 두 initialization (LingBot-Vision, DINOv2) 모두 monotonically 개선하되 <strong>interchangeable하지 않음</strong>. 3M에서 tie ($D_{102}$ 0.692 vs 0.689). Scale increase 시 gap widens: DINOv2 curve가 20M에서 saturate (0.752 → 0.755), LingBot-Vision curve는 <strong>계속 개선</strong> (0.777 → 0.795). 즉 <strong>더 많은 데이터가 spatial-perception-native init의 이점을 amplify</strong>, wash out하지 않는다.</p>
+
+<h2>6. LingBot-Depth 2.0 (Section 6)</h2>
+
+<h3>6.1 Recap: LingBot-Depth 1.0</h3>
+<p>Depth completion을 <strong>Masked Depth Modeling (MDM)</strong>으로 formulate — MAE의 RGB-D variant. Key observation: commodity depth camera의 missing measurement는 noise가 아니라 <em>natural masking signal</em> — imaging이 어려운 곳(specular, transparent, textureless surface)에 concentrate. RGB frame과 raw depth map을 두 separate embedding layer로 patchify onto shared token grid. Depth token은 sensor validity에 따라 mask: fully invalid patch는 항상 mask, partially valid patch는 high probability로 mask, fully valid token은 target masking ratio 60-90%까지 random 추가. ViT-L encoder (DINOv2 initialized)가 full RGB + unmasked depth token을 jointly embed. Decoder는 latent depth token을 discard하고 contextual token alone에서 full-resolution depth map reconstruct.</p>
+
+<h3>6.2 Two Important Tweaks</h3>
+
+<h4>Spatial-perception-native encoder</h4>
+<p>Encoder init을 DINOv2 ViT-L/14에서 <strong>LingBot-Vision ViT-L/16 or ViT-g/16</strong>으로 교체. Table 6에서 격리 검증: same MDM pipeline이라도 LingBot-Vision init이 hardest block-mask pattern에서 largest gain (DIODE-Indoor 0.094 vs 0.152 RMSE against DINOv2). ViT-g scale에서도 유지 (0.083 vs 0.118 on DIODE-Indoor).</p>
+
+<h4>Scaling the curated data</h4>
+<p>3M → 150M RGB-D. 다른 것 그대로 두고 encoder init과 data scale만 upgrade.</p>
+
+<h3>6.3 Benchmarking (Section 6.3, Tables 7 & 8)</h3>
+
+<h4>Depth completion on masking patterns (Table 8)</h4>
+
+<table>
+<tr><th></th><th colspan="4">Block Mask</th><th colspan="4">Sparse</th></tr>
+<tr><th>Method</th><th>DIODE-In</th><th>DIODE-Out</th><th>Ibims-1</th><th>NYU</th><th>VOID</th><th>Ibims-1</th><th>NYU</th><th>ETH3D</th></tr>
+<tr><td>LingBot-Depth 1.0</td><td>0.132</td><td>3.404</td><td>0.188</td><td>0.117</td><td>0.199</td><td>0.155</td><td>0.143</td><td>0.368</td></tr>
+<tr style="background:#e8f5e9;"><td><strong>LingBot-Depth 2.0</strong></td><td><strong>0.062</strong></td><td><strong>2.440</strong></td><td>0.138</td><td>0.116</td><td>0.170</td><td>0.131</td><td>0.113</td><td>0.522</td></tr>
+<tr><td>LingBot-Depth 2.0 (ViT-g)</td><td>0.060</td><td>2.298</td><td>0.114</td><td>0.114</td><td>0.174</td><td>0.124</td><td>0.113</td><td>0.476</td></tr>
+</table>
+
+<p><strong>결과</strong>: 8 configuration 중 <strong>7개에서 LingBot-Depth 2.0이 최고</strong>. Hardest block-mask에서 이전 버전 대비 극적 개선:</p>
+<ul>
+  <li>DIODE-Indoor: 0.132 → <strong>0.062</strong> (RMSE halved)</li>
+  <li>DIODE-Outdoor: 3.404 → 2.440 (28% 감소)</li>
+</ul>
+
+<p><strong>External baseline과 비교</strong>: CDMs, OMNI-DC, Any2Full, PriorDA — 각자 preferred regime 내에서만 강함. LingBot-Depth 2.0은 <em>consistent across both</em>. Real sensor (Table 7): 8 camera configuration 중 6개에서 최고, transparent object ClearGrasp에서 특히 강함 (0.010, 0.012 RMSE).</p>
+
+<h2>7. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ol>
+  <li><strong>이론적으로 우아한 formulation</strong>: A-contrario theory와 categorical reparameterization의 결합은 이론적 근거가 명확. Uniform distribution = null hypothesis라는 principled 연결이 boundary validation을 free로 제공.</li>
+  <li><strong>Bootstrap 문제의 elegant solution</strong>: Finding 1 (boundaries emerge from corner points)이 heuristic처럼 보이지만 실제로는 voting redundancy의 심오한 성질. Untrained network에서도 usable boundary field 획득의 이론적 근거 제공.</li>
+  <li><strong>Efficient scaling</strong>: DINOv3 sample 수의 1/3, DINOv3 data pool의 1/10로 대등하거나 능가하는 성능. Pretraining objective 자체의 개선이 data scale이나 model size를 압도할 수 있음을 보임.</li>
+  <li><strong>Task diversity</strong>: Depth (linear probing), segmentation (linear probing), video object segmentation (training-free), boundary tracking (training-free), depth completion 등 광범위한 dense task에서 일관된 강점.</li>
+  <li><strong>Distillation transfer</strong>: 0.3B student가 7B teacher와 대등 (23× 절감). Practical deployment 관점에서 매우 유용.</li>
+  <li><strong>Data scaling의 amplification</strong>: 좋은 pretraining init이 data 증가에도 washed out되지 않고 <em>더 amplified</em>된다는 관찰은 후속 연구에 중요.</li>
+  <li><strong>Downstream 검증의 완결성</strong>: Pretraining backbone → depth completion downstream (LingBot-Depth 2.0)까지 완전한 stack 검증. Foundation model → application의 이점을 명시적으로 보여줌.</li>
+</ol>
+
+<h3>약점 및 열린 질문</h3>
+<ol>
+  <li><strong>Global classification의 trade-off</strong>: ImageNet-1K linear에서 DINOv2 (87.00), DINOv3 (87.87) 대비 LingBot-Vision (86.32)이 뒤짐. 저자도 "boundary-oriented pretraining이 model capacity를 localized structure에 invest"라 인정. 이 trade-off가 "image classification-heavy" downstream (retrieval, fine-grained recognition)에서 어떤 영향을 미치는지 명시적 분석 없음.</li>
+  <li><strong>Corner point detector의 role 불분명</strong>: Frozen single-block ViT를 corner-point detector로 사용. 어떻게 학습되었는지, generality가 보장되는지, 다른 domain (indoor vs outdoor, synthetic vs real)에서 robust한지 세부 없음. Finding 1에 결정적이지만 상세한 ablation 부재.</li>
+  <li><strong>Hyperparameter sensitivity</strong>: K=32 bin 수, label temperature $\tau_\ell$, boundary loss weight $\lambda_b=1$의 sensitivity analysis 부족. Categorical bin의 wideness가 결과에 얼마나 영향을 미치는지 정량화 없음.</li>
+  <li><strong>Curved boundary에 대한 처리</strong>: 이미지에서 straight line segment로 boundary를 표현. Chain of short segment로 curve를 approximate하지만 이 approximation의 error가 downstream 성능에 미치는 영향 미상.</li>
+  <li><strong>Semantic segmentation의 상대적 부진</strong>: ADE20K에서 DINOv3 (7B) 55.9 vs LingBot-Vision (1B) 53.5. Depth와 달리 segmentation에서는 gap이 여전. Semantic과 boundary의 co-emergence 주장에도 불구하고 pure semantic task에선 여전히 큰 모델이 유리.</li>
+  <li><strong>Ant Group 내부 데이터</strong>: 2B web image의 in-house pool 성격이 불투명. 재현성과 fairness 논란 가능성. DINOv2/v3의 open-source data와의 완전한 비교 어려움.</li>
+  <li><strong>Video 성능의 한계</strong>: Boundary tracking과 VOS에서 좋지만 DINOv3 (7B, 71.1)와 대등한 수준. 진짜 video 모델 (V-JEPA)이 이론적으로 더 유리해야 하나 image pretraining도 competitive함. 하지만 진짜 video-heavy task (action recognition 등)에서의 성능은 미검증.</li>
+  <li><strong>Computational cost 분석 부족</strong>: Boundary field decoding + a-contrario test + validated segment re-render pipeline의 실제 wall-clock overhead를 semantic-only baseline 대비 정량화한 수치 부재.</li>
+</ol>
+
+<h3>후속 연구 방향</h3>
+<ul>
+  <li>Curved boundary의 native representation (예: Bezier segment, NURBS)</li>
+  <li>Boundary + normal + depth의 multi-modal geometric pretraining</li>
+  <li>Video 자체에서 temporal boundary field 학습 (motion boundary)</li>
+  <li>3D pretraining (point cloud, mesh)에서 boundary-centric objective의 확장</li>
+  <li>Efficient boundary field computation (real-time robotics)</li>
+  <li>Robot policy learning에서 LingBot-Vision feature의 활용</li>
+</ul>
+
+</div>
+
+<h2>8. Key Takeaways — 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>SSL의 masking objective는 "어디를 mask할지"부터 재설계 가능</strong>: Random masking은 content-agnostic → boundary token forcing이 학습 신호를 정보 밀도에 맞게 route. 이는 다른 domain (예: audio SSL, video SSL)에도 확장 가능한 principle.</li>
+  <li><strong>Categorical reparameterization은 self-distillation의 friend</strong>: Continuous target을 discrete bin으로 변환하면 semantic self-distillation의 centering·sharpening machinery를 상속받음. Regression + EMA teacher는 drift/collapse.</li>
+  <li><strong>A-contrario theory + SSL의 자연스러운 결합</strong>: Uniform bin distribution = null hypothesis. 별도 threshold나 background class 불필요. 통계 이론이 modern SSL의 collapse 방지와 자연스럽게 매칭.</li>
+  <li><strong>Boundary는 output이 아니라 native learning signal</strong>: 관행적으로 boundary detection은 downstream task. 본 논문은 boundary를 pretraining의 <em>fundamental organizing signal</em>로 격상 → dense feature quality 대폭 향상.</li>
+  <li><strong>Efficient scaling</strong>: 좋은 pretraining objective가 큰 모델·큰 데이터를 이긴다. 1B/16 ViT-g가 7B/16 DINOv3보다 dense task에서 우수. Compute를 늘리기 전에 <em>objective를 재고</em>.</li>
+  <li><strong>Distillation preserves dense advantage</strong>: 300M ViT-L distilled 학생이 7B teacher와 대등. 배포 관점에서 boundary-oriented objective가 특히 효과적.</li>
+  <li><strong>Data scaling amplifies, not washes out</strong>: 좋은 init은 data 증가에 따라 gap이 <em>커진다</em>. 이는 pretraining을 잘하는 것이 downstream training을 늘리는 것보다 leverage가 크다는 함의.</li>
+  <li><strong>Embodied AI/robotics의 새 backbone</strong>: Depth estimation, boundary tracking에서 crisp한 결과 → robot spatial perception, world model, VR/AR에서 실용적으로 활용 가능.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

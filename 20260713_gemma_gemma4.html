@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemma 4 Technical Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Gemma 4 Technical Report</h1>
+
+<p style="text-align:right;"><a href="20260713_gemma_gemma4_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Gemma Team (Google DeepMind) — Core contributors 100+, Contributors 200+</li>
+  <li><strong>소속</strong>: Google DeepMind</li>
+  <li><strong>학회/저널</strong>: Technical Report, arXiv preprint</li>
+  <li><strong>연도</strong>: 2026 (Jul 2, 2026, dated 2026-06-19)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.02770">arXiv:2607.02770</a></li>
+  <li><strong>라이선스</strong>: Apache 2.0 (open weight)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Open-weight 모델이 강력한 multimodal 이해, reasoning, on-device 효율성을 동시에 달성하기 어렵다. 특히 KV cache 폭발과 별도 vision/audio encoder의 memory fragmentation, 그리고 decoding 속도 문제.</li>
+  <li><strong>해결</strong>: Gemma 4는 <strong>Dense (2.3B/4.5B/12B/31B) + MoE (26B-A4B)</strong>의 다양한 크기, ##thinking mode## (응답 전 reasoning trace 출력), 5:1 local-to-global attention 비율 + KV cache sharing (##KV cache 37.5% 감소##), ##encoder-free 12B## 아키텍처 (raw audio 40ms chunk + image patch를 LLM embedding에 직접 projection), MTP drafter 병기, QAT quantization까지 종합 패키지로 제공.</li>
+  <li><strong>왜 작동하는가</strong>: Long-context 병목의 근본 원인은 KV cache이므로 local attention 위주로 재구성하고 keys=values를 재사용하여 근본적으로 footprint 축소. Encoder-free는 modality 간 embedding space를 통합해 memory fragmentation과 추가 인코더 오버헤드 제거. Thinking mode는 추론 heavy task에서 chain-of-thought의 이점을 open-weight로 열어준다.</li>
+  <li><strong>비유</strong>: Gemma 4는 스마트폰용 "만능 다국어 통역기 + 카메라 + AI 계산기"를 하나의 얇은 앱으로 통합한 것과 같다. 각 기능이 별도 프로세스가 아니라 <em>같은 embedding 공간</em>에서 처리되어 메모리를 아끼고, "답하기 전에 생각하는 모드"까지 붙어 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Multi-scale 모델 패밀리</strong>: Dense (E2B, E4B, 12B, 31B) + MoE (26B-A4B; 3.8B activated / 26B total). ##31B가 open dense 모델 중 Arena Elo 1위 (1451)##, 26B-A4B (1438)는 GLM 5·DeepSeek V4 Pro와 어깨를 나란히.</li>
+  <li><strong>Thinking Mode</strong>: 응답 전 reasoning trace를 출력하는 모드. OpenAI o1 스타일의 chain-of-thought를 open-weight로 제공. Math (AIME 2026 89.2%), coding (LiveCodeBench v6 80.0%), reasoning (GPQA Diamond 84.3%) 영역에서 큰 개선.</li>
+  <li><strong>Long-context 효율화</strong>: 5:1 local-to-global attention ratio + p-RoPE + <strong>keys=values reuse</strong> in global attention layers + KV cache sharing (20/35, 18/42 ratio for E2B/E4B) → ##global KV cache 37.5% 감소##.</li>
+  <li><strong>Encoder-free 12B 아키텍처</strong>: Vision/Audio encoder 완전 제거. 48×48×3 image patch는 35M param single matmul, 40ms audio chunk는 640-D vector로 LLM embedding space에 직접 projection. 2D coordinate-based positional embedding으로 공간 인식 유지.</li>
+  <li><strong>MTP Drafter</strong>: 4-layer Transformer autoregressive multi-token prediction head를 함께 훈련하고 배포. 262k vocab을 4096 cluster로 top-k하여 최종 matmul $d \times 262000 \to d \times 4096$로 축소.</li>
+  <li><strong>QAT + 다양한 quantization</strong>: Mobile (mixed int2/int4 + int8 activation), Q4_0 (blockwise). E4B가 <strong>2.3GB</strong>로 quantized (vs bf16 9.0GB). 32k context KV cache overhead 0.14GB.</li>
+  <li><strong>Frontier-level 성능</strong>: Gemma 3 27B (dense, non-thinking) 대비 광범위한 벤치마크에서 도약. E4B (4.5B effective)가 Gemma 3 27B와 대등하거나 능가 → ##10× 적은 파라미터로 동급 성능##.</li>
+</ol>
+
+<h2>1. Background</h2>
+
+<h3>1.1 Gemma 시리즈의 진화</h3>
+<p>Gemma는 Google의 open-weight 시리즈. Gemma 1/2/3에서 dense 모델을 점진적으로 개선했으며, Gemma 3n (2025)에서 per-layer embedding, edge deployment 지향성을 도입했다. Gemma 4는 Gemma 3n의 이 접근을 확장하여 vision·audio·text에 통합 multimodal, MoE variant, thinking mode를 추가한 세대이다.</p>
+
+<h3>1.2 Long-context와 KV Cache 문제</h3>
+<p>Transformer의 KV cache는 sequence length에 비례하여 선형 증가한다. 32k~128k context에서 KV cache가 model weight보다 커지는 경우가 흔하다. 두 가지 해법이 이전 세대에서 시도되었다:</p>
+<ul>
+  <li><strong>Sliding Window Attention (SWA)</strong>: Local attention layer는 인접 W개 토큰만 attend. 전역 정보를 위해 몇 층 걸러 global attention을 유지.</li>
+  <li><strong>Grouped-Query Attention (GQA)</strong>: 여러 query가 동일한 KV head를 공유.</li>
+</ul>
+<p>Gemma 4는 이 위에 <em>keys=values reuse</em> in global layers라는 새로운 압축을 추가한다.</p>
+
+<h3>1.3 Speculative Decoding과 Multi-Token Prediction (MTP)</h3>
+<p>Speculative Decoding (Leviathan et al., 2023)은 lightweight draft model이 여러 토큰을 제안하고 target model이 병렬 검증하는 기법. Gemma 4는 target model과 함께 <strong>MTP drafter</strong>를 훈련하여 배포. MTP head는 main model의 last-layer activation과 token embedding을 받아 미래 토큰을 sequential하게 예측.</p>
+
+<h3>1.4 QAT (Quantization-Aware Training)</h3>
+<p>Weight/activation 양자화를 훈련 loop에 통합. Post-training quantization (PTQ) 대비 정확도 손실이 훨씬 적다. Gemma 4는 mobile용 (int2~4 weight, int8 activation)과 Q4_0 (blockwise)를 지원하고, image encoder까지 QAT를 적용해 400MB → 200MB 감소.</p>
+
+<h2>2. Model Architecture</h2>
+
+<h3>2.1 Family Overview</h3>
+
+<table>
+<tr><th>Model</th><th>Type</th><th>Audio Enc</th><th>Vision Enc</th><th>Embedder</th><th>Einsums</th><th>Drafter</th></tr>
+<tr><td>E2B</td><td>Dense (effective 2.3B)</td><td>305M</td><td>150M</td><td>400M + 2,340M</td><td>1,870M</td><td>76M</td></tr>
+<tr><td>E4B</td><td>Dense (effective 4.5B)</td><td>305M</td><td>150M</td><td>670M + 2,820M</td><td>3,940M</td><td>77M</td></tr>
+<tr><td>12B</td><td>Encoder-free Dense</td><td>-</td><td>-</td><td>1,000M</td><td>10,890M</td><td>400M</td></tr>
+<tr><td>26B-A4B*</td><td>MoE (3.8B active)</td><td>-</td><td>550M</td><td>740M</td><td>24,500M / 2,800M active</td><td>430M</td></tr>
+<tr><td>31B</td><td>Dense</td><td>-</td><td>550M</td><td>1,410M</td><td>29,290M</td><td>500M</td></tr>
+</table>
+
+<p><strong>Vocabulary</strong>: 262k entries (Gemini와 동일 SentencePiece tokenizer, split digits, preserved whitespace, byte-level encoding).</p>
+
+<p>E2B/E4B는 <em>per-layer embedding</em> (Gemma 3n에서 도입) 덕분에 5B/8B total에서 2.3B/4.5B effective로 축소.</p>
+
+<h3>2.2 Base Transformer 구조</h3>
+<p>Decoder-only Transformer 기반. 핵심 요소:</p>
+<ul>
+  <li><strong>Pre-norm & Post-norm with RMSNorm</strong> (Zhang & Sennrich, 2019)</li>
+  <li><strong>QKNorm</strong> (Henry et al., 2020): Query와 Key에 normalization 적용해 attention 안정화</li>
+</ul>
+
+<h3>2.3 Long-context Efficiency</h3>
+
+<h4>Local-to-Global Attention Ratio</h4>
+<p>Gemma Team (2025a)의 패턴을 따르되 세밀 조정:</p>
+<ul>
+  <li><strong>E2B</strong>: 4:1 (local:global)</li>
+  <li><strong>E4B, 12B, 26B-A4B, 31B</strong>: 5:1</li>
+</ul>
+
+<h4>Keys = Values in Global Layers</h4>
+<p>Global attention layers에서 (E2B, E4B 제외) <strong>values = keys</strong>로 설정. 즉 별도의 $W^V$ projection 없이 $W^K$의 결과를 value로 재사용. Kayyam et al. (2026)의 발견에서 영감: transformer는 세 projection이 반드시 필요한가에 대한 systematic study.</p>
+
+<h4>p-RoPE (Positional RoPE)</h4>
+<p>Barbero et al. (2025). Global attention layers에서 <strong>$p = 0.25$</strong>의 p-RoPE 사용 (즉 각 head의 rotation dimension 중 25%만 회전을 적용). Local layers에서는 표준 RoPE. RoPE 주파수는 global 1M, local 10k.</p>
+
+<h4>KV Cache Sharing</h4>
+<p>E2B와 E4B에서 서로 다른 layer 간 KV cache를 공유하는 ratio (E2B: 20/35, E4B: 18/42). 즉 35층 중 20층이 KV cache를 공유. <strong>총 이 조합의 결과: 이전 세대 대비 global KV cache 37.5% 감소</strong>.</p>
+
+<h3>2.4 Vision Modality</h3>
+
+<h4>Standard Vision Encoder (E2B, E4B, 26B-A4B, 31B)</h4>
+<ul>
+  <li>E2B, E4B: 150M ViT encoder</li>
+  <li>26B-A4B, 31B: 550M ViT encoder</li>
+  <li>Patch size 16, variable aspect ratio 지원</li>
+  <li><strong>axial 2D-RoPE</strong> (Heo et al., 2024) + 2D absolute positional embedding, non-causal attention</li>
+  <li>Max token 수 $N_{\max}$: {70, 140, 280, 560, 1120} 옵션</li>
+</ul>
+
+<h4>Encoder-Free 12B</h4>
+<p>12B는 <strong>vision/audio encoder 없이 처음부터 훈련</strong>. Vision: 48×48×3 RGB patch → 35M param single matmul로 LLM embedding space에 projection. 2D coordinate-based positional embedding을 patch representation에 직접 더하고 final LayerNorm 적용.</p>
+
+<h3>2.5 Audio Modality</h3>
+
+<h4>E2B/E4B — USM-based Encoder</h4>
+<p>Universal Speech Model 기반 305M encoder. Mel filterbank 입력, 40ms chunk. 아키텍처: 2개 downsampling conv layer + 12개 Conformer layer. Gemma 3n의 680M에서 <strong>55% 축소</strong>. Vector quantization 사용 안 함 → LLM이 continuous representation을 직접 처리. Vision encoder와 마찬가지로 pre-training 시 weight frozen.</p>
+
+<h4>Encoder-Free 12B — Raw Audio Ingestion</h4>
+<p>##305M USM-based encoder를 완전히 폐기##. Raw audio를 16kHz에서 40ms chunk로 segment → 640-dim vector per chunk → LLM embedding space에 직접 project. Temporal sequence이므로 별도 positional encoding 불필요.</p>
+
+<h3>2.6 Pre-training</h3>
+
+<h4>Training Data</h4>
+<p>Web documents, code, images, audio (E2B, E4B, 12B). Cutoff: 2025년 1월.</p>
+
+<h4>Tokenizer</h4>
+<p>Gemini와 동일 SentencePiece, split digits, preserved whitespace, byte-level encoding, 262k vocab.</p>
+
+<h4>Filtering</h4>
+<p>Benchmark decontamination, harmful/unsafe content 제거, recitation 리스크 감소.</p>
+
+<h3>2.7 Quantization-Aware Training</h3>
+
+<h4>Weight 표현</h4>
+<ul>
+  <li><strong>Mobile quantization</strong>: per-channel low bitwidth weight (int2/int4 mix) + int8 activation</li>
+  <li><strong>Q4_0</strong>: blockwise quantization (llama.cpp 표준)</li>
+</ul>
+
+<p><strong>fp16 안정 추론</strong>: 각 block에 scalar scale을 도입해 activation range를 fp16에 fit.</p>
+
+<h4>Memory Footprint (32k context, Table 3)</h4>
+
+<table>
+<tr><th>Model</th><th>bf16 (GB)</th><th>Quantized (GB)</th><th>KV Cache 추가</th></tr>
+<tr><td>E2B</td><td>4.6</td><td>0.8 (mobile)</td><td>+0.05</td></tr>
+<tr><td>E4B</td><td>9.0</td><td>2.3 (mobile)</td><td>+0.14</td></tr>
+<tr><td>12B</td><td>24.0</td><td>7.65 (Q4_0)</td><td>+0.28</td></tr>
+<tr><td>26B-A4B</td><td>52.0 / 7.6 active</td><td>16.2 / 2.8 active (Q4_0)</td><td>+0.28</td></tr>
+<tr><td>31B</td><td>64.0</td><td>19.2 (Q4_0)</td><td>+1.10</td></tr>
+</table>
+
+<h4>Encoder QAT</h4>
+<ul>
+  <li><strong>150M Vision encoder</strong>: 8-bit activation & weight (W8A8) → 2× forward-pass memory 축소 (400MB → 200MB, on-device compilation overhead 포함), 44% on-device latency 감소 (vs Gemma 3n)</li>
+  <li><strong>Audio encoder</strong>: 8-bit activation + {2, 4, 8} bit weight per layer cluster → 78% on-disk 축소 (Gemma 3n의 390MB → 87MB)</li>
+</ul>
+
+<h3>2.8 Multi-Token Prediction Drafter</h3>
+
+<p>Small autoregressive MTP drafter head를 함께 훈련하여 speculative decoding용으로 배포. 프로세스:</p>
+<ul>
+  <li>Main model의 last-layer activation + token embedding → MTP head 입력</li>
+  <li>MTP head는 sequential하게 미래 토큰 생성 (separate embedder + 4-layer Transformer block)</li>
+  <li>Cross-attends to main model's KVs → MTP prefill 불필요, 임의 draft length 지원</li>
+</ul>
+
+<p><strong>Efficient MTP Decoding (E2B/E4B)</strong>: Final matmul을 전체 vocab (262,000)이 아니라 top-k cluster (4096)로 축소.</p>
+$$d \times 262{,}000 \to d \times 4{,}096$$
+<p>Acceptance rate는 유사하게 유지하면서 latency 대폭 감소.</p>
+
+<h4>Transformer Block 설정</h4>
+<ul>
+  <li>Model dimension: E2B/E4B 256, 26B-A4B/31B 1024</li>
+  <li>3 local + 1 global attention layer</li>
+</ul>
+
+<h3>2.9 Compute Infrastructure</h3>
+
+<table>
+<tr><th>Model</th><th>TPU</th><th>#Chips</th><th>Data Shard</th><th>Seq Shard</th><th>Replica</th></tr>
+<tr><td>E2B</td><td>v6e</td><td>4,096</td><td>16</td><td>8</td><td>32</td></tr>
+<tr><td>E4B</td><td>v6e</td><td>6,144</td><td>16</td><td>16</td><td>24</td></tr>
+<tr><td>12B</td><td>v5p</td><td>12,288</td><td>16</td><td>16</td><td>48</td></tr>
+<tr><td>26B-A4B</td><td>v6e</td><td>6,144</td><td>16</td><td>16</td><td>24</td></tr>
+<tr><td>31B</td><td>v6e</td><td>10,240</td><td>16</td><td>16</td><td>40</td></tr>
+</table>
+
+<p><strong>Slice-Granularity Elasticity</strong> (Gemini Team, 2025)로 부분 실패 시에도 continuous training 유지. Optimizer state는 ZeRO-3로 shard. Multi-pod: data replica reduction. Framework: JAX + Pathways + GSPMD + MegaScale XLA.</p>
+
+<h2>3. Instruction Tuning (Section 3)</h2>
+
+<h3>3.1 Post-Training</h3>
+<p>Gemma 3와 유사한 post-training이지만, <strong>Thinking mode</strong>가 결정적 차이. 모델이 reasoning trace를 먼저 출력한 뒤 최종 응답을 낸다.</p>
+
+<h3>3.2 Data Filtering</h3>
+<p>Post-training 데이터 최적화:</p>
+<ul>
+  <li>Personal information, unsafe/toxic output, self-identification error, duplicate 제거</li>
+  <li>In-context attribution, hedging, refusal 유도 데이터 포함 → factuality 지표 개선, 다른 지표는 유지</li>
+</ul>
+
+<h3>3.3 PT vs IT formatting</h3>
+<ul>
+  <li>PT (pre-trained) 모델: 생성 종료 시 <code>&lt;eos&gt;</code> 토큰</li>
+  <li>IT (instruction-tuned) 모델: <code>&lt;|turn|&gt;</code> 토큰</li>
+</ul>
+
+<h2>4. Evaluation (Section 4)</h2>
+
+<h3>4.1 Human Evaluation (Arena)</h3>
+<p>Chatbot Arena blind side-by-side, Elo score (2026-06-19 기준).</p>
+
+<table>
+<tr><th>Rank</th><th>Model</th><th>Elo</th><th>Type</th><th>#params/#activated</th></tr>
+<tr><td>15</td><td>GLM 5.1</td><td>1475</td><td>MoE</td><td>744B / 40B</td></tr>
+<tr><td>25</td><td>GLM 5.2 (Max)</td><td>1471</td><td>MoE</td><td>744B / 40B</td></tr>
+<tr><td>29</td><td>MiMo V2.5 Pro</td><td>1466</td><td>MoE</td><td>1T / 32B</td></tr>
+<tr><td>34</td><td>Kimi K2.6</td><td>1460</td><td>MoE</td><td>1T / 32B</td></tr>
+<tr><td>36</td><td>DeepSeek V4 Pro Thinking</td><td>1458</td><td>MoE</td><td>1.6T / 49B</td></tr>
+<tr><td>37</td><td>GLM 5</td><td>1457</td><td>MoE</td><td>744B / 40B</td></tr>
+<tr><td>38</td><td>DeepSeek V4 Pro</td><td>1456</td><td>MoE</td><td>1.6T / 49B</td></tr>
+<tr style="background:#eff6ff;"><td>43</td><td><strong>Gemma 4 31B</strong></td><td><strong>1451</strong></td><td>Dense</td><td>31B</td></tr>
+<tr><td>44</td><td>Kimi K2.5 Thinking</td><td>1450</td><td>MoE</td><td>1T / 32B</td></tr>
+<tr><td>57</td><td>Qwen 3.5 397B-A17B</td><td>1444</td><td>MoE</td><td>397B / 17B</td></tr>
+<tr style="background:#eff6ff;"><td>61</td><td><strong>Gemma 4 26B-A4B</strong></td><td><strong>1438</strong></td><td>MoE</td><td>26B / 4B</td></tr>
+<tr><td>63</td><td>DeepSeek V4 Flash Thinking</td><td>1436</td><td>MoE</td><td>284B / 13B</td></tr>
+<tr><td>157</td><td>Gemma 3 27B</td><td>1366</td><td>Dense</td><td>27B</td></tr>
+</table>
+
+<p><strong>결과 분석</strong>:</p>
+<ul>
+  <li>Gemma 4 31B는 <strong>open dense 모델 중 1위</strong> (Elo 1451). 활성 파라미터 훨씬 큰 MoE (DeepSeek V4 Pro 1.6T/49B, GLM 5.1 744B/40B)와 접전.</li>
+  <li>Gemma 4 26B-A4B는 활성 4B만으로 Elo 1438 → 활성 파라미터 대비 최고 효율.</li>
+  <li>Gemma 3 27B (Elo 1366) 대비 85 Elo point 급상승.</li>
+</ul>
+
+<h3>4.2 Static Benchmarks (Table 5, thinking mode)</h3>
+
+<table>
+<tr><th>Benchmark</th><th>31B</th><th>26B-A4B</th><th>12B</th><th>E4B</th><th>E2B</th><th>Gemma 3 27B (non-thinking)</th></tr>
+<tr><td>MMLU Pro</td><td>85.2</td><td>82.6</td><td>77.2</td><td>69.4</td><td>60.0</td><td>67.6</td></tr>
+<tr><td>AIME 2026 (no tools)</td><td><strong>89.2</strong></td><td>88.3</td><td>77.5</td><td>42.5</td><td>37.5</td><td>20.8</td></tr>
+<tr><td>LiveCodeBench v6</td><td>80.0</td><td>77.1</td><td>72.0</td><td>52.0</td><td>44.0</td><td>29.1</td></tr>
+<tr><td>Codeforces Elo</td><td>2150</td><td>1718</td><td>1659</td><td>940</td><td>633</td><td>110</td></tr>
+<tr><td>SciCode</td><td>43.0</td><td>40.0</td><td>38.0</td><td>24.0</td><td>21.0</td><td>21.0</td></tr>
+<tr><td>GPQA Diamond</td><td>84.3</td><td>82.3</td><td>78.8</td><td>58.6</td><td>43.4</td><td>42.4</td></tr>
+<tr><td>Big Bench Extra Hard</td><td>74.4</td><td>64.8</td><td>53.0</td><td>33.1</td><td>21.9</td><td>19.3</td></tr>
+<tr><td>HLE</td><td>19.5</td><td>8.7</td><td>5.2</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>HLE with search</td><td>26.5</td><td>17.2</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>IFBench</td><td>76.0</td><td>72.0</td><td>74.0</td><td>44.0</td><td>38.0</td><td>32.0</td></tr>
+<tr><td>IFEval</td><td>98.9</td><td>98.5</td><td>97.2</td><td>96.7</td><td>94.6</td><td>90.4</td></tr>
+<tr><td>MMMLU</td><td>88.4</td><td>86.3</td><td>83.4</td><td>76.6</td><td>67.4</td><td>70.7</td></tr>
+<tr><td>MRCR v2 8-needle 128k</td><td>66.4</td><td>44.1</td><td>43.4</td><td>25.4</td><td>19.1</td><td>13.5</td></tr>
+<tr><td>Terminal Bench Hard</td><td>36.0</td><td>14.0</td><td>18.0</td><td>8.0</td><td>3.0</td><td>4.0</td></tr>
+<tr><td>Tau2 – airline</td><td>75.0</td><td>76.0</td><td>75.0</td><td>52.0</td><td>31.0</td><td>39.0</td></tr>
+<tr><td>Tau2 – retail</td><td>86.4</td><td>85.5</td><td>77.6</td><td>67.1</td><td>34.6</td><td>6.6</td></tr>
+<tr><td>Tau2 – telecom</td><td>69.3</td><td>43.0</td><td>54.4</td><td>18.4</td><td>19.7</td><td>3.1</td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>수학/추론 대폭 개선</strong>: AIME 2026 20.8% (Gemma 3 27B) → 89.2% (Gemma 4 31B). Thinking mode의 힘. GPQA Diamond 42.4% → 84.3%.</li>
+  <li><strong>Coding 도약</strong>: Codeforces Elo 110 → 2150 (약 20배 개선).</li>
+  <li><strong>E4B (4.5B effective)가 Gemma 3 27B (27B)와 대등</strong>: MMMLU 76.6 vs 70.7, IFEval 96.7 vs 90.4, Tau2-retail 67.1 vs 6.6. ##10× 적은 파라미터로 능가##.</li>
+  <li><strong>Agentic task는 크기 의존</strong>: Terminal Bench Hard, Tau2-telecom에서 31B가 다른 크기에 비해 큰 격차 → agentic capability는 model size와 강한 상관.</li>
+</ul>
+
+<h3>4.3 Vision Benchmarks (Table 6, thinking mode, 1120 vision tokens)</h3>
+
+<table>
+<tr><th>Benchmark</th><th>31B</th><th>26B-A4B</th><th>12B</th><th>E4B</th><th>E2B</th><th>Gemma 3 27B</th></tr>
+<tr><td>MMMU Pro</td><td>76.9</td><td>73.8</td><td>69.1</td><td>52.6</td><td>44.2</td><td>49.7</td></tr>
+<tr><td>MATH-Vision</td><td>85.6</td><td>82.4</td><td>79.7</td><td>59.5</td><td>52.4</td><td>46.0</td></tr>
+<tr><td>MedXPertQA MM</td><td>61.3</td><td>58.1</td><td>48.7</td><td>28.7</td><td>23.5</td><td>-</td></tr>
+<tr><td>InfographicVQA</td><td>92.0</td><td>89.3</td><td>88.4</td><td>70.0</td><td>63.9</td><td>70.6</td></tr>
+<tr><td>OmniDocBench 1.5 ↓</td><td>0.131</td><td>0.149</td><td>0.164</td><td>0.181</td><td>0.290</td><td>0.365</td></tr>
+</table>
+
+<p><strong>Insight</strong>: 12B encoder-free 모델이 550M 인코더를 가진 26B-A4B/31B 대비 크게 뒤지지 않음. Encoder-free 접근이 실용적임을 시사.</p>
+
+<h3>4.4 Audio Benchmarks (Table 7)</h3>
+
+<p><strong>CoVoST (Translation, CorpusBLEU ↑)</strong> — Gemma 4 vs Gemma 3n:</p>
+
+<table>
+<tr><th>Model</th><th>Encoder Size</th><th>ja→en</th><th>de→en</th><th>AVG</th></tr>
+<tr><td>Gemma 4 E2B</td><td>305M/87MB</td><td>21.4</td><td>39.2</td><td>35.4</td></tr>
+<tr><td>Gemma 4 E4B</td><td>305M/87MB</td><td>25.5</td><td>42.0</td><td>38.2</td></tr>
+<tr><td>Gemma 3n E2B</td><td>680M/390MB</td><td>17.7</td><td>36.5</td><td>31.6</td></tr>
+<tr><td>Gemma 3n E4B</td><td>680M/390MB</td><td>22.3</td><td>39.1</td><td>34.7</td></tr>
+</table>
+
+<p><strong>Translation 개선</strong>: Gemma 4 E2B는 Gemma 3n E2B 대비 +12% (35.4 vs 31.6), E4B는 +10% (38.2 vs 34.7). <strong>Encoder는 78% 축소</strong> (390MB → 87MB)했음에도 성능은 개선.</p>
+
+<p><strong>FLEURS ASR (WER ↓)</strong>: E2B AVG 0.090 (Gemma 3n E2B 0.108 대비 17% 개선), E4B AVG 0.075 (0.085 대비 12% 개선).</p>
+
+<p><strong>Gemma 4 12B (Encoder-Free) Audio (Table 8)</strong>:</p>
+<table>
+<tr><th>언어 (FLEURS ASR)</th><th>en</th><th>ko</th><th>ja</th><th>de</th><th>fr</th><th>es</th><th>it</th><th>pt-br</th><th>ru</th><th>ar</th></tr>
+<tr><td>WER/CER</td><td>0.063</td><td>0.057</td><td>0.080</td><td>0.053</td><td>0.081</td><td>0.038</td><td>0.030</td><td>0.047</td><td>0.068</td><td>0.070</td></tr>
+</table>
+
+<p><strong>결과</strong>: 12B encoder-free 모델이 dedicated audio encoder 없이 경쟁력 있는 audio-text 성능 달성. ##Raw audio ingestion이 실용 가능함을 증명##.</p>
+
+<h3>4.5 Long-Context (Table 9, non-thinking)</h3>
+
+<table>
+<tr><th>Benchmark</th><th>Context</th><th>31B</th><th>26B-A4B</th><th>12B</th><th>E4B</th><th>E2B</th><th>Gemma 3 27B</th></tr>
+<tr><td>RULER</td><td>32k</td><td>96.8</td><td>97.3</td><td>96.4</td><td>95.2</td><td>83.0</td><td>91.1</td></tr>
+<tr><td>RULER</td><td>128k</td><td>96.4</td><td>89.8</td><td>91.2</td><td>86.6</td><td>70.4</td><td>66.0</td></tr>
+<tr><td>LOFT Text Retrieval Recall@k</td><td>128k</td><td>79.5</td><td>66.3</td><td>66.4</td><td>58.5</td><td>50.5</td><td>8.6</td></tr>
+<tr><td>GraphWalks F1</td><td>&lt;128k</td><td>82.3</td><td>72.6</td><td>71.0</td><td>50.9</td><td>4.1</td><td>32.8</td></tr>
+<tr><td>MTOB eng→kgv chrF</td><td>~256k</td><td>54.3</td><td>48.9</td><td>41.9</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><td>MTOB kgv→eng chrF</td><td>~256k</td><td>46.2</td><td>42.7</td><td>32.9</td><td>-</td><td>-</td><td>-</td></tr>
+</table>
+
+<p><strong>Long-context leap</strong>: LOFT 128k retrieval에서 Gemma 3 27B (8.6) → Gemma 4 E4B (58.5) → 31B (79.5). ##10× 개선##.</p>
+
+<h2>5. Safety, Responsibility, Security (Section 5)</h2>
+
+<h3>5.1 Safety Policies</h3>
+<p>다음 콘텐츠 카테고리 방어 목표:</p>
+<ul>
+  <li>CSAM (child sexual abuse material) 및 착취</li>
+  <li>Dangerous content: 자살 조장, 실제 세계 위해 지시</li>
+  <li>Sexually explicit content</li>
+  <li>Hate speech: 보호 집단 비인간화</li>
+  <li>Harassment: 폭력 조장</li>
+</ul>
+
+<p>Training data pre-processing에서 위 내용 필터링, post-training evaluation과 train-time mitigation 결합.</p>
+
+<h3>5.2 Safety Evaluations</h3>
+<p>Gemma 3/3n 대비 모든 category에서 significant improvement, unjustified refusal은 낮게 유지. Safety filter 없이 raw capability test → text-to-text와 image-to-text 모두에서 최소한의 policy violation.</p>
+
+<h3>5.3 Ethical Considerations</h3>
+<ul>
+  <li><strong>Bias and Fairness</strong>: Continuous monitoring 권장</li>
+  <li><strong>Misinformation</strong>: Responsible Generative AI Toolkit 안내</li>
+  <li><strong>Privacy</strong>: 개인정보/민감정보 filtering, 사용자에게 privacy-preserving 기법 권고</li>
+</ul>
+
+<h2>6. Discussion and Conclusion</h2>
+
+<p>Gemma 4는 open-weight로 dense (2.3B~31B) + MoE (26B-A4B) 다양한 크기, thinking mode, multimodal (text/image/audio), encoder-free 아키텍처, MTP drafter, QAT 등을 통합. Arena Elo에서 훨씬 큰 open-source frontier 모델과 대등하며, Gemma 3 27B 대비 대부분의 benchmark에서 leap. Edge deployment와 open research를 위한 scalable foundation.</p>
+
+<h2>7. 비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ol>
+  <li><strong>Encoder-Free 12B의 야심찬 시도</strong>: Vision/Audio 모두 raw patch/chunk를 LLM embedding space에 직접 projection. 성능이 대체로 유지되며, memory fragmentation 감소와 아키텍처 단순화의 장점. Multi-modal LLM 설계의 향후 방향성을 제시.</li>
+  <li><strong>KV Cache 최적화의 근본적 접근</strong>: 5:1 local:global attention + keys=values reuse + KV cache sharing + p-RoPE의 조합으로 37.5% 감소. 개별 기법이 아닌 <em>systematic co-design</em>.</li>
+  <li><strong>Parameter Efficiency의 실증</strong>: E4B (4.5B effective)가 Gemma 3 27B와 대등. <strong>10× 파라미터 감소로 동급 성능</strong>은 놀라운 결과. Per-layer embedding + QAT + thinking mode의 조합.</li>
+  <li><strong>Open dense 모델 중 SOTA</strong>: 31B가 Arena 1위 dense open model. MoE frontier들과 접전하며 open community에 상당한 기여.</li>
+  <li><strong>MTP drafter의 통합 배포</strong>: 별도 speculative decoding 인프라 없이도 acceleration 즉시 활용 가능. Top-k projection ($262k \to 4096$)으로 실용성 확보.</li>
+  <li><strong>Thinking Mode의 open-weight 제공</strong>: OpenAI o1 스타일의 reasoning trace를 open-weight로 제공한 최초 세대 중 하나. AIME 2026 89.2% 등 수학·과학 벤치마크에서 극적 개선.</li>
+</ol>
+
+<h3>약점 및 열린 질문</h3>
+<ol>
+  <li><strong>Technical Report 특성상 세부사항 부족</strong>: p-RoPE의 $p=0.25$ 선택 이유, keys=values reuse의 정확한 ablation 없음. "37.5% KV cache reduction"의 breakdown이 각 기법별로 얼마씩인지 불분명.</li>
+  <li><strong>Encoder-free 12B가 encoder-based 26B-A4B에 비해 vision task에서 하위</strong>: MMMU Pro 69.1 vs 73.8, MATH-Vision 79.7 vs 82.4. 순수 encoder-free의 장점보다는 12B 크기의 한계가 큰지 궁금.</li>
+  <li><strong>Thinking mode의 비용 미공개</strong>: Reasoning trace 길이, 추론 시간 증가, thinking token 수 등이 없음. On-device 배포 시 실용성 평가 불가.</li>
+  <li><strong>Agentic Capability의 크기 의존성</strong>: Terminal Bench Hard 31B 36.0 → 26B-A4B 14.0 → 12B 18.0 → E4B 8.0. Small model이 agentic task에 유용한지 회의적. Distillation의 한계 시사.</li>
+  <li><strong>Non-thinking mode 성능이 명시적으로 제시되지 않음</strong>: Table 5는 모두 thinking mode. Non-thinking baseline과 비교 없어 thinking overhead의 순수 gain 측정 어려움.</li>
+  <li><strong>Comparison against closed frontier models 부재</strong>: GPT-5, Claude 5, Gemini 3 대비 성능이 어떤지 명시적 벤치마크 없음 (Arena에서 Claude Fable 5 Elo 1508 정도만 언급).</li>
+  <li><strong>Long context의 실용성</strong>: 128k context 지원하지만 RULER 128k에서 26B-A4B 89.8, E2B 70.4로 큰 편차. Real-world 128k 문서 처리 신뢰성 미검증.</li>
+  <li><strong>MoE의 균형</strong>: 26B-A4B가 dense 31B 대비 대부분 열세 (Elo 1438 vs 1451). Terminal Bench Hard 14.0 vs 36.0 등 특정 domain에서 급격 저하. MoE routing efficiency와 domain generalization의 트레이드오프가 여전히 큰 문제.</li>
+</ol>
+
+<h3>후속 연구 방향</h3>
+<ul>
+  <li>Encoder-free 아키텍처의 vision-language grounding 세부 분석 (attention pattern 시각화)</li>
+  <li>Keys=values reuse의 확장: query까지 공유하면 어떻게 되는가?</li>
+  <li>Thinking mode의 controllable reasoning length (budget forcing)</li>
+  <li>MTP drafter와 다른 speculative decoding 기법(EAGLE, DSpark)의 head-to-head 비교</li>
+  <li>Small model의 agentic capability를 boosting하는 post-training 기법</li>
+</ul>
+
+</div>
+
+<h2>8. Key Takeaways — 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Open-weight frontier의 새 기준</strong>: Gemma 4 31B가 dense open model Arena 1위 (Elo 1451). Open research 커뮤니티가 사용할 수 있는 최고 성능 dense 모델.</li>
+  <li><strong>KV cache 최적화는 systematic co-design</strong>: Local:global ratio + keys=values reuse + KV cache sharing + p-RoPE — 각각의 기법이 아니라 조합의 승리. 이런 접근은 다른 open model에도 광범위하게 적용 가능.</li>
+  <li><strong>Encoder-Free multimodal은 실용 가능</strong>: 12B가 encoder 없이 raw audio/image 처리하여 dedicated encoder 모델과 대체로 대등한 성능. Memory fragmentation 감소, 아키텍처 통합의 이점.</li>
+  <li><strong>Parameter Efficiency의 힘</strong>: E4B (4.5B effective)가 Gemma 3 27B에 필적. Per-layer embedding + QAT + thinking mode 조합으로 10× 파라미터 절감.</li>
+  <li><strong>MTP drafter를 모델과 함께 배포</strong>: Speculative decoding을 별도 시스템으로 구현하지 않고 target model과 함께 훈련·배포. 즉시 2× 이상 가속 가능. 이 pattern은 향후 open model 릴리스의 표준이 될 가능성.</li>
+  <li><strong>QAT는 이제 필수</strong>: E4B 2.3GB로 phone deployment 가능. Post-training quantization 대비 정확도 손실 최소화. On-disk footprint 78% 축소 (audio encoder 예시).</li>
+  <li><strong>Thinking mode의 open-weight 제공</strong>: AIME 2026 89.2% 등 수학·과학 reasoning에서 4× 이상 개선. Open community의 reasoning research 가속.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
