@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Let ViT Speak: Generative Language-Image Pre-training (GenLIP)</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Let ViT Speak: Generative Language-Image Pre-training (GenLIP)</h1>
+
+<p style="margin-top: -0.5rem; margin-bottom: 1.5rem;">
+  <a href="20260716_fang_genlip_brief.html" style="color:#4a90d9;">개요 브리핑 버전 보기 →</a>
+</p>
+
+<h2>메타데이터</h2>
+<div class="metadata">
+<ul>
+  <li><strong>제목</strong>: Let ViT Speak: Generative Language-Image Pre-training</li>
+  <li><strong>저자</strong>: Yan Fang, Mengcheng Lan, Zilong Huang, Weixian Lei, Yunqing Zhao, Yujie Zhong, Yingchen Yu, Qi She, Yao Zhao, Yunchao Wei</li>
+  <li><strong>소속</strong>: ByteDance, Beijing Jiaotong University, Nanyang Technological University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint 2605.00809 (v2)</li>
+  <li><strong>연도</strong>: 2026 (June 10, 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.00809">arXiv:2605.00809</a>, <a href="https://github.com/vitspeak">Code: vitspeak</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 기존 Vision-Language Pre-training(VLP)은 (i) CLIP/SigLIP류 contrastive는 MLLM(Multimodal Large Language Model)의 next-token-prediction 목적과 <em>objective mismatch</em>가 있고, (ii) CapPa/AIMv2/OpenVision2 같은 generative는 별도 text decoder를 두어 아키텍처가 복잡하고 vision encoder가 gradient를 <em>간접적으로</em>만 받는다.</li>
+  <li><strong>해결</strong>: ##ViT(Vision Transformer) 하나만으로 image와 text token을 concat한 시퀀스에 표준 autoregressive language modeling loss를 적용##. Text decoder도, contrastive loss도, CLS token도 없다.</li>
+  <li><strong>왜 작동하는가</strong>: Prefix-LM attention(이미지 부분은 bidirectional, 텍스트 부분은 causal) + MRoPE(Multimodal Rotary Position Encoding)로 단일 Transformer가 vision과 language를 자연스럽게 처리. 발생하는 <em>attention sink</em>는 gated attention으로 억제하여 vision token의 정보를 살린다.</li>
+  <li><strong>비유</strong>: 기존 방법이 "번역기(vision encoder) + 통역사(text decoder)" 2인 1조라면, GenLIP은 ##ViT 자기가 직접 말을 배워서 그림 보고 설명하게 시키는## 방식이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>단일 Transformer + 단일 objective</strong>: 별도 text encoder/decoder 없이 하나의 ViT가 image token과 text token을 concat한 시퀀스를 처리하고, text 부분에만 standard LM loss를 적용. Contrastive batch 구성 불필요.</li>
+  <li><strong>Prefix-LM attention + Multimodal RoPE</strong>: 이미지 토큰은 서로 bidirectional, 텍스트 토큰은 causal로 attend. Absolute positional embedding을 버리고 MRoPE(2D image position + 1D text position)를 도입.</li>
+  <li><strong>Gated Attention으로 attention sink 완화</strong>: 혼합 모달리티 환경에서 첫 토큰이 attention을 독점하는 sink 현상을 관찰하고, per-head input-dependent gate로 억제. Loss spike 감소, ImageNet linear probing 76.2 → 84.3 (So/16).</li>
+  <li><strong>데이터 효율성 실증</strong>: ##8B samples로 SigLIP2 (40B samples)를 앞서거나 대등한 성능## 달성. 특히 Doc&OCR 벤치마크에서 큰 폭 개선(SigLIP2 대비 +3.3 avg on So/16).</li>
+  <li><strong>Native aspect ratio 2단계 학습</strong>: Stage 1은 224×224 고정, Stage 2는 native aspect ratio + longer captions로 detail-sensitive task 성능 추가 개선.</li>
+</ol>
+
+<h2>Background: 왜 Generative VLP인가</h2>
+
+<h3>기존 VLP의 세 계열과 각각의 한계</h3>
+
+<p>Vision-Language Pre-training(VLP)은 크게 세 가지 계열로 나뉜다:</p>
+
+<p><strong>(1) Dual-Encoder Contrastive Pretraining</strong> — CLIP, SigLIP, MetaCLIP 등. 이미지와 텍스트를 각각 별도의 인코더로 처리한 뒤 InfoNCE 계열 contrastive loss로 임베딩 공간을 정렬. Loss는 대략 다음 형태:</p>
+
+$$\mathcal{L}_{\text{CLIP}} = -\log \frac{\exp(\langle f_I(I), f_T(T) \rangle / \tau)}{\sum_{T'} \exp(\langle f_I(I), f_T(T') \rangle / \tau)}$$
+
+<p>직관적으로: batch 안의 정답 (I, T) 쌍은 임베딩을 가깝게, 나머지 negative 쌍은 멀게 만든다. 이 방식은 image classification, retrieval 같은 <em>discriminative</em> task에 강하지만, 두 가지 문제가 있다:</p>
+<ul>
+  <li><strong>Objective mismatch</strong>: MLLM은 궁극적으로 <em>next-token prediction</em>으로 최적화되는데, contrastive는 discriminative alignment를 배운다. 두 목적이 근본적으로 다르다.</li>
+  <li><strong>Global alignment only</strong>: image-text pair 전체 수준의 alignment만 학습하므로, cross-modal deep interaction (예: 이미지 내 텍스트 인식, 지역 세부사항) 학습이 부족.</li>
+</ul>
+
+<p><strong>(2) Encoder-Decoder Generative Pretraining</strong> — CapPa, AIMv2, GIT, OpenVision2. Vision encoder 위에 text decoder를 얹고, decoder가 caption을 autoregressively 생성하도록 학습. 여기서 vision encoder는 decoder를 통과한 gradient로 <em>간접적으로만</em> 업데이트된다. Hybrid(CoCa, SigLIP2)는 contrastive + captioning을 결합해 gap을 좁히지만 오히려 아키텍처와 loss가 복잡해진다.</p>
+
+<p><strong>(3) Single-Transformer Pretraining</strong> — SuperClass, VL-BEiT, OneR, SAIL, Chameleon 등. 단일 트랜스포머로 통합하려는 시도. GenLIP은 이 계열에 속하지만, ##"scalable vision encoder를 처음부터 학습"##하는 것이 목표라는 점에서 native MLLM을 목표로 하는 SAIL/NEO와 구분된다.</p>
+
+<h3>Objective Mismatch를 실증한 diagnostic (Figure 1 Right)</h3>
+
+<p>저자들이 이 논문 첫 페이지에서 던지는 진단 실험이 인상적이다: 서로 다른 방식으로 학습된 vision encoder를 동일한 LLM에 붙이고, projector만 튜닝했을 때(PPL1)와 projector+LLM을 튜닝했을 때(PPL2)의 perplexity를 비교. Generative objective로 학습된 encoder(CapPa, AIMv2, OpenVision2, GenLIP)가 contrastive encoder(SigLIP, SigLIP2)보다 낮은 PPL을 보였고, 특히 GenLIP이 가장 낮았다.</p>
+
+<blockquote>
+<strong>[Figure 1 설명]</strong>: 왼쪽 다이어그램은 CLIP/SigLIP(contrastive dual-encoder), CapPa/AIMv2/OpenVision2(encoder-decoder generative), GenLIP(단일 Transformer + LM head)의 세 가지 패러다임을 대조. 오른쪽 그래프는 LLM에 붙였을 때 PPL1(projector만 튜닝)과 PPL2(projector+LLM 튜닝) 모두에서 generative 계열, 특히 GenLIP이 낮은 perplexity를 달성함을 보인다. 낮은 PPL은 LLM의 생성 목적과의 궁합이 좋다는 뜻.
+</blockquote>
+
+<h2>Approach: GenLIP</h2>
+
+<h3>3.1 Framework 개요</h3>
+
+<p><strong>Data Format</strong>: 학습 데이터는 image-text pair $\{(I_i, T_i)\}_{i=1}^N$. 이미지 $I_i$는 patch embedding layer로 $\{v_0, v_1, \dots, v_M\}$ non-overlapping patch로 분할. 텍스트 $T_i$는 off-the-shelf Qwen3 tokenizer로 $\{t_0, t_1, \dots, t_L\}$ subword로 tokenize. 최종 입력 시퀀스:</p>
+
+$$S = [v_0, \dots, v_M, t_0, \dots, t_L] \quad (1)$$
+
+<p>즉, ##이미지 토큰이 prefix, 텍스트 토큰이 suffix##.</p>
+
+<p><strong>Architecture</strong>: 세 부분으로 구성된 단일 Transformer.</p>
+<ul>
+  <li>Modality-specific embedding layer (image patch용 conv patch embed, text용 token embed)</li>
+  <li>Prefix-LM attention을 쓰는 unified Transformer</li>
+  <li>Layer Normalization + LM head</li>
+</ul>
+
+<p>표준 ViT와의 차이는 두 가지 minimal modification:</p>
+<ol>
+  <li><strong>Multimodal RoPE (MRoPE)</strong>: absolute position embedding을 버리고 MRoPE를 도입. 이미지 patch는 2D 좌표 $(h, w)$로, 텍스트 토큰은 1D 시퀀스 인덱스로 rotation을 적용. Figure 2(c)에서 image patch의 MRoPE index가 $(1,1), (1,2), (2,1), (2,2), \dots$ 형태로 부여됨을 볼 수 있다.</li>
+  <li><strong>Prefix-LM Attention</strong>: 이미지 토큰끼리는 <em>full(bidirectional) attention</em>, 텍스트 토큰은 <em>causal attention</em>. 텍스트는 앞의 이미지 토큰 전체 + 자기 앞의 텍스트만 볼 수 있다.</li>
+</ol>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: (a) GenLIP 전체 구조 — patchify → concat with text token → 단일 Transformer → LM head가 text token만 예측. 이미지 부분은 loss에 기여하지 않음. (b) Gated Attention Layer — standard attention output $A$에 element-wise gate $G$를 곱해 $\tilde{A} = G \odot A$를 만들고, SwiGLU FFN을 거침. Gate $G$는 입력 $X$에서 sigmoid로 계산. (c) Prefix-LM attention의 attention mask — 상단 왼쪽 블록(image→image)은 full, 우하단 텍스트 블록은 하삼각(causal), 텍스트→이미지는 full.
+</blockquote>
+
+<h3>3.2 Objective</h3>
+
+<p>Standard autoregressive LM loss, ##단 텍스트 부분에만 적용##:</p>
+
+$$\mathcal{L}_{\text{LM}} = -\sum_{k=0}^{L} \log P(t_k | \{v_j\}_{j=0}^{M}, \{t_i\}_{i=0}^{k-1}; \theta) \quad (2)$$
+
+<p>직관적으로: 모델은 앞의 모든 이미지 토큰과 지금까지의 텍스트 토큰을 조건으로, 다음 텍스트 토큰의 확률을 예측한다. 이미지 토큰 자체를 pixel-space에서 재구성하는 부분은 없다(VL-BEiT/CapPa와의 차이). 결과적으로 vision encoder는 "이 이미지가 어떤 텍스트로 서술될 만한 정보를 담고 있는가"라는 정보량 목적으로 <em>직접</em> gradient를 받는다.</p>
+
+<h3>Vision Encoder로 사용할 때</h3>
+
+<p>MLLM에 GenLIP을 vision encoder로 붙일 때는:</p>
+<ul>
+  <li>마지막 Transformer block 다음의 LN layer output을 feature로 사용</li>
+  <li>2-layer MLP projector를 LLM 입력 공간에 정렬</li>
+  <li>Text 관련 모듈(tokenizer, LM head) 제거</li>
+  <li>Prefix-LM attention은 이미지 토큰뿐이므로 자동으로 full attention이 됨</li>
+</ul>
+
+<h3>3.3 Gated Attention: attention sink 문제 해결</h3>
+
+<p><strong>문제 관찰</strong>: 위 unified 구조를 그대로 학습하면 <em>attention sink</em>가 심하게 발생한다. 시퀀스의 첫 토큰이 attention mass를 과도하게 흡수하는 현상이다. Figure 3에서 27-layer So/16 모델의 layer-wise attention 분석 결과를 보면:</p>
+
+<blockquote>
+<strong>[Figure 3 설명]</strong>: X축은 layer index(1~27). (a) vision token → 첫 sequence 토큰으로 가는 attention: w/o GA 평균 34.4, w/ GA 평균 0.8. (b) generated text token → 첫 토큰: w/o GA 17.1, w/ GA 0.1. (c) generated text → vision tokens: w/o GA 8.9, w/ GA 13.4. ##Gated attention이 sink 흡수를 극단적으로 줄이고, 대신 텍스트→비전 attention을 증가시켰다##.
+</blockquote>
+
+<p><strong>왜 발생하나</strong>: softmax attention의 sum-to-one 제약 때문에, 모델은 "안전한 dumping ground"를 필요로 한다. Prefix-LM에서는 이미지 토큰이 bidirectional로 정보를 aggregate할 수 있어서 앞쪽 몇 개의 vision token이 "이미지 요약"이 되어 sink 역할을 하게 되고, 뒤의 텍스트 토큰들은 이 소수 sink token만 참조하는 shortcut을 학습한다. 결과적으로:</p>
+<ul>
+  <li>학습 시 loss spike 발생</li>
+  <li>Spatial diversity 감소 → 개별 patch feature의 discriminative 능력 저하 (ImageNet linear probing 저하)</li>
+  <li>Scaling behavior 불안정</li>
+</ul>
+
+<p><strong>Gated Attention 정의</strong>: Qiu et al. [54]의 아이디어를 차용. Transformer block의 hidden state $X \in \mathbb{R}^{n \times d}$에 대해 standard attention $A = \text{Attn}(X)$를 구하고, per-head input-dependent gate를 적용:</p>
+
+$$G = \sigma(X W_g + b_g), \quad \tilde{A} = G \odot A \quad (3)$$
+
+<p>직관적으로: 각 head, 각 token position마다 sigmoid gate가 "이 attention output을 얼마나 통과시킬지"를 학습. Text token이 sink token 하나에 attention을 몰아넣더라도, gate가 이를 억제할 수 있다. Figure 2(b)에서 gate signal(빨간 선)이 attention output과 element-wise 곱해지고 SwiGLU를 거치는 흐름을 볼 수 있다.</p>
+
+<p><strong>효과</strong>: (i) Loss spike 완화, (ii) 수렴 가속, (iii) scaling 안정화, (iv) ImageNet linear probe 76.2 → 84.3 (So/16). Table 10에서 register token(1개, 4개)과 비교했을 때도 gated attention이 대부분 벤치마크에서 우수.</p>
+
+<h2>알고리즘 흐름도</h2>
+
+<div class="flow-diagram">[학습 시 forward pass]
+
+이미지 I ─→ Patch Embed ─→ {v₀, ..., v_M}                             │
+                                                                        │─→ concat: S = [v₀,...,v_M, t₀,...,t_L]
+텍스트 T ─→ Qwen3 Tokenizer ─→ {t₀, ..., t_L}                          │
+                                                                        ↓
+              [Transformer Block × N] (Prefix-LM attn + MRoPE + Gated Attn)
+                                                                        ↓
+                                                        LN → LM head → P(t_k | ...)
+                                                                        ↓
+                                                        LM loss (text token만)
+
+[MLLM inference 시 vision encoder로 사용]
+
+이미지 I ─→ Patch Embed ─→ {v₀, ..., v_M}
+                            ↓
+      [Transformer Block × N] (Full attn, gated, MRoPE)  ← LM head/tokenizer 제거
+                            ↓
+                          LN output
+                            ↓
+                     2-layer MLP projector
+                            ↓
+                         LLM 입력</div>
+
+<h2>3.3 Pretraining Details</h2>
+
+<p>두 단계 학습:</p>
+
+<h3>Stage 1: Fixed Resolution Pretraining</h3>
+<ul>
+  <li>Dataset-S1: curated 1B image-text pair</li>
+  <li>Resolution: 224×224 고정, 196 patch</li>
+  <li>Total samples: ##8B (Dataset-S1을 8 epoch)##</li>
+  <li>목적: 강한 foundational visual representation 학습</li>
+</ul>
+
+<h3>Stage 2: Diverse Resolution Adaptation</h3>
+<ul>
+  <li>Dataset-S2: 37M image-text pair, longer caption + higher resolution</li>
+  <li>Native aspect ratio 유지, vision token 수 [16, 1024] 범위</li>
+  <li>1 epoch만 학습</li>
+  <li>목적: variable resolution + fine-grained detail (OCR, chart) 학습</li>
+</ul>
+
+<h3>모델 설정 (Table 1)</h3>
+
+<table>
+<tr><th>Model</th><th>Params</th><th>Layers</th><th>Dims</th><th>Heads</th><th>FFN-w</th></tr>
+<tr><td>GenLIP-L/16</td><td>0.3B</td><td>24</td><td>1024</td><td>16</td><td>2816</td></tr>
+<tr><td>GenLIP-So/16</td><td>0.4B</td><td>27</td><td>1152</td><td>16</td><td>3072</td></tr>
+<tr><td>GenLIP-g/16</td><td>1.1B</td><td>40</td><td>1536</td><td>24</td><td>4096</td></tr>
+</table>
+
+<h3>하이퍼파라미터 (Table 2)</h3>
+<ul>
+  <li>Optimizer: AdamW, $\beta_1=0.9$, $\beta_2=0.95$</li>
+  <li>Peak LR $1e{-}3$ (Stage 1) → $1e{-}4$ (Stage 2), Min LR $1e{-}6$, cosine decay</li>
+  <li>Warmup ratio 0.007 (L/So), 0.02 (g)</li>
+  <li>Gradient clipping 1.0</li>
+  <li>Max packing length 16,384 (variable length sample을 pack하는 전략)</li>
+  <li>Batch size 32K (L/So) / 48K (g), Stage 2는 3.6K로 축소 (평균 시퀀스 길이 270 → 1200 tokens로 증가)</li>
+  <li>Layer scale 0.1, Drop path 0.1 (L/So) / 0.2 (g)</li>
+  <li>Vocab 151,936, RoPE $\theta=10000$</li>
+  <li>Exact per-sample Prefix-LM masking: PyTorch FlexAttention 사용</li>
+  <li>Image preprocess: resize + crop만 (augmentation 없음)</li>
+</ul>
+
+<h2>4. Experiments</h2>
+
+<h3>4.1 Setup</h3>
+
+<p>실험은 논문이 답하려는 세 가지 핵심 질문으로 정리된다:</p>
+<ol>
+  <li>GenLIP이 기존 contrastive/generative baseline보다 실제로 강한가?</li>
+  <li>Data/Model 양쪽에서 scale하는가?</li>
+  <li>어떤 컴포넌트(gated attention, native aspect ratio, single-transformer 등)가 실제로 성능을 만드는가?</li>
+</ol>
+
+<p><strong>Baselines</strong>: CLIP (L/14, 12.8B), AIMv2 (L/14, 12.0B), OpenVision2 (L/16, 12.8B), SigLIP (L/16, 40B), SigLIP2 (L/So/g/16, 40B). 참고로 GenLIP은 8.0B로 학습.</p>
+
+<p><strong>Protocol</strong>: 주로 <em>frozen visual representation evaluation</em>. Cambrian 논문의 프로토콜을 따라, vision encoder는 얼리고 LLM만 fine-tune. LLM은 Qwen2.5-1.5B-Instruct와 Qwen2.5-7B-Instruct 두 크기, framework는 LLaVA-NeXT, SFT 데이터는 LLaVA-OneVision (3M+). 이 세팅은 ##"vision encoder 자체의 순수 quality"##를 측정하는 데 목적.</p>
+
+<p><strong>Benchmark 14종 (ALL AVG)</strong>:</p>
+<ul>
+  <li>Doc&OCR (7): ChartQA, OCRBench, DocVQA, TextVQA, AI2D, InfoVQA, SEED-Bench-2-Plus</li>
+  <li>General VQA (4): MME-P, VQAv2, GQA, ScienceQA</li>
+  <li>Caption (3): NoCaps, COCO, TextCaps (CIDEr)</li>
+</ul>
+
+<h3>4.2 Main Results — Frozen Feature (Table 3, Qwen2.5-1.5B)</h3>
+
+<p><strong>실험 의도</strong>: 동일 조건에서 GenLIP의 frozen feature가 SOTA 대비 얼마나 강한지, 그리고 그 gain이 어떤 벤치마크군에 집중되는지 확인.</p>
+
+<table>
+<tr><th>Model</th><th>Arch</th><th>Data</th><th>Doc&OCR avg</th><th>ALL AVG</th></tr>
+<tr><td>CLIP</td><td>L/14</td><td>12.8B</td><td>32.5</td><td>53.1</td></tr>
+<tr><td>AIMv2</td><td>L/14</td><td>12.0B</td><td>39.0</td><td>55.7</td></tr>
+<tr><td>OpenVision2</td><td>L/16</td><td>12.8B</td><td>39.9</td><td>58.7</td></tr>
+<tr><td>SigLIP</td><td>L/16</td><td>40.0B</td><td>39.4</td><td>56.9</td></tr>
+<tr><td>SigLIP2</td><td>L/16</td><td>40.0B</td><td>45.0</td><td>59.1</td></tr>
+<tr><td><strong>GenLIP</strong></td><td>L/16</td><td>8.0B</td><td><strong>49.3</strong></td><td><strong>61.5</strong></td></tr>
+<tr><td>SigLIP2</td><td>So/16</td><td>40.0B</td><td>46.7</td><td>60.6</td></tr>
+<tr><td><strong>GenLIP</strong></td><td>So/16</td><td>8.0B</td><td><strong>50.1</strong></td><td><strong>62.6</strong></td></tr>
+<tr><td>SigLIP2</td><td>g/16</td><td>40.0B</td><td>47.3</td><td>61.5</td></tr>
+<tr><td><strong>GenLIP</strong></td><td>g/16</td><td>8.0B</td><td><strong>53.2</strong></td><td><strong>65.2</strong></td></tr>
+</table>
+
+<p><strong>결과 해석</strong>: ##1/5 데이터로 SigLIP2를 앞선다##. Doc&OCR 벤치마크에서 gain이 두드러진다 (L/16 +4.3, So/16 +3.3, g/16 +5.9 avg). 이는 GenLIP이 이미지 내 텍스트 인식 같은 fine-grained visual-text alignment에 특히 강함을 시사.</p>
+
+<p><strong>어떤 주장을 뒷받침하나</strong>: (i) generative objective가 MLLM용 vision encoder에 궁합이 좋다는 Figure 1 diagnostic의 실증, (ii) 아키텍처 단순화가 오히려 데이터 효율을 개선한다는 저자 주장.</p>
+
+<h3>4.2 Main Results — Qwen2.5-7B (Table 4)</h3>
+
+<p><strong>실험 의도</strong>: gain이 작은 LLM에만 특화된 것인지, 아니면 LLM을 키워도 유지되는지.</p>
+
+<p><strong>결과</strong>: 7B LLM에서도 동일한 트렌드. GenLIP g/16 vs SigLIP2 g/16: ALL AVG 73.6 vs 68.9 (+4.7). So/16 scale에서 +2.4 개선. ##LLM을 키워도 vision encoder의 quality gap이 유지되며, GenLIP이 model size에 대해 더 잘 scale함이 관찰##된다 (SigLIP2는 상대적으로 smaller scaling gain).</p>
+
+<h3>4.2.3 Standard LLaVA-NeXT Evaluation (Table 6)</h3>
+
+<p><strong>실험 의도</strong>: Frozen만이 유리한 조건이 아닌지 확인하기 위해, 표준 LLaVA-NeXT처럼 vision encoder를 unfreezing하고 instruction tuning할 때도 GenLIP이 강한지.</p>
+
+<p><strong>결과 (576 patch budget)</strong>: GenLIP So/16 ALL AVG 68.5, CLIP L/14 64.8, AIMv2 L/14 66.5, RICE-ViT L/14 68.1. (729 patch budget) GenLIP So/16 70.3, SigLIPv2 So/14 67.5, RICE-ViT L/14 68.6. ##Unfreeze 조건에서도 GenLIP이 상위##.</p>
+
+<h3>4.3 Scalability Analysis</h3>
+
+<h4>Data Scaling (Figure 4)</h4>
+
+<p><strong>실험 의도</strong>: 1B → 8B로 데이터를 늘렸을 때 성능이 지속 개선되는가, 그리고 gated attention의 이득이 data scale에 따라 어떻게 변하는가.</p>
+
+<p><strong>결과</strong>: 세 task군(OCR, VQA, Caption) 모두에서 1B → 4B 구간의 gain이 가파르고 4B → 8B에서 완만해짐. Caption/VQA는 후반에 saturation 조짐, OCR은 여전히 상승. ##Gated attention은 특히 low-data regime에서 이득이 크며, data scale에 걸쳐 일관되게 유효##.</p>
+
+<h4>Model Scaling (Table 7)</h4>
+
+<p>L/16 → So/16 → g/16으로 갈수록 모든 벤치마크에서 성능 개선. ##L/16이 So/16보다 저조한 것은 fixed-resolution stage에서만 나타나고, native-aspect adaptation 이후 gap이 좁혀짐##. So/16과 g/16의 격차는 상대적으로 작다. 저자는 "적절한 model size가 중요하며, 무작정 키우는 이득은 감소한다"고 서술.</p>
+
+<h3>4.4 Ablations</h3>
+
+<h4>4.4.1 Controlled Comparison with Other VLPs (Table 8)</h4>
+
+<p><strong>실험 의도</strong>: 앞의 main result는 pretraining data가 다르다는 반박이 가능. 같은 2.0B budget으로 SigLIP, OpenVision2, GenLIP을 직접 비교하면 GenLIP의 원천적 우위가 확인되는가.</p>
+
+<p><strong>세팅</strong>: 모두 Dataset-S1의 2.0B sample로 학습. GenLIP은 first stage만, SigLIP/OpenVision2는 pretrain + 0.2B의 high-res adaptation.</p>
+
+<p><strong>결과</strong>: GenLIP ALL AVG 57.2, OpenVision2 55.9, SigLIP 54.4. Doc&OCR에서 GenLIP 40.6, OpenVision2 39.5, SigLIP 34.5. ##OCRBench에서만 OpenVision2가 GenLIP보다 6.3 앞서는데, 이는 GenLIP이 high-res adaptation을 생략한 세팅 때문##이라고 설명.</p>
+
+<p><strong>주장 뒷받침</strong>: "GenLIP의 gain은 데이터 양보다는 objective + architecture에서 온다"는 명제를 통제된 실험으로 뒷받침.</p>
+
+<h4>4.4.2 Comparison with SAIL (Table 9)</h4>
+
+<p><strong>실험 의도</strong>: GenLIP과 아키텍처가 가장 유사한 SAIL은 pretrained LLM(Qwen3-0.6B)에서 초기화. LLM init이 진짜 도움이 되는가? Vision encoder pretraining에는 오히려 해로울 수도 있지 않은가?</p>
+
+<table>
+<tr><th>Method</th><th>Arch</th><th>Init</th><th>ALL AVG</th></tr>
+<tr><td>SAIL</td><td>Qwen3-0.6B</td><td>✓</td><td>53.6</td></tr>
+<tr><td>SAIL-g (gated attn 추가)</td><td>Qwen3-0.6B</td><td>✓</td><td>54.8</td></tr>
+<tr><td>SAIL-g-Scratch</td><td>Qwen3-0.6B</td><td>✗</td><td>56.0</td></tr>
+<tr><td>GenLIP</td><td>ViT-So/16</td><td>✗</td><td><strong>56.3</strong></td></tr>
+</table>
+
+<p><strong>결과</strong>: ##LLM init은 오히려 vision encoder 성능을 낮춘다 (SAIL 53.6 → SAIL-g-Scratch 56.0)##. Gated attention은 SAIL-init 상태에서 modest gain(1.2), scratch 학습 시 더 큰 gain을 부여. Appendix E에서 상세 분석: LLM init은 language-side shortcut을 유도해 vision-side grounding 학습을 방해.</p>
+
+<p><strong>주장 뒷받침</strong>: 논문이 "modular MLLM용 <em>standalone</em> vision encoder를 목표로 한다면 LLM init은 불필요하다"는 SAIL과의 차별점을 정면으로 실증.</p>
+
+<h4>4.4.3 Gated Attention vs Register Token (Table 10)</h4>
+
+<table>
+<tr><th>Method</th><th>ALL AVG</th></tr>
+<tr><td>1 Register</td><td>53.3</td></tr>
+<tr><td>4 Registers</td><td>55.1</td></tr>
+<tr><td>Gated Attention</td><td><strong>56.3</strong></td></tr>
+</table>
+
+<p>기존 vision transformer에서 attention sink 완화용으로 쓰이던 register token보다 gated attention이 우수. 특히 GenLIP 세팅에서는 register token을 유지하면서 gated attention을 함께 쓰는 편이 좋았다고 보고.</p>
+
+<h4>4.4.4 Native Aspect Ratio Adaptation (Figure 5)</h4>
+
+<p>Stage 1만 학습한 GenLIP-So/16을 224/384/512 평가 해상도에서 테스트. Stage 2를 거친 모델이 세 task군 모두에서 뚜렷하게 더 좋음. Native aspect ratio + longer caption의 Stage 2가 detail-sensitive task에 결정적임을 확인.</p>
+
+<h3>4.5 Discriminative Ability (Table 11)</h3>
+
+<p><strong>실험 의도</strong>: GenLIP은 caption을 배웠지만, DINOv2 계열이 잘하는 <em>discriminative</em> feature도 학습되는가?</p>
+
+<p><strong>Protocol</strong>: DINOv2 스타일 frozen backbone eval. CLS token이 없으므로 patch feature에 attentive probing(classification) / linear layer(segmentation) 적용.</p>
+
+<table>
+<tr><th>Method</th><th>Arch</th><th>ImageNet-1K</th><th>ADE20K mIoU</th></tr>
+<tr><td>CLIP</td><td>L/14</td><td>85.1</td><td>39.0</td></tr>
+<tr><td>SigLIP</td><td>So/14</td><td>86.7</td><td>40.8</td></tr>
+<tr><td>SigLIP2</td><td>So/14</td><td>88.9</td><td>45.4</td></tr>
+<tr><td>GenLIP w/o GA</td><td>So/16</td><td>76.2</td><td>-</td></tr>
+<tr><td>GenLIP</td><td>L/16</td><td>83.9</td><td>41.0</td></tr>
+<tr><td>GenLIP</td><td>So/16</td><td>84.3</td><td>42.8</td></tr>
+<tr><td>GenLIP</td><td>g/16</td><td>85.2</td><td>44.5</td></tr>
+</table>
+
+<p><strong>결과</strong>: (i) ##Gated attention이 attention sink로 인한 discriminative 저하를 크게 완화 (76.2 → 84.3)##. (ii) Model size가 커질수록 discriminative도 개선. (iii) SigLIP2는 dense supervision을 도입한 SoTA인 반면, GenLIP은 그런 explicit visual supervision 없이도 대등한 수준. CLIP/SigLIP은 앞섰다.</p>
+
+<h3>4.6 Let ViT Speak: Qualitative Analysis</h3>
+
+<p><strong>4.6.1 Direct Caption Generation (Figure 6)</strong>: "Describe the image in details." 프롬프트로 GenLIP이 직접 caption을 생성. Stage 1 → Stage 2로 갈수록 caption이 길고 상세해짐. Model이 커질수록 정확도 상승 (예: L16/So16는 Bulbasaur를 Charmander로 오인, g16은 정확히 Bulbasaur로 식별).</p>
+
+<p><strong>4.6.2 Patch Semantics Readout (Figure 7)</strong>: 특정 image patch feature를 LM head로 unembedding해서 top-5 token을 확인. 놀랍게도 ##각 patch가 지역 semantic과 의미 있는 정렬을 보임## (예: 곰 인형 patch → "fluffy", "puppy"; 노 patch → "ski", "poles"; DNA 심볼 → "DNA", "molecule", "spiral"). 이는 explicit visual supervision 없이 image-text pretraining만으로 얻은 emergent property.</p>
+
+<h2>Appendix 핵심 논의</h2>
+
+<h3>D. Attention Sink 이론적 배경</h3>
+
+<p>Attention sink는 softmax의 sum-to-one 제약에서 발생. Vision Transformer의 bidirectional self-attention에서는 low-semantic region의 소수 token이 "register" 역할을 하며 sink가 되고, autoregressive LM에서는 <em>구조적으로</em> 첫 토큰이 subsequent 모든 position에서 접근 가능하므로 자연스러운 sink 후보가 된다. Prefix-LM은 이 두 성질이 결합된 형태로, 첫 vision token $v_0$가 특히 favorable sink candidate가 된다.</p>
+
+<p>Encoder-decoder generative VLP(CapPa 등)에서는 vision encoder와 text decoder가 분리되어 있어 sink 문제가 decoder에 국한되지만, GenLIP처럼 단일 트랜스포머로 통합하면 sink가 vision representation 자체를 열화시킨다. 이것이 gated attention이 GenLIP에서 특히 결정적인 이유.</p>
+
+<h3>E. Language Prior의 함정 (SAIL 대비 분석)</h3>
+
+<p>Figure 10, 11의 attention pattern 분석에 따르면, LLM 초기화된 SAIL 변종은 초반 레이어에서 generated text token이 attention의 대부분을 <em>prompt/sink token</em>에 몰아넣고 vision token에는 거의 attend하지 않는다. Gated attention을 추가해도 이 편향이 완화될 뿐 완전히 사라지지 않는다. 반면 scratch에서 학습된 SAIL-g-Scratch는 vision token에 더 많이 attend하고, attention pattern이 GenLIP-So16과 유사해진다.</p>
+
+<p>##"강한 LLM prior + 약한 vision conditioning"의 조합이 captioning objective를 만족시키는 shortcut을 만들어, vision encoder의 grounded representation 학습을 방해##한다는 통찰. 이는 modular MLLM용 vision encoder를 pretrain할 때 중요한 함의를 갖는다.</p>
+
+<h2>비판적 분석</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>아키텍처적 미니멀리즘</strong>: 별도 text decoder 없이 단일 ViT + LM head라는 극단적 단순화. 이는 코드베이스, 학습 파이프라인, downstream 통합 모두에 이롭다.</li>
+  <li><strong>실증적으로 강력한 data efficiency</strong>: 8B samples로 40B의 SigLIP2를 앞서는 것은 objective mismatch 가설의 강력한 empirical support.</li>
+  <li><strong>Attention sink의 modality-specific 분석</strong>: gated attention이 vision encoder pretraining 성능에 직접 영향을 준다는 것은 새로운 관찰. Figure 3의 layer-wise 분석은 매우 설득력 있다.</li>
+  <li><strong>SAIL과의 controlled comparison</strong>: "LLM init이 항상 좋다"는 통념을 정면으로 반박. Vision encoder라는 target을 위해서는 오히려 scratch가 낫다는 반직관적 결과.</li>
+  <li><strong>Discriminative ability 유지</strong>: caption objective만 썼는데도 ImageNet 85.2 (g/16), ADE20K 44.5로 SigLIP/CLIP과 대등. Emergent patch semantics(Figure 7)까지 확인.</li>
+</ul>
+
+<h3>약점 및 우려</h3>
+<ul>
+  <li><strong>Dataset-S1/S2의 정체 불명</strong>: "1B curated"와 "37M long-caption"이지만 정확히 어떤 소스에서 어떤 필터링/re-captioning을 거쳤는지는 밝히지 않았다. Caption quality가 결정적일 수 있는데, 재현이 어렵다.</li>
+  <li><strong>Baseline과의 data 이질성</strong>: Table 3/4는 pretraining data를 통제하지 않았다. Controlled Table 8이 있지만 2B budget뿐이며, high-res adaptation을 GenLIP은 생략하는 등 세팅이 완전히 대칭적이지 않다.</li>
+  <li><strong>ImageNet에서 SigLIP2에 밀림</strong>: 순수 discriminative 관점에서는 SigLIP2 (dense supervision 사용)가 여전히 우세. GenLIP의 표현이 모든 downstream을 dominate하는 것은 아님.</li>
+  <li><strong>Scaling ceiling</strong>: 데이터를 4B → 8B로 늘렸을 때 이득이 감소. 진짜 SigLIP2 규모(40B)로 확장했을 때의 거동은 미확인.</li>
+  <li><strong>Native MLLM에는 부적합</strong>: GenLIP은 <em>modular</em> MLLM의 vision encoder 목적이라 명시. Chameleon/NEO/SAIL 스타일의 fully-native MLLM으로는 활용할 수 없다.</li>
+  <li><strong>Compute cost 분석 부재</strong>: 40B samples로 학습된 SigLIP2 대비 8B가 이득이라는 주장은 강력하지만, 절대적 GPU-hour나 wall-clock 비교는 없다. 두 배 넓은 모델(g/16이 1.1B)이 encoder-only baseline(SigLIP2 g/16 대비 파라미터 수) 대비 정확히 얼마나 무거운지도 애매.</li>
+  <li><strong>Cross-modal alignment 심층 분석 부재</strong>: patch semantics readout은 몇 가지 예시만 정성적으로 보여줄 뿐, 정량 평가(예: patch classification accuracy, grounding metric)로 검증되지 않았다.</li>
+  <li><strong>Prefix-LM attention의 실효성</strong>: Full attention vs Prefix-LM vs full causal의 비교 ablation이 명시적으로 제시되지 않아, MRoPE와 prefix-LM 각각의 기여가 분리되지 않는다.</li>
+</ul>
+
+<h3>후속 연구 방향</h3>
+<ul>
+  <li>##Dataset-S2 scale up##: 37M을 훨씬 늘려 native aspect ratio 데이터의 scaling curve를 그리는 실험.</li>
+  <li>##Instruction-following pretraining##: caption 외에 VQA, region description 같은 richer supervision signal 추가.</li>
+  <li>##Gated attention의 일반화##: 다른 VLP나 pure LM에서도 attention sink 완화 효과를 정량화.</li>
+  <li>##Dense supervision hybrid##: SigLIP2가 도입한 dense supervision을 GenLIP에 결합해 discriminative gap을 좁힐 수 있는지.</li>
+  <li>##Video로 확장##: 시간 축을 MRoPE에 추가해 video-language pretraining으로 확장.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>Vision encoder pretraining의 objective를 MLLM downstream(next-token prediction)에 맞춘다</strong>는 발상 자체가 지금 시점에서 매우 실용적. Contrastive는 discriminative task에 유리하지만 MLLM용 vision encoder로는 <em>objective mismatch</em>가 있고, 이를 실증한 PPL diagnostic(Figure 1)은 강력한 근거.</li>
+  <li><strong>단순화가 오히려 data efficiency를 높인다</strong>: 별도 text decoder를 없애고 gradient가 vision backbone에 <em>직접</em> 흐르게 하는 것이 8B → 40B baseline 대비 gain의 원천. 아키텍처 단순화가 항상 옳지는 않지만, 이 논문은 매우 명확한 예.</li>
+  <li><strong>Attention sink는 vision encoder pretraining의 실제 병목</strong>: register token 대신 gated attention을 쓰면 ImageNet linear probe가 76.2 → 84.3까지 회복. 다른 vision pretraining 프로젝트에서도 참고할 만한 실전 팁.</li>
+  <li><strong>LLM initialization은 만능이 아니다</strong>: vision encoder라는 target을 위해서는 scratch가 낫다는 SAIL 대비 실험. "modular"와 "native"의 목적 차이를 인지하고 pretraining 결정을 내려야 함.</li>
+  <li><strong>Doc&OCR에 큰 gain</strong>: chart, invoice, document 분석 같은 실무 응용에 즉시 유용. Long/native-aspect adaptation Stage 2가 detail-sensitive task에 결정적임을 두 단계 pretraining schedule이 잘 보여준다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<p><em>(추후 Q&A, 관련 아이디어, 후속 실험 계획 등을 이 섹션에 누적한다)</em></p>
+
+</div>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GenLIP — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  .hero {
+    background: linear-gradient(135deg, #4a148c, #7b1fa2, #ba68c8);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.6rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #4a148c; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #7b1fa2, #ba68c8); border-radius: 3px; }
+  section h3 { margin-top: 2rem; font-size: 1.2rem; color: #4a148c; }
+  section p { margin: 0.8rem 0; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #7b1fa2; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #7b1fa2, #ba68c8);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #7b1fa2, #ba68c8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #4a148c; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f3e5f5; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #7b1fa2; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #7b1fa2; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #7b1fa2; padding: 0 0.4rem; }
+
+  ul li { margin: 0.3rem 0; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .top-link { text-align: right; padding: 1rem 1.5rem; }
+  .top-link a { color: #7b1fa2; text-decoration: none; font-weight: 500; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.8rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">ByteDance · Beijing Jiaotong Univ. · NTU · 2026</div>
+  <h1>Let ViT Speak (GenLIP)</h1>
+  <p class="subtitle">"눈(ViT)이 스스로 말하게 하라"<br>— 하나의 트랜스포머로 그림을 보고 설명까지 배우는 새로운 사전학습</p>
+</div>
+
+<div class="container">
+
+<div class="top-link">
+  <a href="20260716_fang_genlip.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="one-liner">
+  "복잡한 2인 1조 대신, ViT 혼자서 그림을 보고 말을 배운다.<br>
+  1/5의 데이터로 SigLIP2를 뛰어넘다."
+</div>
+
+<!-- ===== 배경지식 ===== -->
+<section>
+  <h2>먼저 알아야 할 것들</h2>
+
+  <div class="card card-accent">
+    <p>GenLIP을 이해하려면 크게 <strong>다섯 가지</strong>를 알아야 합니다. AI가 "그림을 이해한다"는 것이 무슨 의미인지(<strong>Vision Encoder</strong>), 왜 챗GPT 같은 <strong>MLLM</strong>이 그림을 처리하려면 이 vision encoder가 필요한지, 그리고 지금까지 시도된 <strong>CLIP</strong>과 <strong>CapPa</strong> 두 가지 학습 방식의 한계, 마지막으로 이 논문이 새롭게 지적한 <strong>Attention Sink</strong>라는 문제를 순서대로 살펴봅시다.</p>
+  </div>
+
+  <h3>개념 1: Vision Encoder — AI의 "눈"</h3>
+  <p>사람이 그림을 볼 때 뇌는 픽셀 하나하나를 처리하지 않습니다. "고양이", "털이 갈색", "귀가 뾰족" 같은 <strong>의미 있는 특징</strong>으로 변환하죠. AI에서도 마찬가지입니다. <strong>Vision Encoder</strong>는 이미지를 받아 "이 그림이 담고 있는 개념"을 숫자 벡터로 변환하는 신경망입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Vision Encoder의 역할</text>
+
+      <!-- 원본 이미지 -->
+      <rect x="40" y="60" width="120" height="120" rx="10" fill="#e1bee7" stroke="#4a148c" stroke-width="1.5"/>
+      <circle cx="100" cy="115" r="30" fill="#4a148c"/>
+      <circle cx="90" cy="105" r="4" fill="#fff"/>
+      <circle cx="110" cy="105" r="4" fill="#fff"/>
+      <path d="M 85 130 Q 100 140 115 130" stroke="#fff" stroke-width="2" fill="none"/>
+      <text x="100" y="200" font-size="12" text-anchor="middle" fill="#475569">고양이 사진</text>
+
+      <!-- 화살표 -->
+      <text x="200" y="125" font-size="30" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <!-- Vision Encoder -->
+      <rect x="240" y="80" width="180" height="80" rx="10" fill="#7b1fa2"/>
+      <text x="330" y="115" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">Vision Encoder</text>
+      <text x="330" y="140" font-size="11" fill="#e1bee7" text-anchor="middle">(ViT — Vision Transformer)</text>
+
+      <!-- 화살표 -->
+      <text x="460" y="125" font-size="30" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <!-- 벡터 -->
+      <rect x="500" y="60" width="160" height="120" rx="10" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5"/>
+      <text x="580" y="85" font-size="11" fill="#4a148c" text-anchor="middle" font-weight="700">"의미의 숫자들"</text>
+      <text x="580" y="110" font-size="10" fill="#475569" text-anchor="middle">[0.12, -0.34, 0.87, ...]</text>
+      <text x="580" y="130" font-size="10" fill="#475569" text-anchor="middle">= 털,귀,얼굴,자세 등</text>
+      <text x="580" y="150" font-size="10" fill="#475569" text-anchor="middle">을 압축한 벡터</text>
+      <text x="580" y="200" font-size="12" text-anchor="middle" fill="#475569">Feature 벡터</text>
+    </svg>
+    <div class="diagram-caption">Vision Encoder는 이미지를 "의미의 숫자"로 압축하는 변환기</div>
+  </div>
+
+  <p>대표적인 Vision Encoder는 <strong>ViT (Vision Transformer)</strong>입니다. 이미지를 작은 patch(예: 16×16 픽셀 조각) 여러 개로 나누고, 각 patch를 하나의 "단어"처럼 취급해 Transformer로 처리합니다. GenLIP도 이 ViT를 기반으로 합니다.</p>
+
+  <h3>개념 2: MLLM (Multimodal LLM) — 그림도 이해하는 챗봇</h3>
+  <p>GPT-4o, Claude, Gemini 같은 최신 AI 챗봇은 <strong>텍스트뿐 아니라 이미지도 이해</strong>합니다. 이런 모델을 MLLM(Multimodal Large Language Model)이라고 합니다. MLLM은 대체로 세 부품으로 구성됩니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">MLLM의 3부품 구조</text>
+
+      <rect x="30" y="60" width="180" height="110" rx="10" fill="#e1bee7" stroke="#4a148c" stroke-width="1.5"/>
+      <text x="120" y="85" font-size="13" font-weight="700" fill="#4a148c" text-anchor="middle">1. Vision Encoder</text>
+      <text x="120" y="110" font-size="11" fill="#475569" text-anchor="middle">그림 → 숫자</text>
+      <text x="120" y="130" font-size="11" fill="#475569" text-anchor="middle">(GenLIP이 여기!)</text>
+      <text x="120" y="152" font-size="10" fill="#7b1fa2" text-anchor="middle" font-style="italic">"눈"</text>
+
+      <text x="230" y="120" font-size="24" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="255" y="60" width="180" height="110" rx="10" fill="#f3e5f5" stroke="#4a148c" stroke-width="1.5"/>
+      <text x="345" y="85" font-size="13" font-weight="700" fill="#4a148c" text-anchor="middle">2. Connector</text>
+      <text x="345" y="110" font-size="11" fill="#475569" text-anchor="middle">숫자 → LLM 언어</text>
+      <text x="345" y="130" font-size="11" fill="#475569" text-anchor="middle">(작은 MLP)</text>
+      <text x="345" y="152" font-size="10" fill="#7b1fa2" text-anchor="middle" font-style="italic">"통역"</text>
+
+      <text x="455" y="120" font-size="24" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="480" y="60" width="180" height="110" rx="10" fill="#d1c4e9" stroke="#4a148c" stroke-width="1.5"/>
+      <text x="570" y="85" font-size="13" font-weight="700" fill="#4a148c" text-anchor="middle">3. LLM</text>
+      <text x="570" y="110" font-size="11" fill="#475569" text-anchor="middle">언어로 답변 생성</text>
+      <text x="570" y="130" font-size="11" fill="#475569" text-anchor="middle">(GPT, Qwen 등)</text>
+      <text x="570" y="152" font-size="10" fill="#7b1fa2" text-anchor="middle" font-style="italic">"뇌"</text>
+    </svg>
+    <div class="diagram-caption">MLLM = Vision Encoder + Connector + LLM</div>
+  </div>
+
+  <p>여기서 <strong>Vision Encoder의 품질이 MLLM 성능의 상한선을 결정</strong>합니다. 눈이 흐릿하면 아무리 뇌가 똑똑해도 그림을 제대로 설명할 수 없죠. 그래서 어떤 Vision Encoder를 어떻게 학습(pretrain)시킬지가 매우 중요한 연구 주제입니다.</p>
+
+  <h3>개념 3: CLIP — 지금까지의 "표준" 학습 방식</h3>
+  <p><strong>CLIP</strong>(2021년, OpenAI)은 Vision Encoder 학습에 혁명을 일으킨 방법입니다. 인터넷에서 수억 장의 <strong>(이미지, 설명 텍스트)</strong> 쌍을 모아 다음처럼 학습합니다: "같은 쌍은 서로 가깝게, 다른 쌍은 서로 멀게" 만든다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">CLIP의 학습: Contrastive Learning</text>
+
+      <!-- 왼쪽: 이미지 인코더 -->
+      <rect x="30" y="55" width="140" height="60" rx="8" fill="#e1bee7"/>
+      <text x="100" y="90" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">Image Encoder</text>
+
+      <!-- 오른쪽: 텍스트 인코더 -->
+      <rect x="530" y="55" width="140" height="60" rx="8" fill="#d1c4e9"/>
+      <text x="600" y="90" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">Text Encoder</text>
+
+      <text x="100" y="140" font-size="11" fill="#475569" text-anchor="middle">고양이 사진</text>
+      <text x="600" y="140" font-size="11" fill="#475569" text-anchor="middle">"a cat sitting"</text>
+
+      <!-- 임베딩 공간 -->
+      <rect x="200" y="160" width="300" height="110" rx="10" fill="#f8fafc" stroke="#4a148c" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <text x="350" y="180" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">공유 임베딩 공간</text>
+
+      <circle cx="290" cy="220" r="8" fill="#7b1fa2"/>
+      <text x="290" y="245" font-size="10" fill="#475569" text-anchor="middle">📷 고양이</text>
+
+      <circle cx="310" cy="225" r="8" fill="#059669"/>
+      <text x="310" y="205" font-size="10" fill="#475569" text-anchor="middle">"cat"</text>
+
+      <circle cx="420" cy="230" r="8" fill="#dc2626"/>
+      <text x="440" y="235" font-size="10" fill="#475569" text-anchor="start">📷 자동차</text>
+
+      <!-- 화살표: 두 벡터 가깝게 -->
+      <path d="M 296 219 L 304 224" stroke="#059669" stroke-width="2" marker-end="url(#arr)"/>
+
+      <defs>
+        <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669"/>
+        </marker>
+      </defs>
+
+      <text x="350" y="290" font-size="11" fill="#4a148c" text-anchor="middle" font-style="italic">"짝인 것끼리 가깝게" — Contrastive Loss</text>
+    </svg>
+    <div class="diagram-caption">CLIP: 이미지와 텍스트를 각각 별도 인코더로 인코딩 후 정렬</div>
+  </div>
+
+  <p>CLIP의 문제는 무엇일까요? 이미지 검색이나 분류에는 잘 작동하지만, <strong>MLLM은 다르게 훈련</strong>됩니다. MLLM은 "다음에 어떤 단어가 나올까?"를 예측하는 모델(Autoregressive Language Model)이거든요. 그래서 저자들은 이렇게 말합니다:</p>
+
+  <div class="analogy">
+    <div class="analogy-title">🎯 비유: 목적이 다른 훈련</div>
+    <p>축구를 잘하려는 선수에게 야구 훈련을 시킨다고 상상해보세요. 둘 다 "공을 다루는 운동"이지만, 필요한 근육과 감각이 다릅니다. CLIP은 "물건 분류"에 최적화된 야구 훈련이고, MLLM은 "문장 생성"이라는 축구를 하는데, 우리는 축구 선수를 만들고 싶은 상황이죠. <strong>훈련 목적과 실전 목적이 어긋난</strong> 겁니다. 이걸 논문에서는 <em>Objective Mismatch</em>라고 부릅니다.</p>
+  </div>
+
+  <h3>개념 4: CapPa/AIMv2 — Generative 방식의 시도</h3>
+  <p>CLIP의 문제를 인식한 연구자들이 만든 대안이 <strong>generative pretraining</strong>입니다. Vision Encoder 뒤에 별도의 <strong>Text Decoder</strong>를 붙이고, 그림을 보고 caption을 생성하도록 훈련시킵니다. CapPa, AIMv2, OpenVision2 등이 이 계열입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Generative VLP: Vision Encoder + Text Decoder</text>
+
+      <rect x="40" y="70" width="140" height="90" rx="10" fill="#e1bee7" stroke="#4a148c" stroke-width="1.5"/>
+      <text x="110" y="100" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">Vision Encoder</text>
+      <text x="110" y="125" font-size="10" fill="#475569" text-anchor="middle">(ViT)</text>
+      <text x="110" y="145" font-size="10" fill="#7b1fa2" text-anchor="middle" font-style="italic">우리가 원하는 것</text>
+
+      <text x="200" y="125" font-size="24" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="220" y="70" width="140" height="90" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="1.5"/>
+      <text x="290" y="100" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">Text Decoder</text>
+      <text x="290" y="125" font-size="10" fill="#475569" text-anchor="middle">(추가 모듈)</text>
+      <text x="290" y="145" font-size="10" fill="#dc2626" text-anchor="middle" font-style="italic">필요 없는 짐</text>
+
+      <text x="380" y="125" font-size="24" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="400" y="70" width="200" height="90" rx="10" fill="#f8fafc" stroke="#4a148c" stroke-width="1.5"/>
+      <text x="500" y="100" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">"A cat is sitting..."</text>
+      <text x="500" y="125" font-size="10" fill="#475569" text-anchor="middle">Caption 생성</text>
+
+      <!-- 문제 표시 -->
+      <path d="M 110 175 Q 200 210 290 195" stroke="#dc2626" stroke-width="2" fill="none" stroke-dasharray="4,3"/>
+      <text x="200" y="225" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="700">Gradient는 Text Decoder를 <em>통해서만</em> 흐름 → 간접적</text>
+    </svg>
+    <div class="diagram-caption">Generative 방식의 한계: text decoder라는 "중간 다리"가 필요</div>
+  </div>
+
+  <p>이 방식은 CLIP보다 낫지만 여전히 문제가 있습니다:</p>
+  <ul>
+    <li>Text decoder라는 <strong>추가 모듈</strong>을 학습해야 함 (아키텍처 복잡화)</li>
+    <li>Vision Encoder는 gradient를 text decoder를 <strong>통해서 간접적으로만</strong> 받음</li>
+    <li>학습 후엔 text decoder를 버려야 함 (낭비)</li>
+  </ul>
+
+  <h3>개념 5: Attention Sink — 숨겨진 함정</h3>
+  <p>이 논문이 새롭게 조명한 문제입니다. Transformer는 "각 위치가 다른 모든 위치를 얼마나 참고할지"를 결정하는 <strong>Attention</strong>이라는 메커니즘을 씁니다. 그런데 이 attention 값은 합이 1이 되도록 정규화됩니다.</p>
+
+  <div class="analogy">
+    <div class="analogy-title">🚰 비유: 무엇을 어디에 흘려보낼지 정하는 수도관</div>
+    <p>Attention을 100L짜리 물통에 물을 나눠 담는다고 생각해보세요. 총 100L를 어떻게든 나눠 담아야 합니다. 문제는, 정말로 참고할 게 없을 때조차 "0L"이 아니라 어딘가엔 부어야 한다는 겁니다. 그래서 모델은 <strong>"쓰레기통 역할을 할 특정 토큰 하나"</strong>를 학습합니다. 여기에 남는 물을 다 부어버리는 거죠. 이 쓰레기통 토큰을 <strong>Attention Sink</strong>라고 합니다.</p>
+  </div>
+
+  <p>보통 트랜스포머에서는 시퀀스의 <strong>첫 번째 토큰</strong>이 이 sink 역할을 합니다. Sink 자체는 흔한 현상이지만, GenLIP처럼 이미지와 텍스트를 한 모델에서 함께 처리할 때는 문제가 커집니다. <strong>이미지 정보가 소수의 sink 토큰에 압축</strong>되어버리고, 결과적으로 개별 patch feature의 품질이 떨어집니다.</p>
+</section>
+
+<!-- ===== 핵심 아이디어 ===== -->
+<section>
+  <h2>GenLIP의 핵심 아이디어: "ViT가 직접 말하게 하자"</h2>
+
+  <div class="card card-accent">
+    <p>GenLIP의 발상은 매우 단순합니다. <strong>텍스트 디코더도, 대조학습도, 특수 모듈도 없이</strong>, 하나의 ViT에게 그림과 텍스트를 이어 붙여 넣어주고 "다음 단어를 맞춰봐"라고 시키는 겁니다. LLM이 문장을 학습하는 그 방식 그대로요.</p>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">🎨 비유: 화가에게 말하는 법을 가르치기</div>
+    <p>지금까지의 접근이 "화가(vision encoder)에게 그림을 그리게 하고, 그것을 옆의 통역사(text decoder)가 설명하게 한다"였다면, GenLIP은 <strong>"화가가 직접 말하는 법을 배운다"</strong>는 접근입니다. 통역사가 필요 없죠. 화가는 그림을 그리는 사고 회로 안에 언어를 곧바로 통합시킵니다. 그림을 그리는 감각과 설명하는 감각이 한 사람 안에서 조율됩니다.</p>
+  </div>
+
+  <h3>어떻게 작동할까?</h3>
+
+  <div class="step-flow">
+    <div class="step-box">
+      <div class="step-num">STEP 1</div>
+      <div class="step-title">이미지 조각내기</div>
+      <div class="step-desc">그림을 16×16 patch로 자름 (예: 196개)</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 2</div>
+      <div class="step-title">텍스트 이어붙이기</div>
+      <div class="step-desc">각 patch + caption 토큰을 하나의 긴 수열로 합침</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 3</div>
+      <div class="step-title">ViT 통과</div>
+      <div class="step-desc">단일 트랜스포머가 이 수열을 처리</div>
+    </div>
+    <div class="step-arrow">→</div>
+    <div class="step-box">
+      <div class="step-num">STEP 4</div>
+      <div class="step-title">다음 단어 예측</div>
+      <div class="step-desc">텍스트 부분에서만 다음 단어를 맞추도록 학습</div>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">GenLIP의 데이터 흐름</text>
+
+      <!-- 입력 이미지 -->
+      <rect x="30" y="55" width="80" height="80" rx="6" fill="#e1bee7" stroke="#4a148c" stroke-width="1"/>
+      <text x="70" y="150" font-size="10" text-anchor="middle" fill="#475569">이미지</text>
+
+      <!-- 화살표 -->
+      <text x="130" y="100" font-size="20" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <!-- Patch들 -->
+      <g>
+        <rect x="155" y="55" width="20" height="20" fill="#c4a5db"/>
+        <rect x="177" y="55" width="20" height="20" fill="#c4a5db"/>
+        <rect x="199" y="55" width="20" height="20" fill="#c4a5db"/>
+        <rect x="221" y="55" width="20" height="20" fill="#c4a5db"/>
+        <text x="255" y="70" font-size="10" fill="#4a148c">... V patches</text>
+
+        <!-- Text tokens -->
+        <rect x="155" y="85" width="35" height="20" fill="#fde68a" stroke="#d97706" stroke-width="0.5"/>
+        <text x="172" y="100" font-size="9" text-anchor="middle" fill="#92400e">a</text>
+        <rect x="192" y="85" width="35" height="20" fill="#fde68a" stroke="#d97706" stroke-width="0.5"/>
+        <text x="209" y="100" font-size="9" text-anchor="middle" fill="#92400e">cat</text>
+        <rect x="229" y="85" width="45" height="20" fill="#fde68a" stroke="#d97706" stroke-width="0.5"/>
+        <text x="251" y="100" font-size="9" text-anchor="middle" fill="#92400e">sitting</text>
+        <text x="298" y="100" font-size="10" fill="#92400e">... L tokens</text>
+      </g>
+
+      <text x="155" y="130" font-size="9" fill="#4a148c">Image tokens</text>
+      <text x="155" y="120" font-size="9" fill="#92400e">Text tokens</text>
+
+      <!-- 화살표 -->
+      <text x="180" y="160" font-size="20" fill="#7b1fa2" text-anchor="middle">↓</text>
+
+      <!-- 단일 Transformer -->
+      <rect x="80" y="175" width="540" height="55" rx="12" fill="#7b1fa2"/>
+      <text x="350" y="203" font-size="14" font-weight="700" fill="#fff" text-anchor="middle">단일 ViT (Prefix-LM Attention + MRoPE + Gated Attention)</text>
+      <text x="350" y="220" font-size="10" fill="#e1bee7" text-anchor="middle">별도 text decoder 없음, contrastive loss 없음</text>
+
+      <text x="350" y="245" font-size="20" fill="#7b1fa2" text-anchor="middle">↓</text>
+
+      <!-- 출력 -->
+      <rect x="170" y="255" width="120" height="30" rx="6" fill="#fef3c7" stroke="#d97706"/>
+      <text x="230" y="275" font-size="11" font-weight="700" fill="#92400e" text-anchor="middle">다음 단어 예측</text>
+      <text x="410" y="272" font-size="11" fill="#475569">← 텍스트 부분에만 loss 적용</text>
+      <text x="410" y="285" font-size="10" fill="#dc2626">(이미지 부분엔 loss 없음)</text>
+    </svg>
+    <div class="diagram-caption">이미지 patch와 텍스트 토큰을 한 수열로 이어 붙여 하나의 Transformer가 처리</div>
+  </div>
+
+  <h3>핵심 트릭 1: Prefix-LM Attention</h3>
+  <p>이미지 부분과 텍스트 부분은 서로 다르게 attention을 걸어야 합니다. 그림은 좌우가 서로를 볼 필요가 있고(위치는 순서가 없으니까), 텍스트는 앞의 단어만 봐야 합니다(다음 단어를 예측할 때 정답을 미리 보면 안 되니까).</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 500 350" xmlns="http://www.w3.org/2000/svg">
+      <text x="250" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Prefix-LM Attention Mask</text>
+
+      <!-- 격자 -->
+      <g>
+        <!-- 헤더 (Key) -->
+        <text x="70" y="60" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V1</text>
+        <text x="110" y="60" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V2</text>
+        <text x="150" y="60" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V3</text>
+        <text x="190" y="60" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V4</text>
+        <text x="230" y="60" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T1</text>
+        <text x="270" y="60" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T2</text>
+        <text x="310" y="60" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T3</text>
+        <text x="350" y="60" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T4</text>
+        <text x="200" y="45" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle">Key (참고 대상)</text>
+
+        <!-- 좌측 헤더 (Query) -->
+        <text x="35" y="83" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V1</text>
+        <text x="35" y="115" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V2</text>
+        <text x="35" y="147" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V3</text>
+        <text x="35" y="179" font-size="10" font-weight="700" fill="#4a148c" text-anchor="middle">V4</text>
+        <text x="35" y="211" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T1</text>
+        <text x="35" y="243" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T2</text>
+        <text x="35" y="275" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T3</text>
+        <text x="35" y="307" font-size="10" font-weight="700" fill="#92400e" text-anchor="middle">T4</text>
+        <text x="15" y="180" font-size="11" font-weight="700" fill="#0d47a1" text-anchor="middle" transform="rotate(-90, 15, 180)">Query (참고하는 주체)</text>
+
+        <!-- 이미지 영역 (Full Attention) -->
+        <rect x="50" y="70" width="160" height="128" fill="#c4a5db" stroke="#4a148c" stroke-width="1"/>
+        <text x="130" y="140" font-size="12" font-weight="700" fill="#4a148c" text-anchor="middle">Full Attention</text>
+        <text x="130" y="160" font-size="10" fill="#475569" text-anchor="middle">이미지끼리 서로 봄</text>
+
+        <!-- 텍스트→이미지 (Full) -->
+        <rect x="50" y="200" width="160" height="128" fill="#e1bee7" stroke="#4a148c" stroke-width="1"/>
+        <text x="130" y="270" font-size="11" font-weight="700" fill="#4a148c" text-anchor="middle">Text → Image</text>
+        <text x="130" y="288" font-size="10" fill="#475569" text-anchor="middle">텍스트가 이미지</text>
+        <text x="130" y="303" font-size="10" fill="#475569" text-anchor="middle">전체를 봄</text>
+
+        <!-- 이미지→텍스트 (Masked) -->
+        <rect x="215" y="70" width="160" height="128" fill="#fce7f3" stroke="#4a148c" stroke-width="1"/>
+        <text x="295" y="140" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">차단</text>
+        <text x="295" y="160" font-size="10" fill="#475569" text-anchor="middle">(이미지가 텍스트 못 봄)</text>
+
+        <!-- 텍스트→텍스트 (Causal) -->
+        <rect x="215" y="200" width="160" height="128" fill="#fef3c7" stroke="#4a148c" stroke-width="1"/>
+        <polygon points="215,200 215,328 343,328" fill="#fde68a" opacity="0.7"/>
+        <text x="280" y="270" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">Causal</text>
+        <text x="280" y="288" font-size="10" fill="#475569" text-anchor="middle">앞 텍스트만 봄</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">이미지끼리는 자유롭게, 텍스트는 앞만, 그리고 텍스트가 이미지 전체를 볼 수 있게</div>
+  </div>
+
+  <h3>핵심 트릭 2: Multimodal RoPE (MRoPE)</h3>
+  <p>이미지는 2D 좌표(가로, 세로)로 위치를 표현하고, 텍스트는 1D 순서(1번째, 2번째, ...)로 위치를 표현합니다. GenLIP은 이 두 위치 정보를 <strong>Rotary Position Encoding</strong>이라는 방식으로 자연스럽게 통합합니다. 이미지 patch는 (h, w) 2D 좌표로, 텍스트 토큰은 1D 시퀀스로 각각 인코딩됩니다.</p>
+
+  <h3>핵심 트릭 3: Gated Attention (Attention Sink 완화)</h3>
+  <p>앞서 설명한 <strong>Attention Sink</strong> 문제를 해결하는 장치입니다. 각 Transformer 층에서, attention 결과에 sigmoid gate를 곱해서 "얼마나 통과시킬지"를 학습합니다. 텍스트가 sink 토큰 하나에 몰아 넣은 attention을 gate가 차단해버릴 수 있죠.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Gated Attention의 효과 (ImageNet Linear Probing)</text>
+
+      <!-- 없이 -->
+      <rect x="60" y="60" width="240" height="150" rx="12" fill="#fef2f2" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="180" y="90" font-size="13" font-weight="700" fill="#dc2626" text-anchor="middle">Gated Attention 없이</text>
+
+      <rect x="130" y="105" width="140" height="60" rx="8" fill="#dc2626" opacity="0.3"/>
+      <text x="200" y="145" font-size="36" font-weight="900" fill="#dc2626" text-anchor="middle">76.2%</text>
+      <text x="180" y="185" font-size="11" fill="#475569" text-anchor="middle">이미지의 patch feature가</text>
+      <text x="180" y="200" font-size="11" fill="#475569" text-anchor="middle">sink에 압축되어 열화됨</text>
+
+      <text x="330" y="140" font-size="30" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <!-- 있음 -->
+      <rect x="360" y="60" width="240" height="150" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="480" y="90" font-size="13" font-weight="700" fill="#059669" text-anchor="middle">Gated Attention 도입 후</text>
+
+      <rect x="430" y="105" width="140" height="60" rx="8" fill="#059669" opacity="0.3"/>
+      <text x="500" y="145" font-size="36" font-weight="900" fill="#059669" text-anchor="middle">84.3%</text>
+      <text x="480" y="185" font-size="11" fill="#475569" text-anchor="middle">Patch feature 품질 회복</text>
+      <text x="480" y="200" font-size="11" fill="#475569" text-anchor="middle">(+8.1%p 상승)</text>
+    </svg>
+    <div class="diagram-caption">GenLIP-So/16 모델에서 gated attention 유무에 따른 discriminative 성능</div>
+  </div>
+</section>
+
+<!-- ===== 학습 절차 ===== -->
+<section>
+  <h2>2단계 학습 과정</h2>
+
+  <p>GenLIP은 두 단계로 나눠 학습합니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">2단계 Pretraining Schedule</text>
+
+      <rect x="30" y="55" width="300" height="180" rx="12" fill="#f8fafc" stroke="#7b1fa2" stroke-width="1.5"/>
+      <text x="180" y="85" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Stage 1: 기초 다지기</text>
+
+      <text x="180" y="115" font-size="12" fill="#475569" text-anchor="middle">해상도: 224×224 (고정)</text>
+      <text x="180" y="140" font-size="12" fill="#475569" text-anchor="middle">데이터: 1B 이미지-캡션</text>
+      <text x="180" y="165" font-size="12" fill="#475569" text-anchor="middle">학습량: 8B samples (8 epoch)</text>
+      <text x="180" y="195" font-size="11" font-style="italic" fill="#7b1fa2" text-anchor="middle">"기본적인 시각·언어 감각 익히기"</text>
+      <text x="180" y="220" font-size="10" fill="#94a3b8" text-anchor="middle">Batch 32K, LR 1e-3</text>
+
+      <text x="345" y="145" font-size="24" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="370" y="55" width="300" height="180" rx="12" fill="#f3e5f5" stroke="#7b1fa2" stroke-width="1.5"/>
+      <text x="520" y="85" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Stage 2: 세밀함 익히기</text>
+
+      <text x="520" y="115" font-size="12" fill="#475569" text-anchor="middle">해상도: 원본 비율 (16~1024 patch)</text>
+      <text x="520" y="140" font-size="12" fill="#475569" text-anchor="middle">데이터: 37M (긴 캡션·고해상도)</text>
+      <text x="520" y="165" font-size="12" fill="#475569" text-anchor="middle">학습량: 1 epoch</text>
+      <text x="520" y="195" font-size="11" font-style="italic" fill="#7b1fa2" text-anchor="middle">"글자·차트·상세 이미지 특화"</text>
+      <text x="520" y="220" font-size="10" fill="#94a3b8" text-anchor="middle">Batch 3.6K, LR 1e-4</text>
+    </svg>
+    <div class="diagram-caption">기초 → 세밀함 순으로 커리큘럼 학습</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">📚 비유: 초등학교 → 전공심화</div>
+    <p>Stage 1은 <strong>초등학교 교과과정</strong>과 비슷합니다. 큰 그림에서 "이건 개, 이건 자동차, 이건 하늘"을 대량으로 훈련시킵니다. Stage 2는 <strong>대학 전공심화</strong>입니다. 이제 영수증에 적힌 작은 숫자, 차트의 축 레이블, 표의 미세한 정렬 같은 <strong>디테일에 집중</strong>해서 정밀도를 끌어올립니다. 두 단계 다 필요합니다 — 처음부터 세밀한 것만 훈련하면 큰 그림을 놓치고, 반대면 디테일을 못 봅니다.</p>
+  </div>
+</section>
+
+<!-- ===== 핵심 성과 ===== -->
+<section>
+  <h2>얼마나 잘하나?</h2>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">8B</div>
+      <div class="label">GenLIP 학습 데이터<br>(SigLIP2: 40B)</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">1/5</div>
+      <div class="label">경쟁 모델 대비<br>데이터량</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+3.7</div>
+      <div class="label">SigLIP2 대비<br>ALL AVG 점수</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">+5.9</div>
+      <div class="label">Doc&OCR<br>평균 개선</div>
+    </div>
+  </div>
+
+  <h3>SigLIP2 vs GenLIP 정면 대결 (14개 벤치마크 평균)</h3>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>모델</th>
+        <th>Architecture</th>
+        <th>학습 데이터</th>
+        <th>ALL AVG (LLM: Qwen2.5-1.5B)</th>
+        <th>Doc&OCR 평균</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>CLIP</td>
+        <td>L/14</td>
+        <td>12.8B</td>
+        <td>53.1</td>
+        <td>32.5</td>
+      </tr>
+      <tr>
+        <td>SigLIP2</td>
+        <td>L/16</td>
+        <td>40.0B</td>
+        <td>59.1</td>
+        <td>45.0</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>GenLIP</td>
+        <td>L/16</td>
+        <td>8.0B</td>
+        <td>61.5 (+2.4)</td>
+        <td>49.3 (+4.3)</td>
+      </tr>
+      <tr>
+        <td>SigLIP2</td>
+        <td>So/16</td>
+        <td>40.0B</td>
+        <td>60.6</td>
+        <td>46.7</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>GenLIP</td>
+        <td>So/16</td>
+        <td>8.0B</td>
+        <td>62.6 (+2.0)</td>
+        <td>50.1 (+3.3)</td>
+      </tr>
+      <tr>
+        <td>SigLIP2</td>
+        <td>g/16</td>
+        <td>40.0B</td>
+        <td>61.5</td>
+        <td>47.3</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>GenLIP</td>
+        <td>g/16</td>
+        <td>8.0B</td>
+        <td>65.2 (+3.7)</td>
+        <td>53.2 (+5.9)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Doc&OCR 벤치마크: GenLIP의 강점 분야</text>
+
+      <!-- Y축 -->
+      <line x1="80" y1="60" x2="80" y2="270" stroke="#333" stroke-width="1"/>
+      <line x1="80" y1="270" x2="640" y2="270" stroke="#333" stroke-width="1"/>
+
+      <!-- Y축 눈금 -->
+      <text x="70" y="270" font-size="10" fill="#475569" text-anchor="end">0</text>
+      <text x="70" y="220" font-size="10" fill="#475569" text-anchor="end">15</text>
+      <text x="70" y="170" font-size="10" fill="#475569" text-anchor="end">30</text>
+      <text x="70" y="120" font-size="10" fill="#475569" text-anchor="end">45</text>
+      <text x="70" y="70" font-size="10" fill="#475569" text-anchor="end">60</text>
+
+      <!-- SigLIP2 g/16 (47.3) -->
+      <rect x="130" y="112" width="80" height="158" fill="#dc2626" opacity="0.7"/>
+      <text x="170" y="107" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">47.3</text>
+      <text x="170" y="290" font-size="11" fill="#475569" text-anchor="middle">SigLIP2 g/16</text>
+      <text x="170" y="305" font-size="9" fill="#94a3b8" text-anchor="middle">(40B pairs)</text>
+
+      <!-- GenLIP g/16 (53.2) -->
+      <rect x="240" y="93" width="80" height="177" fill="#7b1fa2" opacity="0.9"/>
+      <text x="280" y="88" font-size="12" font-weight="700" fill="#7b1fa2" text-anchor="middle">53.2</text>
+      <text x="280" y="290" font-size="11" font-weight="700" fill="#7b1fa2" text-anchor="middle">GenLIP g/16</text>
+      <text x="280" y="305" font-size="9" fill="#94a3b8" text-anchor="middle">(8B pairs)</text>
+
+      <!-- 화살표 -->
+      <path d="M 260 175 Q 300 155 320 175" stroke="#059669" stroke-width="2" fill="none" marker-end="url(#arrgreen)"/>
+      <text x="340" y="170" font-size="14" font-weight="700" fill="#059669">+5.9</text>
+
+      <defs>
+        <marker id="arrgreen" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+          <path d="M 0 0 L 10 5 L 0 10 Z" fill="#059669"/>
+        </marker>
+      </defs>
+
+      <!-- 우측 텍스트 -->
+      <rect x="410" y="90" width="220" height="150" rx="10" fill="#f0f9ff" stroke="#0d47a1" stroke-width="1"/>
+      <text x="520" y="115" font-size="12" font-weight="700" fill="#0d47a1" text-anchor="middle">특히 잘하는 분야</text>
+      <text x="425" y="140" font-size="11" fill="#475569">📄 문서 이해 (DocVQA)</text>
+      <text x="425" y="160" font-size="11" fill="#475569">📊 차트 이해 (ChartQA)</text>
+      <text x="425" y="180" font-size="11" fill="#475569">🔤 OCR (텍스트 인식)</text>
+      <text x="425" y="200" font-size="11" fill="#475569">🖼️ 인포그래픽 이해</text>
+      <text x="425" y="220" font-size="11" fill="#475569">📐 다이어그램 (AI2D)</text>
+    </svg>
+    <div class="diagram-caption">Doc&OCR 계열에서 GenLIP이 크게 앞선다 — 실무 문서/차트 활용에 즉시 유용</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">💡 비유: 도서관 사서 vs 초등학생</div>
+    <p>SigLIP2가 40B권의 책을 읽고 대충 훑은 <strong>초등학생</strong>이라면, GenLIP은 8B권을 읽었지만 <strong>목적에 맞게 훈련된 도서관 사서</strong>입니다. 총량은 훨씬 적지만 "어떤 정보가 어디에 있는지"를 정확히 알고 있고, 특히 문서·차트·글자 같은 <strong>디테일 인식</strong>에서 훨씬 정교합니다. 목적에 맞는 훈련이 데이터 물량을 이깁니다.</p>
+  </div>
+</section>
+
+<!-- ===== 놀라운 발견 ===== -->
+<section>
+  <h2>흥미로운 발견들</h2>
+
+  <h3>1) LLM 초기화가 오히려 해롭다</h3>
+  <p>비슷한 접근인 <strong>SAIL</strong>은 이미 훈련된 LLM(Qwen3-0.6B)의 가중치로 시작합니다. "이미 언어를 아는 상태에서 시작하면 더 낫지 않을까?"라는 자연스러운 발상이죠. 하지만 GenLIP 저자들의 통제 실험 결과는 반대였습니다:</p>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>방법</th>
+        <th>LLM 초기화</th>
+        <th>ALL AVG</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>SAIL (원본)</td>
+        <td>✅ Qwen3-0.6B</td>
+        <td>53.6</td>
+      </tr>
+      <tr>
+        <td>SAIL-g (gated attn 추가)</td>
+        <td>✅ Qwen3-0.6B</td>
+        <td>54.8</td>
+      </tr>
+      <tr>
+        <td>SAIL-g-Scratch (처음부터)</td>
+        <td>❌ 랜덤</td>
+        <td>56.0</td>
+      </tr>
+      <tr class="highlight-row">
+        <td>GenLIP</td>
+        <td>❌ 랜덤</td>
+        <td>56.3</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="analogy">
+    <div class="analogy-title">🎓 비유: 언어 능통자의 "꾀"</div>
+    <p>이미 말을 잘하는 사람에게 "그림 설명"을 시키면, 그림을 제대로 안 보고 <strong>말솜씨로 얼렁뚱땅 넘어가려</strong>는 경향이 생깁니다. "이 그림은 자연 풍경 같네요, 어딘가 산과 나무가 있고..." 같은 general한 말로 얼버무리는 거죠. 백지에서 시작한 사람은 그림을 <strong>진지하게 관찰</strong>해야만 답을 낼 수 있어서, 오히려 더 좋은 visual feature를 배웁니다. Attention pattern 분석에서 SAIL의 텍스트 토큰이 이미지가 아닌 prompt 토큰만 참조하는 shortcut을 학습함이 실증되었습니다.</p>
+  </div>
+
+  <h3>2) Patch 하나하나가 "단어"와 정렬된다</h3>
+  <p>GenLIP은 명시적으로 patch에 레이블을 붙여준 적이 없습니다. 그런데 학습이 끝난 뒤 개별 patch feature를 LM head에 넣어보면, 놀랍게도 <strong>그 patch가 표현하는 개념의 단어</strong>가 top 예측으로 나옵니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">Patch Semantics Readout (Figure 7의 재현)</text>
+
+      <!-- 스키 이미지 부분 -->
+      <rect x="40" y="60" width="80" height="80" rx="6" fill="#e0e0e0" stroke="#4a148c"/>
+      <text x="80" y="105" font-size="12" fill="#4a148c" text-anchor="middle">🎿</text>
+      <text x="80" y="155" font-size="10" fill="#475569" text-anchor="middle">스키 patch</text>
+
+      <text x="145" y="105" font-size="20" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="170" y="75" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="210" y="90" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">ski</text>
+      <rect x="170" y="98" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="210" y="113" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">poles</text>
+      <rect x="170" y="121" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="210" y="136" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">two</text>
+      <text x="210" y="155" font-size="9" fill="#475569" text-anchor="middle">top-3 예측</text>
+
+      <!-- 강아지 patch -->
+      <rect x="290" y="60" width="80" height="80" rx="6" fill="#fff4e6" stroke="#4a148c"/>
+      <text x="330" y="105" font-size="12" fill="#4a148c" text-anchor="middle">🐕</text>
+      <text x="330" y="155" font-size="10" fill="#475569" text-anchor="middle">개 patch</text>
+
+      <text x="395" y="105" font-size="20" fill="#7b1fa2" text-anchor="middle">→</text>
+
+      <rect x="420" y="75" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="460" y="90" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">fluffy</text>
+      <rect x="420" y="98" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="460" y="113" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">puppy</text>
+      <rect x="420" y="121" width="80" height="20" fill="#ecfdf5" stroke="#059669"/>
+      <text x="460" y="136" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">small</text>
+      <text x="460" y="155" font-size="9" fill="#475569" text-anchor="middle">top-3 예측</text>
+
+      <!-- DNA -->
+      <rect x="540" y="60" width="80" height="80" rx="6" fill="#e3f2fd" stroke="#4a148c"/>
+      <text x="580" y="105" font-size="12" fill="#4a148c" text-anchor="middle">🧬</text>
+      <text x="580" y="155" font-size="10" fill="#475569" text-anchor="middle">DNA 아이콘</text>
+
+      <!-- 오른쪽 아래 -->
+      <rect x="140" y="185" width="420" height="60" rx="8" fill="#fef3c7" stroke="#d97706"/>
+      <text x="350" y="210" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">📌 놀라운 점: 이미지-캡션만 봤을 뿐인데,</text>
+      <text x="350" y="230" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">개별 patch가 지역 의미와 자연스럽게 정렬됨</text>
+    </svg>
+    <div class="diagram-caption">Patch feature를 LM head로 unembedding하면 해당 지역의 개념이 나온다 (emergent 성질)</div>
+  </div>
+
+  <h3>3) 데이터 스케일링 곡선</h3>
+  <p>학습 데이터를 1B → 8B로 늘렸을 때 성능이 어떻게 변하는지 살펴봤습니다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">데이터 스케일링 (Figure 4 재현)</text>
+
+      <!-- Chart area -->
+      <line x1="80" y1="60" x2="80" y2="260" stroke="#333" stroke-width="1"/>
+      <line x1="80" y1="260" x2="640" y2="260" stroke="#333" stroke-width="1"/>
+
+      <!-- Labels -->
+      <text x="80" y="280" font-size="10" fill="#475569" text-anchor="middle">1B</text>
+      <text x="220" y="280" font-size="10" fill="#475569" text-anchor="middle">2B</text>
+      <text x="360" y="280" font-size="10" fill="#475569" text-anchor="middle">4B</text>
+      <text x="640" y="280" font-size="10" fill="#475569" text-anchor="middle">8B</text>
+      <text x="350" y="295" font-size="11" fill="#4a148c" text-anchor="middle" font-weight="700">Pretraining Samples</text>
+
+      <!-- OCR curve (with GA) -->
+      <path d="M 80 210 L 220 130 L 360 90 L 640 65" stroke="#7b1fa2" stroke-width="2.5" fill="none"/>
+      <circle cx="80" cy="210" r="4" fill="#7b1fa2"/>
+      <circle cx="220" cy="130" r="4" fill="#7b1fa2"/>
+      <circle cx="360" cy="90" r="4" fill="#7b1fa2"/>
+      <circle cx="640" cy="65" r="4" fill="#7b1fa2"/>
+      <text x="650" y="65" font-size="10" fill="#7b1fa2">OCR (w/ GA)</text>
+
+      <!-- OCR curve (without GA) -->
+      <path d="M 80 240 L 220 195 L 360 145 L 640 120" stroke="#7b1fa2" stroke-width="2" stroke-dasharray="5,3" fill="none"/>
+      <text x="650" y="125" font-size="10" fill="#7b1fa2" opacity="0.7">OCR (w/o GA)</text>
+
+      <!-- VQA curve -->
+      <path d="M 80 170 L 220 145 L 360 115 L 640 110" stroke="#059669" stroke-width="2.5" fill="none"/>
+      <text x="650" y="115" font-size="10" fill="#059669">VQA</text>
+
+      <!-- Caption curve -->
+      <path d="M 80 145 L 220 105 L 360 90 L 640 87" stroke="#d97706" stroke-width="2.5" fill="none"/>
+      <text x="650" y="90" font-size="10" fill="#d97706">Caption</text>
+
+      <!-- Highlight -->
+      <rect x="120" y="90" width="200" height="45" rx="8" fill="#fef3c7" opacity="0.8" stroke="#d97706"/>
+      <text x="220" y="110" font-size="10" fill="#92400e" text-anchor="middle" font-weight="700">1B→4B에서 가파른 개선</text>
+      <text x="220" y="125" font-size="9" fill="#92400e" text-anchor="middle">GA는 특히 low-data에서 이득 큼</text>
+    </svg>
+    <div class="diagram-caption">데이터를 늘릴수록 좋아지지만 4B 이후 완만해짐. GA는 데이터 적을 때 효과 큼</div>
+  </div>
+</section>
+
+<!-- ===== 기존 대비 장점 ===== -->
+<section>
+  <h2>기존 방식과의 비교</h2>
+
+  <table class="comp-table">
+    <thead>
+      <tr>
+        <th>기준</th>
+        <th>CLIP/SigLIP<br>(Contrastive)</th>
+        <th>CapPa/AIMv2<br>(Encoder-Decoder)</th>
+        <th>SigLIP2<br>(Hybrid)</th>
+        <th style="background:#7b1fa2;">GenLIP</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>학습 데이터 규모</td>
+        <td>12~40B</td>
+        <td>12B</td>
+        <td>40B</td>
+        <td class="highlight-row"><strong>8B (1/5)</strong></td>
+      </tr>
+      <tr>
+        <td>필요한 모듈</td>
+        <td>Vision + Text 인코더 2개</td>
+        <td>Vision 인코더 + Text 디코더</td>
+        <td>Vision + Text 인코더 + Decoder</td>
+        <td class="highlight-row"><strong>ViT 하나</strong></td>
+      </tr>
+      <tr>
+        <td>학습 목표</td>
+        <td>Contrastive (짝 맞추기)</td>
+        <td>Captioning (설명 생성)</td>
+        <td>둘 다</td>
+        <td class="highlight-row"><strong>순수 LM (다음 단어)</strong></td>
+      </tr>
+      <tr>
+        <td>MLLM과의 objective 정합</td>
+        <td>❌ Mismatch</td>
+        <td>△ 간접적</td>
+        <td>△ 부분</td>
+        <td class="highlight-row">✅ 직접</td>
+      </tr>
+      <tr>
+        <td>Doc&OCR 성능 (g/16)</td>
+        <td>-</td>
+        <td>-</td>
+        <td>47.3</td>
+        <td class="highlight-row"><strong>53.2</strong></td>
+      </tr>
+      <tr>
+        <td>구현 복잡도</td>
+        <td>중간</td>
+        <td>중간~높음</td>
+        <td>높음</td>
+        <td class="highlight-row"><strong>가장 낮음</strong></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="analogy">
+    <div class="analogy-title">🎯 비유: 요리 학교의 세 가지 커리큘럼</div>
+    <p>
+      <strong>CLIP 방식</strong>은 "요리 사진 보고 이름 맞추기" 훈련. 사진 인식에는 강하지만 요리를 <em>설명</em>하는 법은 배우지 않음.<br>
+      <strong>CapPa 방식</strong>은 "요리사(vision encoder)가 만든 걸 옆의 손님(text decoder)이 설명하는" 학습. 요리사가 직접 말하는 훈련은 아님.<br>
+      <strong>GenLIP</strong>은 "요리사가 직접 요리하면서 재료·조리법·맛을 설명하는" 통합 훈련. 손 감각과 말 감각이 하나로 통합되어, MLLM이라는 "TV 방송에서 요리하는" 실전에 곧바로 최적화됨.
+    </p>
+  </div>
+</section>
+
+<!-- ===== 활용 분야 ===== -->
+<section>
+  <h2>어디에 쓸 수 있나?</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#4a148c" text-anchor="middle">GenLIP의 활용 영역</text>
+
+      <!-- Center -->
+      <circle cx="350" cy="200" r="60" fill="#7b1fa2"/>
+      <text x="350" y="195" font-size="13" font-weight="700" fill="#fff" text-anchor="middle">GenLIP</text>
+      <text x="350" y="215" font-size="11" fill="#e1bee7" text-anchor="middle">MLLM의 눈</text>
+
+      <!-- 상단 -->
+      <line x1="350" y1="140" x2="350" y2="75" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="255" y="45" width="190" height="60" rx="10" fill="#e3f2fd" stroke="#4a148c"/>
+      <text x="350" y="72" font-size="12" font-weight="700" fill="#0d47a1" text-anchor="middle">📄 문서 이해 챗봇</text>
+      <text x="350" y="90" font-size="10" fill="#475569" text-anchor="middle">계약서, 논문, 영수증 분석</text>
+
+      <!-- 우상단 -->
+      <line x1="400" y1="160" x2="520" y2="90" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="465" y="60" width="180" height="60" rx="10" fill="#ecfdf5" stroke="#059669"/>
+      <text x="555" y="87" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">📊 데이터 시각화</text>
+      <text x="555" y="105" font-size="10" fill="#475569" text-anchor="middle">차트 읽고 인사이트 추출</text>
+
+      <!-- 우측 -->
+      <line x1="410" y1="200" x2="530" y2="200" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="475" y="170" width="180" height="60" rx="10" fill="#fef3c7" stroke="#d97706"/>
+      <text x="565" y="197" font-size="12" font-weight="700" fill="#92400e" text-anchor="middle">🔤 OCR / 텍스트 인식</text>
+      <text x="565" y="215" font-size="10" fill="#475569" text-anchor="middle">스캔본, 손글씨, 간판</text>
+
+      <!-- 우하단 -->
+      <line x1="400" y1="240" x2="520" y2="310" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="465" y="290" width="180" height="60" rx="10" fill="#fce7f3" stroke="#c2185b"/>
+      <text x="555" y="317" font-size="12" font-weight="700" fill="#c2185b" text-anchor="middle">🖼️ 이미지 캡셔닝</text>
+      <text x="555" y="335" font-size="10" fill="#475569" text-anchor="middle">자동 alt-text, 상품 설명</text>
+
+      <!-- 하단 -->
+      <line x1="350" y1="260" x2="350" y2="325" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="255" y="325" width="190" height="60" rx="10" fill="#f3e5f5" stroke="#7b1fa2"/>
+      <text x="350" y="352" font-size="12" font-weight="700" fill="#7b1fa2" text-anchor="middle">🎓 교육 · 학술</text>
+      <text x="350" y="370" font-size="10" fill="#475569" text-anchor="middle">다이어그램, 과학 도표 이해</text>
+
+      <!-- 좌하단 -->
+      <line x1="300" y1="240" x2="180" y2="310" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="55" y="290" width="180" height="60" rx="10" fill="#e8eaf6" stroke="#3f51b5"/>
+      <text x="145" y="317" font-size="12" font-weight="700" fill="#3f51b5" text-anchor="middle">📱 온디바이스 AI</text>
+      <text x="145" y="335" font-size="10" fill="#475569" text-anchor="middle">폰의 이미지 QA 어시스턴트</text>
+
+      <!-- 좌측 -->
+      <line x1="290" y1="200" x2="170" y2="200" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="45" y="170" width="180" height="60" rx="10" fill="#fff3e0" stroke="#e65100"/>
+      <text x="135" y="197" font-size="12" font-weight="700" fill="#e65100" text-anchor="middle">🏥 의료 이미지</text>
+      <text x="135" y="215" font-size="10" fill="#475569" text-anchor="middle">방사선/병리 사진 해석</text>
+
+      <!-- 좌상단 -->
+      <line x1="300" y1="160" x2="180" y2="90" stroke="#7b1fa2" stroke-width="2"/>
+      <rect x="55" y="60" width="180" height="60" rx="10" fill="#efebe9" stroke="#5d4037"/>
+      <text x="145" y="87" font-size="12" font-weight="700" fill="#5d4037" text-anchor="middle">🛒 이커머스</text>
+      <text x="145" y="105" font-size="10" fill="#475569" text-anchor="middle">상품 이미지 → 자동 설명·태그</text>
+    </svg>
+    <div class="diagram-caption">특히 문서·차트·OCR 강점 덕분에 실무 응용에 즉시 유용</div>
+  </div>
+</section>
+
+<!-- ===== 한계 ===== -->
+<section>
+  <h2>한계와 앞으로의 과제</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">📚 학술 세팅 한정 검증</h3>
+    <p>실험은 <strong>LLaVA-NeXT</strong>라는 학술적 MLLM 프레임워크에서만 이루어졌습니다. GPT-4o나 Gemini 같은 <strong>최첨단 상용 MLLM</strong>에 GenLIP을 붙였을 때 얼마나 잘 작동할지는 아직 미지수입니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">📦 데이터 규모 제한</h3>
+    <p>학습 데이터 Dataset-S1은 <strong>1B 규모</strong>입니다. SigLIP2가 사용한 40B에는 아직 미치지 못하며, 이보다 <strong>훨씬 큰 규모(예: 100B, 1T)</strong>로 확장했을 때 여전히 gain이 유지될지, 아니면 어느 지점에서 saturation이 올지는 검증되지 않았습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">💰 고품질 캡션의 비용</h3>
+    <p>GenLIP은 <strong>고품질 image-caption 쌍</strong>에 의존합니다. 이런 데이터를 인터넷에서 그냥 긁어오는 것이 아니라, LLM으로 re-captioning하거나 curation을 거쳐 만들어야 합니다. 이 <strong>데이터 확보 비용</strong>은 학습 데이터 규모를 늘릴 때 무시할 수 없습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">🎯 순수 분류·인식은 SigLIP2 아래</h3>
+    <p>ImageNet 이미지 분류에서는 SigLIP2(dense supervision 활용)가 GenLIP보다 앞섭니다(88.9 vs 85.2). GenLIP은 <strong>MLLM용 vision encoder</strong>에 특화되어 있고, 순수한 vision-only downstream(예: 세밀한 분류, 검색)에는 SigLIP2가 여전히 강력할 수 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">🧩 Native MLLM에는 부적합</h3>
+    <p>GenLIP은 <strong>modular MLLM</strong>(Vision Encoder + Connector + LLM 조합)의 vision encoder용으로 설계되었습니다. Chameleon이나 NEO 같은 <strong>native MLLM</strong>(처음부터 하나의 트랜스포머로 vision과 language를 함께 다루는 방식)에는 그대로 적용되지 않습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 결론 ===== -->
+<section>
+  <h2>한 줄 결론</h2>
+
+  <div class="one-liner">
+    "복잡한 걸 걷어내고, ViT가 스스로 그림을 보고 말하게 하라.<br>
+    5분의 1 데이터로도 SOTA를 넘을 수 있다."
+  </div>
+
+  <div class="card card-green">
+    <p><strong>기술적 요약</strong>: GenLIP은 vision encoder pretraining을 <strong>단일 트랜스포머 + 표준 language modeling loss</strong>로 극단적으로 단순화합니다. 별도 text decoder나 contrastive learning이 없고, image patch와 text token을 concat한 시퀀스에 다음 단어 예측만 시킵니다. Prefix-LM attention, MRoPE, 그리고 attention sink를 억제하는 gated attention이 이 minimal 설계를 뒷받침합니다.</p>
+
+    <p><strong>실용적 의미</strong>: MLLM에서 vision 파트를 개선하려는 팀에게 매력적인 선택지. 특히 <strong>문서/차트/OCR 응용</strong>에서 gain이 크고, 학습 데이터 확보 비용을 5배 절감할 수 있는 잠재력. 단, 순수 이미지 분류나 native MLLM에는 다른 접근이 필요.</p>
+
+    <p><strong>연구적 통찰</strong>: (1) <em>Objective mismatch</em>의 실증 — pretraining objective가 downstream objective와 얼마나 정렬되는지가 데이터 효율을 결정한다. (2) <em>Attention sink</em>가 vision representation 자체를 열화시킬 수 있음을 발견. (3) <em>LLM initialization</em>이 vision encoder 학습에는 오히려 역효과라는 반직관적 결과.</p>
+  </div>
+</section>
+
+</div>
+
+<div class="footer">
+  Yan Fang et al. (ByteDance · Beijing Jiaotong University · NTU) — 2026<br>
+  <a href="https://arxiv.org/abs/2605.00809" style="color:#7b1fa2;">arXiv:2605.00809</a> ·
+  <a href="20260716_fang_genlip.html" style="color:#7b1fa2;">전문가용 상세 요약 →</a>
+</div>
+
+</body>
+</html>
