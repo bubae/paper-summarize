@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audex: Unified Audio Intelligence Without Regressing on Text Intelligence</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; padding: 0.5rem 1rem; background: #76b900; color: white; text-decoration: none; border-radius: 6px; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Audex: Unified Audio Intelligence Without Regressing on Text Intelligence</h1>
+
+<p><a href="20260721_kong_audex_brief.html" class="brief-link">📘 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zhifeng Kong, Sang-gil Lee, Jaehyeon Kim, Boxin Wang (공동 1저자), Zihan Liu, Sungwon Kim, Yang Chen, Arushi Goel, Rajarshi Roy, Wenliang Dai, Zhuolin Yang, Yangyi Chen, Dongfu Jiang, Sreyan Ghosh, Tuomas Rintamaki, Andrew Tao, Jonathan Raiman, Mohammad Shoeybi, Bryan Catanzaro, Wei Ping</li>
+  <li><strong>소속</strong>: NVIDIA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.CL)</li>
+  <li><strong>연도</strong>: 2026 (7 Jul 2026 v2)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.05196">arXiv:2607.05196</a></li>
+  <li><strong>공개 체크포인트</strong>: Nemotron-Labs-Audex-30B-A3B, Nemotron-Labs-Audex-2B</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Qwen3-Omni, Qwen3.5-Omni 같은 unified audio-text LLM은 audio 능력을 추가하는 대신 text reasoning 능력이 크게 저하되는 문제(regression). Reasoning, knowledge, agentic 능력 등 텍스트 기반 지능이 심각하게 손상됨.</li>
+  <li><strong>해결</strong>: ##Audex는 Nemotron-Cascade-2-30B-A3B (MoE, Mamba2-Transformer hybrid)를 backbone으로 하는 unified audio-text 모델. Audio input은 encoder+MLP로 text embedding space에 project되고, output side는 vocabulary를 확장해서 audio codec token과 text token을 uniformly 취급##.</li>
+  <li><strong>왜 작동하는가</strong>: (1) 강력한 text-only pretrained backbone에서 시작, (2) multi-stage SFT curriculum (text → audio warmup → audio gen → audio gen+understanding)으로 catastrophic forgetting 완화, (3) text-only Cascade RL + MOPD 적용 후에도 audio 태스크 성능이 유지되는 특성 활용.</li>
+  <li><strong>비유</strong>: 국어 특기생을 음악 특기생으로도 훈련시킬 때, 국어 실력을 그대로 유지하면서 점진적으로 음악 능력을 layer 별로 쌓아 올리는 커리큘럼. 훈련이 끝나도 국어 시험 성적은 그대로.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Text intelligence regression 없는 unified audio LLM</strong>: ##Audex-30B-A3B는 강력한 backbone Nemotron-Cascade-2 대비 reasoning/knowledge/alignment/long-context/agentic 모든 텍스트 벤치마크에서 marginal-or-zero regression##으로 SOTA audio 성능 달성.</li>
+  <li><strong>단일 통합 아키텍처</strong>: cascaded thinker-talker 없이 하나의 MoE Transformer decoder가 audio input(encoder + MLP projection)과 text/audio output token을 uniformly 처리. Megatron-LM, vLLM 같은 기존 LLM 인프라와 호환.</li>
+  <li><strong>포괄적 능력</strong>: audio understanding, ASR, speech translation, TTS, audio generation, S2S generation을 하나의 모델로. Open 모델 중 유일하게 speech를 넘어서는 general audio generation 지원.</li>
+  <li><strong>Multi-stage SFT curriculum과 empirical 분석</strong>: text SFT → audio warmup → audio gen SFT → audio gen + understanding SFT의 stage-wise 학습 vs single-stage consolidated SFT 비교. ##Multi-stage가 stability와 long-context 유지 측면에서 우월##.</li>
+  <li><strong>Cascade RL + MOPD의 audio 태스크 non-regression</strong>: text-only RL을 audio 모델에 적용해도 audio 성능이 유지 또는 marginal 개선. Cascade RL이 catastrophic forgetting에 강한 이유가 audio 태스크에도 확장됨을 보임.</li>
+</ol>
+
+<h2>1. Introduction — Text Intelligence Regression 문제</h2>
+
+<h3>1.1 배경: Audio LLM의 현주소</h3>
+<p>Audio는 음성, 음악, 환경 소리를 포함하는 AGI의 필수 modality. 최근 audio understanding 중심 모델(Audio Flamingo, Qwen2-Audio, Kimi-Audio, Voxtral, Step-Audio 2)과 unified 이해+생성 모델(Qwen-Omni, MiMo-Audio, UALM)이 등장.</p>
+
+<h3>1.2 문제: Text Intelligence의 감퇴</h3>
+<p>Multimodal input/output을 지원하는 LLM들은 특히 multimodal generation을 지원할 때 <strong>text 벤치마크에서 눈에 띄는 regression</strong>을 보임. 예시: Qwen3-Omni는 text-only counterpart Qwen3 대비 reasoning 벤치마크에서 눈에 띄는 감퇴. Qwen3.5-Omni도 유사. Qwen3-Omni technical report Table 5는 이를 자체 문서화.</p>
+
+<p>##이는 심각한 문제##: reasoning, knowledge, tool use 같은 agentic 능력의 대부분이 text에 encoded 되어 있으므로, text intelligence regression은 곧 전반적 지능 감퇴를 의미. Frontier proprietary LLM (GPT-4o, Gemini 2.5)는 이를 해결했지만 open 모델(DeepSeek-V4, GLM-5.1)은 여전히 text-only. Qwen3.5, Kimi-2.5는 vision input은 있지만 audio output은 미지원.</p>
+
+<h3>1.3 Audex의 위치</h3>
+<p>Audex는 text-only Nemotron-Cascade-2-30B-A3B (30B MoE Mamba2-Transformer hybrid, 3B activated) 위에 audio 능력을 추가하되, ##backbone의 text intelligence를 marginal-or-zero regression으로 preserve##. Cascaded 시스템도 아니고 thinker-talker도 아닌 <strong>single unified MoE Transformer decoder</strong>. Audio input은 encoder + MLP projection으로 text embedding space에 fusion, audio output은 vocabulary 확장으로 text와 동일하게 취급.</p>
+
+<h2>2. Main Results (Overview)</h2>
+
+<p>Audex-30B-A3B를 두 축으로 평가: (i) text-only 능력 (reasoning, knowledge, alignment, long-context, agentic) 대비 LLM backbone, (ii) audio 능력 (audio understanding, ASR, speech translation, TTS, audio generation, S2S).</p>
+
+<h3>2.1 Text 능력 보존 (Table 1 발췌)</h3>
+
+<table>
+<tr><th>Benchmark</th><th>Nemotron-Cascade-2 (backbone)</th><th>Audex-30B-A3B</th><th>Qwen3-Omni-Thinking (비교)</th></tr>
+<tr><td>AIME 2025</td><td>92.4 | 98.6◇</td><td>91.2 | 98.3◇</td><td>73.7</td></tr>
+<tr><td>AIME 2026</td><td>90.9 | 95.0◇</td><td>89.4 | 96.6◇</td><td>–</td></tr>
+<tr><td>HMMT Feb25</td><td>94.6 | 92.2◇</td><td>92.2 | 93.8◇</td><td>60.4</td></tr>
+<tr><td>IMO AnswerBench</td><td>79.3</td><td>81.1</td><td>59.9</td></tr>
+<tr><td>LiveCodeBench v6</td><td>87.2 | 88.4◇</td><td>85.3 | 86.2◇</td><td>59.2</td></tr>
+<tr><td>MMLU-Redux</td><td>86.3</td><td>86.4</td><td>88.8</td></tr>
+<tr><td>MMLU-Pro</td><td>79.8</td><td>78.9</td><td>80.4</td></tr>
+<tr><td>GPQA-Diamond</td><td>76.1</td><td>74.9</td><td>73.1</td></tr>
+<tr><td>ArenaHard v2</td><td>83.5</td><td>81.6</td><td>55.1</td></tr>
+<tr><td>NIAH (256K|1M)</td><td>100 | 99.0</td><td>99.4 | 83.4</td><td>0.0 | 0.0</td></tr>
+<tr><td>τ²-Bench (agentic)</td><td>58.9</td><td>57.2</td><td>45.4</td></tr>
+<tr><td>SWE Verified</td><td>50.2</td><td>48.2</td><td>23.4</td></tr>
+</table>
+
+<p>◇ 표시는 tool-integrated reasoning. Audex는 backbone 대비 대부분의 벤치마크에서 slightly 낮거나 약간 높은 결과. ##IMO AnswerBench와 AIME 2026, HMMT Feb25(tool-integrated)에서는 오히려 backbone보다 높은 정확도##. 반면 Qwen3-Omni-Thinking과 Qwen3.5-Omni-Flash는 text-only counterpart 대비 대폭 감퇴 — NIAH의 경우 Qwen3-Omni-Thinking은 256K/1M 모두에서 0.0% (완전 실패).</p>
+
+<h3>2.2 Audio 능력 (Table 1 발췌)</h3>
+
+<table>
+<tr><th>Benchmark</th><th>Step-Audio R1.1 33B</th><th>Qwen3-Omni-30B</th><th>Qwen3.5-Omni-Flash</th><th>Audex-30B-A3B</th></tr>
+<tr><td>MMAU (audio understanding)</td><td>73.6</td><td>75.4</td><td>80.4</td><td>75.6</td></tr>
+<tr><td>Audio Entailment₂</td><td>61.6</td><td>61.6</td><td>–</td><td><strong>95.0</strong></td></tr>
+<tr><td>OpenASR (WER)</td><td>7.91</td><td>8.00</td><td>–</td><td><strong>6.82</strong></td></tr>
+<tr><td>LibriSpeech clean (WER)</td><td>1.66</td><td>2.22</td><td>1.11</td><td>1.34</td></tr>
+<tr><td>LibriSpeech noisy (WER)</td><td>3.59</td><td>3.08</td><td>–</td><td><strong>2.92</strong></td></tr>
+<tr><td>Fleurs-Mult₇ (WER)</td><td>6.59</td><td>4.27</td><td>–</td><td>5.11</td></tr>
+<tr><td>Fleurs xx→en (BLEU|COMET)</td><td>32.3 | 86.9</td><td>33.9 | 87.6</td><td>–</td><td>34.0 | 86.9</td></tr>
+<tr><td>Seed-TTS-Eval (WER)</td><td>–</td><td>–</td><td>–</td><td><strong>1.70</strong></td></tr>
+<tr><td>AudioCaps (TTA, FD↓)</td><td>–</td><td>–</td><td>–</td><td>66.9</td></tr>
+<tr><td>SongDescriber (TTA, FD↓)</td><td>–</td><td>–</td><td>–</td><td>62.7</td></tr>
+<tr><td>BigBenchAudio (S2S)</td><td>97.6</td><td>–</td><td>59.0</td><td>90.0</td></tr>
+</table>
+
+<p>Audex는 open 모델 중 <strong>speech를 넘어서는 general audio generation을 지원하는 유일한 모델</strong>. TTA(text-to-audio)에서 60.9 (AudioCaps) / 58.1 (SongDescriber) — public data로 훈련된 open 모델 중 SOTA.</p>
+
+<h2>3. Model Architecture</h2>
+
+<h3>3.1 LLM Backbone</h3>
+<p><strong>Nemotron-Cascade-2-30B-A3B</strong>: hybrid Mamba2-Transformer MoE. 52 layers, model dimension 2688, 128 routable experts, 6 activated. Audex는 Cascade-2 SFT 후 체크포인트에서 초기화. Vocabulary는 131,072 → <strong>205,312</strong>로 확장 (audio token 수용). 추가 토큰 임베딩은 <code>N(0, 0.02²)</code> Gaussian으로 초기화.</p>
+
+<p>Audex-2B는 dense 2B Transformer backbone (28 layers, dim 2048, MLP intermediate 9216), Cascade-2-30B-A3B와 동일 recipe로 학습.</p>
+
+<h3>3.2 Audio Encoder</h3>
+<p>Audio Flamingo 3의 <strong>AF-Whisper</strong> (Whisper Large-v3 파생, 일반 audio로 확장 fine-tune) 사용. 16kHz input, 30초당 25Hz output (30초 = 750개 특성), 차원 1280. 30초 window로 split, 마지막 partial window는 zero-pad. <strong>2-layer MLP adapter</strong>가 audio feature를 LLM model dimension으로 변환.</p>
+
+<h3>3.3 Audio Codec</h3>
+
+<p>Audex는 speech와 non-speech에 <strong>서로 다른 codec을 dispatch</strong>. 저자들의 핵심 통찰: speech는 단일 layer quantizer로 낮은 tokens-per-second가 효율적, non-speech는 multi-layer quantizer (RVQ 등)로 더 높은 tokens-per-second target이 필요 (복잡한 auditory structure).</p>
+
+<h4>3.3.1 Speech Codec — X-Codec2</h4>
+<ul>
+  <li>50Hz frame rate</li>
+  <li>Single-layer finite scalar quantization (FSQ), 65,536 codebook size</li>
+  <li>즉, 50 tokens/s × 65,536 vocab</li>
+</ul>
+
+<h4>3.3.2 Non-Speech Codec — X-Codec</h4>
+<ul>
+  <li>General-purpose audio codec, 50Hz</li>
+  <li>8-layer RVQ (Residual Vector Quantization), layer당 1,024 codebook</li>
+  <li><strong>UALM 방식 따라 첫 4개 RVQ layer만 사용</strong> (token 수 감소)</li>
+  <li>Copet 등의 flattening pattern으로 2D RVQ token을 text처럼 1D flatten</li>
+  <li>50 × 4 = <strong>200 tokens/s</strong>, 1024 × 4 = 4096 vocab size</li>
+</ul>
+
+<h4>3.3.3 Vocabulary 구성</h4>
+<p>Speech/audio token은 <code>&lt;speechcodec_{id}&gt;</code>, <code>&lt;audiocodec_{id}&gt;</code>로 vocabulary에 append:</p>
+<ul>
+  <li>65,536 (speech) + 8,192 (non-speech, 전체 8×1024 예약) = 73,728 audio-related</li>
+  <li>+ <code>&lt;speechgen_start&gt;</code>, <code>&lt;speechgen_end&gt;</code>, <code>&lt;audiogen_start&gt;</code>, <code>&lt;audiogen_end&gt;</code>, <code>&lt;audiogen&gt;</code> 특수 token</li>
+  <li>Total = 131,072 + 65,536 + 8,192 + 5 = <strong>204,805</strong></li>
+  <li>Megatron-LM tensor parallelism 위해 512로 나뉘도록 <strong>205,312</strong>로 padding</li>
+</ul>
+
+<h4>3.3.4 Audio Decoding</h4>
+<ul>
+  <li>Non-speech (X-Codec): <strong>enhancement VAE</strong>를 별도 학습 (BigVGAN-v2 기반), 16kHz → 48kHz upsample + codec artifact 감소</li>
+  <li>Speech (X-Codec2): X-Codec2의 non-causal decoder를 <strong>Vocos 기반 causal ConvNeXt streaming decoder</strong>로 대체. Small look-ahead window로 high semantic accuracy와 fast streaming inference 확보</li>
+</ul>
+
+<h2>4. Model Training</h2>
+
+<h3>4.1 Training Data (Table 2)</h3>
+
+<table>
+<tr><th>Task</th><th># samples</th><th>audio hours</th><th>audio tokens</th><th>text tokens</th><th>total tokens</th></tr>
+<tr><td>Text-to-Speech (TTS)</td><td>147M</td><td>421K</td><td>75.8B</td><td>5.2B</td><td>81.0B</td></tr>
+<tr><td>Text-to-Audio (TTA)</td><td>12M</td><td>34K</td><td>24.3B</td><td>0.4B</td><td>24.7B</td></tr>
+<tr><td>Audio Understanding</td><td>49M</td><td>308K</td><td>27.7B</td><td>2.2B</td><td>29.9B</td></tr>
+<tr><td>Speech Recognition (ASR)</td><td>95M</td><td>201K</td><td>18.1B</td><td>4.4B</td><td>22.5B</td></tr>
+<tr><td>Speech Translation (AST)</td><td>58M</td><td>128K</td><td>11.5B</td><td>5.3B</td><td>16.8B</td></tr>
+<tr><td>Text SFT</td><td>33M</td><td>0</td><td>0</td><td>303.0B</td><td>303.0B</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>394M</strong></td><td><strong>1,092K</strong></td><td><strong>157.4B</strong></td><td><strong>320.5B</strong></td><td><strong>477.9B</strong></td></tr>
+</table>
+
+<p>Text-only 데이터는 Nemotron-Cascade의 것과 동일 (reasoning, math, coding, alignment, long-context, agentic, multilingual). Text SFT 샘플은 200K token 초과 시 filter.</p>
+
+<h4>ASR/AST 데이터</h4>
+<p>Publicly available speech corpora + permissive license. ASR robustness를 위해 real full-band noise와 room impulse response (5th DNS Challenge)로 noisy/reverberant version 합성. AST의 경우 target response는 source language, source-language transcription, English translation 순서로 구성해 intermediate transcription step을 학습.</p>
+
+<h4>TTS 데이터</h4>
+<p>Fixed-voice TTS를 위해 Tortoise의 synthetic voice 선정 (X-Codec2와 재구성 품질 좋음), Qwen3-TTS-12Hz-1.7B-Base로 ~8% 데이터를 이 voice로 변환. Input 길이는 0.1~120초, 대부분 몇 초~20초.</p>
+
+<h4>Audio Understanding 데이터</h4>
+<p>Audio Flamingo 3, Audio Flamingo Next 방식 따라 single-turn audio QA 포맷, 16kHz resample, input 길이 0.1~900초.</p>
+
+<h4>TTA 데이터</h4>
+<p>ETTA, Stable Audio Open, Tango-AF, TangoFlux 방식 따라 curate. Permissively licensed 샘플, low-quality/uncorrelated 필터. Output length는 10초 고정 (variable length는 early experiments에서 unstable).</p>
+
+<h3>4.2 Chat Templates (Figure 2)</h3>
+
+<p>네 가지 template:</p>
+<ol>
+  <li><strong>Text chat</strong>: Nemotron-Cascade와 동일. Non-thinking mode는 <code>&lt;think&gt;&lt;/think&gt;</code> 즉시 close</li>
+  <li><strong>Audio QA</strong>: <code>&lt;sound&gt;</code> 특수 token이 <code>&lt;so_start&gt;&lt;so_embedding&gt;...&lt;so_end&gt;</code> (MLP adapter output)으로 대체. 사용자 질문은 audio에 관한 것 (transcribe, translate, etc.)</li>
+  <li><strong>TTS</strong>: <code>&lt;|text to speech|&gt; Generate speech for this transcription. {transcription}</code>. Assistant가 <code>&lt;speechgen_start&gt;&lt;speechcodec_123&gt;...&lt;speechgen_end&gt;</code> 출력</li>
+  <li><strong>TTA</strong>: <code>&lt;|text to audio|&gt; Generate audio for this caption. {caption}</code>. Assistant가 <code>&lt;audiogen_start&gt;&lt;audiocodec_123&gt;...&lt;audiogen_end&gt;</code> 출력</li>
+</ol>
+
+<p>Data manifest에서 <code>&lt;audiogen&gt;</code> placeholder를 사용하고, 실제 학습 시 base64-decoded representation을 로드해 대체.</p>
+
+<h3>4.3 Training Loss와 Classifier-Free Guidance</h3>
+
+<h4>4.3.1 Loss 함수</h4>
+
+<p>Standard LLM loss:</p>
+
+$$\max_\theta \left\{ \frac{1}{\text{\#Trainable tokens}} \sum_{i: x_i \text{ is trainable}} \log p_\theta(x_i \mid x_{<i}) \right\} \tag{1}$$
+
+<p>Packed sequence의 경우, 각 sample <code>j</code>의 loss vector를 <code>L_j</code>, 길이를 <code>|L_j|</code>라 하면 <strong>square averaging loss</strong> 사용:</p>
+
+$$\text{Scaled-Loss}(\{L_1, \dots, L_k\}) = \left( \sum_{j=1}^{k} \frac{\text{sum}(L_j)}{\sqrt{|L_j|}} \right) \cdot \left( \sum_{j=1}^{k} \sqrt{|L_j|} \right)^{-1} \tag{2}$$
+
+<p>##이는 short와 long sample 간 loss 기여를 균형화##. 짧은 샘플이 loss에 과도한 영향을 미치는 것을 방지 (일반적인 mean averaging의 단점을 완화).</p>
+
+<h4>4.3.2 MoE Load Balancing</h4>
+<p>Audex-30B-A3B의 MoE layer는 <strong>auxiliary-loss-free load balancing</strong>: update rate <code>10^-3</code>, top-K routing scale 2.5, standard load balancing loss는 계수 <code>10^-6</code>로 minimal한 역할.</p>
+
+<h4>4.3.3 Classifier-Free Guidance (CFG)</h4>
+<p>CFG 활성화를 위해 unconditional distribution <code>p_θ(·|∅)</code>도 학습. Inference 시 logit 수정:</p>
+
+$$p^{\text{CFG}}_\theta(\cdot | x_{<i}) = p_\theta(\cdot | x_{<i}) + (\lambda - 1) \cdot [p_\theta(\cdot | x_{<i}) - p_\theta(\cdot | \emptyset)] \tag{3}$$
+
+<p>UALM 방식 따라 <code>∅</code>는 <code>i-1</code> consecutive un-trainable padding token으로 설정 (<code>x_{<i}</code>와 동일 길이). CFG 학습을 위한 pre-processing 접근: speech/audio generation data 10%를 randomly 선정, transcription/caption을 random 수의 padding token으로 변환하여 training dataset에 blend. On-the-fly conditional flipping을 피해 parallelism 구현 단순화.</p>
+
+<h3>4.4 Training Stages</h3>
+
+<h4>4.4.1 Supervised Fine-Tuning</h4>
+
+<p>Audio- 또는 speech-related pretraining 없이 <strong>best-in-class audio LLM 구축이 가능</strong>하다는 점을 실증. Text-only pretrained LLM에서 시작해 두 SFT 전략 비교.</p>
+
+<h4>Multi-stage SFT strategy</h4>
+<ol>
+  <li><strong>Text SFT</strong>: Nemotron-Cascade 2 SFT와 동일. 이미 SFT된 체크포인트를 직접 재사용</li>
+  <li><strong>Audio Warmup</strong>: vocabulary 확장 (audio + speech token), audio encoder 및 initialized MLP adapter 추가. ##이 stage에서는 MLP adapter와 audio token embedding만 학습##. Text token embedding freeze (학습 시 text quality 저하 관찰). Trainable modules: MLP adapters + Audio Token Embeddings.</li>
+  <li><strong>Audio Generation SFT</strong>: 전체 LLM unfreeze, audio/speech generation data + text-only data. Audio understanding, ASR, AST는 이 stage에 미포함 (audio/speech generation이 완전히 새로운 task라 더 많은 학습 필요).</li>
+  <li><strong>Audio Generation + Understanding SFT</strong>: MLP adapters와 LLM unfreeze, audio understanding + ASR + AST + audio generation + text-only. Audio encoder는 frozen 유지.</li>
+</ol>
+
+<h4>Single-stage consolidated SFT strategy</h4>
+<p>Multimodal 데이터를 early training stage(예: pretraining)에 포함하는 최근 연구들에 영감. Pretrained base LLM에 audio warmup 직접 적용 후, 모든 SFT 데이터 (audio generation + audio understanding + text)를 single SFT stage에서 결합.</p>
+
+<h4>Table 3: Data Blending Ratios (Epochs)</h4>
+
+<table>
+<tr><th>Training Data Type</th><th colspan="4">Multi-stage SFT</th><th colspan="2">Single-stage SFT</th></tr>
+<tr><th></th><th>Text</th><th>Audio Warmup</th><th>Audio Gen.</th><th>Audio Gen. + Und.</th><th>Audio Warmup</th><th>Consolidated SFT</th></tr>
+<tr><td>Text</td><td>1.6</td><td>0.5</td><td>0.5</td><td>1.5</td><td>0.5</td><td>2.0</td></tr>
+<tr><td>ASR+AST</td><td>0.0</td><td>0.0</td><td>0.0</td><td>1.0</td><td>0.0</td><td>1.0</td></tr>
+<tr><td>Audio understanding</td><td>0.0</td><td>2.0</td><td>0.0</td><td>2.0</td><td>2.0</td><td>2.0</td></tr>
+<tr><td>Text-to-speech</td><td>0.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td><td>1.0</td></tr>
+<tr><td>Text-to-audio</td><td>0.0</td><td>2.0</td><td>1.0</td><td>1.0</td><td>2.0</td><td>1.0</td></tr>
+<tr><td>Text weights (%)</td><td>100</td><td>44</td><td>59</td><td>69</td><td>44</td><td>75</td></tr>
+</table>
+
+<h4>Hyper-parameters (요약)</h4>
+<ul>
+  <li>Global batch size: 64 (모든 stage)</li>
+  <li>Max LR: Text SFT 5×10⁻⁵, Audio Warmup 2×10⁻³, Audio Gen 2×10⁻⁵, Audio Gen+Und 2×10⁻⁵</li>
+  <li>Min LR: Text 5×10⁻⁶, 그 외 1×10⁻⁶</li>
+  <li>LR schedule: cosine, warmup 5% (Text stage는 200 steps)</li>
+  <li>AdamW β₁, β₂: 0.9, 0.98 (Text), 0.9, 0.999 (audio stages)</li>
+  <li>Weight decay: 0.1 (Text), 0.0 (Warmup), 0.05 (Gen), 0.05 (Gen+Und)</li>
+</ul>
+
+<h4>4.4.2 Multi-stage vs Single-stage 비교 (Table 4)</h4>
+
+<p>실험 의도: 두 SFT 전략 중 어느 것이 더 나은가? Total training budget이 다른 것도 고려.</p>
+
+<table>
+<tr><th>Benchmark</th><th>Multi-Stage SFT</th><th>Single-Stage Consolidated SFT</th></tr>
+<tr><td>AIME 2025</td><td>91.7 | 96.3◇</td><td>90.5 | 97.2◇</td></tr>
+<tr><td>MMLU-Redux</td><td>86.3</td><td>86.8</td></tr>
+<tr><td>ArenaHard v2</td><td>59.4</td><td>61.4</td></tr>
+<tr><td>AA-LCR (long-context)</td><td>27.0</td><td>29.8</td></tr>
+<tr><td><strong>NIAH (256K|1M)</strong></td><td><strong>99.3 | 86.8</strong></td><td><strong>6.0 | 0.0</strong></td></tr>
+<tr><td>MMAU</td><td>75.5</td><td>75.4</td></tr>
+<tr><td>MMAR</td><td>62.7</td><td>62.5</td></tr>
+<tr><td>Audio Entailment₂</td><td>95.3</td><td>94.9</td></tr>
+<tr><td>CMM Hallucination</td><td>87.1</td><td>83.8</td></tr>
+<tr><td>LibriSpeech (clean|other)</td><td>1.33 | 2.99</td><td>1.32 | 2.98</td></tr>
+<tr><td>BigBenchAudio (S2S)</td><td>88.0</td><td>84.6</td></tr>
+<tr><td>AudioCaps (TTA, FD)</td><td>60.9</td><td>69.4</td></tr>
+</table>
+
+<p>##핵심 관찰: single-stage SFT model이 NIAH (long-context) 태스크에서 거의 완전히 실패##. 저자들은 long text sample과 long audio sample이 base LLM에게 너무 다르고 어렵기 때문으로 추정 — multi-stage는 long-context text abilities를 먼저 확립하고 유지하는 반면, single-stage는 attention mechanism에 drastic change를 야기.</p>
+
+<p>Single-stage는 audio understanding/recognition에서 slight 우세, audio generation에서 slightly 열세. 반대는 아닌. 다른 결과에서는 clear gap 없음.</p>
+
+<p>Training budget: single-stage가 (epochs 합계 기준) less total budget으로 comparable 결과 달성. 그럼에도 저자는 <strong>multi-stage SFT를 선택</strong>: (i) single-stage는 long-context attention을 부수고, (ii) multi-stage는 stage-by-stage tune이 쉽고, single-stage는 stabilize가 훨씬 어렵다.</p>
+
+<h4>4.4.3 Cascade RL + Multi-Domain On-policy Distillation</h4>
+
+<p>Multi-stage SFT 체크포인트를 <strong>Audex SFT</strong>로 삼고 RL 진행. Text-only RL만 실시. Cascade 2와 유사한 RL:</p>
+<ol>
+  <li>Instruction-Following RL</li>
+  <li>Multi-domain RL</li>
+  <li>Multi-domain On-policy Distillation (MOPD)</li>
+  <li>Reinforcement Learning from Human Feedback (RLHF)</li>
+  <li>Long-context RL</li>
+</ol>
+
+<p>##흥미로운 발견: audio 및 speech-related task는 text-only RL 이후에도 marginal 또는 zero regression을 보이며, text task에서는 significant 개선##. Nemotron-Cascade 4.1.1절 "Why Cascade RL for LLMs Is Resistant to Catastrophic Forgetting"이 이유를 설명. 이는 audio-text RL 없이도 text-only RL로 unified model의 text intelligence를 회복/강화할 수 있는 promising direction. 저자는 audio-text RL을 future work로 남김.</p>
+
+<h3>4.5 Infrastructure</h3>
+
+<ul>
+  <li><strong>Training</strong>: Megatron framework + Transformer Engine. 4-way TP, 32-way EP (expert parallelism), 8-way CP (context parallelism), sequence parallelism. Context length 262,144. 512× NVIDIA H100 GPU, BF16, AdamW, gradient clipping 1.0.</li>
+  <li><strong>Data Loading</strong>: Megatron-Energon multimodal dataloader, balanced greedy knapsack packing. 8,192 packing buffer size, <code>num_workers=4</code> per DP rank. TTS/TTA는 pretokenized (base64 encoded) — audio codec forward pass overhead 방지.</li>
+  <li><strong>CFG</strong>: unconditional sample을 미리 선정 (padding token으로 text 대체), original dataset과 blend. Inference 시 vLLM에서 conditional/unconditional pair를 same batch로 submit — custom logits processor가 pair를 track하고 Eq. (3)로 next-token logit 결합.</li>
+</ul>
+
+<h2>5. Detailed Results and Analysis</h2>
+
+<h3>5.1 Text Benchmarks (Table 5)</h3>
+
+<p>Audex-30B-A3B는 reasoning과 alignment benchmark에서 comparable 크기의 open/proprietary 모델을 substantially outperform. Knowledge, long-context, agentic에서 comparable — 가장 강한 baseline보다 sometimes 높고 sometimes 낮음.</p>
+
+<p>##특히 대비되는 것은 Qwen3-Omni-30B-A3B-Thinking과 Voxtral, MiMo-Audio, Step-Audio 대비 모든 text 벤치마크에서 압도적 우위##.</p>
+
+<h3>5.2 Speech and Audio Generation Results</h3>
+
+<h4>5.2.1 TTS (Table 6)</h4>
+
+<table>
+<tr><th>Models</th><th>WER (prompting) ↓</th><th>SIM</th><th>WER (fixed voice) ↓</th></tr>
+<tr><td>Seed-TTS</td><td>2.25</td><td>76.2</td><td>–</td></tr>
+<tr><td>Step-Audio-TTS-3B</td><td>2.31</td><td>66.0</td><td>–</td></tr>
+<tr><td>E2 TTS</td><td>2.19</td><td>71.0</td><td>–</td></tr>
+<tr><td>F5 TTS</td><td>1.83</td><td>64.7</td><td>–</td></tr>
+<tr><td>Qwen2.5-Omni-7B</td><td>2.33</td><td>64.1</td><td>–</td></tr>
+<tr><td>Qwen3-Omni-30B-A3B-Instruct</td><td>–</td><td>–</td><td>1.39</td></tr>
+<tr><td>MiMo-Audio</td><td>–</td><td>–</td><td>5.37</td></tr>
+<tr><td><strong>Audex 30B-A3B</strong></td><td><strong>2.07</strong></td><td>45.3</td><td><strong>1.70</strong></td></tr>
+<tr><td><strong>Audex 2B</strong></td><td>–</td><td>–</td><td>2.04</td></tr>
+</table>
+
+<p>##Audex-30B-A3B SFT는 매우 낮은 WER 달성 (prompting 2.07, fixed voice 1.70)##. SIM(speaker similarity)이 낮은 것은 codec 선택과 training recipe가 이를 optimize하지 않기 때문. Fixed-voice TTS는 저자가 선택한 Tortoise voice에 tie.</p>
+
+<h4>5.2.2 TTA (Table 7)</h4>
+
+<table>
+<tr><th>Models</th><th>Type</th><th>Text Conditioning</th><th>AudioCaps ↓</th><th>SongDescriber ↓</th></tr>
+<tr><td>Stable Audio Open</td><td>Diffusion</td><td>T5/Flan-T5</td><td>100.9</td><td>138.6</td></tr>
+<tr><td>ETTA</td><td>Diffusion</td><td>T5</td><td>80.1</td><td>95.7</td></tr>
+<tr><td>Tango2</td><td>Diffusion</td><td>Flan-T5</td><td>108.4</td><td>–</td></tr>
+<tr><td>UALM-Gen</td><td>Autoregressive</td><td>BPE Tokens</td><td>75.1</td><td>74.4</td></tr>
+<tr><td>UALM</td><td>LLM</td><td>BPE Tokens</td><td>65.9</td><td>83.7</td></tr>
+<tr><td><strong>Audex 30B-A3B</strong></td><td>LLM</td><td>BPE Tokens</td><td><strong>66.9</strong></td><td><strong>62.7</strong></td></tr>
+<tr><td>Audex 2B</td><td>LLM</td><td>BPE Tokens</td><td>79.3</td><td>78.4</td></tr>
+</table>
+
+<p>Audex-30B-A3B SFT는 60.9 (AudioCaps) / 58.1 (SongDescriber) 달성 — public data 학습 모델 중 SOTA. Text RL 이후 +6.0/+4.6 marginal drop (여전히 competitive).</p>
+
+<h4>5.2.3 CFG Effect (Figure 4)</h4>
+<p>TTA는 CFG가 필수 — 최적 <code>λ ∈ [3, 5]</code>. TTS는 CFG 없이도 좋음, <code>λ ≈ 1.5</code>가 slightly 더 나은 WER (inference 비용은 2배). Small <code>λ</code>는 TTA에 significantly 영향, TTS는 minimal.</p>
+<p>Inference: <strong>Top-k sampling</strong>. Top-k = 80, temperature = 1.0 (TTA), 0.1 (TTS). TTA는 inference 시 randomness가 더 필요, TTS는 minimal.</p>
+
+<h3>5.3 Audio Understanding, ASR, AST</h3>
+
+<h4>5.3.1 English ASR (Table 8)</h4>
+
+<p>OpenASR leaderboard 결과 요약:</p>
+<table>
+<tr><th>Models</th><th>LS-clean</th><th>LS-other</th><th>AMI</th><th>Earnings22</th><th>GigaSpeech</th><th>SPGI</th><th>TED-LIUM</th><th>VoxPopuli</th><th>Average</th></tr>
+<tr><td>Whisper-large-v3</td><td>2.01</td><td>3.91</td><td>15.95</td><td>11.29</td><td>10.02</td><td>2.94</td><td>3.86</td><td>9.54</td><td>7.44</td></tr>
+<tr><td>Qwen3-Omni-30B-Thinking</td><td>1.77</td><td>3.70</td><td>25.19</td><td>10.51</td><td>9.49</td><td>3.47</td><td>2.38</td><td>7.52</td><td>8.00</td></tr>
+<tr><td>Kimi-Audio-Instruct</td><td>1.28</td><td>2.42</td><td>18.19</td><td>12.25</td><td>10.25</td><td>3.53</td><td>2.90</td><td>8.06</td><td>6.62</td></tr>
+<tr><td>Voxtral-Small-24B</td><td>1.59</td><td>3.26</td><td>15.27</td><td>10.50</td><td>9.81</td><td>2.02</td><td>3.52</td><td>6.96</td><td>6.62</td></tr>
+<tr><td><strong>Audex 30B-A3B</strong></td><td>1.34</td><td>3.06</td><td>17.24</td><td>11.92</td><td>9.90</td><td><strong>1.76</strong></td><td>3.50</td><td>5.83</td><td><strong>6.82</strong></td></tr>
+</table>
+
+<h4>5.3.2 Noisy ASR (Table 9)</h4>
+<p>Different noise levels(-5dB ~ 100dB)에서 평가. Audex는 특히 <strong>noisy 조건에서 강함</strong>: -5dB (극심한 noise) 9.37 WER — Qwen3-Omni 7.43/8.63 대비 약간 뒤지지만 Whisper 9.30과 비슷. 중간 SNR에서는 Audex 30B-A3B가 대부분의 baseline을 outperform, average 2.92 WER (최고 성능).</p>
+
+<h4>5.3.3 Multilingual ASR/AST (Table 10, 11)</h4>
+<p>DE, ES, FR, IT, PT, RU, KO 7개 언어 Fleurs. Audex는 audio-language model baseline과 comparable, 몇몇 speech-specific baseline을 outperform. Average WER 5.11 (30B-A3B), 6.38 (2B).</p>
+<p>AST BLEU|COMET 평균: Audex 30B-A3B 34.0 | 86.9, Qwen3-Omni-Thinking 33.9 | 87.6, Voxtral-Small 41.0 | 88.5. ##Voxtral이 AST에서 최강, Audex는 comparable range##.</p>
+
+<h4>5.3.4 Audio Understanding (Table 12)</h4>
+
+<table>
+<tr><th>Models</th><th>MMAU avg</th><th>MMAR</th><th>MMSU</th><th>Audio Entailment (Clotho v2 / AudioCaps)</th><th>CMM</th></tr>
+<tr><td>Audio-Flamingo-3</td><td>73.2</td><td>60.1</td><td>62.3</td><td>93.3 / 95.0</td><td>86.5</td></tr>
+<tr><td>Kimi-Audio-Instruct</td><td>64.4</td><td>57.4</td><td>59.3</td><td>62.4 / 65.3</td><td>67.0</td></tr>
+<tr><td>MiMo-Audio</td><td>72.6</td><td>63.6</td><td>62.9</td><td>71.7 / 78.5</td><td>82.3</td></tr>
+<tr><td>Qwen3-Omni-Thinking</td><td>75.4</td><td>66.4</td><td>70.2</td><td>60.4 / 62.8</td><td>85.0</td></tr>
+<tr><td><strong>Audex 30B-A3B</strong></td><td>75.6</td><td>63.2</td><td>63.4</td><td><strong>94.4 / 95.6</strong></td><td><strong>90.3</strong></td></tr>
+<tr><td>Audex 2B</td><td>69.7</td><td>56.8</td><td>57.6</td><td>93.2 / 92.9</td><td>75.9</td></tr>
+</table>
+
+<p>##Audex는 Audio Entailment (deductive reasoning)와 CMM (hallucination detection)에서 substantially 우세##. MMAR/MMSU에서는 Qwen3-Omni-Thinking에 다소 뒤짐. Deductive reasoning과 trustworthiness는 audio-only 모델보다 unified LLM이 유리한 영역임을 시사.</p>
+
+<h3>5.4 Speech Interaction (Table 13)</h3>
+
+<p>Cascaded system (ASR + text reasoning + optional TTS)로 speech-to-speech 평가. 하지만 same Audex model with same inference setup을 3 step 모두에 사용.</p>
+
+<table>
+<tr><th>Model</th><th>BigBenchAudio 정확도</th></tr>
+<tr><td>Fun-Realtime-Audiochat</td><td>97.6</td></tr>
+<tr><td>Step-Audio R1.1 Realtime</td><td>97.6</td></tr>
+<tr><td>Gemini 3.1 Flash Live-High</td><td>96.6</td></tr>
+<tr><td>GPT Realtime</td><td>83.3</td></tr>
+<tr><td>Nova 2.0 Sonic (Mar 2026)</td><td>88.1</td></tr>
+<tr><td><strong>Audex 30B-A3B</strong></td><td><strong>90.0</strong></td></tr>
+<tr><td>Audex 2B</td><td>64.3</td></tr>
+<tr><td>MiMo-Audio</td><td>60.2</td></tr>
+<tr><td>Qwen3.5 Omni Flash Realtime</td><td>59.0</td></tr>
+</table>
+
+<p>Audex 30B-A3B가 90.0 — very competitive. Audex 2B도 7B+ baseline을 다수 outperform.</p>
+
+<h4>VoiceBench (Table 14)</h4>
+<p>AlpacaEval, CommonEval, WildVoice, SD-QA, MMSU, OpenBookQA, BBH, IFEval, AdvBench 등. Audex 30B-A3B가 instruction following, reasoning, multiple choice QA, safety에서 특히 competitive. OpenBookQA 91.0, BBH 88.0, IFEval 88.0.</p>
+
+<h2>6. Related Work (요약)</h2>
+
+<h3>6.1 Unified Understanding + Generation</h3>
+<p>Vision domain에서는 활발히 연구됨(NVLM 등). 근본적 challenge: multimodal generation과 text intelligence를 동시에 최적화하기 어려움. Multimodal data를 early stage(pretraining)에서 fuse하면 도움되고, MoE 아키텍처도 도움. Diffusion head를 붙이는 접근도 있으나 Audex와는 orthogonal.</p>
+
+<p>General audio domain에서는 unification이 덜 연구됨. UALM이 첫 걸음: proper data blending과 recipe로 SOTA text-to-audio generation, strong understanding, small text degradation 달성. UALM 한계: (i) 세 개 text 벤치마크만 평가, saturate됨, (ii) text RL 미연구.</p>
+
+<p>Audex는 UALM 대비 text-to-audio, audio understanding 개선, TTS와 ASR 지원 추가, ##text SFT+RL의 효과 comprehensive study##.</p>
+
+<h3>6.2 Speech LLMs</h3>
+<p>ASR, AST, TTS, S2S를 다루는 speech-focused LLM들: Chen et al., Défossez et al., Huang et al., Kharitonov et al. 등. Speech output은 codec model (VQ-VAE style)의 discrete token으로 표현. RVQ, FSQ, 다양한 codebook design과 parallelized token pattern 사용. Duplex model은 별도 line (speak-while-listen).</p>
+
+<h3>6.3 Audio Understanding Models</h3>
+<p>Speech LLM을 non-speech sound (music, environmental sound)로 확장. Continuous representation input을 audio encoder에서 받는 것이 일반적. Discrete audio codec을 input으로 하는 시도도 있으나 quality gap 존재.</p>
+
+<h3>6.4 Audio Generation Models</h3>
+<p>Text-to-image와 유사, general audio에 확장. Early: LLM으로 discrete audio token 예측. Recent leading approach: diffusion 기반 (sample quality, controllability, duration, inference speed에서 dominance). UALM이 LLM-based로 gap을 좁힘. Audex는 UALM 기법을 30B MoE로 scale up.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Text intelligence 보존의 방법론적 명료함</strong>: Multi-stage SFT curriculum과 text-only Cascade RL의 결합으로 catastrophic forgetting을 comprehensive하게 다룸. Qwen3-Omni 등 경쟁 모델과의 격차가 특히 reasoning/agentic 벤치마크에서 명확 (예: NIAH 99.4% vs 0.0%).</li>
+  <li><strong>단일 통합 아키텍처의 실용성</strong>: Thinker-Talker 없이 하나의 MoE Transformer가 모든 task를 수행. Megatron-LM/vLLM 기존 infrastructure 사용 가능한 점은 배포 관점에서 큰 장점.</li>
+  <li><strong>Multi-stage vs Single-stage의 clean ablation</strong>: NIAH를 통해 single-stage가 long-context attention을 파괴한다는 것을 직접 보여준 것이 매우 informative. "총 훈련 budget 절감 vs stability" trade-off를 데이터로 제시.</li>
+  <li><strong>Text RL의 non-regression 발견</strong>: audio-text RL 없이 text-only RL만으로도 unified model의 성능을 강화할 수 있다는 것은 실용적 가치가 큼. Cascade RL의 catastrophic forgetting 저항성이 audio에도 확장됨을 실증.</li>
+  <li><strong>Public 체크포인트 공개</strong>: Audex-30B-A3B와 Audex-2B 모두 공개 — reproducibility에 기여.</li>
+  <li><strong>Speech/non-speech codec의 분리 dispatch</strong>: 각 domain의 특성에 맞는 codec (single-layer FSQ vs 8-layer RVQ) 선택이 clean한 설계 결정.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>Speaker similarity (SIM) 저조</strong>: Table 6에서 Audex 30B-A3B의 SIM은 45.3 — Seed-TTS 76.2, F5 TTS 64.7 대비 현저히 낮음. 저자도 codec 선택과 training recipe가 이를 optimize하지 않는다고 인정. 실사용에서 voice cloning이 필요한 경우 큰 단점.</li>
+  <li><strong>AST에서 Voxtral 대비 약함</strong>: Voxtral-Small-24B가 BLEU 41.0 vs Audex 30B-A3B 34.0. Multilingual speech translation에서는 여전히 speech-specific 모델이 우세.</li>
+  <li><strong>Audio codec 크기의 임의성</strong>: X-Codec2 (65536 vocab)와 X-Codec (4096 vocab × 4 layers)의 선택 근거는 UALM 관행에 기댐. 다른 codec design에서 성능 차이가 얼마나 될지 불명확.</li>
+  <li><strong>TTA output length 고정 (10초)</strong>: variable length가 "학습 불안정"이라고만 명시. Duration control이 자유롭지 않아 실용 시나리오에서 제약.</li>
+  <li><strong>MMAR, MMSU에서 Qwen3-Omni-Thinking에 뒤짐</strong>: audio-language reasoning의 특정 subset (music, speech understanding)에서 unified 접근이 specialized 모델보다 열등. Audex의 general-purpose 강점이 모든 audio task에 확장되지는 않음.</li>
+  <li><strong>Audio-text RL 미실행</strong>: 저자가 future work으로 남김. Text-only RL만으로 얻은 gain의 한계가 어디까지인지 미검증. Audio 태스크에서 RL이 진짜 필요한 시나리오 (예: dialogue generation)를 다루지 않음.</li>
+  <li><strong>Prompting TTS의 SIM 저조와 fixed-voice의 실용성 제약</strong>: fixed-voice TTS 1.70 WER는 인상적이지만 하나의 voice로만 speech 생성. Multi-voice 시스템에는 부적합.</li>
+  <li><strong>Data licensing이 detail하지 않음</strong>: "permissively licensed"라는 표현이 반복되나 구체적 dataset 리스트가 completeness 측면에서 부족. 재현 시 정확한 데이터 확보의 어려움.</li>
+  <li><strong>Text SFT weight의 임의성</strong>: 각 SFT stage에서 text 데이터 blend ratio (44%, 59%, 69%, 75%)의 결정 근거가 설명되지 않음. Hyperparameter search 과정 공개가 필요.</li>
+</ul>
+
+<h3>재현성</h3>
+<ul>
+  <li><strong>Positive</strong>: 30B-A3B와 2B 모두 공개, Megatron-LM/Megatron-Energon 오픈소스 사용.</li>
+  <li><strong>Negative</strong>: 학습에 512× H100 필요 (compute barrier), in-house data curation의 세부 recipe (필터링 기준, noise 합성 파이프라인)이 부재.</li>
+  <li>Base backbone Nemotron-Cascade-2-30B-A3B는 별도 공개 여부에 의존.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Multimodal ≠ regression on text"</strong>: 강력한 text LLM에서 시작하여 (1) MLP adapter + token embedding warmup, (2) LLM unfreeze로 gradual한 audio task 확장, (3) text-only RL로 마무리 — 이 조합으로 text intelligence를 marginal loss로 유지 가능. Design principle로 유용.</li>
+  <li><strong>Single-stage consolidated SFT의 함정</strong>: multimodal SFT를 한꺼번에 하면 total training budget은 줄어들지만 <strong>long-context attention이 파괴</strong>됨 (NIAH 99% → 0%). Total budget 최소화가 항상 우월한 것은 아님.</li>
+  <li><strong>Speech와 non-speech codec의 분리 dispatch</strong>: 두 도메인의 특성 차이 (speech = 낮은 tokens/s, non-speech = 높은 tokens/s가 필요)를 고려한 codec 선택이 unified model의 quality-efficiency 균형을 개선.</li>
+  <li><strong>Text RL이 audio task에 regression을 일으키지 않는다</strong>: Cascade RL의 catastrophic forgetting resistance가 audio-text unified model에도 확장됨. Audio-text 공동 RL 없이도 unified 모델 강화 가능.</li>
+  <li><strong>CFG는 TTA에 필수, TTS는 optional</strong>: text-to-audio는 <code>λ ∈ [3, 5]</code>에서 quality 최적, text-to-speech는 CFG 없이도 좋음. Inference 비용 대비 필요한 task에만 적용.</li>
+  <li><strong>Audio understanding에서 unified 접근의 우세 영역</strong>: deductive reasoning (Audio Entailment)과 hallucination detection (CMM)에서 unified LLM이 audio-specific 모델보다 강함 — 텍스트 reasoning 능력이 audio에 transfer.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

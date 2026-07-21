@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PRIME-Speech: Preserving Speech-to-Text LLM Capabilities in Speech-to-Speech Generation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; padding: 0.5rem 1rem; background: #3498db; color: white; text-decoration: none; border-radius: 6px; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>PRIME-Speech: Preserving Speech-to-Text LLM Capabilities in Speech-to-Speech Generation</h1>
+
+<p><a href="20260721_hu_primespeech_brief.html" class="brief-link">📘 개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuxuan Hu, Heng Lu, Ruchao Fan, Yao Qian, Xiaofei Wang, Jian Xue, Heming Wang, Shuohang Wang, Young Jin Kim, Yelong Shen, Jinyu Li</li>
+  <li><strong>소속</strong>: Microsoft, USA</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (eess.AS)</li>
+  <li><strong>연도</strong>: 2026 (29 Jun 2026)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.30944">arXiv:2606.30944</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 강력한 speech-to-text (S2T) LLM을 speech-to-speech (S2S) 모델로 확장할 때, backbone을 fine-tuning하면 원래의 S2T 성능이 저하되고, downstream talker를 붙이면 직렬 TTS 병목이 재발생한다.</li>
+  <li><strong>해결</strong>: ##PRIME-Speech는 backbone을 완전히 freeze하고, 중간층 hidden state를 speech-text 동기화 인터페이스로 사용하여 causal audio post-decoder를 concurrent하게 실행한다##. 완성된 텍스트나 chunk를 기다리지 않고 hidden-state trajectory에서 직접 codec token을 생성.</li>
+  <li><strong>왜 작동하는가</strong>: 중간층 hidden state가 이미 semantic + paralinguistic 정보를 풍부하게 담고 있으며(CKA 분석 기반), 이를 concurrent하게 소비하는 audio branch는 backbone의 reasoning trajectory와 자연스럽게 timestamp 수준으로 동기화된다. Multi-turn 시에는 text KV cache만 축적하고 audio KV cache는 turn마다 reset하여 stale acoustic drift를 방지.</li>
+  <li><strong>비유</strong>: 회의 통역사가 발표자의 완결된 문장을 기다리지 않고, 발표자의 사고 흐름(중간 hidden state)을 실시간으로 청취하며 병렬로 통역을 내보내는 방식. 대신 발표자(text)와 통역(audio)의 노트는 분리해서 관리한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Frozen-backbone S2S 프레임워크 공식화</strong>: S2S 확장을 "frozen-backbone conversion" 문제로 정의하고, ##중간층 hidden state를 preserved S2T reasoning과 trainable speech generation 사이의 인터페이스##로 제안.</li>
+  <li><strong>Concurrent audio post-decoder</strong>: hidden-state, text, audio-history를 혼합한 conditioning을 통해 forced alignment, 완성된 응답, 고정 text chunk 없이 backbone의 evolving state에서 직접 codec을 생성.</li>
+  <li><strong>Turn-level cache policy</strong>: multi-turn 대화에서 ##text cache는 축적(dialogue memory)하고 audio cache는 turn마다 reset(cross-turn acoustic drift 방지)##하는 비대칭 정책.</li>
+  <li><strong>MTP as efficiency adapter</strong>: Multi-Token Prediction을 semantic alignment가 아닌 순수 efficiency component로 사용. codec 예측 rate를 25Hz → 6.25Hz로 감소시키면서 reasoning path 무변경.</li>
+</ol>
+
+<h2>1. Introduction — 문제 설정</h2>
+
+<h3>1.1 배경: S2S 시스템의 구조적 딜레마</h3>
+<p>Speech-to-speech (S2S) 상호작용은 language assistant의 자연스러운 목표이다. 현재의 지배적인 해법은 <strong>cascade</strong>: ASR → text LLM → TTS의 파이프라인. 편리하지만 recognition error, reasoning delay, 그리고 완성된 텍스트가 나올 때까지 speech generation이 미뤄지는 <strong>serial bottleneck</strong>을 겪는다.</p>
+
+<p>이 병목을 없애기 위해 LLM-centric S2S 시스템들이 등장했지만, 여기에 근본적 긴장이 있다: <strong>강력한 S2T LLM이 이미 존재</strong>하는데, 여기에 speech output을 붙이면서 backbone을 훼손시키지 않을 방법이 무엇인가?</p>
+
+<h3>1.2 기존 아키텍처의 한계</h3>
+
+<table>
+<tr><th>접근법</th><th>동작 방식</th><th>한계</th></tr>
+<tr><td>Unified token-interleaving</td><td>text token과 audio token을 하나의 autoregressive stream에 배치</td><td>주 decoder가 heterogeneous text/audio 목적함수를 동시에 balance해야 함 → S2T 저하</td></tr>
+<tr><td>Decoupled Thinker–Talker</td><td>speech rendering을 reasoning에서 분리</td><td>talker가 finalized text, text chunk, text-side handoff state에 의존 → 이미 완성된(materialized) 표현을 따를 뿐, evolving hidden state는 무시</td></tr>
+<tr><td>MTP on lightweight talker</td><td>가벼운 talker에 multi-token prediction 적용</td><td>thinker path는 그대로여서 end-to-end speedup 제한. 반대로 main backbone에 MTP를 적용하면 S2T 훼손 risk</td></tr>
+</table>
+
+<p>PRIME-Speech(<strong>P</strong>reserving <strong>R</strong>easoning and <strong>I</strong>ntelligence while enabling <strong>M</strong>ore <strong>E</strong>fficient Speech-to-Speech)는 이 세 축을 동시에 다룬다: complete S2T backbone freeze + hidden-state synchronization + audio-branch MTP.</p>
+
+<h2>2. Method</h2>
+
+<h3>2.1 개요: Frozen Backbone + Concurrent Audio Branch</h3>
+
+<p>입력 <code>x = (x^τ, x^a)</code>에서 <code>x^τ</code>는 optional text prompt, <code>x^a</code>는 입력 speech waveform. Frozen backbone은 text response <code>y^τ</code>를 생성하고, 추가된 audio branch는 codec-token response <code>y^a</code>를 생성한다. 변환은:</p>
+
+$$P(y^\tau, y^a \mid x) = P_{\text{bb}}(y^\tau \mid x) \, P_{\text{aud}}(y^a \mid y^\tau, H^{\text{mid}}; \theta_a) \tag{1}$$
+
+<p>여기서 <code>P_bb</code>는 frozen backbone 분포, <code>P_aud</code>는 trainable audio-branch 분포, <code>H^mid</code>는 중간층 hidden state sequence, <code>θ_a</code>는 audio branch 파라미터. 스트리밍 시 <code>y^τ</code>에 대한 의존은 prefix-restricted 되어, decoding update <code>s</code>에서 frozen backbone은 hidden state <code>h^mid_s</code>를 노출하고, text head와 audio branch가 이 state를 <strong>parallel</strong>로 소비한다.</p>
+
+<p>##직관적으로 말하면, backbone은 여전히 speech perception과 reasoning을 전담하고, audio branch는 preserved backbone trajectory의 "synchronized speech readout"으로 작동한다.## Text token은 audio branch가 다음 update에서 참조하지만, 같은 update의 audio는 아직 미출력 상태의 concurrent text에 조건화되지 않는다.</p>
+
+<h3>2.2 Frozen Backbone과 Codec Target</h3>
+
+<p>Backbone은 speech encoder + projection module로 acoustic embedding <code>e^sp</code>를 만들고, text embedding <code>e^τ</code>와 concat하여 frozen transformer stack이 처리:</p>
+
+$$h^{(\ell)} = \text{Backbone}^{(\ell)}([e^\tau, e^{\text{sp}}]), \quad \ell = 1, \dots, L. \tag{2}$$
+
+<p>Speech-conditioning interface로 <strong>고정된 중간 layer stream</strong> <code>H^mid = h^(ℓ_mid)</code>를 사용. <code>ℓ_mid</code>는 backbone의 약 2/3 지점 layer로 설정. 이 선택은 <strong>layer-wise centered kernel alignment (CKA)</strong> 분석에서 이 depth가 ##paralinguistic 정보가 가장 풍부하면서 semantic grounding도 유지##되는 층임을 발견하여 결정되었다.</p>
+
+<p>Target speech는 CosyVoice2 tokenizer (25Hz)로 semantic codec token으로 표현:</p>
+
+$$y^a = \{y^a_t\}_{t=1}^{T_a}, \quad y^a_t \in \{1, \dots, V_a\} \tag{3}$$
+
+<p><code>T_a</code>는 codec frame 수, <code>V_a</code>는 codec vocabulary size. Audio post-decoder가 이 token을 예측하고, paired codec decoder가 다시 waveform으로 변환.</p>
+
+<h3>2.3 Hidden-State-Synchronized Audio Post-Decoder</h3>
+
+<p>Audio post-decoder는 <strong>frozen text path와 동일한 streaming update loop에서 실행되는 causal transformer</strong>. 이 loop를 <code>s</code>로 인덱싱. Update <code>s</code>에서 frozen backbone state <code>h^mid_s</code>가 두 branch로 fan out: text head는 다음 text token <code>y^τ_s</code>를 예측하고, audio post-decoder는 audio block <code>y^a_s = (y^a_{s,1}, \dots, y^a_{s,B_s})</code>를 예측. Flat codec sequence (Eq. 3)는 이 loop 내 연속 block으로 간주. MTP 이전에는 <code>B_s = 1</code>, MTP 활성화 시 <code>B_s ≤ k</code>.</p>
+
+<p>두 branch는 concurrent지만 audio branch는 causal: 현재 hidden state와 <code>s</code> 이전에 committed된 history에 조건화되며, 같은 update에서 예측 중인 text token에는 의존하지 않는다. Post-decoder 모델:</p>
+
+$$P(\mathbf{y}^a_s \mid \mathbf{y}^a_{<s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a) \tag{4}$$
+
+<p>두 branch가 output을 emit한 후, <code>y^τ_s</code>와 <code>y^a_s</code>가 commit되어 <code>s+1</code>의 history가 된다. ##Synchronization은 timestamp-level (chunk-level이 아님)##: PRIME-Speech는 완성된 text, 고정 text chunk, word-to-frame alignment를 기다리지 않고, audio branch가 backbone trajectory에서 detach된 free-standing clock으로 실행되지도 않는다.</p>
+
+<h3>2.4 Mixed Conditioning Vector</h3>
+
+<p>Conditioning state는 세 신호를 결합: synchronized backbone state, 이전 text embedding, recent audio history. <code>e^τ_{s-1}</code>은 직전 committed text token의 embedding, <code>r^a_{s-1}</code>은 직전 audio update가 commit한 codec token embedding의 평균:</p>
+
+$$r^a_{s-1} = \frac{1}{B_{s-1}} \sum_{j=1}^{B_{s-1}} e^a_{s-1,j} \tag{5}$$
+
+<p><code>s=1</code>일 때는 BOS embedding 사용. Mixed conditioning vector는:</p>
+
+$$h^{\text{mix}}_s = w_h h^{\text{mid}}_s + w_\tau e^\tau_{s-1} + w_a r^a_{s-1} \tag{6}$$
+
+<p>실험에서는 <code>w_h = w_τ = w_a = 1.0</code>의 단순한 fixed-weight setting을 사용 (held-out ablation에서 최적으로 선정). 세 항의 역할:</p>
+<ul>
+  <li><strong><code>h^mid</code></strong>: semantic state (backbone reasoning의 현재 상태)</li>
+  <li><strong><code>e^τ</code></strong>: lexical anchoring (직전 결정된 단어에 lexical 정렬)</li>
+  <li><strong><code>r^a</code></strong>: local acoustic continuity (직전 audio 흐름의 매끄러움)</li>
+</ul>
+
+<p>따라서 text와 audio는 <strong>single interleaved token stream이 아니라 parallel branch로 생성</strong>되며, 각자의 committed cache를 유지하고, hidden state가 synchronization interface 역할을 한다.</p>
+
+<h3>2.5 학습 목적</h3>
+
+<p>학습은 동일한 causal graph를 따른다. Teacher forcing에서 frozen backbone은 reference text prefix로 평가되고, audio post-decoder는 <code>s-1</code>까지의 reference history를 받는다. 현재 audio block만 speech-generation loss에 기여. 추론 시에는 generated text token과 audio block이 reference history를 대체.</p>
+
+<h3>2.6 Multi-Token Prediction (MTP) for Codec Efficiency</h3>
+
+<p>Codec token은 25Hz로 생성되어 autoregressive audio decoding이 response latency를 지배할 수 있다. PRIME-Speech는 single-token 학습으로 stable hidden-state alignment를 확보한 뒤, audio post-decoder에 MTP head를 부착. Update <code>s</code>에서 post-decoder state는 <code>k</code>개의 미래 single-codebook codec token 분포를 예측:</p>
+
+$$p_{s,i} = P(y^a_{s,i} \mid \mathbf{y}^a_{<s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a), \quad i = 1, \dots, k. \tag{7}$$
+
+<p>목적함수는 유효 미래 token loss의 가중합:</p>
+
+$$\mathcal{L}_{\text{mtp}} = -\sum_s \sum_{i=1}^{k} \lambda_i \log p_{s,i}(y^a_{s,i}) \tag{8}$$
+
+<p>utterance boundary를 넘어가는 position은 mask 처리. 추론 시 각 synchronized audio update가 최대 <code>k</code>개의 codec token을 commit하여 effective codec prediction rate가 25Hz → 25/k Hz로 감소.</p>
+
+<p>##MTP는 여기서 semantic alignment가 아닌 순수 efficiency adapter로 작동##한다. PRIME audio branch를 frozen reasoning pathway 변경 없이 가속.</p>
+
+<h3>2.7 Multi-Turn Packing과 Cache Reset Policy</h3>
+
+<p>실제 multi-turn S2S 데이터는 수집 비용이 크고, 긴 cross-turn audio history로 학습하면 불안정. PRIME-Speech는 additional multi-turn S2S supervision을 요구하지 않는다. 대신 frozen S2T backbone의 기존 <strong>dialogue-level text context 유지 능력을 재사용</strong>하고, audio branch는 turn-level cache policy로 학습.</p>
+
+<p><strong>Training packing</strong>: 관련 없는 single-turn 예제를 packed pseudo-dialogue로 concat. Audio branch가 text-side context와 explicit turn boundary에 노출되지만, 이전 턴의 acoustic realization을 다음 턴 context로 취급하지 않도록 방지.</p>
+
+<p>Text KV state는 across turns로 축적, audio KV state는 각 assistant turn마다 reset:</p>
+
+$$\mathbf{C}^{(n)}_m = \begin{cases} \mathbf{C}^{(<n)}_\tau \oplus \{\mathbf{K}^{(n)}_\tau, \mathbf{V}^{(n)}_\tau\}, & m = \tau, \\ \{\mathbf{K}^{(n)}_a, \mathbf{V}^{(n)}_a\}, & m = a, \end{cases} \tag{9}$$
+
+<p><code>⊕</code>는 concatenation, <code>C^(<n)_τ</code>는 이전 턴들의 text state 저장. Codec 예측은 accumulated text semantics와 turn-local audio history에 조건화:</p>
+
+$$P(y^a_t \mid \mathbf{C}^{(<n)}_\tau, \mathbf{C}^{(n)}_a, H^{\text{mid}}; \theta_a) \tag{10}$$
+
+<p>Audio position도 동일 boundary 적용. Packed single-turn 예제 학습 시 text position은 packed sequence에서 global 유지, audio positional index는 매 packed segment 시작 시 reset. 추론 시에도 새 assistant response마다 reset. 토큰 index <code>i</code>, modality tag <code>m_i</code>, 현재 audio segment 시작 index <code>s_n</code>일 때 audio branch가 사용하는 position:</p>
+
+$$\mathcal{P}^{(n)}(i) = \begin{cases} i, & m_i \in \text{Text}, \\ i - s_n, & m_i \in \text{Audio}_n. \end{cases} \tag{11}$$
+
+<p>##이 training-time packing과 turn-local audio reset의 조합이 backbone의 text-side multi-turn 능력을 활용하면서 stale audio state가 repetition/drift를 유발하는 것을 방지##한다.</p>
+
+<h3>2.8 알고리즘 흐름도</h3>
+
+<div class="flow-diagram">[Input: (x^τ, x^a)]
+    ↓
+Speech Encoder + Projection → e^sp
+Text Embedding → e^τ
+    ↓
+[Frozen Backbone (all L layers)]
+    ├─→ Text Head → y^τ_s (concurrent)
+    └─→ h^mid_s (mid-layer, ~2/3 depth)
+             ↓
+        [Mixed Conditioning]
+        h^mix = w_h·h^mid + w_τ·e^τ_{s-1} + w_a·r^a_{s-1}
+             ↓
+        [Audio Post-Decoder (2B params, 10 causal layers)]
+             ↓
+        [MTP Head (100M, k-step)]
+             ↓
+        y^a_{s,1..k} → codec tokens (25/k Hz)
+             ↓
+        [CosyVoice2 Codec Decoder → waveform]
+
+Multi-turn:
+  Text KV cache:  accumulate across turns  (dialogue memory)
+  Audio KV cache: reset at each turn       (avoid stale drift)</div>
+
+<h2>3. Experimental Setup</h2>
+
+<h3>3.1 Training Data</h3>
+
+<p>Backbone이 frozen이므로 학습 목적은 speech로부터의 reasoning 학습이 아니라, ##audio branch가 강력한 S2T LLM의 응답을 faithful, intelligible하게 render하도록 가르치는 것##. 태스크 균형 mixture 구성:</p>
+
+<table>
+<tr><th>Dataset</th><th>Type</th><th>Lang.</th><th>Hours</th><th>Stage</th></tr>
+<tr><td>LibriHeavy [40]</td><td>TTS</td><td>EN</td><td>46k</td><td>S1</td></tr>
+<tr><td>In-house X2EN</td><td>S2ST</td><td>EN</td><td>10k</td><td>S1, S2</td></tr>
+<tr><td>CoVoST-2 X2EN [41]</td><td>S2ST</td><td>EN</td><td>1k</td><td>S1, S2</td></tr>
+<tr><td>VoiceAssistant [42]</td><td>SQA</td><td>EN</td><td>4k</td><td>S1, S2</td></tr>
+<tr><td>TriviaQA [43]</td><td>SQA</td><td>EN</td><td>2k</td><td>S1, S2</td></tr>
+</table>
+
+<p>Total ~100k weighted hours. LibriHeavy는 TTS-style reconstruction으로 초기 stage에서 randomly initialized audio post-decoder를 dense audio-text correspondence로 stabilize. 다국어 speech translation (CVSS X2EN 7 language)과 x-to-English synthesized target (~40k hours)로 <strong>단순 input transcript 반복이 아닌 inferred content rendering</strong>을 학습. VoiceAssistant-400K, TriviaQA, Natural Questions로 post-decoder를 answer-like output과 explanatory response에 노출.</p>
+
+<p>Target speech는 Microsoft Azure TTS로 수백 identity에서 synthesize, CosyVoice2 tokenizer (25Hz)로 encode. ##이는 controlled target-speech construction으로 semantic alignment와 intelligibility에 clean supervision을 제공하며, 평가는 expressive prosody가 아닌 transcript-level correctness, S2T-S2S consistency, WER, decoding efficiency에 집중##.</p>
+
+<h3>3.2 Model Configuration</h3>
+
+<p>PRIME-Speech는 <strong>Phi-4-MM-7B</strong> (advanced S2T LLM) 기반. Backbone은 2M hours speech data + 5T text tokens로 pre-training. Trainable modules:</p>
+<ul>
+  <li><strong>Audio post-decoder</strong>: ~2B params, 10 causal transformer decoder layers. 각 layer는 backbone의 hidden size와 attention config를 따라 <code>H^mid</code>와 speech branch 간 mismatch 감소.</li>
+  <li><strong>MTP module</strong>: multi-head MLP, hidden dim 2048, ~100M params.</li>
+</ul>
+
+<p>Frozen modules: speech encoder, projection, transformer backbone, text LM head, text decoding path (학습·평가 전 구간). ##S2S 변경분은 학습된 speech branch에만 귀속되며, S2T 동작은 원본 backbone이 지배##한다는 것이 이 setup의 핵심.</p>
+
+<h3>3.3 Training Curriculum (2단계)</h3>
+
+<p><strong>Stage 1 — Audio-branch training</strong>: audio post-decoder를 native 25Hz codec rate에서 standard next-token codec prediction으로 학습. Full task-balanced mixture 1 epoch, AdamW, learning rate <code>1×10^-4</code> linear decay. LibriHeavy가 dense audio-text correspondence를 제공하여 acoustic-token modeling을 stabilize, translation/spoken QA/assistant-style 예제가 post-decoder에게 verbatim transcript만이 아닌 inferred/generated content를 render하도록 가르침.</p>
+
+<p><strong>Stage 2 — MTP training</strong>: MTP 활성화, 동일 learning rate schedule로 20k step. Pure alignment 예제는 down-weight, translation과 spoken QA 예제는 active 유지. 이 시점에는 post-decoder가 stable hidden-state conditioning을 학습했으므로, MTP는 codec-token prediction을 압축하는 efficiency component로 학습.</p>
+
+<h2>4. Results</h2>
+
+<h3>4.1 Baselines & Metrics</h3>
+
+<p>비교 대상: GLM-4-Voice, Kimi-Audio, Step-Audio-2-Mini, VocalNet, Qwen2.5-Omni, Qwen3-Omni, GPT-4o, 그리고 frozen Backbone-LLM. Backbone-LLM은 speech-generation branch가 없으므로 S2T mode만 리포트.</p>
+
+<p>Evaluation suite:</p>
+<ul>
+  <li><strong>Translation</strong>: FLEURS, CoVoST-2 X2EN</li>
+  <li><strong>Spoken QA</strong>: UltraEval-Audio (LLaMA-QA, TriviaQA, WebQ)</li>
+  <li><strong>Speech understanding / conversational</strong>: BigBench-Audio, VocalBench (multi-turn 28 conversation / 179 turns 포함)</li>
+</ul>
+
+<p>S2T와 S2S를 별도 리포트. S2S에서 생성된 waveform은 Whisper Large-V3로 transcribe 후 task metric 계산. Translation은 BLEU/ASR-BLEU. QA/대화/이해는 task correctness, WER은 rendering consistency와 intelligibility 측정. VocalBench는 UTMOS 기반 fluency score도 리포트. PRIME-Speech는 MTP horizon <code>k=4</code>가 기본값.</p>
+
+<h3>4.2 Main Results (Table II 요약)</h3>
+
+<p>Table II는 두 가지 요구를 반영: <strong>preservation</strong> (speech output 추가가 S2T backbone을 훼손하지 않음)과 <strong>realization</strong> (생성 speech가 text response의 correctness를 보존하고 transcribe하기 쉬움).</p>
+
+<p>Table II는 각 셀이 <code>S2T / S2S</code> 페어 형식으로 표기 (좌: S2T score, 우: S2S score).</p>
+
+<table>
+<tr><th>Model</th><th>FLEURS X2EN<br>(S2T/S2S)</th><th>CoVoST<br>(S2T/S2S)</th><th>UltraEval WebQ<br>(S2T/S2S/WER↓)</th><th>VocalBench Overall / WER↓ / Flu.</th><th>BigBench<br>(S2T/S2S)</th></tr>
+<tr><td>Qwen3-Omni-30B</td><td>33.25 / 32.72</td><td>41.25 / 37.62</td><td>55.95 / 52.51 / 11.28</td><td>68.94 / 4.96 / 4.77</td><td>83.7 / 72.0</td></tr>
+<tr><td>GPT-4o</td><td>33.86 / –</td><td>37.09 / –</td><td>50.98 / – / –</td><td>88.06 / – / 4.16</td><td>70.2 / 67.2</td></tr>
+<tr><td>GLM-4-Voice-9B</td><td>– / –</td><td>– / –</td><td>32.20 / – / 15.90</td><td>68.94 / 4.38 / 4.77</td><td>44.8 / 42.7</td></tr>
+<tr><td>Kimi-Audio-7B</td><td>7.68 / –</td><td>7.40 / –</td><td>26.50 / 15.37 / 14.85</td><td>59.38 / 3.10 / 3.29</td><td>59.4 / 51.0</td></tr>
+<tr><td>Qwen2.5-Omni-7B</td><td>34.59 / 5.94</td><td>39.72 / 10.52</td><td>47.66 / 45.60 / 4.23</td><td>74.92 / 4.17 / 4.36</td><td>54.2 / 53.6</td></tr>
+<tr><td>Backbone-LLM (Phi-4-MM)</td><td>31.41 / –</td><td>40.65 / –</td><td>47.07 / – / –</td><td>– (S2S 미지원)</td><td>66.5 / –</td></tr>
+<tr style="background:#e8f5e9"><td><strong>PRIME-Speech-9B</strong></td><td><strong>31.40 / 33.24</strong></td><td><strong>41.29 / 40.98</strong></td><td><strong>42.04 / 40.18 / 3.33</strong></td><td><strong>78.76 / 4.29 / 3.37</strong></td><td><strong>65.6 / 63.4</strong></td></tr>
+</table>
+
+<h4>4.2.1 Reasoning path preservation</h4>
+<p>Backbone-LLM과의 controlled 비교는 preservation의 가장 직접적 증거. ##Translation, spoken QA, BigBench-Audio 전반에서 PRIME-Speech의 S2T score가 frozen backbone과 거의 unchanged##. Speech-generation branch가 text pathway를 rewrite하지 않으므로, S2S gain은 backbone의 원래 speech understanding/reasoning을 희생시켜 얻은 것이 아니다.</p>
+
+<h4>4.2.2 From text correctness to spoken correctness</h4>
+<p>S2S column은 audio branch가 backbone의 semantic decision을 보존하는지 검사. Translation과 spoken QA에서 PRIME-Speech는 strong text response를 <strong>small degradation, consistently low WER</strong>로 speech로 변환. Multi-turn과 BigBench-Audio 결과가 특히 유의미 (transcript 재현에 덜 tied되므로): 작은 S2T–S2S gap은 audio branch가 backbone response를 따르고 있음(speech-side reasoning error를 추가하는 것이 아님)을 시사. ##PRIME-Speech는 경쟁적 task accuracy를 유지하면서 리포트된 S2S 태스크 중 가장 낮거나 낮은 수준의 rendering WER를 달성##.</p>
+
+<h3>4.3 Ablation Study (Table III)</h3>
+
+<p>Table III는 S2S 시스템에서 흔히 혼재되는 세 효과를 분리: reasoning backbone 변경, audio branch 개선, codec-token generation 압축.</p>
+
+<table>
+<tr><th>Variant</th><th>Frame rate</th><th>FLEURS S2T/S2S/WER</th><th>UltraEval LLaMA-QA S2T/S2S</th><th>UltraEval WebQ S2T/S2S/WER</th><th>Multi-turn S2T/S2S/WER</th><th>BigBench S2T/S2S</th></tr>
+<tr><td>LoRA + ESI [43]</td><td>37.5Hz</td><td>29.37 / 31.11 / 2.07</td><td>70.00 / 66.33</td><td>45.81 / 43.76 / 3.25</td><td>–</td><td>53.75 / 53.25</td></tr>
+<tr><td>LoRA + Post LM [45]</td><td>25Hz</td><td>29.59 / 30.96 / 2.62</td><td>70.33 / 67.00</td><td>45.32 / 42.79 / 5.13</td><td>–</td><td>52.96 / 52.36</td></tr>
+<tr><td><strong>PRIME S1 (k=1)</strong></td><td>25Hz</td><td>31.39 / 33.57 / 1.51</td><td>79.00 / 73.33</td><td>46.98 / <strong>45.71</strong> / 6.12</td><td>80.45 / 79.21 / 3.67</td><td>66.30 / 59.10</td></tr>
+<tr><td>+ MTP=1</td><td>25Hz</td><td>31.39 / 33.58 / 1.45</td><td>79.00 / 72.33</td><td>46.98 / 45.03 / 5.66</td><td>80.45 / 79.33 / 3.61</td><td>66.30 / 63.86</td></tr>
+<tr><td>+ MTP=2</td><td>12.5Hz</td><td>31.39 / 33.36 / 1.52</td><td>79.00 / 74.67</td><td>46.98 / 44.93 / 3.01</td><td>80.45 / 79.33 / 2.07</td><td>66.40 / <strong>64.16</strong></td></tr>
+<tr><td>+ MTP=4</td><td>6.25Hz</td><td>31.40 / 33.24 / 2.19</td><td>79.00 / 74.42</td><td>46.98 / 44.55 / 3.33</td><td>80.45 / 79.33 / 3.34</td><td>66.20 / 63.38</td></tr>
+</table>
+
+<h4>4.3.1 왜 backbone을 freeze하는가</h4>
+<p>LoRA + Post LM과 LoRA + ESI variant는 같은 side data를 사용하지만 backbone을 update. In-domain S2S metric에서는 viable하지만, ##BigBench-Audio S2T score가 낮아 reasoning model을 adapting하는 비용을 명시적으로 보여줌##. 이는 PRIME-Speech의 decomposition을 지지: reasoning은 frozen backbone에 남고, speech realization은 post-decoder에서 학습된다.</p>
+
+<h4>4.3.2 MTP가 기여하는 것</h4>
+<p>MTP는 semantic alignment가 아닌 <strong>efficiency adapter</strong>로 해석해야 한다는 것이 중요한 실험 의도. Stage-1 model → <code>k=1</code> model 비교는 audio curriculum이 이미 rendering quality를 개선함을 보여준다(codec rate 감소 전에도).</p>
+
+<p><code>k=1</code>에서 <code>k=4</code>로 horizon 증가 시 effective codec prediction rate가 25Hz → 6.25Hz로 감소하면서도 S2S task score는 broadly stable. <code>k=4</code> setting은 smaller horizon에서 관찰되는 main quality (UltraEval-Audio, multi-turn, BigBench-Audio S2S 포함)를 preserve. 따라서 ##MTP는 의도된 역할을 수행: frozen reasoning path 변경 없이 또는 significant task-quality loss 없이 codec-generation loop을 압축##.</p>
+
+<h4>4.3.3 Multi-turn cache policy (Table IV)</h4>
+
+<table>
+<tr><th>Cache policy</th><th>Turn 1</th><th>Turn 2</th><th>Turn 3</th><th>Turn 4</th><th>Turn ≥5</th></tr>
+<tr><td>Text accum. + audio reset</td><td>92.86 / 2.44</td><td>82.14 / 1.94</td><td>71.43 / 1.97</td><td>85.71 / 3.65</td><td>73.13 / 1.48</td></tr>
+<tr><td>w/o audio reset</td><td>92.86 / 2.77</td><td>78.57 / 5.62</td><td>39.29 / 65.57</td><td>10.71 / 129.63</td><td>0.00 / 143.27</td></tr>
+</table>
+
+<p>실험 의도: dialogue length 전반에서 audio history가 assistant turn 간 persist해야 하는가? 핵심 신호는 average WER가 아닌 <strong>turn-wise trajectory</strong>. Text accumulation + turn-local audio reset의 경우, WER은 매 turn-position bucket에서 4% 미만을 유지하고 S2S accuracy는 dialogue length에 stable — ##text-side cache는 dialogue semantics를 preserve하고 acoustic generation은 current response에 local##.</p>
+
+<p>Audio reset 없는 경우, 처음 두 턴은 acceptable해 보이지만 3턴부터 stale audio state가 축적. WER이 sharply 증가하고 나중 turn에서 100%+ 초과, S2S accuracy는 ≥5-turn bucket에서 0으로 falls. Text cache는 양쪽 row에서 accumulate되므로, degradation은 <strong>lost dialogue memory가 아닌 재사용된 audio-side state</strong>에 isolated. ##이 ablation은 causal diagnostic: audio KV와 audio position은 turn boundary에서 반드시 reset되어야 한다##.</p>
+
+<h3>4.4 Efficiency Analysis (Table V)</h3>
+
+<table>
+<tr><th>System</th><th>Frame rate (Hz)</th><th>TTFT (ms)</th><th>TTFA (s)</th><th>Throughput (tok/s)</th><th>RTF↓</th></tr>
+<tr><td>Qwen2.5-Omni-7B</td><td>50.0</td><td>58</td><td>1.01</td><td>45.75</td><td>1.093</td></tr>
+<tr><td>VocalNet-8B (k=1)</td><td>12.5</td><td>38</td><td>0.51</td><td>216.89</td><td>0.250</td></tr>
+<tr><td>VocalNet-8B (k=3)</td><td>6.25</td><td>38</td><td>0.40</td><td>220.16</td><td>0.243</td></tr>
+<tr><td>VocalNet-8B (k=5)</td><td>4.17</td><td>38</td><td>0.40</td><td>225.93</td><td>0.243</td></tr>
+<tr><td>PRIME-Speech (k=1)</td><td>25.0</td><td>61</td><td>1.07</td><td>30.62</td><td>1.088</td></tr>
+<tr><td>PRIME-Speech (k=2)</td><td>12.5</td><td>60</td><td>0.63</td><td>62.17</td><td>0.548</td></tr>
+<tr><td><strong>PRIME-Speech (k=4)</strong></td><td><strong>6.25</strong></td><td><strong>58</strong></td><td><strong>0.39</strong></td><td><strong>123.76</strong></td><td><strong>0.296</strong></td></tr>
+</table>
+
+<p>Efficiency 해석에 있어 <strong>PRIME-Speech가 raw codec throughput에서 lightweight talker를 지배하는 것이 아니다</strong>. Frame rate = k=1 model 대비 6.25Hz로 압축된 결과로 codec 예측이 4배 빠름을 의미. 대신 audio-side MTP는 ##"frozen S2T backbone 보존과 S2T-S2S modality gap 감소"라는 stronger constraint하에서 latency와 RTF를 substantially 개선##. VocalNet은 shadow-and-dense talker (S2T-S2S modality gap이 크지만 처음부터 lightweight talker로 설계).</p>
+
+<h2>5. Conclusion & 저자 요약</h2>
+
+<p>PRIME-Speech는 강력한 S2T LLM에 S2S 능력을 <strong>reasoning backbone 변경 없이</strong> 추가하는 프레임워크. Speech-to-speech translation, spoken conversation, speech understanding에서 강한 결과를 달성하면서 small S2T-S2S modality gap을 유지. MTP는 high-rate codec token의 latency와 real-time factor를 개선하면서 frozen-backbone system의 전체 S2S behavior를 보존.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Preservation이 명시적으로 측정된 실험 설계</strong>: Backbone-LLM을 direct baseline으로 포함하여 S2T degradation을 controlled 방식으로 검증. 대부분의 S2S 논문이 이 비교를 생략하는 것과 대조적.</li>
+  <li><strong>3-way decomposition ablation</strong>: reasoning backbone freeze / audio branch / codec compression 세 효과를 별도로 분리한 것이 methodology의 강점. LoRA variant와의 비교가 특히 informative.</li>
+  <li><strong>Multi-turn cache policy의 causal diagnostic</strong>: turn-wise WER trajectory로 acoustic drift를 명확히 드러냄. Average WER만 봤다면 실용상 큰 문제가 은폐되었을 가능성.</li>
+  <li><strong>Data 효율</strong>: 대규모 multi-turn S2S 수집 없이도 packing + turn reset만으로 stable multi-turn 성능 달성. Practical한 recipe.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>Backbone dependency</strong>: 이 접근법의 성능은 근본적으로 backbone S2T LLM의 품질에 의존. Phi-4-MM-7B라는 이미 강한 S2T 모델을 전제하므로, 약한 backbone에서 동일한 gain을 얻을 수 있는지는 unclear.</li>
+  <li><strong>Layer selection의 heuristic 성격</strong>: <code>ℓ_mid</code>를 backbone의 ~2/3 depth로 CKA 분석 기반 선택했다고 하지만, layer selection에 대한 systematic ablation (예: 다양한 depth의 성능 비교)이 부재. Backbone마다 optimal layer가 달라질 가능성.</li>
+  <li><strong>Expressive prosody 무평가</strong>: 저자들이 명시적으로 evaluation을 transcript-level correctness와 rendering WER에 한정. Speaker consistency, emotional prosody, paralinguistic 요소는 평가 대상에서 제외. GPT-4o, Kimi-Audio 등의 강점 영역과 직접 비교 불가.</li>
+  <li><strong>Target speech가 synthetic</strong>: Azure TTS로 생성된 target을 사용하므로 semantic alignment는 clean하나, 실제 human speech distribution과의 gap이 있을 수 있음. 실제 사람 대화 style로 확장 시 성능 저하 가능성.</li>
+  <li><strong>Post-decoder 크기의 정당화 부족</strong>: 2B params post-decoder + 100M MTP는 결코 lightweight talker가 아님. 저자들도 인정하듯 raw codec throughput은 VocalNet 대비 뒤처짐. "왜 굳이 2B가 필요한가"에 대한 크기 ablation이 부재.</li>
+  <li><strong>Multi-lingual 대응</strong>: 실험은 대부분 EN target에 국한. 다국어 out target에서 hidden-state synchronization이 얼마나 견고한지 미검증.</li>
+  <li><strong>Mixed conditioning weight의 임의성</strong>: <code>w_h = w_τ = w_a = 1.0</code>이 "held-out ablation에서 최적"이라 했으나, ablation의 세부 데이터가 부재.</li>
+</ul>
+
+<h3>재현성</h3>
+<ul>
+  <li>Code/checkpoint 공개 여부 명시 없음. GLM-4-Voice, VocalNet 등과 달리 재현성이 제한적.</li>
+  <li>Phi-4-MM-7B backbone은 공개되어 있으나, 학습된 audio post-decoder weight의 공개 여부가 불투명.</li>
+  <li>In-house X2EN 10k hours, Azure TTS synthesized target data는 재현 시 재구성이 필요.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>"Freeze the reasoner, train the renderer"</strong>: 강력한 S2T LLM이 이미 존재할 때, 이를 훼손시키지 않는 유일한 견고한 방법은 backbone을 완전히 freeze하는 것. S2S 확장 시 첫 번째 선택지로 고려할 architecture principle.</li>
+  <li><strong>Hidden-state는 chunk보다 fine-grained synchronization interface</strong>: 완성된 텍스트, 텍스트 chunk, forced alignment 없이도 중간층 hidden state를 concurrent branch의 conditioning으로 활용할 수 있음. Thinker-Talker의 한계를 넘어서는 실용적 대안.</li>
+  <li><strong>Text/audio KV cache 비대칭 관리</strong>: multi-turn에서 두 modality의 cache 정책을 분리하는 것이 stale acoustic drift 방지에 필수. 단순한 아이디어지만 3턴 이상 대화에서 성능이 무너지는 것을 방지하는 핵심 요소.</li>
+  <li><strong>MTP는 alignment tool이 아닌 efficiency adapter</strong>: MTP의 semantic 학습 효과를 기대하지 말고, 안정된 single-token 학습 후 pure compression module로 사용하는 것이 clean한 사용법.</li>
+  <li><strong>Turn-wise WER trajectory 리포트</strong>: multi-turn S2S 시스템 평가 시 average WER 대신 turn-position별 성능 저하 pattern을 살펴봐야 stale state 문제를 놓치지 않는다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
