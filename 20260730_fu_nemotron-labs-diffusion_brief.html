@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemotron-Labs-Diffusion — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* Hero — 초록/청록 (NVIDIA 계열) */
+  .hero {
+    background: linear-gradient(135deg, #064e3b, #059669, #14b8a6);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 720px; margin: 0 auto; }
+  .hero .version-link { margin-top: 1.2rem; }
+  .hero .version-link a { color: rgba(255,255,255,0.85); text-decoration: underline; font-size: 0.95rem; }
+  .hero .version-link a:hover { color: #fff; }
+
+  .container { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #064e3b; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #059669, #14b8a6); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; color: #047857; }
+  section p { margin: 0.8rem 0; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #059669; }
+  .card-green  { border-left: 5px solid #14b8a6; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .card p { margin: 0.5rem 0; }
+  .card ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  .card li { margin: 0.3rem 0; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #064e3b, #14b8a6);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #059669, #14b8a6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #064e3b; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #ecfdf5; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #059669; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #047857; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #059669; padding: 0 0.4rem; }
+
+  .mode-card { background: #fff; border: 2px solid #059669; border-radius: 16px; padding: 1.5rem; margin: 1rem 0; }
+  .mode-card h4 { color: #064e3b; font-size: 1.15rem; margin-bottom: 0.5rem; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #047857; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-badge">NVIDIA · Georgia Tech · HKU · MIT · 2026</span>
+  <h1>Nemotron-Labs-Diffusion</h1>
+  <p class="subtitle">"세 가지 방법으로 말할 줄 아는" AI — 하나의 모델로 배포 상황에 따라 자유롭게 전환</p>
+  <div class="version-link"><a href="20260730_fu_nemotron-labs-diffusion.html">전문가용 상세 요약 보기 →</a></div>
+</div>
+
+<div class="container">
+
+<!-- ONE-LINER -->
+<div class="one-liner">
+  "AR vs. Diffusion, 둘 중 하나만 고를 필요가 없다. <br><b>둘 다 학습시켜 하나의 모델로 셋 다 하게 하자.</b>"
+</div>
+
+<!-- 배경 지식 -->
+<section>
+<h2>배경: 지금 LLM은 왜 답을 못 정하는가?</h2>
+
+<p>이 논문의 중심 주제는 <b>텍스트 생성 방식</b>입니다. 지금까지 두 가지 파(派)가 있었습니다.</p>
+
+<h3>1) Autoregressive (AR) 방식</h3>
+<p>ChatGPT, Claude, Gemini가 쓰는 표준 방식. <b>단어 하나씩 순서대로</b> 만듭니다. "안녕" → "안녕하" → "안녕하세" → "안녕하세요". 각 글자는 앞의 모든 글자를 참고합니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+  <text x="20" y="30" font-size="14" font-weight="700" fill="#1e40af">AR: "왼쪽부터 오른쪽으로, 하나씩"</text>
+
+  <rect x="20" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="60" y="75" text-anchor="middle" font-size="13" fill="#1e40af">단어1</text>
+
+  <path d="M 105 70 L 130 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="135" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="175" y="75" text-anchor="middle" font-size="13" fill="#1e40af">단어2</text>
+
+  <path d="M 220 70 L 245 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="250" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="290" y="75" text-anchor="middle" font-size="13" fill="#1e40af">단어3</text>
+
+  <path d="M 335 70 L 360 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="365" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="405" y="75" text-anchor="middle" font-size="13" fill="#1e40af">단어4</text>
+
+  <text x="500" y="75" font-size="13" fill="#1e40af">✓ 문법 정확, 논리적</text>
+  <text x="500" y="95" font-size="13" fill="#dc2626">✗ GPU 능력 낭비 (4번 반복)</text>
+
+  <defs>
+    <marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<h3>2) Diffusion 방식</h3>
+<p>이미지 생성으로 유명한 Stable Diffusion을 텍스트에 적용한 것. <b>여러 단어를 한 번에</b> "빈칸 → 채우기"로 만듭니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+  <text x="20" y="30" font-size="14" font-weight="700" fill="#065f46">Diffusion: "여러 개 동시에 채우기"</text>
+
+  <rect x="20" y="50" width="80" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="60" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="105" y="50" width="80" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="145" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="190" y="50" width="80" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="230" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="275" y="50" width="80" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="315" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+
+  <text x="370" y="75" font-size="20" fill="#059669">→</text>
+
+  <rect x="395" y="50" width="80" height="40" rx="8" fill="#d1fae5" stroke="#059669"/>
+  <text x="435" y="75" text-anchor="middle" font-size="13" fill="#065f46">단어1~4</text>
+
+  <text x="500" y="75" font-size="13" fill="#065f46">✓ GPU 병렬 활용</text>
+  <text x="500" y="95" font-size="13" fill="#dc2626">✗ AR보다 정확도 낮음</text>
+</svg>
+</div>
+
+<h3>3) 지금까지의 딜레마</h3>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 손으로 쓴 편지 vs. 컴퓨터로 친 편지</div>
+AR은 손으로 정성껏 쓴 편지 같아 문법이 자연스럽지만 시간이 오래 걸립니다. Diffusion은 컴퓨터로 여러 문단을 동시에 붙여넣는 것 같아 빠르지만 어색한 부분이 생깁니다. 지금까지 연구자들은 "둘 중 어느 것이 미래인가"만 고민했습니다.
+</div>
+
+<p>지금까지 diffusion LM은 AR에 비해 <b>정확도가 뒤처져</b> 있었고, 상당히 더 많은 학습 데이터가 필요했습니다. 그 이유는 <b>diffusion 학습이 모든 마스킹 조합을 균등하게 취급</b>하기 때문 — 자연어의 왼쪽→오른쪽 순서 특성을 활용하지 못합니다.</p>
+
+<h3>4) Speculative Decoding: 지금까지의 가속법</h3>
+<p>또 하나의 가속 방법은 <b>speculative decoding</b>. 작은 draft 모델이 여러 토큰을 미리 만들고, 큰 verify 모델이 검증. 대표적으로 Eagle3 (MTP, Multi-Token Prediction). 하지만 여기도 문제가:</p>
+<ul>
+  <li>Draft 모델이 <b>작아서 짧은 범위만 신뢰</b> 가능</li>
+  <li>Draft를 <b>재귀적으로 만들어</b> 매번 embedding + LM head 비용</li>
+</ul>
+
+<h3>5) 이 논문의 도전: "왜 두 개 중 하나만?"</h3>
+<p>연구진의 통찰: <b>AR과 diffusion이 서로 경쟁하는 게 아니라 보완적일 수 있다면?</b> AR은 문법 뼈대를 잡고, diffusion은 미래를 미리 그려본다. 게다가 diffusion이 만든 초안을 AR이 검증하면 speculative decoding의 draft-verify 파이프라인이 <b>같은 모델</b>로 완성된다.</p>
+
+</section>
+
+<!-- 핵심 아이디어 -->
+<section>
+<h2>Tri-Mode: 하나의 모델, 세 가지 말투</h2>
+
+<p>이 논문의 핵심 아이디어는 하나의 모델이 <b>세 가지 방식으로 답</b>할 수 있게 훈련하는 것입니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 780 340" xmlns="http://www.w3.org/2000/svg">
+  <!-- Center -->
+  <ellipse cx="390" cy="170" rx="150" ry="90" fill="url(#g1)"/>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#064e3b"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+  <text x="390" y="160" text-anchor="middle" font-size="20" font-weight="900" fill="#fff">Nemotron-Labs</text>
+  <text x="390" y="185" text-anchor="middle" font-size="20" font-weight="900" fill="#fff">-Diffusion</text>
+  <text x="390" y="210" text-anchor="middle" font-size="12" fill="#a7f3d0">하나의 모델</text>
+
+  <!-- Mode 1: AR -->
+  <rect x="30" y="30" width="200" height="80" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="130" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">Mode 1: AR 모드</text>
+  <text x="130" y="76" text-anchor="middle" font-size="11" fill="#1e40af">순차 생성 (전통 방식)</text>
+  <text x="130" y="94" text-anchor="middle" font-size="10" fill="#1e40af">✓ 클라우드 대량 서빙</text>
+  <line x1="230" y1="90" x2="290" y2="130" stroke="#2563eb" stroke-width="2"/>
+
+  <!-- Mode 2: Diffusion -->
+  <rect x="550" y="30" width="200" height="80" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="650" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">Mode 2: Diffusion 모드</text>
+  <text x="650" y="76" text-anchor="middle" font-size="11" fill="#047857">병렬 생성 (한 번에 여러 개)</text>
+  <text x="650" y="94" text-anchor="middle" font-size="10" fill="#047857">✓ 대량 콘텐츠 생성</text>
+  <line x1="550" y1="90" x2="490" y2="130" stroke="#059669" stroke-width="2"/>
+
+  <!-- Mode 3: Self-Speculation -->
+  <rect x="240" y="270" width="300" height="80" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="390" y="295" text-anchor="middle" font-size="14" font-weight="700" fill="#92400e">Mode 3: Self-Speculation (자기 검증)</text>
+  <text x="390" y="315" text-anchor="middle" font-size="11" fill="#78350f">Diffusion으로 초안 → AR로 검증</text>
+  <text x="390" y="333" text-anchor="middle" font-size="10" fill="#78350f">✓ 개별 사용자 저지연 (로봇, 챗봇)</text>
+  <line x1="390" y1="270" x2="390" y2="240" stroke="#d97706" stroke-width="2"/>
+</svg>
+<div class="diagram-caption">하나의 모델이 세 가지 방식으로 답을 만들 수 있다. 배포 상황에 따라 자유롭게 전환.</div>
+</div>
+
+<h3>왜 세 가지 모드가 필요한가?</h3>
+
+<div class="card card-accent">
+<p><b>서비스 종류마다 병목이 다르기 때문입니다.</b></p>
+<ul>
+  <li><b>클라우드 대규모 서비스</b>: 사용자 요청을 묶어서 처리하면 GPU가 꽉 참 → AR이 최적</li>
+  <li><b>초대량 생성 (예: 대규모 데이터 augmentation)</b>: 정확도 조금 낮아도 속도가 중요 → Diffusion 최적</li>
+  <li><b>로봇/개별 사용자</b>: 한 명의 요청, 지연이 중요 → Self-Speculation 최적</li>
+</ul>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 삼단 기어 자전거</div>
+언덕(연산량 많은 상황)에서는 1단 기어(AR)로 확실히 밟고, 평지(단순 대량 생성)에서는 3단 기어(Diffusion)로 빠르게, 그 사이(대부분 상황)에서는 2단 기어(Self-Spec)로 균형을 잡습니다. 하나의 자전거로 세 가지 지형을 다 다닐 수 있다는 것이 이 논문의 가치입니다.
+</div>
+
+<h3>학습 방법: 두 개의 목표를 동시에</h3>
+
+<p>이 tri-mode를 실현하려면 학습 시 두 가지 loss를 동시에 최적화해야 합니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 780 260" xmlns="http://www.w3.org/2000/svg">
+  <!-- Stage 1 -->
+  <rect x="20" y="30" width="350" height="80" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="195" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">Stage 1: AR만 학습 (1T 토큰)</text>
+  <text x="195" y="78" text-anchor="middle" font-size="11" fill="#1e40af">먼저 "왼쪽→오른쪽" 언어 감각 확립</text>
+  <text x="195" y="96" text-anchor="middle" font-size="11" fill="#1e40af">α = 0 (diffusion loss 끔)</text>
+
+  <path d="M 375 70 L 405 70" stroke="#059669" stroke-width="3" marker-end="url(#tr1)"/>
+  <defs>
+    <marker id="tr1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+    </marker>
+  </defs>
+
+  <!-- Stage 2 -->
+  <rect x="410" y="30" width="350" height="80" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="585" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">Stage 2: AR + Diffusion 함께 (300B 토큰)</text>
+  <text x="585" y="78" text-anchor="middle" font-size="11" fill="#047857">병렬 예측 능력 추가</text>
+  <text x="585" y="96" text-anchor="middle" font-size="11" fill="#047857">α = 0.3 (황금비율)</text>
+
+  <!-- Loss equation -->
+  <rect x="150" y="140" width="480" height="90" rx="12" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="390" y="165" text-anchor="middle" font-size="15" font-weight="700" fill="#92400e">Loss = AR_loss × 1 + Diffusion_loss × 0.3</text>
+  <text x="390" y="190" text-anchor="middle" font-size="12" fill="#78350f">AR loss는 문법 뼈대를 유지, Diffusion loss는 미래 예측 능력 부여</text>
+  <text x="390" y="212" text-anchor="middle" font-size="12" fill="#78350f">α=0.3에서 두 loss가 <b>서로 경쟁하지 않고 함께 상승</b></text>
+</svg>
+</div>
+
+<div class="card card-green">
+<p><b>🎯 핵심 발견 1: 두 loss는 서로 돕는다</b></p>
+<p>Diffusion loss를 추가해도 AR 정확도는 <b>0.14% 향상</b>. AR loss를 추가하면 Diffusion 정확도는 <b>+7.48%</b> (단일 최대 개선). 즉 두 방식이 서로 배우면서 강해집니다.</p>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 양손잡이 훈련</div>
+왼손잡이 야구선수에게 오른손 스윙도 훈련시키면 오히려 왼손 스윙이 좋아진다는 스포츠 연구 결과가 있습니다. 뇌가 다른 각도에서 문제를 보는 법을 배우기 때문입니다. AR과 Diffusion도 마찬가지 — 서로 <b>같은 언어를 다른 방향에서</b> 바라보게 훈련하면 둘 다 강해집니다.
+</div>
+
+<h3>Self-Speculation의 마법</h3>
+
+<p>가장 창의적인 부분은 <b>세 번째 모드</b>입니다. 하나의 모델이 두 명의 역할을 동시에:</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 780 320" xmlns="http://www.w3.org/2000/svg">
+  <!-- Draft step -->
+  <rect x="20" y="30" width="340" height="120" rx="14" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="190" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">① Draft (초안): Diffusion 모드</text>
+  <text x="190" y="80" text-anchor="middle" font-size="11" fill="#047857">여러 위치를 한 번에 예측</text>
+  <text x="190" y="105" text-anchor="middle" font-size="10" fill="#047857">"단어1, 단어2, 단어3, 단어4"</text>
+  <text x="190" y="127" text-anchor="middle" font-size="10" fill="#047857">한 번의 forward pass에 4~10개</text>
+
+  <path d="M 370 90 L 410 90" stroke="#1e40af" stroke-width="3" marker-end="url(#ss1)"/>
+  <defs>
+    <marker id="ss1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e40af"/>
+    </marker>
+  </defs>
+
+  <!-- Verify step -->
+  <rect x="420" y="30" width="340" height="120" rx="14" fill="#dbeafe" stroke="#2563eb" stroke-width="2"/>
+  <text x="590" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">② Verify (검증): AR 모드</text>
+  <text x="590" y="80" text-anchor="middle" font-size="11" fill="#1e40af">같은 모델이 하나씩 검증</text>
+  <text x="590" y="105" text-anchor="middle" font-size="10" fill="#1e40af">일치하면 accept, 불일치는 reject</text>
+  <text x="590" y="127" text-anchor="middle" font-size="10" fill="#1e40af">평균 6.82개 accept! (Eagle3는 2.75개)</text>
+
+  <!-- Loop back -->
+  <path d="M 590 155 Q 590 200 390 220 Q 190 240 190 195" stroke="#d97706" stroke-width="2" stroke-dasharray="5,5" fill="none" marker-end="url(#ss2)"/>
+  <text x="390" y="245" text-anchor="middle" font-size="11" fill="#92400e">reject 지점부터 다시 draft</text>
+  <defs>
+    <marker id="ss2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#d97706"/>
+    </marker>
+  </defs>
+
+  <rect x="150" y="270" width="480" height="35" rx="8" fill="#064e3b"/>
+  <text x="390" y="292" text-anchor="middle" font-size="12" font-weight="700" fill="#fff">→ 하나의 모델이 두 역할을 모두 담당, 추가 모델 불필요</text>
+</svg>
+</div>
+
+<div class="card card-green">
+<p><b>🎯 핵심 발견 2: Self-Speculation이 MTP를 이긴다</b></p>
+<p>기존 speculative decoding (Eagle3 등 MTP 방식)은 작은 draft 모델을 별도로 씁니다. Nemotron-Labs-Diffusion은 <b>본 모델이 draft를 담당</b>해 훨씬 강력한 초안을 생성합니다.</p>
+<ul>
+  <li>평균 acceptance length: Nemotron <b>6.82</b> vs. Eagle3 <b>2.75</b> (2.48배)</li>
+  <li>Multilingual: Nemotron <b>10.06</b> vs. Eagle3 <b>1.91</b> (5배 이상!)</li>
+</ul>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 소설가가 자기 초고를 자기가 검토</div>
+기존 방식은 "초고를 신입 작가에게 맡기고 편집자가 검토"였습니다. 신입 작가는 실력이 부족해 초고를 자주 다시 써야 했죠. Nemotron은 <b>같은 대작가가 초고도 쓰고 검토도 합니다</b>. 초고 자체가 훨씬 정확하니 검토 통과율이 압도적으로 높습니다.
+</div>
+
+</section>
+
+<!-- 성과 -->
+<section>
+<h2>핵심 성과</h2>
+
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="num">6×</div>
+    <div class="label">Qwen3-8B 대비<br>Tokens Per Forward</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">4×</div>
+    <div class="label">GB200 시스템<br>Throughput</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">3.3×</div>
+    <div class="label">단일 사용자<br>속도 향상</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">2.48×</div>
+    <div class="label">Eagle3 대비<br>Acceptance Length</div>
+  </div>
+</div>
+
+<h3>정확도: 세 모드 모두 SOTA</h3>
+
+<table class="comp-table">
+<thead><tr><th>모델</th><th>모드</th><th>평균 정확도</th><th>속도(TPF)</th></tr></thead>
+<tbody>
+<tr><td>Qwen3-8B</td><td>AR</td><td>62.75</td><td>1×</td></tr>
+<tr><td>SDAR-8B Chat (기존 diffusion 최강)</td><td>Diffusion</td><td>54.09</td><td>1×</td></tr>
+<tr class="highlight-row"><td rowspan="4"><b>Nemotron-Labs-Diffusion-8B</b></td><td>AR</td><td><b>63.61</b></td><td>1×</td></tr>
+<tr class="highlight-row"><td>Diffusion</td><td>63.18</td><td>2.57×</td></tr>
+<tr class="highlight-row"><td>Linear Self-Spec</td><td>62.81</td><td>5.99×</td></tr>
+<tr class="highlight-row"><td>Quadratic Self-Spec</td><td><b>64.04</b></td><td><b>6.38×</b></td></tr>
+</tbody>
+</table>
+
+<p>주목할 점: <b>모든 모드가 Qwen3-8B AR (62.75)을 능가</b>합니다. 즉 <b>속도를 얻으려고 정확도를 희생하지 않았다</b>는 뜻.</p>
+
+<h3>Vision-Language Model에도 확장</h3>
+
+<table class="comp-table">
+<thead><tr><th>모델</th><th>모드</th><th>평균 정확도</th><th>속도(TPF, 응답 &gt;200토큰)</th></tr></thead>
+<tbody>
+<tr><td>LLaDA-V-8B (기존 diffusion VLM)</td><td>Diffusion</td><td>58.2</td><td>1×</td></tr>
+<tr><td>Dimple</td><td>Diffusion</td><td>44.3</td><td>1×</td></tr>
+<tr class="highlight-row"><td rowspan="3"><b>Nemotron-Labs-Diffusion-VLM-8B</b></td><td>AR</td><td><b>59.5</b></td><td>1×</td></tr>
+<tr class="highlight-row"><td>Diffusion</td><td>57.9</td><td>3.15×</td></tr>
+<tr class="highlight-row"><td>Linear Self-Spec</td><td>59.4</td><td><b>7.45×</b></td></tr>
+</tbody>
+</table>
+
+<h3>스케일에 따른 이점 확대</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 250" xmlns="http://www.w3.org/2000/svg">
+  <text x="20" y="30" font-size="14" font-weight="700" fill="#064e3b">모델 크기가 커질수록 Diffusion의 이점 확대 (Self-Spec TPF)</text>
+
+  <!-- Axes -->
+  <line x1="80" y1="200" x2="640" y2="200" stroke="#334155" stroke-width="2"/>
+  <line x1="80" y1="200" x2="80" y2="60" stroke="#334155" stroke-width="2"/>
+
+  <!-- X labels -->
+  <text x="220" y="220" text-anchor="middle" font-size="12" fill="#64748b">3B</text>
+  <text x="380" y="220" text-anchor="middle" font-size="12" fill="#64748b">8B</text>
+  <text x="540" y="220" text-anchor="middle" font-size="12" fill="#64748b">14B</text>
+
+  <!-- Y labels -->
+  <text x="70" y="200" text-anchor="end" font-size="11" fill="#64748b">0×</text>
+  <text x="70" y="150" text-anchor="end" font-size="11" fill="#64748b">2×</text>
+  <text x="70" y="100" text-anchor="end" font-size="11" fill="#64748b">4×</text>
+  <text x="70" y="60" text-anchor="end" font-size="11" fill="#64748b">6×</text>
+
+  <!-- Bars: w/o LoRA -->
+  <rect x="195" y="105" width="30" height="95" fill="#a7f3d0"/>
+  <text x="210" y="100" text-anchor="middle" font-size="10" fill="#065f46">3.81×</text>
+
+  <rect x="355" y="87" width="30" height="113" fill="#a7f3d0"/>
+  <text x="370" y="82" text-anchor="middle" font-size="10" fill="#065f46">4.52×</text>
+
+  <rect x="515" y="84" width="30" height="116" fill="#a7f3d0"/>
+  <text x="530" y="79" text-anchor="middle" font-size="10" fill="#065f46">4.67×</text>
+
+  <!-- Bars: w/ LoRA -->
+  <rect x="230" y="91" width="30" height="109" fill="#059669"/>
+  <text x="245" y="86" text-anchor="middle" font-size="10" fill="#fff">4.36×</text>
+
+  <rect x="390" y="60" width="30" height="140" fill="#059669"/>
+  <text x="405" y="55" text-anchor="middle" font-size="10" fill="#065f46">5.99×</text>
+
+  <rect x="550" y="61" width="30" height="139" fill="#059669"/>
+  <text x="565" y="56" text-anchor="middle" font-size="10" fill="#065f46">5.96×</text>
+
+  <!-- Legend -->
+  <rect x="450" y="30" width="15" height="15" fill="#a7f3d0"/>
+  <text x="470" y="43" font-size="11" fill="#334155">기본</text>
+  <rect x="530" y="30" width="15" height="15" fill="#059669"/>
+  <text x="550" y="43" font-size="11" fill="#334155">LoRA 튜닝 추가</text>
+</svg>
+</div>
+
+<p>큰 모델일수록 미래 예측이 더 신뢰할 만하기 때문에 diffusion의 이점이 커집니다. 이는 tri-mode가 <b>scale-friendly</b>임을 의미.</p>
+
+</section>
+
+<!-- 기존 대비 장점 -->
+<section>
+<h2>기존 방법 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>비교 항목</th><th>기존 AR (Qwen3)</th><th>기존 Diffusion (LLaDA)</th><th>기존 MTP (Eagle3)</th><th>Nemotron-Labs-Diffusion</th></tr></thead>
+<tbody>
+<tr><td>정확도 (평균)</td><td>62.75</td><td>37.24</td><td>62.75 (AR 유지)</td><td><b>63.61 이상</b></td></tr>
+<tr><td>병렬 생성</td><td>❌</td><td>✅</td><td>부분적 (draft head)</td><td>✅ (full-capacity)</td></tr>
+<tr><td>Speculative 검증</td><td>❌</td><td>❌</td><td>✅ (별도 모델 필요)</td><td>✅ (같은 모델)</td></tr>
+<tr><td>배포 유연성</td><td>1가지 모드</td><td>1가지 모드</td><td>2가지 모드</td><td><b>3가지 모드</b></td></tr>
+<tr><td>Draft 품질</td><td>N/A</td><td>N/A</td><td>Tiny head → 짧음</td><td>Full model → 길고 정확</td></tr>
+<tr><td>Auxiliary head 오버헤드</td><td>없음</td><td>없음</td><td>있음 (embedding+LM head)</td><td><b>없음</b></td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 다국어 능통자 vs. 통역사 필요</div>
+Eagle3(MTP)는 "빠른 초안을 위해 별도 통역사(작은 draft 모델)를 고용"하는 방식입니다. 통역사가 부족한 실력으로 초안을 만들면 원저자(AR verifier)가 다시 고쳐야 하죠. Nemotron은 <b>본 모델이 다국어 능통자</b>라 초안과 검토를 모두 자신이 하므로, 훨씬 정확한 초안을 만듭니다.
+</div>
+
+</section>
+
+<!-- Speed-of-Light 발견 -->
+<section>
+<h2>추가 발견: 아직도 남은 헤드룸</h2>
+
+<p>연구진은 <b>Speed-of-Light (SOL) 분석</b>이라는 이론적 상한 계산을 수행했습니다. 결과:</p>
+
+<div class="card card-orange">
+<p><b>🔍 Diffusion의 이론적 상한 vs. 현재 실현치</b></p>
+<ul>
+  <li>이론상 최대: 한 번의 forward pass에 <b>7.60개 토큰</b> 예측 가능 (블록 크기 32)</li>
+  <li>현재 방식 (confidence-based sampling): 약 <b>3개</b>만 예측</li>
+  <li>즉 <b>2배 이상 추가 개선 여지</b>가 있음</li>
+</ul>
+</div>
+
+<p>이 발견은 diffusion sampling 연구자들에게 명확한 목표를 제시합니다: <b>더 나은 sampler를 만들면 2배 더 빠르게 만들 수 있다.</b></p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 자동차의 엔진 최대치와 실제 주행</div>
+자동차 엔진이 시속 300km까지 낼 수 있어도 (SOL 상한), 지금 도로 상태(sampler)로는 시속 150km만 낼 수 있는 상황입니다. 이 논문은 "이 차의 최대치가 300km이니, 도로만 개선하면 두 배 더 빨라진다"는 사실을 증명했습니다.
+</div>
+
+</section>
+
+<!-- 활용 -->
+<section>
+<h2>어디에 쓸 수 있나?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+  <!-- Center -->
+  <circle cx="360" cy="200" r="70" fill="url(#gc1)"/>
+  <defs>
+    <linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#059669"/>
+      <stop offset="1" stop-color="#14b8a6"/>
+    </linearGradient>
+  </defs>
+  <text x="360" y="195" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Tri-Mode LM</text>
+  <text x="360" y="215" text-anchor="middle" font-size="10" fill="#a7f3d0">모드 자동 선택</text>
+
+  <!-- Use cases -->
+  <g font-size="12" fill="#1e293b">
+    <!-- AR mode -->
+    <line x1="315" y1="160" x2="180" y2="90" stroke="#2563eb" stroke-width="2"/>
+    <rect x="30" y="60" width="180" height="70" rx="10" fill="#dbeafe" stroke="#2563eb"/>
+    <text x="120" y="82" text-anchor="middle" font-weight="700" fill="#1e40af">🌐 AR 모드</text>
+    <text x="120" y="100" text-anchor="middle" font-size="10" fill="#1e40af">클라우드 대량 서빙</text>
+    <text x="120" y="118" text-anchor="middle" font-size="10" fill="#1e40af">ChatGPT류 대화 서비스</text>
+
+    <!-- Diffusion mode -->
+    <line x1="405" y1="160" x2="540" y2="90" stroke="#059669" stroke-width="2"/>
+    <rect x="510" y="60" width="180" height="70" rx="10" fill="#d1fae5" stroke="#059669"/>
+    <text x="600" y="82" text-anchor="middle" font-weight="700" fill="#065f46">⚡ Diffusion 모드</text>
+    <text x="600" y="100" text-anchor="middle" font-size="10" fill="#065f46">대량 데이터 생성</text>
+    <text x="600" y="118" text-anchor="middle" font-size="10" fill="#065f46">합성 학습 데이터</text>
+
+    <!-- Self-Spec middle -->
+    <line x1="315" y1="230" x2="180" y2="310" stroke="#d97706" stroke-width="2"/>
+    <rect x="30" y="290" width="180" height="70" rx="10" fill="#fef3c7" stroke="#d97706"/>
+    <text x="120" y="312" text-anchor="middle" font-weight="700" fill="#92400e">🚀 Self-Spec</text>
+    <text x="120" y="330" text-anchor="middle" font-size="10" fill="#78350f">로봇/자율주행</text>
+    <text x="120" y="348" text-anchor="middle" font-size="10" fill="#78350f">개별 사용자 챗봇</text>
+
+    <!-- Application right bottom -->
+    <line x1="405" y1="230" x2="540" y2="310" stroke="#14b8a6" stroke-width="2"/>
+    <rect x="510" y="290" width="180" height="70" rx="10" fill="#ccfbf1" stroke="#14b8a6"/>
+    <text x="600" y="312" text-anchor="middle" font-weight="700" fill="#0f766e">🥽 엣지 디바이스</text>
+    <text x="600" y="330" text-anchor="middle" font-size="10" fill="#0f766e">스마트폰, VR/AR</text>
+    <text x="600" y="348" text-anchor="middle" font-size="10" fill="#0f766e">저지연 요구 앱</text>
+  </g>
+</svg>
+<div class="diagram-caption">배포 상황을 자동 감지해 최적 모드로 전환 가능 (수동 선택도 지원)</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 스마트폰의 성능 프로필</div>
+스마트폰이 배터리 상태와 앱에 따라 저전력/균형/고성능 모드를 자동 전환하듯이, Nemotron은 서비스 부하와 사용자 수에 따라 세 가지 모드를 전환합니다. 사용자는 여전히 하나의 "폰"(모델)만 갖고 있으면 됩니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 팔방미인 vs. 전문가</div>
+지금까지는 "AR 전문가 모델"과 "Diffusion 전문가 모델"을 따로 두었는데, 관리 비용과 저장 공간이 두 배였습니다. Nemotron은 "팔방미인 모델" 하나로 모든 상황에 대응. 배포·유지 관리 비용이 크게 줄어듭니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 다목적 도구 vs. 전문 도구 세트</div>
+스위스 아미 나이프처럼 하나의 도구가 여러 기능을 하는 것과 비슷하지만, 이 논문의 특별함은 <b>각 기능이 전문 도구만큼 뛰어나다</b>는 점입니다. AR 모드는 Qwen3보다 정확하고, Diffusion 모드는 SDAR보다 정확하고, Self-Spec은 Eagle3보다 강력합니다.
+</div>
+
+</section>
+
+<!-- 결론 -->
+<section>
+<div class="one-liner">
+"AR과 Diffusion은 <b>경쟁자가 아니라 동반자</b>. <br>둘을 함께 학습시키면 각자 더 강해지고, <br>세 가지 모드로 배포할 수 있다."
+</div>
+</section>
+
+<!-- 한계점 -->
+<section>
+<h2>한계점 (Limitations)</h2>
+
+<div class="card card-orange">
+<p><b>⚠️ Quadratic 방식의 커널 미최적화</b></p>
+<p>Self-speculation의 quadratic 변형은 이론적으로 더 많은 토큰을 한 번에 검증 가능하나, 비표준 attention 패턴이라 현재 GPU 커널이 최적화되지 않음. 실제 wall-clock 속도는 linear보다 느림. 향후 커널 개발 필요.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ SOL 상한과 실제 사이 큰 간격</b></p>
+<p>이론상 7.60배 병렬성이 가능하지만 실제로는 3배 정도만 실현. 이 간격을 줄이려면 <b>더 나은 sampler 학습</b>이 필요한데, 이 논문 자체는 이를 완성하지 못하고 future work로 남김.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 특정 base 모델 (Ministral3-8B)에서만 검증</b></p>
+<p>다른 base 모델 (Llama, Qwen 등)에서 시작했을 때도 tri-mode의 우수성이 유지되는지는 미검증. Nemotron 시리즈에 특화되었을 가능성.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ Open-ended 생성에서 이점 제한</b></p>
+<p>Roleplay/writing 같은 자유 생성 카테고리에서는 SOL이 3.5~6배로 상대적으로 낮음. 구조화된 태스크 (coding, math)에 이점이 편향.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ LoRA drafter의 추가 학습 필요</b></p>
+<p>Best 성능을 위해서는 LoRA 튜닝 필요. 학습 데이터 20M trajectory 수집과 추가 학습 비용 발생. 다만 이는 backbone의 0.4% 규모라 실용적 부담은 크지 않음.</p>
+</div>
+
+</section>
+
+<!-- Bottom link -->
+<section style="text-align: center; margin-top: 3rem;">
+<a href="20260730_fu_nemotron-labs-diffusion.html" style="display: inline-block; background: linear-gradient(135deg, #059669, #14b8a6); color: white; padding: 0.8rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 700;">📖 전문가용 상세 요약 보기 →</a>
+</section>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+<p><b>Nemotron-Labs-Diffusion: A Tri-Mode Language Model Unifying Autoregressive, Diffusion, and Self-Speculation Decoding</b></p>
+<p>Yonggan Fu, Lexington Whalen, Abhinav Garg, Chengyue Wu, et al. (NVIDIA · Georgia Tech · HKU · MIT, 2026)</p>
+<p><a href="https://arxiv.org/pdf/2607.05722">arXiv:2607.05722</a></p>
+</div>
+
+</body>
+</html>

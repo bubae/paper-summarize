@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-dVLM — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* Hero — 짙은 청-보라 그라디언트 (Fast/속도 테마) */
+  .hero {
+    background: linear-gradient(135deg, #1e3a8a, #6366f1, #7c3aed);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 720px; margin: 0 auto; }
+  .hero .version-link { margin-top: 1.2rem; }
+  .hero .version-link a { color: rgba(255,255,255,0.85); text-decoration: underline; font-size: 0.95rem; }
+  .hero .version-link a:hover { color: #fff; }
+
+  .container { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
+
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #1e3a8a; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #6366f1, #7c3aed); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; color: #4338ca; }
+  section p { margin: 0.8rem 0; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #6366f1; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .card p { margin: 0.5rem 0; }
+  .card ul { margin: 0.5rem 0 0.5rem 1.5rem; }
+  .card li { margin: 0.3rem 0; }
+
+  .one-liner {
+    background: linear-gradient(135deg, #1e3a8a, #7c3aed);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #6366f1, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #1e3a8a; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #eef2ff; font-weight: 700; }
+
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #4338ca; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #4338ca; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #4338ca; padding: 0 0.4rem; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #4338ca; text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero">
+  <span class="hero-badge">NVIDIA · HKU · MIT · MBZUAI · 2026</span>
+  <h1>Fast-dVLM</h1>
+  <p class="subtitle">"보는 것도, 생각하는 것도 빠르게" — 자율주행/로봇을 위한 6배 빠른 Vision-Language Model</p>
+  <div class="version-link"><a href="20260730_wu_fast-dvlm.html">전문가용 상세 요약 보기 →</a></div>
+</div>
+
+<div class="container">
+
+<!-- ONE-LINER -->
+<div class="one-liner">
+  "이미 잘 훈련된 AI를, 처음부터 새로 가르치지 않고, <br>말하는 방식만 <b>완전히 바꾸는</b> 기술"
+</div>
+
+<!-- 배경 지식 -->
+<section>
+<h2>배경: 왜 VLM은 느릴까?</h2>
+
+<p>먼저 이 논문이 다루는 기술을 이해하려면 세 가지 개념을 알아야 합니다.</p>
+
+<h3>1) VLM(Vision-Language Model)이란?</h3>
+<p>VLM은 <b>이미지를 보고 글을 쓰는 AI</b>입니다. 사진 속 물건을 알아보고, 차트를 읽고, 로봇에게 "이 물체를 저 상자에 넣어라"라는 지시를 이해합니다. ChatGPT가 텍스트만 다루는 반면, VLM은 이미지+텍스트를 함께 처리합니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+  <rect x="20" y="70" width="130" height="80" rx="12" fill="#e0e7ff" stroke="#4338ca" stroke-width="2"/>
+  <text x="85" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">이미지</text>
+  <text x="85" y="130" text-anchor="middle" font-size="12" fill="#475569">고양이 사진</text>
+
+  <rect x="20" y="160" width="130" height="40" rx="8" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="85" y="185" text-anchor="middle" font-size="12" fill="#92400e">"어디에 있어?"</text>
+
+  <path d="M 155 130 Q 220 130 260 100" stroke="#6366f1" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+  <path d="M 155 180 Q 220 180 260 155" stroke="#6366f1" stroke-width="2" fill="none" marker-end="url(#a1)"/>
+
+  <defs>
+    <marker id="a1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#6366f1"/>
+    </marker>
+  </defs>
+
+  <rect x="270" y="80" width="180" height="90" rx="12" fill="linear-gradient(90deg,#6366f1,#7c3aed)" fill="#6366f1"/>
+  <text x="360" y="115" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">VLM</text>
+  <text x="360" y="140" text-anchor="middle" font-size="12" fill="#e0e7ff">이미지+글을 이해하는 AI</text>
+
+  <path d="M 455 125 L 500 125" stroke="#059669" stroke-width="3" marker-end="url(#a2)"/>
+  <defs>
+    <marker id="a2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+    </marker>
+  </defs>
+
+  <rect x="510" y="90" width="170" height="60" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="595" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">답변</text>
+  <text x="595" y="135" text-anchor="middle" font-size="12" fill="#065f46">"탁자 위에 있어요"</text>
+</svg>
+<div class="diagram-caption">VLM은 이미지와 질문을 함께 이해해 답한다.</div>
+</div>
+
+<h3>2) 지금까지의 방식: Autoregressive(AR)</h3>
+<p>현재 거의 모든 VLM은 <b>"한 글자씩" 순서대로</b> 답을 만듭니다. "탁자" → "위에" → "있어요"처럼 이전 단어를 보고 다음 단어를 하나씩 예측합니다. 이 방식은 GPU가 가진 병렬 계산 능력의 극히 일부만 사용합니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 130" xmlns="http://www.w3.org/2000/svg">
+  <text x="20" y="30" font-size="14" font-weight="700" fill="#1e3a8a">Autoregressive (지금 방식)</text>
+
+  <rect x="20" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="60" y="75" text-anchor="middle" font-size="13" fill="#1e40af">탁자</text>
+
+  <path d="M 105 70 L 130 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="135" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="175" y="75" text-anchor="middle" font-size="13" fill="#1e40af">위에</text>
+
+  <path d="M 220 70 L 245 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="250" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="290" y="75" text-anchor="middle" font-size="13" fill="#1e40af">있어</text>
+
+  <path d="M 335 70 L 360 70" stroke="#64748b" stroke-width="2" marker-end="url(#ar1)"/>
+
+  <rect x="365" y="50" width="80" height="40" rx="8" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="405" y="75" text-anchor="middle" font-size="13" fill="#1e40af">요</text>
+
+  <text x="500" y="75" font-size="13" fill="#dc2626" font-weight="600">→ 4번 반복 계산</text>
+
+  <text x="20" y="115" font-size="11" fill="#64748b">토큰 하나마다 GPU가 전체 모델을 다시 로드해야 함</text>
+
+  <defs>
+    <marker id="ar1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<h3>3) 왜 자율주행/로봇에서 문제가 심각한가?</h3>
+<p>클라우드 서비스에서는 여러 사용자의 요청을 한 번에 묶어서 GPU를 채울 수 있지만(<b>배치 처리</b>), 로봇 한 대나 자동차 한 대는 자기 상황만 처리합니다. 이것을 <b>배치 크기 1(batch size 1)</b>이라고 부릅니다. 이 상황에서는 GPU 연산 자원이 놀아버리고, 대신 <b>메모리에서 모델 가중치를 로드하는 시간</b>이 병목이 됩니다. 이를 "메모리 대역폭에 갇혀 있다(memory-bandwidth-bound)"고 표현합니다.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 슈퍼카를 도심 신호등에서 운전하는 것</div>
+아무리 좋은 GPU(=시속 300km 슈퍼카)를 갖고 있어도, AR 디코딩(=매 블록마다 신호등에 서기)이라는 방식 때문에 실제 속도는 결코 나오지 않습니다. 로봇 하나가 GPU 한 대를 통째로 쓰면, 이 문제가 특히 심각합니다.
+</div>
+
+<h3>4) Diffusion 방식이란?</h3>
+<p>이미지 생성으로 유명한 <b>Diffusion(디퓨전)</b>을 텍스트에도 적용하면 어떨까요? 아이디어는 이렇습니다: 여러 개 단어를 <b>[빈칸, 빈칸, 빈칸, 빈칸]</b>으로 두고, GPU가 <b>한 번에 병렬</b>로 채웁니다. 하나씩 순서대로가 아니라, 4개를 동시에.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 160" xmlns="http://www.w3.org/2000/svg">
+  <text x="20" y="30" font-size="14" font-weight="700" fill="#059669">Diffusion (병렬 채우기)</text>
+
+  <!-- Step 1 -->
+  <rect x="20" y="50" width="60" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="50" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="90" y="50" width="60" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="120" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="160" y="50" width="60" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="190" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+  <rect x="230" y="50" width="60" height="40" rx="8" fill="#fee2e2" stroke="#dc2626"/>
+  <text x="260" y="75" text-anchor="middle" font-size="13" fill="#991b1b">?</text>
+
+  <text x="315" y="75" font-size="16" fill="#4338ca">→</text>
+
+  <rect x="335" y="50" width="60" height="40" rx="8" fill="#dcfce7" stroke="#059669"/>
+  <text x="365" y="75" text-anchor="middle" font-size="13" fill="#065f46">탁자</text>
+  <rect x="405" y="50" width="60" height="40" rx="8" fill="#dcfce7" stroke="#059669"/>
+  <text x="435" y="75" text-anchor="middle" font-size="13" fill="#065f46">위에</text>
+  <rect x="475" y="50" width="60" height="40" rx="8" fill="#dcfce7" stroke="#059669"/>
+  <text x="505" y="75" text-anchor="middle" font-size="13" fill="#065f46">있어</text>
+  <rect x="545" y="50" width="60" height="40" rx="8" fill="#dcfce7" stroke="#059669"/>
+  <text x="575" y="75" text-anchor="middle" font-size="13" fill="#065f46">요</text>
+
+  <text x="640" y="75" font-size="13" fill="#059669" font-weight="700">1번!</text>
+
+  <text x="20" y="130" font-size="11" fill="#64748b">4개 위치를 동시에 채워 → 이론적으로 4배 빠름</text>
+</svg>
+</div>
+
+<p>단, 텍스트 diffusion은 텍스트 전용 모델(예: LLaDA, Dream)에서만 잘 연구되었고, <b>이미지까지 다루는 VLM으로 확장</b>하는 것은 도전 과제였습니다.</p>
+
+<h3>5) 왜 VLM으로 확장이 어려웠나?</h3>
+<p>텍스트 diffusion을 그대로 VLM에 붙이려니 4가지 문제가 있었습니다:</p>
+
+<div class="card card-accent">
+<ul>
+  <li><b>변환 방법 선택</b>: 이미 잘 훈련된 AR VLM을 어떻게 diffusion으로 바꿀까?</li>
+  <li><b>대화 경계 문제</b>: 답변이 "A" 한 글자로 짧은 경우, 블록 크기가 안 맞아 다음 질문의 정보가 새어 들어감</li>
+  <li><b>학습 효율</b>: 이미지 임베딩이 원본 스트림과 오염 스트림에 이중으로 존재해 메모리/시간 낭비</li>
+  <li><b>검증 능력 상실</b>: 병렬 방식이 원래 AR의 "순서대로 검증하는" 능력을 파괴</li>
+</ul>
+</div>
+
+</section>
+
+<!-- 핵심 아이디어 -->
+<section>
+<h2>Fast-dVLM의 핵심 아이디어</h2>
+
+<p>이 논문은 위 4가지 문제를 한꺼번에 해결하는 <b>4가지 학습 레시피</b>를 제안합니다. 그런데 그 전에, 저자들이 먼저 던진 질문이 있습니다.</p>
+
+<h3>결정적 질문: 두 가지 변환 경로 중 어느 것이 나은가?</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 780 300" xmlns="http://www.w3.org/2000/svg">
+  <!-- Two-stage path -->
+  <text x="20" y="25" font-size="15" font-weight="700" fill="#dc2626">① Two-Stage 경로 (기존 방식): 텍스트부터 → 그다음 이미지</text>
+
+  <rect x="20" y="45" width="130" height="60" rx="10" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="85" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#991b1b">AR LLM</text>
+  <text x="85" y="90" text-anchor="middle" font-size="11" fill="#7f1d1d">(텍스트만 이해)</text>
+
+  <path d="M 155 75 L 195 75" stroke="#dc2626" stroke-width="2" marker-end="url(#at)"/>
+  <text x="175" y="65" text-anchor="middle" font-size="10" fill="#7f1d1d">300K text</text>
+  <text x="175" y="105" text-anchor="middle" font-size="10" fill="#7f1d1d">Stage 1</text>
+
+  <rect x="200" y="45" width="150" height="60" rx="10" fill="#fecaca" stroke="#dc2626" stroke-width="2"/>
+  <text x="275" y="70" text-anchor="middle" font-size="13" font-weight="700" fill="#991b1b">Diffusion LLM</text>
+  <text x="275" y="90" text-anchor="middle" font-size="11" fill="#7f1d1d">(여전히 텍스트만)</text>
+
+  <path d="M 355 75 L 395 75" stroke="#dc2626" stroke-width="2" marker-end="url(#at)"/>
+  <text x="375" y="65" text-anchor="middle" font-size="10" fill="#7f1d1d">+ViT 추가</text>
+  <text x="375" y="105" text-anchor="middle" font-size="10" fill="#7f1d1d">Stage 2</text>
+
+  <rect x="400" y="45" width="180" height="60" rx="10" fill="#fca5a5" stroke="#dc2626" stroke-width="2"/>
+  <text x="490" y="65" text-anchor="middle" font-size="13" font-weight="700" fill="#7f1d1d">Fast-dVLM</text>
+  <text x="490" y="85" text-anchor="middle" font-size="11" fill="#7f1d1d">(멀티모달 정렬 재구축)</text>
+
+  <text x="605" y="80" font-size="14" font-weight="700" fill="#7f1d1d">평균 60.2점</text>
+
+  <!-- Direct path -->
+  <text x="20" y="165" font-size="15" font-weight="700" fill="#059669">② Direct 경로 (이 논문 방식): 이미지+텍스트 함께 한 방에</text>
+
+  <rect x="20" y="185" width="150" height="70" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="95" y="210" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">AR VLM</text>
+  <text x="95" y="228" text-anchor="middle" font-size="11" fill="#065f46">(이미지+텍스트 이미 이해)</text>
+  <text x="95" y="245" text-anchor="middle" font-size="10" fill="#065f46">Qwen2.5-VL-3B</text>
+
+  <path d="M 175 220 L 285 220" stroke="#059669" stroke-width="3" marker-end="url(#at2)"/>
+  <text x="230" y="210" text-anchor="middle" font-size="11" fill="#065f46">2M 멀티모달</text>
+  <text x="230" y="240" text-anchor="middle" font-size="11" fill="#065f46">Single Stage</text>
+
+  <rect x="290" y="185" width="290" height="70" rx="10" fill="#a7f3d0" stroke="#059669" stroke-width="2"/>
+  <text x="435" y="210" text-anchor="middle" font-size="14" font-weight="700" fill="#064e3b">Fast-dVLM</text>
+  <text x="435" y="230" text-anchor="middle" font-size="11" fill="#065f46">(멀티모달 정렬 그대로 유지)</text>
+  <text x="435" y="248" text-anchor="middle" font-size="11" fill="#065f46">→ AR의 지식을 물려받음</text>
+
+  <text x="605" y="225" font-size="14" font-weight="700" fill="#065f46">평균 73.3점</text>
+
+  <defs>
+    <marker id="at" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="at2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/>
+    </marker>
+  </defs>
+</svg>
+<div class="diagram-caption">Direct 경로가 <b>10개 모든 벤치마크에서</b> Two-Stage보다 우세. 특히 DocVQA +31.5점, ChartQA +21.4점.</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 이중언어 통역사에게 새로운 말투 가르치기</div>
+Two-Stage는 "먼저 한국어만 할 줄 아는 사람에게 빠른 말투를 가르치고 → 그다음 영어까지 새로 가르치는" 것과 같습니다. Direct는 "이미 한영 통역이 되는 사람에게 빠른 말투만 가르치는" 것과 같아요. 후자가 훨씬 자연스럽고 결과도 좋습니다. 이 논문의 가장 큰 발견은, <b>"이미 잘 하는 사람의 능력을 지우고 처음부터 다시 가르치지 말자"</b>는 원칙입니다.
+</div>
+
+<h3>4가지 학습 레시피</h3>
+
+<div class="step-flow">
+  <div class="step-box">
+    <div class="step-num">STEP 1</div>
+    <div class="step-title">블록 크기 커리큘럼</div>
+    <div class="step-desc">작은 블록<br>→ 큰 블록</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 2</div>
+    <div class="step-title">Causal 문맥</div>
+    <div class="step-desc">원본 스트림은<br>순차 유지</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 3</div>
+    <div class="step-title">자동 잘라내기</div>
+    <div class="step-desc">응답 경계에서<br>블록 truncate</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 4</div>
+    <div class="step-title">이미지 중복 제거</div>
+    <div class="step-desc">이미지는<br>한 곳에만</div>
+  </div>
+</div>
+
+<div class="card card-accent">
+<p><b>Step 1. 블록 크기 커리큘럼 (Block-Size Annealing)</b></p>
+<p>학습 초반에는 <b>작은 블록(2개 토큰)</b>부터 시작해서, 학습이 진행되면서 점점 <b>큰 블록(32개 토큰)</b>으로 늘립니다. 아기가 걷기 전에 서는 법을 먼저 배우듯이, AI도 작은 병렬 채우기부터 익힙니다.</p>
+<p><b>없으면?</b> 특히 긴 답변(MMMU-Pro-V)에서 -32.5% 성능 급락.</p>
+</div>
+
+<div class="card card-accent">
+<p><b>Step 2. Causal 문맥 (Causal Context Attention)</b></p>
+<p>모델 내부에 <b>두 개의 흐름</b>이 있어요: (a) 정답이 마스킹된 "오염 스트림"과 (b) 원본 그대로의 "깨끗한 스트림". 이 논문의 핵심은 <b>깨끗한 스트림은 여전히 순서대로(왼쪽→오른쪽) 처리</b>하도록 유지하는 것입니다. 그래야 원래 AR의 "논리적으로 사고하는 능력"이 살아있고, 나중에 답을 검증할 때도 그 능력을 씁니다.</p>
+<p><b>없으면?</b> 평균 -22.5%, 추론 과제에서는 -58.9%까지 급락! 4가지 중 가장 중요.</p>
+</div>
+
+<div class="card card-accent">
+<p><b>Step 3. 자동 잘라내기 (Auto-Truncation)</b></p>
+<p>대화에서 응답이 "A" 한 글자처럼 짧을 때, 원래는 블록이 다음 질문 영역까지 침범해서 "미래 정보 누출"이 발생. 이 논문은 응답 경계에서 자동으로 블록을 잘라내 이를 방지.</p>
+<p><b>없으면?</b> MMMU에서 -14.4%.</p>
+</div>
+
+<div class="card card-accent">
+<p><b>Step 4. 이미지 중복 제거 (Vision-Efficient Concatenation)</b></p>
+<p>이미지는 절대 오염되지 않으니, 두 스트림에 같은 이미지를 두 번 저장할 필요가 없습니다. 이미지는 깨끗한 스트림에만 두고, 오염 스트림에서는 attention으로 참조만.</p>
+<p><b>결과</b>: 메모리 <b>15% 감소</b>, 학습 시간 <b>14.2% 단축</b>.</p>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 도서관에서 책 두 권 대신 한 권만 두기</div>
+같은 책(이미지)을 서가 두 곳에 놓을 필요가 있을까요? 한 곳에만 두고 필요할 때 참조하면 됩니다. Step 4는 이런 상식적 최적화지만, 실제로 15%나 절약합니다.
+</div>
+
+<h3>추론 시 특별 기술: Self-Speculative Decoding</h3>
+
+<p>여기서 <b>가장 창의적인 부분</b>이 나옵니다. 한 모델이 두 개의 역할을 동시에 합니다:</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 780 250" xmlns="http://www.w3.org/2000/svg">
+  <!-- Draft -->
+  <rect x="20" y="30" width="340" height="90" rx="12" fill="#eef2ff" stroke="#6366f1" stroke-width="2"/>
+  <text x="190" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#4338ca">① Draft (초안 작성)</text>
+  <text x="190" y="80" text-anchor="middle" font-size="12" fill="#4338ca">Diffusion 모드로 여러 토큰 한 번에</text>
+  <text x="190" y="100" text-anchor="middle" font-size="11" fill="#4338ca">[탁자, 위에, 있어, 요]  ← 병렬 4개</text>
+
+  <path d="M 370 75 L 410 75" stroke="#4338ca" stroke-width="3" marker-end="url(#sp1)"/>
+
+  <rect x="420" y="30" width="340" height="90" rx="12" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="590" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#065f46">② Verify (검증)</text>
+  <text x="590" y="80" text-anchor="middle" font-size="12" fill="#065f46">같은 모델의 AR 모드로 하나씩 검증</text>
+  <text x="590" y="100" text-anchor="middle" font-size="11" fill="#065f46">일치하면 accept, 첫 불일치에서 stop</text>
+
+  <text x="390" y="160" text-anchor="middle" font-size="14" font-weight="700" fill="#1e3a8a">한 모델이 draft + verify 모두 담당</text>
+  <text x="390" y="180" text-anchor="middle" font-size="12" fill="#64748b">→ 추가 모델 불필요, 같은 KV 캐시 공유</text>
+
+  <rect x="200" y="200" width="380" height="40" rx="8" fill="#fef3c7" stroke="#d97706"/>
+  <text x="390" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">결과: 정확도 손실 없이 6.18배 가속!</text>
+
+  <defs>
+    <marker id="sp1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 자신이 쓴 초안을 자신이 검토하는 작가</div>
+초고를 빠르게 쓰는 자신(diffusion mode)과, 그것을 꼼꼼히 검토하는 자신(AR mode)이 <b>같은 사람</b>입니다. 둘 다 같은 지식을 공유하기에 추가 비용이 최소이고, 초고가 맞으면 그대로 통과, 틀린 부분만 다시 쓰면 됩니다. Step 2의 "causal 문맥 유지"가 없었으면 이 검증 능력 자체가 사라져 이 트릭이 불가능했을 것입니다.
+</div>
+
+</section>
+
+<!-- 성과 -->
+<section>
+<h2>핵심 성과</h2>
+
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="num">6.18×</div>
+    <div class="label">최종 추론 속도</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">74.0</div>
+    <div class="label">평균 정확도<br>(AR와 동일)</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">15%</div>
+    <div class="label">학습 메모리 절감</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">11</div>
+    <div class="label">검증 벤치마크</div>
+  </div>
+</div>
+
+<h3>속도 개선의 단계별 기여</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 330" xmlns="http://www.w3.org/2000/svg">
+  <!-- Bars -->
+  <g font-size="11" fill="#1e293b">
+    <text x="20" y="30" font-weight="700">최적화 스택별 처리량 (TPS, 높을수록 좋음)</text>
+
+    <!-- AR baseline -->
+    <rect x="20" y="50" width="56" height="30" fill="#94a3b8"/>
+    <text x="80" y="70" font-size="11">AR baseline (56.7)</text>
+    <text x="80" y="82" font-size="10" fill="#64748b">1×</text>
+
+    <!-- MDM -->
+    <rect x="20" y="90" width="82" height="30" fill="#a5b4fc"/>
+    <text x="110" y="110" font-size="11">Fast-dVLM MDM (82.2)</text>
+    <text x="110" y="122" font-size="10" fill="#64748b">1.45×</text>
+
+    <!-- Spec -->
+    <rect x="20" y="130" width="112" height="30" fill="#818cf8"/>
+    <text x="140" y="150" font-size="11">+ Speculative (112.7)</text>
+    <text x="140" y="162" font-size="10" fill="#64748b">1.98×</text>
+
+    <!-- SGLang -->
+    <rect x="20" y="170" width="319" height="30" fill="#6366f1"/>
+    <text x="345" y="190" font-size="11">+ SGLang 서빙 (319.0)</text>
+    <text x="345" y="202" font-size="10" fill="#64748b">5.63×</text>
+
+    <!-- FP8 -->
+    <rect x="20" y="210" width="350" height="30" fill="#4338ca"/>
+    <text x="378" y="230" font-size="11" font-weight="700" fill="#4338ca">+ FP8 양자화 (350.3)</text>
+    <text x="378" y="242" font-size="10" fill="#dc2626" font-weight="700">6.18×!</text>
+  </g>
+
+  <text x="20" y="275" font-size="11" fill="#64748b">알고리즘 개선(2배) + 서빙 통합(2.8배) + 양자화(1.1배) = 총 6.18배</text>
+  <text x="20" y="295" font-size="11" fill="#64748b">시스템 통합이 알고리즘만큼이나 중요하다는 사실을 실증</text>
+</svg>
+</div>
+
+<h3>11개 벤치마크 비교</h3>
+
+<table class="comp-table">
+<thead><tr><th>벤치마크</th><th>AR baseline<br>(Qwen2.5-VL-3B)</th><th>Fast-dVLM<br>(spec.)</th><th>차이</th></tr></thead>
+<tbody>
+<tr><td>AI2D (도해)</td><td>80.8</td><td>79.7</td><td>-1.1</td></tr>
+<tr><td>ChartQA (차트)</td><td>84.0</td><td>83.1</td><td>-0.9</td></tr>
+<tr><td>DocVQA (문서)</td><td>93.1</td><td>92.9</td><td>-0.2</td></tr>
+<tr class="highlight-row"><td>GQA (일반 시각)</td><td>59.0</td><td>63.3</td><td><b>+4.3 ↑</b></td></tr>
+<tr class="highlight-row"><td>POPE (환각 탐지)</td><td>86.2</td><td>88.6</td><td><b>+2.4 ↑</b></td></tr>
+<tr><td>MMBench</td><td>76.9</td><td>74.3</td><td>-2.6</td></tr>
+<tr><td>MMMU</td><td>47.3</td><td>46.6</td><td>-0.7</td></tr>
+<tr class="highlight-row"><td>평균</td><td>74.0</td><td><b>74.0</b></td><td><b>동일 ✓</b></td></tr>
+</tbody>
+</table>
+
+<p>주목할 점: <b>GQA와 POPE에서는 오히려 AR을 능가</b>. 이유는 diffusion의 병렬 채우기가 이미지 전체를 종합적으로 보는 데 유리하기 때문으로 추정.</p>
+
+</section>
+
+<!-- 기존 대비 장점 -->
+<section>
+<h2>기존 Diffusion VLM과의 차이</h2>
+
+<table class="comp-table">
+<thead><tr><th>기능</th><th>기존 (LLaDA-V, LaViDa, Dimple)</th><th>Fast-dVLM</th></tr></thead>
+<tbody>
+<tr><td>KV 캐시 재사용</td><td>❌ 매번 전체 재계산</td><td>✅ 블록별 재사용</td></tr>
+<tr><td>Multi-turn 대화</td><td>⚠ 경계 처리 부재</td><td>✅ Auto-truncation</td></tr>
+<tr><td>Self-speculative 검증</td><td>❌ 불가능</td><td>✅ 한 모델로 draft+verify</td></tr>
+<tr><td>Production 서빙 통합</td><td>❌ 별도 프레임워크 없음</td><td>✅ SGLang 완전 통합</td></tr>
+<tr><td>FP8 양자화</td><td>⚠ 미지원</td><td>✅ SmoothQuant W8A8</td></tr>
+</tbody>
+</table>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 스마트폰 vs. 부품 조립 컴퓨터</div>
+기존 diffusion VLM들은 개별 모듈이 있어도 조립·통합이 안 된 상태였습니다. Fast-dVLM은 "학습 알고리즘 → 추론 최적화 → 서빙 시스템 → 양자화"까지 전체 스택이 하나로 완성된 스마트폰 같은 제품입니다. 그래서 <b>이론상 2배가 실제로 6.18배</b>가 됩니다.
+</div>
+</section>
+
+<!-- 활용 -->
+<section>
+<h2>어디에 쓸 수 있나?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <!-- Center node -->
+  <circle cx="360" cy="190" r="60" fill="url(#g1)"/>
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#6366f1"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <text x="360" y="185" text-anchor="middle" font-size="15" font-weight="700" fill="#fff">Fast-dVLM</text>
+  <text x="360" y="205" text-anchor="middle" font-size="11" fill="#e0e7ff">Physical AI</text>
+
+  <!-- 6 use cases -->
+  <g font-size="12" fill="#1e293b">
+    <!-- Top left -->
+    <line x1="315" y1="145" x2="180" y2="80" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="60" y="55" width="140" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="130" y="80" text-anchor="middle" font-weight="700">🚗 자율주행</text>
+    <text x="130" y="98" text-anchor="middle" font-size="10">차량 카메라 실시간 분석</text>
+
+    <!-- Top right -->
+    <line x1="405" y1="145" x2="540" y2="80" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="480" y="55" width="140" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="550" y="80" text-anchor="middle" font-weight="700">🤖 로봇 조작</text>
+    <text x="550" y="98" text-anchor="middle" font-size="10">물체 파악 및 지시 이해</text>
+
+    <!-- Middle left -->
+    <line x1="300" y1="190" x2="180" y2="190" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="30" y="165" width="150" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="105" y="190" text-anchor="middle" font-weight="700">📊 실시간 문서 이해</text>
+    <text x="105" y="208" text-anchor="middle" font-size="10">차트/도표/양식 즉시 응답</text>
+
+    <!-- Middle right -->
+    <line x1="420" y1="190" x2="540" y2="190" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="540" y="165" width="150" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="615" y="190" text-anchor="middle" font-weight="700">🥽 엣지 AR/VR</text>
+    <text x="615" y="208" text-anchor="middle" font-size="10">낮은 지연 응답</text>
+
+    <!-- Bottom left -->
+    <line x1="315" y1="235" x2="180" y2="310" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="60" y="285" width="140" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="130" y="310" text-anchor="middle" font-weight="700">🏥 의료 이미지</text>
+    <text x="130" y="328" text-anchor="middle" font-size="10">X-ray, MRI 판독 지원</text>
+
+    <!-- Bottom right -->
+    <line x1="405" y1="235" x2="540" y2="310" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="480" y="285" width="140" height="55" rx="10" fill="#eef2ff" stroke="#6366f1"/>
+    <text x="550" y="310" text-anchor="middle" font-weight="700">🎥 감시 카메라</text>
+    <text x="550" y="328" text-anchor="middle" font-size="10">이벤트 실시간 서술</text>
+  </g>
+</svg>
+<div class="diagram-caption">배치 1, 엣지 디바이스, 저지연이 필요한 모든 시나리오에 유리</div>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 스마트폰의 얼굴 인식 vs. 실시간 배경 흐리기</div>
+얼굴 인식(느린 AR)은 사진 촬영 후 잠깐 걸려도 참을만하지만, 실시간 배경 흐리기(빠른 diffusion)는 지연이 있으면 사용자가 바로 알아챕니다. 로봇/자율주행은 후자에 해당하며, 이 논문이 그 지연을 6배 줄입니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 도서관 사서와 배달원</div>
+클라우드 서비스는 도서관 사서처럼 여러 요청을 한 번에 처리해 효율을 냅니다(배치 처리). 로봇은 배달원처럼 자기 임무만 처리해야 하므로 개별 속도가 곧 사용자 경험입니다. Fast-dVLM은 <b>개별 속도</b>에 최적화된 첫 diffusion VLM입니다.
+</div>
+
+</section>
+
+<!-- 결론 -->
+<section>
+<div class="one-liner">
+"AR VLM의 지식을 지우지 말고, <b>말하는 방식만 바꿔라</b>. <br>그러면 6배 빨라진다."
+</div>
+</section>
+
+<!-- 한계점 -->
+<section>
+<h2>한계점 (Limitations)</h2>
+
+<div class="card card-orange">
+<p><b>⚠️ 긴 답변 시 품질 약간 손실</b></p>
+<p>수학 문제처럼 여러 단계를 순차적으로 추론해야 하는 <b>MMMU-Pro-V</b> 벤치마크에서는 AR baseline 26.3점 대비 24.6점으로 -1.7점 손실. 병렬 채우기가 "논리적 연쇄"에 구조적으로 불리하기 때문. 저자는 더 큰 학습 데이터와 긴 curriculum으로 좁힐 수 있다고 시사.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 3B 모델 한 종류에서만 검증</b></p>
+<p>Qwen2.5-VL-3B에만 direct conversion을 적용. 7B, 13B급이나 LLaVA/InternVL 계열에서도 같은 결론이 성립하는지는 추가 검증 필요.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ Quadratic 방식의 현실적 열세</b></p>
+<p>Speculative 디코딩의 quadratic 변형은 이론적으로 더 많은 토큰을 한 번에 처리 가능하나, 비표준 attention 패턴이라 현재 GPU 커널이 최적화되지 않아 실제 wall-clock은 linear보다 느림. 향후 커널 개발 과제.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ MMBench에서 아쉬운 결과</b></p>
+<p>Speculative 디코딩으로도 MMBench에서 -2.6점 (76.9 → 74.3). "lossless"는 평균 기준일 뿐, 개별 벤치는 손실이 있을 수 있음.</p>
+</div>
+
+</section>
+
+<!-- Bottom links -->
+<section style="text-align: center; margin-top: 3rem;">
+<a href="20260730_wu_fast-dvlm.html" style="display: inline-block; background: linear-gradient(135deg, #6366f1, #7c3aed); color: white; padding: 0.8rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 700;">📖 전문가용 상세 요약 보기 →</a>
+</section>
+
+</div>
+
+<!-- Footer -->
+<div class="footer">
+<p><b>Fast-dVLM: Efficient Block-Diffusion VLM via Direct Conversion from Autoregressive VLM</b></p>
+<p>Chengyue Wu, Shiyi Lan, Yonggan Fu, et al. (NVIDIA · HKU · MIT · MBZUAI, 2026)</p>
+<p><a href="https://arxiv.org/pdf/2604.06832v2">arXiv:2604.06832v2</a></p>
+</div>
+
+</body>
+</html>

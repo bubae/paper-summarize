@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fast-dVLM: Efficient Block-Diffusion VLM via Direct Conversion from Autoregressive VLM</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #667eea; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 1rem 0; }
+  .brief-link:hover { background: #5568d3; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Fast-dVLM: Efficient Block-Diffusion VLM via Direct Conversion from Autoregressive VLM</h1>
+
+<a href="20260730_wu_fast-dvlm_brief.html" class="brief-link">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chengyue Wu, Shiyi Lan, Yonggan Fu, Sensen Gao, Jin Wang, Jincheng Yu, Jose M. Alvarez, Pavlo Molchanov, Ping Luo, Song Han, Ligeng Zhu, Enze Xie (공동 1저자: Wu, Lan; 공동 교신: Zhu, Xie)</li>
+  <li><strong>소속</strong>: NVIDIA, The University of Hong Kong, MIT, MBZUAI</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026-04-13)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/pdf/2604.06832v2">arXiv:2604.06832v2</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Vision-Language Model (VLM)이 대부분 autoregressive (AR) 디코딩에 의존하기 때문에, 배치 크기 1인 로봇/자율주행 같은 physical AI 환경에서 메모리 대역폭에 병목이 걸려 하드웨어 병렬성을 활용하지 못한다. Block-wise discrete diffusion은 텍스트에서 병렬 디코딩 대안으로 유망하나, VLM으로 확장하려면 연속적 시각 표현과 이산 텍스트를 동시에 다루면서 사전학습된 멀티모달 능력을 보존해야 하는 난제가 있다.</li>
+  <li><strong>해결</strong>: 사전학습된 AR VLM(Qwen2.5-VL-3B)을 단일 단계 multimodal fine-tuning으로 곧바로 block-diffusion VLM으로 변환하는 <strong>direct conversion</strong> 레시피를 제안. 여기에 (1) block-size annealing, (2) causal context attention, (3) auto-truncation attention mask, (4) vision-efficient concatenation, (5) self-speculative block decoding을 결합해 KV-cache와 호환되며 SGLang까지 통합해 production-grade 서빙까지 지원.</li>
+  <li><strong>왜 작동하는가</strong>: AR VLM은 이미 멀티모달 정렬을 마쳤기 때문에, text-only에서 시작해 재정렬을 다시 배우는 two-stage 경로보다 같은 예산으로 훨씬 효율적으로 diffusion으로 변환 가능. Causal attention을 clean stream에 유지하면 AR 손실과 diffusion 손실을 한 forward pass에서 함께 학습할 수 있고, 추론 시 AR 모드로 self-speculative verification까지 수행 가능.</li>
+  <li><strong>비유</strong>: 이미 두 언어(비전+텍스트)를 통역할 줄 아는 사람에게 "빠르게 통째로 말하는 법(diffusion)"을 가르치는 것 vs. 한 언어(텍스트)만 아는 사람에게 먼저 빠른 말투를 가르치고 나서 두 번째 언어까지 새로 가르치는 것 — 전자가 훨씬 빠르고 정확하다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Fast-dVLM 제안</strong>: KV-cache 호환 병렬 디코딩과 self-speculative decoding을 모두 지원하는 block-diffusion VLM으로, AR 대비 큰 폭의 추론 속도 향상을 달성하면서 경쟁력 있는 품질을 유지.</li>
+  <li><strong>AR-to-Diffusion 변환 전략 체계 비교</strong>: <em>two-stage</em>(먼저 텍스트만으로 LLM을 diffusion으로 변환 → 이후 멀티모달 fine-tuning)와 <em>direct</em>(전체 AR VLM을 한 단계로 변환) 경로를 동일 예산에서 controlled comparison해, ##direct 경로가 평균 정확도 73.3 vs. 60.2로 압도적으로 우수##함을 실증.</li>
+  <li><strong>4가지 학습 레시피 컴포넌트</strong>: block-size annealing (curriculum), causal context attention, auto-truncation masking, vision-efficient concatenation — 각각 ablation으로 검증. Causal context 제거 시 -22.5%, annealing 제거 시 -4.4%, auto-truncation 제거 시 -3.7% 평균 하락.</li>
+  <li><strong>11개 멀티모달 벤치마크에서 AR와 대등</strong>: MDM 디코딩 시 평균 73.3, speculative 시 74.0으로 AR baseline (74.0)과 동일. GQA/POPE/RealWorldQA에서는 AR을 능가.</li>
+  <li><strong>시스템 통합으로 최대 6.18× 가속</strong>: SGLang 통합 + SmoothQuant W8A8 (FP8) 결합으로 MMMU-Pro-V에서 AR baseline 대비 6.18× 처리량 향상 (56.7 → 350.3 TPS).</li>
+</ol>
+
+<h2>배경 지식 (Background)</h2>
+
+<h3>Autoregressive vs. Block Diffusion for Language</h3>
+<p>AR 언어 모델은 다음 토큰을 순차적으로 하나씩 예측한다:</p>
+$$P_\theta(\mathbf{x}) = \prod_i P_\theta(x_i \mid x_{<i}), \quad \mathcal{L}_{\text{AR}} = -\sum_i \log p_\theta(x_i \mid x_{<i}).$$
+<p>직관적으로 말하면, 각 토큰의 조건부 확률을 왼쪽 문맥에만 의존해 계산하므로 병렬 처리가 어렵고 배치 1 상황에서 GPU 연산 자원이 놀게 된다.</p>
+
+<p>Masked diffusion language model은 각 토큰을 확률 $t \in (0,1)$로 독립적으로 마스킹하고, 역방향 모델 $p_\theta(\mathbf{x}_0 \mid \mathbf{x}_t)$가 마스크된 토큰을 복원하도록 학습한다. Block-wise discrete diffusion은 시퀀스를 크기 $\hat{B}$의 블록으로 나눠, 블록 단위로는 autoregressive하고 블록 내부에서는 병렬로 denoising한다. 이 구조는 이미 완료된 블록의 KV cache를 다음 블록에서 재사용할 수 있어 실용적 가속을 가능케 한다.</p>
+
+<h3>Fast-dLLM v2 (Wu et al., 2025a)와의 관계</h3>
+<p>Fast-dVLM은 Fast-dLLM v2의 <strong>complementary masking</strong>과 <strong>dual-stream (noisy + clean) block attention</strong> 설계를 그대로 계승한다. 즉, 학습 시 응답 텍스트만 오염시킨 <em>noisy stream</em> $\mathbf{w}^t$와 원본 <em>clean stream</em>을 함께 concatenate해 하나의 시퀀스로 입력한다. 다만 Fast-dLLM v2는 clean-to-clean 부분에도 block-level bidirectional attention을 썼는데, Fast-dVLM은 이 부분을 <strong>token-level causal attention</strong>으로 바꿔 AR 능력을 보존한다 (self-speculative verification의 핵심 전제).</p>
+
+<h3>기존 Diffusion VLM들의 한계</h3>
+<p>LLaDA-V (You et al., 2025), LaViDa (Li et al., 2025b), MMaDA (Yang et al., 2025), Dimple (Yu et al., 2025) 등은 모두 <strong>full-sequence diffusion (블록 구조 없음)</strong>을 사용하기 때문에:</p>
+<ul>
+  <li>이미 생성된 블록의 KV cache를 재사용할 수 없어 매 스텝 전체 시퀀스 recomputation 필요</li>
+  <li>Multi-turn dialogue에서 응답 경계를 다루는 turn-aware attention masking 부재</li>
+  <li>Speculative verification과의 통합 부재</li>
+</ul>
+<p>기존 block-diffusion 계열 (Arriola et al., 2025a; Wu et al., 2025a; Gat et al., 2025)는 KV 캐싱을 지원하나 텍스트 전용에 국한되어 있어, 본 논문이 VLM 세팅으로 확장을 시도한다.</p>
+
+<h2>방법론 (Methodology)</h2>
+
+<h3>3.1 4가지 VLM 특화 도전 과제</h3>
+<p>Fast-dLLM v2의 텍스트 전용 프레임워크를 VLM으로 확장할 때 4가지 문제가 발생한다:</p>
+<ol>
+  <li><strong>Conversion strategy</strong>: 사전학습된 AR VLM을 two-stage (text-first)로 변환할지, direct (한 번에)로 변환할지</li>
+  <li><strong>Multi-turn boundaries</strong>: 짧은 응답(예: 단일 선택지 문자)은 마지막 denoising block이 다음 turn의 prompt로 확장돼 미래 정보 누출 발생</li>
+  <li><strong>Training efficiency</strong>: Noisy-clean concatenation이 vision embedding을 두 stream에 중복 저장 → 메모리/연산 낭비</li>
+  <li><strong>Causal compatibility</strong>: Block-level context attention은 사전학습된 causal 구조를 파기해 self-speculative verification을 위한 AR 디코딩이 불가능</li>
+</ol>
+
+<h3>3.2 AR-to-Diffusion 변환 전략</h3>
+<p><strong>Two-stage path</strong>: Stage 1에서 LLM backbone만 <strong>300K text-only 샘플</strong>에 대해 Fast-dLLM v2 레시피로 text-only diffusion fine-tuning; Stage 2에서 vision encoder + MLP projector를 붙여 전체 모델을 멀티모달 데이터로 fine-tuning (vision encoder도 unfrozen).</p>
+
+<p><strong>Direct path (권장)</strong>: 완전한 AR VLM을 곧바로 single-stage multimodal fine-tuning으로 block-diffusion 모델로 변환. 사전학습된 멀티모달 정렬을 최대한 활용.</p>
+
+<div class="flow-diagram">Two-stage:  AR LLM (Qwen2.5-Instruct-3B) → [text-only diff FT] → Diffusion LLM
+            → [+ViT + MLP, multimodal FT] → Fast-dVLM (Two-Stage)
+
+Direct:     AR VLM (Qwen2.5-VL-3B) → [single-stage multimodal diff FT] → Fast-dVLM (Direct)</div>
+
+<h3>3.3 학습 세부사항</h3>
+
+<h4>Dual-stream input과 attention mask</h4>
+<p>입력을 $\mathbf{x} = (\mathbf{v}, \mathbf{w})$ (vision embedding + text embedding)로 두고, 응답 토큰만 오염시킨 noisy stream $\mathbf{w}^t$을 clean stream과 concat해 $[\mathbf{w}^t; \mathbf{x}]$를 형성. Attention mask는 3가지 규칙을 강제한다:</p>
+<ul>
+  <li>$\mathcal{M}_{\text{N2N}}$ (block-diagonal, Noisy→Noisy): noisy 토큰이 자신의 블록 내에서만 양방향 attention → 병렬 denoising 가능</li>
+  <li>$\mathcal{M}_{\text{N2C}}$ (offset block causal, Noisy→Clean): noisy 토큰이 <em>이전</em> 블록의 clean context (vision 포함)에만 attend</li>
+  <li>$\mathcal{M}_{\text{C2C}}$ (token causal, Clean→Clean): ##clean stream에는 token-level causal attention을 유지 — Fast-dLLM v2의 block-level context attention 대비 AR 표현을 더 잘 보존하며 self-speculative verification 가능케 함##</li>
+</ul>
+
+<blockquote>
+  <strong>[Figure 3 설명]</strong>: 블록 크기 $\hat{B}=2$ 예시. 색상별 attention 영역이 표시되며, noisy $\mathbf{w}^t_0, \mathbf{w}^t_1, \mathbf{w}^t_2$은 서로 자신의 블록 내에서만 파란색 block-diagonal 영역으로 상호작용하고, clean 스트림의 vision + text ($v, \mathbf{w}^0_0, \ldots$)로는 초록색 offset block-causal로 뒤로 접근한다. Clean 스트림 내부(붉은색)는 완전한 token-level lower-triangular causal mask.
+</blockquote>
+
+<h4>Block-size annealing (curriculum)</h4>
+<p>후보 블록 크기 $S = \{2^1, 2^2, \ldots, B_d\}$ ($B_d = 32$)와 학습 진행률 $u \in [0,1]$에 대해, 활성 블록 크기를 다음과 같이 정한다:</p>
+$$\hat{B} = S[\min(\lfloor u \cdot |S| \rfloor, |S|-1)].$$
+<p>직관적으로 말하면, 학습 초기에는 작은 블록(=적은 마스킹 스팬)으로 fine-grained denoising을 익히고, 진행됨에 따라 큰 블록으로 노출시킨다. Ablation에서 이 커리큘럼 없이 곧바로 $B_d=32$로 학습하면 평균 -4.4%, MMMU-Pro-V에서는 -32.5%로 특히 long-form 생성에서 손실이 크다.</p>
+
+<h4>Auto-truncation attention mask</h4>
+<p>멀티턴 대화에서 응답 길이가 $\hat{B}$의 배수가 되지 않는 경우 (예: 응답이 단일 문자), 마지막 denoising 블록이 다음 턴의 prompt로 확장돼 $\mathcal{M}_{\text{N2N}}$이 미래 prompt 토큰을 attend하는 문제 발생. 해결: 각 응답의 마지막 블록을 응답 경계에서 자동으로 truncate. 이를 통해 cross-turn leakage 방지하면서 block-parallel denoising은 유지. Ablation: 제거 시 평균 -3.7%, MMMU -14.4%.</p>
+
+<h4>Vision-efficient concatenation</h4>
+<p>Vision embedding은 절대 오염되지 않으므로 noisy stream과 clean stream 양쪽에서 동일하다. 따라서 <em>clean stream에만</em> vision을 포함시키고, noisy stream에는 text 위치만 두며, noisy에서 vision으로의 attention은 $\mathcal{M}_{\text{N2C}}$를 통해 처리. Qwen2.5-VL-3B (context 2048, H100)에서 이 lossless 최적화가 <strong>peak memory 15.0% 감소, 학습 시간 14.2% 단축</strong>.</p>
+
+<h4>Training objective</h4>
+<p>$W$가 LM head, $\mathbf{H}^{(t)}, \mathbf{H}^{(0)}$이 각각 noisy/clean stream hidden states, $\mathbf{y}$가 응답 라벨일 때:</p>
+$$\mathcal{L} = \alpha\, \text{CE}\bigl(W \mathbf{H}^{(t)}, \mathbf{y}\bigr) + \beta\, \text{CE}\bigl(W \mathbf{H}^{(0)}, \mathbf{y}\bigr), \quad \alpha=\beta=0.5.$$
+<p>직관적으로 말하면, ##diffusion branch는 병렬 denoising을 학습하고 causal branch는 AR 생성 능력을 보존해, 하나의 모델로 두 모드를 모두 지원할 수 있게 한다.##</p>
+
+<h3>3.4 추론 (Inference)</h3>
+
+<h4>Causal context decoding</h4>
+<p>각 블록은 캐시된 causal context에서 첫 토큰을 <strong>AR 단일 스텝</strong>으로 생성하고, 남은 $\hat{B}-1$ 위치를 [MASK]로 채워 반복적으로 denoising. 이는 학습 시 causal attention 패턴과 자연스럽게 정렬된다.</p>
+
+<h4>Self-speculative block decoding</h4>
+<p>Diffusion 모드로 $\hat{B}-1$개 토큰을 한 번의 forward pass로 draft한 뒤, 같은 모델의 causal 모드로 autoregressively 검증하고, 가장 긴 일치 prefix를 accept한 뒤 KV cache를 그에 맞게 자름. 두 가지 변형:</p>
+<ul>
+  <li><strong>Linear scheme</strong>: 블록당 정확히 2 forward pass (draft + verify)</li>
+  <li><strong>Quadratic scheme</strong>: 검증과 다음 블록 제안을 단일 forward pass로 fuse — $O(\hat{B}^2)$ 입력 토큰. 이론적으로 NFE 우수하나 비표준 attention mask로 커널 최적화가 어려워 wall-clock TPS는 linear보다 낮음</li>
+</ul>
+
+<div class="flow-diagram">[Prefill causal attention] → 첫 토큰 x_L+1 ← argmax h_L
+while not done:
+  d = [x_n, MASK, MASK, ..., MASK]                   # B 토큰
+  [Draft (bidirectional)]:  h_hat ← Forward(d, no cache)
+  x_hat_i = argmax h_hat_{i-1}   for i=1..B          # shift-by-one 예측
+  [Verify (causal)]:       h_v, KV ← Forward(d, update cache)
+  a_i = argmax h_v_i           for i=0..B-1
+  k = min {j: a_j ≠ d_{j+1}};  k ← k+1                # 첫 mismatch
+  Append a_{0..k-1};  n ← n+k
+  KV ← Crop(KV, n-1)</div>
+
+<h4>System integration</h4>
+<p>SGLang scheduler를 확장해 bidirectional draft attention과 causal verify attention이 <strong>동일한 paged KV cache</strong>를 공유. 이를 통해 SGLang의 최적화된 커널과 CUDA graph의 혜택을 받음. 추가로 SmoothQuant W8A8 (FP8) 양자화 적용.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 목적 매핑</h3>
+<p>Fast-dVLM이 답하려는 핵심 질문:</p>
+<ul>
+  <li>Q1: Block-diffusion VLM이 AR VLM 품질을 유지할 수 있는가? → §4.2 Main results</li>
+  <li>Q2: Direct vs. two-stage 중 어느 것이 나은가? → §4.3 Direct vs. Two-Stage</li>
+  <li>Q3: 각 학습 레시피 컴포넌트가 얼마나 기여하는가? → §4.4 Ablations</li>
+  <li>Q4: 실제 wall-clock 가속은 어느 정도인가? → §4.5 Inference Acceleration</li>
+</ul>
+
+<h3>4.1 실험 세팅</h3>
+<ul>
+  <li><strong>초기화</strong>: Qwen2.5-VL-3B (direct path)</li>
+  <li><strong>하드웨어</strong>: 64 NVIDIA H100 (8 노드 × 8 GPU), DeepSpeed ZeRO Stage-2, BF16</li>
+  <li><strong>학습</strong>: 1 epoch, cosine schedule, peak LR $5 \times 10^{-6}$, warmup 0.03, 글로벌 배치 256, 약 2M 샘플 (ShareGPT4V, LLaVA-Instruct, DVQA, ChartQA, AI2D, GeoQA, DocVQA, SynthDoG)</li>
+  <li><strong>하이퍼파라미터</strong>: $B_d = 32$, $\alpha = \beta = 0.5$, decoding threshold $\tau = 0.9$</li>
+  <li><strong>벤치마크</strong>: 11개 VLM 벤치 (AI2D, ChartQA, DocVQA, GQA, MMBench, MMMU, POPE, RealWorldQA, SEEDBench2+, TextVQA + long-answer MMMU-Pro-V)</li>
+  <li><strong>평가</strong>: VLMEvalKit, batch size 1, TPS (Tokens Per Second) + Tokens/NFE (Number of Forward Evaluations당 디코딩되는 평균 토큰 수, 응답 >200 토큰 샘플에 대해서만 계산)</li>
+</ul>
+
+<h3>4.2 Main Results</h3>
+
+<p><strong>Short-answer 벤치마크</strong> (표 요약, 최고/차선을 표시):</p>
+<table>
+<thead>
+<tr><th>Model</th><th>AI2D</th><th>ChartQA</th><th>DocVQA</th><th>GQA</th><th>MMBench</th><th>MMMU</th><th>POPE</th><th>RealWorldQA</th><th>SEED2+</th><th>TextVQA</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td>Qwen2.5-VL-3B (AR baseline)</td><td>80.8</td><td>84.0</td><td>93.1</td><td>59.0</td><td>76.9</td><td>47.3</td><td>86.2</td><td>65.1</td><td>68.6</td><td>79.1</td><td>74.0</td></tr>
+<tr><td>LLaDA-V (Diffusion)</td><td>77.8</td><td>78.3</td><td>83.9</td><td>53.4</td><td>82.9</td><td>48.6</td><td>81.8</td><td>63.2</td><td>68.7</td><td>64.7</td><td>70.3</td></tr>
+<tr><td><strong>Fast-dVLM (MDM)</strong></td><td>79.7</td><td>82.8</td><td>92.1</td><td>63.0</td><td>74.2</td><td>44.6</td><td>88.6</td><td>65.1</td><td>67.2</td><td>76.1</td><td>73.3</td></tr>
+<tr><td><strong>Fast-dVLM (spec.)</strong></td><td>79.7</td><td>83.1</td><td>92.9</td><td>63.3</td><td>74.3</td><td>46.6</td><td>88.6</td><td>65.1</td><td>67.2</td><td>79.3</td><td>74.0</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>MDM 디코딩 (Tokens/NFE = 1.95×)은 AR baseline 대비 평균 -0.7점의 미미한 손실</li>
+  <li>Speculative 디코딩은 평균 74.0으로 baseline과 <strong>정확히 동일</strong>, Tokens/NFE 2.63× — 즉 완전 lossless 가속</li>
+  <li>##GQA (+4.0), POPE (+2.4), RealWorldQA는 오히려 AR baseline을 능가## — bidirectional 블록 내부 context가 holistic 시각 추론에 유리한 것으로 해석</li>
+  <li>11개 diffusion VLM 벤치 중 8개에서 SOTA</li>
+</ul>
+
+<p><strong>Long-answer 벤치마크 (MMMU-Pro-V)</strong>: AR 26.3, MDM 21.4 (-4.9), speculative 24.6 (-1.7). Long-form CoT는 여러 토큰에 걸친 sequential coherence가 필요해 block-wise parallel denoising이 구조적으로 불리. 저자는 larger-scale 학습 데이터와 더 긴 annealing schedule로 격차를 좁힐 수 있다고 시사.</p>
+
+<h3>4.3 Direct vs. Two-Stage Adaptation</h3>
+
+<blockquote><strong>[Figure 4 설명]</strong>: 10개 벤치마크 radar chart로 Direct (평균 73.3) vs. Two-Stage (평균 60.2) 비교. 모든 축에서 Direct가 우세하며, 특히 DocVQA (+31.5), ChartQA (+21.4), AI2D (+18.1)에서 격차가 큼.</blockquote>
+
+<p><strong>실험 의도</strong>: AR-to-diffusion 변환 전략의 최적 경로 결정. 동일 학습 데이터 (2M 샘플), 동일 compute budget, 동일 recipe로 controlled comparison.</p>
+
+<p><strong>결과</strong>: Direct 평균 73.3 vs. Two-Stage 60.2 — 10개 벤치 <strong>전부</strong>에서 Direct가 우세.</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##두 경로가 동일 성능 상한을 공유하되 학습 예산 활용 효율에서 차이가 발생하며, Direct는 이미 획득된 멀티모달 정렬을 이어받아 same-data-same-compute에서 훨씬 효율적임.## Two-Stage는 text-only LLM에서 시작해 이 정렬을 스크래치부터 재구축해야 함. 따라서 저자는 <strong>direct path를 default recipe</strong>로 채택.</p>
+
+<h3>4.4 Ablation Studies</h3>
+
+<p><strong>실험 의도</strong>: 각 학습 레시피 컴포넌트가 실제로 필요한지 검증. ShareGPT-4V 데이터에서 direct conversion 세팅으로 하나씩 제거.</p>
+
+<table>
+<thead>
+<tr><th>Setting</th><th>MMBench</th><th>MMMU</th><th>POPE</th><th>MMMU-Pro-V</th><th>RealWorldQA</th><th>SEED2+</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td>Full recipe</td><td>72.4</td><td>43.0</td><td>85.1</td><td>15.1</td><td>61.1</td><td>66.9</td><td><strong>57.3</strong></td></tr>
+<tr><td>w/o causal context</td><td>58.5 (-19.2%)</td><td>29.9 (-30.5%)</td><td>71.1 (-16.5%)</td><td>6.2 (-58.9%)</td><td>60.0 (-1.8%)</td><td>40.5 (-39.5%)</td><td>44.4 (-22.5%)</td></tr>
+<tr><td>w/o annealing block size</td><td>68.6 (-5.2%)</td><td>43.4 (+0.9%)</td><td>81.4 (-4.3%)</td><td>10.2 (-32.5%)</td><td>58.4 (-4.4%)</td><td>66.8 (-0.1%)</td><td>54.8 (-4.4%)</td></tr>
+<tr><td>w/o auto-truncation</td><td>68.4 (-5.5%)</td><td>36.8 (-14.4%)</td><td>84.3 (-0.9%)</td><td>13.5 (-10.6%)</td><td>61.0 (-0.2%)</td><td>67.1 (+0.3%)</td><td>55.2 (-3.7%)</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Causal context가 압도적으로 중요</strong> (-22.5% 평균). Block-level bidirectional attention으로 대체하면 사전학습된 AR sequential reasoning 능력이 파괴되며, 특히 reasoning-heavy MMMU-Pro-V(-58.9%)와 SEEDBench2+(-39.5%)에서 치명적. AR loss와의 co-training도 여기에 의존.</li>
+  <li><strong>Annealing은 long-form에 중요</strong>: 평균 -4.4%지만 MMMU-Pro-V에서만 -32.5%. 큰 corruption span을 다루려면 작은 블록부터 점진적 노출 필요.</li>
+  <li><strong>Auto-truncation은 MMMU에서 결정적</strong>: 평균 -3.7%, MMMU -14.4%. Cross-turn 정보 누출을 방지해 training/inference 신뢰성 확보.</li>
+</ul>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: 4가지 컴포넌트가 서로 다른 실패 모드를 방어함 — causal context는 reasoning 보존, annealing은 large-span denoising 학습, auto-truncation은 multi-turn 무결성. 어느 하나도 생략 불가.</p>
+
+<h3>4.5 Inference Acceleration</h3>
+
+<p><strong>Decoding threshold $\tau$의 영향</strong>: MDM 디코딩에서 신뢰도 임계값이 병렬성을 조절. $\tau=1.0$ (매 스텝 1 토큰): 정확도 21.6, $\tau=0.9$: tokens/step 1.95×에 정확도 21.4로 near-lossless, $\tau=0.4$: tokens/step 2.90 최대 병렬성이지만 정확도 18.5로 급락. ##$\tau=0.9$가 quality-speed 균형점.##</p>
+
+<p><strong>Speculative decoding 비교 (linear vs. quadratic)</strong>:</p>
+<blockquote><strong>[Figure 6 설명]</strong>: 블록 크기 4/8/16/32에 걸쳐, Tokens/NFE는 block size에 따라 단조 증가 (linear 1.78→2.74, quadratic 2.99→4.00). 그러나 wall-clock TPS는 linear가 블록 16 (112.7 TPS)에서 peak 후 32에서 소폭 하락, quadratic은 모든 블록에서 linear보다 낮음. 이유: quadratic은 $\hat{B}(\hat{B}+1)$ 입력 토큰과 비표준 attention mask 때문에 현재 커널 최적화가 어려움.</blockquote>
+
+<p><strong>End-to-end 가속 (MMMU-Pro-V)</strong>:</p>
+<table>
+<thead>
+<tr><th>Setting</th><th>MMMU-Pro-V</th><th>TPS</th><th>SpeedUp</th></tr>
+</thead>
+<tbody>
+<tr><td>AR baseline</td><td>26.3</td><td>56.7</td><td>1.00×</td></tr>
+<tr><td>Fast-dVLM (MDM, $\tau=0.9$)</td><td>21.4</td><td>82.2</td><td>1.45×</td></tr>
+<tr><td>+ Spec. decoding (linear)</td><td>24.6</td><td>112.7</td><td>1.98×</td></tr>
+<tr><td>+ SGLang serving</td><td>24.1</td><td>319.0</td><td>5.63×</td></tr>
+<tr><td>+ SmoothQuant W8A8 (FP8)</td><td>23.8</td><td>350.3</td><td>##6.18×##</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>: SGLang integration이 가장 큰 배수 기여 (2.83×). 이는 speculative decoding이 draft(bidirectional)와 verify(causal) 두 attention mode를 <em>동일 paged KV cache</em>로 공유할 수 있다는 Fast-dVLM 설계 덕분에 가능. FP8 양자화는 상대적으로 작은 개선(1.10×)이지만 절대 TPS는 350까지 도달.</p>
+
+<h3>Appendix C. 정성적 예시 (Case Study)</h3>
+<blockquote><strong>[Figure 7 설명]</strong>: MMMU-Pro-V의 제약 최적화 문제. AR baseline과 Fast-dVLM 모두 정답 (2,1)을 도출하나, ##Fast-dVLM은 3초/77.7 tokens/s로 AR의 5.4초/47.4 tokens/s 대비 1.6× 빠름. 흥미롭게 AR은 응답을 raw LaTeX(\(, \leq)로 렌더링하는 반면 Fast-dVLM은 clean human-readable 수식 표기 생성.##</blockquote>
+<blockquote><strong>[Figure 9 설명]</strong>: Physical AI 두 사례. 자율주행 highway 표지판 읽기 (149 토큰, 73.3 TPS, Tok./step 1.71), 로봇 매니퓰레이션 (488 토큰 8-step 가이드, 73.0 TPS, Tok./step 1.68) — 둘 다 long-form embodied reasoning에서도 block-diffusion 속도 우위 유지.</blockquote>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Controlled AR-to-Diffusion 비교의 명료함</strong>: 동일 데이터/예산에서 direct vs. two-stage를 정면 비교해 direct가 우세하다는 결론에 강한 실증적 근거 제공. 이는 향후 diffusion VLM 연구의 default recipe를 확정하는 실용적 가치가 큼.</li>
+  <li><strong>Causal context ablation의 극적 결과</strong>: -22.5% 평균 하락은 "block-level bidirectional이 무조건 낫다"는 기존 diffusion 관행에 대한 명확한 반례. AR loss와의 co-training을 위해서라도 clean stream causal이 필수임을 강조.</li>
+  <li><strong>System-level 통합의 완결성</strong>: 학습 알고리즘 수준에 그치지 않고 SGLang scheduler 확장 + FP8까지 다뤄, 논문 결과가 곧바로 production에 옮겨질 수 있음. 대다수 diffusion LM 논문이 커널/서빙 이슈를 회피하는 것과 대비.</li>
+  <li><strong>Vision-efficient concatenation</strong>: 15% peak memory + 14.2% 학습 시간 절감이라는 명확한 실용 gain. Vision과 text의 diffusion 대칭성 차이를 정확히 활용.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Long-form reasoning 격차 (MMMU-Pro-V -1.7 ~ -4.9)</strong>: Block-wise parallel denoising의 구조적 한계. 저자는 데이터/annealing 확장으로 좁힐 수 있다고 시사하지만 실증되지 않음. Physical AI의 CoT-heavy 상황에서는 여전히 quality trade-off 존재.</li>
+  <li><strong>단일 백본/스케일 검증</strong>: Qwen2.5-VL-3B에만 적용. 7B/13B급 혹은 다른 아키텍처(예: LLaVA-계열, InternVL)에서 direct path의 우세가 유지되는지 확인 필요.</li>
+  <li><strong>Two-stage 초기화 선택 편향 가능성</strong>: Two-stage가 Qwen2.5-Instruct-3B (LLM)에서 시작해 새 ViT를 붙이는데, 이 조합이 최선의 two-stage recipe인지는 열린 질문. LLaDA/Dream 등 이미 정제된 diffusion LLM 위에 ViT를 붙이는 실험은 없음.</li>
+  <li><strong>MMBench/MMMU 소폭 하락</strong>: MDM 디코딩 시 -2.7 / -2.7 (Table 1). Speculative가 이를 완전히 복구하지 못함 (MMBench 74.3 vs. AR 76.9). 즉 "lossless"는 평균 기준이지 모든 벤치가 아님.</li>
+  <li><strong>Quadratic speculative의 실용성 부재</strong>: 이론적 NFE 우수함에도 커널 미최적화로 wall-clock에서 linear에 밀림 — 앞으로 커널 개발이 필요한 오픈 이슈로 남음.</li>
+  <li><strong>재현성</strong>: 2M 학습 샘플 조합이 상세히 열거되어 있으나, 정확한 sampling ratio나 데이터 준비 스크립트는 부재. GitHub/Project Page 링크 존재 (검증 필요).</li>
+</ul>
+
+<h3>확장 가능성</h3>
+<ul>
+  <li>Direct conversion 레시피는 다른 modality (audio-language, video-language)에도 직접 적용 가능성. Vision-efficient concatenation의 논리 (오염되지 않는 modality는 clean stream만 유지)는 일반화됨.</li>
+  <li>Self-speculative의 draft-verify 통합 KV cache 설계는 AR과 diffusion 모드가 공존하는 <em>모든</em> hybrid model (예: Nemotron-Labs-Diffusion 같은 tri-mode 계열)에 재사용 가능.</li>
+  <li>Long-form 격차 축소를 위해, 저자가 시사한 annealing schedule 확장 외에도 RL/DPO 계열의 diffusion 사후 학습 (d1, MMaDA)과의 결합이 유망.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##사전학습된 AR VLM은 diffusion VLM으로 변환할 때 "이미 습득한 멀티모달 정렬"이라는 자산이 되며, text-first two-stage보다 direct single-stage가 same-budget에서 압도적으로 유리 (73.3 vs. 60.2)##. 이는 향후 다른 다중 모달 diffusion 모델 설계의 default heuristic이 될 만한 발견.</li>
+  <li>##Block-diffusion VLM에서 clean stream의 token-level causal attention은 협상 불가능한 요소##. Reasoning 능력 보존과 self-speculative verification 모두 여기에 의존. -22.5% 평균 하락은 이 설계의 필수성을 강력하게 뒷받침.</li>
+  <li>Block-size annealing / auto-truncation / vision-efficient concatenation은 각각 다른 실패 모드를 방어하는 <em>독립적</em> 컴포넌트로, 하나라도 빠지면 무너지는 취약한 시너지가 아닌 상호보완적 설계.</li>
+  <li>Speculative decoding + SGLang + FP8을 결합한 6.18× 가속은 <strong>커널/서빙 통합이 diffusion LM 실용화의 최대 배수 기여자</strong>임을 시사. 알고리즘만 개선하는 것보다 시스템까지 통합할 때 실제 wall-clock 이득이 극대화됨.</li>
+  <li>Physical AI (배치 1, 엣지 디바이스, 로봇/자율주행)에서 AR의 memory-bandwidth 병목이 얼마나 심각한지, 그리고 block-diffusion이 얼마나 자연스러운 해결책인지를 명확히 프레이밍. 응용 방향에 실질적 impact.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

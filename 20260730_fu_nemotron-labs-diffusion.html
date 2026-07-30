@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nemotron-Labs-Diffusion: A Tri-Mode Language Model Unifying Autoregressive, Diffusion, and Self-Speculation Decoding</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #059669; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 1rem 0; }
+  .brief-link:hover { background: #047857; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Nemotron-Labs-Diffusion: A Tri-Mode Language Model Unifying Autoregressive, Diffusion, and Self-Speculation Decoding</h1>
+
+<a href="20260730_fu_nemotron-labs-diffusion_brief.html" class="brief-link">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yonggan Fu, Lexington Whalen, Abhinav Garg, Chengyue Wu, Maksim Khadkevich, Nicolai Oswald, Enze Xie, Daniel Egert, Sharath Turuvekere Sreenivas, Shizhe Diao, Chenhan Yu, Ye Yu, Weijia Chen, Sajad Norouzi, Jingyu Liu, Shiyi Lan, Ligeng Zhu, Jin Wang, Jindong Jiang, Morteza Mardani, Mehran Maghoumi, Song Han, Ante Jukić, Nima Tajbakhsh, Jan Kautz, Pavlo Molchanov 외</li>
+  <li><strong>소속</strong>: NVIDIA, Georgia Tech, HKU, University of Chicago, MIT</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026-07-08)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/pdf/2607.05722">arXiv:2607.05722</a></li>
+  <li><strong>모델 공개</strong>: <a href="https://huggingface.co/collections/nvidia">Nemotron-Labs-Diffusion Family (HF)</a> (base/instruct/VLM, 3B/8B/14B)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Autoregressive (AR) 언어 모델은 배치 크기 1 서빙에서 병렬성을 활용하지 못하고, 순수 diffusion LM은 AR 대비 정확도와 학습 효율에서 뒤처진다. 기존 Multi-Token Prediction (MTP) 방식의 speculative decoding은 draft head가 짧은 horizon만 예측 가능하고 auxiliary head 오버헤드가 있다. AR과 diffusion을 <em>경쟁하는 패러다임</em>이 아니라 <em>보완적</em>으로 결합할 수 있는가?</li>
+  <li><strong>해결</strong>: 하나의 아키텍처에 AR loss + block-wise diffusion loss를 <strong>joint objective</strong>로 학습해, 추론 시 (1) 순수 AR, (2) 순수 diffusion, (3) diffusion draft + AR verify의 self-speculation, 세 가지 모드를 <strong>모두 지원</strong>하는 tri-mode LM을 구축. Ministral3-8B에서 시작해 3B/8B/14B로 스케일링, VLM 변형까지 릴리스.</li>
+  <li><strong>왜 작동하는가</strong>: AR objective가 left-to-right linguistic prior와 planning 능력을 앵커링하고, diffusion objective가 lookahead (미래 예측) 병렬성을 부여한다. 두 loss는 $\alpha=0.3$ 조합에서 <strong>서로 경쟁하지 않고 상호 강화</strong>: AR-only 대비 diffusion loss 추가가 AR 정확도를 유지/미세 향상시키고, diffusion-only 대비 AR loss 추가는 diffusion 정확도를 +7.48% 향상.</li>
+  <li><strong>비유</strong>: "왼손잡이/오른손잡이 중 하나가 아니라, 양손잡이로 훈련하면 오히려 각 손 능력이 더 좋아진다." 왼손(AR)이 문법의 뼈대를 잡고, 오른손(diffusion)이 미래를 미리 그려보며, 검증할 때는 두 손이 서로를 점검한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Tri-mode LM 프레임워크</strong>: AR + block-wise diffusion joint training으로 하나의 모델에서 3가지 추론 모드를 모두 지원. 배포 환경 (concurrency level) 에 따라 자유로운 모드 전환.</li>
+  <li><strong>AR과 diffusion의 상호 보완성 실증</strong>: ##$\alpha=0.3$ (diffusion loss 계수)에서 두 objective가 서로 hurt하지 않고 오히려 함께 상승하는 sweet spot 존재##. Table 2·3에서 diffusion loss 추가가 AR 정확도를 +0.14% (base) / +0.43% (instruct) 유지·향상.</li>
+  <li><strong>Self-speculation이 MTP를 지배</strong>: Diffusion draft + AR verify가 Eagle3 (MTP) 대비 더 높은 acceptance length (native/LoRA 5.46/6.82 vs. Eagle3/MTP 2.75/4.24, ~2× 이상)와 real-device 효율 달성. Auxiliary head 오버헤드 제거.</li>
+  <li><strong>Speed-of-Light (SOL) 분석</strong>: Diffusion 모드가 최적 sampler 하에 self-speculation 대비 <strong>76.5% 더 많은 토큰</strong>을 forward pass당 예측할 수 있음. 즉 현재 confidence-based sampling이 상한 대비 상당히 sub-optimal.</li>
+  <li><strong>Nemotron-Labs-Diffusion 모델 패밀리 공개</strong>: 3B/8B/14B base + instruct + VLM. Nemotron-Labs-Diffusion-8B가 Qwen3-8B 대비 6× TPF, <strong>GB200에서 4× system throughput</strong> (SPEED-Bench + SGLang, 다양한 concurrency); batch=1 concurrency에서는 3.3× (optimized kernel 시 <strong>3.97×, 1015 tok/sec</strong>). VLM은 LLaDA-V-8B 대비 6.03× TPF (linear self-spec, 응답 >100 토큰).</li>
+</ol>
+
+<h2>배경 지식 (Background)</h2>
+
+<h3>Autoregressive vs. Diffusion vs. MTP</h3>
+<p><strong>AR</strong>은 다음 토큰 조건부 확률 $p_\theta(x_i | x_{<i})$을 순차적으로 sampling. 병렬성 제로, 왼쪽→오른쪽 linguistic prior 강함.</p>
+<p><strong>Discrete diffusion (masked)</strong>은 시퀀스를 마스킹하고 병렬로 복원. Block-wise diffusion (Arriola et al., 2025a)은 블록 단위 AR + 블록 내부 병렬로 KV 캐시 지원.</p>
+<p><strong>MTP (Multi-Token Prediction)</strong>는 Eagle3처럼 작은 draft head가 여러 미래 토큰을 예측하고, 큰 AR 모델이 검증. 두 병목: (a) draft head 용량 제한으로 short horizon만 신뢰 가능, (b) proposal이 recursive해 각 단계마다 embedding + LM head 비용 발생.</p>
+
+<h3>Speed-of-Light (SOL) 개념</h3>
+<p>SOL은 diffusion 모드의 <strong>내재적 병렬성 상한</strong>을 측정. 즉 AR verifier 개입 없이, diffusion 모델 자신이 이상적 sampler로 forward pass당 얼마나 많은 <em>정확한</em> 토큰을 예측할 수 있는가. 현재 sampler(confidence threshold) 대비 SOL이 얼마나 여유가 있는지를 정량화해, 향후 sampler 개선의 헤드룸을 보여줌.</p>
+
+<h3>Block Diffusion 재확인</h3>
+<p>시퀀스를 $B$개의 연속 블록 $\{x^b\}_{b=1}^{B}$로 분할. Noise level $t \sim \mathcal{U}[0,1]$에서 현재 블록의 토큰만 forward process $q$로 corrupt하고, prefix $x^{<b}$는 clean 유지. Diffusion objective:</p>
+$$\mathcal{L}_{\text{diff}}(\theta) = \mathbb{E}\left[-\frac{1}{t}\sum_{b=1}^{B}\log p_\theta\bigl(x^b\mid \tilde{x}^b_t, x^{<b}\bigr)\right].$$
+<p>직관적으로 말하면, ##이 설계는 블록 내부는 bidirectional (병렬 예측)이고 블록 간은 causal (KV 캐시 재사용)이라, AR과 자연스럽게 결합 가능##.</p>
+
+<h2>방법론 (Methodology)</h2>
+
+<h3>2. Tri-Mode LM Training</h3>
+
+<h4>2.1 Joint Objective</h4>
+<p>총 loss는 AR loss (계수 1)와 diffusion loss ($\alpha$)의 가중합:</p>
+$$\mathcal{L}(\theta) = \mathcal{L}_{\text{AR}}(\theta) + \alpha\, \mathcal{L}_{\text{diff}}(\theta), \quad \alpha = 0.3.$$
+<p>Diffusion loss가 AR loss보다 typically 크므로 $\alpha < 1$로 magnitude를 정렬. $\alpha=0.3$에서 두 loss가 harmonize.</p>
+
+<p><strong>Two-stage training</strong>: 초기에는 $\alpha=0$ (pure AR objective)로 left-to-right inductive bias를 앵커링, 이후 $\alpha=0.3$로 diffusion 감독을 켜서 두 loss를 함께 최적화. 이는 diffusion gradient가 AR prior를 덮어쓰지 않고 <em>보완</em>하도록 유도.</p>
+
+<h4>2.2 Attention Pattern</h4>
+<p>Dual-stream 입력: corrupted/noisy view $\tilde{x}$ + clean view $x$를 concat. Attention은 4개 영역:</p>
+<ul>
+  <li><strong>Noisy→Noisy</strong>: block-diagonal (블록 내부 bidirectional)</li>
+  <li><strong>Noisy→Clean</strong>: causal across blocks (denoise 시 prefix clean 참조)</li>
+  <li><strong>Clean→Clean</strong>: ##strictly causal## — Fast-dVLM와 동일 철학. 이를 통해 AR objective를 clean stream에 계산하고 diffusion을 noisy stream에 계산해 <strong>단일 forward-backward pass에서 두 objective 동시 학습 가능</strong>.</li>
+</ul>
+
+<blockquote><strong>[Figure 3 설명]</strong>: Nemotron-Labs-Diffusion의 attention 패턴 시각화. Noisy token 4개, [MASK] 2개, clean token 4개를 concat한 시퀀스. 파란/분홍/흰 영역이 각각 noisy 내부 attention, noisy→clean attention, clean 내부 causal attention에 해당. Fast-dLLM v2가 clean에도 block-level attention을 썼던 것과 대조.</blockquote>
+
+<h4>2.3 Ablation on Training Techniques</h4>
+
+<p><strong>실험 의도</strong>: 각 학습 기법의 기여를 25B 토큰 continuous pretraining (Ministral3-8B에서 시작)에서 개별 검증.</p>
+
+<table>
+<thead>
+<tr><th>Technique</th><th>HumanEval</th><th>HumanEval+</th><th>MBPP</th><th>MBPP+</th><th>GSM8K</th><th>Minerva</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td>Block-wise attention (baseline)</td><td>39.02</td><td>37.80</td><td>53.40</td><td>67.72</td><td>82.87</td><td>44.58</td><td>54.23</td></tr>
+<tr><td>+ Global Loss Avg</td><td>42.07</td><td>39.02</td><td>56.20</td><td>71.69</td><td>83.78</td><td>45.36</td><td>56.35 (+2.12%)</td></tr>
+<tr><td>+ DP-rank Varying Masking Ratios</td><td>45.12</td><td>43.29</td><td>55.80</td><td>70.90</td><td>81.58</td><td>45.66</td><td>57.06 (+0.71%)</td></tr>
+<tr><td>+ Two-stage training</td><td>58.54</td><td>52.44</td><td>53.00</td><td>73.81</td><td>83.17</td><td>45.84</td><td>62.80 (+5.74%)</td></tr>
+<tr><td>+ AR loss (전체)</td><td>64.02</td><td>57.93</td><td>65.60</td><td>80.95</td><td>86.73</td><td>66.44</td><td>##70.28 (+7.48%)##</td></tr>
+</tbody>
+</table>
+
+<p><strong>Global Loss Averaging</strong>: 각 시퀀스의 loss를 평균한 뒤 배치 평균 (Eq. 4)이 아니라, 전체 배치 $NL$ 토큰을 균등하게 평균 (Eq. 5):</p>
+$$\mathcal{L}_{\text{global}} = \frac{1}{NL}\sum_{n=1}^{N}\sum_{i=1}^{L}\ell_{n,i}.$$
+<p>직관적으로 말하면, diffusion에서는 sample마다 마스킹된 토큰 수가 다르고 $\frac{1}{t}$ reweighting까지 있어 특정 sample이 배치를 지배하기 쉬움. Global averaging은 이를 방지해 gradient variance 감소. RL에서 GRPO vs. DAPO의 aggregation 선택과 유사한 문제.</p>
+
+<p><strong>DP-rank Varying Masking Ratios</strong>: 서로 다른 data-parallel rank가 서로 다른 noise level로 학습하도록 해 sample 다양성 증가.</p>
+
+<p><strong>Two-stage training</strong>: AR-only initialization으로 시작 → +5.74% 큰 개선. 강한 AR 초기화가 AR→diffusion 변환을 훨씬 easier하게 함.</p>
+
+<p><strong>AR loss 추가 (전체 파이프라인 완성)</strong>: 단일 최대 개선 +7.48%. 이는 <strong>diffusion training 중 AR objective 유지가 정확도의 핵심 요인</strong>임을 확증.</p>
+
+<h4>2.4 AR과 Diffusion loss의 상호 영향</h4>
+
+<p><strong>Q: Diffusion loss가 AR 정확도를 해치는가?</strong> 답: 아니다. 오히려 슬쩍 향상.</p>
+
+<table>
+<thead>
+<tr><th>Training</th><th>HumanEval</th><th>MBPP</th><th>GSM8K</th><th>Minerva</th><th>MMLU</th><th>Hellaswag</th><th>PIQA</th><th>Winogrande</th><th>Avg</th></tr>
+</thead>
+<tbody>
+<tr><td>Base: AR only</td><td>60.37</td><td>67.00</td><td>87.64</td><td>67.90</td><td>76.34</td><td>76.54</td><td>79.71</td><td>71.98</td><td>72.50</td></tr>
+<tr><td>Base: + Diff loss</td><td>62.80</td><td>65.80</td><td>85.79</td><td>68.02</td><td>76.34</td><td>76.29</td><td>79.82</td><td>70.32</td><td><strong>72.64 (+0.14%)</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>Q: $\alpha$ sweet spot은?</strong> $\alpha \in [0.1, 0.5]$ 범위에서 두 모드가 동시에 개선되며, $\alpha=0.3$에서 diffusion 평균 69.77 / AR 평균 70.62로 <strong>둘 다 peak</strong>. $\alpha=1$ (동등 가중) 또는 $\alpha=1$ no-AR에서는 diffusion loss 12.9로 폭발 (Figure 4 off-scale).</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##AR과 diffusion은 model capacity를 두고 경쟁하지 않고, 함께 상승·하강하는 상보 관계##. 즉 tri-mode LM은 "trade-off 없이 두 마리 토끼"를 실제로 잡음.</p>
+
+<h3>3. Tri-Mode Inference</h3>
+
+<h4>3.1 Mode 1: AR Decoding</h4>
+<p>표준 left-to-right sampling. High concurrency (compute-bound) serving에 최적.</p>
+
+<h4>3.2 Mode 2: Block-wise Diffusion Denoising</h4>
+<p>Confidence-based sampling: 각 스텝에서 신뢰도 임계값을 넘는 모든 위치를 커밋. 임계값 튜닝이 인퍼런스 시 accuracy-TPF tradeoff를 조절.</p>
+
+<p><strong>Trained sampler</strong>: 고정 임계값은 optimal이 아니므로, 4-layer Transformer sampler (∼4.8M params, ~0.06% of 8B backbone)를 별도로 학습. 입력 feature 144-D: PCA-compressed top-3 semantic embeddings + output statistics (top-1 prob, margin, top-3 mass, entropy). Bidirectional over current block + per-position linear head with sigmoid.</p>
+
+<p>학습: Nemotron-Labs-Diffusion-8B에서 ∼20M denoising trajectories 수집 (math/code/STEM/chat), block length 8/32. 두 정책 혼합: (i) 표준 confidence order (k=1), (ii) ground-truth top-1 pre-commit + confidence fallback. Per-position binary cross-entropy on masked positions.</p>
+
+<p><strong>Cross-position attention의 중요성 (Appendix A)</strong>: Sampler에서 cross-position attention을 제거하고 MLP-only로 변경 시 held-out trajectory의 accuracy-TPF AUC가 <strong>10pp 저하</strong>. 즉 sampler가 어떤 위치들이 서로 안전하게 커밋될 수 있는지 <em>공동</em> 추론해야 함을 시사.</p>
+
+<h4>3.3 Mode 3: Self-Speculation Decoding</h4>
+
+<p><strong>Linear self-speculation</strong>: k개의 mask token을 verified prefix에 append. Diffusion pathway로 모든 k 위치를 병렬로 denoise해 $\{\hat{x}_{n+1}, \ldots, \hat{x}_{n+k}\}$ draft 생성. 이후 <em>같은 모델</em>의 causal attention을 재사용해 두 번째 forward pass로 검증. 첫 mismatch까지의 longest prefix를 accept + AR prediction 1 토큰 추가 → 스텝당 1~k+1 토큰.</p>
+
+<p><strong>LoRA-Enhanced Linear SS</strong>: LoRA (rank 128, α=512, ∼36M params, ~0.4% of backbone) — attention의 $o_{\text{proj}}$ layer에만 적용, diffusion pathway drafter에만 tune. AR verifier는 unchanged. Draft를 verifier에 better align해 acceptance length 확장.</p>
+
+<p><strong>Drafter loss</strong>: LK-hybrid distribution matching + token-level cross-entropy on <em>accepted prefix + first rejected position</em>. Active position mask ("accepted+1")를 통해 rejection 이후 위치는 loss에서 제외. 이유: inference 시 rejection point에서 verifier의 KV cache가 재구축되므로, drafter가 counterfactual distribution으로 학습되면 실전과 mismatch 발생.</p>
+
+$$\mathcal{L}_j^{\text{LK}} = \lambda_j \cdot \text{KL}(\tilde{p}_j \| \tilde{q}_j) + (1-\lambda_j)\cdot\tfrac{1}{2}\sum_{v\in \mathcal{U}_j}\lvert\tilde{p}_j(v)-\tilde{q}_j(v)\rvert.$$
+
+<p>$\mathcal{U}_j = \mathcal{S}^t_j \cup \mathcal{S}^d_j$ (verifier + drafter 각각의 top-K 인덱스 합집합, K=200으로 $|\mathcal{U}_j|\leq 400$). Full-vocabulary KL의 catastrophe를 피함.</p>
+
+$$\lambda_j = \exp(-\eta \cdot |\alpha_j|), \quad \eta=0.5.$$
+<p>Adaptive coefficient: 학습 초기 ($\alpha_j \approx 0$, $\lambda_j \approx 1$)에는 forward KL처럼 작동해 distribution matching gradient 제공, drafter가 verifier에 접근함에 따라 ($\alpha_j \to 1$, $\lambda_j \to e^{-\eta} \approx 0.6$) TV로 전환해 acceptance-rate gap을 직접 최소화.</p>
+
+<h4>3.4 Variant: Quadratic Self-Speculation</h4>
+<p>Draft와 verification을 <em>단일</em> forward pass로 fuse. 구조화된 attention mask로 causal predictions가 이전 draft를 검증하고, parallel diffusion predictions가 다음 iteration의 draft 생성. Interleaved quadratic layout: 각 iteration에서 verification이 조기 종료돼도 k개 speculative token을 <em>일관되게</em> 생성. 이론적 TPF 우수 ($O(B^2)$ 입력), 하지만 커널 미최적화로 real-device 효율은 linear에 밀림.</p>
+
+<h4>추론 모드별 배포 특성</h4>
+<div class="flow-diagram">고 concurrency (compute-bound):     AR mode — 서버 batch 처리에 최적
+저 concurrency (memory-bound):     Self-speculation — 개별 사용자 저지연
+Long-context bulk generation:      Diffusion mode — 병렬성 극대화 (SOL 상한)</div>
+
+<h3>4. Speed-of-Light (SOL) Analysis</h3>
+
+<p><strong>목적</strong>: Confidence-based sampling이 상한 대비 얼마나 sub-optimal한지, 그리고 diffusion 모드의 진정한 병렬성 잠재력이 얼마인지 측정.</p>
+
+<h4>4.1 Diffusion SOL 구성</h4>
+<p><strong>Oracle target via serial denoising</strong>: 크기 $B$ 블록에 대해 all-mask 입력 $\mathbf{x}^{(0)} = [\text{M}]^B$에서 시작, 매 스텝마다 output distribution의 peak probability가 가장 높은 위치 하나만 커밋 (그 위치에 argmax 채우기). $B$번의 forward pass 후 완전 unmasked target $\mathbf{t}=(t_1,\ldots,t_B)$ 획득. 이것이 <strong>병렬 커밋 없이 diffusion 자신이 수렴하는 target</strong>.</p>
+
+<p><strong>Greedy parallel acceptance</strong>: 매 iteration에서 모델의 argmax가 target과 일치하는 모든 masked position을 한 번에 커밋. 다만 committed token 각각이 다음 forward의 context가 되므로, 여러 개를 한 번에 커밋하면 다른 위치의 분포를 <em>target에서 멀어지게</em> 할 수 있음.</p>
+
+<p><strong>Recursive dynamic compaction</strong>: Greedy 대신 <em>safe prefix</em> 탐색. 매 iteration에서 N matched position을 confidence order로 정렬 $(p_1,\ldots,p_N)$, 가장 긴 $\{p_1,\ldots,p_k\}$ 중 safe한 것 찾기. "Safe" = 남은 위치들이 여전히 $\mathbf{t}$로 수렴하는지 재귀적으로 확인 (스텝 5000 forward budget). Budget 초과 시 unsafe로 처리하고 binary search로 축소. Top-1 커밋은 항상 safe이므로 최소 1 토큰/iter는 보장.</p>
+
+<h4>4.2 SOL 결과 (SPEED-Bench)</h4>
+
+<table>
+<thead>
+<tr><th>Category</th><th>BL=32</th><th>BL=16</th><th>BL=8</th><th>BL=4</th></tr>
+</thead>
+<tbody>
+<tr><td>coding</td><td><strong>10.24</strong></td><td>7.50</td><td>5.32</td><td>3.32</td></tr>
+<tr><td>math</td><td>9.30</td><td>7.02</td><td>4.90</td><td>3.20</td></tr>
+<tr><td>multilingual</td><td><strong>11.26</strong></td><td>8.08</td><td>5.46</td><td>3.37</td></tr>
+<tr><td>reasoning</td><td>7.22</td><td>5.06</td><td>3.87</td><td>2.79</td></tr>
+<tr><td>roleplay</td><td>3.49</td><td>2.76</td><td>2.41</td><td>2.00</td></tr>
+<tr><td><strong>Acceptance rate</strong></td><td><strong>7.60×</strong></td><td>5.68×</td><td>4.17×</td><td>2.89×</td></tr>
+<tr><td>Benchmark Acc</td><td>61.81</td><td>63.18</td><td>65.43</td><td>64.04</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>Diffusion 모드의 SOL acceptance rate가 <strong>평균 7.60×</strong>, 다중언어/코딩은 <strong>10× 초과</strong>. 블록 크기 $B$에 대해 near-linear 확장 (B=4에서 2.89, B=32에서 7.60).</li>
+  <li>Confidence-based sampling은 실제로 ∼3× TPF만 달성, SOL 7.60×와 큰 간격 → 더 나은 sampler로 <strong>2× 이상 헤드룸</strong> 존재.</li>
+  <li>SOL 카테고리별 편차 (3.49 roleplay ~ 11.26 multilingual)는 token-level entropy와 상관: templated content는 confidently determined position이 많고, open-ended generation은 그렇지 못함.</li>
+  <li>##Moderately small block (B=8 ~ B=16)이 최고 accuracy##; 큰 블록은 accuracy 저하. Accuracy vs. efficiency trade-off의 sweet spot.</li>
+</ul>
+
+<p><strong>Diffusion SOL vs. Linear Self-Speculation</strong>: 두 metric은 다른 것을 잰다. Acceptance rate 수준에서는 linear SS 6.82 vs. SOL 7.60 (10.3% gap, 근접). Real TPF에서는 SOL 6.02× vs. linear SS 3.41× (76.5% 갭). 이유: Linear SS는 두 forward per cycle 필요 + prefix-only acceptance. Diffusion mode는 단일 forward에서 non-contiguous position들도 커밋 가능.</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: Diffusion decoding은 self-speculation보다 <strong>더 높은 병렬 상한</strong>을 갖고 있어, 미래에 더 좋은 sampler가 나오면 더 크게 확장 가능. 반면 self-speculation은 AR verify라는 fundamental bottleneck에 묶여있음.</p>
+
+<h3>5. Nemotron-Labs-Diffusion 모델 패밀리</h3>
+
+<h4>5.1 Base Models</h4>
+<ul>
+  <li>Ministral3-8B에서 시작, 25B pretraining data</li>
+  <li>Two-stage: Stage 1 pure AR (1T 토큰), Stage 2 joint AR+diffusion ($\alpha=0.3$, 300B 토큰)</li>
+  <li>Optimizer: AdamW, weight decay 0.1, WSD schedule (1e-5 → 3e-6), global batch 512, seq len 4096</li>
+  <li>Hardware: 256 NVIDIA H100</li>
+  <li>Megatron Bridge로 학습/추론 파이프라인 공개</li>
+</ul>
+
+<h4>5.2 Instruct Models</h4>
+<ul>
+  <li>SFT on 45B tokens (dataset from Nemotron-Post-Training-Dataset-v2), $\alpha=0.3$ 유지</li>
+  <li>LR 2.5e-6 → 2.5e-7 WSD schedule, batch 256, seq len 16k</li>
+  <li>256 H100, prompt 부분 mask 안 함, answer 부분에만 loss</li>
+</ul>
+
+<h4>5.3 Vision-Language Models</h4>
+
+<p><strong>Architecture</strong>: Nemotron-Labs-Diffusion에 vision encoder + 2-layer MLP projector (2×2 patch merging) 추가. Text 모델과 diffusion 학습/추론 파이프라인 공유.</p>
+
+<p><strong>Weight initialization</strong>: LM backbone은 Nemotron-Labs-Diffusion-8B instruct에서, vision encoder + projector는 <strong>동일 계열</strong> AR VLM (Ministral3-8B-Instruct-2512 기반)에서. LM architecture가 identical하므로 mismatch/interpolation 없음. 어휘/embedding 변경 없음.</p>
+
+<p><strong>Continued SFT</strong>: 전체 모델을 text-only instruct와 동일한 joint AR-diffusion objective로 multimodal instruction data에서 fine-tune.</p>
+
+<p><strong>Asymmetric dual-stream</strong>: Vision token은 <em>절대 corrupt되지 않으므로</em> noisy stream에서 완전 제거. Loss 계산에 기여하지 않는데 FLOPs 소모하는 문제를 해결. 총 시퀀스 길이가 $2L$ → $L_{\text{text}} + L$로 감소 ($L_{\text{text}} = L - N_{\text{vis}}$). Attention FLOPs 감소가 vision token 비율 $N_{\text{vis}}/L$에 비례 (Fast-dVLM의 vision-efficient concatenation과 동일 원리).</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>실험 목적 매핑</h3>
+<p>이 논문이 답하려는 핵심 질문:</p>
+<ul>
+  <li>Q1: Tri-mode 학습이 각 모드의 SOTA와 경쟁 가능한가? → §6.1 (Instruct), §6.3 (Base)</li>
+  <li>Q2: Self-speculation이 MTP를 이기는가? → §6.5 (vs. Eagle3)</li>
+  <li>Q3: 모델 스케일이 커질수록 tri-mode의 이점이 커지는가? → §6.2 (3B/8B/14B)</li>
+  <li>Q4: VLM 확장에서도 성립하는가? → §6.4</li>
+  <li>Q5: 시스템 통합 (SGLang, quantization) 하에서 wall-clock 이득은? → §6.5, Figure 1(c)/9</li>
+</ul>
+
+<h3>6.1 Benchmark Instruct Models (Table 5, 8B 스케일)</h3>
+
+<table>
+<thead>
+<tr><th>Model</th><th>Mode</th><th>Avg</th><th>TPF</th></tr>
+</thead>
+<tbody>
+<tr><td>Qwen2.5-7B</td><td>AR</td><td>54.55</td><td>1.00</td></tr>
+<tr><td>Qwen3-8B</td><td>AR</td><td>62.75</td><td>1.00</td></tr>
+<tr><td>Ministral3-8B-Instruct-2512</td><td>AR</td><td>58.02</td><td>1.00</td></tr>
+<tr><td>LLaDA-8B Instruct</td><td>Diff</td><td>37.24</td><td>1.00</td></tr>
+<tr><td>Dream-7B Instruct</td><td>Diff</td><td>40.54</td><td>1.00</td></tr>
+<tr><td>SDAR-8B Chat</td><td>Diff</td><td>54.09</td><td>1.00</td></tr>
+<tr><td>SDAR-8B Chat</td><td>Diff (higher τ)</td><td>50.57</td><td>1.75</td></tr>
+<tr><td rowspan="4"><strong>Nemotron-Labs-Diffusion-8B</strong></td><td>AR</td><td><strong>63.61</strong></td><td>1.00</td></tr>
+<tr><td>Diff</td><td>63.18</td><td>2.57</td></tr>
+<tr><td>Linear SS</td><td>62.81</td><td>5.99</td></tr>
+<tr><td>Quad. SS</td><td><strong>64.04</strong></td><td>##6.38##</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##AR mode: Qwen3-8B(62.75) 대비 +0.86%## — tri-mode 학습이 AR 정확도를 희생하지 않음. 실제로 살짝 향상.</li>
+  <li>Diffusion mode: SDAR-8B Chat 대비 +9.09%, TPF 2.57× (SDAR보다 큰 병렬성). Qwen3-8B AR 대비 +0.43% 평균 정확도.</li>
+  <li>Linear SS: 5.99× TPF, LoRA 튜닝으로 kernel mismatch 극복.</li>
+  <li>Quadratic SS: 6.38× TPF로 최고, 정확도 64.04 (AR 63.61보다 +0.43%). 다만 quadratic attention mask가 커널 최적화 어려움으로 real-device는 linear에 뒤짐.</li>
+</ul>
+
+<h3>6.2 Scaling to 3B / 14B (Table 6, 7)</h3>
+
+<p><strong>LoRA tuning 효과 (Table 6)</strong>: 3B/8B/14B 스케일 모두에서 LoRA가 linear SS TPF를 <strong>14.4% / 32.5% / 27.6%</strong> 상대 개선. 큰 모델일수록 raw TPF는 3.81 → 4.52 → 4.67 (w/o LoRA), 4.36 → 5.99 → 5.96 (w/ LoRA). ##스케일이 커질수록 diffusion 병렬성 이점 확대##.</p>
+
+<p><strong>14B 스케일 (Table 7)</strong>: Nemotron-Labs-Diffusion-14B AR 68.03 vs. Qwen3-14B 65.17 (+2.86%). Quad SS 68.15 with 6.92× TPF.</p>
+
+<h3>6.3 Base Model Benchmark (Table 8, 8B 스케일)</h3>
+
+<table>
+<thead>
+<tr><th>Model</th><th>Mode</th><th>Avg</th><th>Avg TPF</th></tr>
+</thead>
+<tbody>
+<tr><td>Ministral3-8B</td><td>AR</td><td>66.75</td><td>1.00</td></tr>
+<tr><td>Qwen3-8B</td><td>AR</td><td>66.75</td><td>1.00</td></tr>
+<tr><td>LLaDA-8B (base)</td><td>Diff</td><td>54.92</td><td>1.00</td></tr>
+<tr><td>Dream-7B (base)</td><td>Diff</td><td>65.30</td><td>1.00</td></tr>
+<tr><td rowspan="4"><strong>Nemotron-Labs-Diffusion-8B</strong></td><td>AR</td><td>71.89</td><td>1.00</td></tr>
+<tr><td>Diff</td><td>72.13</td><td>2.06</td></tr>
+<tr><td>Linear SS</td><td>72.36</td><td>4.67</td></tr>
+<tr><td>Quad. SS</td><td>72.10</td><td>7.04</td></tr>
+</tbody>
+</table>
+
+<p>Base 모델에서도 (1) AR mode Ministral3-8B/Qwen3-8B 대비 +5.14/+5.14%, (2) Diffusion mode LLaDA/Dream 대비 +17.21/+6.83%, (3) self-speculation 4.67× (linear)/7.04× (quad) TPF.</p>
+
+<h3>6.4 Benchmark VLMs (Table 9)</h3>
+
+<table>
+<thead>
+<tr><th>Model</th><th>Mode</th><th>AI2D</th><th>ChartQA</th><th>DocVQA</th><th>MMMU</th><th>MMMU-Pro-V-CoT</th><th>Acc</th><th>TPF</th></tr>
+</thead>
+<tbody>
+<tr><td>LLaDA-V-8B</td><td>Diff</td><td>77.8</td><td>78.3</td><td>83.9</td><td>48.6</td><td>18.6</td><td>58.2</td><td>1</td></tr>
+<tr><td>Dimple</td><td>Diff</td><td>74.4</td><td>63.4</td><td>37.7</td><td>45.2</td><td>12.4</td><td>44.3</td><td>1</td></tr>
+<tr><td rowspan="3"><strong>Nemotron-Labs-Diffusion-VLM-8B</strong></td><td>AR</td><td>75.0</td><td>81.3</td><td>89.2</td><td>50.3</td><td>24.3</td><td><strong>59.5</strong></td><td>1</td></tr>
+<tr><td>Diff</td><td>74.7</td><td>76.6</td><td>88.3</td><td>50.4</td><td>22.2</td><td>57.9</td><td>2.80 (>100 tok)<br>3.15 (>200 tok)</td></tr>
+<tr><td>Linear SS</td><td>74.9</td><td>81.2</td><td>89.3</td><td>50.0</td><td>24.1</td><td>59.4</td><td>##6.03 (>100 tok)<br>7.45 (>200 tok)##</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>AR mode: LLaDA-V-8B (58.2) 대비 +1.3% 평균 정확도 (59.5)</li>
+  <li>Diffusion mode: LLaDA-V-8B 대비 2.46~3.15× TPF, 정확도 유지</li>
+  <li>Linear SS: <strong>0.1% 정확도 손실만으로</strong> 3.63~7.45× TPF. 응답 길이 >200에서 최대 병렬성 발휘.</li>
+  <li>Tri-mode 학습이 VLM 세팅에서도 그대로 확장됨을 실증.</li>
+</ul>
+
+<h3>6.5 Inference Efficiency: Self-Speculation vs. MTP</h3>
+
+<p><strong>실험 세팅</strong>: SGLang server로 NVIDIA GB200/RTX Pro 6000/DGX Spark에서 프로파일링. Concurrency 1에서 Qwen3-8B-Eagle3와 비교. SPEED-Bench 4 카테고리 (math/coding/reasoning/multilingual), 생성 길이 1024 토큰 상한.</p>
+
+<p><strong>결과 (Figure 1(c), Figure 9)</strong>: Linear SS가 <strong>1015 tok/sec (3.3× speedup)</strong>를 GB200에서 달성. Qwen3-8B-Eagle3 대비 2.4×/2.3×/1.8× speedup at batch 1 (RTX Pro 6000/GB200/DGX Spark).</p>
+
+<p><strong>Per-category acceptance length (Table 10)</strong>:</p>
+
+<table>
+<thead>
+<tr><th>Category</th><th>Nemotron-Labs-Diffusion Native</th><th>Nemotron LoRA</th><th>Qwen3-8B-Eagle3</th><th>Qwen3-9B-MTP</th></tr>
+</thead>
+<tbody>
+<tr><td>coding</td><td>6.61</td><td><strong>8.57</strong></td><td>3.14</td><td>5.97</td></tr>
+<tr><td>math</td><td>6.24</td><td><strong>8.14</strong></td><td>2.79</td><td>4.80</td></tr>
+<tr><td>reasoning</td><td>6.18</td><td>7.99</td><td>3.40</td><td>3.68</td></tr>
+<tr><td>multilingual</td><td>7.96</td><td><strong>10.06</strong></td><td>1.91</td><td>4.47</td></tr>
+<tr><td><strong>Average</strong></td><td>5.46</td><td>##6.82##</td><td>2.75</td><td>4.24</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>: LoRA-tuned Nemotron-Labs-Diffusion acceptance length가 Eagle3 대비 <strong>2.48×</strong>, MTP 대비 <strong>1.61×</strong>. 특히 구조화된 태스크 (coding/math/reasoning/multilingual)에서 격차 확대 — diffusion drafting이 semantic/syntactic constraint가 강한 문맥에서 훨씬 유리.</p>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##Diffusion drafting이 auxiliary head 기반 MTP보다 훨씬 강력한 draft를 생성##. 이유: (1) Full-capacity 모델이 draft 담당 (Eagle3의 tiny draft head 대비), (2) Token-parallel drafting (Eagle3의 recursive 대비), (3) 이미 정렬된 verifier와 자연스러운 alignment.</p>
+
+<p><strong>SOL 상한 참조</strong>: RTX Pro 6000에서 FP8/INT4 quantization 시 SOL throughput은 <strong>7.09~12.36×</strong> AR 대비. 즉 현재 linear SS의 2배 이상 추가 헤드룸.</p>
+
+<h2>관련 연구 (§7 Related Work)</h2>
+
+<p><strong>Diffusion Language Models 계보</strong>: 초기 continuous LM (Diffusion-LM, DiffuSeq, SSD-LM) → 이산 masked diffusion (Austin et al. 2021, DiffusionBERT, SEDD, MDLM, SMDM) → 대규모 스케일링 (LLaDA 8B, Dream 7B, LLaDA2.0 100B). 도메인 특화 스페셜리스트 (Mercury 코딩, Seed Diffusion, DiffuCoder, Dream-Coder). RL 계열 확장 (d1, LLaDA 1.5), 멀티모달 확장 (MMaDA, LaViDa)도 활발.</p>
+
+<p><strong>Diffusion LM Acceleration 계보</strong>: (1) 캐싱 계열 (dLLM-cache, dKV-cache, Fast-dLLM v1) — bidirectional attention의 KV 재사용 근사. (2) Parallel decoding 개선 — confidence-based sampling, AR guidance (Israel et al.), certainty+positional prior (Wei et al.). (3) AR→diffusion 이니셜라이제이션 (SDAR, DiffuLLaMA) — 사전학습 AR을 diffusion으로 shift. (4) Block-wise 결합 — Block Diffusion (원조), TIDAR, EDiT, Fast-dLLM v2 등이 pretrained AR/diffusion을 block-wise로 변환. 본 논문의 tri-mode는 <em>joint training</em>과 <em>self-speculation</em>을 결합했다는 점에서 이 계보의 다음 단계.</p>
+
+<h2>저자 명시 인사이트 및 향후 방향 (§8)</h2>
+
+<h3>6가지 핵심 인사이트</h3>
+<ol>
+  <li><strong>Tri-mode generation naturally emerges from joint AR-diffusion training</strong>: 아키텍처 수정 없이도 세 가지 모드가 자동 확보.</li>
+  <li><strong>AR과 diffusion loss는 상호 보완적</strong>: $\alpha=0.3$에서 두 loss가 함께 peak. AR loss는 diffusion에 left-to-right prior를 주고, diffusion loss는 AR의 planning 능력을 향상.</li>
+  <li><strong>Self-speculation이 MTP를 능가</strong>: Auxiliary head 대신 diffusion으로 draft, AR로 검증 → 더 높은 acceptance rate, 더 나은 real-device 효율.</li>
+  <li><strong>Variance reduction은 diffusion training에 필수</strong>: Random masking + variable noise level로 인한 gradient variance를 well-trained AR 초기화 + global loss averaging으로 완화. 이것이 학습 안정성의 핵심.</li>
+  <li><strong>Linear self-speculation이 현재 인프라에서 최고 효율</strong>: Quadratic SS는 TPF 우수하나 커널 미비. Batch 1에서는 quadratic이 유망.</li>
+  <li><strong>Diffusion 모드에 substantial headroom</strong>: SOL 7.60× vs. real linear SS 3.41× → 더 나은 sampler로 76.5% 추가 개선 가능.</li>
+</ol>
+
+<h3>4가지 향후 방향</h3>
+<ol>
+  <li><strong>SOL 상한과 실제 diffusion decoding 간격 좁히기</strong>: 더 잘 정렬된 sampler 개발, 혹은 conditionally independent token들의 aggressive parallel sampling.</li>
+  <li><strong>Self-speculation의 draft-verify 정렬 개선</strong>: 학습 시 diffusion draft를 AR verify에 align. Nested subnet (weight-shared smaller drafter)로 drafting cost 추가 절감.</li>
+  <li><strong>Prefix-only AR verification을 넘어서기</strong>: Diffusion verifier로 non-contiguous drafted token을 동시 검증해 real effective acceptance rate 상승.</li>
+  <li><strong>Diffusion generation의 higher-level parallelism</strong>: 현재 token-level만 병렬. Segment/paragraph-level parallelism을 학습으로 유도 → global planning + 효율 잠재력 극대화.</li>
+</ol>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Tri-mode의 개념적 우아함과 실증적 강도</strong>: "AR과 diffusion 중 어느 것을 쓸까"라는 오래된 이분법을 "둘을 동시에 학습해 세 가지 모드로 배포"로 재프레이밍. 그리고 $\alpha=0.3$에서 두 loss가 상호 강화된다는 실험적 발견은 강력한 empirical support.</li>
+  <li><strong>Ablation의 정밀함</strong>: 5단계 progressive addition (block-wise attention → global loss avg → DP-rank masking → two-stage → AR loss)이 각 컴포넌트의 기여를 명확히 분리. 특히 AR loss 추가가 +7.48%로 최대 개선이라는 발견은 diffusion LM 커뮤니티에 중요한 신호.</li>
+  <li><strong>SOL 분석의 학술적 가치</strong>: Diffusion 모드의 이론적 상한을 recursive dynamic compaction으로 정량화한 것은 향후 sampler 연구의 방향성을 명확히 함. "현재 방식이 상한 대비 얼마나 남았는가"라는 질문을 formal하게 답한 것은 이 분야에서 드문 기여.</li>
+  <li><strong>Self-speculation vs. MTP 헤드투헤드</strong>: LoRA-tuned Nemotron이 Eagle3/MTP를 acceptance length와 wall-clock에서 모두 이긴다는 결과는, diffusion drafting이 speculative decoding의 미래일 수 있음을 강력히 시사.</li>
+  <li><strong>모델 패밀리 공개 (3B/8B/14B + VLM)</strong>: 재현/후속 연구가 즉시 가능. Megatron Bridge를 통한 학습/추론 파이프라인 공개.</li>
+  <li><strong>Trained sampler와 LoRA drafter의 실용성</strong>: 두 컴포넌트 모두 backbone 대비 0.06%/0.4%의 오버헤드로, alignment 개선을 저비용에 실현.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>SDAR-8B Chat과의 정확도 격차</strong>: Instruct 세팅에서 diffusion mode 63.18 vs. SDAR 54.09 (+9.09%)이지만, SDAR이 정확도를 위해 TPF 1×로 운영된 상태. TPF 매칭 비교가 없어 "같은 latency에서 얼마나 나은지"는 불명확.</li>
+  <li><strong>Quadratic SS의 지속적 커널 병목</strong>: 이론적 TPF 우수 (6.38× vs. linear 5.99×)이지만 real-device는 linear에 밀림. Fast-dVLM과 동일한 이슈로, quadratic이 실용화되려면 여전히 커널 개발 필요.</li>
+  <li><strong>Base model 초기화 편향</strong>: Ministral3-8B가 base였고, 다른 base (Llama, Qwen 등)에서 시작했을 때 tri-mode의 우수성이 유지되는지 검증 부재.</li>
+  <li><strong>SOL의 실용 gap</strong>: SOL 7.60× vs. real linear SS 3.41× — 즉 <strong>더 나은 sampler가 나와야</strong> 이 논문이 시사하는 상한에 접근 가능. 저자는 이를 future work로 남기고 있으나, 현재 논문 자체는 sampler 개선을 완성하지 못함.</li>
+  <li><strong>LoRA drafter 학습 비용</strong>: 정확한 학습 시간/데이터 크기 미명시. LoRA는 30-40% relative TPF 개선의 상당 부분을 제공하지만, 이를 얻기 위한 추가 학습 예산은 논문에서 상세 불명.</li>
+  <li><strong>Multi-turn / long-context 검증 부족</strong>: SPEED-Bench는 주로 short-response. Multi-turn dialogue나 long-context reasoning에서 tri-mode 이점이 어떻게 스케일하는지 미검증.</li>
+  <li><strong>Roleplay/writing 카테고리의 낮은 TPF</strong>: SOL 3.49/6.13, real self-spec은 그보다 더 낮음. 즉 open-ended generation에서는 tri-mode의 이점이 제한적이며, use case가 structured task에 편향.</li>
+</ul>
+
+<h3>확장 가능성</h3>
+<ul>
+  <li>Nemotron-Labs-Diffusion은 Fast-dVLM과 같은 계열 (NVIDIA + 공저자 겹침 — Wu, Zhu, Xie 등)의 확장. Fast-dVLM이 "AR VLM → diffusion VLM 변환"이라면, 이 논문은 "AR LLM + diffusion LLM을 <strong>동시에</strong>". 향후 두 접근이 통합될 가능성.</li>
+  <li>Adaptive routing: 배포 시점에 concurrency와 task type을 감지해 자동으로 AR/diff/SS 모드 선택하는 controller. 논문에서는 수동 모드 선택만 다룸.</li>
+  <li>Diffusion-mode verification: 저자가 future work로 명시. AR verifier 대신 diffusion verifier를 쓰면 non-contiguous position들도 동시 검증 가능해 real TPF를 SOL에 더 가깝게 밀어붙일 수 있음.</li>
+  <li>Segment/paragraph-level parallelism: 현재는 token-level 병렬. 문단/문장 단위 병렬 예측을 학습하면 SOL 자체가 상승 가능.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##AR과 diffusion은 서로 경쟁하는 대안이 아니라 상호 보완하는 objective##. $\alpha=0.3$에서 두 loss가 함께 개선되며, 이 발견은 향후 LM 학습의 default recipe로 유력. 특히 AR loss가 diffusion 학습에서 +7.48%로 최대 단일 개선을 제공한다는 사실은 이 커뮤니티에 큰 시사점.</li>
+  <li>##Self-speculation (diffusion draft + AR verify)이 MTP (Eagle3 등) 보다 강력한 대안##. Full-capacity draft + token-parallel proposal 덕분에 acceptance length가 2× 이상. 실제 GB200에서 3.3× wall-clock 가속. 향후 LLM 서빙 인프라의 speculative decoding 표준이 될 잠재력.</li>
+  <li>Diffusion 모드의 SOL 상한 7.60× (real linear SS 대비 2× 이상)는 <strong>더 나은 sampler로 상당한 헤드룸</strong>이 남아있음을 정량화. 이는 향후 diffusion sampler 연구 커뮤니티에 명확한 목표를 제공.</li>
+  <li>모델 스케일이 커질수록 diffusion/self-spec 이점 확대: 3B → 14B에서 linear SS TPF가 4.36× → 5.96×. 큰 모델일수록 미래 예측이 더 신뢰할 만하기 때문. Tri-mode의 이점은 <strong>scale-friendly</strong>.</li>
+  <li>VLM 확장이 자연스럽게 성립 — LM 파이프라인을 재사용하고 asymmetric dual-stream으로 vision FLOPs 절감. 이는 tri-mode 프레임워크가 modality-agnostic함을 시사.</li>
+  <li>##Trained sampler (0.06%)와 LoRA drafter (0.4%) 같은 lightweight add-on이 acceptance length 30-40% 개선##을 제공. 이는 tri-mode 시스템에서 "얼마나 잘 align하는가"가 raw model 성능만큼이나 중요함을 보여줌.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
