@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Delta Learning Hypothesis — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #831843, #ec4899, #f472b6); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 720px; margin: 0 auto; }
+  .hero .version-link { margin-top: 1.2rem; }
+  .hero .version-link a { color: rgba(255,255,255,0.85); text-decoration: underline; font-size: 0.95rem; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #831843; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #ec4899, #f472b6); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; color: #be185d; }
+  section p { margin: 0.8rem 0; }
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #ec4899; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .one-liner { background: linear-gradient(135deg, #831843, #f472b6); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #ec4899, #f472b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #831843; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #fce7f3; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #ec4899; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #ec4899; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #ec4899; padding: 0 0.4rem; }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #ec4899; text-decoration: none; }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.7rem; } .stat-row { flex-direction: column; } .step-flow { flex-direction: column; } .step-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-badge">COLM 2025 · UW · Allen AI · CMU</span>
+  <h1>The Delta Learning Hypothesis</h1>
+  <p class="subtitle">"약한 데이터로도 강한 모델을 만들 수 있다" — AI 학습의 기본 상식을 뒤집은 발견</p>
+  <div class="version-link"><a href="20260806_geng_delta-learning.html">전문가용 상세 요약 보기 →</a></div>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+"강한 선생님이 있어야 강한 학생이 나온다"는 통념 대신,<br>
+<b>"약한 두 사람의 실력 차이"만으로도 학생은 배운다</b>
+</div>
+
+<!-- 배경 지식 -->
+<section>
+<h2>배경: AI는 어떻게 배우는가?</h2>
+
+<h3>1) 지금까지의 상식: 강한 데이터가 강한 모델을 만든다</h3>
+<p>AI를 학습시킬 때 가장 중요한 것은 <b>양질의 학습 데이터</b>라고 여겨져 왔습니다. ChatGPT를 만들려면 GPT-4가 쓴 답변이 필요하고, Claude를 만들려면 클로드보다 뛰어난 답변이 필요하다는 식이죠.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 학생은 자기보다 잘하는 선생님에게만 배운다</div>
+"천재 물리학자를 키우려면 노벨상 수상자에게 배워야 한다"는 것이 상식이었습니다. 이 상식대로라면 AI 발전에는 한계가 있어요 — 우주에서 가장 뛰어난 AI는 <b>이미 우리가 가진 최고 AI보다 나은 데이터가 존재하지 않아서</b> 더 이상 학습할 수 없습니다.
+</div>
+
+<h3>2) 그런데... 이상한 관찰이 있었다</h3>
+<p>연구자들이 우연히 발견한 현상:</p>
+<ul>
+  <li><b>Llama 3 8B 모델</b>을 훈련시키는데,</li>
+  <li><b>더 약한 모델(Llama 3보다 못한 모델)</b>이 만든 답변으로,</li>
+  <li>단순 모방(SFT)을 시키면 <b>실력이 떨어짐</b> (당연히)</li>
+  <li>그런데 <b>선호 학습(DPO)</b>을 시키면 오히려 <b>실력이 향상</b>됨 (?!)</li>
+</ul>
+
+<p>같은 데이터인데 학습 <b>방법</b>에 따라 결과가 완전히 정반대. 이 이상한 현상을 이 논문이 <b>설명</b>합니다.</p>
+
+<h3>3) 두 가지 학습 방법의 차이</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">두 학습 방법의 차이</text>
+
+  <!-- SFT -->
+  <rect x="30" y="60" width="310" height="220" rx="14" fill="#fee2e2" stroke="#dc2626" stroke-width="2"/>
+  <text x="185" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#991b1b">SFT (모방 학습)</text>
+
+  <text x="185" y="115" text-anchor="middle" font-size="11" fill="#991b1b">"이 답변을 그대로 따라해!"</text>
+
+  <rect x="60" y="130" width="250" height="40" rx="8" fill="#fff" stroke="#dc2626"/>
+  <text x="185" y="155" text-anchor="middle" font-size="11" fill="#991b1b">답변: "안녕하세요~"</text>
+
+  <path d="M 185 175 L 185 200" stroke="#dc2626" stroke-width="2" marker-end="url(#dl1)"/>
+
+  <rect x="60" y="205" width="250" height="55" rx="8" fill="#fef2f2" stroke="#dc2626"/>
+  <text x="185" y="225" text-anchor="middle" font-size="11" fill="#7f1d1d">모델이 이걸 <b>그대로 따라함</b></text>
+  <text x="185" y="245" text-anchor="middle" font-size="10" fill="#7f1d1d">약한 답변이면 → 실력 하락</text>
+
+  <!-- DPO -->
+  <rect x="380" y="60" width="310" height="220" rx="14" fill="#fce7f3" stroke="#ec4899" stroke-width="2"/>
+  <text x="535" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">DPO (선호 학습)</text>
+
+  <text x="535" y="115" text-anchor="middle" font-size="11" fill="#831843">"이 방향이 더 좋아!"</text>
+
+  <rect x="410" y="130" width="115" height="40" rx="8" fill="#fff" stroke="#ec4899"/>
+  <text x="467" y="155" text-anchor="middle" font-size="10" fill="#831843">답변 A (좋음)</text>
+
+  <rect x="545" y="130" width="115" height="40" rx="8" fill="#fff" stroke="#94a3b8"/>
+  <text x="602" y="155" text-anchor="middle" font-size="10" fill="#64748b">답변 B (덜 좋음)</text>
+
+  <path d="M 535 175 L 535 200" stroke="#ec4899" stroke-width="2" marker-end="url(#dl2)"/>
+
+  <rect x="410" y="205" width="250" height="55" rx="8" fill="#fdf2f8" stroke="#ec4899"/>
+  <text x="535" y="225" text-anchor="middle" font-size="11" fill="#831843">모델이 <b>A 방향으로</b> 이동</text>
+  <text x="535" y="245" text-anchor="middle" font-size="10" fill="#831843">A, B 둘 다 약해도 <b>차이</b>가 신호</text>
+
+  <defs>
+    <marker id="dl1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#dc2626"/>
+    </marker>
+    <marker id="dl2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ec4899"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+</section>
+
+<!-- 핵심 아이디어 -->
+<section>
+<h2>Delta Learning Hypothesis (델타 학습 가설)</h2>
+
+<div class="one-liner" style="background: linear-gradient(135deg, #831843, #ec4899); font-size: 1.15rem;">
+"두 응답의 <b>절대적 품질</b>이 낮아도, <br>그들 사이의 <b>차이(delta)</b>가 명확하면 학습된다"
+</div>
+
+<h3>실험 1: 볼드체 섹션 실험 (가장 명료한 증거)</h3>
+
+<p>연구자들은 <b>인위적으로 정량화 가능한 quality</b>를 정의했어요: 답변에 포함된 <b>Markdown 볼드체 섹션 헤더 개수</b>.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 420" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">Baseline Llama-3.2-3B가 만드는 응답 평균: 5.9개 섹션</text>
+
+  <!-- SFT test -->
+  <text x="180" y="70" text-anchor="middle" font-size="12" fill="#334155" font-weight="700">SFT (모방 학습)</text>
+
+  <rect x="30" y="85" width="300" height="30" rx="6" fill="#059669"/>
+  <text x="180" y="105" text-anchor="middle" font-size="11" fill="#fff">Chosen 9 섹션 → 결과 24.6 (당연)</text>
+
+  <rect x="30" y="125" width="300" height="30" rx="6" fill="#dc2626"/>
+  <text x="180" y="145" text-anchor="middle" font-size="11" fill="#fff">Chosen 3 섹션 → 결과 4.4 (하락)</text>
+
+  <rect x="30" y="165" width="300" height="30" rx="6" fill="#dc2626"/>
+  <text x="180" y="185" text-anchor="middle" font-size="11" fill="#fff">Chosen 2 섹션 → 결과 2.9 (하락)</text>
+
+  <text x="180" y="215" text-anchor="middle" font-size="10" fill="#64748b">chosen이 baseline보다 낮으면 → 실력 하락</text>
+
+  <!-- DPO test -->
+  <text x="540" y="70" text-anchor="middle" font-size="12" fill="#334155" font-weight="700">DPO (선호 학습) — 놀라운 결과!</text>
+
+  <rect x="390" y="85" width="300" height="30" rx="6" fill="#ec4899"/>
+  <text x="540" y="105" text-anchor="middle" font-size="11" fill="#fff">Chosen 3, Rejected 2 → 결과 <b>81.1!</b></text>
+
+  <rect x="390" y="125" width="300" height="30" rx="6" fill="#94a3b8"/>
+  <text x="540" y="145" text-anchor="middle" font-size="11" fill="#fff">Chosen 3, Rejected 3 → 결과 6.1 (거의 변화 없음)</text>
+
+  <rect x="390" y="165" width="300" height="30" rx="6" fill="#dc2626"/>
+  <text x="540" y="185" text-anchor="middle" font-size="11" fill="#fff">Chosen 2, Rejected 3 → 결과 1.1 (반대 방향)</text>
+
+  <text x="540" y="215" text-anchor="middle" font-size="10" fill="#64748b">양의 delta만으로 폭발적 확장</text>
+
+  <!-- Insight box -->
+  <rect x="80" y="240" width="560" height="150" rx="14" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="360" y="270" text-anchor="middle" font-size="13" font-weight="700" fill="#92400e">놀라운 발견</text>
+  <text x="360" y="298" text-anchor="middle" font-size="12" fill="#78350f">Chosen=3, Rejected=2 (둘 다 baseline 5.9보다 낮음)로 학습했더니</text>
+  <text x="360" y="320" text-anchor="middle" font-size="12" fill="#78350f">결과는 <b>81 섹션</b> — chosen의 <b>27배!</b></text>
+  <text x="360" y="345" text-anchor="middle" font-size="11" fill="#78350f">→ 모델은 chosen을 그대로 따라한 게 아님</text>
+  <text x="360" y="365" text-anchor="middle" font-size="11" fill="#78350f">→ chosen과 rejected의 <b>차이 방향(더 많은 섹션)</b>을 학습해</text>
+  <text x="360" y="382" text-anchor="middle" font-size="11" fill="#78350f">그 방향으로 <b>확장</b>했다</text>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 러닝 코치의 조언</div>
+"오늘 5km 뛴 러너에게 3km 뛴 러너보다 나은 페이스"라고 코칭받은 마라토너는, 다음에 <b>10km, 20km</b>를 뛸 수 있게 됩니다. 코치가 예로 든 두 사람(5km와 3km)보다 훨씬 멀리 뛰죠. Delta learning의 마법은 여기에 있어요: 학생이 예제의 절대 크기를 따라가는 게 아니라, <b>예제가 가리키는 방향</b>으로 확장합니다.
+</div>
+
+<h3>실험 2: 자기보다 약한 모델의 답변으로 자기를 개선</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">Llama-3.1-8B (강함) vs. Llama-3.2-3B (약함)</text>
+
+  <rect x="30" y="60" width="290" height="80" rx="12" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="175" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#1e3a8a">Chosen (선호): 8B가 만든 답변</text>
+  <text x="175" y="105" text-anchor="middle" font-size="11" fill="#312e81">= 학습되는 모델 자신의 답변</text>
+  <text x="175" y="125" text-anchor="middle" font-size="10" fill="#312e81">(현재 능력과 정확히 같음)</text>
+
+  <rect x="400" y="60" width="290" height="80" rx="12" fill="#e2e8f0" stroke="#64748b"/>
+  <text x="545" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#334155">Rejected (거부): 3B가 만든 답변</text>
+  <text x="545" y="105" text-anchor="middle" font-size="11" fill="#334155">= <b>약한</b> 형제 모델의 답변</text>
+  <text x="545" y="125" text-anchor="middle" font-size="10" fill="#334155">(현재 능력보다 낮음)</text>
+
+  <rect x="140" y="170" width="440" height="70" rx="12" fill="#fce7f3" stroke="#ec4899" stroke-width="2"/>
+  <text x="360" y="195" text-anchor="middle" font-size="13" font-weight="700" fill="#831843">DPO 결과: +0.4점 개선!</text>
+  <text x="360" y="217" text-anchor="middle" font-size="11" fill="#831843">자기 답변(=현재 능력)을 선호하도록 학습했는데</text>
+  <text x="360" y="233" text-anchor="middle" font-size="11" fill="#831843">자기 능력을 <b>넘어서 확장</b> — MATH, GSM, AlpacaEval 모두 상승</text>
+</svg>
+</div>
+
+<p>이 실험이 특히 의미 있는 이유: chosen이 "학습되는 모델 자신"이므로, chosen에는 <b>새로운 정보가 전혀 없음</b>. 그럼에도 DPO는 개선을 이끌어냄. 즉 <b>delta(자신 vs. 약한 형제)의 방향</b>이 실제 개선 방향과 정렬된다는 실증.</p>
+
+</section>
+
+<!-- 실용적 결과 -->
+<section>
+<h2>실용적 임팩트: GPT-4o 없이 SOTA</h2>
+
+<h3>Tülu 3 원본 vs. 이 논문의 간단한 recipe</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">두 recipe 비교</text>
+
+  <!-- Original Tülu 3 -->
+  <rect x="30" y="60" width="310" height="260" rx="14" fill="#fef2f2" stroke="#dc2626" stroke-width="2"/>
+  <text x="185" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#991b1b">기존 Tülu 3 Recipe</text>
+
+  <rect x="60" y="105" width="250" height="35" rx="6" fill="#fecaca"/>
+  <text x="185" y="127" text-anchor="middle" font-size="10" fill="#7f1d1d">Strong Model Pool: 22개 모델</text>
+
+  <rect x="60" y="150" width="250" height="35" rx="6" fill="#fecaca"/>
+  <text x="185" y="172" text-anchor="middle" font-size="10" fill="#7f1d1d">Llama 70B, Qwen 72B, GPT-4o, Gemma...</text>
+
+  <rect x="60" y="195" width="250" height="35" rx="6" fill="#fecaca"/>
+  <text x="185" y="217" text-anchor="middle" font-size="10" fill="#7f1d1d">GPT-4o Judge로 품질 평가</text>
+
+  <rect x="60" y="240" width="250" height="35" rx="6" fill="#dc2626"/>
+  <text x="185" y="262" text-anchor="middle" font-size="10" fill="#fff">비용: 약 $10,000 GPT-4o 사용료</text>
+
+  <rect x="60" y="280" width="250" height="30" rx="6" fill="#fecaca"/>
+  <text x="185" y="300" text-anchor="middle" font-size="11" fill="#991b1b" font-weight="700">평균 성능: 63.0</text>
+
+  <!-- New recipe -->
+  <rect x="380" y="60" width="310" height="260" rx="14" fill="#fdf2f8" stroke="#ec4899" stroke-width="2"/>
+  <text x="535" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#831843">이 논문의 간단한 Recipe</text>
+
+  <rect x="410" y="105" width="250" height="35" rx="6" fill="#fbcfe8"/>
+  <text x="535" y="127" text-anchor="middle" font-size="10" fill="#831843">Weak Model Pool: 2개 모델</text>
+
+  <rect x="410" y="150" width="250" height="35" rx="6" fill="#fbcfe8"/>
+  <text x="535" y="172" text-anchor="middle" font-size="10" fill="#831843">Qwen 2.5 3B + Qwen 2.5 1.5B</text>
+
+  <rect x="410" y="195" width="250" height="35" rx="6" fill="#fbcfe8"/>
+  <text x="535" y="217" text-anchor="middle" font-size="10" fill="#831843">"큰 게 chosen" — <b>Judge 없음</b></text>
+
+  <rect x="410" y="240" width="250" height="35" rx="6" fill="#059669"/>
+  <text x="535" y="262" text-anchor="middle" font-size="10" fill="#fff">비용: 거의 0 (작은 모델 forward)</text>
+
+  <rect x="410" y="280" width="250" height="30" rx="6" fill="#fbcfe8"/>
+  <text x="535" y="300" text-anchor="middle" font-size="11" fill="#831843" font-weight="700">평균 성능: <b>63.4 (+0.4)</b></text>
+</svg>
+</div>
+
+<p>충격적 발견: <b>GPT-4o 없이, 22개 강한 모델 pool 없이, 오직 Qwen 2.5 3B와 1.5B 두 개의 약한 모델만으로</b>도, 원본 Tülu 3와 <b>동등한 (오히려 소폭 앞선) 성능</b>을 달성.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 교사 없이 학생끼리 공부하기</div>
+지금까지 AI 교육은 "천재 과외 선생님(GPT-4o)이 필요하다"였습니다. 이 논문은 <b>"학년별로 두 학생만 있으면 충분하다"</b>고 증명. 3학년 학생 답변과 1.5학년 답변만 있으면, 그 <b>실력 차이</b>가 8학년 학생의 성장을 이끕니다.
+</div>
+
+</section>
+
+<!-- 이론 -->
+<section>
+<h2>왜 이게 되는가? (이론)</h2>
+
+<p>이 논문은 <b>logistic regression</b>이라는 단순한 수학 모델에서 이 현상을 증명합니다. 직관적으로:</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#831843">두 약한 선생님의 delta가 정답 방향을 가리킬 때</text>
+
+  <!-- Coordinate system -->
+  <line x1="360" y1="290" x2="360" y2="60" stroke="#94a3b8" stroke-width="1"/>
+  <line x1="100" y1="200" x2="620" y2="200" stroke="#94a3b8" stroke-width="1"/>
+
+  <!-- Ground truth θ* -->
+  <line x1="360" y1="200" x2="580" y2="90" stroke="#059669" stroke-width="4" marker-end="url(#gt)"/>
+  <text x="595" y="82" font-size="12" fill="#059669" font-weight="700">θ* (정답)</text>
+
+  <!-- Student θ_S (weak but closest to θ*) -->
+  <line x1="360" y1="200" x2="520" y2="130" stroke="#7c3aed" stroke-width="3" marker-end="url(#stu)"/>
+  <text x="530" y="125" font-size="12" fill="#7c3aed" font-weight="700">Student</text>
+
+  <!-- Teacher θ_1 (chosen, weak) -->
+  <line x1="360" y1="200" x2="470" y2="170" stroke="#ec4899" stroke-width="3" marker-end="url(#t1)"/>
+  <text x="480" y="170" font-size="11" fill="#ec4899" font-weight="700">Chosen (약함)</text>
+
+  <!-- Teacher θ_2 (rejected, weaker) -->
+  <line x1="360" y1="200" x2="430" y2="230" stroke="#94a3b8" stroke-width="3" marker-end="url(#t2)"/>
+  <text x="445" y="245" font-size="11" fill="#64748b" font-weight="700">Rejected (더 약함)</text>
+
+  <!-- Delta arrow -->
+  <line x1="430" y1="230" x2="470" y2="170" stroke="#f472b6" stroke-width="4" stroke-dasharray="5,3" marker-end="url(#delta)"/>
+  <text x="510" y="205" font-size="12" fill="#f472b6" font-weight="700">Delta 방향</text>
+
+  <!-- Insight -->
+  <rect x="100" y="300" width="520" height="30" rx="8" fill="#fef3c7"/>
+  <text x="360" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">두 약한 선생님의 delta가 정답 방향과 <b>부분 정렬</b> → 학생이 그 방향으로 개선</text>
+
+  <defs>
+    <marker id="gt" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#059669"/></marker>
+    <marker id="stu" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7c3aed"/></marker>
+    <marker id="t1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#ec4899"/></marker>
+    <marker id="t2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8"/></marker>
+    <marker id="delta" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 z" fill="#f472b6"/></marker>
+  </defs>
+</svg>
+</div>
+
+<p>핵심 통찰: chosen과 rejected 두 선생님이 <b>개별적으로는</b> 학생보다 못해도, 그들 사이의 <b>차이 벡터(delta)</b>가 정답 방향과 정렬되어 있다면, 학생은 그 방향으로 개선됩니다. 두 선생님의 <b>strength gap이 정답 방향의 근사치</b>를 제공하는 것.</p>
+
+</section>
+
+<!-- 성과 -->
+<section>
+<h2>핵심 성과</h2>
+
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="num">$10K</div>
+    <div class="label">GPT-4o 비용<br>완전 절감</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">10×</div>
+    <div class="label">데이터 생성<br>FLOPs 절감</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">63.4</div>
+    <div class="label">11개 벤치 평균<br>Tülu 3와 tied</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">80.5%</div>
+    <div class="label">모델 크기가<br>GPT-4o 판정과 일치</div>
+  </div>
+</div>
+
+<h3>11개 벤치마크에서의 결과</h3>
+
+<table class="comp-table">
+<thead><tr><th>Recipe</th><th>MMLU</th><th>MATH</th><th>GSM8K</th><th>AlpacaEval2</th><th>IFEval</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Tülu-3-8B-SFT (baseline)</td><td>66.1</td><td>31.2</td><td>76.0</td><td>12.2</td><td>71.3</td><td>57.2</td></tr>
+<tr><td>+ Llama 3B over 1B</td><td>68.8</td><td>40.9</td><td>81.5</td><td>24.9</td><td>75.0</td><td>61.1</td></tr>
+<tr class="highlight-row"><td>+ Qwen 3B over 1.5B (제안)</td><td>69.4</td><td>42.6</td><td>83.4</td><td><b>36.1</b></td><td>78.6</td><td><b>63.4</b></td></tr>
+<tr><td>+ 원본 Tülu 3 Preference (GPT-4o)</td><td>69.8</td><td>42.6</td><td>84.2</td><td>32.8</td><td>80.4</td><td>63.0</td></tr>
+</tbody>
+</table>
+
+<p>제안 recipe가 원본과 <b>본질적으로 동률 (63.4 vs 63.0)</b>. 특히 AlpacaEval2에서는 36.1로 원본 32.8보다 <b>더 나음</b>.</p>
+
+</section>
+
+<!-- 기존 대비 장점 -->
+<section>
+<h2>기존 방법 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>비교 항목</th><th>기존 상식</th><th>Delta Learning</th></tr></thead>
+<tbody>
+<tr><td>Chosen 응답 품질</td><td>학습 대상 모델보다 <b>강해야</b> 함</td><td>학습 대상 모델보다 <b>약해도</b> OK</td></tr>
+<tr><td>Preference judge</td><td>GPT-4o 같은 강한 judge</td><td>모델 크기가 대체 (80.5% agreement)</td></tr>
+<tr><td>비용</td><td>$10K+ annotation</td><td>거의 0 (작은 모델 forward만)</td></tr>
+<tr><td>Frontier 모델 의존</td><td>필수</td><td>불필요</td></tr>
+<tr><td>Superhuman 학습</td><td>이론적으로 불가능</td><td>이론적 문 개방</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- 활용 -->
+<section>
+<h2>어디에 쓸 수 있나?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="360" cy="190" r="65" fill="url(#dlg1)"/>
+  <defs>
+    <linearGradient id="dlg1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ec4899"/>
+      <stop offset="1" stop-color="#f472b6"/>
+    </linearGradient>
+  </defs>
+  <text x="360" y="185" text-anchor="middle" font-size="14" font-weight="700" fill="#fff">Delta Learning</text>
+  <text x="360" y="205" text-anchor="middle" font-size="10" fill="#fce7f3">약한 데이터로 강한 모델</text>
+
+  <g font-size="11" fill="#1e293b">
+    <line x1="315" y1="150" x2="180" y2="80" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="40" y="55" width="170" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="125" y="80" text-anchor="middle" font-weight="700">💰 저비용 post-training</text>
+    <text x="125" y="98" text-anchor="middle" font-size="10">스타트업/학계 접근성</text>
+
+    <line x1="405" y1="150" x2="540" y2="80" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="510" y="55" width="170" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="595" y="80" text-anchor="middle" font-weight="700">🎓 학술 오픈소스</text>
+    <text x="595" y="98" text-anchor="middle" font-size="10">GPT-4o 의존 제거</text>
+
+    <line x1="295" y1="190" x2="180" y2="190" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="30" y="165" width="150" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="105" y="190" text-anchor="middle" font-weight="700">🌍 소버린 AI</text>
+    <text x="105" y="208" text-anchor="middle" font-size="10">외부 API 없이 자국 훈련</text>
+
+    <line x1="425" y1="190" x2="540" y2="190" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="540" y="165" width="150" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="615" y="190" text-anchor="middle" font-weight="700">🚀 Superhuman</text>
+    <text x="615" y="208" text-anchor="middle" font-size="10">인간 초월 훈련의 문</text>
+
+    <line x1="315" y1="235" x2="180" y2="310" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="40" y="285" width="170" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="125" y="310" text-anchor="middle" font-weight="700">📊 데이터 재활용</text>
+    <text x="125" y="328" text-anchor="middle" font-size="10">"약한" 데이터 폐기 X</text>
+
+    <line x1="405" y1="235" x2="540" y2="310" stroke="#f9a8d4" stroke-width="2"/>
+    <rect x="510" y="285" width="170" height="55" rx="10" fill="#fdf2f8" stroke="#ec4899"/>
+    <text x="595" y="310" text-anchor="middle" font-weight="700">🎯 도메인 특화</text>
+    <text x="595" y="328" text-anchor="middle" font-size="10">전문 지식 없이 튜닝</text>
+  </g>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 무한 자기개선의 열쇠</div>
+Delta learning의 가장 흥미로운 함의는 <b>Superhuman AI 훈련의 이론적 문</b>을 열었다는 것입니다. 지금까지는 "AI를 개선하려면 인간이나 더 나은 AI가 필요"라고 여겨졌지만, 이 논문은 <b>두 약한 응답의 차이만 있으면 학생 AI가 그것을 넘어 개선</b>됨을 보였습니다. 이론적으로는 이 프로세스를 반복하면 인간 초월적 AI로 이어질 수 있어요.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 인공위성 궤도 계산</div>
+두 지점 A, B의 좌표만 정확히 알면 그 방향으로의 궤도를 계산할 수 있습니다. A와 B가 지구 표면 위에 있어도 (즉 우주 궤도가 아니어도), 그 방향 벡터는 유용합니다. Delta learning의 수학적 핵심은 <b>두 약한 점의 상대 위치가 정답 방향의 유용한 근사</b>라는 것.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 자율주행의 강화학습</div>
+자율주행 훈련 시, 두 명의 인간 운전자가 있으면 됩니다: A(30점 실력), B(20점 실력). "A가 B보다 낫다"는 신호로 자율주행 AI는 <b>A보다 더 잘하는 방향</b>으로 학습합니다. 두 인간 다 완벽하지 않아도, 상대적 우열만으로 AI는 확장합니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 저평가된 데이터의 재발견</div>
+지금까지 "약한" 모델로 만든 데이터는 "쓸모없다"고 버려졌습니다. Delta learning은 <b>이 폐기된 데이터가 pair로 조합되면 여전히 학습 신호를 담고 있음</b>을 보여줍니다. 전 세계 AI 커뮤니티가 축적한 "약한" 데이터가 새로운 자원으로 부활할 잠재력.
+</div>
+
+</section>
+
+<!-- 결론 -->
+<section>
+<div class="one-liner">
+"약함 + 약함 = 강함" — <br>
+AI 학습의 상식을 뒤집은 <b>단순하면서 강력한 발견</b>
+</div>
+</section>
+
+<!-- 한계점 -->
+<section>
+<h2>한계점 (Limitations)</h2>
+
+<div class="card card-orange">
+<p><b>⚠️ Delta 크기의 상한 (saturate at Δ≈0.55)</b></p>
+<p>Delta magnitude가 어느 정도 커지면 성능 개선이 plateau. Delta learning으로 무한정 강해질 수는 없음.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 너무 강한 pair는 오히려 손상</b></p>
+<p>Qwen 72B vs 32B pair는 base model보다 훨씬 강해 <b>학습을 오히려 손상</b>. Chosen과 rejected 모두 base와 <b>과도하게 멀면 실패</b>. 정확한 sweet spot 규명 부재.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 절대 품질의 하한도 필요</b></p>
+<p>Qwen 1.5B (base보다 매우 약함) chosen은 outlier로 delta 예측보다 작은 gain. <b>어느 정도 이상의 절대 품질도 필요</b>.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 실험 알고리즘 다양성 제한</b></p>
+<p>DPO, SimPO만 검증. PPO, KTO, RLHF 같은 다른 preference tuning 방법에도 성립하는지 미검증.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 이론이 매우 단순화된 세팅</b></p>
+<p>Logistic regression에서 증명. 실제 LLM (비선형, 고차원, discrete output)에 얼마나 extrapolate되는지는 open question.</p>
+</div>
+
+</section>
+
+<section style="text-align: center; margin-top: 3rem;">
+<a href="20260806_geng_delta-learning.html" style="display: inline-block; background: linear-gradient(135deg, #ec4899, #f472b6); color: white; padding: 0.8rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 700;">📖 전문가용 상세 요약 보기 →</a>
+</section>
+
+</div>
+
+<div class="footer">
+<p><b>The Delta Learning Hypothesis: Preference Tuning on Weak Data can Yield Strong Gains</b></p>
+<p>Scott Geng, Hamish Ivison, Chun-Liang Li, Maarten Sap, Jerry Li, Ranjay Krishna, Pang Wei Koh · COLM 2025</p>
+<p>University of Washington · Allen Institute for AI · Carnegie Mellon University</p>
+<p><a href="https://arxiv.org/pdf/2507.06187">arXiv:2507.06187</a></p>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Delta Learning Hypothesis: Preference Tuning on Weak Data can Yield Strong Gains</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #ec4899; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 1rem 0; }
+  .brief-link:hover { background: #db2777; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>The Delta Learning Hypothesis: Preference Tuning on Weak Data can Yield Strong Gains</h1>
+
+<a href="20260806_geng_delta-learning_brief.html" class="brief-link">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Scott Geng, Hamish Ivison, Chun-Liang Li, Maarten Sap, Jerry Li, Ranjay Krishna, Pang Wei Koh</li>
+  <li><strong>소속</strong>: University of Washington, Allen Institute for AI, Carnegie Mellon University</li>
+  <li><strong>학회/저널</strong>: COLM 2025 (Conference on Language Modeling)</li>
+  <li><strong>arXiv</strong>: <a href="https://arxiv.org/pdf/2507.06187">arXiv:2507.06187v1</a> (2025-07-08)</li>
+  <li><strong>GitHub</strong>: <a href="https://github.com/scottgeng00/delta-learning">scottgeng00/delta-learning</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 언어모델을 강화 (preference tuning, e.g., DPO)하려면 <em>강한 감독</em> (chosen response) — 큰 모델(GPT-4o)이 만든 고품질 답변이 필요하다는 게 통념. 이 통념 하에서 open-source post-training(예: Tülu 3)은 GPT-4o 같은 프론티어 모델에 의존해야 해 비용이 높고 접근성이 낮다.</li>
+  <li><strong>해결</strong>: <strong>Delta Learning Hypothesis</strong> — <em>절대적 품질</em>이 낮은 두 응답 $y_c, y_r$이라도 그들 사이의 <em>상대적 품질 차이(delta)</em>가 명확하면 preference tuning으로 학습 가능. Chosen response가 학습되는 모델 자체보다 <strong>약해도(!) 성능이 개선</strong>된다. 실증: Tülu-3-8B-SFT를 Qwen 2.5 3B (chosen) + Qwen 2.5 1.5B (rejected)로 tune하면 GPT-4o + 70B teacher pool을 쓰는 원본 Tülu 3와 <strong>동등한 성능</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Preference tuning은 절대 utility가 아닌 <em>방향(direction)</em>을 학습. Chosen이 rejected보다 좋다는 신호가 있으면, 강한 모델은 그 방향을 따라 자신의 원래 capability를 <em>넘어서</em> 확장 가능. (2) Logistic regression 이론적 분석: 두 약한 teacher $\theta_1, \theta_2$가 개별적으로는 학생 $\theta_S$보다 나빠도, 그들 사이의 gap이 학생을 개선시키기에 충분. Delta 방향과 ground truth $\theta^*$ 방향이 <em>부분적으로 일치</em>하기 때문.</li>
+  <li><strong>비유</strong>: 마라토너에게 코치를 붙일 때, 코치 실력 자체보다 <b>"동일한 훈련량에서 A 코치가 B 코치보다 낫다"는 방향</b>을 알면 도움이 된다. A, B가 마라토너보다 느려도 상관없다. "느린 두 사람의 상대적 우열만으로도 더 빠른 사람에게 배움을 줄 수 있다."</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Delta Learning Hypothesis 정식화</strong>: paired preference data $(x, y_c, y_r)$가 (a) $y_c$의 utility가 학습 대상 모델 $M$의 현재 capability 이하이며 (b) $\mu(x, y_c) > \mu(x, y_r)$인 경우, preference tuning이 $M$을 $\mu(x, y_c)$를 <em>넘어서</em> 개선시킨다는 가설.</li>
+  <li><strong>Pilot Case Study (Section 2)</strong>: Ultrafeedback-Weak (chosen/rejected 모두 <em>Llama 3보다 약한</em> 모델에서 생성) preference data로 Llama-3.2-3B/8B-Instruct DPO 학습. SFT는 -3.8% (3B) / -7.8% (8B) 손실, ##DPO는 +1.2% / +0.6% 개선## — "SFT hurts, DPO helps"의 명확한 실증.</li>
+  <li><strong>Controlled Delta Experiments</strong>: (a) Stylistic delta — bold-section 개수를 $\mu$로 정의, chosen=3섹션 rejected=2섹션 → 학습 후 81.1개 섹션 생성 (+75.2배 대비 baseline). Delta 반전 시 -4.8, delta 0 시 +0.2 (positive delta가 결정적). (b) Semantic delta — Llama-3.1-8B-Instruct의 self-generated $y_M$ vs. Llama-3.2-3B-Instruct의 $y_m$: DPO로 self > weaker preference tune → +0.4점 일관된 개선.</li>
+  <li><strong>Practical Recipe</strong>: Tülu 3 replication with weak teachers only. Qwen 2.5 3B (chosen) + Qwen 2.5 1.5B (rejected) — <strong>둘 다 Tülu-3-8B-SFT보다 약함</strong>. GPT-4o quality judge 대신 <em>모델 크기</em>를 quality proxy로. ##11-benchmark suite에서 원본 Tülu 3 recipe와 +0.4점 tied (63.4 vs 63.0)##.</li>
+  <li><strong>Analysis of factors</strong>: (a) Quality delta magnitude가 downstream 성능의 <em>가장 강한 예측변수</em>, $\Delta \approx 0.55$에서 saturate (Figure 3). (b) Model size는 GPT-4o judge와 80.5% agreement (인간 65% baseline보다 높음)를 보이는 놀랍도록 정확한 quality proxy. (c) Chosen response의 absolute quality는 quickly diminishing returns.</li>
+  <li><strong>Theoretical Analysis (Section 6)</strong>: Logistic regression 세팅에서 delta learning이 student improvement를 <em>with high probability</em> 보장함을 증명. 두 teacher $\theta_1, \theta_2$의 <em>strength gap</em>만으로도 학생 향상에 충분한 신호 확보.</li>
+</ol>
+
+<h2>배경 지식 (Background)</h2>
+
+<h3>Preference Tuning과 DPO</h3>
+<p>Reinforcement Learning from Human Feedback (RLHF) 는 human annotator가 두 후보 응답 중 나은 것을 선택 → reward model 학습 → PPO로 policy 업데이트하는 파이프라인. <strong>Direct Preference Optimization (DPO)</strong> (Rafailov et al. 2024)은 이를 우회해 preference pair $(x, y_c, y_r)$ 직접 학습:</p>
+$$\mathcal{L}_{\text{DPO}}(\pi_\theta) = -\mathbb{E}_{(x,y_c,y_r)} \left[\log \sigma\left(\beta \log \frac{\pi_\theta(y_c|x)}{\pi_{\text{ref}}(y_c|x)} - \beta \log \frac{\pi_\theta(y_r|x)}{\pi_{\text{ref}}(y_r|x)}\right)\right].$$
+
+<p>직관적으로: 학습되는 policy $\pi_\theta$가 reference policy $\pi_{\text{ref}}$에 비해 <em>chosen을 상대적으로 더 선호</em>하도록 유도.</p>
+
+<h3>Tülu 3 Recipe (Lambert et al. 2024)</h3>
+<p>Open-source post-training SOTA. 8B/70B 모델을 Llama 3 base 위에 학습. Preference tuning stage (Tülu-3-8B-SFT → Tülu-3-8B-DPO):</p>
+<ul>
+  <li>271K 다양한 prompt</li>
+  <li>Chosen response: 22개 강한 모델 pool (Llama-3.1-70B-Instruct, Qwen 2.5 72B-Instruct, GPT-4o, Gemma 등) 중 best 선택</li>
+  <li>Judge: GPT-4o (~$10,000 USD annotation 비용)</li>
+  <li>Chosen = highest-scored, Rejected = lower-scored</li>
+</ul>
+
+<p>이 recipe의 가정: (a) chosen response 생성에 학습 대상 모델보다 강한 supervisor 필요 (70B로 8B 학습), (b) preference annotation에 프론티어 judge 필요 (GPT-4o).</p>
+
+<h3>기존 관찰: Weak-to-Strong Learning</h3>
+<p>Yao et al. 2024, Zhu et al. 2024가 pilot 관찰: weak model의 output으로 preference tuning하면 SFT에서는 손실이지만 DPO에서는 개선. 이 논문이 이 phenomenon을 <em>이론화</em>하고 <em>대규모 실증</em>한 것.</p>
+
+<h2>방법론 (Methodology)</h2>
+
+<h3>Formal Statement</h3>
+<p>$\mu(x, y)$: prompt $x$에 대한 응답 $y$의 utility (human preference 또는 임의의 target function). Delta Learning Hypothesis:</p>
+
+<blockquote>
+자연스러운 preference pair $(x, y_c, y_r)$이 존재해 $\mu(x, y_c) > \mu(x, y_r)$이고 다음이 성립:
+<ol>
+  <li><strong>Low absolute utility</strong>: $\mu(x, y_c) \leq$ 현재 model $M$의 capability</li>
+  <li><strong>Extrapolated gain</strong>: Preference tuning on $(x, y_c, y_r)$이 $M$을 $\mu(x, y_c)$를 <em>넘어</em> 개선.</li>
+</ol>
+</blockquote>
+
+<p>즉 "chosen response의 절대 품질은 낮아도 (심지어 $M$ 자체보다 나빠도) 학습 신호가 유효".</p>
+
+<h3>Section 2 — Warm-up Case Study</h3>
+
+<p><strong>데이터</strong>: UltraFeedback (Cui et al. 2023) 필터링. LMSYS Chatbot Arena ELO score가 Llama-3.2-3B-Instruct 근접 이상인 모델의 response는 <strong>모두 exclude</strong>. Chosen $y_c$가 Llama 3보다 <em>약한</em> 모델에서 유래. Rejected $y_r$보다는 여전히 우수. 이를 <strong>UltraFeedback-Weak</strong>이라 명명.</p>
+
+<p><strong>학습</strong>: Llama-3.2-3B-Instruct와 Llama-3.1-8B-Instruct를 UltraFeedback-Weak에서:</p>
+<ol>
+  <li>(1) DPO with preference pairs $(x, y_c, y_r)$</li>
+  <li>(2) SFT directly on chosen $(x, y_c)$</li>
+</ol>
+
+<p><strong>결과 (Table 1)</strong>:</p>
+<table>
+<thead><tr><th>Model / Training</th><th>MMLU</th><th>AE2</th><th>Full Avg (8 benchmarks)</th></tr></thead>
+<tbody>
+<tr><td>Llama-3.2-3B-Inst.</td><td>62.9</td><td>18.7</td><td>57.8</td></tr>
+<tr><td>+ UF-Weak <span style="color:#c25a00">SFT</span></td><td>61.8</td><td>12.3</td><td>54.0 (<span style="color:#c25a00">-3.8</span>)</td></tr>
+<tr><td>+ UF-Weak <span style="color:#0077bb">DPO</span></td><td>64.0</td><td>22.4</td><td>59.0 (<span style="color:#0077bb">+1.2</span>)</td></tr>
+<tr><td>Llama-3.1-8B-Inst.</td><td>71.8</td><td>24.9</td><td>63.9</td></tr>
+<tr><td>+ UF-Weak <span style="color:#c25a00">SFT</span></td><td>65.7</td><td>8.9</td><td>56.1 (<span style="color:#c25a00">-7.8</span>)</td></tr>
+<tr><td>+ UF-Weak <span style="color:#0077bb">DPO</span></td><td>72.0</td><td>26.3</td><td>64.5 (<span style="color:#0077bb">+0.6</span>)</td></tr>
+</tbody>
+</table>
+
+<p><strong>핵심 관찰</strong>: ##SFT는 8개 벤치 평균 -3.8~-7.8점 손실, DPO는 +1.2~+0.6 개선##. 동일한 weak chosen response인데 학습 알고리즘에 따라 결과가 완전히 반대. Preference tuning이 <em>pairwise contrast</em>에서 새로운 signal을 추출한다는 증거.</p>
+
+<h3>Section 3 — Controlled Delta Experiments</h3>
+
+<h4>3.1 Stylistic Delta (Bold Sections)</h4>
+
+<p><strong>Setup</strong>: $\mu(x, y) = y$에 포함된 Markdown bold section header 개수. Baseline Llama-3.2-3B-Instruct는 평균 5.9 sections 생성. 다양한 prompt-response 쌍에서 $k_i$개 sections 응답 생성 → chosen ($k_i > k_j$) / rejected ($k_j$) preference pair 형성.</p>
+
+<p><strong>결과 (Table 2)</strong>:</p>
+<table>
+<thead><tr><th>Setting</th><th>Chosen sections</th><th>Rejected sections</th><th>Section Δ</th><th># Generated after tuning</th></tr></thead>
+<tbody>
+<tr><td>Baseline (no tuning)</td><td>—</td><td>—</td><td>—</td><td>5.9</td></tr>
+<tr><td>SFT on chosen=9</td><td>9</td><td>—</td><td>—</td><td>24.6 (<span style="color:#0077bb">+18.7</span>)</td></tr>
+<tr><td>SFT on chosen=3</td><td>3</td><td>—</td><td>—</td><td>4.4 (<span style="color:#c25a00">-1.5</span>)</td></tr>
+<tr><td>SFT on chosen=2</td><td>2</td><td>—</td><td>—</td><td>2.9 (<span style="color:#c25a00">-3.0</span>)</td></tr>
+<tr><td><strong>DPO chosen=3, rejected=2</strong></td><td>3</td><td>2</td><td><strong>+1</strong></td><td><strong>81.1 (<span style="color:#0077bb">+75.2</span>)</strong></td></tr>
+<tr><td>DPO chosen=2, rejected=3 (control)</td><td>2</td><td>3</td><td>-1</td><td>1.1 (<span style="color:#c25a00">-4.8</span>)</td></tr>
+<tr><td>DPO chosen=3, rejected=3 (control)</td><td>3</td><td>3</td><td>0</td><td>6.1 (+0.2)</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>SFT: chosen quality가 baseline (5.9)보다 <em>높으면</em>(9) 학습 성공(+18.7), <em>낮으면</em>(3, 2) 실패 (-1.5, -3.0)</li>
+  <li>DPO chosen=3 rejected=2: 두 응답 <em>모두 baseline보다 낮은</em> 절대 품질. 그러나 delta +1이 존재 → learn 결과가 <strong>81.1 sections</strong>로 폭발적 extrapolation (chosen보다도 27배 많음!)</li>
+  <li>DPO 반전 (chosen=2 rejected=3): -4.8 손실, 즉 <em>negative delta는 반대 방향</em>으로 학습</li>
+  <li>DPO 동일 (chosen=3 rejected=3): +0.2, <em>delta 0은 학습 신호 없음</em></li>
+</ul>
+
+<p><strong>이 실험이 뒷받침하는 주장</strong>: ##Positive delta가 (chosen이 baseline보다 낮은 절대 품질임에도 불구하고) preference tuning의 학습을 결정하는 <em>인과적</em> 요소##. Delta 방향이 학습 방향을 결정.</p>
+
+<h4>3.2 Semantic Delta from Weaker Model</h4>
+
+<p><strong>Setup</strong>: Llama-3.1-8B-Instruct의 self-generated response $y_M = M(x)$ vs. weaker Llama-3.2-3B-Instruct의 response $y_m = m(x)$. 50k prompt로부터 preference pair $(x, y_M, y_m)$ 형성. DPO to prefer self over weaker sibling.</p>
+
+<p><strong>Control</strong>: (1) SFT on $y_M$ (definition: $M$의 current capability와 정확히 일치), (2) DPO with reversed preference ($y_m > y_M$).</p>
+
+<table>
+<thead><tr><th>Model / Training</th><th>MMLU</th><th>MATH</th><th>GSM</th><th>AEval2</th><th>IFEval</th><th>BBH</th><th>TQA</th><th>HEval+</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Llama-3.2-3B-Inst. (weaker)</td><td>62.9</td><td>39.6</td><td>75.7</td><td>18.7</td><td>76.5</td><td>61.6</td><td>50.6</td><td>76.8</td><td>57.8</td></tr>
+<tr><td>Llama-3.1-8B-Inst. (baseline)</td><td>71.8</td><td>43.0</td><td>83.7</td><td>24.9</td><td>78.2</td><td>72.7</td><td>55.1</td><td>81.6</td><td>63.9</td></tr>
+<tr><td>+ SFT (self-generated $y_M$)</td><td>72.2</td><td>42.2</td><td>82.9</td><td>24.3</td><td>76.3</td><td>72.1</td><td>53.4</td><td>78.0</td><td>62.7 (<span style="color:#c25a00">-1.2</span>)</td></tr>
+<tr><td>+ <span style="color:#0077bb">DPO (self $y_M$ over weaker $y_m$)</span></td><td>72.0</td><td><b>43.5</b></td><td><b>84.2</b></td><td><b>25.7</b></td><td><b>80.0</b></td><td>71.4</td><td><b>55.6</b></td><td><b>82.2</b></td><td><b>64.3 (<span style="color:#0077bb">+0.4</span>)</b></td></tr>
+<tr><td>+ DPO (weaker over self, control)</td><td>70.9</td><td>42.3</td><td>83.4</td><td>22.9</td><td>78.6</td><td>72.1</td><td>54.6</td><td>80.5</td><td>63.2 (<span style="color:#c25a00">-0.7</span>)</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>SFT on self-generated: -1.2 손실 (overfitting to own outputs, capacity에 gap 없음)</li>
+  <li>DPO (self > weaker): +0.4 개선. <strong>Positive delta가 자기 자신의 capability를 초과하는 학습을 유도</strong></li>
+  <li>DPO 역방향 (weaker > self): -0.7 손실. 대칭적 결과</li>
+</ul>
+
+<p>이 실험은 semantic delta (단순 style feature 아님)에도 delta learning이 확장됨을 보여준다.</p>
+
+<h3>Section 4 — Practical Recipe: Tülu with Weak Data</h3>
+
+<h4>4.2 Simple Recipe</h4>
+
+<p><strong>Baseline (Tülu 3 recipe)</strong>: 22 strong model pool → GPT-4o judge → chosen=best/rejected=lower → DPO tune Tülu-3-8B-SFT.</p>
+
+<p><strong>제안 recipe</strong>:</p>
+<ul>
+  <li><strong>Chosen response</strong>: Qwen 2.5 3B Instruct (single small model, 3B is at or below Tülu-3-8B-SFT capability). Data generation FLOPs를 ~6%로 축소 (10× 이상 절감)</li>
+  <li><strong>Rejected response</strong>: Qwen 2.5 1.5B Instruct (even weaker, model size를 quality proxy로)</li>
+  <li><strong>Preference annotation</strong>: <em>None</em>. Model size 자체가 quality signal — 큰 것이 chosen</li>
+  <li>기타 (prompt, base checkpoint Tülu-3-8B-SFT)는 원본과 동일</li>
+</ul>
+
+<p>추가로 (1) Qwen-2.5-3B-Instruct + Qwen-2.5-1.5B-Instruct, (2) Qwen-2.5-1.5B-Instruct + Qwen-2.5-0.5B-Instruct, (3) Llama-3.2-3B-Instruct + Llama-3.2-1B-Instruct 세 조합 실험.</p>
+
+<h4>4.3 Results (Table 4)</h4>
+
+<table>
+<thead><tr><th>Model / Preference Data</th><th>MMLU</th><th>PopQA</th><th>MATH</th><th>GSM</th><th>AE2</th><th>IFEval</th><th>BBH</th><th>DROP</th><th>TQA</th><th>HEval</th><th>HEval+</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Tülu-3-8B-SFT (baseline)</td><td>66.1</td><td>29.6</td><td>31.2</td><td>76.0</td><td>12.2</td><td>71.3</td><td>69.2</td><td>61.2</td><td>46.8</td><td>86.2</td><td>79.8</td><td>57.2</td></tr>
+<tr><td>+ Llama 3.2 3B over 1B</td><td>68.8</td><td>30.3</td><td>40.9</td><td>81.5</td><td>24.9</td><td>75.0</td><td>70.0</td><td>60.7</td><td>54.2</td><td>84.7</td><td>81.1</td><td>61.1</td></tr>
+<tr><td>+ Qwen 2.5 1.5B over 0.5B</td><td>67.4</td><td>29.9</td><td>39.9</td><td>79.8</td><td>15.8</td><td>72.5</td><td>70.8</td><td>61.8</td><td>52.1</td><td>83.7</td><td>78.1</td><td>59.3</td></tr>
+<tr><td><strong>+ Qwen 2.5 3B over 1.5B (best)</strong></td><td>69.4</td><td><b>31.7</b></td><td>42.6</td><td>83.4</td><td><b>36.1</b></td><td>78.6</td><td>69.4</td><td>62.0</td><td>57.7</td><td>84.4</td><td>81.7</td><td><b>63.4</b></td></tr>
+<tr><td>+ Tülu 3 Preference Dataset (baseline)</td><td>69.8</td><td>30.3</td><td>42.6</td><td>84.2</td><td>32.8</td><td>80.4</td><td>69.2</td><td>62.5</td><td>56.1</td><td>84.7</td><td>80.8</td><td>63.0</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: ##제안 recipe (Qwen 3B > 1.5B)이 원본 Tülu 3 recipe (GPT-4o + 22 model pool) 대비 +0.4 tied## (63.4 vs 63.0). GSM8K에서 특히 흥미 — Llama-3.2-3B over 1B 조합이 GSM8K +5.5점 (76.0 → 81.5), Llama가 Tülu보다 GSM8K에서 약함에도 delta learning phenomenon holds.</p>
+
+<p>세 조합 모두 +2.1 ~ +6.2 improvement. <em>어떤 chosen 모델로도</em>, 그것이 학습 대상보다 약하더라도, 유효한 gain 확인.</p>
+
+<h3>Section 5 — Analysis of Factors</h3>
+
+<h4>5.1 Quality Delta Magnitude가 downstream performance의 강한 예측자 (Figure 3)</h4>
+
+<p>21 preference datasets을 Qwen 2.5 family (0.5B/1.5B/3B/7B/14B/32B/72B)의 모든 pair (21 pairs)로 구성. GPT-4o quality judge로 chosen/rejected quality delta 측정 (1-5 scale). Tülu-3-8B-SFT를 DPO tune.</p>
+
+<p><strong>발견</strong>:</p>
+<ul>
+  <li>Delta magnitude vs. downstream avg performance <strong>강한 양의 상관</strong></li>
+  <li>$\Delta \approx 0.55$까지 monotonic increase, 이후 saturate/plateau</li>
+  <li>Tülu 3 preference dataset도 same trend에 fits (Δ, avg perf가 다른 recipe와 일관된 curve)</li>
+  <li>Outlier: Qwen-2.5-1.5B chosen. 이유는 1.5B가 <em>Tülu-3-8B-SFT보다 substantially weaker</em>인 유일한 chosen model — 절대 품질도 어느 정도 필요함을 시사</li>
+</ul>
+
+<h4>5.2 Chosen response의 absolute quality는 diminishing returns (Figure 4)</h4>
+<ul>
+  <li>SFT: chosen quality가 base model보다 <em>강해야만</em> gain (right of x=0). Gains scale with chosen quality monotonically.</li>
+  <li>DPO: chosen quality가 base model 이하여도 gain (green box, y > 0 in the left half). Response quality가 base model에 도달한 후 (x=0), further quality improvement가 downstream 개선에 거의 무관.</li>
+</ul>
+
+<h4>5.3 Ablations (Table 5)</h4>
+
+<p><strong>Model size heuristic vs. GPT-4o labels</strong>: Best weak dataset (Qwen 2.5 3B chosen, 1.5B rejected)에 GPT-4o judge를 붙여 re-labeling. Model size heuristic이 GPT-4o preferences와 <strong>80.5% agreement</strong> (GPT-4 vs. human annotator agreement가 65% baseline). Preference tuning 결과 comparable (63.4 vs. GPT-4o judge on same data 62.9).</p>
+
+<p><strong>Base model dependence</strong>: OLMo-2-7B-SFT에 same recipe (Qwen 2.5 3B over 1.5B) 적용. 원본 OLMo 2 preference dataset (heavier supervision) 54.8 vs. simple recipe 55.0 (+0.2). Base model에 관계없이 유효.</p>
+
+<p><strong>Preference algorithm</strong>: SimPO (Meng et al. 2024)에도 delta learning 성립.</p>
+
+<h3>Section 6 — Theoretical Analysis (Logistic Regression)</h3>
+
+<p><strong>Setup</strong>: Binary classification, intercept-free logistic regression. Input $x \sim \mathcal{N}(0, I_d)$, ground truth unit-norm $\theta^* \in \mathbb{R}^d$, labels $y^* = \mathbb{1}\{\langle\theta^*, x\rangle \geq 0\}$.</p>
+
+<p>모델 $\theta \in \mathbb{R}^d$의 population 0-1 loss:</p>
+$$\mathcal{L}_{0-1}(\theta) = \Pr_{x\sim\mathcal{N}(0,I_d)}\left[\text{sgn}\langle\theta,x\rangle \neq \text{sgn}\langle\theta^*,x\rangle\right] = \frac{1}{\pi}\arccos\frac{\langle\theta,\theta^*\rangle}{\|\theta\|_2}.$$
+
+<p>모델 $\theta$의 <em>strength</em>는 $\cos(\theta, \theta^*) = \langle\theta, \theta^*\rangle / \|\theta\|_2$에 비례.</p>
+
+<p><strong>Delta learning setup</strong>: 두 teacher $\theta_1, \theta_2$가 student $\theta_S$보다 <em>둘 다 약함</em> (즉 $\cos(\theta_1, \theta^*), \cos(\theta_2, \theta^*) < \cos(\theta_S, \theta^*)$). WLOG $\cos(\theta_1, \theta^*) > \cos(\theta_2, \theta^*)$ (즉 $\theta_1$이 $\theta_2$보다 slightly less bad).</p>
+
+<p>Preference pair $(x, y_c, y_r)$: $y_c = \text{sgn}\langle\theta_1, x\rangle$, $y_r = \text{sgn}\langle\theta_2, x\rangle$. 학생 $\theta_S$는 $y_c$를 preference tune.</p>
+
+<p><strong>Theorem (informal)</strong>: 학생 $\theta_S$가 preference tuning으로 개선 (즉 $\cos(\theta_S^{\text{new}}, \theta^*) > \cos(\theta_S^{\text{old}}, \theta^*)$)이 <strong>high probability로 보장</strong>됨, 두 teacher의 <em>strength gap</em>만으로도.</p>
+
+<p><strong>Intuition</strong>: Preference tune으로 학생이 학습하는 방향은 $\theta_1 - \theta_2$ 방향(대략)에 가깝다. 그리고 $\theta_1$이 $\theta_2$보다 $\theta^*$에 더 가까우면, $\theta_1 - \theta_2$ vector가 $\theta^*$와 <em>부분적으로 정렬</em>됨 (긍정적 inner product). 즉 delta 방향이 ground truth 방향으로의 이동을 정직하게 encode. 두 teacher가 개별적으로는 misleading해도, 그들 사이의 <em>gap</em>은 directional signal.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Bold section 실험의 인과적 명료함</strong>: chosen=3, rejected=2로 학습하면 결과가 <em>81 sections</em>. Chosen에 담긴 절대량 (3)의 27배로 폭발적 extrapolation. 이는 delta의 <em>방향</em>이 학습을 결정한다는 가장 청량한 증거. Reverse control (chosen=2, rejected=3)과 zero-delta control (both=3)의 결과가 hypothesis와 정확히 일치.</li>
+  <li><strong>Model size가 놀랍도록 정확한 quality proxy</strong>: GPT-4o judge와 80.5% agreement. 인간 annotator vs GPT-4 agreement가 ~65%임을 감안하면 놀라운 수치. 이 발견 하나만으로도 open-source post-training에서 GPT-4o 의존을 제거 가능.</li>
+  <li><strong>Practical impact</strong>: Tülu 3 recipe와 tied performance (+0.4). GPT-4o annotation ~$10,000 비용 완전 제거. 3B chosen model이 22-model pool보다 10× 저렴한 FLOPs. Open post-training의 진입장벽을 크게 낮춤.</li>
+  <li><strong>Logistic regression 이론</strong>: Empirical hypothesis에 formal underpinning. 두 weak teacher의 gap만으로도 학생 개선 with high probability 증명. Delta 방향이 ground truth 방향에 positive inner product를 갖는다는 geometry가 명료.</li>
+  <li><strong>3가지 축의 실험 다양성</strong>: Stylistic (bold sections), semantic (self vs. sibling), practical (Tülu replication). 각각 다른 lens로 hypothesis 검증. 특히 stylistic 실험이 <em>controllable</em> $\mu$에 대해 가장 clean한 실증.</li>
+  <li><strong>Saturation curve의 발견 ($\Delta \approx 0.55$)</strong>: Delta의 diminishing returns를 정량화. 실용적 recipe 설계 시 어느 델타가 "충분한지" 판단 가능.</li>
+  <li><strong>Generality</strong>: Base model (Tülu vs OLMo), preference algorithm (DPO vs SimPO), preference source (self-generated, 3rd party) 다양성에 걸쳐 성립.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Not all positive deltas drive learning</strong>: 저자 스스로 명시. Qwen 72B + 32B 및 72B + 14B pair는 positive delta임에도 <em>Tülu-3-8B-SFT보다 성능 저하</em>. 이 두 경우 모두 chosen과 rejected가 base보다 훨씬 강함 → chosen과 rejected의 log-likelihood가 <em>모두</em> DPO 학습 중 감소하는 현상 발견 (Razin et al. 2024가 지적). 즉 <em>얼마나 강하냐</em>도 영향.</li>
+  <li><strong>Delta size $\approx 0.55$에서 saturate → 강한 supervision의 상한</strong>: Model size gap을 무한히 늘려도 downstream이 개선되지 않음. 즉 <em>delta scaling</em>은 프론티어 성능의 궁극적 한계가 될 수 있음.</li>
+  <li><strong>Chosen quality의 minimum threshold 존재</strong>: Qwen 1.5B chosen은 outlier로 gap보다 작은 gain. 즉 <em>절대적으로 너무 약한</em> chosen은 delta의 이점을 상쇄. 정확한 threshold 규명 부재.</li>
+  <li><strong>Preference tuning 알고리즘 다양성 제한</strong>: DPO, SimPO만 검증. PPO, RLHF, KTO 같은 다른 방법도 성립하는지 불명.</li>
+  <li><strong>다른 학습 신호와의 상호작용</strong>: 이 논문은 preference tuning 단일 stage만 봤음. Multi-stage RL, verifiable reward RL과의 조합에서 delta learning이 유지되는지는 실증 부재.</li>
+  <li><strong>Evaluation의 편향</strong>: 11 벤치마크 평균. AlpacaEval-2 같은 지시 기반 평가에서 chosen=Qwen 3B이 여전히 +21.9점 개선 (12.2 → 36.1). 이는 diverse task 평균이 <em>style/format bias</em>를 masking할 수 있음을 시사. 스타일 편향으로 인한 spurious gain 배제 어려움.</li>
+  <li><strong>Theoretical analysis의 realism</strong>: Logistic regression은 매우 단순화된 setting. Realistic LLM setting (non-linear, high-dimensional, discrete output)에 얼마나 extrapolate되는지는 open question.</li>
+  <li><strong>Chosen이 rejected와 같은 family (Qwen 3B / 1.5B)</strong>: Delta가 model size 축을 따라 자연스럽게 aligned. Cross-family (Qwen chosen, Llama rejected) 조합에서 hypothesis 성립하는지 미검증.</li>
+</ul>
+
+<h3>확장 가능성</h3>
+<ul>
+  <li><strong>Superhuman training의 이론적 문</strong>: Chosen이 model보다 강할 필요 없다면, chosen이 <em>human</em>보다 강할 필요도 없다. Human-level output에 preference label을 붙여 superhuman 모델 학습 가능성 (Burns et al. 2023, Bowman et al. 2022 방향). 저자가 명시적으로 언급한 future work.</li>
+  <li><strong>Weak data revitalization</strong>: 지금까지 "약하다"고 버려진 데이터도 pair로 재활용 가능. Data augmentation 관점에서 큰 새 lever.</li>
+  <li><strong>Corruption-based delta 생성</strong>: 기존 데이터에 targeted corruption을 추가해 chosen/rejected pair 자동 생성. Lightweight human edits로 delta 확보. 이 논문의 인사이트가 automated data curation 도구로 발전 가능.</li>
+  <li><strong>Multi-teacher delta ensembles</strong>: N개 teacher의 pairwise gap을 활용하는 curriculum 설계. Solar Open 2의 MOPD와 결합 가능성.</li>
+  <li><strong>Non-language 도메인</strong>: Vision (image quality delta), speech (naturalness delta) 등 preference tuning이 있는 모든 modality에 이식 가능한 인사이트.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##Preference tuning은 절대 utility가 아닌 <em>directional</em> signal에서 학습##. 이는 open-source post-training의 default recipe (strong supervision 필요)를 근본적으로 뒤집는 발견. Tülu 3와 tied performance를 프론티어 supervision 없이 달성.</li>
+  <li>Model size가 GPT-4o judge와 80.5% agreement (human baseline 65%)로 놀랍도록 정확한 quality proxy. LLM annotation 없이도 preference label 생성 가능 → 비용 급감.</li>
+  <li>Bold section 실험이 delta learning의 인과관계를 가장 청량하게 보여줌: chosen=3, rejected=2 → 81 sections 생성. ##Delta 방향이 학습 방향을 결정##하며 chosen의 절대 크기와 무관.</li>
+  <li>Positive delta가 필요 조건이지만 충분 조건은 아님. Qwen 72B/32B 같은 강한 pair는 base model보다 훨씬 강해 log-likelihood 붕괴 발생. <em>Delta의 방향</em>과 <em>chosen의 base 근접성</em>이 함께 요구됨.</li>
+  <li>##$\Delta \approx 0.55$에서 saturate##: Delta magnitude를 더 늘려도 improvement plateau. Delta learning은 downstream 성능을 무한히 밀어붙일 수 있는 것은 아님.</li>
+  <li>Logistic regression 이론이 delta learning을 <em>with high probability</em> 보장. Delta 방향이 ground truth $\theta^*$와 부분 정렬되는 geometry가 핵심. Formal underpinning 제공.</li>
+  <li>실용적 시사점: (1) Open post-training에서 GPT-4o 의존 제거 가능, (2) 데이터 curation 시 "weak"으로 버려진 데이터도 pair로 재활용, (3) Superhuman 모델 훈련의 이론적 문 개방 (human-level output에 preference label만 있으면 됨).</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>

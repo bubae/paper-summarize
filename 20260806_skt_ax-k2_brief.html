@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X K2 — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #ffffff; color: #1e293b; line-height: 1.75; }
+  .hero { background: linear-gradient(135deg, #1e1b4b, #4338ca, #7c3aed); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 720px; margin: 0 auto; }
+  .hero .version-link { margin-top: 1.2rem; }
+  .hero .version-link a { color: rgba(255,255,255,0.85); text-decoration: underline; font-size: 0.95rem; }
+  .container { max-width: 880px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #1e1b4b; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #4338ca, #7c3aed); border-radius: 3px; }
+  section h3 { margin-top: 1.5rem; font-size: 1.15rem; color: #4338ca; }
+  section p { margin: 0.8rem 0; }
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #4338ca; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+  .one-liner { background: linear-gradient(135deg, #1e1b4b, #7c3aed); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.25rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #4338ca, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #1e1b4b; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #ede9fe; font-weight: 700; }
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.8rem 2rem; margin: 1.5rem 0; font-size: 1rem; line-height: 1.7; }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #4338ca; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 130px; }
+  .step-box .step-num { font-size: 0.75rem; color: #4338ca; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #4338ca; padding: 0 0.4rem; }
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+  .footer a { color: #4338ca; text-decoration: none; }
+  @media (max-width: 600px) { .hero h1 { font-size: 1.7rem; } .stat-row { flex-direction: column; } .step-flow { flex-direction: column; } .step-arrow { transform: rotate(90deg); } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-badge">SK Telecom · 대한민국 주권 AI · 2026</span>
+  <h1>A.X K2</h1>
+  <p class="subtitle">"한국어를 가장 잘 아는" 688B 프론티어 언어모델 — 수학·한국어·에이전트에서 세계 SOTA</p>
+  <div class="version-link"><a href="20260806_skt_ax-k2.html">전문가용 상세 요약 보기 →</a></div>
+</div>
+
+<div class="container">
+
+<div class="one-liner">
+"국가가 통제 가능한 프론티어 AI를 만들자" — <br>SK텔레콤이 <b>512개 GPU·70일</b>로 완성한 답
+</div>
+
+<!-- 배경 지식 -->
+<section>
+<h2>배경: 왜 '주권 AI'가 필요한가?</h2>
+
+<p>이 논문은 단순한 성능 자랑이 아닙니다. 대한민국 과학기술정보통신부가 지원한 <b>국가 주권 AI (Sovereign AI) 프로젝트</b>의 결과물입니다. 세 가지 배경을 이해해야 왜 이 프로젝트가 중요한지 알 수 있어요.</p>
+
+<h3>1) 주권 AI란?</h3>
+<p>Google, OpenAI 같은 회사가 만든 AI는 뛰어나지만, (a) 서비스 중단이 가능하고, (b) 한국어와 한국 문화의 뉘앙스를 잘 이해하지 못하며, (c) 정부·기업 기밀 데이터를 외국 서버에 넘겨야 합니다. <b>주권 AI는 자국 내에서 제어 가능한 프론티어급 AI</b>를 뜻해요.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 국산 반도체 산업</div>
+과거 우리나라는 반도체를 전적으로 수입에 의존했지만, 지금은 삼성·SK하이닉스가 세계 최고 수준의 반도체를 자체 생산합니다. AI도 마찬가지 — 외국 회사에만 의존하면 안 되는 <b>전략 인프라</b>가 되었기에, 국가가 자체 프론티어 AI 개발을 후원합니다.
+</div>
+
+<h3>2) Mixture-of-Experts (MoE): 파라미터를 아끼는 아키텍처</h3>
+<p>ChatGPT 같은 표준 모델은 모든 입력에 대해 모델 전체를 활성화합니다. MoE는 <b>256명의 전문가 중에서 매 토큰마다 8명만 활성화</b>하는 방식입니다. 전체 지식은 688B이지만 매 순간 33B만 사용 → 서빙 비용 급감.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+  <text x="350" y="30" text-anchor="middle" font-size="15" font-weight="700" fill="#1e1b4b">A.X K2: 688B 총 파라미터 / 33B 활성 (전체의 5%만 사용)</text>
+
+  <!-- Input -->
+  <rect x="30" y="60" width="100" height="50" rx="10" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="80" y="90" text-anchor="middle" font-size="13" font-weight="700" fill="#1e40af">입력 토큰</text>
+
+  <path d="M 135 85 L 175 85" stroke="#4338ca" stroke-width="2" marker-end="url(#ex1)"/>
+
+  <!-- Router -->
+  <rect x="180" y="60" width="110" height="50" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="235" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">라우터</text>
+  <text x="235" y="100" text-anchor="middle" font-size="10" fill="#92400e">"어떤 전문가?"</text>
+
+  <path d="M 295 85 L 325 85" stroke="#4338ca" stroke-width="2" marker-end="url(#ex1)"/>
+
+  <!-- 256 experts -->
+  <g>
+    <rect x="330" y="20" width="340" height="180" rx="14" fill="#f1f5f9" stroke="#94a3b8" stroke-dasharray="4"/>
+    <text x="500" y="42" text-anchor="middle" font-size="12" fill="#475569">256명의 전문가 (Experts) 중 8명만 선택</text>
+
+    <!-- Active 8 -->
+    <rect x="345" y="55" width="30" height="25" fill="#7c3aed"/>
+    <rect x="385" y="55" width="30" height="25" fill="#7c3aed"/>
+    <rect x="425" y="55" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="465" y="55" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="505" y="55" width="30" height="25" fill="#7c3aed"/>
+    <rect x="545" y="55" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="585" y="55" width="30" height="25" fill="#7c3aed"/>
+    <rect x="625" y="55" width="30" height="25" fill="#e2e8f0"/>
+
+    <rect x="345" y="90" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="385" y="90" width="30" height="25" fill="#7c3aed"/>
+    <rect x="425" y="90" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="465" y="90" width="30" height="25" fill="#7c3aed"/>
+    <rect x="505" y="90" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="545" y="90" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="585" y="90" width="30" height="25" fill="#7c3aed"/>
+    <rect x="625" y="90" width="30" height="25" fill="#e2e8f0"/>
+
+    <rect x="345" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="385" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="425" y="125" width="30" height="25" fill="#7c3aed"/>
+    <rect x="465" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="505" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="545" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="585" y="125" width="30" height="25" fill="#e2e8f0"/>
+    <rect x="625" y="125" width="30" height="25" fill="#e2e8f0"/>
+
+    <text x="500" y="185" text-anchor="middle" font-size="11" fill="#4338ca" font-weight="700">보라 = 활성 (8명)  회색 = 대기 (248명)</text>
+  </g>
+
+  <defs>
+    <marker id="ex1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<h3>3) 프론티어 vs. 실용성의 딜레마</h3>
+<p>강력한 AI일수록 (a) 계산 비용이 크고, (b) 답을 만드는 데 오래 걸리며, (c) GPU 메모리를 많이 씁니다. 프로덕션 배포를 위해서는 <b>FP8, FP4 같은 저정밀 계산</b>이 필수인데, 이 압축 과정에서 품질이 떨어지는 문제가 흔합니다.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 4K 영상을 스마트폰에서 보기</div>
+원본 4K 영상(BF16)은 아름답지만 용량이 너무 큽니다. 스마트폰(FP8/FP4)은 압축된 영상만 볼 수 있죠. 문제는 압축 시 화질이 떨어지는 것 — A.X K2는 <b>압축해도 화질이 거의 유지</b>되도록 특별 설계했습니다.
+</div>
+
+</section>
+
+<!-- 핵심 아이디어 -->
+<section>
+<h2>핵심 혁신 5가지</h2>
+
+<div class="step-flow">
+  <div class="step-box">
+    <div class="step-num">STEP 1</div>
+    <div class="step-title">Sparse Gated Attention</div>
+    <div class="step-desc">긴 문맥을 <br>영리하게 압축</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 2</div>
+    <div class="step-title">Gated Norm</div>
+    <div class="step-desc">이상치 억제<br>→ FP8/FP4 친화</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 3</div>
+    <div class="step-title">Think-Fusion</div>
+    <div class="step-desc">생각 O/X 모드<br>단일 모델에서</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 4</div>
+    <div class="step-title">Multi-Stage RL</div>
+    <div class="step-desc">4개 능력<br>공동 최적화</div>
+  </div>
+  <div class="step-arrow">→</div>
+  <div class="step-box">
+    <div class="step-num">STEP 5</div>
+    <div class="step-title">Blockwise FP8</div>
+    <div class="step-desc">RL도 저정밀로<br>안정 학습</div>
+  </div>
+</div>
+
+<h3>Step 1: 긴 문맥을 영리하게 처리하기 (Sparse Gated Attention)</h3>
+
+<p>128,000 토큰(책 한 권 분량) 이상의 긴 문서를 처리할 때, 표준 attention은 모든 위치를 서로 비교해 계산이 <b>제곱으로 증가</b>합니다. A.X K2의 해결책:</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#1e1b4b">128K 토큰 중 진짜 중요한 2048개만 골라서 attention</text>
+
+  <!-- All tokens -->
+  <rect x="30" y="70" width="300" height="60" rx="10" fill="#e0e7ff" stroke="#4338ca"/>
+  <text x="180" y="95" text-anchor="middle" font-size="13" fill="#312e81">128,000개 KV 후보</text>
+  <text x="180" y="115" text-anchor="middle" font-size="11" fill="#475569">전부 비교하면 계산 폭증 (O(L²))</text>
+
+  <!-- Indexer -->
+  <rect x="345" y="60" width="120" height="80" rx="10" fill="#fef3c7" stroke="#d97706" stroke-width="2"/>
+  <text x="405" y="90" text-anchor="middle" font-size="12" font-weight="700" fill="#92400e">Indexer</text>
+  <text x="405" y="108" text-anchor="middle" font-size="10" fill="#92400e">중요도 점수 매김</text>
+  <text x="405" y="125" text-anchor="middle" font-size="10" fill="#92400e">Top-2048 선택</text>
+
+  <path d="M 335 100 L 340 100" stroke="#4338ca" stroke-width="2" marker-end="url(#sg1)"/>
+  <path d="M 470 100 L 475 100" stroke="#4338ca" stroke-width="2" marker-end="url(#sg1)"/>
+
+  <rect x="480" y="70" width="210" height="60" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="585" y="95" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">2,048개만 attention</text>
+  <text x="585" y="115" text-anchor="middle" font-size="11" fill="#065f46">계산량 급감</text>
+
+  <rect x="140" y="170" width="440" height="45" rx="8" fill="#ede9fe" stroke="#7c3aed"/>
+  <text x="360" y="192" text-anchor="middle" font-size="12" font-weight="700" fill="#4338ca">결과: LongBench 62.80 → 62.99 (품질 거의 동일)</text>
+  <text x="360" y="208" text-anchor="middle" font-size="10" fill="#4338ca">하지만 긴 문맥 서빙 속도 크게 향상</text>
+
+  <defs>
+    <marker id="sg1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 책 한 권에서 요약을 찾기</div>
+128K 토큰 = 책 500페이지. 모든 페이지를 비교하는 대신 <b>목차와 색인을 먼저 훑어</b> 중요한 20페이지만 정독하는 방식입니다. Indexer가 색인 역할을 합니다.
+</div>
+
+<h3>Step 2: 이상치 억제로 FP8/FP4 친화적 만들기 (Gated Norm)</h3>
+
+<p>딥러닝 모델의 hidden state에는 종종 <b>"괴물"같은 큰 값</b>이 몇 개 나타납니다 (massive activations). 이 이상치는:</p>
+<ul>
+  <li>학습 불안정을 유발</li>
+  <li>FP8/FP4로 압축 시 같은 블록의 다른 값들까지 <b>정확도를 붕괴</b>시킴</li>
+</ul>
+
+<p>Gated Norm은 정규화(RMSNorm) 직후 <b>input-dependent gate</b>를 추가해 이 괴물들을 억제합니다.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+  <!-- Without GN -->
+  <text x="180" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#dc2626">Gated Norm 없음 (문제)</text>
+
+  <line x1="50" y1="120" x2="310" y2="120" stroke="#334155" stroke-width="2"/>
+  <line x1="80" y1="100" x2="80" y2="140" stroke="#dc2626" stroke-width="3"/>
+  <line x1="120" y1="80" x2="120" y2="140" stroke="#dc2626" stroke-width="4"/>
+  <line x1="150" y1="60" x2="150" y2="140" stroke="#dc2626" stroke-width="6"/>
+  <line x1="180" y1="110" x2="180" y2="140" stroke="#dc2626" stroke-width="2"/>
+  <line x1="210" y1="105" x2="210" y2="140" stroke="#dc2626" stroke-width="2"/>
+  <line x1="240" y1="55" x2="240" y2="140" stroke="#dc2626" stroke-width="6"/>
+  <line x1="270" y1="115" x2="270" y2="140" stroke="#dc2626" stroke-width="2"/>
+  <text x="180" y="160" text-anchor="middle" font-size="11" fill="#991b1b">거대 이상치들이 여기저기 튄다</text>
+  <text x="180" y="180" text-anchor="middle" font-size="10" fill="#991b1b">→ FP8/FP4 압축 시 품질 붕괴</text>
+
+  <!-- With GN -->
+  <text x="540" y="30" text-anchor="middle" font-size="13" font-weight="700" fill="#059669">Gated Norm 있음 (해결)</text>
+
+  <line x1="410" y1="120" x2="670" y2="120" stroke="#334155" stroke-width="2"/>
+  <line x1="440" y1="105" x2="440" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="470" y1="100" x2="470" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="500" y1="95" x2="500" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="530" y1="102" x2="530" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="560" y1="98" x2="560" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="590" y1="103" x2="590" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="620" y1="100" x2="620" y2="140" stroke="#059669" stroke-width="2"/>
+  <line x1="650" y1="105" x2="650" y2="140" stroke="#059669" stroke-width="2"/>
+  <text x="540" y="160" text-anchor="middle" font-size="11" fill="#065f46">모든 값이 균일한 범위 안에</text>
+  <text x="540" y="180" text-anchor="middle" font-size="10" fill="#065f46">→ FP8/FP4에서도 품질 유지</text>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 사진의 노출 조정</div>
+매우 밝은 태양이 있는 사진(이상치)을 그대로 압축하면 나머지 부분도 어두워집니다. 노출을 조정해 태양의 밝기를 억제하면 전체 사진의 세부가 살아나요. Gated Norm은 이 노출 조정 역할입니다.
+</div>
+
+<h3>Step 3: 생각하는 모드와 안 하는 모드를 하나의 모델에 (Think-Fusion)</h3>
+
+<p>어떤 질문은 깊은 추론이 필요하고 (수학 문제), 어떤 질문은 즉답이 필요합니다 (오늘 날씨). 이 논문은 <b>같은 모델이 사용자 명령에 따라 두 모드를 전환</b>하게 만들었어요.</p>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+  <!-- Same prompt -->
+  <rect x="30" y="30" width="160" height="200" rx="12" fill="#e0e7ff" stroke="#4338ca" stroke-width="2"/>
+  <text x="110" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#1e1b4b">동일 질문</text>
+  <text x="110" y="80" text-anchor="middle" font-size="10" fill="#312e81">"12 × 27은?"</text>
+  <text x="110" y="130" text-anchor="middle" font-size="10" fill="#312e81">Think-Fusion 학습:</text>
+  <text x="110" y="150" text-anchor="middle" font-size="10" fill="#312e81">이 질문에 대한</text>
+  <text x="110" y="170" text-anchor="middle" font-size="10" fill="#312e81">두 답변을 <b>쌍으로</b></text>
+  <text x="110" y="190" text-anchor="middle" font-size="10" fill="#312e81">함께 학습</text>
+
+  <path d="M 195 100 L 240 60" stroke="#059669" stroke-width="2" marker-end="url(#tf1)"/>
+  <path d="M 195 160 L 240 200" stroke="#4338ca" stroke-width="2" marker-end="url(#tf1)"/>
+
+  <!-- Thinking response -->
+  <rect x="250" y="30" width="440" height="90" rx="10" fill="#d1fae5" stroke="#059669" stroke-width="2"/>
+  <text x="470" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#065f46">Thinking 모드 (&lt;think&gt; 활성)</text>
+  <text x="470" y="78" text-anchor="middle" font-size="11" fill="#065f46">"12 × 27 = 12 × 25 + 12 × 2 = 300 + 24 = 324"</text>
+  <text x="470" y="98" text-anchor="middle" font-size="11" fill="#065f46">답: 324</text>
+  <text x="470" y="112" text-anchor="middle" font-size="10" fill="#059669">복잡한 문제에 유리, 하지만 느림</text>
+
+  <!-- Non-thinking response -->
+  <rect x="250" y="140" width="440" height="90" rx="10" fill="#ede9fe" stroke="#4338ca" stroke-width="2"/>
+  <text x="470" y="165" text-anchor="middle" font-size="13" font-weight="700" fill="#4338ca">Non-thinking 모드 (기본)</text>
+  <text x="470" y="188" text-anchor="middle" font-size="11" fill="#4338ca">"324"</text>
+  <text x="470" y="208" text-anchor="middle" font-size="10" fill="#4338ca">즉시 응답, 저지연</text>
+
+  <defs>
+    <marker id="tf1" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#4338ca"/>
+    </marker>
+  </defs>
+</svg>
+</div>
+
+<p>기존에는 두 모드를 다른 데이터셋으로 따로 학습해 <b>혼동(mode confusion)</b>이 발생했어요. A.X K2는 <b>같은 질문에 대한 두 답변을 쌍으로 학습</b>해 모드가 오직 <code>&lt;think&gt;</code> 토큰으로만 결정되도록 유도했습니다.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 이중 언어 사용자</div>
+한국어와 영어를 모두 잘하는 사람은 상황(주변 사람)에 따라 즉시 언어를 바꿉니다. Think-Fusion은 AI에게 "생각하기 언어"와 "즉답 언어"를 함께 학습시켜, <code>&lt;think&gt;</code> 스위치에 따라 즉시 전환하게 합니다.
+</div>
+
+<h3>Step 4: 4가지 능력을 한꺼번에 강화하기 (Multi-Stage RL)</h3>
+
+<p>강화학습(RL)은 능력별로 나눠 하기 쉬운데, 각 stage에서 한 능력만 최적화하면 다른 능력에 손상이 발생 (over-optimization). A.X K2는 <b>4가지 능력을 하나의 shared reward framework에서 공동 최적화</b>:</p>
+
+<div class="card card-accent">
+<ul>
+  <li><b>Instruction Following</b>: format, 길이, 스키마 등 rule-based 검증</li>
+  <li><b>Human Preference</b>: LLM-as-judge (accuracy, completeness, clarity, helpfulness)</li>
+  <li><b>Agentic Tool Use</b>: gated judge — 먼저 tool call이 유효한지 gate로 확인 후 rubric 평가</li>
+  <li><b>Safety</b>: 9-safety-dimension judge, 안전한 답변에 <b>보상</b> (거절만 하는 것에는 X)</li>
+</ul>
+</div>
+
+<h3>Step 5: 저정밀 RL도 안정 학습 (Blockwise FP8)</h3>
+
+<p>이 부분이 가장 흥미로운 인프라 발견입니다. RL 학습 시 두 엔진이 있어요:</p>
+<ul>
+  <li><b>Trainer</b>: 모델을 업데이트 (Transformer Engine, MXFP8 native)</li>
+  <li><b>Rollout</b>: 응답 생성 (vLLM, blockwise FP8만 지원)</li>
+</ul>
+
+<p>두 엔진이 <b>다른 FP8 형식</b>을 쓰면 정책 분포가 미묘하게 어긋나 <b>reward가 붕괴</b>합니다. A.X K2는 trainer를 blockwise FP8로 강제 통일해 안정 학습을 보장했어요.</p>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 두 요리사가 다른 저울로 재는 문제</div>
+같은 레시피라도 요리사 A는 그램 저울, 요리사 B는 온스 저울을 쓰면 미묘한 차이가 누적됩니다. A.X K2는 두 요리사에게 같은 저울을 쓰게 강제했습니다.
+</div>
+
+</section>
+
+<!-- 성과 -->
+<section>
+<h2>핵심 성과</h2>
+
+<div class="stat-row">
+  <div class="stat-box">
+    <div class="num">97.1</div>
+    <div class="label">AIME26<br>수학 SOTA</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">91.6</div>
+    <div class="label">CLIcK<br>한국어 SOTA</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">98.0</div>
+    <div class="label">τ²-Bench<br>Telecom SOTA</div>
+  </div>
+  <div class="stat-box">
+    <div class="num">256K</div>
+    <div class="label">Long-context<br>완벽 검색</div>
+  </div>
+</div>
+
+<h3>주요 벤치마크 (프론티어 open-weight 대비)</h3>
+
+<table class="comp-table">
+<thead><tr><th>영역</th><th>벤치마크</th><th>A.X K2 (688B)</th><th>DeepSeek-V4 Flash</th><th>Kimi-K2.6</th><th>Qwen3.5 397B</th></tr></thead>
+<tbody>
+<tr class="highlight-row"><td>수학</td><td>AIME26</td><td><b>97.1</b></td><td>96.7</td><td>95.4</td><td>92.5</td></tr>
+<tr class="highlight-row"><td>수학</td><td>Apex</td><td><b>45.8</b></td><td>28.1</td><td>20.8</td><td>13.5</td></tr>
+<tr class="highlight-row"><td>한국어</td><td>KMMLU-Pro</td><td><b>80.5</b></td><td>78.8</td><td>73.4</td><td>78.4</td></tr>
+<tr class="highlight-row"><td>한국어</td><td>CLIcK</td><td><b>91.6</b></td><td>89.6</td><td>80.9</td><td>88.4</td></tr>
+<tr class="highlight-row"><td>에이전트</td><td>τ²-Bench Telecom</td><td><b>98.0</b></td><td>95.0</td><td>95.9</td><td>95.6</td></tr>
+<tr><td>과학</td><td>GPQA Diamond</td><td>85.6</td><td>89.4</td><td><b>91.1</b></td><td>89.3</td></tr>
+<tr><td>웹 검색</td><td>BrowseComp</td><td>9.3</td><td>16.8</td><td><b>29.1</b></td><td>26.9</td></tr>
+</tbody>
+</table>
+
+<p>수학·한국어·도메인 에이전트에서 <b>세계 SOTA</b>. 다만 웹 검색(BrowseComp)에서는 heavy agentic RL 모델 대비 열세.</p>
+
+<h3>저정밀 배포 효율</h3>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 220" xmlns="http://www.w3.org/2000/svg">
+  <text x="360" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#1e1b4b">GPU 메모리 요구량 (더 작을수록 좋음)</text>
+
+  <!-- A.X K1 BF16 -->
+  <rect x="80" y="60" width="500" height="30" fill="#94a3b8"/>
+  <text x="590" y="80" font-size="12" fill="#334155">A.X K1 BF16: 1038 GB</text>
+
+  <!-- A.X K2 FP8 -->
+  <rect x="80" y="105" width="311" height="30" fill="#a5b4fc"/>
+  <text x="401" y="125" font-size="12" fill="#4338ca">A.X K2 FP8: 646 GB (K1의 62%)</text>
+
+  <!-- A.X K2 NVFP4 -->
+  <rect x="80" y="150" width="178" height="30" fill="#7c3aed"/>
+  <text x="268" y="170" font-size="12" fill="#4338ca">A.X K2 NVFP4: <b>370 GB</b> (K1의 36%!)</text>
+
+  <text x="360" y="205" text-anchor="middle" font-size="11" fill="#64748b">품질 손실 1점 미만으로 3분의 1 크기로 압축 가능</text>
+</svg>
+</div>
+
+<p>Rebellions ATOM-Max NPU에서 NVIDIA L40S 대비 <b>107% 성능/전력비</b> — 국산 NPU와의 최적화도 완성.</p>
+
+</section>
+
+<!-- 기존 대비 장점 -->
+<section>
+<h2>기존 방법 대비 장점</h2>
+
+<table class="comp-table">
+<thead><tr><th>비교 항목</th><th>기존 방식</th><th>A.X K2</th></tr></thead>
+<tbody>
+<tr><td>Sparse attention 학습</td><td>Dense warmup 필요 (오래 걸림)</td><td>Sparse warmup만 → 성능 동일, 훨씬 빠름</td></tr>
+<tr><td>Think/Non-think 통합</td><td>Dual-track 학습 (복잡)</td><td>Paired response로 single-track</td></tr>
+<tr><td>FP8 RL 안정성</td><td>Trainer/Rollout precision 불일치 → 붕괴</td><td>Blockwise FP8 통일 → 안정</td></tr>
+<tr><td>Multi-capability RL</td><td>능력별 stage (over-optimization)</td><td>Shared reward framework</td></tr>
+<tr><td>Attention outlier</td><td>Dual-normalization stack</td><td>Gated Norm 하나로 subsume</td></tr>
+</tbody>
+</table>
+
+</section>
+
+<!-- 활용 -->
+<section>
+<h2>어디에 쓸 수 있나?</h2>
+
+<div class="diagram-wrap">
+<svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="360" cy="190" r="65" fill="url(#axg1)"/>
+  <defs>
+    <linearGradient id="axg1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#4338ca"/>
+      <stop offset="1" stop-color="#7c3aed"/>
+    </linearGradient>
+  </defs>
+  <text x="360" y="185" text-anchor="middle" font-size="16" font-weight="700" fill="#fff">A.X K2</text>
+  <text x="360" y="205" text-anchor="middle" font-size="10" fill="#e0e7ff">주권 AI Foundation</text>
+
+  <g font-size="11" fill="#1e293b">
+    <line x1="315" y1="150" x2="180" y2="80" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="40" y="55" width="170" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="125" y="80" text-anchor="middle" font-weight="700">🏛 정부/공공</text>
+    <text x="125" y="98" text-anchor="middle" font-size="10">민감 데이터 국내 처리</text>
+
+    <line x1="405" y1="150" x2="540" y2="80" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="510" y="55" width="170" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="595" y="80" text-anchor="middle" font-weight="700">📞 통신 에이전트</text>
+    <text x="595" y="98" text-anchor="middle" font-size="10">τ²-Bench Telecom 98점</text>
+
+    <line x1="295" y1="190" x2="180" y2="190" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="30" y="165" width="150" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="105" y="190" text-anchor="middle" font-weight="700">💼 기업 문서 처리</text>
+    <text x="105" y="208" text-anchor="middle" font-size="10">한국어 문서 특화</text>
+
+    <line x1="425" y1="190" x2="540" y2="190" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="540" y="165" width="150" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="615" y="190" text-anchor="middle" font-weight="700">🎓 교육/수학</text>
+    <text x="615" y="208" text-anchor="middle" font-size="10">AIME26 97점, 국제 최고</text>
+
+    <line x1="315" y1="235" x2="180" y2="310" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="40" y="285" width="170" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="125" y="310" text-anchor="middle" font-weight="700">⚖ 법률/의료</text>
+    <text x="125" y="328" text-anchor="middle" font-size="10">한국어 전문 도메인</text>
+
+    <line x1="405" y1="235" x2="540" y2="310" stroke="#a5b4fc" stroke-width="2"/>
+    <rect x="510" y="285" width="170" height="55" rx="10" fill="#ede9fe" stroke="#7c3aed"/>
+    <text x="595" y="310" text-anchor="middle" font-weight="700">🔧 국산 NPU 배포</text>
+    <text x="595" y="328" text-anchor="middle" font-size="10">Rebellions 등과 최적화</text>
+  </g>
+</svg>
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 국산 자동차 회사가 세계급 세단을 만든 것</div>
+그동안 고성능 세단(프론티어 AI)은 대부분 수입에 의존했습니다. A.X K2는 국내 기술로 만든 세계 수준의 세단으로, 국내 도로(한국어)에 특히 최적화되어 있고, 국내에서 부품(NPU)까지 조달 가능합니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 병원 진료 시스템</div>
+"진료 예약"처럼 단순한 요청은 즉시 답하고(non-thinking), "이 증상은 무슨 병일까요?"처럼 복잡한 진단은 여러 가능성을 따져 신중히 답합니다(thinking). A.X K2는 이 스위칭을 한 모델이 담당합니다.
+</div>
+
+<div class="analogy">
+<div class="analogy-title">💡 비유: 텔레콤 상담사</div>
+τ²-Bench Telecom에서 98점 SOTA — 실제로 통신 회사(SKT)의 상담 시나리오에서 사용자 정보 조회, 요금제 변경, 서비스 진단 등을 <b>정확한 tool call과 정책 준수</b>로 처리합니다. Kimi-K2.6이나 GLM-5.1보다 정확도 높음.
+</div>
+
+</section>
+
+<!-- 결론 -->
+<section>
+<div class="one-liner">
+"512개 GPU · 70일 · 8.5T 토큰 — <br>제한된 예산으로 <b>세계 프론티어에 도달한</b> 한국의 답"
+</div>
+</section>
+
+<!-- 한계점 -->
+<section>
+<h2>한계점 (Limitations)</h2>
+
+<div class="card card-orange">
+<p><b>⚠️ Multimodal 부재</b></p>
+<p>텍스트 전용. 이미지·음성 이해 불가. 저자가 향후 계획으로 명시.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 웹 검색 에이전트에서 큰 gap</b></p>
+<p>BrowseComp 9.3 vs Kimi-K2.6 29.1. 광범위 agentic RL을 하지 않아 실제 웹 브라우징 태스크에서 뒤짐. τ²-Bench 같은 <b>단일 도메인 tool use</b>에는 SOTA지만, <b>다단계 검색·추론</b>은 약점.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 인프라 제약</b></p>
+<p>EP=8 (single-node NVLink)에 갇혔음. Multi-node expert parallelism 미탐색. 향후 더 큰 스케일을 위해서는 inter-node 통신 최적화 필요.</p>
+</div>
+
+<div class="card card-orange">
+<p><b>⚠️ 프론티어 대비 modest gap</b></p>
+<p>HLE 27.8 vs DeepSeek-V4 Flash 32.1, IFBench 75.9 vs 81.2. 저자도 compute 예산 한계 인정.</p>
+</div>
+
+</section>
+
+<section style="text-align: center; margin-top: 3rem;">
+<a href="20260806_skt_ax-k2.html" style="display: inline-block; background: linear-gradient(135deg, #4338ca, #7c3aed); color: white; padding: 0.8rem 2rem; border-radius: 8px; text-decoration: none; font-weight: 700;">📖 전문가용 상세 요약 보기 →</a>
+</section>
+
+</div>
+
+<div class="footer">
+<p><b>A.X K2 Technical Report</b></p>
+<p>SK Telecom · 대한민국 과학기술정보통신부 Sovereign AI 국가과제 · 2026-07-28</p>
+<p><a href="https://huggingface.co/skt/A.X-K2">https://huggingface.co/skt/A.X-K2</a></p>
+</div>
+
+</body>
+</html>

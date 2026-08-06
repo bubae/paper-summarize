@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A.X K2 Technical Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; font-size: 0.95em; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #4338ca; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 1rem 0; }
+  .brief-link:hover { background: #3730a3; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>A.X K2: SK Telecom의 688B MoE Sovereign AI</h1>
+
+<a href="20260806_skt_ax-k2_brief.html" class="brief-link">📖 개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: SK Telecom (기업 저자). 세부 기여자: Model Engineering (Cheolseung Baek, Eunki Kim, Hyunho Yang 외 16명), Data Engineering (Dhammiko Arya, Gun Song 외 22명), HPC Infrastructure (Seungsik Kim, Youngrang Kim) 등.</li>
+  <li><strong>소속</strong>: SK Telecom</li>
+  <li><strong>공개일</strong>: 2026-07-28</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://huggingface.co/skt/A.X-K2">https://huggingface.co/skt/A.X-K2</a></li>
+  <li><strong>후원</strong>: 대한민국 과학기술정보통신부 (MSIT) — Sovereign AI 국가과제 (Grant No. PJT-26-010018)</li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 한국어와 한국 문화를 깊이 이해하는 <em>Sovereign AI</em>(주권 AI) foundation model이 필요하며, 이를 만들면서도 (a) 프론티어급 수학/코딩/에이전트 성능, (b) 저정밀 서빙(FP8/FP4)에서의 안정성, (c) thinking/non-thinking 모드를 하나의 모델에서 지원해야 한다.</li>
+  <li><strong>해결</strong>: 688B 총 파라미터 / 33B 활성 MoE 모델을 8.5T 토큰으로 처음부터 학습. ##Sparse Gated Attention (SGA) — Multi-head Latent Attention (MLA) + lightweight indexer 기반 sparse attention + head-specific output gate — 와 Gated Norm (GN)을 결합한 새 transformer block으로 outlier를 억제해 FP8/FP4 서빙 친화적##이며, Think-Fusion SFT로 단일 모델이 사용자 제어에 따라 thinking/non-thinking을 전환하게 함. Multi-stage RL로 instruction/preference/agent/safety를 shared reward framework로 공동 최적화.</li>
+  <li><strong>왜 작동하는가</strong>: (1) MoE scaling law에 근거한 fixed-compute 최적 아키텍처(EP 8 clamp, 파라미터 배분) 채택. (2) SGA의 indexer가 sparse warmup을 통해 dense warmup 없이 sparse-attention에 곧바로 적응 → 학습 속도 개선. (3) GN이 hidden-state의 massive activation을 억제해 FP8/NVFP4 quantization에서도 품질 손실이 거의 없음. (4) Think-Fusion은 <em>paired</em> thinking/non-thinking 응답으로 학습해 모드 전환이 표면적 분포 단서가 아닌 control token으로 학습되도록 함.</li>
+  <li><strong>비유</strong>: "듀얼 코어(생각 O/X)"를 하나의 뇌에 이식하고, 필요할 때만 켤 수 있게 스위치를 달아준 것. 게다가 그 뇌는 저품질 저장매체(FP8/FP4)에서도 원본 지식이 훼손되지 않도록 특별 코팅(GN)이 되어 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>토큰-효율 pre-training</strong>: 688B MoE를 8.5T 토큰(pre-training ~8.2T)으로 학습해 predecessor A.X K1(~10T)보다 <em>적은 토큰</em>으로 벤치마크 전반에서 30%p 이상 개선. 다단계 curriculum + difficulty-aware curation.</li>
+  <li><strong>Gated Transformer Block (SGA + GN)</strong>: MLA + DeepSeek-style sparse attention indexer + Qiu et al. 2025b식 head-specific output gate 결합. 학습 후반부 Stage 3C에서 sparse adaptation. GN은 RMSNorm 직후 input-dependent gate로 hidden state outlier를 억제, ##FP8/FP4-friendly activation distribution 확보##.</li>
+  <li><strong>Think-Fusion SFT</strong>: 각 프롬프트에 <b>paired thinking + non-thinking</b> 응답을 붙여 훈련. 모드 스위칭이 표면적 분포 단서(길이, 스타일)에 의존하지 않고 control token(<code>&lt;think&gt;...&lt;/think&gt;</code>)만으로 학습되도록 유도. Thinking:non-thinking 토큰 비율 약 13:1로 균형.</li>
+  <li><strong>4-capability shared RL framework</strong>: instruction-following / human-preference / agentic tool use / safety를 <em>한 stage에서 공동 최적화</em>. 능력별 isolation RL이 over-optimization을 유발한다는 발견에 기반. CISPO + GDPO 사용.</li>
+  <li><strong>Full FP8 파이프라인</strong>: MXFP8 학습 → blockwise FP8 (128×128) 체크포인트 → vLLM/Transformer Engine FP8 rollout까지 numerical consistency 유지. 512 B200 GPU, 70일 학습. Blockwise FP8 mismatch가 RL reward collapse를 초래한다는 발견 실증.</li>
+  <li><strong>강력한 벤치마크 성과</strong>: AIME26 <b>97.1</b> (SOTA), Apex 45.8, KMMLU-Pro <b>80.5</b>, CLIcK <b>91.6</b>, τ²-Bench Telecom <b>98.0</b>. 256K NIAH perfect 100.</li>
+</ol>
+
+<h2>배경 지식 (Background)</h2>
+
+<h3>Multi-head Latent Attention (MLA)</h3>
+<p>DeepSeek-V2/V3에서 도입된 MLA는 표준 Multi-Head Attention이 KV cache를 헤드 수 × 시퀀스 길이로 유지해야 하는 부담을 줄이기 위해, K와 V를 <em>공통 latent</em>로 압축한 뒤 헤드별로 up-projection하는 방식이다. 결과적으로 long-context에서 KV cache가 크게 감소하고, 헤드 간 정보 공유가 강화된다.</p>
+
+<h3>Sparse attention with indexer (DeepSeek-V3.2)</h3>
+<p>Long-context에서 attention 계산이 $O(L^2)$로 증가하는 문제를 해결하기 위해, 별도의 <em>lightweight indexer</em>가 각 쿼리에 대해 top-$k$개 (여기서 $k=2048$) KV 후보를 선택. MLA는 이 축소된 KV cache에만 attention 수행. Indexer는 attention distribution과의 KL divergence로 학습되어 attention 분포를 근사하도록 유도된다.</p>
+
+<h3>Gated Attention (Qiu et al. 2025b)</h3>
+<p>Attention output에 <em>head-specific</em> sigmoid gate $G = \sigma(W_g \mathbf{q}_{\text{latent}})$를 곱해 $W_O$ projection 전에 non-linearity 부여. 이 gate는 (a) attention output의 low-rank 병목을 완화, (b) attention sink (초반 몇 토큰에 attention이 collapsed되는 현상) 억제, (c) loss convergence 개선 효과.</p>
+
+<h3>Warmup-Stable-Decay (WSD)</h3>
+<p>Hu et al. 2024에서 도입된 learning rate schedule로, warmup → stable(constant peak) → decay(cosine)의 3단계로 구성. Cosine schedule과 달리 <em>stable phase에서 checkpoint를 쉽게 tap-out</em>해 downstream fine-tuning 시작점으로 사용할 수 있다는 실용성.</p>
+
+<h3>MXFP8 / NVFP4</h3>
+<p>Microscaling FP formats. MXFP8은 연속된 32개 원소가 하나의 scale factor 공유. NVFP4는 4-bit 부동소수점(E2M1)으로 16개 원소마다 scale 공유. Block 단위 scaling이 outlier 존재 시 <em>같은 블록의 정확도를 붕괴</em>시키기 때문에, activation distribution의 outlier 억제가 저정밀 서빙의 열쇠다.</p>
+
+<h2>방법론 (Methodology)</h2>
+
+<h3>2. Architecture</h3>
+
+<h4>Model Configuration</h4>
+<table>
+<thead><tr><th>Total</th><th>Active</th><th>Layers</th><th>Heads (Q/KV)</th><th>Hidden</th><th>Intermediate (Dense/Expert)</th><th>Experts (Routed/Active)</th><th>Shared</th><th>Vocab</th><th>Context</th></tr></thead>
+<tbody>
+<tr><td>688B</td><td>33B</td><td>61</td><td>64/64</td><td>7168</td><td>18432 / 2048</td><td>256 / 8</td><td>1</td><td>163,840</td><td>128K native / 256K YaRN</td></tr>
+</tbody>
+</table>
+
+<p>A.X K1(약 400B로 추정) 대비 routed expert 수가 <strong>192 → 256</strong>로 확장(총 파라미터 증가, active 파라미터는 33B 유지). 256은 2의 거듭제곱이면서 128의 배수 — expert-parallel sharding 및 kernel tiling과 정렬. 첫 layer는 dense FFN, 나머지 60개는 MoE.</p>
+
+<h4>Sparse Gated Attention (SGA)</h4>
+
+<blockquote><strong>[Figure 2 설명]</strong>: A.X K2 transformer block. 입력 hidden state가 GatedNorm(RMSNorm + input-dependent gate)을 통과해 outlier가 억제된 뒤 SGA sublayer로 진입. SGA 내부에서 indexer가 KV 후보를 스코어링·랭킹하고 top-$k$ (k=2048) 인덱스 $I_{\text{topk}}$를 선택. MLA는 <code>KV[I_topk]</code>에만 latent attention을 수행하고, 결과는 head-specific output gate $G = \sigma(W_g q_{\text{latent}})$로 modulate된 뒤 $W_O$로 projection.</blockquote>
+
+<p><strong>구성 요소</strong>:</p>
+<ul>
+  <li><strong>MLA backbone</strong>: KV cache 효율화, long-context memory overhead 감소</li>
+  <li><strong>Head-specific output gate (Gated Attention)</strong>: pre-training 전체에 걸쳐 적용. Non-linearity, attention sink 억제, loss convergence 개선</li>
+  <li><strong>QK-normalization (Dehghani et al. 2023)</strong>: query/key projection이 attention score 계산 전에 normalize → 학습 안정성</li>
+  <li><strong>Sparse component</strong>: DeepSeek-V3.2 스타일 indexer가 query당 top-$k$=2048 토큰 선택. Long-context에서만 활성. Stage 3C의 dedicated adaptation stage에서 sparse warmup 방식으로 도입 — indexer만 학습시키고 나머지 파라미터는 freeze</li>
+</ul>
+
+<p><strong>Sparse warmup의 특이점</strong>: DeepSeek-V3.2와 GLM-5는 indexer를 <em>dense</em> attention distribution으로 먼저 warmup한 뒤 sparse selection을 켜지만, A.X K2는 처음부터 <em>sparse</em> top-$k$ selection에 대해 indexer loss를 계산 → dense warmup 대비 대폭 빠르며 downstream 성능은 무시 가능한 차이. 결과적으로 LongBench 62.80 (SGA 도입 전) vs. 62.99 (SGA 도입 후)로 <strong>본질적으로 손실 없음</strong>.</p>
+
+<h4>Gated Norm (GN)</h4>
+
+<p>RMSNorm 직후 input-dependent gate를 추가해 normalized output을 modulate. 그 결과:</p>
+<ul>
+  <li>Hidden state의 <em>massive activation</em>(수천 토큰에 걸쳐 나머지보다 orders of magnitude 큰 hidden unit)을 억제 — 저정밀 quantization의 주요 오류 원인</li>
+  <li>Suppressed outlier로 activation distribution이 <strong>NVFP4/W4A4</strong> 서빙에 favorable</li>
+  <li>Loss convergence 개선 (Figure 3 dry-run 20B-A3B, seq len 4096에서 Gated Attn + GN이 최저 loss 달성; post-norm 추가는 효과 없음 — <strong>GN이 A.X K1의 dual-normalization scheme을 subsume</strong>)</li>
+  <li>Training throughput 약 5% 감소가 trade-off로 발생하나 안정성과 low-precision 이점으로 accept</li>
+</ul>
+
+<p>GN은 A.X K1에서 쓰던 dual-normalization scheme (Gemma/GLM-4 계열의 attention/MLP block 앞뒤로 normalization을 stack)을 <em>완전히 제거</em>할 만큼 안정성을 제공.</p>
+
+<h3>3. Pre-training</h3>
+
+<h4>3.1 Dataset</h4>
+<p>총 <strong>~8.2T</strong> pre-training tokens. A.X K1의 데이터 파이프라인 (in-house 한국어 특화 VLM PDF parser, dual synthetic data pipeline, 3-stage curation)을 계승·확장:</p>
+<ul>
+  <li>English/code 코퍼스를 Nemotron-CC v2.1 및 Nemotron-Pretraining-Code-v2로 갱신</li>
+  <li>한국어 웹 코퍼스 재수집 + 다국어(FineWeb2) 편입</li>
+  <li>Agentic + software-engineering 데이터 비중 확대 (tool-use trajectory, repo-level code)</li>
+  <li>High-quality long-context 데이터 (web + PDF)</li>
+  <li>후반 stage에서 SFT-format instruction data 혼합 (post-training 전에 task competence 강화)</li>
+  <li>PII masking: type-specific placeholder token (예: <code>&lt;|email|&gt;</code>) 대체</li>
+</ul>
+
+<h4>3.2 Quality Filtering & Difficulty-Aware Curation</h4>
+<p>Raw pool 16.2T → 실제 소비 8.2T. Stage-dependent filtering:</p>
+
+<table>
+<thead><tr><th></th><th>Stage 1</th><th>Stage 2 onward</th></tr></thead>
+<tbody>
+<tr><td>Quality signal</td><td>educational value</td><td>educational value + difficulty</td></tr>
+<tr><td>Domain taxonomy</td><td>26 topical web domains</td><td>14 academic fields</td></tr>
+<tr><td>Per-domain threshold</td><td>baseline</td><td>raised</td></tr>
+<tr><td>Curricular role</td><td>broad coverage</td><td>high-difficulty concentration</td></tr>
+</tbody>
+</table>
+
+<p>Scoring은 A.X-Encoder 기반 compact classifier (teacher distilled)가 0-4 scale로 부여. Stage-wise web-corpus 소비 (unique tokens): 영어 웹 <em>9.1T corpus</em> → Stage 1 3.68T + Stage 2 0.22T; 한국어 웹 <em>1.37T</em> → Stage 1 1.12T + Stage 2 0.06T.</p>
+
+<h4>3.3 Multi-Stage Pre-training Process (WSD schedule)</h4>
+
+<div class="flow-diagram">Stage 1: General Knowledge (6.4T tokens, seq 4096)
+  - WSD warmup + stable phase, LR peak 2.2e-4
+  - 26 topical domains, broad coverage
+
+Stage 2: High-Quality Reasoning (1.4T tokens, seq 4096)
+  - LR cosine decay 2.2e-4 → 7e-5
+  - STEM, reasoning-intensive, refined PDF, synthetic
+
+Stage 3A: 32K context extension (~0.22T tokens)
+  - LR re-warmup 7e-5, cosine decay 2.2e-5
+  - RoPE base 1e4 → 1e6 (ABF)
+
+Stage 3B: 128K context extension (~0.14T tokens, seq 128K)
+  - LR 2.2e-5 hold, seq 128K native via ABF
+
+Stage 3C: SGA sparse adaptation
+  - indexer-only sparse warmup, backbone frozen initially
+  - then full model resumes with sparse attention</div>
+
+<p><strong>Long-context는 native ABF로 128K까지 학습</strong>. YaRN scaling factor를 2로 올려 inference 시 <strong>256K NIAH perfect 100%</strong> retrieval 달성 (NVFP4 quantization 하에서도).</p>
+
+<h4>3.5 Checkpoint Merging (WSM)</h4>
+<p>Pre-training 최종 단계에서 마지막 6개 checkpoint (약 1.6B 토큰 간격, 총 8B 토큰 span)를 shard-wise weight 평균. Weighting: $1 - \sqrt{}$-style로 최신 checkpoint에 더 큰 weight. MoE router weight도 평균에 포함. Stochastic Weight Averaging (SWA) 스타일로 flat minima로 수렴, generalization 개선.</p>
+
+<h4>3.6 Hyperparameters (MoE 관련)</h4>
+<ul>
+  <li>AdamW, $\beta_1=0.9, \beta_2=0.95, \epsilon=10^{-8}$</li>
+  <li>Peak LR $2.2 \times 10^{-4}$, global batch 16,384 sequences (micro-batch 4)</li>
+  <li>Batch ramp-up: 2,048 → 16,384 over 72M sequences (~295B tokens)</li>
+  <li>Sigmoid-scored pre-softmax router with <strong>grouped top-$k$</strong>: 256 experts를 8 그룹으로, 각 토큰은 top-4 그룹 내에서 top-8 expert 활성화 (scaling factor 2.5)</li>
+  <li>Auxiliary loss: A.X K1의 sequence-level → K2는 <em>global</em> (batch-level) 채택 — sequence-level은 expert specialization을 억압. Additional learnable expert-bias term으로 MaxVio (worst-case relative deviation from uniform load)를 global batch 기준으로 측정</li>
+  <li>Load-balancing coefficient annealed: general (4e-3, off) → long-context (1e-3, 1e-5) → SGA adaptation (5e-4, 2e-5). Bias update rate 조정하여 stage 전환 시 라우팅 안정화</li>
+</ul>
+
+<h4>3.7 Parallelism & Training Efficiency</h4>
+<ul>
+  <li><strong>Hardware</strong>: 512 NVIDIA B200 GPUs (64 nodes × 8), ~70 days</li>
+  <li>PP=8 (interleaved virtual-PP 2), EP=8 (intra-node NVLink), TP=1 (미사용)</li>
+  <li>B200 메모리 덕분에 pipeline parallelism을 A.X K1의 16 → 8로 축소, pipeline bubble 감소</li>
+  <li>Distributed optimizer (ZeRO Stage 2 수준). Expert dispatch/combine는 HybridEP all-to-all (not DeepEP)</li>
+  <li>Full activation recomputation (Korthikanti et al. 2022) — selective 대신 full 사용해 micro-batch 4까지 확장</li>
+  <li>Context parallel degree 2 (32K stage), 8 (128K stage)</li>
+  <li>Training precision: <strong>MXFP8 (E4M3)</strong> — 32-element block scaling. Main params/grad는 FP32, EMA/squared grad는 BF16. Distributed-optimizer parameter shard도 FP8로 all-gather + overlap</li>
+  <li>Released checkpoint: <strong>blockwise FP8 (128×128 weight blocks + dynamic per-token activation scaling)</strong> — Hopper serving과 정렬</li>
+</ul>
+
+<h3>4. Post-training</h3>
+
+<h4>4.1 Supervised Fine-Tuning (Think-Fusion)</h4>
+
+<p>A.X K1은 사용자 제어 hybrid inference를 이미 지원했으나, thinking과 non-thinking data를 함께 학습하면 <em>mode confusion</em>이 발생 — 특히 thinking data가 sample 길이가 길어 dominant하기에, non-thinking 요청에도 thinking 응답이 나오는 경향. 기존 mitigation: dual-track training (A.X K1) 또는 reasoning:non-reasoning 비율 조정 (Bae et al. 2025).</p>
+
+<p><strong>A.X K2의 해결책 — Think-Fusion</strong>: 각 prompt에 <strong>paired</strong> thinking + non-thinking response를 붙여 single-track 학습. 표면적 분포 단서 대신 explicit control token으로만 모드가 결정되도록 학습. 총 SFT 데이터에서 thinking:non-thinking 토큰 비율 <strong>~13:1</strong>. Post-training 진행 중 mode confusion을 지속 모니터링하여 RL 후에도 control token이 유효함을 확인.</p>
+
+<p><strong>SFT 데이터 (Table 4, 총 ~9.05M 샘플)</strong>:</p>
+<ul>
+  <li><strong>Indexer SFT</strong> (별도 stage, 0.4M 샘플): indexer + model 파라미터가 함께 학습. Reasoning 359K + Instruction 79K = 438K</li>
+  <li><strong>Main SFT</strong> (6.33M reasoning + 2.29M instruction = 8.61M): Math 676K, Knowledge/Science 1.5M, Instruction Following 509K, Code 562K, Agent 1.64M, General 3.64M, Safety 79K</li>
+</ul>
+
+<p><strong>Safety 데이터</strong>: A.X K1의 ESSA (Park et al. 2026, evolved safety specifications) 계승·확장. 50 domain-task 조합 (5 application domains × 10 response-task types). Safety specification 별로 domain-task labeling → reasoning-capable teacher가 selected safety specification 하에서 안전 응답 생성 → chat template으로 변환.</p>
+
+<p><strong>Training details</strong>: 128K token seq packing (length-aware First-Fit Decreasing bin-packing). Indexer SFT는 KL-loss coefficient 0.1, main SFT는 0. Indexer SFT batch 512, LR 1.1e-5 → 2.2e-6; Main SFT batch 128, LR 1.5e-5 → 3e-6. Global auxiliary loss (expert bias 유지).</p>
+
+<h4>4.2 RL Infrastructure</h4>
+
+<p><strong>Blockwise FP8 for Trainer-Rollout Consistency</strong>: RL은 trainer(Transformer Engine)와 rollout(vLLM)이 <em>수치적으로 일치</em>해야 함. Blackwell (B200/B300) native는 MXFP8이나 vLLM MoE는 blockwise FP8 (per-block scaling + FP32 scale factors, DeepGEMM style)만 지원. Trainer도 blockwise FP8로 통일하기 위해 TE fork로 강제. Figure 7에서 <strong>MXFP8 trainer + blockwise FP8 rollout mismatch가 reward collapse</strong>를 유발; TIS (token-level intervention)로도 방지 불가; blockwise FP8 end-to-end로 통일 시 안정.</p>
+
+<p><strong>Data-Parallel Asynchronous Rollout</strong>: veRL이 기본으로 지원하는 TP8/DP1 (single-replica rollout)은 large MoE에서 throughput-bound. A.X K2는 <strong>TP1/DP8, EP=8 고정</strong>: (i) 8 data-parallel replicas로 MoE dispatch throughput 극대화, (ii) tensor-parallel all-reduces 제거, (iii) expert sharding trainer와 동일 (EP=8) → policy weight를 트레이너에서 rollout으로 <em>clean reshard</em>. TP8/DP1 대비 <strong>1.6× throughput</strong> (Table 5, input 131,072 tokens).</p>
+
+<h4>4.3 Multi-Stage Reinforcement Learning</h4>
+
+<p><strong>Setup</strong>: 4 capability를 <em>shared reward framework</em>로 공동 최적화. Stage마다 데이터 구성만 변경, 학습 세팅 고정. Isolation RL이 over-optimization을 초래한다는 발견에 기반 (특정 stage의 reward signal을 policy가 exploit).</p>
+
+<p><strong>Reward 설계</strong>:</p>
+<ul>
+  <li><strong>Instruction following</strong>: rule-based verifiable rewards (format, length, required expressions, schema). Difficulty filtering으로 이미 잘 하는 prompt 제외</li>
+  <li><strong>Human preference</strong>: LLM-as-judge (pointwise). Reference answer + few-shot pointwise anchor. Task를 6개 도메인 (factual, reasoning, coding, extraction, creative, open) 중 하나로 분류 후 domain-specific rubric (accuracy, completeness, clarity, helpfulness)</li>
+  <li><strong>Agentic tool use</strong>: single-step은 verifiable rewards (reference call과 schema conformance + argument correctness). Long-horizon은 <strong>gated judge</strong> — binary gate가 structurally valid, executable tool-calling transcript 확인 → pass만 pointwise judge로 (fluent-but-invalid response 방지)</li>
+  <li><strong>Safety</strong>: red-teaming prompts + safety-preference data + model-identity data. 9-safety-dimension LLM judge, holistic harmfulness rating으로 policy가 <em>safe completion</em>에 대해 reward (단순 refusal은 아님)</li>
+</ul>
+
+<p><strong>Algorithm</strong>: <strong>CISPO</strong> (MiniMax 2025) — token-level update 대신 importance-sampling weight를 clipping → 저확률 behavior-critical token의 gradient 유지. Auxiliary format reward는 <strong>GDPO</strong> (Liu et al. 2026)로 정규화. KL penalty <em>없음</em>, temperature 1.0, group 16 rollouts/prompt, global batch 80 prompts, LR $2 \times 10^{-6}$. 총 100K prompt 소비.</p>
+
+<p><strong>AdamW $\epsilon$ = $10^{-15}$</strong> (pre-training의 $10^{-8}$에서 감소) — MiniMax-M1 발견을 따라 RL의 small gradient magnitude 하에서 optimization 안정화.</p>
+
+<h3>5. Evaluation</h3>
+
+<h4>실험 목적 매핑</h4>
+<ul>
+  <li>Q1: A.X K2가 프론티어급 open-weight LLM과 경쟁 가능한가? → §5.2 Table 6</li>
+  <li>Q2: Long-context 성능은? → §5.3 RULER Table 7</li>
+  <li>Q3: 저정밀 서빙 시 품질 유지되는가? → §5.4 Table 8, 9</li>
+</ul>
+
+<h4>5.2 벤치마크 결과 (Table 6, all thinking mode)</h4>
+
+<table>
+<thead><tr><th>Domain</th><th>Benchmark</th><th>A.X K2</th><th>A.X K1</th><th>Qwen3.5 397B</th><th>Nemotron 3 Ultra</th><th>DeepSeek-V4 Flash</th><th>GLM-5.1</th><th>Kimi-K2.6</th><th>MiniMax-M2.7</th></tr></thead>
+<tbody>
+<tr><td rowspan="4">Math</td><td>AIME26</td><td><strong>97.1</strong></td><td>91.3</td><td>92.5</td><td>85.4</td><td>96.7</td><td>95.4</td><td>95.4</td><td>88.8</td></tr>
+<tr><td>Apex</td><td><strong>45.8</strong></td><td>1.0</td><td>13.5</td><td>3.1</td><td>28.1</td><td>10.4</td><td>20.8</td><td>1.0</td></tr>
+<tr><td>Apex-shortlist</td><td><strong>88.6</strong></td><td>50.8</td><td>61.2</td><td>45.5</td><td>88.0</td><td>72.1</td><td>72.6</td><td>30.3</td></tr>
+<tr><td>KMO26 (1st)</td><td>92.5</td><td>85.0</td><td>78.8</td><td>85.0</td><td><strong>94.4</strong></td><td>78.1</td><td>88.1</td><td>80.0</td></tr>
+<tr><td rowspan="3">Korean</td><td>KMMLU-Pro</td><td><strong>80.5</strong></td><td>68.9</td><td>78.4</td><td>69.2</td><td>78.8</td><td>75.3</td><td>73.4</td><td>66.6</td></tr>
+<tr><td>KoBALT</td><td>73.0</td><td>51.0</td><td>69.9</td><td>59.1</td><td><strong>75.3</strong></td><td>72.0</td><td>66.0</td><td>51.4</td></tr>
+<tr><td>CLIcK</td><td><strong>91.6</strong></td><td>85.3</td><td>88.4</td><td>84.1</td><td>89.6</td><td>88.8</td><td>80.9</td><td>76.1</td></tr>
+<tr><td rowspan="2">Code</td><td>LiveCodeBench v6</td><td>84.0</td><td>74.9</td><td>82.6</td><td>76.4</td><td><strong>89.4</strong></td><td>86.4</td><td>86.5</td><td>69.8</td></tr>
+<tr><td>SciCode</td><td>41.0</td><td>24.1</td><td>42.0</td><td>39.9</td><td>44.9</td><td>43.8</td><td><strong>53.5</strong></td><td>47.0</td></tr>
+<tr><td rowspan="2">Sci&Knowledge</td><td>Humanity's Last Exam</td><td>27.8</td><td>8.3</td><td>27.3</td><td>26.6</td><td><strong>32.1</strong></td><td>28.0</td><td>35.9</td><td>28.1</td></tr>
+<tr><td>GPQA Diamond</td><td>85.6</td><td>76.4</td><td>89.3</td><td>86.7</td><td>89.4</td><td>86.8</td><td><strong>91.1</strong></td><td>87.4</td></tr>
+<tr><td rowspan="2">General</td><td>IFBench</td><td>75.9</td><td>63.2</td><td>79.0</td><td>78.9</td><td><strong>81.2</strong></td><td>76.8</td><td>74.0</td><td>73.2</td></tr>
+<tr><td>AA-LCR</td><td>66.0</td><td>26.0</td><td>66.0</td><td>67.0</td><td>63.0</td><td>62.0</td><td><strong>70.0</strong></td><td>69.0</td></tr>
+<tr><td rowspan="2">Agentic</td><td>τ²-Bench Telecom</td><td><strong>98.0</strong></td><td>86.0</td><td>95.6</td><td>83.3</td><td>95.0</td><td>97.7</td><td>95.9</td><td>84.8</td></tr>
+<tr><td>BrowseComp</td><td>9.3</td><td>—</td><td>26.9</td><td>13.4</td><td>16.8</td><td>25.0</td><td><strong>29.1</strong></td><td>14.2</td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li>##Math와 Korean에서 압도적 SOTA##: AIME26 97.1, Apex 45.8 (2위 DeepSeek-V4 Flash 28.1 대비 압도), KMMLU-Pro 80.5, CLIcK 91.6</li>
+  <li>Sci/Knowledge, General은 프론티어 open-weight에 <em>온파 (on par)</em> — HLE, GPQA, IFBench에서 소폭 gap</li>
+  <li>Agentic에서 τ²-Bench Telecom 98.0으로 SOTA, 그러나 <strong>BrowseComp 9.3</strong>은 heavy agentic post-training 모델(Qwen3.5, Kimi-K2.6) 대비 큰 gap — 향후 개선 여지 명시</li>
+  <li>A.X K1 대비: Apex (1.0 → 45.8), HLE (8.3 → 27.8), AA-LCR (26.0 → 66.0) 등 <strong>세대 간 극적 개선</strong></li>
+</ul>
+
+<h4>5.3 Long-Context (Table 7, RULER)</h4>
+
+<table>
+<thead><tr><th>Model</th><th>4K</th><th>8K</th><th>16K</th><th>32K</th><th>64K</th><th>128K</th><th>256K</th><th>Overall</th></tr></thead>
+<tbody>
+<tr><td>A.X K2</td><td>97.5</td><td>97.2</td><td>97.5</td><td>96.5</td><td>94.3</td><td>92.7</td><td>86.6</td><td><strong>94.6</strong></td></tr>
+</tbody>
+</table>
+
+<p>Zero-shot YaRN scaling (factor 1/2/4로 128K/256K/512K). 256K NIAH도 <strong>perfect 100</strong> (NVFP4 quantization 후에도).</p>
+
+<h4>5.4 Low-Precision Robustness</h4>
+
+<table>
+<thead><tr><th>Model</th><th>Precision</th><th>Min. Memory</th></tr></thead>
+<tbody>
+<tr><td>A.X K1</td><td>BF16</td><td>1038 GB</td></tr>
+<tr><td>A.X K2</td><td>FP8</td><td>646 GB (~62% of K1)</td></tr>
+<tr><td>A.X K2</td><td>NVFP4</td><td>370 GB (~36% of K1, ~57% of FP8)</td></tr>
+</tbody>
+</table>
+
+<p>NVFP4가 FP8을 대부분 벤치에서 1점 이내로 추종 (Table 9): CLIcK 84.21 vs 84.06, GSM8K 80.21 vs 77.71, MMLU-Pro 69.71 vs 68.04. NPU (Rebellions ATOM-Max)에서 NVIDIA L40S 대비 <strong>107% performance-per-watt</strong>.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Sovereign AI 문맥에서의 실질적 완성도</strong>: 한국어 벤치 (KMMLU-Pro, CLIcK)에서 프론티어 open-weight를 능가하고, τ²-Bench Telecom 98.0 SOTA로 실제 도메인 응용까지 검증. 국가과제 목표(주권 AI)에 실용적으로 부합하는 결과.</li>
+  <li><strong>SGA + GN의 시너지 설계</strong>: 단순히 여러 기법을 병렬 적용한 게 아니라, GN이 <em>indexer의 top-$k$ selection 품질을 보장</em>하는 signal calibration 역할을 함. Attention-sink 억제 → indexer가 informative position에 예산 집중. 두 컴포넌트의 상호 강화 논리가 명확.</li>
+  <li><strong>Sparse warmup 방식의 실용적 발견</strong>: DeepSeek/GLM의 dense warmup 없이 sparse warmup만으로 downstream 성능이 essentially unchanged (62.80 vs 62.99 LongBench). Sparse 학습 자체가 훨씬 빨라 dense warmup 대비 큰 wall-clock 절감. 후속 sparse attention 연구의 default choice로 유력.</li>
+  <li><strong>Blockwise FP8 end-to-end의 RL 안정성 실증</strong>: MXFP8 trainer + blockwise FP8 rollout mismatch가 reward collapse를 유발한다는 <em>구체적 문제</em>와 해결책 (TE fork + blockwise FP8 통일)을 제시. Large-scale RL 인프라 팀에게 실용 가치가 큼.</li>
+  <li><strong>Think-Fusion의 명료함</strong>: Paired thinking/non-thinking response로 mode confusion을 해결하는 접근은 dual-track training보다 훨씬 단순하며, control-token 기반이라 배포 시 사용자 API 노출도 자연스러움.</li>
+  <li><strong>WSM (checkpoint merging)</strong>: 마지막 6개 checkpoint를 shard-wise 평균. MoE router weight 포함이 실용 발견.</li>
+</ul>
+
+<h3>약점 및 한계</h3>
+<ul>
+  <li><strong>Multimodal 부재</strong>: 저자 스스로 명시. Text-only이므로 VLM 태스크는 지원 불가. Sovereign AI 응용에서 문서/차트 이해 등의 요구가 크므로 실제 배포 gap.</li>
+  <li><strong>BrowseComp 9.3의 큰 gap</strong>: Kimi-K2.6 29.1 대비 1/3 수준. Agentic RL을 광범위하게 실시한 모델(heavy agentic post-training) 대비 명확한 열세. 논문도 "limited agentic RL"을 인정하며 향후 개선 필요.</li>
+  <li><strong>Compute constraint 인정</strong>: EP=8 (intra-node NVLink)로 제한된 것은 slower inter-node link 회피 목적이나, higher-degree multi-node EP를 실험하지 못해 fine-grained expert partitioning 미탐색.</li>
+  <li><strong>K1 대비 base architecture 유사</strong>: 주요 개선은 SGA + GN + data curation + Think-Fusion이며, MoE 코어는 대체로 A.X K1 계승. 완전한 원천 novelty보다는 <em>system-level 통합 성과</em>가 강점.</li>
+  <li><strong>Sci&Knowledge / General에서 프론티어와 gap</strong>: HLE 27.8 vs DeepSeek-V4 Flash 32.1, IFBench 75.9 vs 81.2. Frontier scaling data/compute 대비 부족을 저자도 인정 ("modest performance shortfalls").</li>
+  <li><strong>RL 데이터 규모 미공개</strong>: 100K prompts 소비만 명시. 실제 rollout 수, judge 모델, safety data volume 등의 세부 부족.</li>
+  <li><strong>재현 어려움</strong>: 512 B200 × 70일은 대부분의 연구자에게 접근 불가. 세부 스크립트나 recipe reproduction은 어려움 (HF weight 공개는 있음).</li>
+</ul>
+
+<h3>확장 가능성</h3>
+<ul>
+  <li>Multimodal (Vision + Audio) 확장이 저자 명시 미래 계획. 기존 in-house 한국어 특화 VLM PDF parser를 backbone으로 흡수하는 확장이 유력.</li>
+  <li>SGA의 sparse warmup 원칙은 다른 base architecture (GLM-5, DeepSeek-V4)에도 이식 가능. Dense warmup을 스킵하는 실용적 recipe로 광범위 채택 가능성.</li>
+  <li>Blockwise FP8 RL infrastructure는 다른 large MoE post-training 프로젝트에 즉시 이식 가능한 findings.</li>
+  <li>Trillion-parameter 확장 계획 명시. 512 B200 및 70일 예산에서의 안정 학습이 검증됐으므로 스케일업 신뢰 확보.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li>##Sovereign AI라는 정치적/전략적 목표를 실제 벤치 SOTA로 달성##: 한국어 (KMMLU-Pro 80.5, CLIcK 91.6), 수학 (AIME26 97.1, Apex 45.8), 도메인 에이전트 (τ²-Bench Telecom 98.0). "제한된 예산에서 프론티어 도달"의 successful case.</li>
+  <li>Attention의 두 문제 — <em>outlier / attention sink</em> — 를 <strong>GN + Gated Attention의 조합</strong>으로 동시 해결. Indexer의 top-$k$ selection 품질이 output gate의 sink 억제에 의존한다는 sub-linear synergy 발견은 sparse attention 연구에 실용 시사점.</li>
+  <li>##Think-Fusion의 paired response 학습이 dual-track보다 우수##: mode confusion 해결이 단일 데이터셋 + 단일 loss로 가능함을 실증. 향후 hybrid reasoning 모델 학습의 default recipe 후보.</li>
+  <li>Blockwise FP8 end-to-end (trainer + rollout)의 필요성은 large MoE RL에서 <strong>reward collapse 방지의 조건</strong>. TIS 같은 token-level intervention으로는 해결 안 됨. 이 findings는 즉시 다른 RL 팀에 이식 가능한 practical guidance.</li>
+  <li>MXFP8 학습 + blockwise FP8 배포의 파이프라인이 잘 정렬되면, ##NVFP4 (W4A4) 서빙까지 품질 손실 1점 미만으로 도달 가능##. Memory footprint 62%(FP8) 및 36%(NVFP4)로 압축되며, 이는 sovereign AI 규모 (100GB급 GPU) 배포 실현의 열쇠.</li>
+  <li>Sparse warmup만으로 dense warmup 우회는 실용적으로 <strong>큰 학습 시간 절감</strong>을 제공하며 downstream 손실 없음. DeepSeek/GLM 스타일에 대한 실전 대안 제시.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+
+</div>
+</body>
+</html>
