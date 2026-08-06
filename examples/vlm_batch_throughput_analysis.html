@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VLM 배치 처리량 분석 — 왜 배치를 키워도 빨라지지 않을까?</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Noto Sans KR', sans-serif;
+    background: #ffffff;
+    color: #1e293b;
+    line-height: 1.75;
+  }
+
+  /* ── Hero ── */
+  .hero {
+    background: linear-gradient(135deg, #1e3a5f, #2563eb, #3b82f6);
+    color: #fff;
+    padding: 4rem 2rem 3rem;
+    text-align: center;
+  }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 2.4rem; font-weight: 900; margin-bottom: 0.6rem; line-height: 1.3; }
+  .hero .subtitle { font-size: 1.1rem; font-weight: 300; opacity: 0.9; max-width: 640px; margin: 0 auto; }
+
+  /* ── Container ── */
+  .container { max-width: 820px; margin: 0 auto; padding: 0 1.5rem; }
+
+  /* ── Section ── */
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.6rem; font-weight: 700; margin-bottom: 1rem; color: #1e3a5f; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #2563eb, #7c3aed); border-radius: 3px; }
+
+  /* ── Cards ── */
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #2563eb; }
+  .card-green  { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red    { border-left: 5px solid #dc2626; }
+
+  /* ── One-liner ── */
+  .one-liner {
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff;
+    border-radius: 16px;
+    padding: 2rem 2.5rem;
+    font-size: 1.25rem;
+    font-weight: 500;
+    text-align: center;
+    margin: 2rem 0;
+    line-height: 1.6;
+  }
+
+  /* ── SVG diagrams ── */
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; }
+
+  /* ── Stat row ── */
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #2563eb, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  /* ── Comparison table ── */
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .comp-table th { background: #1e3a5f; color: #fff; padding: 12px 16px; font-weight: 500; font-size: 0.9rem; }
+  .comp-table td { padding: 12px 16px; border-bottom: 1px solid #e2e8f0; font-size: 0.95rem; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #eff6ff; font-weight: 700; }
+
+  /* ── Analogy boxes ── */
+  .analogy {
+    background: linear-gradient(135deg, #fef3c7, #fde68a);
+    border-radius: 16px;
+    border: 1px solid #fcd34d;
+    padding: 1.8rem 2rem;
+    margin: 1.5rem 0;
+    font-size: 1rem;
+    line-height: 1.7;
+  }
+  .analogy-title { font-weight: 700; font-size: 1.1rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  /* ── Footer ── */
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  /* ── Responsive ── */
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 1.7rem; }
+    .stat-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="hero-badge">OPKD Standalone vLLM Benchmark &middot; 2026-03</div>
+  <h1>VLM 배치 처리량 분석</h1>
+  <p class="subtitle">배치를 키우면 더 빨라져야 하는데,<br>VLM에서는 왜 그렇지 않을까?</p>
+</div>
+
+<div class="container">
+
+<!-- ===== 한 줄 요약 ===== -->
+<div class="one-liner">
+  "같은 사진 32장을 처리하면 3.6배 빨라지는데,<br>다른 사진 32장을 처리하면 거의 빨라지지 않는다"
+</div>
+
+<!-- ===== 1. 배경: 배치 처리란? ===== -->
+<section>
+  <h2>배경: AI는 한번에 여러 질문을 처리할 수 있다</h2>
+
+  <p style="margin:0.8rem 0;">AI에게 질문 1개를 주면 답변 1개를 만듭니다. 그런데 질문 8개를 <strong>한꺼번에</strong> 주면, 1개씩 8번 하는 것보다 훨씬 효율적으로 처리할 수 있습니다. 이것을 <strong>배치(batch) 처리</strong>라고 합니다.</p>
+
+  <div class="analogy">
+    <div class="analogy-title">식당의 비유</div>
+    <p>셰프가 스테이크 1인분을 굽든 8인분을 굽든, 오븐을 예열하는 시간은 같습니다. 한 번 예열해서 8인분을 동시에 구우면 훨씬 효율적이죠. AI의 배치 처리도 같은 원리입니다 — GPU라는 "오븐"을 한 번 돌릴 때 여러 질문을 동시에 처리합니다.</p>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="25" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">배치 처리: 1개씩 vs 한꺼번에</text>
+
+      <!-- 왼쪽: 1개씩 -->
+      <rect x="30" y="45" width="300" height="175" rx="12" fill="#fff5f5" stroke="#dc2626" stroke-width="1.5"/>
+      <text x="180" y="70" font-size="12" font-weight="700" fill="#dc2626" text-anchor="middle">배치 = 1 (하나씩 처리)</text>
+
+      <rect x="55" y="85" width="250" height="24" rx="6" fill="#dc2626" opacity="0.2"/>
+      <rect x="55" y="85" width="250" height="24" rx="6" fill="#dc2626" opacity="0.6"/>
+      <text x="180" y="101" font-size="10" fill="#fff" text-anchor="middle">질문 1 → 답변 생성</text>
+
+      <rect x="55" y="115" width="250" height="24" rx="6" fill="#dc2626" opacity="0.2"/>
+      <rect x="55" y="115" width="250" height="24" rx="6" fill="#dc2626" opacity="0.4"/>
+      <text x="180" y="131" font-size="10" fill="#fff" text-anchor="middle">질문 2 → 답변 생성</text>
+
+      <rect x="55" y="145" width="250" height="24" rx="6" fill="#dc2626" opacity="0.2"/>
+      <rect x="55" y="145" width="250" height="24" rx="6" fill="#dc2626" opacity="0.3"/>
+      <text x="180" y="161" font-size="10" fill="#fff" text-anchor="middle">질문 3 → 답변 생성</text>
+
+      <text x="180" y="195" font-size="11" fill="#dc2626" text-anchor="middle" font-weight="600">총 시간: 30초 (10초 × 3)</text>
+
+      <!-- 오른쪽: 한꺼번에 -->
+      <rect x="370" y="45" width="300" height="175" rx="12" fill="#ecfdf5" stroke="#059669" stroke-width="1.5"/>
+      <text x="520" y="70" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">배치 = 3 (한꺼번에 처리)</text>
+
+      <rect x="395" y="85" width="250" height="24" rx="6" fill="#059669" opacity="0.6"/>
+      <text x="520" y="101" font-size="10" fill="#fff" text-anchor="middle">질문 1 → 답변 생성</text>
+
+      <rect x="395" y="115" width="250" height="24" rx="6" fill="#059669" opacity="0.5"/>
+      <text x="520" y="131" font-size="10" fill="#fff" text-anchor="middle">질문 2 → 답변 생성</text>
+
+      <rect x="395" y="145" width="250" height="24" rx="6" fill="#059669" opacity="0.4"/>
+      <text x="520" y="161" font-size="10" fill="#fff" text-anchor="middle">질문 3 → 답변 생성</text>
+
+      <text x="520" y="195" font-size="11" fill="#059669" text-anchor="middle" font-weight="600">총 시간: 15초 (동시 처리!)</text>
+    </svg>
+    <div class="diagram-caption">같은 3개 질문을 처리하되, 배치가 크면 GPU를 더 효율적으로 사용한다</div>
+  </div>
+</section>
+
+<!-- ===== 2. 실험 결과 ===== -->
+<section>
+  <h2>실험: 같은 사진 vs 다른 사진</h2>
+
+  <p style="margin:0.8rem 0;">Vision Language Model(VLM)은 <strong>사진을 보고 질문에 답하는 AI</strong>입니다. 이 AI의 배치 처리 성능을 두 가지 조건으로 측정했습니다.</p>
+
+  <div style="display:flex; gap:1rem; flex-wrap:wrap; margin:1.5rem 0;">
+    <div class="card card-accent" style="flex:1; min-width:280px;">
+      <p style="font-weight:700; color:#2563eb; font-size:1.05rem;">Uniform (같은 사진)</p>
+      <p style="margin-top:0.5rem;">동일한 사진 + 동일한 질문을 배치 크기만큼 복사해서 처리. 순수하게 "배치를 키우면 얼마나 빨라지는가"를 측정.</p>
+    </div>
+    <div class="card card-orange" style="flex:1; min-width:280px;">
+      <p style="font-weight:700; color:#d97706; font-size:1.05rem;">Diverse (다른 사진)</p>
+      <p style="margin-top:0.5rem;">서로 다른 사진 + 서로 다른 질문으로 배치 구성. 실제 학습/서비스 환경과 동일한 조건.</p>
+    </div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="700" fill="#1e3a5f" text-anchor="middle">배치 크기별 처리 속도 (tok/s) — 1GPU, H200</text>
+
+      <!-- 축 -->
+      <line x1="80" y1="290" x2="660" y2="290" stroke="#cbd5e1" stroke-width="1.5"/>
+      <line x1="80" y1="50" x2="80" y2="290" stroke="#cbd5e1" stroke-width="1.5"/>
+
+      <!-- Y축 라벨 -->
+      <text x="25" y="295" font-size="10" fill="#64748b" text-anchor="start">0</text>
+      <text x="25" y="235" font-size="10" fill="#64748b" text-anchor="start">200</text>
+      <text x="25" y="175" font-size="10" fill="#64748b" text-anchor="start">400</text>
+      <text x="25" y="115" font-size="10" fill="#64748b" text-anchor="start">600</text>
+      <text x="10" y="170" font-size="11" fill="#64748b" text-anchor="middle" transform="rotate(-90 10 170)">tok/s</text>
+
+      <!-- Y축 그리드 -->
+      <line x1="80" y1="230" x2="660" y2="230" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="170" x2="660" y2="170" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="80" y1="110" x2="660" y2="110" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+
+      <!-- X축 라벨 -->
+      <text x="130" y="310" font-size="10" fill="#64748b" text-anchor="middle">1</text>
+      <text x="225" y="310" font-size="10" fill="#64748b" text-anchor="middle">2</text>
+      <text x="320" y="310" font-size="10" fill="#64748b" text-anchor="middle">4</text>
+      <text x="415" y="310" font-size="10" fill="#64748b" text-anchor="middle">8</text>
+      <text x="510" y="310" font-size="10" fill="#64748b" text-anchor="middle">16</text>
+      <text x="610" y="310" font-size="10" fill="#64748b" text-anchor="middle">32</text>
+      <text x="370" y="335" font-size="11" fill="#64748b" text-anchor="middle">Batch Size</text>
+
+      <!-- Uniform (파란색) — 167, 234, 290, 331, 356, 610 -->
+      <!-- 스케일: 0=290, 200=230, 400=170, 600=110 => y = 290 - val*0.3 -->
+      <polyline points="130,240 225,220 320,203 415,191 510,183 610,107"
+                fill="none" stroke="#2563eb" stroke-width="3" stroke-linejoin="round"/>
+      <circle cx="130" cy="240" r="5" fill="#2563eb"/>
+      <circle cx="225" cy="220" r="5" fill="#2563eb"/>
+      <circle cx="320" cy="203" r="5" fill="#2563eb"/>
+      <circle cx="415" cy="191" r="5" fill="#2563eb"/>
+      <circle cx="510" cy="183" r="5" fill="#2563eb"/>
+      <circle cx="610" cy="107" r="5" fill="#2563eb"/>
+
+      <text x="140" y="235" font-size="9" fill="#2563eb" font-weight="600">167</text>
+      <text x="235" y="215" font-size="9" fill="#2563eb" font-weight="600">234</text>
+      <text x="330" y="198" font-size="9" fill="#2563eb" font-weight="600">290</text>
+      <text x="425" y="186" font-size="9" fill="#2563eb" font-weight="600">331</text>
+      <text x="520" y="178" font-size="9" fill="#2563eb" font-weight="600">356</text>
+      <text x="615" y="100" font-size="9" fill="#2563eb" font-weight="700">610</text>
+
+      <!-- Diverse (주황색) — 167, 113, 125, 183, 220, 230 -->
+      <polyline points="130,240 225,256 320,253 415,235 510,224 610,221"
+                fill="none" stroke="#d97706" stroke-width="3" stroke-linejoin="round" stroke-dasharray="8,4"/>
+      <circle cx="130" cy="240" r="5" fill="#d97706"/>
+      <circle cx="225" cy="256" r="5" fill="#d97706"/>
+      <circle cx="320" cy="253" r="5" fill="#d97706"/>
+      <circle cx="415" cy="235" r="5" fill="#d97706"/>
+      <circle cx="510" cy="224" r="5" fill="#d97706"/>
+      <circle cx="610" cy="221" r="5" fill="#d97706"/>
+
+      <text x="140" y="253" font-size="9" fill="#d97706" font-weight="600">167</text>
+      <text x="235" y="269" font-size="9" fill="#d97706" font-weight="600">113</text>
+      <text x="330" y="266" font-size="9" fill="#d97706" font-weight="600">125</text>
+      <text x="425" y="248" font-size="9" fill="#d97706" font-weight="600">183</text>
+      <text x="520" y="237" font-size="9" fill="#d97706" font-weight="600">220</text>
+      <text x="585" y="237" font-size="9" fill="#d97706" font-weight="700">230</text>
+
+      <!-- 범례 -->
+      <line x1="420" y1="48" x2="450" y2="48" stroke="#2563eb" stroke-width="3"/>
+      <circle cx="435" cy="48" r="4" fill="#2563eb"/>
+      <text x="458" y="52" font-size="11" fill="#2563eb" font-weight="600">Uniform (같은 사진)</text>
+
+      <line x1="420" y1="68" x2="450" y2="68" stroke="#d97706" stroke-width="3" stroke-dasharray="8,4"/>
+      <circle cx="435" cy="68" r="4" fill="#d97706"/>
+      <text x="458" y="72" font-size="11" fill="#d97706" font-weight="600">Diverse (다른 사진)</text>
+    </svg>
+    <div class="diagram-caption">같은 사진을 복제한 배치는 3.6배 빨라지지만, 다른 사진 배치는 1.4배에 그친다</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">3.6x</div>
+      <div class="label">Uniform<br>BS 1→32 향상</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="background: linear-gradient(135deg, #d97706, #dc2626); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">1.4x</div>
+      <div class="label">Diverse<br>BS 1→32 향상</div>
+    </div>
+    <div class="stat-box">
+      <div class="num" style="background: linear-gradient(135deg, #dc2626, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">2.6x</div>
+      <div class="label">격차<br>BS=32에서 차이</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 3. 왜 이런 차이가? ===== -->
+<section>
+  <h2>원인: 사진 크기가 다르면 "줄 서기"가 꼬인다</h2>
+
+  <p style="margin:0.8rem 0;">VLM이 사진을 처리할 때는 두 단계를 거칩니다:</p>
+
+  <div style="display:flex; gap:1rem; flex-wrap:wrap; margin:1.5rem 0;">
+    <div class="card card-accent" style="flex:1; min-width:260px;">
+      <p style="font-weight:700; color:#2563eb; font-size:1.05rem;">1단계: Prefill (사진 읽기)</p>
+      <p style="margin-top:0.5rem;">사진의 픽셀을 AI가 이해할 수 있는 "토큰"으로 변환합니다. 고해상도 사진일수록 토큰이 많아지고 시간이 오래 걸립니다.</p>
+    </div>
+    <div class="card card-green" style="flex:1; min-width:260px;">
+      <p style="font-weight:700; color:#059669; font-size:1.05rem;">2단계: Decode (답변 생성)</p>
+      <p style="margin-top:0.5rem;">사진을 이해한 뒤, 한 글자씩 답변을 만들어 냅니다. 여러 질문의 답변을 <strong>동시에</strong> 한 글자씩 만들 수 있습니다.</p>
+    </div>
+  </div>
+
+  <p style="margin:0.8rem 0;">문제는 vLLM(AI 추론 엔진)이 매 순간 처리할 수 있는 <strong>총 토큰 수에 한계</strong>가 있다는 것입니다. 사진 읽기(Prefill)와 답변 생성(Decode)이 이 한계를 <strong>나눠 써야</strong> 합니다.</p>
+
+  <div class="analogy">
+    <div class="analogy-title">도로의 비유</div>
+    <p><strong>Prefill</strong>은 대형 트럭(사진이 클수록 더 큰 트럭), <strong>Decode</strong>는 승용차라고 생각하세요. 도로(GPU)는 매 순간 정해진 수의 차량만 통과시킬 수 있습니다.</p>
+    <p style="margin-top:0.8rem;"><strong>같은 크기 트럭 8대</strong>가 동시에 도착하면 → 한꺼번에 통과시키고, 이후 승용차 8대가 동시에 질주. 효율적!</p>
+    <p><strong>크기가 다른 트럭 8대</strong>가 도착하면 → 큰 트럭이 도로를 꽉 채워서 작은 트럭과 승용차가 기다림. 비효율적!</p>
+  </div>
+
+  <!-- Uniform 처리 다이어그램 -->
+  <h3 style="margin-top:2rem; font-size:1.15rem; color:#059669;">같은 사진 배치: 깔끔하게 동시 처리</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 200" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="20" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">Uniform: 같은 사진 4장 → 깔끔한 동시 처리</text>
+
+      <!-- 시간축 -->
+      <text x="60" y="50" font-size="10" fill="#64748b">시간 →</text>
+      <line x1="100" y1="45" x2="660" y2="45" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow)"/>
+      <defs><marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><path d="M0,0 L8,3 L0,6" fill="#cbd5e1"/></marker></defs>
+
+      <!-- Prefill (같은 크기) -->
+      <rect x="100" y="65" width="80" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="140" y="80" font-size="8" fill="#fff" text-anchor="middle">Prefill 사진A</text>
+      <rect x="100" y="90" width="80" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="140" y="105" font-size="8" fill="#fff" text-anchor="middle">Prefill 사진A</text>
+      <rect x="100" y="115" width="80" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="140" y="130" font-size="8" fill="#fff" text-anchor="middle">Prefill 사진A</text>
+      <rect x="100" y="140" width="80" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="140" y="155" font-size="8" fill="#fff" text-anchor="middle">Prefill 사진A</text>
+
+      <!-- 동시에 끝남! -->
+      <line x1="185" y1="60" x2="185" y2="170" stroke="#059669" stroke-width="2" stroke-dasharray="4"/>
+
+      <!-- Decode (동시) -->
+      <rect x="190" y="65" width="450" height="22" rx="4" fill="#059669" opacity="0.5"/>
+      <text x="415" y="80" font-size="8" fill="#fff" text-anchor="middle">Decode: 답변 1 생성 중...</text>
+      <rect x="190" y="90" width="450" height="22" rx="4" fill="#059669" opacity="0.5"/>
+      <text x="415" y="105" font-size="8" fill="#fff" text-anchor="middle">Decode: 답변 2 생성 중...</text>
+      <rect x="190" y="115" width="450" height="22" rx="4" fill="#059669" opacity="0.5"/>
+      <text x="415" y="130" font-size="8" fill="#fff" text-anchor="middle">Decode: 답변 3 생성 중...</text>
+      <rect x="190" y="140" width="450" height="22" rx="4" fill="#059669" opacity="0.5"/>
+      <text x="415" y="155" font-size="8" fill="#fff" text-anchor="middle">Decode: 답변 4 생성 중...</text>
+
+      <text x="400" y="185" font-size="11" fill="#059669" text-anchor="middle" font-weight="700">4개가 동시에 decode → 높은 처리량!</text>
+    </svg>
+    <div class="diagram-caption">같은 크기 사진은 prefill이 동시에 끝나서, 이후 순수 decode만 동시에 진행</div>
+  </div>
+
+  <!-- Diverse 처리 다이어그램 -->
+  <h3 style="margin-top:2rem; font-size:1.15rem; color:#dc2626;">다른 사진 배치: 큰 사진이 전체를 막는다</h3>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 220" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="20" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">Diverse: 크기가 다른 사진 4장 → 서로 방해</text>
+
+      <!-- 시간축 -->
+      <text x="60" y="50" font-size="10" fill="#64748b">시간 →</text>
+      <line x1="100" y1="45" x2="660" y2="45" stroke="#cbd5e1" stroke-width="1" marker-end="url(#arrow)"/>
+
+      <!-- 사진1: 작은 사진 (빨리 끝남) -->
+      <rect x="100" y="65" width="40" height="22" rx="4" fill="#2563eb" opacity="0.7"/>
+      <text x="120" y="80" font-size="7" fill="#fff" text-anchor="middle">작은사진</text>
+      <rect x="145" y="65" width="300" height="22" rx="4" fill="#059669" opacity="0.4"/>
+      <text x="295" y="80" font-size="8" fill="#fff" text-anchor="middle">Decode 답변1... (중간중간 멈춤)</text>
+
+      <!-- 사진2: 큰 사진 (오래 걸림) - 도로 독점 -->
+      <rect x="100" y="93" width="200" height="22" rx="4" fill="#dc2626" opacity="0.7"/>
+      <text x="200" y="108" font-size="8" fill="#fff" text-anchor="middle">큰 사진 Prefill (토큰 수천 개!)</text>
+      <rect x="305" y="93" width="280" height="22" rx="4" fill="#059669" opacity="0.4"/>
+      <text x="445" y="108" font-size="8" fill="#fff" text-anchor="middle">Decode 답변2...</text>
+
+      <!-- 사진3: 중간 사진 -->
+      <rect x="100" y="121" width="100" height="22" rx="4" fill="#2563eb" opacity="0.5"/>
+      <text x="150" y="136" font-size="8" fill="#fff" text-anchor="middle">중간사진</text>
+      <rect x="205" y="121" width="380" height="22" rx="4" fill="#059669" opacity="0.4"/>
+      <text x="395" y="136" font-size="8" fill="#fff" text-anchor="middle">Decode 답변3... (중간중간 멈춤)</text>
+
+      <!-- 사진4: 대기 중 -->
+      <rect x="200" y="149" width="130" height="22" rx="4" fill="#d97706" opacity="0.5"/>
+      <text x="265" y="164" font-size="8" fill="#fff" text-anchor="middle">사진4 prefill 대기...</text>
+      <rect x="335" y="149" width="250" height="22" rx="4" fill="#059669" opacity="0.4"/>
+      <text x="460" y="164" font-size="8" fill="#fff" text-anchor="middle">Decode 답변4...</text>
+
+      <!-- 병목 표시 -->
+      <rect x="100" y="93" width="200" height="22" rx="4" fill="none" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="4"/>
+      <text x="200" y="190" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">↑ 큰 사진이 처리 예산을 독점하는 동안</text>
+      <text x="200" y="205" font-size="10" fill="#dc2626" text-anchor="middle" font-weight="700">다른 질문의 답변 생성이 멈추거나 느려진다</text>
+    </svg>
+    <div class="diagram-caption">크기가 다른 사진의 prefill이 처리 예산(max_num_batched_tokens)을 경쟁하면서 decode가 지연된다</div>
+  </div>
+
+  <div class="card card-red">
+    <p style="font-weight:700; font-size:1.05rem;">핵심 원인: Chunked Prefill의 토큰 예산 경쟁</p>
+    <p style="margin-top:0.5rem;">vLLM 엔진은 매 스케줄링 step마다 최대 <strong>16,384개 토큰</strong>만 처리할 수 있습니다 (Prefill + Decode 합산). 고해상도 사진 하나의 prefill이 수천 토큰을 차지하면, 같은 step에서 다른 질문들의 decode가 밀려납니다.</p>
+    <p style="margin-top:0.5rem;">배치를 32로 키워도, 실제로 <strong>동시에 답변을 생성하는 질문 수</strong>는 늘지 않기 때문에 처리량이 올라가지 않습니다.</p>
+  </div>
+</section>
+
+<!-- ===== 4. OPKD 파이프라인에서의 영향 ===== -->
+<section>
+  <h2>실제 학습에서의 영향</h2>
+
+  <p style="margin:0.8rem 0;">OPKD 학습 파이프라인에서 generation batch size를 1→32로 키워도 <strong>tok/s/GPU가 ~70-100으로 거의 변하지 않는</strong> 현상이 관측되었습니다. 이는 실제 학습 데이터가 다양한 크기의 이미지를 포함하고 있어서 Diverse 조건과 동일하기 때문입니다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="13" font-weight="700" fill="#1e3a5f" text-anchor="middle">OPKD 파이프라인 vs Standalone 벤치마크</text>
+
+      <!-- 축 -->
+      <line x1="100" y1="220" x2="640" y2="220" stroke="#cbd5e1" stroke-width="1.5"/>
+      <line x1="100" y1="50" x2="100" y2="220" stroke="#cbd5e1" stroke-width="1.5"/>
+
+      <!-- Y축 -->
+      <text x="55" y="225" font-size="9" fill="#64748b">0</text>
+      <text x="55" y="178" font-size="9" fill="#64748b">200</text>
+      <text x="55" y="135" font-size="9" fill="#64748b">400</text>
+      <text x="55" y="93" font-size="9" fill="#64748b">600</text>
+
+      <line x1="100" y1="175" x2="640" y2="175" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="100" y1="130" x2="640" y2="130" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+      <line x1="100" y1="85" x2="640" y2="85" stroke="#e2e8f0" stroke-width="0.5" stroke-dasharray="4"/>
+
+      <!-- X축 -->
+      <text x="155" y="238" font-size="9" fill="#64748b" text-anchor="middle">1</text>
+      <text x="255" y="238" font-size="9" fill="#64748b" text-anchor="middle">4</text>
+      <text x="355" y="238" font-size="9" fill="#64748b" text-anchor="middle">8</text>
+      <text x="455" y="238" font-size="9" fill="#64748b" text-anchor="middle">16</text>
+      <text x="575" y="238" font-size="9" fill="#64748b" text-anchor="middle">32</text>
+      <text x="370" y="255" font-size="10" fill="#64748b" text-anchor="middle">Prompts per GPU</text>
+
+      <!-- Standalone Uniform (상승) -->
+      <polyline points="155,183 255,155 355,145 455,140 575,83"
+                fill="none" stroke="#2563eb" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="575" cy="83" r="4" fill="#2563eb"/>
+      <text x="590" y="79" font-size="9" fill="#2563eb" font-weight="700">610</text>
+
+      <!-- OPKD 파이프라인 (flat) -->
+      <polyline points="155,204 255,200 355,201 455,197 575,195"
+                fill="none" stroke="#dc2626" stroke-width="2.5" stroke-linejoin="round" stroke-dasharray="6,3"/>
+      <circle cx="575" cy="195" r="4" fill="#dc2626"/>
+      <text x="590" y="198" font-size="9" fill="#dc2626" font-weight="700">~100</text>
+
+      <!-- 범례 -->
+      <rect x="200" y="42" width="280" height="32" rx="8" fill="#f8fafc" stroke="#e2e8f0"/>
+      <line x1="215" y1="58" x2="240" y2="58" stroke="#2563eb" stroke-width="2.5"/>
+      <text x="248" y="62" font-size="9" fill="#2563eb" font-weight="600">Standalone (같은 사진)</text>
+      <line x1="370" y1="58" x2="395" y2="58" stroke="#dc2626" stroke-width="2.5" stroke-dasharray="6,3"/>
+      <text x="403" y="62" font-size="9" fill="#dc2626" font-weight="600">OPKD (다양한 사진)</text>
+    </svg>
+    <div class="diagram-caption">같은 GPU, 같은 모델인데 배치를 키워도 OPKD에서는 처리량이 거의 증가하지 않는다</div>
+  </div>
+</section>
+
+<!-- ===== 5. 해결 방향 ===== -->
+<section>
+  <h2>해결 방향</h2>
+
+  <div class="card card-green" style="margin-top:1rem;">
+    <p style="font-weight:700; color:#059669; font-size:1.05rem;">방법 1: 토큰 예산 늘리기 (가장 간단)</p>
+    <p style="margin-top:0.5rem;">vLLM의 <code style="background:#ecfdf5; padding:2px 6px; border-radius:4px; font-size:0.9em;">max_num_batched_tokens</code>을 16,384 → 32,768 이상으로 올리면, 큰 사진의 prefill이 진행되는 동안에도 다른 질문의 decode를 위한 여유 공간이 생깁니다.</p>
+  </div>
+
+  <div class="card card-accent">
+    <p style="font-weight:700; color:#2563eb; font-size:1.05rem;">방법 2: 비슷한 크기 사진끼리 모으기</p>
+    <p style="margin-top:0.5rem;">학습 데이터를 이미지 해상도/토큰 수 기준으로 정렬하여, 한 배치 안에 비슷한 크기의 사진만 들어가도록 합니다. 이러면 Uniform에 가까운 효율을 얻을 수 있습니다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <p style="font-weight:700; color:#d97706; font-size:1.05rem;">방법 3: 이미지 해상도 상한 제한</p>
+    <p style="margin-top:0.5rem;">사진을 전처리할 때 최대 해상도를 제한하면, prefill 비용 자체가 줄어듭니다. 다만 모델의 이미지 이해 품질에 영향을 줄 수 있어 트레이드오프가 필요합니다.</p>
+  </div>
+</section>
+
+<!-- ===== 6. 실험 환경 ===== -->
+<section>
+  <h2>실험 환경</h2>
+
+  <table class="comp-table">
+    <tr>
+      <th>항목</th>
+      <th>설정</th>
+    </tr>
+    <tr>
+      <td>GPU</td>
+      <td>NVIDIA H200 (144GB HBM) × 2</td>
+    </tr>
+    <tr>
+      <td>모델</td>
+      <td>Kanana-V (Qwen3-4B 기반 VLM)</td>
+    </tr>
+    <tr>
+      <td>추론 엔진</td>
+      <td>vLLM 0.14.0 (커스텀 빌드)</td>
+    </tr>
+    <tr>
+      <td>Max tokens</td>
+      <td>2,048</td>
+    </tr>
+    <tr>
+      <td>Max model len</td>
+      <td>8,192</td>
+    </tr>
+    <tr>
+      <td>GPU memory utilization</td>
+      <td>0.9</td>
+    </tr>
+    <tr>
+      <td>측정 방법</td>
+      <td>Warmup 1회 + 측정 4회 평균</td>
+    </tr>
+    <tr>
+      <td>데이터셋</td>
+      <td>OPKD QAT no_think train (762K samples)</td>
+    </tr>
+  </table>
+</section>
+
+</div>
+
+<!-- ===== FOOTER ===== -->
+<div class="footer">
+  VLM Batch Throughput Analysis &middot; OPKD Team &middot; 2026-03-30
+</div>
+
+</body>
+</html>
