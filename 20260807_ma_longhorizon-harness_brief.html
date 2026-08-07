@@ -1,0 +1,937 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LongHorizon-Harness — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans KR', sans-serif; line-height: 1.7; color: #1a1a1a; margin: 0; background: #fff; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+  .hero { background: linear-gradient(135deg, #ff6a00 0%, #ee0979 100%); color: white; padding: 4rem 1.5rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+  .hero h1 { font-size: 2.5rem; margin: 1rem 0 0.5rem; }
+  .hero p.sub { font-size: 1.15rem; opacity: 0.95; max-width: 750px; margin: 0.5rem auto; }
+  .hero a.top-link { display: inline-block; background: rgba(255,255,255,0.15); color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.3); }
+  section { padding: 2.5rem 0; border-bottom: 1px solid #eee; }
+  section h2 { font-size: 1.7rem; margin-top: 0; color: #8b2c50; border-left: 5px solid #ee0979; padding-left: 0.8rem; }
+  .one-liner { background: linear-gradient(135deg, #ff6a00, #ee0979); color: white; padding: 1.5rem 2rem; border-radius: 12px; font-size: 1.15rem; text-align: center; margin: 1.5rem 0; }
+  .one-liner .quote { font-style: italic; font-weight: 500; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 180px; background: #f8f9fa; padding: 1.2rem; border-radius: 10px; text-align: center; border-top: 4px solid #ee0979; }
+  .stat .num { font-size: 2rem; font-weight: 700; color: #8b2c50; }
+  .stat .lbl { font-size: 0.9rem; color: #666; margin-top: 0.3rem; }
+  .card { background: #f8f9fa; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1rem 0; }
+  .card-accent { border-left: 5px solid #ee0979; background: #fef0f5; }
+  .card-green { border-left: 5px solid #27ae60; background: #eaf7ef; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fdf3e6; }
+  .card-red { border-left: 5px solid #e74c3c; background: #fbeae8; }
+  .card h3 { margin: 0 0 0.5rem; color: #8b2c50; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { border: 1px solid #ddd; padding: 0.7rem; text-align: left; }
+  .comp-table th { background: #8b2c50; color: white; }
+  .comp-table tr:nth-child(even) { background: #f8f9fa; }
+  .comp-table td.win { background: #d4edda; font-weight: 600; }
+  .comp-table td.lose { background: #f8d7da; }
+  .svg-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }
+  .svg-wrap .caption { font-size: 0.9rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+  footer { background: #8b2c50; color: white; padding: 2rem 1.5rem; text-align: center; }
+  footer a { color: #ffd1e0; }
+  @media (max-width: 600px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .stat-row { flex-direction: column; } .hero h1 { font-size: 1.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">Alibaba DreamX Team</span>
+  <span class="badge">2026-08 · arXiv</span>
+  <span class="badge">LLM Agent · Long-Horizon</span>
+  <h1>LongHorizon-Harness</h1>
+  <p class="sub">Long-horizon task 실행을 <strong>task-state management 문제</strong>로 재정의하고, <strong>Manage-Execute-Audit 루프</strong>로 executor의 self-assessment 오류를 아키텍처적으로 차단.</p>
+  <a class="top-link" href="20260807_ma_longhorizon-harness.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<section>
+  <h2>한 줄 요약</h2>
+  <div class="one-liner">
+    <p class="quote">"Agent 능력은 model만의 특성이 아니라 <strong>model + harness</strong>의 시스템 속성이다."</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="num">51.8%→80.7%</div><div class="lbl">WeaveBench PassRate (Qwen 3.7-Plus)</div></div>
+    <div class="stat"><div class="num">69.7%→77.2%</div><div class="lbl">Terminal-Bench 2.1</div></div>
+    <div class="stat"><div class="num">2.8%→8.3%</div><div class="lbl">OSWorld 2.0 Binary (3×)</div></div>
+    <div class="stat"><div class="num">20.0%→34.3%</div><div class="lbl">OSWorld Opus 4.7 subset</div></div>
+    <div class="stat"><div class="num">3</div><div class="lbl">역할 (Manager · Executor · Auditor)</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>기존 agent harness의 문제 (Figure 1 오른쪽 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 380" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Left panel: Single Growing Session -->
+      <g>
+        <text x="200" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#c04a4a">Single Growing Session ⚠</text>
+
+        <!-- Growing scroll graphic -->
+        <path d="M 100,60 Q 130,90 100,120 Q 130,150 100,180 Q 130,210 100,240 Q 130,270 100,300" stroke="#c04a4a" stroke-width="3" fill="none"/>
+        <path d="M 300,60 Q 270,90 300,120 Q 270,150 300,180 Q 270,210 300,240 Q 270,270 300,300" stroke="#c04a4a" stroke-width="3" fill="none"/>
+        <line x1="100" y1="60" x2="300" y2="60" stroke="#c04a4a" stroke-width="3"/>
+        <line x1="100" y1="300" x2="300" y2="300" stroke="#c04a4a" stroke-width="3"/>
+
+        <!-- Growing text lines -->
+        <line x1="120" y1="90" x2="280" y2="90" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="105" x2="280" y2="105" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="130" x2="280" y2="130" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="150" x2="280" y2="150" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="175" x2="280" y2="175" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="195" x2="280" y2="195" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="220" x2="280" y2="220" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="240" x2="280" y2="240" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="265" x2="280" y2="265" stroke="#c04a4a" opacity="0.6"/>
+        <line x1="120" y1="285" x2="280" y2="285" stroke="#c04a4a" opacity="0.6"/>
+
+        <!-- Robot in the middle asking Done? -->
+        <circle cx="200" cy="200" r="30" fill="#a4d4e8" stroke="#333" stroke-width="2"/>
+        <circle cx="190" cy="195" r="3" fill="#333"/>
+        <circle cx="210" cy="195" r="3" fill="#333"/>
+        <path d="M 190,210 L 210,210" stroke="#333" stroke-width="2"/>
+        <text x="200" y="150" text-anchor="middle" font-size="14" font-weight="700" fill="#c04a4a">Done?</text>
+
+        <!-- self-reported progress -->
+        <text x="200" y="335" text-anchor="middle" font-size="12" fill="#666" font-style="italic">self-reported progress</text>
+        <text x="200" y="360" text-anchor="middle" font-size="18" font-weight="700" fill="#c04a4a">drift</text>
+      </g>
+
+      <!-- Divider -->
+      <line x1="420" y1="30" x2="420" y2="350" stroke="#ccc" stroke-dasharray="5,5"/>
+
+      <!-- Right panel: Audited State Transitions -->
+      <g transform="translate(440 0)">
+        <text x="220" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#4a9d4a">Audited State Transitions ✓</text>
+
+        <!-- Manager -->
+        <g>
+          <circle cx="80" cy="120" r="30" fill="#e0c8f0" stroke="#333" stroke-width="2"/>
+          <text x="80" y="118" text-anchor="middle" font-size="10" fill="#333">😊</text>
+          <text x="80" y="130" text-anchor="middle" font-size="9" fill="#333">Manager</text>
+          <text x="80" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#5c1a5c">Next Subtask</text>
+        </g>
+
+        <!-- Executor -->
+        <g>
+          <circle cx="220" cy="120" r="30" fill="#c8e5c8" stroke="#333" stroke-width="2"/>
+          <text x="220" y="118" text-anchor="middle" font-size="10" fill="#333">🤖</text>
+          <text x="220" y="130" text-anchor="middle" font-size="9" fill="#333">Executor</text>
+          <text x="220" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#1a5c1a">context discarded</text>
+          <text x="220" y="94" text-anchor="middle" font-size="9" fill="#1a5c1a">after round</text>
+        </g>
+
+        <!-- Auditor -->
+        <g>
+          <circle cx="360" cy="120" r="30" fill="#f5c8a8" stroke="#333" stroke-width="2"/>
+          <text x="360" y="118" text-anchor="middle" font-size="10" fill="#333">🔍</text>
+          <text x="360" y="130" text-anchor="middle" font-size="9" fill="#333">Auditor</text>
+          <text x="360" y="80" text-anchor="middle" font-size="10" font-weight="700" fill="#8b5a20">Reports</text>
+        </g>
+
+        <!-- Arrows -->
+        <path d="M 115,120 L 185,120" stroke="#333" stroke-width="2" marker-end="url(#lh1)"/>
+        <path d="M 255,120 L 325,120" stroke="#333" stroke-width="2" marker-end="url(#lh1)"/>
+        <path d="M 360,155 Q 220,220 80,155" stroke="#333" stroke-width="2" fill="none" marker-end="url(#lh1)" stroke-dasharray="4,3"/>
+        <text x="220" y="220" text-anchor="middle" font-size="10" fill="#666">only cross-round memory</text>
+
+        <!-- Report cards below -->
+        <g transform="translate(20 240)">
+          <rect x="0" y="0" width="60" height="35" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="30" y="16" text-anchor="middle" font-size="9">Report</text>
+          <text x="30" y="28" text-anchor="middle" font-size="9">v_1</text>
+
+          <rect x="70" y="0" width="60" height="35" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="100" y="16" text-anchor="middle" font-size="9">Report</text>
+          <text x="100" y="28" text-anchor="middle" font-size="9">v_2</text>
+
+          <rect x="140" y="0" width="60" height="35" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="170" y="16" text-anchor="middle" font-size="9">Report</text>
+          <text x="170" y="28" text-anchor="middle" font-size="9">v_3</text>
+
+          <text x="230" y="22" font-size="18">...</text>
+
+          <rect x="260" y="0" width="60" height="35" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="290" y="16" text-anchor="middle" font-size="9">Report</text>
+          <text x="290" y="28" text-anchor="middle" font-size="9">v_n</text>
+
+          <text x="200" y="60" text-anchor="middle" font-size="11" fill="#4a9d4a" font-weight="700">Task State (external, audited)</text>
+        </g>
+
+        <!-- Interchangeable backends -->
+        <g transform="translate(120 320)">
+          <rect x="0" y="0" width="70" height="20" rx="10" fill="#4a90d9"/>
+          <text x="35" y="14" text-anchor="middle" font-size="9" fill="white">Claude Code</text>
+          <rect x="80" y="0" width="70" height="20" rx="10" fill="#e67e22"/>
+          <text x="115" y="14" text-anchor="middle" font-size="9" fill="white">Codex CLI</text>
+          <rect x="160" y="0" width="70" height="20" rx="10" fill="#c8a8f0"/>
+          <text x="195" y="14" text-anchor="middle" font-size="9" fill="white">OpenClaw</text>
+        </g>
+      </g>
+
+      <defs><marker id="lh1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 1 오른쪽 재현: (좌) 기존 agent는 하나의 growing session이 진행/자기평가를 동시에 담당 → context rot + drift. (우) LongHorizon-Harness는 3역할 분리, executor context는 라운드마다 폐기, audit report만 축적.</div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card card-red">
+      <h3>1. Compounding Errors</h3>
+      <p>초기 실수가 이후 결정에 그대로 전파. Growing session에서는 잘못된 관찰도 다시 <em>바닥에서부터 재검토</em>되지 않음.</p>
+    </div>
+    <div class="card card-red">
+      <h3>2. Context Rot</h3>
+      <p>상호작용 이력이 커질수록 relevant 정보 검색이 어려워짐. Context utilization이 threshold를 넘으면 성능이 급락.</p>
+    </div>
+    <div class="card card-red">
+      <h3>3. Task-State Loss</h3>
+      <p>Requirement, 완료 action, artifact, fact를 정확히 추적하지 못함. 완료 판단의 baseline이 흔들림.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Manage-Execute-Audit 루프 (Figure 2 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1000 550" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Title bar -->
+      <rect x="200" y="10" width="600" height="30" rx="15" fill="#ee0979"/>
+      <text x="500" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="white">LongHorizon-Harness: Manage-Execute-Audit</text>
+
+      <!-- Task Input -->
+      <rect x="20" y="60" width="150" height="55" rx="6" fill="#333"/>
+      <text x="95" y="85" text-anchor="middle" font-size="12" font-weight="700" fill="white">Long-horizon Task T</text>
+      <text x="95" y="102" text-anchor="middle" font-size="10" fill="white">input</text>
+      <path d="M 170,88 L 200,88" stroke="#333" stroke-width="2" marker-end="url(#lha)"/>
+
+      <!-- Manage box -->
+      <g>
+        <rect x="200" y="60" width="240" height="440" rx="10" fill="#f5e8fd" stroke="#8b2c8f" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="320" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#5c1a5c">Manage</text>
+        <text x="320" y="100" text-anchor="middle" font-size="10" fill="#666">(State Machine)</text>
+
+        <!-- Input box -->
+        <rect x="220" y="115" width="90" height="70" rx="6" fill="white" stroke="#666"/>
+        <text x="265" y="135" text-anchor="middle" font-size="10" font-weight="700">Input</text>
+        <text x="265" y="150" text-anchor="middle" font-size="9">Task T</text>
+        <text x="265" y="165" text-anchor="middle" font-size="9">+ S_i</text>
+        <text x="265" y="177" text-anchor="middle" font-size="9">+ V_{i-1}</text>
+
+        <!-- Human/Manager submodule -->
+        <rect x="325" y="115" width="105" height="105" rx="6" fill="white" stroke="#666"/>
+        <text x="378" y="128" text-anchor="middle" font-size="9" font-weight="700">Human-in-the-Loop</text>
+        <rect x="335" y="135" width="85" height="18" rx="3" fill="#e0c8f0" stroke="#8b2c8f"/>
+        <text x="378" y="147" text-anchor="middle" font-size="9">Manager</text>
+        <rect x="335" y="158" width="42" height="18" rx="3" fill="#fef7e0" stroke="#f9ab00"/>
+        <text x="356" y="170" text-anchor="middle" font-size="9">ASK</text>
+        <rect x="380" y="158" width="42" height="18" rx="3" fill="#fef7e0" stroke="#f9ab00"/>
+        <text x="401" y="170" text-anchor="middle" font-size="9">Human</text>
+        <rect x="335" y="181" width="42" height="18" rx="3" fill="#eaf7ef" stroke="#4a9d4a"/>
+        <text x="356" y="193" text-anchor="middle" font-size="9">Answer</text>
+        <rect x="380" y="181" width="42" height="18" rx="3" fill="#eaf7ef" stroke="#4a9d4a"/>
+        <text x="401" y="193" text-anchor="middle" font-size="9">Resume</text>
+
+        <!-- State Read -->
+        <rect x="220" y="230" width="90" height="60" rx="6" fill="white" stroke="#666"/>
+        <text x="265" y="248" text-anchor="middle" font-size="10" font-weight="700">State Read</text>
+        <text x="265" y="264" text-anchor="middle" font-size="8">audit history</text>
+        <text x="265" y="278" text-anchor="middle" font-size="8">reconstruct progress</text>
+
+        <!-- Dependency Judgment -->
+        <rect x="220" y="298" width="205" height="90" rx="6" fill="white" stroke="#666"/>
+        <text x="322" y="315" text-anchor="middle" font-size="10" font-weight="700">Dependency Judgment</text>
+        <text x="222" y="332" font-size="9">✓ Target State</text>
+        <text x="222" y="345" font-size="9">✓ State Creator</text>
+        <text x="222" y="358" font-size="9">✓ Satisfied Prerequisites</text>
+        <text x="222" y="371" font-size="9">✓ Unsatisfied Prerequisites</text>
+        <text x="222" y="382" font-size="9">✓ Routing Rationale</text>
+
+        <!-- Output: Contract -->
+        <rect x="220" y="400" width="205" height="80" rx="6" fill="#f9d5f5" stroke="#8b2c8f" stroke-width="2"/>
+        <text x="322" y="418" text-anchor="middle" font-size="10" font-weight="700" fill="#5c1a5c">Output: Contract c_i</text>
+        <text x="322" y="434" text-anchor="middle" font-size="8">• goal + acceptance</text>
+        <text x="322" y="447" text-anchor="middle" font-size="8">• boundary constraints</text>
+        <text x="322" y="460" text-anchor="middle" font-size="8">• related report refs</text>
+
+        <!-- Task State Record -->
+        <g transform="translate(325 235)">
+          <rect x="0" y="0" width="105" height="55" rx="6" fill="white" stroke="#666"/>
+          <text x="52" y="15" text-anchor="middle" font-size="9" font-weight="700">Task State S_i</text>
+          <text x="10" y="30" font-size="8" fill="#4a9d4a">✓ completed</text>
+          <text x="10" y="42" font-size="8" fill="#f9ab00">⏳ pending</text>
+          <text x="52" y="30" font-size="8" fill="#c04a4a">⚠ blocked</text>
+          <text x="52" y="42" font-size="8" fill="#e74c3c">✗ untrusted</text>
+        </g>
+      </g>
+
+      <!-- Arrow: contract c_i -->
+      <path d="M 425,440 L 500,440" stroke="#ee0979" stroke-width="3" marker-end="url(#lha)"/>
+      <text x="462" y="432" text-anchor="middle" font-size="12" fill="#ee0979" font-weight="700">❶ contract c_i</text>
+
+      <!-- Execute box -->
+      <g>
+        <rect x="500" y="60" width="240" height="440" rx="10" fill="#e0f5e0" stroke="#4a9d4a" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="620" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#1a5c1a">Execute</text>
+        <text x="620" y="100" text-anchor="middle" font-size="10" fill="#666">(State-Changing Action)</text>
+
+        <!-- GUI/CLI Agent -->
+        <rect x="520" y="115" width="100" height="150" rx="6" fill="white" stroke="#4a9d4a"/>
+        <text x="570" y="130" text-anchor="middle" font-size="10" font-weight="700">GUI Agent</text>
+        <text x="530" y="148" font-size="9">📷 screenshot</text>
+        <text x="530" y="162" font-size="9">👆 click</text>
+        <text x="530" y="176" font-size="9">📜 scroll</text>
+        <text x="530" y="190" font-size="9">⌨ type</text>
+
+        <rect x="625" y="115" width="100" height="150" rx="6" fill="white" stroke="#4a9d4a"/>
+        <text x="675" y="130" text-anchor="middle" font-size="10" font-weight="700">CLI Agent</text>
+        <text x="635" y="148" font-size="9">$_ shell exec</text>
+        <text x="635" y="162" font-size="9">📝 file edit</text>
+        <text x="635" y="176" font-size="9">&lt;/&gt; code</text>
+        <text x="635" y="190" font-size="9">▤ text</text>
+
+        <!-- Context isolation -->
+        <rect x="520" y="280" width="205" height="80" rx="6" fill="white" stroke="#4a9d4a"/>
+        <text x="622" y="298" text-anchor="middle" font-size="10" font-weight="700">Context Isolation</text>
+        <text x="530" y="315" font-size="8">• fresh context per round</text>
+        <text x="530" y="328" font-size="8">• only c_i + S_i + related reports</text>
+        <text x="530" y="342" font-size="8">• never sees full history</text>
+
+        <!-- Budget -->
+        <rect x="520" y="370" width="100" height="45" rx="6" fill="#fef7e0" stroke="#f9ab00"/>
+        <text x="570" y="388" text-anchor="middle" font-size="10" font-weight="700">Budget</text>
+        <text x="570" y="405" text-anchor="middle" font-size="9">20 turns / 1800s</text>
+
+        <!-- Output -->
+        <rect x="625" y="370" width="100" height="45" rx="6" fill="#eaf7ef" stroke="#4a9d4a"/>
+        <text x="675" y="388" text-anchor="middle" font-size="10" font-weight="700">Output o_i</text>
+        <text x="675" y="405" text-anchor="middle" font-size="9">actions, artifacts</text>
+
+        <!-- Trajectory discarded icon -->
+        <g transform="translate(560 425)">
+          <rect x="0" y="0" width="100" height="55" rx="6" fill="#fce8e6" stroke="#e74c3c"/>
+          <text x="50" y="18" text-anchor="middle" font-size="18">🗑</text>
+          <text x="50" y="38" text-anchor="middle" font-size="9" font-weight="700" fill="#c04a4a">trajectory</text>
+          <text x="50" y="50" text-anchor="middle" font-size="9" font-weight="700" fill="#c04a4a">discarded</text>
+        </g>
+      </g>
+
+      <!-- Arrow: output o_i -->
+      <path d="M 740,300 L 810,300" stroke="#ee0979" stroke-width="3" marker-end="url(#lha)"/>
+      <text x="775" y="292" text-anchor="middle" font-size="12" fill="#ee0979" font-weight="700">❷ output o_i</text>
+
+      <!-- Audit box -->
+      <g>
+        <rect x="810" y="60" width="180" height="440" rx="10" fill="#fbe6f0" stroke="#c9346a" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="900" y="85" text-anchor="middle" font-size="14" font-weight="700" fill="#8b2c50">Audit</text>
+        <text x="900" y="100" text-anchor="middle" font-size="10" fill="#666">(State Capture)</text>
+
+        <!-- Independent Audit box -->
+        <rect x="825" y="115" width="155" height="100" rx="6" fill="white" stroke="#c9346a"/>
+        <text x="902" y="132" text-anchor="middle" font-size="10" font-weight="700">Independent Audit</text>
+        <text x="835" y="150" font-size="8">• fresh context window</text>
+        <text x="835" y="164" font-size="8">• isolated from executor</text>
+        <text x="835" y="178" font-size="8">• read-only inspection</text>
+        <text x="835" y="196" font-size="8" font-style="italic">Never sees executor traj.</text>
+
+        <!-- Audit checks -->
+        <g transform="translate(825 230)">
+          <rect x="0" y="0" width="45" height="45" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="22" y="18" text-anchor="middle" font-size="14">🔄</text>
+          <text x="22" y="35" text-anchor="middle" font-size="7">Mutation</text>
+
+          <rect x="55" y="0" width="45" height="45" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="77" y="18" text-anchor="middle" font-size="14">🎖</text>
+          <text x="77" y="35" text-anchor="middle" font-size="7">Provenance</text>
+
+          <rect x="110" y="0" width="45" height="45" rx="4" fill="#fef7e0" stroke="#f9ab00"/>
+          <text x="132" y="18" text-anchor="middle" font-size="14">🗑</text>
+          <text x="132" y="35" text-anchor="middle" font-size="7">Deletion</text>
+        </g>
+
+        <!-- Report v_i -->
+        <rect x="825" y="295" width="155" height="130" rx="6" fill="#f9d5f5" stroke="#c9346a" stroke-width="2"/>
+        <text x="902" y="313" text-anchor="middle" font-size="10" font-weight="700" fill="#8b2c50">Report v_i</text>
+        <text x="833" y="331" font-size="9" fill="#4a9d4a">status: ✓complete</text>
+        <text x="833" y="345" font-size="9" fill="#f9ab00">⚠ incomplete / ⛔ blocked</text>
+        <text x="833" y="361" font-size="9" fill="#c04a4a">integrity: clean / suspect</text>
+        <text x="833" y="374" font-size="9" fill="#c04a4a">              / violation</text>
+        <text x="833" y="391" font-size="9" fill="#4a9d4a">state: facts + evidence + gaps</text>
+        <text x="902" y="415" text-anchor="middle" font-size="9" font-weight="700" fill="#8b2c50">🏆 Authoritative</text>
+
+        <!-- Read-only -->
+        <text x="902" y="445" text-anchor="middle" font-size="9" fill="#666" font-style="italic">Read-only</text>
+        <text x="902" y="458" text-anchor="middle" font-size="9" fill="#666" font-style="italic">cannot modify workspace</text>
+      </g>
+
+      <!-- Bottom Environment bar -->
+      <g>
+        <rect x="200" y="510" width="540" height="30" rx="6" fill="#f8d7da" stroke="#c04a4a" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="470" y="530" text-anchor="middle" font-size="11" font-weight="700" fill="#8b1a1a">Environment e (read &amp; write)  |  e_{i-1} → e_i</text>
+      </g>
+
+      <!-- Report append arrow -->
+      <path d="M 900,505 Q 900,540 320,540 Q 320,540 320,485" stroke="#ee0979" stroke-width="2" fill="none" stroke-dasharray="4,3" marker-end="url(#lha)"/>
+      <text x="900" y="503" text-anchor="middle" font-size="11" fill="#ee0979" font-weight="700">❸ report v_i appended</text>
+
+      <defs><marker id="lha" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#ee0979"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 2 재현: 세 역할이 구조적으로 분리. Manager는 환경 접근 불가, Executor만 환경 수정 가능(단 fresh context), Auditor는 read-only. 오직 audit report만 라운드 간 지속.</div>
+  </div>
+</section>
+
+<section>
+  <h2>세 역할의 권한 분리</h2>
+  <table class="comp-table">
+    <tr><th>역할</th><th>보는 것 (sees)</th><th>환경 수정</th><th>주요 도구</th><th>Output</th></tr>
+    <tr><td><strong>Manager</strong></td><td>모든 report + T</td><td class="lose">불가능</td><td>State machine (환경 접근 X)</td><td>Contract c_i or {DONE, BLOCKED, ASK}</td></tr>
+    <tr><td><strong>Executor</strong></td><td>환경 + related reports<br>(fresh context)</td><td class="win">가능 (contract 범위)</td><td>GUI (스크린샷/클릭) 또는 CLI (shell/file edit)</td><td>Execution report o_i</td></tr>
+    <tr><td><strong>Auditor</strong></td><td>환경 (read-only)<br>+ related reports<br>(fresh context)</td><td class="lose">불가능</td><td>Independent inspection (workspace mutation, artifact provenance)</td><td>Audit report v_i</td></tr>
+  </table>
+
+  <div class="grid-2">
+    <div class="card card-accent">
+      <h3>왜 fresh context인가</h3>
+      <p>매 라운드 executor는 <em>전 회차 raw trajectory 없이</em> 시작. 이전 회차의 잘못된 관찰이 이번 라운드 결정을 오염시키지 못함. Context rot 자체가 발생 여지가 없음.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>왜 executor trajectory를 auditor에게 안 주는가</h3>
+      <p>Auditor가 executor의 자기평가를 보면 <em>그 논리를 그대로 받아들일</em> 유혹이 생김. Auditor는 <strong>결과 환경만</strong> 검증해 executor의 주장이 실제로 참인지 독립 확인.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Task State의 구조</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Task State S_i (structured record 집합)</text>
+
+      <!-- Requirement -->
+      <g>
+        <rect x="30" y="50" width="230" height="270" rx="10" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="145" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Requirement</text>
+        <text x="145" y="93" text-anchor="middle" font-size="10" fill="#666">원 태스크에서 유도된</text>
+        <text x="145" y="106" text-anchor="middle" font-size="10" fill="#666">objective/constraint</text>
+
+        <!-- Example rows -->
+        <rect x="45" y="120" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="55" y="137" font-size="10">☑ 모든 heading style 정규화</text>
+        <text x="55" y="152" font-size="8" fill="#4a9d4a">completed | evidence: v_5</text>
+
+        <rect x="45" y="165" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="55" y="182" font-size="10">☐ Pre-repair evidence 캡처</text>
+        <text x="55" y="197" font-size="8" fill="#f9ab00">pending | prereq for repair</text>
+
+        <rect x="45" y="210" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="55" y="227" font-size="10">⛔ Wireshark 재현 시도</text>
+        <text x="55" y="242" font-size="8" fill="#c04a4a">blocked | dialog unresponsive</text>
+
+        <rect x="45" y="255" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="55" y="272" font-size="10">⚠ 완료 주장 (executor)</text>
+        <text x="55" y="287" font-size="8" fill="#e74c3c">untrusted | audit failed</text>
+      </g>
+
+      <!-- Artifact -->
+      <g>
+        <rect x="285" y="50" width="230" height="270" rx="10" fill="#eaf7ef" stroke="#4a9d4a" stroke-width="2"/>
+        <text x="400" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#1a5c1a">Artifact</text>
+        <text x="400" y="93" text-anchor="middle" font-size="10" fill="#666">실행 중 생성/수정된</text>
+        <text x="400" y="106" text-anchor="middle" font-size="10" fill="#666">output (files, changes)</text>
+
+        <rect x="300" y="120" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="310" y="137" font-size="10">📄 report.pdf (v3 finalized)</text>
+        <text x="310" y="152" font-size="8" fill="#4a9d4a">completed | audit clean</text>
+
+        <rect x="300" y="165" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="310" y="182" font-size="10">📄 vlookup.ods (수정 중)</text>
+        <text x="310" y="197" font-size="8" fill="#f9ab00">pending | pre-repair 없음</text>
+
+        <rect x="300" y="210" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="310" y="227" font-size="10">📸 screenshot_1..9.png</text>
+        <text x="310" y="242" font-size="8" fill="#4a9d4a">completed | 9-frame evidence</text>
+      </g>
+
+      <!-- Fact -->
+      <g>
+        <rect x="540" y="50" width="230" height="270" rx="10" fill="#fdf3e6" stroke="#e67e22" stroke-width="2"/>
+        <text x="655" y="75" text-anchor="middle" font-size="13" font-weight="700" fill="#8b3a00">Fact</text>
+        <text x="655" y="93" text-anchor="middle" font-size="10" fill="#666">환경에서 발견된 정보</text>
+        <text x="655" y="106" text-anchor="middle" font-size="10" fill="#666">(향후 subtask에 필요)</text>
+
+        <rect x="555" y="120" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="565" y="137" font-size="10">▤ DevTools panel = right</text>
+        <text x="565" y="152" font-size="8" fill="#4a9d4a">verified | v_3</text>
+
+        <rect x="555" y="165" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="565" y="182" font-size="10">▤ target URL: /catalog</text>
+        <text x="565" y="197" font-size="8" fill="#4a9d4a">verified | v_2</text>
+
+        <rect x="555" y="210" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="565" y="227" font-size="10">▤ 15 headings in doc</text>
+        <text x="565" y="242" font-size="8" fill="#4a9d4a">verified | v_5</text>
+
+        <rect x="555" y="255" width="200" height="25" rx="4" fill="white" stroke="#ccc"/>
+        <text x="565" y="272" font-size="10">▤ Wireshark decoder</text>
+        <text x="565" y="287" font-size="8" fill="#e74c3c">untrusted | dialog frozen</text>
+      </g>
+    </svg>
+    <div class="caption">Task state는 3종 record — requirement, artifact, fact — 각각 4가지 상태(completed, pending, blocked, untrusted) 중 하나. 상태는 <strong>오직 clean audit evidence로만 완료</strong> 표시됨.</div>
+  </div>
+</section>
+
+<section>
+  <h2>주 결과 (Table 1, 2, Figure 3 재현)</h2>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 380" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">Long-Horizon 벤치 성능 (Baseline → LongHorizon-Harness)</text>
+
+      <!-- 4 groups: WeaveBench, Terminal-Bench, OSWorld Binary, OSWorld Partial -->
+      <!-- Y axis -->
+      <line x1="80" y1="70" x2="80" y2="330" stroke="#333"/>
+      <text x="70" y="75" text-anchor="end" font-size="10">100</text>
+      <text x="70" y="140" text-anchor="end" font-size="10">75</text>
+      <text x="70" y="205" text-anchor="end" font-size="10">50</text>
+      <text x="70" y="270" text-anchor="end" font-size="10">25</text>
+      <text x="70" y="330" text-anchor="end" font-size="10">0</text>
+      <text x="40" y="200" text-anchor="middle" font-size="11" transform="rotate(-90 40 200)">Score / PassRate (%)</text>
+
+      <!-- WeaveBench PassRate: 51.8 → 80.7 -->
+      <g transform="translate(120 0)">
+        <rect x="0" y="195" width="30" height="135" fill="#f5b5c8"/>
+        <text x="15" y="190" text-anchor="middle" font-size="11" font-weight="700">51.8</text>
+        <rect x="35" y="120" width="30" height="210" fill="#ee0979"/>
+        <text x="50" y="115" text-anchor="middle" font-size="11" font-weight="700" fill="white" style="stroke:#ee0979; stroke-width:3; paint-order:stroke fill;">80.7</text>
+        <text x="32" y="350" text-anchor="middle" font-size="10" font-weight="700">WeaveBench</text>
+        <text x="32" y="363" text-anchor="middle" font-size="9" fill="#666">(Qwen 3.7-Plus)</text>
+        <text x="32" y="105" text-anchor="middle" font-size="14" fill="#c9346a" font-weight="700">+28.9</text>
+      </g>
+
+      <!-- Terminal-Bench 69.7 → 77.2 -->
+      <g transform="translate(260 0)">
+        <rect x="0" y="149" width="30" height="181" fill="#f5b5c8"/>
+        <text x="15" y="144" text-anchor="middle" font-size="11" font-weight="700">69.7</text>
+        <rect x="35" y="130" width="30" height="200" fill="#ee0979"/>
+        <text x="50" y="125" text-anchor="middle" font-size="11" font-weight="700" fill="#ee0979">77.2</text>
+        <text x="32" y="350" text-anchor="middle" font-size="10" font-weight="700">Terminal-Bench 2.1</text>
+        <text x="32" y="363" text-anchor="middle" font-size="9" fill="#666">(Qwen 3.7-Plus)</text>
+        <text x="32" y="115" text-anchor="middle" font-size="14" fill="#c9346a" font-weight="700">+7.5</text>
+      </g>
+
+      <!-- OSWorld Binary 2.8 → 8.3 -->
+      <g transform="translate(400 0)">
+        <rect x="0" y="323" width="30" height="7" fill="#f5b5c8"/>
+        <text x="15" y="320" text-anchor="middle" font-size="11" font-weight="700">2.8</text>
+        <rect x="35" y="308" width="30" height="22" fill="#ee0979"/>
+        <text x="50" y="303" text-anchor="middle" font-size="11" font-weight="700" fill="#ee0979">8.3</text>
+        <text x="32" y="350" text-anchor="middle" font-size="10" font-weight="700">OSWorld Binary</text>
+        <text x="32" y="363" text-anchor="middle" font-size="9" fill="#666">(Qwen · 3.0×)</text>
+        <text x="32" y="295" text-anchor="middle" font-size="14" fill="#c9346a" font-weight="700">3.0×</text>
+      </g>
+
+      <!-- OSWorld Partial 21.5 → 35.2 -->
+      <g transform="translate(540 0)">
+        <rect x="0" y="274" width="30" height="56" fill="#f5b5c8"/>
+        <text x="15" y="270" text-anchor="middle" font-size="11" font-weight="700">21.5</text>
+        <rect x="35" y="238" width="30" height="92" fill="#ee0979"/>
+        <text x="50" y="233" text-anchor="middle" font-size="11" font-weight="700" fill="#ee0979">35.2</text>
+        <text x="32" y="350" text-anchor="middle" font-size="10" font-weight="700">OSWorld Partial</text>
+        <text x="32" y="363" text-anchor="middle" font-size="9" fill="#666">(Qwen 3.7-Plus)</text>
+        <text x="32" y="223" text-anchor="middle" font-size="14" fill="#c9346a" font-weight="700">+13.7</text>
+      </g>
+
+      <!-- Opus Binary 20.6 → 35.3 -->
+      <g transform="translate(680 0)">
+        <rect x="0" y="277" width="30" height="53" fill="#f5b5c8"/>
+        <text x="15" y="273" text-anchor="middle" font-size="11" font-weight="700">20.6</text>
+        <rect x="35" y="238" width="30" height="92" fill="#ee0979"/>
+        <text x="50" y="233" text-anchor="middle" font-size="11" font-weight="700" fill="#ee0979">35.3</text>
+        <text x="32" y="350" text-anchor="middle" font-size="10" font-weight="700">OSWorld Binary</text>
+        <text x="32" y="363" text-anchor="middle" font-size="9" fill="#666">(Opus 4.7 subset)</text>
+        <text x="32" y="223" text-anchor="middle" font-size="14" fill="#c9346a" font-weight="700">+14.7</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(120 55)">
+        <rect x="0" y="0" width="12" height="12" fill="#f5b5c8"/>
+        <text x="20" y="10" font-size="10">Baseline (Claude Code / Single-action)</text>
+        <rect x="270" y="0" width="12" height="12" fill="#ee0979"/>
+        <text x="290" y="10" font-size="10">LongHorizon-Harness</text>
+      </g>
+    </svg>
+    <div class="caption">3개 벤치, 2개 backbone(Qwen 3.7-Plus, Claude Opus 4.7) 전반의 일관된 개선. 특히 OSWorld는 3× 배수 개선.</div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>모델 (백본)</th><th>Harness</th><th>Metric</th><th>Score</th></tr>
+    <tr><td>Claude Opus 4.7</td><td>Claude Code (baseline)</td><td>WeaveBench PR</td><td>41.2</td></tr>
+    <tr><td>GPT-5.5</td><td>Codex CLI</td><td>WeaveBench PR</td><td>35.1</td></tr>
+    <tr><td>Qwen 3.7-Plus</td><td>Claude Code (baseline)</td><td>WeaveBench PR</td><td>51.8</td></tr>
+    <tr><td><strong>Qwen 3.7-Plus</strong></td><td><strong>LongHorizon-Harness</strong></td><td>WeaveBench PR</td><td class="win"><strong>80.7</strong></td></tr>
+    <tr><td>Claude Opus 4.8</td><td>Batched actions</td><td>OSWorld 2.0 Binary</td><td>20.6</td></tr>
+    <tr><td>Qwen 3.7-Plus</td><td>Single action</td><td>OSWorld 2.0 Binary</td><td>2.8</td></tr>
+    <tr><td><strong>Qwen 3.7-Plus</strong></td><td><strong>LongHorizon-Harness</strong></td><td>OSWorld 2.0 Binary</td><td class="win"><strong>8.3</strong></td></tr>
+    <tr><td>Claude Opus 4.7</td><td>Single action</td><td>OSWorld 4.7 subset</td><td>20.6</td></tr>
+    <tr><td><strong>Claude Opus 4.7</strong></td><td><strong>LongHorizon-Harness</strong></td><td>OSWorld 4.7 subset</td><td class="win"><strong>35.3</strong></td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Cost 분포: 3역할이 어떻게 토큰을 쓰는가 (Figure 5 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 320" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="13" font-weight="700">역할별 토큰 소비 비율</text>
+
+      <!-- WeaveBench -->
+      <g transform="translate(50 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">WeaveBench</text>
+        <text x="130" y="30" text-anchor="middle" font-size="10" fill="#666">27.4M tokens (2.3× vs 12.0M)</text>
+
+        <!-- Stacked horizontal bar for LH -->
+        <rect x="0" y="50" width="8" height="30" fill="#8b2c50"/>
+        <rect x="8" y="50" width="212" height="30" fill="#4a90d9"/>
+        <rect x="220" y="50" width="52" height="30" fill="#e67e22"/>
+
+        <text x="4" y="105" text-anchor="middle" font-size="9" fill="#8b2c50" font-weight="700">M 2.8%</text>
+        <text x="114" y="105" text-anchor="middle" font-size="10" fill="white" font-weight="700" style="stroke:#4a90d9; stroke-width:3; paint-order:stroke fill;">Executor 79%</text>
+        <text x="246" y="105" text-anchor="middle" font-size="9" fill="#e67e22" font-weight="700">A 19.4%</text>
+
+        <!-- Baseline -->
+        <rect x="0" y="130" width="120" height="30" fill="#f5b5c8"/>
+        <text x="60" y="150" text-anchor="middle" font-size="10" fill="white" font-weight="700">Claude Code 12.0M</text>
+      </g>
+
+      <!-- OSWorld -->
+      <g transform="translate(330 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">OSWorld 2.0</text>
+        <text x="130" y="30" text-anchor="middle" font-size="10" fill="#666">104K output (3.6× vs 28.9K)</text>
+
+        <rect x="0" y="50" width="5" height="30" fill="#8b2c50"/>
+        <rect x="5" y="50" width="192" height="30" fill="#4a90d9"/>
+        <rect x="197" y="50" width="65" height="30" fill="#e67e22"/>
+
+        <text x="2" y="105" text-anchor="middle" font-size="9" fill="#8b2c50" font-weight="700">M 2.0%</text>
+        <text x="101" y="105" text-anchor="middle" font-size="10" fill="white" font-weight="700" style="stroke:#4a90d9; stroke-width:3; paint-order:stroke fill;">Executor 73%</text>
+        <text x="230" y="105" text-anchor="middle" font-size="9" fill="#e67e22" font-weight="700">A 24.8%</text>
+
+        <rect x="0" y="130" width="72" height="30" fill="#f5b5c8"/>
+        <text x="36" y="150" text-anchor="middle" font-size="9" fill="white" font-weight="700">28.9K</text>
+      </g>
+
+      <!-- Terminal-Bench -->
+      <g transform="translate(610 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">Terminal-Bench 2.1</text>
+        <text x="130" y="30" text-anchor="middle" font-size="10" fill="#666" font-weight="700">3.5M (0.76× vs 4.6M) ← 감소!</text>
+
+        <rect x="0" y="50" width="20" height="30" fill="#8b2c50"/>
+        <rect x="20" y="50" width="136" height="30" fill="#4a90d9"/>
+        <rect x="156" y="50" width="96" height="30" fill="#e67e22"/>
+
+        <text x="10" y="105" text-anchor="middle" font-size="9" fill="#8b2c50" font-weight="700">M 8.1%</text>
+        <text x="88" y="105" text-anchor="middle" font-size="10" fill="white" font-weight="700" style="stroke:#4a90d9; stroke-width:3; paint-order:stroke fill;">Executor 54%</text>
+        <text x="204" y="105" text-anchor="middle" font-size="10" fill="white" font-weight="700" style="stroke:#e67e22; stroke-width:3; paint-order:stroke fill;">Auditor 38.1%</text>
+
+        <rect x="0" y="130" width="120" height="30" fill="#f5b5c8"/>
+        <text x="60" y="150" text-anchor="middle" font-size="9" fill="white" font-weight="700">4.6M baseline</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(50 200)">
+        <rect x="0" y="0" width="15" height="15" fill="#8b2c50"/>
+        <text x="20" y="12" font-size="11">Manager (2~8%)</text>
+        <rect x="180" y="0" width="15" height="15" fill="#4a90d9"/>
+        <text x="200" y="12" font-size="11">Executor (54~79%)</text>
+        <rect x="360" y="0" width="15" height="15" fill="#e67e22"/>
+        <text x="380" y="12" font-size="11">Auditor (19~38%)</text>
+        <rect x="530" y="0" width="15" height="15" fill="#f5b5c8"/>
+        <text x="550" y="12" font-size="11">Baseline</text>
+      </g>
+
+      <!-- Insights -->
+      <g transform="translate(50 240)">
+        <rect x="0" y="0" width="800" height="60" rx="8" fill="#fef0f5" stroke="#ee0979" stroke-width="2"/>
+        <text x="15" y="20" font-size="11" font-weight="700" fill="#8b2c50">💡 Manager는 총 토큰의 2~8%만 사용 — task-state 유지 오버헤드 매우 작음</text>
+        <text x="15" y="38" font-size="11" font-weight="700" fill="#8b2c50">💡 Auditor는 19~38%로 주요 추가 투자 — independent verification의 값</text>
+        <text x="15" y="55" font-size="11" font-weight="700" fill="#8b2c50">💡 Terminal-Bench에서는 오히려 24% 토큰 절약 + 더 높은 성공률</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 5 재현: Manager 오버헤드는 미미(2~8%), Auditor가 주요 추가 투자(19~38%). Token cost 방향은 태스크와 recovery 라운드 수에 따라 다름.</div>
+  </div>
+</section>
+
+<section>
+  <h2>WeaveBench Games: Model vs Harness 상호작용 (Table 4 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">17 Games tasks — Score × Token 비용의 대칭성</text>
+
+      <!-- Left: Score chart -->
+      <g transform="translate(50 50)">
+        <text x="180" y="15" text-anchor="middle" font-size="12" font-weight="700">Mean Score (17 tasks)</text>
+        <line x1="0" y1="30" x2="0" y2="220" stroke="#333"/>
+        <line x1="0" y1="220" x2="360" y2="220" stroke="#333"/>
+        <text x="-10" y="35" text-anchor="end" font-size="10">1.0</text>
+        <text x="-10" y="85" text-anchor="end" font-size="10">0.8</text>
+        <text x="-10" y="135" text-anchor="end" font-size="10">0.6</text>
+        <text x="-10" y="185" text-anchor="end" font-size="10">0.4</text>
+
+        <!-- Opus CC 0.680 -->
+        <rect x="40" y="90" width="50" height="130" fill="#a8c8e8"/>
+        <text x="65" y="85" text-anchor="middle" font-size="11" font-weight="700">0.680</text>
+        <text x="65" y="235" text-anchor="middle" font-size="10">Opus CC</text>
+        <!-- Opus LH 0.809 -->
+        <rect x="100" y="58" width="50" height="162" fill="#4a90d9"/>
+        <text x="125" y="53" text-anchor="middle" font-size="11" font-weight="700">0.809</text>
+        <text x="125" y="235" text-anchor="middle" font-size="10">Opus LH</text>
+
+        <!-- Qwen CC 0.524 -->
+        <rect x="200" y="129" width="50" height="91" fill="#f5b5c8"/>
+        <text x="225" y="124" text-anchor="middle" font-size="11" font-weight="700">0.524</text>
+        <text x="225" y="235" text-anchor="middle" font-size="10">Qwen CC</text>
+        <!-- Qwen LH 0.733 -->
+        <rect x="260" y="87" width="50" height="133" fill="#ee0979"/>
+        <text x="285" y="82" text-anchor="middle" font-size="11" font-weight="700">0.733</text>
+        <text x="285" y="235" text-anchor="middle" font-size="10">Qwen LH</text>
+
+        <!-- Highlight: Qwen LH > Opus CC -->
+        <line x1="285" y1="90" x2="65" y2="90" stroke="#4a9d4a" stroke-width="2" stroke-dasharray="4,3"/>
+        <text x="175" y="280" text-anchor="middle" font-size="12" font-weight="700" fill="#4a9d4a">Qwen + LH (0.733) &gt; Opus + CC (0.680)</text>
+        <text x="175" y="295" text-anchor="middle" font-size="10" fill="#4a9d4a">Harness가 model upgrade보다 큰 영향</text>
+      </g>
+
+      <!-- Right: Token cost -->
+      <g transform="translate(490 50)">
+        <text x="180" y="15" text-anchor="middle" font-size="12" font-weight="700">Mean Tokens (M) per task</text>
+        <line x1="0" y1="30" x2="0" y2="220" stroke="#333"/>
+        <line x1="0" y1="220" x2="360" y2="220" stroke="#333"/>
+        <text x="-10" y="35" text-anchor="end" font-size="10">40</text>
+        <text x="-10" y="85" text-anchor="end" font-size="10">30</text>
+        <text x="-10" y="135" text-anchor="end" font-size="10">20</text>
+        <text x="-10" y="185" text-anchor="end" font-size="10">10</text>
+
+        <!-- Opus CC 16.5M -->
+        <rect x="40" y="137" width="50" height="83" fill="#a8c8e8"/>
+        <text x="65" y="132" text-anchor="middle" font-size="11" font-weight="700">16.5</text>
+        <text x="65" y="235" text-anchor="middle" font-size="10">Opus CC</text>
+        <!-- Opus LH 11.1M ← 감소 -->
+        <rect x="100" y="164" width="50" height="56" fill="#4a90d9"/>
+        <text x="125" y="159" text-anchor="middle" font-size="11" font-weight="700" fill="#4a9d4a">11.1 ↓</text>
+        <text x="125" y="235" text-anchor="middle" font-size="10">Opus LH</text>
+
+        <!-- Qwen CC 10.7M -->
+        <rect x="200" y="167" width="50" height="53" fill="#f5b5c8"/>
+        <text x="225" y="162" text-anchor="middle" font-size="11" font-weight="700">10.7</text>
+        <text x="225" y="235" text-anchor="middle" font-size="10">Qwen CC</text>
+        <!-- Qwen LH 34.3M ← 증가 -->
+        <rect x="260" y="52" width="50" height="168" fill="#ee0979"/>
+        <text x="285" y="47" text-anchor="middle" font-size="11" font-weight="700" fill="#c04a4a">34.3 ↑</text>
+        <text x="285" y="235" text-anchor="middle" font-size="10">Qwen LH</text>
+
+        <text x="180" y="280" text-anchor="middle" font-size="11" font-weight="700" fill="#8b2c50">Strong model → tokens ↓ 33%</text>
+        <text x="180" y="295" text-anchor="middle" font-size="11" font-weight="700" fill="#8b2c50">Weak model → tokens ↑ 3.2×</text>
+      </g>
+    </svg>
+    <div class="caption">Table 4 재현: 강한 모델(Opus)은 LH로 <strong>토큰 감소 + 점수 상승</strong>, 약한 모델(Qwen)은 <strong>토큰 증가 + 점수 상승</strong>. 약한 모델은 반복 실행·복구에 더 많이 소비.</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>대칭성이 시사하는 것</h3>
+    <p>강한 모델은 subtask contract를 <em>적은 audit-replan 라운드</em>로 만족시킨다. 약한 모델은 반복 실행·복구에 더 많은 inference를 쓴다. <strong>##Agent capability = model × harness의 시스템 속성##</strong>임을 실증.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Case Study: 실제 실행 궤적 비교 (Section 3.4)</h2>
+  <div class="grid-2">
+    <div class="card card-red">
+      <h3>Case 1: Stalled Interaction (WEB_task_16, WebRTC audit)</h3>
+      <p><strong>Baseline (0.59)</strong>: Wireshark "Decode As" 다이얼로그가 unresponsive임을 인식하나, growing history에 이 관찰이 묻힌 채 <em>같은 상호작용을 400+ steps 반복</em>. 예산 소진.</p>
+      <p><strong>LH (0.92)</strong>: 실패한 상호작용을 <em>task state에 pending으로 기록</em>. 다음 executor들이 놓친 evidence에 집중.</p>
+    </div>
+    <div class="card card-red">
+      <h3>Case 2: Apparent Completion (DOC_task_2, heading style)</h3>
+      <p><strong>Baseline (0.00)</strong>: 문서 XML을 직접 편집해 <em>시각적으로 그럴듯한 결과</em>를 만들고 종료. 실제 style은 미적용.</p>
+      <p><strong>LH (0.89)</strong>: LibreOffice GUI workflow 사용. Auditor가 XML을 파싱해 15개 heading 모두 올바른 style임을 검증.</p>
+    </div>
+    <div class="card card-red">
+      <h3>Case 3: Pre-repair Evidence (DOC_task_4, VLOOKUP)</h3>
+      <p><strong>Baseline (0.45)</strong>: 초기 오류 캡처 후 spreadsheet 수정. 그러나 <em>pre-repair evidence 완료 전에 수정</em>해 파일 재열림 시 forensic context 소실.</p>
+      <p><strong>LH (0.87)</strong>: 누락된 pre-repair evidence를 pending으로 기록. 다음 executor가 evidence를 먼저 완성 후 수리. 9-screenshot 시퀀스 검증.</p>
+    </div>
+    <div class="card card-red">
+      <h3>Case 4: Verified Progress (WEB_task_10, Lighthouse)</h3>
+      <p><strong>Baseline (0.53)</strong>: Core optimization 후 DevTools evidence 수집에서 stuck. Growing session이 DevTools 반복 조작에 예산 소진.</p>
+      <p><strong>LH (0.85)</strong>: 완료된 optimization을 task state에 유지. Fresh executor들이 남은 evidence만 분산 처리. Optimization을 재구성하지 않음.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Category별 개선폭 (Figure 6 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="13" font-weight="700">태스크 카테고리별 개선폭 (baseline → LH)</text>
+
+      <!-- WeaveBench -->
+      <g transform="translate(30 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">WeaveBench (도메인)</text>
+        <g font-size="9">
+          <text x="10" y="45" text-anchor="start">DES (Design)</text>
+          <rect x="80" y="35" width="150" height="14" fill="#ee0979"/>
+          <text x="235" y="46" font-weight="700" fill="#c9346a">+60.0</text>
+
+          <text x="10" y="65" text-anchor="start">SPA (Spatial/3D)</text>
+          <rect x="80" y="55" width="125" height="14" fill="#ee0979"/>
+          <text x="210" y="66" font-weight="700" fill="#c9346a">+50.0</text>
+
+          <text x="10" y="85" text-anchor="start">DAV</text>
+          <rect x="80" y="75" width="75" height="14" fill="#ee0979"/>
+          <text x="160" y="86" font-weight="700">+30.0</text>
+
+          <text x="10" y="105" text-anchor="start">GAM (Games)</text>
+          <rect x="80" y="95" width="52" height="14" fill="#ee0979"/>
+          <text x="138" y="106" font-weight="700">+20.9</text>
+
+          <text x="10" y="125" text-anchor="start">WEB</text>
+          <rect x="80" y="115" width="50" height="14" fill="#ee0979"/>
+          <text x="135" y="126" font-weight="700">+20.0</text>
+
+          <text x="10" y="145" text-anchor="start">OPS</text>
+          <rect x="80" y="135" width="42" height="14" fill="#ee0979"/>
+          <text x="128" y="146" font-weight="700">+16.7</text>
+
+          <text x="10" y="165" text-anchor="start">DOC</text>
+          <rect x="80" y="155" width="30" height="14" fill="#ee0979"/>
+          <text x="115" y="166">+11.8</text>
+
+          <text x="10" y="185" text-anchor="start">DSK (Desktop)</text>
+          <rect x="80" y="175" width="14" height="14" fill="#ee0979"/>
+          <text x="100" y="186">+5.6</text>
+        </g>
+        <text x="130" y="215" text-anchor="middle" font-size="9" fill="#666" font-style="italic">DSK는 이미 83.3% → 여유 없음</text>
+      </g>
+
+      <!-- OSWorld capability tags -->
+      <g transform="translate(320 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">OSWorld 2.0 (capability)</text>
+        <g font-size="9">
+          <text x="10" y="45" text-anchor="start">streaming interaction</text>
+          <rect x="120" y="35" width="120" height="14" fill="#ee0979"/>
+          <text x="245" y="46" font-weight="700">+56.0</text>
+
+          <text x="10" y="65" text-anchor="start">human-in-the-loop</text>
+          <rect x="120" y="55" width="87" height="14" fill="#ee0979"/>
+          <text x="212" y="66" font-weight="700">+35.7</text>
+
+          <text x="10" y="85" text-anchor="start">tutorial following</text>
+          <rect x="120" y="75" width="53" height="14" fill="#ee0979"/>
+          <text x="178" y="86">+21.7</text>
+
+          <text x="10" y="105" text-anchor="start">implicit data inf.</text>
+          <rect x="120" y="95" width="52" height="14" fill="#ee0979"/>
+          <text x="177" y="106">+21.1</text>
+
+          <text x="10" y="125" text-anchor="start">visual-spatial pos.</text>
+          <rect x="120" y="115" width="47" height="14" fill="#ee0979"/>
+          <text x="172" y="126">+19.0</text>
+
+          <text x="10" y="145" text-anchor="start">cross-source reason.</text>
+          <rect x="120" y="135" width="22" height="14" fill="#ee0979"/>
+          <text x="147" y="146">+8.8</text>
+        </g>
+      </g>
+
+      <!-- Terminal-Bench -->
+      <g transform="translate(610 60)">
+        <text x="130" y="15" text-anchor="middle" font-size="12" font-weight="700">Terminal-Bench 2.1</text>
+        <g font-size="9">
+          <text x="10" y="45" text-anchor="start">games</text>
+          <rect x="90" y="35" width="120" height="14" fill="#ee0979"/>
+          <text x="215" y="46" font-weight="700">+55.3</text>
+
+          <text x="10" y="65" text-anchor="start">system-admin</text>
+          <rect x="90" y="55" width="63" height="14" fill="#ee0979"/>
+          <text x="158" y="66" font-weight="700">+29.4</text>
+
+          <text x="10" y="85" text-anchor="start">scientific comp.</text>
+          <rect x="90" y="75" width="36" height="14" fill="#ee0979"/>
+          <text x="131" y="86">+16.7</text>
+
+          <text x="10" y="105" text-anchor="start">data-processing</text>
+          <rect x="90" y="95" width="20" height="14" fill="#ee0979"/>
+          <text x="115" y="106">+9.4</text>
+
+          <text x="10" y="125" text-anchor="start">personal assistant</text>
+          <rect x="90" y="115" width="14" height="14" fill="#ee0979"/>
+          <text x="109" y="126">+6.8</text>
+
+          <text x="10" y="145" text-anchor="start">data-science</text>
+          <rect x="80" y="135" width="27" height="14" fill="#e74c3c"/>
+          <text x="72" y="146" fill="#c04a4a" font-weight="700">-12.5</text>
+
+          <text x="10" y="165" text-anchor="start">video-processing</text>
+          <rect x="80" y="155" width="22" height="14" fill="#e74c3c"/>
+          <text x="72" y="166" fill="#c04a4a" font-weight="700">-10.3</text>
+        </g>
+      </g>
+    </svg>
+    <div class="caption">Figure 6 재현: Design·Spatial·Games 등 <strong>다중 dependent state를 유지·수정하는 태스크</strong>에 큰 이득. 순수 algorithmic/coding 태스크는 model capability가 병목이라 이득 제한.</div>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="grid-2">
+    <div class="card card-orange">
+      <h3>Token cost 증가 (약한 모델)</h3>
+      <p>Qwen에서 3.2~3.6× 토큰 증가. Cost/quality trade-off 분석 부족. Terminal-Bench 예외 제외하면 대부분 비용 상승.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Auditor collusion 위험</h3>
+      <p>Executor와 auditor가 같은 backbone이라 유사한 blind spot 공유. Adversarial auditor(다른 model family) 미검증.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Role별 model mix 부재</h3>
+      <p>모든 역할이 같은 모델. Manager는 planning, Executor는 tool-use, Auditor는 verification에 특화된 다른 모델 혼합 실험 없음.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>OSWorld 절대값 여전히 낮음</h3>
+      <p>3× 개선했지만 8.3%. Harness만으로는 넘지 못하는 model capability 벽 존재.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Category-dependent 이득의 원인 불명확</h3>
+      <p>Design +60 vs data-science −12.5의 격차 원인 예측 불가. 새 태스크 도입 시 이득 예측 rule of thumb 부재.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <p class="quote">"Long-horizon agent의 능력은 model만의 특성이 아니다. Task state를 외부화하고 executor의 self-assessment를 아키텍처적으로 제거하면, 같은 모델도 완전히 다른 신뢰도로 작동한다."</p>
+  </div>
+  <div style="text-align: center; margin-top: 1.5rem;">
+    <a class="top-link" href="20260807_ma_longhorizon-harness.html" style="background:#ee0979; color:white; padding:0.7rem 1.5rem; border-radius:6px; text-decoration:none; display:inline-block;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>LongHorizon-Harness: Advancing Long-Horizon Agents for Real-World Tasks</strong></p>
+  <p>Ziyu Ma et al. · Alibaba DreamX Team · 2026-08</p>
+  <p><a href="https://arxiv.org/abs/2608.01964">arXiv:2608.01964</a> · <a href="https://github.com/AMAP-ML/LongHorizon-Harness">GitHub</a></p>
+</footer>
+
+</body>
+</html>

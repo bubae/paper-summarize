@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffusionGemma — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans KR', sans-serif; line-height: 1.7; color: #1a1a1a; margin: 0; background: #fff; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+  .hero { background: linear-gradient(135deg, #1a73e8 0%, #4285f4 40%, #34a853 90%); color: white; padding: 4rem 1.5rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+  .hero h1 { font-size: 2.5rem; margin: 1rem 0 0.5rem; }
+  .hero p.sub { font-size: 1.15rem; opacity: 0.95; max-width: 750px; margin: 0.5rem auto; }
+  .hero a.top-link { display: inline-block; background: rgba(255,255,255,0.15); color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.3); }
+  section { padding: 2.5rem 0; border-bottom: 1px solid #eee; }
+  section h2 { font-size: 1.7rem; margin-top: 0; color: #1a3a6c; border-left: 5px solid #1a73e8; padding-left: 0.8rem; }
+  .one-liner { background: linear-gradient(135deg, #1a73e8, #34a853); color: white; padding: 1.5rem 2rem; border-radius: 12px; font-size: 1.15rem; text-align: center; margin: 1.5rem 0; }
+  .one-liner .quote { font-style: italic; font-weight: 500; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 180px; background: #f8f9fa; padding: 1.2rem; border-radius: 10px; text-align: center; border-top: 4px solid #1a73e8; }
+  .stat .num { font-size: 2rem; font-weight: 700; color: #1a3a6c; }
+  .stat .lbl { font-size: 0.9rem; color: #666; margin-top: 0.3rem; }
+  .card { background: #f8f9fa; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1rem 0; }
+  .card-accent { border-left: 5px solid #1a73e8; background: #eaf3fe; }
+  .card-green { border-left: 5px solid #34a853; background: #eaf7ef; }
+  .card-orange { border-left: 5px solid #f9ab00; background: #fef7e0; }
+  .card-red { border-left: 5px solid #ea4335; background: #fce8e6; }
+  .card h3 { margin: 0 0 0.5rem; color: #1a3a6c; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { border: 1px solid #ddd; padding: 0.7rem; text-align: left; }
+  .comp-table th { background: #1a3a6c; color: white; }
+  .comp-table tr:nth-child(even) { background: #f8f9fa; }
+  .comp-table td.win { background: #d4edda; font-weight: 600; }
+  .comp-table td.lose { background: #f8d7da; }
+  .svg-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }
+  .svg-wrap .caption { font-size: 0.9rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+  footer { background: #1a3a6c; color: white; padding: 2rem 1.5rem; text-align: center; }
+  footer a { color: #a0d8ff; }
+  .step-flow { display: flex; align-items: stretch; gap: 0.7rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .step-flow .step { flex: 1 1 180px; background: white; border: 2px solid #1a73e8; border-radius: 10px; padding: 1rem; position: relative; }
+  .step-flow .step .num { position: absolute; top: -10px; left: 10px; background: #1a73e8; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .step-flow .step h4 { margin: 0.4rem 0; color: #1a73e8; font-size: 1rem; }
+  .step-flow .step p { margin: 0.3rem 0; font-size: 0.9rem; }
+  @media (max-width: 600px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .stat-row, .step-flow { flex-direction: column; } .hero h1 { font-size: 1.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">Google DeepMind</span>
+  <span class="badge">2026-07 · Technical Report</span>
+  <span class="badge">Discrete Text Diffusion</span>
+  <span class="badge">Apache 2.0</span>
+  <h1>DiffusionGemma Technical Report</h1>
+  <p class="sub">Gemma 4 26B A4B(MoE)를 <strong>10% 미만의 학습 토큰 예산</strong>으로 fine-tuning해 text diffusion 모델로 변환. 단일 H100에서 <strong>1,479 TPS</strong> 달성 — AR 대비 7.1×.</p>
+  <a class="top-link" href="20260807_google_diffusiongemma.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<section>
+  <h2>한 줄 요약</h2>
+  <div class="one-liner">
+    <p class="quote">"AR pretraining을 우회하고 fine-tuning만으로, quality를 크게 잃지 않으면서 text diffusion의 latency 이점을 켤 수 있다."</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="num">25.2B</div><div class="lbl">Total params (3.8B activated)</div></div>
+    <div class="stat"><div class="num">256</div><div class="lbl">Canvas 크기 (tokens/block)</div></div>
+    <div class="stat"><div class="num">~12</div><div class="lbl">평균 denoising steps</div></div>
+    <div class="stat"><div class="num">20</div><div class="lbl">Tokens per Forward Pass (TPF)</div></div>
+    <div class="stat"><div class="num">1,479</div><div class="lbl">TPS on H100 FP8</div></div>
+    <div class="stat"><div class="num">7.1×</div><div class="lbl">Gemma 4 AR 대비 speedup</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>이 논문의 위치 (Figure 1 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 500" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Axes -->
+      <line x1="80" y1="440" x2="750" y2="440" stroke="#333" stroke-width="2"/>
+      <line x1="80" y1="60" x2="80" y2="440" stroke="#333" stroke-width="2"/>
+
+      <!-- Y labels -->
+      <text x="70" y="70" text-anchor="end" font-size="11">100</text>
+      <text x="70" y="145" text-anchor="end" font-size="11">80</text>
+      <text x="70" y="220" text-anchor="end" font-size="11">60</text>
+      <text x="70" y="295" text-anchor="end" font-size="11">40</text>
+      <text x="70" y="370" text-anchor="end" font-size="11">20</text>
+      <text x="70" y="440" text-anchor="end" font-size="11">0</text>
+      <text x="40" y="250" text-anchor="middle" font-size="12" transform="rotate(-90 40 250)">Accuracy (Avg of LCBv6 &amp; GPQA)</text>
+
+      <!-- X labels -->
+      <text x="140" y="460" text-anchor="middle" font-size="11">200</text>
+      <text x="220" y="460" text-anchor="middle" font-size="11">400</text>
+      <text x="300" y="460" text-anchor="middle" font-size="11">600</text>
+      <text x="380" y="460" text-anchor="middle" font-size="11">800</text>
+      <text x="460" y="460" text-anchor="middle" font-size="11">1000</text>
+      <text x="540" y="460" text-anchor="middle" font-size="11">1200</text>
+      <text x="620" y="460" text-anchor="middle" font-size="11">1400</text>
+      <text x="400" y="490" text-anchor="middle" font-size="12">Output speed (tok/s)</text>
+
+      <!-- Gemma 4 family points connected -->
+      <!-- Approx from Figure 1: E2B (250, ~44), E4B (200, ~55), 12B (400, ~68), 26B A4B (300, ~80), 31B (200, ~82)-->
+      <line x1="105" y1="275" x2="180" y2="230" stroke="#a8c8e8" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="180" y1="230" x2="105" y2="147" stroke="#a8c8e8" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="105" y1="147" x2="140" y2="140" stroke="#a8c8e8" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <line x1="140" y1="140" x2="240" y2="155" stroke="#a8c8e8" stroke-width="1.5" stroke-dasharray="4,3"/>
+
+      <circle cx="105" cy="275" r="7" fill="#4a90d9"/>
+      <text x="120" y="278" font-size="10" fill="#4a90d9">E2B</text>
+      <circle cx="180" cy="230" r="7" fill="#4a90d9"/>
+      <text x="195" y="233" font-size="10" fill="#4a90d9">E4B</text>
+      <circle cx="240" cy="155" r="7" fill="#4a90d9"/>
+      <text x="255" y="158" font-size="10" fill="#4a90d9">12B</text>
+      <circle cx="180" cy="140" r="7" fill="#4a90d9"/>
+      <text x="105" y="140" font-size="10" fill="#4a90d9">26B A4B</text>
+      <circle cx="105" cy="147" r="7" fill="#4a90d9"/>
+      <text x="115" y="145" font-size="10" fill="#4a90d9">31B (MTP)</text>
+
+      <!-- LLaDA 2.1 Flash 100B: ~375 tps, ~62 -->
+      <polygon points="230,215 240,205 250,215 240,225" fill="#c04a4a"/>
+      <text x="260" y="219" font-size="11" fill="#c04a4a">LLaDA 2.1 Flash 100B</text>
+
+      <!-- Nemotron Diffusion 14B: 49 tps, ~44 -->
+      <polygon points="93,290 100,283 107,290 100,297" fill="#4a9d4a"/>
+      <text x="115" y="294" font-size="11" fill="#4a9d4a">Nemotron Diffusion 14B</text>
+
+      <!-- Mercury 2: 600 tps, ~78 -->
+      <rect x="320" y="155" width="14" height="14" fill="#888"/>
+      <text x="342" y="167" font-size="11" fill="#333">Mercury 2</text>
+
+      <!-- DiffusionGemma 26B A4B: 1479 tps, ~71 -->
+      <circle cx="630" cy="185" r="14" fill="#1a73e8" stroke="#fff" stroke-width="3"/>
+      <text x="655" y="180" font-size="14" font-weight="700" fill="#1a73e8">DiffusionGemma</text>
+      <text x="655" y="197" font-size="12" fill="#1a73e8">26B A4B</text>
+
+      <!-- Frontier arrow -->
+      <path d="M 240,140 Q 400,120 630,175" stroke="#1a73e8" stroke-width="2" stroke-dasharray="6,3" fill="none"/>
+      <text x="500" y="105" text-anchor="middle" font-size="12" fill="#1a73e8" font-weight="700">새로운 Pareto Frontier</text>
+
+      <!-- Title -->
+      <text x="400" y="30" text-anchor="middle" font-size="14" font-weight="700" fill="#1a3a6c">Quality vs Output Speed Pareto (Figure 1 재현)</text>
+    </svg>
+    <div class="caption">Figure 1 재현: DiffusionGemma가 Gemma 4 family(+MTP)와 다른 diffusion 모델들 모두를 능가하는 새로운 speed-intelligence frontier 형성.</div>
+  </div>
+</section>
+
+<section>
+  <h2>학습 파이프라인 (Figure 2 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1000 200" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Start: Gemma 4 -->
+      <rect x="20" y="50" width="150" height="100" rx="10" fill="#eaf3fe" stroke="#1a73e8" stroke-width="2"/>
+      <text x="95" y="80" text-anchor="middle" font-size="14" font-weight="700" fill="#1a3a6c">AR MODEL</text>
+      <text x="95" y="105" text-anchor="middle" font-size="14" font-weight="700" fill="#1a73e8">Gemma 4</text>
+      <text x="95" y="125" text-anchor="middle" font-size="12" fill="#666">26B A4B</text>
+
+      <path d="M 175,100 L 210,100" stroke="#333" stroke-width="2" marker-end="url(#arr1)"/>
+
+      <!-- Pretraining bypassed -->
+      <rect x="215" y="50" width="150" height="100" rx="10" fill="#fce8e6" stroke="#ea4335" stroke-width="2"/>
+      <text x="290" y="80" text-anchor="middle" font-size="24" fill="#ea4335">✗</text>
+      <text x="290" y="105" text-anchor="middle" font-size="13" font-weight="700" fill="#666" text-decoration="line-through">Pretraining</text>
+      <text x="290" y="130" text-anchor="middle" font-size="12" fill="#ea4335" font-weight="700">Bypassed</text>
+
+      <path d="M 370,100 L 405,100" stroke="#333" stroke-width="2" marker-end="url(#arr1)"/>
+
+      <!-- Step 1: SFT -->
+      <rect x="410" y="35" width="180" height="130" rx="10" fill="#eaf3fe" stroke="#1a73e8" stroke-width="3"/>
+      <text x="500" y="55" text-anchor="middle" font-size="10" fill="#1a73e8" font-weight="700">STEP 1</text>
+      <text x="500" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Supervised</text>
+      <text x="500" y="98" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Finetuning</text>
+      <text x="500" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">(SFT)</text>
+      <text x="500" y="140" text-anchor="middle" font-size="10" fill="#666">Learn bidirectional</text>
+      <text x="500" y="153" text-anchor="middle" font-size="10" fill="#666">denoising on canvases</text>
+
+      <path d="M 595,100 L 630,100" stroke="#333" stroke-width="2" marker-end="url(#arr1)"/>
+
+      <!-- Step 2: SD-RL -->
+      <rect x="635" y="35" width="180" height="130" rx="10" fill="#eaf7ef" stroke="#34a853" stroke-width="3"/>
+      <text x="725" y="55" text-anchor="middle" font-size="10" fill="#34a853" font-weight="700">STEP 2</text>
+      <text x="725" y="80" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Sampler Distillation</text>
+      <text x="725" y="98" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">&amp; Reinforcement</text>
+      <text x="725" y="115" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Learning (SD·RL)</text>
+      <text x="725" y="140" text-anchor="middle" font-size="10" fill="#666">Reward ↑ + compress</text>
+      <text x="725" y="153" text-anchor="middle" font-size="10" fill="#666">denoising trajectory</text>
+
+      <path d="M 820,100 L 855,100" stroke="#333" stroke-width="2" marker-end="url(#arr1)"/>
+
+      <!-- Output -->
+      <rect x="860" y="50" width="130" height="100" rx="10" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+      <text x="925" y="85" text-anchor="middle" font-size="11" fill="#f9ab00" font-weight="700">TEXT DIFFUSION</text>
+      <text x="925" y="100" text-anchor="middle" font-size="11" fill="#f9ab00" font-weight="700">MODEL</text>
+      <text x="925" y="125" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">DiffusionGemma</text>
+
+      <defs><marker id="arr1" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 2 재현: AR 모델 Gemma 4 26B A4B가 pretraining을 우회하고 2단계 파인튜닝으로 diffusion 모델로 변환. 총 학습 토큰 예산은 Gemma 4 AR의 10% 미만.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Discrete Diffusion의 원리 (Figure 3 재현)</h2>
+  <p>2-token canvas 예시: "blue moon" (t=1.0, noise) → "dark cloud" → "bright horizon" → "red sunset" (t=0.0, data). 시간 역행하며 uniform noise에서 유효한 데이터 mode로 확률 질량이 이동한다.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 260" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- 4 panels showing distribution evolution -->
+      <g>
+        <!-- Panel 1: t=1.0 noise -->
+        <rect x="20" y="30" width="200" height="200" fill="#f0f0f0" stroke="#888"/>
+        <text x="120" y="20" text-anchor="middle" font-size="12" font-weight="700">t = 1.0 (noise)</text>
+        <text x="120" y="245" text-anchor="middle" font-size="10" font-style="italic">"blue moon"</text>
+        <!-- Scattered dots to represent uniform distribution -->
+        <g fill="#4a6cad" opacity="0.4">
+          <circle cx="40" cy="60" r="3"/><circle cx="60" cy="80" r="3"/><circle cx="80" cy="100" r="3"/>
+          <circle cx="100" cy="120" r="3"/><circle cx="120" cy="140" r="3"/><circle cx="140" cy="160" r="3"/>
+          <circle cx="160" cy="180" r="3"/><circle cx="180" cy="200" r="3"/><circle cx="200" cy="220" r="3"/>
+          <circle cx="60" cy="180" r="3"/><circle cx="80" cy="60" r="3"/><circle cx="120" cy="80" r="3"/>
+          <circle cx="160" cy="100" r="3"/><circle cx="180" cy="140" r="3"/><circle cx="40" cy="140" r="3"/>
+          <circle cx="140" cy="200" r="3"/><circle cx="100" cy="60" r="3"/><circle cx="200" cy="140" r="3"/>
+        </g>
+        <circle cx="80" cy="180" r="7" fill="#1a3a6c"/>
+      </g>
+
+      <!-- Panel 2: t=0.66 -->
+      <g transform="translate(220 0)">
+        <rect x="20" y="30" width="200" height="200" fill="#f0f0f0" stroke="#888"/>
+        <text x="120" y="20" text-anchor="middle" font-size="12" font-weight="700">t = 0.66</text>
+        <text x="120" y="245" text-anchor="middle" font-size="10" font-style="italic">"dark cloud"</text>
+        <!-- Fewer but slightly clustered dots -->
+        <g fill="#7a5a9f" opacity="0.5">
+          <circle cx="60" cy="80" r="3.5"/><circle cx="80" cy="100" r="3.5"/><circle cx="100" cy="120" r="4"/>
+          <circle cx="120" cy="120" r="4"/><circle cx="140" cy="160" r="4"/><circle cx="160" cy="180" r="4"/>
+          <circle cx="80" cy="160" r="4"/><circle cx="120" cy="80" r="3.5"/><circle cx="160" cy="120" r="4"/>
+          <circle cx="140" cy="100" r="4"/><circle cx="180" cy="140" r="3.5"/>
+        </g>
+        <circle cx="140" cy="140" r="8" fill="#5c1a5c"/>
+        <!-- transition arrow -->
+        <path d="M 80,180 L 130,150" stroke="#333" stroke-width="1.5" marker-end="url(#a3)"/>
+      </g>
+
+      <!-- Panel 3: t=0.33 -->
+      <g transform="translate(440 0)">
+        <rect x="20" y="30" width="200" height="200" fill="#f0f0f0" stroke="#888"/>
+        <text x="120" y="20" text-anchor="middle" font-size="12" font-weight="700">t = 0.33</text>
+        <text x="120" y="245" text-anchor="middle" font-size="10" font-style="italic">"bright horizon"</text>
+        <g fill="#e0704a" opacity="0.5">
+          <circle cx="120" cy="90" r="5"/><circle cx="140" cy="100" r="5"/><circle cx="160" cy="110" r="5"/>
+          <circle cx="120" cy="130" r="5"/><circle cx="140" cy="140" r="6"/><circle cx="160" cy="150" r="5"/>
+          <circle cx="180" cy="90" r="4"/><circle cx="180" cy="130" r="4"/>
+        </g>
+        <circle cx="160" cy="90" r="8" fill="#8b3a20"/>
+        <path d="M 140,140 L 155,95" stroke="#333" stroke-width="1.5" marker-end="url(#a3)"/>
+      </g>
+
+      <!-- Panel 4: t=0.0 data -->
+      <g transform="translate(660 0)">
+        <rect x="20" y="30" width="200" height="200" fill="#f0f0f0" stroke="#888"/>
+        <text x="120" y="20" text-anchor="middle" font-size="12" font-weight="700">t = 0.0 (data)</text>
+        <text x="120" y="245" text-anchor="middle" font-size="10" font-weight="700" fill="#8b3a20">"red sunset"</text>
+        <g fill="#e0704a" opacity="0.7">
+          <circle cx="160" cy="60" r="8"/><circle cx="180" cy="60" r="10"/><circle cx="140" cy="80" r="6"/>
+        </g>
+        <circle cx="180" cy="60" r="14" fill="#8b3a20" stroke="#000" stroke-width="2"/>
+        <path d="M 160,90 L 175,68" stroke="#333" stroke-width="1.5" marker-end="url(#a3)"/>
+      </g>
+
+      <defs><marker id="a3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 3 재현: 개별 시퀀스가 backward-time으로 uniform noise → 데이터 mode로 이동하는 궤적. 두 canvas 위치가 <em>독립적으로 병렬 진화</em>하지만 학습된 posterior가 그들을 조율.</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>Multinomial vs Masked Diffusion</h3>
+    <p>DiffusionGemma는 <strong>multinomial(uniform) diffusion</strong>을 채택. 각 토큰이 어휘 전체에서 uniform하게 선택된 랜덤 토큰으로 대체된다. Masked diffusion과 달리 <strong>##앞 step에서 잘못 sample된 토큰도 이후 step에서 재수정 가능##</strong>. Previous canvas의 토큰은 freeze되지만, 현재 canvas 내에서는 flexible.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Block-AR 생성 파이프라인 (Figure 4 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 480" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Input prompt -->
+      <rect x="20" y="380" width="200" height="45" rx="8" fill="white" stroke="#333" stroke-width="1.5"/>
+      <text x="120" y="408" text-anchor="middle" font-size="12" font-family="monospace">"where is the cat?"</text>
+      <text x="120" y="440" text-anchor="middle" font-size="11" fill="#666">input prompt</text>
+
+      <path d="M 220,400 L 250,400" stroke="#333" stroke-width="2" marker-end="url(#a4)"/>
+
+      <!-- Encoder -->
+      <rect x="255" y="330" width="180" height="140" rx="8" fill="#eaf3fe" stroke="#1a73e8" stroke-width="2"/>
+      <text x="345" y="355" text-anchor="middle" font-size="13" font-weight="700" fill="#1a73e8">Encoder</text>
+      <text x="345" y="378" text-anchor="middle" font-size="11" fill="#666">causal attn</text>
+      <!-- causal mask (triangle) -->
+      <polygon points="285,395 405,395 405,455 285,455" fill="none" stroke="#4a90d9"/>
+      <polygon points="285,395 405,455 285,455" fill="#4a90d9" opacity="0.3"/>
+      <text x="345" y="463" text-anchor="middle" font-size="9" fill="#666">causal mask</text>
+
+      <!-- KV cache -->
+      <rect x="255" y="230" width="180" height="80" rx="8" fill="white" stroke="#333" stroke-width="1.5"/>
+      <text x="345" y="256" text-anchor="middle" font-size="12" font-weight="700">encoder KV cache</text>
+      <text x="345" y="280" text-anchor="middle" font-size="11" fill="#666" font-family="monospace">H</text>
+      <text x="345" y="295" text-anchor="middle" font-size="10" fill="#1a73e8">(1) 컨텍스트 인코딩</text>
+
+      <path d="M 345,330 L 345,315" stroke="#333" stroke-width="2" marker-end="url(#a4)"/>
+
+      <!-- Cross attention from KV to decoder -->
+      <path d="M 435,270 L 500,270" stroke="#4a90d9" stroke-width="2" stroke-dasharray="4,4" marker-end="url(#a4)"/>
+      <text x="467" y="262" text-anchor="middle" font-size="9" fill="#4a90d9">cross-attn</text>
+
+      <!-- Decoder -->
+      <rect x="505" y="200" width="200" height="130" rx="8" fill="#eaf7ef" stroke="#34a853" stroke-width="2"/>
+      <text x="605" y="225" text-anchor="middle" font-size="13" font-weight="700" fill="#34a853">Decoder</text>
+      <text x="605" y="248" text-anchor="middle" font-size="10" fill="#666">cross attn +</text>
+      <text x="605" y="262" text-anchor="middle" font-size="10" fill="#666">bidirectional attn</text>
+      <!-- full attn matrix -->
+      <rect x="540" y="275" width="130" height="45" fill="#7cbf82" opacity="0.5"/>
+      <text x="605" y="302" text-anchor="middle" font-size="10" fill="white" font-weight="700">bidirectional</text>
+
+      <!-- Canvas input to decoder -->
+      <rect x="470" y="380" width="270" height="35" rx="6" fill="white" stroke="#333" stroke-width="1.5"/>
+      <text x="605" y="403" text-anchor="middle" font-size="11" font-family="monospace">not ⊥ John and is plant</text>
+      <text x="605" y="440" text-anchor="middle" font-size="11" fill="#666">canvas (t=1)</text>
+
+      <path d="M 605,380 L 605,335" stroke="#333" stroke-width="2" marker-end="url(#a4)"/>
+
+      <!-- Self-conditioning z_t -->
+      <rect x="760" y="380" width="120" height="35" rx="6" fill="#fef7e0" stroke="#f9ab00"/>
+      <text x="820" y="403" text-anchor="middle" font-size="11">self-conditioning</text>
+      <path d="M 760,395 L 743,395 L 743,335" stroke="#f9ab00" stroke-width="2" fill="none" marker-end="url(#a4)"/>
+
+      <!-- Denoising loop indicator -->
+      <path d="M 705,240 Q 810,240 810,160 Q 810,80 700,80" stroke="#f9ab00" stroke-width="2" fill="none" marker-end="url(#a4)" stroke-dasharray="6,3"/>
+      <text x="815" y="145" font-size="11" fill="#f9ab00" font-weight="700">(2) denoising</text>
+      <text x="815" y="160" font-size="11" fill="#f9ab00" font-weight="700">steps loop</text>
+
+      <!-- Iterative canvases -->
+      <g>
+        <rect x="470" y="65" width="230" height="18" fill="white" stroke="#888"/>
+        <text x="585" y="79" text-anchor="middle" font-size="10" font-family="monospace">not ⊥ John and is plant</text>
+
+        <rect x="470" y="90" width="230" height="18" fill="white" stroke="#888"/>
+        <text x="585" y="104" text-anchor="middle" font-size="10" font-family="monospace">not chat and is the table</text>
+
+        <rect x="470" y="115" width="230" height="18" fill="#c8f5c8" stroke="#34a853" stroke-width="2"/>
+        <text x="585" y="129" text-anchor="middle" font-size="10" font-family="monospace" font-weight="700">the cat is on the table</text>
+      </g>
+
+      <path d="M 585,63 L 585,55 L 605,55 L 605,220" stroke="#666" stroke-width="1" fill="none"/>
+
+      <!-- Encode & append feedback -->
+      <path d="M 470,120 L 355,120 L 355,225" stroke="#ea4335" stroke-width="2" stroke-dasharray="5,3" fill="none" marker-end="url(#a4)"/>
+      <text x="200" y="115" font-size="11" fill="#ea4335" font-weight="700">(3) encode &amp; append</text>
+      <text x="200" y="130" font-size="10" fill="#ea4335">완성된 canvas를 KV cache에 append</text>
+
+      <!-- Logits at top -->
+      <text x="605" y="180" text-anchor="middle" font-size="11" fill="#666">↑ logits</text>
+
+      <!-- Improved canvas label -->
+      <text x="585" y="45" text-anchor="middle" font-size="11" font-weight="700" fill="#34a853">improved canvas</text>
+
+      <defs><marker id="a4" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 4 재현: (1) causal encoder가 프롬프트를 KV cache로 인코딩 → (2) bidirectional decoder가 canvas를 반복 denoise (self-conditioning으로 이전 예측 재사용) → (3) 완성 canvas를 KV cache에 append하고 다음 canvas 시작.</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>왜 이 구조가 우아한가</h3>
+    <p>기존 BART/T5는 <em>bidirectional encoder + causal decoder</em>. DiffusionGemma는 이를 <strong>역전</strong>: causal encoder + bidirectional decoder. 이 배치의 장점은 <em>encoder KV cache가 append-only</em>라는 점 — 새 canvas가 완성될 때마다 전체 컨텍스트를 재계산할 필요 없이 마지막 canvas만 encode해 append. Long context에서도 O(1) 증분 비용.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Adaptive Stopping의 효과 (Figure 5 재현)</h2>
+  <p>Task complexity에 따라 denoising step 수가 동적으로 조정된다.</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="20" text-anchor="middle" font-size="13" font-weight="700">Effective Denoising Steps (Task별)</text>
+
+      <!-- Y axis -->
+      <line x1="80" y1="60" x2="80" y2="270" stroke="#333"/>
+      <text x="70" y="65" text-anchor="end" font-size="10">18</text>
+      <text x="70" y="105" text-anchor="end" font-size="10">14</text>
+      <text x="70" y="145" text-anchor="end" font-size="10">12</text>
+      <text x="70" y="185" text-anchor="end" font-size="10">10</text>
+      <text x="70" y="225" text-anchor="end" font-size="10">8</text>
+      <text x="70" y="265" text-anchor="end" font-size="10">6</text>
+      <text x="35" y="165" text-anchor="middle" font-size="11" transform="rotate(-90 35 165)">Effective Denoising Steps</text>
+
+      <!-- Bars: pairs (Think, No-think) for 13 tasks -->
+      <!-- Each pair: Think in light blue, No-think in pink, ~11 tasks -->
+      <!-- HumanEval Think 9-10, No-think 7-8 -->
+      <g><rect x="95" y="215" width="18" height="30" fill="#a4c8f0"/><rect x="115" y="230" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="115" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 115 290)">HumanEval</text>
+      <!-- GSM8K Think 10, No-think 9 -->
+      <g><rect x="145" y="205" width="18" height="35" fill="#a4c8f0"/><rect x="165" y="215" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="165" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 165 290)">GSM8K</text>
+      <!-- Natural2Code Think 10, No-think 8 -->
+      <g><rect x="195" y="200" width="18" height="30" fill="#a4c8f0"/><rect x="215" y="220" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="215" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 215 290)">Natural2Code</text>
+      <!-- HiddenMath Think 11, No-think 10 -->
+      <g><rect x="245" y="185" width="18" height="35" fill="#a4c8f0"/><rect x="265" y="205" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="265" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 265 290)">HiddenMath</text>
+      <!-- LBPP Think 12, No-think 11 -->
+      <g><rect x="295" y="180" width="18" height="30" fill="#a4c8f0"/><rect x="315" y="200" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="315" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 315 290)">LBPP</text>
+      <!-- BigCodeBench Think 12, No-think 13 -->
+      <g><rect x="345" y="175" width="18" height="30" fill="#a4c8f0"/><rect x="365" y="180" width="18" height="30" fill="#f5b5c8"/></g>
+      <text x="365" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 365 290)">BigCodeBench</text>
+      <!-- MGSM Think 13, No-think 12 -->
+      <g><rect x="395" y="155" width="18" height="35" fill="#a4c8f0"/><rect x="415" y="170" width="18" height="35" fill="#f5b5c8"/></g>
+      <text x="415" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 415 290)">MGSM</text>
+      <!-- LiveCodeBench Think 14, No-think 13 -->
+      <g><rect x="445" y="130" width="18" height="45" fill="#a4c8f0"/><rect x="465" y="155" width="18" height="35" fill="#f5b5c8"/></g>
+      <text x="465" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 465 290)">LiveCodeBench</text>
+      <!-- AIME 2026 Think 13, No-think 14 -->
+      <g><rect x="495" y="145" width="18" height="35" fill="#a4c8f0"/><rect x="515" y="125" width="18" height="45" fill="#f5b5c8"/></g>
+      <text x="515" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 515 290)">AIME 2026</text>
+      <!-- Putnam Think 14, No-think 15 -->
+      <g><rect x="545" y="115" width="18" height="45" fill="#a4c8f0"/><rect x="565" y="110" width="18" height="45" fill="#f5b5c8"/></g>
+      <text x="565" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 565 290)">Putnam</text>
+      <!-- IFEval Think 14, No-think 9 -->
+      <g><rect x="595" y="110" width="18" height="35" fill="#a4c8f0"/><rect x="615" y="205" width="18" height="45" fill="#f5b5c8"/></g>
+      <text x="615" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 615 290)">IFEval</text>
+      <!-- GPQA-D Think 15, No-think 13 -->
+      <g><rect x="645" y="95" width="18" height="40" fill="#a4c8f0"/><rect x="665" y="135" width="18" height="45" fill="#f5b5c8"/></g>
+      <text x="665" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 665 290)">GPQA-D</text>
+      <!-- MMLU-Pro Think 15, No-think 13 -->
+      <g><rect x="695" y="60" width="18" height="60" fill="#a4c8f0"/><rect x="715" y="120" width="18" height="50" fill="#f5b5c8"/></g>
+      <text x="715" y="290" text-anchor="middle" font-size="9" transform="rotate(-45 715 290)">MMLU-Pro</text>
+
+      <!-- Legend -->
+      <g transform="translate(120 315)">
+        <rect x="0" y="0" width="14" height="14" fill="#a4c8f0"/>
+        <text x="20" y="12" font-size="11">Think</text>
+        <rect x="80" y="0" width="14" height="14" fill="#f5b5c8"/>
+        <text x="100" y="12" font-size="11">No-think</text>
+      </g>
+
+      <!-- Annotations -->
+      <text x="140" y="255" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">쉬운 태스크</text>
+      <text x="140" y="270" text-anchor="middle" font-size="9" fill="#4a9d4a">~8-10 steps</text>
+      <text x="670" y="80" text-anchor="middle" font-size="10" fill="#c04a4a" font-weight="700">어려운 태스크</text>
+      <text x="670" y="95" text-anchor="middle" font-size="9" fill="#c04a4a">~15-16 steps</text>
+    </svg>
+    <div class="caption">Figure 5 재현: adaptive stopping이 task complexity에 dynamic 적응. 최대 N=48 예산 중 실제 사용은 평균 12 step (4× 감소).</div>
+  </div>
+</section>
+
+<section>
+  <h2>SD·RL 학습 다이나믹스 (Figure 8 재현)</h2>
+  <p>이 논문의 핵심 아이디어: reward와 sampler compression을 동시 최적화. 자연스러운 curriculum이 emerge한다.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 300" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Left panel: Reward increases -->
+      <g>
+        <text x="180" y="25" text-anchor="middle" font-size="13" font-weight="700">Reward Average ↑</text>
+        <line x1="50" y1="50" x2="50" y2="260" stroke="#333"/>
+        <line x1="50" y1="260" x2="330" y2="260" stroke="#333"/>
+        <text x="45" y="55" text-anchor="end" font-size="10">0.38</text>
+        <text x="45" y="100" text-anchor="end" font-size="10">0.36</text>
+        <text x="45" y="145" text-anchor="end" font-size="10">0.34</text>
+        <text x="45" y="190" text-anchor="end" font-size="10">0.32</text>
+        <text x="45" y="235" text-anchor="end" font-size="10">0.28</text>
+        <text x="90" y="278" text-anchor="middle" font-size="10">0</text>
+        <text x="160" y="278" text-anchor="middle" font-size="10">500</text>
+        <text x="230" y="278" text-anchor="middle" font-size="10">1000</text>
+        <text x="180" y="295" text-anchor="middle" font-size="10">SD·RL Training Step</text>
+
+        <!-- Line: starts at 0.27, goes up to 0.38 -->
+        <polyline points="60,242 120,180 180,142 240,80 280,105 320,90" stroke="#1a73e8" stroke-width="2.5" fill="none"/>
+        <circle cx="60" cy="242" r="4" fill="#1a73e8"/>
+        <circle cx="120" cy="180" r="4" fill="#1a73e8"/>
+        <circle cx="180" cy="142" r="4" fill="#1a73e8"/>
+        <circle cx="240" cy="80" r="4" fill="#1a73e8"/>
+        <circle cx="280" cy="105" r="4" fill="#1a73e8"/>
+        <circle cx="320" cy="90" r="4" fill="#1a73e8"/>
+      </g>
+
+      <!-- Right panel: Effective steps decreases -->
+      <g transform="translate(400 0)">
+        <text x="180" y="25" text-anchor="middle" font-size="13" font-weight="700">Effective Denoising Steps ↓</text>
+        <line x1="50" y1="50" x2="50" y2="260" stroke="#333"/>
+        <line x1="50" y1="260" x2="330" y2="260" stroke="#333"/>
+        <text x="45" y="55" text-anchor="end" font-size="10">50</text>
+        <text x="45" y="100" text-anchor="end" font-size="10">40</text>
+        <text x="45" y="145" text-anchor="end" font-size="10">30</text>
+        <text x="45" y="190" text-anchor="end" font-size="10">25</text>
+        <text x="45" y="235" text-anchor="end" font-size="10">20</text>
+        <text x="90" y="278" text-anchor="middle" font-size="10">0</text>
+        <text x="160" y="278" text-anchor="middle" font-size="10">500</text>
+        <text x="230" y="278" text-anchor="middle" font-size="10">1000</text>
+        <text x="180" y="295" text-anchor="middle" font-size="10">SD·RL Training Step</text>
+
+        <!-- Line: starts at 50, goes down to ~18 -->
+        <polyline points="60,55 120,85 180,110 240,155 280,220 320,240" stroke="#ea4335" stroke-width="2.5" fill="none"/>
+        <circle cx="60" cy="55" r="4" fill="#ea4335"/>
+        <circle cx="120" cy="85" r="4" fill="#ea4335"/>
+        <circle cx="180" cy="110" r="4" fill="#ea4335"/>
+        <circle cx="240" cy="155" r="4" fill="#ea4335"/>
+        <circle cx="280" cy="220" r="4" fill="#ea4335"/>
+        <circle cx="320" cy="240" r="4" fill="#ea4335"/>
+      </g>
+    </svg>
+    <div class="caption">Figure 8 재현: SD·RL 학습 중 reward는 0.27 → 0.38로 상승, effective denoising steps는 50 → 20으로 감소. Quality와 Speed가 함께 개선.</div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card card-accent">
+      <h3>1. Reward Maximization</h3>
+      <p>Helpfulness, math, code, IF 등 표준 RL objective. Online teacher가 매 step 생성한 trajectory 위에서 reward 계산.</p>
+    </div>
+    <div class="card card-green">
+      <h3>2. Sampler Distillation</h3>
+      <p>고품질 output을 few-step regime으로 압축. Predictive entropy 최소화로 adaptive stopping이 조기 발동.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>3. Emergent Curriculum</h3>
+      <p>Entropy ↓ → adaptive stopping 조기화 → teacher trajectory ↓ → 학습 분포가 자연스럽게 짧은 궤적으로 이동. 자기 강화 루프.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>GPU 시간 분해: 왜 diffusion이 3.2× 만 느린가 (Figure 11 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 460" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="13" font-weight="700">Per-Step GPU Time Breakdown (H100 FP8)</text>
+
+      <!-- Y axis -->
+      <line x1="80" y1="60" x2="80" y2="400" stroke="#333"/>
+      <line x1="80" y1="400" x2="700" y2="400" stroke="#333"/>
+      <text x="70" y="70" text-anchor="end" font-size="10">14</text>
+      <text x="70" y="120" text-anchor="end" font-size="10">12</text>
+      <text x="70" y="170" text-anchor="end" font-size="10">10</text>
+      <text x="70" y="220" text-anchor="end" font-size="10">8</text>
+      <text x="70" y="270" text-anchor="end" font-size="10">6</text>
+      <text x="70" y="320" text-anchor="end" font-size="10">4</text>
+      <text x="70" y="370" text-anchor="end" font-size="10">2</text>
+      <text x="35" y="220" text-anchor="middle" font-size="11" transform="rotate(-90 35 220)">GPU Time per step (ms)</text>
+
+      <!-- Gemma 4 AR bar stack: total 4.01ms -->
+      <g>
+        <!-- 0.46 (other), 0.61 (FFN), 0.74 (Attn Out Proj), 0.45 (Attn), 0.56 (Sampling), 1.08 (MoE) -->
+        <!-- Stacked from bottom -->
+        <!-- Total 4.01, each unit ~ 24 pixels per ms -->
+        <rect x="180" y="380" width="90" height="12" fill="#a97a56"/>
+        <text x="225" y="390" text-anchor="middle" font-size="9">0.46</text>
+        <rect x="180" y="365" width="90" height="15" fill="#e07800"/>
+        <text x="225" y="376" text-anchor="middle" font-size="9">0.61</text>
+        <rect x="180" y="347" width="90" height="18" fill="#a03a9d"/>
+        <text x="225" y="360" text-anchor="middle" font-size="9">0.74</text>
+        <rect x="180" y="336" width="90" height="11" fill="#008080"/>
+        <text x="225" y="345" text-anchor="middle" font-size="9">0.45</text>
+        <rect x="180" y="322" width="90" height="14" fill="#e84a5f"/>
+        <text x="225" y="332" text-anchor="middle" font-size="9">0.56</text>
+        <rect x="180" y="295" width="90" height="27" fill="#4a90d9"/>
+        <text x="225" y="311" text-anchor="middle" font-size="10" fill="white" font-weight="700">1.08</text>
+
+        <text x="225" y="420" text-anchor="middle" font-size="11" font-weight="700">Gemma 4 AR</text>
+        <text x="225" y="435" text-anchor="middle" font-size="10" fill="#666">(1 token/step)</text>
+        <text x="225" y="285" text-anchor="middle" font-size="12" font-weight="700" fill="#4a90d9">4.01 ms</text>
+      </g>
+
+      <!-- DiffusionGemma bar stack: total 12.63ms -->
+      <g>
+        <!-- 0.9 (other), 1.06 (FFN Norm+Route), 1.06 (Attn Out Proj), 1.12 (Shared Exp), 1.84 (Attn), 3.06 (Sampling), 4.66 (MoE) -->
+        <rect x="450" y="378" width="120" height="22" fill="#a97a56"/>
+        <text x="510" y="393" text-anchor="middle" font-size="10" fill="white">~0.9 Other</text>
+        <rect x="450" y="352" width="120" height="26" fill="#e07800"/>
+        <text x="510" y="368" text-anchor="middle" font-size="10" fill="white">1.06 FFN Norm+Route</text>
+        <rect x="450" y="326" width="120" height="26" fill="#a03a9d"/>
+        <text x="510" y="342" text-anchor="middle" font-size="10" fill="white">1.06 Attn Out Proj</text>
+        <rect x="450" y="298" width="120" height="28" fill="#5aad5a"/>
+        <text x="510" y="315" text-anchor="middle" font-size="10" fill="white">1.12 Shared Exp</text>
+        <rect x="450" y="252" width="120" height="46" fill="#008080"/>
+        <text x="510" y="277" text-anchor="middle" font-size="11" fill="white" font-weight="700">1.84 Attention (×4.1)</text>
+        <rect x="450" y="176" width="120" height="76" fill="#e84a5f"/>
+        <text x="510" y="216" text-anchor="middle" font-size="11" fill="white" font-weight="700">3.06 Sampling (×5.5)</text>
+        <rect x="450" y="60" width="120" height="116" fill="#4a90d9"/>
+        <text x="510" y="120" text-anchor="middle" font-size="12" fill="white" font-weight="700">4.66 MoE Experts (×4.3)</text>
+
+        <text x="510" y="420" text-anchor="middle" font-size="11" font-weight="700">DiffusionGemma</text>
+        <text x="510" y="435" text-anchor="middle" font-size="10" fill="#666">(256 tokens/step)</text>
+        <text x="510" y="50" text-anchor="middle" font-size="14" font-weight="700" fill="#4a90d9">12.63 ms</text>
+      </g>
+
+      <!-- 3.2x annotation -->
+      <path d="M 220,45 L 570,45" stroke="#333" stroke-width="1"/>
+      <text x="395" y="40" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">3.2×</text>
+      <line x1="220" y1="42" x2="220" y2="50" stroke="#333"/>
+      <line x1="570" y1="42" x2="570" y2="50" stroke="#333"/>
+    </svg>
+    <div class="caption">Figure 11 재현: 256 tokens 병렬 처리에 3.2× 만 더 걸림. TPF ~20이므로 실질 speedup ~6.3×.</div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>왜 3.2× 만 느린가</h3>
+    <p><strong>MoE ×4.3</strong>: AR은 8 experts activate, diffusion은 canvas당 평균 84 experts. 그러나 memory bandwidth 병목이 완화되면서 이 오버헤드가 상쇄됨. <strong>Sampling ×5.5</strong>: 256-token softmax + self-conditioning FFW (V=262k). PyTorch primitives라 kernel 최적화 여지 존재. <strong>Attention ×4.1</strong>: FlashAttention-4 최적화됨.</p>
+  </div>
+</section>
+
+<section>
+  <h2>실전 성능 및 벤치마크 (Table 3, Figure 13 재현)</h2>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 460" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="20" text-anchor="middle" font-size="13" font-weight="700">Capability × Output Speed 비교 (Figure 13 재현)</text>
+
+      <!-- Reasoning group -->
+      <g transform="translate(0 40)">
+        <text x="200" y="15" text-anchor="middle" font-size="11" font-weight="700">Reasoning &amp; Knowledge</text>
+        <!-- horizontal bars from x=100 -->
+        <g font-size="9">
+          <text x="95" y="45" text-anchor="end">DG TD (Think)</text>
+          <rect x="100" y="35" width="151" height="14" fill="#4a90d9"/>
+          <text x="255" y="46" font-weight="700">75.3</text>
+
+          <text x="95" y="65" text-anchor="end">DG TD (NT)</text>
+          <rect x="100" y="55" width="137" height="14" fill="#4a90d9" opacity="0.5" stroke-dasharray="2,2"/>
+          <text x="241" y="66">68.6</text>
+
+          <text x="95" y="85" text-anchor="end">DG AR (Think)</text>
+          <rect x="100" y="75" width="162" height="14" fill="#7fbf7f"/>
+          <text x="266" y="86">81.0</text>
+
+          <text x="95" y="105" text-anchor="end">Gemma 4 (MTP)</text>
+          <rect x="100" y="95" width="169" height="14" fill="#5aad5a"/>
+          <text x="273" y="106" font-weight="700">84.7</text>
+
+          <text x="95" y="125" text-anchor="end">Mercury 2 High</text>
+          <rect x="100" y="115" width="160" height="14" fill="#e07800"/>
+          <text x="264" y="126">80.0</text>
+        </g>
+      </g>
+
+      <!-- Coding group -->
+      <g transform="translate(400 40)">
+        <text x="200" y="15" text-anchor="middle" font-size="11" font-weight="700">Coding</text>
+        <g font-size="9">
+          <text x="95" y="45" text-anchor="end">DG TD (Think)</text>
+          <rect x="100" y="35" width="154" height="14" fill="#4a90d9"/>
+          <text x="258" y="46" font-weight="700">76.9</text>
+
+          <text x="95" y="65" text-anchor="end">DG AR (Think)</text>
+          <rect x="100" y="75" width="160" height="14" fill="#7fbf7f"/>
+          <text x="264" y="86">80.0</text>
+
+          <text x="95" y="105" text-anchor="end">Gemma 4 (MTP)</text>
+          <rect x="100" y="95" width="165" height="14" fill="#5aad5a"/>
+          <text x="269" y="106" font-weight="700">82.4</text>
+
+          <text x="95" y="125" text-anchor="end">Nemotron Diff</text>
+          <rect x="100" y="115" width="105" height="14" fill="#c04a4a"/>
+          <text x="209" y="126">52.4</text>
+
+          <text x="95" y="155" text-anchor="end">Mercury 2 High</text>
+          <rect x="100" y="145" width="157" height="14" fill="#e07800"/>
+          <text x="261" y="156">78.7</text>
+        </g>
+      </g>
+
+      <!-- Instruction & Agentic -->
+      <g transform="translate(0 220)">
+        <text x="200" y="15" text-anchor="middle" font-size="11" font-weight="700">Instruction Following &amp; Agentic</text>
+        <g font-size="9">
+          <text x="95" y="45" text-anchor="end">DG TD (Think)</text>
+          <rect x="100" y="35" width="133" height="14" fill="#4a90d9"/>
+          <text x="237" y="46" font-weight="700">66.5</text>
+
+          <text x="95" y="65" text-anchor="end">DG AR (Think)</text>
+          <rect x="100" y="75" width="139" height="14" fill="#7fbf7f"/>
+          <text x="243" y="86">69.6</text>
+
+          <text x="95" y="105" text-anchor="end">Gemma 4 (MTP)</text>
+          <rect x="100" y="95" width="152" height="14" fill="#5aad5a"/>
+          <text x="256" y="106" font-weight="700">75.8</text>
+        </g>
+      </g>
+
+      <!-- Output speed -->
+      <g transform="translate(400 220)">
+        <text x="200" y="15" text-anchor="middle" font-size="11" font-weight="700">Output Speed (tok/s)</text>
+        <g font-size="9">
+          <text x="95" y="45" text-anchor="end">DG TD (Think)</text>
+          <rect x="100" y="35" width="185" height="14" fill="#4a90d9"/>
+          <text x="290" y="46" font-weight="700" fill="#1a3a6c">1,479 ★</text>
+
+          <text x="95" y="65" text-anchor="end">DG TD (NT)</text>
+          <rect x="100" y="55" width="189" height="14" fill="#4a90d9" opacity="0.7"/>
+          <text x="294" y="66" font-weight="700">1,512</text>
+
+          <text x="95" y="85" text-anchor="end">DG AR</text>
+          <rect x="100" y="75" width="25" height="14" fill="#7fbf7f"/>
+          <text x="132" y="86">204</text>
+
+          <text x="95" y="105" text-anchor="end">Gemma 4 (MTP)</text>
+          <rect x="100" y="95" width="38" height="14" fill="#5aad5a"/>
+          <text x="145" y="106">303</text>
+
+          <text x="95" y="125" text-anchor="end">Nemotron Diff</text>
+          <rect x="100" y="115" width="6" height="14" fill="#c04a4a"/>
+          <text x="115" y="126">49</text>
+
+          <text x="95" y="145" text-anchor="end">Mercury 2 High</text>
+          <rect x="100" y="135" width="75" height="14" fill="#e07800"/>
+          <text x="182" y="146">600</text>
+        </g>
+      </g>
+    </svg>
+    <div class="caption">Figure 13 재현: DiffusionGemma TD가 quality 축에서 Gemma 4 AR/MTP에 다소 뒤지지만, output speed에서 5× 압도. Mercury 2 대비 quality는 유사, speed는 2.5× 우위.</div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>모델</th><th>AIME 2026</th><th>GPQA-D</th><th>LCB-v6</th><th>HumanEval</th><th>Output TPS</th></tr>
+    <tr><td>DiffusionGemma TD (Think)</td><td>69.1</td><td>73.2</td><td>69.1</td><td>94.5</td><td class="win">1,479</td></tr>
+    <tr><td>DiffusionGemma AR (Think)</td><td>84.2</td><td>79.8</td><td>71.4</td><td>98.8</td><td>204</td></tr>
+    <tr><td>Gemma 4 AR (MTP)</td><td class="win">88.3</td><td class="win">82.3</td><td class="win">77.1</td><td>98.8</td><td>303</td></tr>
+    <tr><td>LLaDA 2.1 Flash 100B</td><td>80.0</td><td>68.7</td><td>39.4</td><td>90.2</td><td>375</td></tr>
+    <tr><td>Nemotron Diffusion 14B</td><td>40.0</td><td>47.0</td><td>28.6</td><td>86.0</td><td>49</td></tr>
+    <tr><td>Mercury 2 High</td><td class="win">91.7</td><td>75.2</td><td class="win">79.4</td><td>98.2</td><td>600</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Throughput vs Batch Size Trade-off (Figure 12 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="20" text-anchor="middle" font-size="13" font-weight="700">DiffusionGemma / Gemma 4 AR (MTP) 처리량 비율</text>
+
+      <line x1="80" y1="270" x2="720" y2="270" stroke="#333"/>
+      <line x1="80" y1="60" x2="80" y2="270" stroke="#333"/>
+
+      <text x="70" y="65" text-anchor="end" font-size="11">5×</text>
+      <text x="70" y="105" text-anchor="end" font-size="11">4×</text>
+      <text x="70" y="145" text-anchor="end" font-size="11">3×</text>
+      <text x="70" y="185" text-anchor="end" font-size="11">2×</text>
+      <text x="70" y="225" text-anchor="end" font-size="11">1×</text>
+      <text x="70" y="265" text-anchor="end" font-size="11">0</text>
+
+      <!-- Parity line at 1× -->
+      <line x1="80" y1="225" x2="720" y2="225" stroke="#888" stroke-dasharray="4,3"/>
+      <text x="720" y="222" text-anchor="end" font-size="10" fill="#888">parity (1×)</text>
+
+      <!-- Groups: c=1, c=2, c=4, c=8, c=16 -->
+      <!-- c=1: per-user 4.11, total 4.11 -->
+      <g transform="translate(120 0)">
+        <rect x="0" y="60" width="30" height="210" fill="#c8a8f0"/>
+        <text x="15" y="55" text-anchor="middle" font-size="11" font-weight="700">4.11×</text>
+        <rect x="35" y="60" width="30" height="210" fill="#a8d8a8"/>
+        <text x="50" y="55" text-anchor="middle" font-size="11" font-weight="700">4.11×</text>
+        <text x="32" y="290" text-anchor="middle" font-size="12" font-weight="700">c=1</text>
+      </g>
+
+      <!-- c=2: per-user 3.01, total 3.18 -->
+      <g transform="translate(230 0)">
+        <rect x="0" y="105" width="30" height="165" fill="#c8a8f0"/>
+        <text x="15" y="100" text-anchor="middle" font-size="11" font-weight="700">3.01×</text>
+        <rect x="35" y="98" width="30" height="172" fill="#a8d8a8"/>
+        <text x="50" y="93" text-anchor="middle" font-size="11" font-weight="700">3.18×</text>
+        <text x="32" y="290" text-anchor="middle" font-size="12" font-weight="700">c=2</text>
+      </g>
+
+      <!-- c=4 -->
+      <g transform="translate(340 0)">
+        <rect x="0" y="134" width="30" height="136" fill="#c8a8f0"/>
+        <text x="15" y="129" text-anchor="middle" font-size="11" font-weight="700">2.28×</text>
+        <rect x="35" y="130" width="30" height="140" fill="#a8d8a8"/>
+        <text x="50" y="125" text-anchor="middle" font-size="11" font-weight="700">2.38×</text>
+        <text x="32" y="290" text-anchor="middle" font-size="12" font-weight="700">c=4</text>
+      </g>
+
+      <!-- c=8 -->
+      <g transform="translate(450 0)">
+        <rect x="0" y="160" width="30" height="110" fill="#c8a8f0"/>
+        <text x="15" y="155" text-anchor="middle" font-size="11" font-weight="700">1.62×</text>
+        <rect x="35" y="156" width="30" height="114" fill="#a8d8a8"/>
+        <text x="50" y="151" text-anchor="middle" font-size="11" font-weight="700">1.73×</text>
+        <text x="32" y="290" text-anchor="middle" font-size="12" font-weight="700">c=8</text>
+      </g>
+
+      <!-- c=16 -->
+      <g transform="translate(560 0)">
+        <rect x="0" y="180" width="30" height="90" fill="#c8a8f0"/>
+        <text x="15" y="175" text-anchor="middle" font-size="11" font-weight="700">1.22×</text>
+        <rect x="35" y="171" width="30" height="99" fill="#a8d8a8"/>
+        <text x="50" y="166" text-anchor="middle" font-size="11" font-weight="700">1.35×</text>
+        <text x="32" y="290" text-anchor="middle" font-size="12" font-weight="700">c=16</text>
+      </g>
+
+      <text x="400" y="315" text-anchor="middle" font-size="11" fill="#666">Concurrent Users (c)</text>
+
+      <!-- Legend -->
+      <g transform="translate(80 305)">
+        <rect x="0" y="0" width="12" height="12" fill="#c8a8f0"/>
+        <text x="18" y="10" font-size="10">Per-user throughput</text>
+        <rect x="180" y="0" width="12" height="12" fill="#a8d8a8"/>
+        <text x="198" y="10" font-size="10">Total GPU throughput</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 12 재현: c=1~16까지 DiffusionGemma가 우위. c=32+에서 AR (MTP)이 역전. Sweet spot은 low-batch latency-critical 서빙.</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card card-green">
+      <h3>Sweet Spot: c=1~8</h3>
+      <p>대화형 UI, 코드 에디터, 개인 에이전트, IDE 어시스턴트. 여기서 DiffusionGemma는 4.11×~1.73× 우위.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Not Recommended: c=32+</h3>
+      <p>대규모 chatbot 서비스, 배치 인퍼런스 파이프라인. 이 영역에서는 Gemma 4 AR (MTP)가 더 효율적.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Diffusion만의 능력: Bidirectional Self-Correction (Section 9.1)</h2>
+  <div class="grid-2">
+    <div class="card card-red">
+      <h3>AR의 한계</h3>
+      <p>다단계 산술 문제 "(어떤 계산) = ?" 에서 AR은 <strong>답을 중간 계산 전에 커밋</strong>해야 함. 잘못된 예측(예: −1)을 이후 계산으로 수정할 수 없음.</p>
+      <div style="font-family: monospace; background: white; padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px;">
+        Answer: <span style="color:#ea4335">−1</span> (커밋됨) →<br>
+        3 + 4 × 2 = ...<br>
+        [수정 불가능]
+      </div>
+    </div>
+    <div class="card card-green">
+      <h3>Diffusion의 우위</h3>
+      <p>Canvas 전체가 <strong>병렬 진화</strong>. 답과 reasoning이 공진화하며 초기 잘못된 −1이 iteration을 거쳐 −25로 <em>coarse-correct</em> 될 수 있음.</p>
+      <div style="font-family: monospace; background: white; padding: 0.5rem; margin-top: 0.5rem; border-radius: 4px;">
+        t=1.0: Answer: <span style="color:#ea4335">−1</span>, 3+..<br>
+        t=0.5: Answer: <span style="color:#f9ab00">−12</span>, 3+4×..<br>
+        t=0.0: Answer: <span style="color:#34a853">−25</span> ✓
+      </div>
+    </div>
+  </div>
+
+  <div class="card card-accent">
+    <h3>Sudoku 실험: Non-AR task의 shining case</h3>
+    <p>Base DiffusionGemma는 Sudoku 정답률 <strong>0.00%</strong> (특수 훈련 없음). LoRA rank 8만으로 fine-tune 시 <strong>84.40%</strong>. 게다가 average denoising steps가 40.65 → 10.72로 감소 — 확신이 높아진 만큼 조기 종료. Sudoku는 좌→우 순서가 무의미하고 전역 constraint 만족이 필요한 문제라 bidirectional refinement가 이상적으로 정합.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="grid-2">
+    <div class="card card-orange">
+      <h3>Absolute Quality Gap</h3>
+      <p>TD mode는 AR mode 대비 여전히 3~15점 뒤짐. AIME 2026: 69.1 vs 84.2, LCB-v6: 69.1 vs 71.4. 속도를 위해 상당한 지능을 희생.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Batch Scaling 취약</h3>
+      <p>c=32+에서 AR (MTP)이 역전. 대규모 chatbot 서비스에는 여전히 AR이 유리. Diffusion 우위 영역이 low-batch에 국한.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Thinking-Knowledge 상충</h3>
+      <p>MMLU-Pro에서 thinking mode가 오히려 −11.7점. Diffusion 특유 무엇이 knowledge recall과 상충하는가는 분석 부족.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>MoE 재사용의 우연성</h3>
+      <p>Canvas당 84 experts activate. Dense 모델이었다면 결과가 어땠을지 미확인. Sparse MoE와 diffusion의 궁합이 필수 조건인지 불명.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Kernel 최적화 여지</h3>
+      <p>Sampling(3.06ms, 24%)이 PyTorch primitives라 kernel 미최적화. Custom CUDA로 상당한 speedup 여지.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <p class="quote">"AR 모델을 diffusion 모델로 <em>재활용</em>할 수 있고, SD·RL 통합 objective는 quality와 latency를 동시에 개선한다. Text diffusion의 실전 가능성을 입증한 첫 오픈 모델."</p>
+  </div>
+  <div style="text-align: center; margin-top: 1.5rem;">
+    <a class="top-link" href="20260807_google_diffusiongemma.html" style="background:#1a73e8; color:white; padding:0.7rem 1.5rem; border-radius:6px; text-decoration:none; display:inline-block;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>DiffusionGemma Technical Report</strong></p>
+  <p>Google DeepMind · 2026-07-31 · Apache 2.0</p>
+  <p><a href="https://arxiv.org/abs/2608.00146">arXiv:2608.00146</a></p>
+</footer>
+
+</body>
+</html>

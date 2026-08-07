@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vero — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans KR', sans-serif; line-height: 1.7; color: #1a1a1a; margin: 0; background: #fff; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+  .hero { background: linear-gradient(135deg, #2c3e50 0%, #4a6fa5 50%, #6c5ce7 100%); color: white; padding: 4rem 1.5rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+  .hero h1 { font-size: 2.5rem; margin: 1rem 0 0.5rem; }
+  .hero p.sub { font-size: 1.15rem; opacity: 0.95; max-width: 750px; margin: 0.5rem auto; }
+  .hero a.top-link { display: inline-block; background: rgba(255,255,255,0.15); color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.3); }
+  section { padding: 2.5rem 0; border-bottom: 1px solid #eee; }
+  section h2 { font-size: 1.7rem; margin-top: 0; color: #2c3e50; border-left: 5px solid #6c5ce7; padding-left: 0.8rem; }
+  .one-liner { background: linear-gradient(135deg, #667eea, #764ba2); color: white; padding: 1.5rem 2rem; border-radius: 12px; font-size: 1.15rem; text-align: center; margin: 1.5rem 0; }
+  .one-liner .quote { font-style: italic; font-weight: 500; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 180px; background: #f8f9fa; padding: 1.2rem; border-radius: 10px; text-align: center; border-top: 4px solid #6c5ce7; }
+  .stat .num { font-size: 2rem; font-weight: 700; color: #2c3e50; }
+  .stat .lbl { font-size: 0.9rem; color: #666; margin-top: 0.3rem; }
+  .card { background: #f8f9fa; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1rem 0; }
+  .card-accent { border-left: 5px solid #6c5ce7; background: #f0edff; }
+  .card-green { border-left: 5px solid #27ae60; background: #eaf7ef; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fdf3e6; }
+  .card-red { border-left: 5px solid #e74c3c; background: #fbeae8; }
+  .card h3 { margin: 0 0 0.5rem; color: #2c3e50; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { border: 1px solid #ddd; padding: 0.7rem; text-align: left; }
+  .comp-table th { background: #2c3e50; color: white; }
+  .comp-table tr:nth-child(even) { background: #f8f9fa; }
+  .comp-table td.win { background: #d4edda; font-weight: 600; }
+  .comp-table td.lose { background: #f8d7da; }
+  .svg-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }
+  .svg-wrap .caption { font-size: 0.9rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+  footer { background: #2c3e50; color: white; padding: 2rem 1.5rem; text-align: center; }
+  footer a { color: #a0d8ff; }
+  .step-flow { display: flex; align-items: stretch; gap: 0.7rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .step-flow .step { flex: 1 1 180px; background: white; border: 2px solid #6c5ce7; border-radius: 10px; padding: 1rem; position: relative; }
+  .step-flow .step .num { position: absolute; top: -10px; left: 10px; background: #6c5ce7; color: white; width: 26px; height: 26px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+  .step-flow .step h4 { margin: 0.4rem 0; color: #6c5ce7; font-size: 1rem; }
+  .step-flow .step p { margin: 0.3rem 0; font-size: 0.9rem; }
+  @media (max-width: 600px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .stat-row, .step-flow { flex-direction: column; } .hero h1 { font-size: 1.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">Princeton University</span>
+  <span class="badge">2026-06 · arXiv</span>
+  <span class="badge">Vision-Language Model · RL</span>
+  <h1>Vero: An Open RL Recipe for General Visual Reasoning</h1>
+  <p class="sub">6개 태스크 카테고리 · 600K 샘플 · 30개 벤치마크로 구성한 <strong>완전 공개</strong> Multi-task RL 레시피. 5개 서로 다른 base VLM에 적용 시 일관되게 +2.9~+5.4점 개선.</p>
+  <a class="top-link" href="20260807_sarch_vero.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<section>
+  <h2>한 줄 요약</h2>
+  <div class="one-liner">
+    <p class="quote">"단일 스테이지 RL도, 다양성과 task-routed reward만 갖추면 general visual reasoner를 만들 수 있다."</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="num">600K</div><div class="lbl">RL 학습 샘플 (Vero-600K)</div></div>
+    <div class="stat"><div class="num">59</div><div class="lbl">구성 데이터셋</div></div>
+    <div class="stat"><div class="num">30</div><div class="lbl">VeroEval 벤치마크</div></div>
+    <div class="stat"><div class="num">10-way</div><div class="lbl">Task-routed reward</div></div>
+    <div class="stat"><div class="num">+12.9</div><div class="lbl">Base 모델 대비 최대 개선</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>이 논문의 위치와 특유의 문제 의식</h2>
+  <div class="card card-accent">
+    <p><strong>왜 이 시점에 필요한가</strong>: GPT-5, Qwen3-VL, Kimi K2.5 등 최전선 모델은 RL이 성능의 핵심임을 보였으나 데이터·reward가 <em>완전히 폐쇄적</em>이다. 기존 open recipe들 — OpenMMReasoner, VL-Rethinker, OneThinker — 은 대부분 <strong>시각 수학 한 도메인</strong>에 집중해 general capability를 재현하지 못한다.</p>
+    <p><strong>Vero의 주장</strong>: multi-task RL을 위한 병목은 <em>optimizer가 아니라 distribution</em>이다. 태스크 카테고리 균등 혼합 + 답 타입별 reward 라우팅만 갖추면, single-stage RL로도 오픈 recipe가 폐쇄적 recipe(Qwen3-VL-8B-Thinking)를 능가할 수 있다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Vero-600K 데이터 구성 (Figure 2 재현)</h2>
+  <p>250+ 후보 데이터셋 → 다단계 큐레이션 → 6개 카테고리 × 100K = 600K. 아래는 논문 Figure 2의 이중 원형 차트 재현.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 700" width="600" xmlns="http://www.w3.org/2000/svg">
+      <!-- 6 category outer donut -->
+      <g transform="translate(350 350)">
+        <!-- Outer ring segments (6 categories × 60deg each) -->
+        <!-- STEM 240-300 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#7db8f2" transform="rotate(-90)"/>
+        <text x="0" y="0" transform="rotate(-90) translate(0 -220) rotate(90)" text-anchor="middle" font-size="16" font-weight="700" fill="#1a3a5c">STEM</text>
+
+        <!-- Chart & OCR 300-0 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#f4a3a3" transform="rotate(-30)"/>
+        <text x="0" y="0" transform="rotate(-30) translate(0 -220) rotate(30)" text-anchor="middle" font-size="16" font-weight="700" fill="#5c1a1a">Chart &amp; OCR</text>
+
+        <!-- Knowledge & Recog 0-60 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#a8d8a8" transform="rotate(30)"/>
+        <text x="0" y="0" transform="rotate(30) translate(0 -220) rotate(-30)" text-anchor="middle" font-size="15" font-weight="700" fill="#1a4a1a">Knowledge</text>
+
+        <!-- Spatial & Action 60-120 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#ffd58a" transform="rotate(90)"/>
+        <text x="0" y="0" transform="rotate(90) translate(0 -220) rotate(-90)" text-anchor="middle" font-size="15" font-weight="700" fill="#5c3a00">Spatial &amp; Action</text>
+
+        <!-- Grounding, Counting & Search 120-180 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#c8a8f0" transform="rotate(150)"/>
+        <text x="0" y="0" transform="rotate(150) translate(0 -220) rotate(-150)" text-anchor="middle" font-size="14" font-weight="700" fill="#3a1a5c">Grnd. &amp; Search</text>
+
+        <!-- Captioning & IF 180-240 -->
+        <path d="M 0,-260 A 260,260 0 0,1 225.16,-130 L 155.88,-90 A 180,180 0 0,0 0,-180 Z" fill="#b0b0b0" transform="rotate(210)"/>
+        <text x="0" y="0" transform="rotate(210) translate(0 -220) rotate(-210)" text-anchor="middle" font-size="14" font-weight="700" fill="#333">Captioning &amp; IF</text>
+
+        <!-- Inner ring representing dataset diversity (approx bands) -->
+        <circle cx="0" cy="0" r="180" fill="none" stroke="white" stroke-width="3"/>
+        <circle cx="0" cy="0" r="120" fill="#fff" stroke="#ddd"/>
+        <text x="0" y="-10" text-anchor="middle" font-size="18" font-weight="700" fill="#2c3e50">Vero-600K</text>
+        <text x="0" y="15" text-anchor="middle" font-size="14" fill="#666">6 categories</text>
+        <text x="0" y="35" text-anchor="middle" font-size="14" fill="#666">59 datasets</text>
+
+        <!-- 100k labels on each segment -->
+        <text x="0" y="0" transform="rotate(-90) translate(0 -150) rotate(90)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+        <text x="0" y="0" transform="rotate(-30) translate(0 -150) rotate(30)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+        <text x="0" y="0" transform="rotate(30) translate(0 -150) rotate(-30)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+        <text x="0" y="0" transform="rotate(90) translate(0 -150) rotate(-90)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+        <text x="0" y="0" transform="rotate(150) translate(0 -150) rotate(-150)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+        <text x="0" y="0" transform="rotate(210) translate(0 -150) rotate(-210)" text-anchor="middle" font-size="11" fill="#333">100K</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 2 재현: 6개 태스크 카테고리 균등 분배. 각 카테고리마다 8~13개 데이터셋으로 구성.</div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>카테고리</th><th>대표 데이터셋 (일부)</th><th>능력</th></tr>
+    <tr><td><strong>STEM</strong> (13)</td><td>Geo170K, VisualWebInstruct, GeomVerse, RAVEN, MMK12, We-Math 2.0, AI2D, VQA-RAD</td><td>수학 다이어그램, 과학 도표, 의료</td></tr>
+    <tr><td><strong>Chart &amp; OCR</strong> (9)</td><td>ChartQA, InfoVQA, EvoChart, CharXiv, ChartMuseum, ArxivQA, CoSyn-Chart</td><td>문서/차트/테이블 정보 추출</td></tr>
+    <tr><td><strong>Spatial &amp; Action</strong> (8)</td><td>GameQA, Spatial-SSRL, Visual Jigsaw 2D/3D, Magma-AITW, ST-VQA, Robo2VLM</td><td>Embodied, UI, 3D 공간</td></tr>
+    <tr><td><strong>Knowledge &amp; Recog.</strong> (12)</td><td>IconQA, KVG, PopVQA, VCR, Visual7W, VQAv2, A-OKVQA, VizWiz, GQA</td><td>Entity 인식 + 외부 지식</td></tr>
+    <tr><td><strong>Grounding, Cnt., Search</strong> (11)</td><td>AerialVG, Objects365-QA, PixMo, TallyQA, RefCOCOg, GroundUI, OS-ATLAS</td><td>Bbox, 카운팅, 시각 서치</td></tr>
+    <tr><td><strong>Captioning &amp; IF</strong> (6)</td><td>PixMo-AskModelAnything, PixMo-CapQA, MM-RLVR-IFEval, MMIF-23K, Flickr30k</td><td>개방형 설명, 지시 이행</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>데이터 큐레이션 파이프라인 (Figure 3 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1000 260" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Data sourcing -->
+      <g>
+        <rect x="20" y="90" width="140" height="80" rx="10" fill="#f8f9fa" stroke="#333"/>
+        <text x="90" y="120" text-anchor="middle" font-size="13" font-weight="700">250+ Datasets</text>
+        <text x="90" y="140" text-anchor="middle" font-size="11" fill="#666">Data Sourcing</text>
+      </g>
+      <path d="M 165,130 L 195,130" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+      <!-- Task categories -->
+      <g transform="translate(200 90)">
+        <circle cx="45" cy="20" r="18" fill="#7db8f2"/>
+        <circle cx="80" cy="20" r="18" fill="#f4a3a3"/>
+        <circle cx="45" cy="55" r="18" fill="#a8d8a8"/>
+        <circle cx="80" cy="55" r="18" fill="#ffd58a"/>
+        <circle cx="45" cy="30" r="12" fill="#c8a8f0" opacity="0.7"/>
+        <circle cx="80" cy="45" r="12" fill="#b0b0b0" opacity="0.7"/>
+        <text x="65" y="105" text-anchor="middle" font-size="11" fill="#666">Task Categories</text>
+      </g>
+      <path d="M 305,130 L 335,130" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+      <!-- Selection filtering (4 circles) -->
+      <g transform="translate(340 60)">
+        <circle cx="35" cy="45" r="30" fill="#e8f0ff" stroke="#4a6fa5" stroke-width="2"/>
+        <text x="35" y="42" text-anchor="middle" font-size="10">Heuristic</text>
+        <text x="35" y="55" text-anchor="middle" font-size="10">Selection</text>
+        <text x="35" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#2c3e50">①</text>
+
+        <circle cx="105" cy="45" r="30" fill="#e8f0ff" stroke="#4a6fa5" stroke-width="2"/>
+        <text x="105" y="42" text-anchor="middle" font-size="10">Manual QC</text>
+        <text x="105" y="55" text-anchor="middle" font-size="10">Control</text>
+        <text x="105" y="22" text-anchor="middle" font-size="10" font-weight="700" fill="#2c3e50">②</text>
+
+        <circle cx="35" cy="115" r="30" fill="#e8f0ff" stroke="#4a6fa5" stroke-width="2"/>
+        <text x="35" y="112" text-anchor="middle" font-size="10">Question</text>
+        <text x="35" y="125" text-anchor="middle" font-size="10">Filtering</text>
+        <text x="35" y="92" text-anchor="middle" font-size="10" font-weight="700" fill="#2c3e50">③</text>
+
+        <circle cx="105" cy="115" r="30" fill="#e8f0ff" stroke="#4a6fa5" stroke-width="2"/>
+        <text x="105" y="112" text-anchor="middle" font-size="10">Answer</text>
+        <text x="105" y="125" text-anchor="middle" font-size="10">Filtering</text>
+        <text x="105" y="92" text-anchor="middle" font-size="10" font-weight="700" fill="#2c3e50">④</text>
+
+        <text x="70" y="175" text-anchor="middle" font-size="11" fill="#666">Selection &amp; Filtering</text>
+      </g>
+      <path d="M 490,130 L 520,130" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+      <!-- Data mixing venn -->
+      <g transform="translate(530 80)">
+        <circle cx="40" cy="40" r="28" fill="#7db8f2" opacity="0.6"/>
+        <circle cx="70" cy="40" r="28" fill="#f4a3a3" opacity="0.6"/>
+        <circle cx="55" cy="65" r="28" fill="#a8d8a8" opacity="0.6"/>
+        <text x="55" y="120" text-anchor="middle" font-size="11" fill="#666">Data Mixing</text>
+        <text x="55" y="135" text-anchor="middle" font-size="10" fill="#333">(Uniform 100K × 6)</text>
+      </g>
+      <path d="M 660,130 L 690,130" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+
+      <!-- RL Training -->
+      <g transform="translate(695 80)">
+        <rect x="0" y="0" width="240" height="90" rx="10" fill="#fdf3e6" stroke="#e67e22" stroke-width="2"/>
+        <rect x="30" y="20" width="70" height="30" rx="15" fill="#6c5ce7"/>
+        <text x="65" y="40" text-anchor="middle" fill="white" font-size="12" font-weight="700">Policy π</text>
+        <rect x="140" y="20" width="80" height="30" rx="15" fill="#e67e22"/>
+        <text x="180" y="40" text-anchor="middle" fill="white" font-size="12" font-weight="700">Reward</text>
+        <path d="M 100,35 L 140,35" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+        <path d="M 180,55 Q 180,75 100,75 Q 65,75 65,55" stroke="#333" stroke-width="2" fill="none" marker-end="url(#arrow)"/>
+        <text x="120" y="110" text-anchor="middle" font-size="11" fill="#666">RL Training (GSPO)</text>
+      </g>
+
+      <defs><marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 3 재현: 250개 후보 → 4단계 필터링 → 6-way uniform mix → GSPO on-policy RL.</div>
+  </div>
+
+  <div class="step-flow">
+    <div class="step"><span class="num">1</span><h4>Heuristic Selection</h4><p>&lt;1K 샘플, 해상도 &lt;200Kpx, 이진 질문 제외</p></div>
+    <div class="step"><span class="num">2</span><h4>Manual QC</h4><p>~50 샘플 검수. Correctness, Unambiguity, Verifiability</p></div>
+    <div class="step"><span class="num">3</span><h4>Question Filtering</h4><p>Qwen3-VL-235B로 5기준 (relevance, ambiguity, language, verifiability, precision) 점검</p></div>
+    <div class="step"><span class="num">4</span><h4>Answer Filtering</h4><p>Qwen3-235B로 정답 표준화. 단위 제거, MC 단일 letter, LaTeX/expression 형식 통일</p></div>
+  </div>
+</section>
+
+<section>
+  <h2>Task-routed 10-way Reward System (Figure 5 재현)</h2>
+  <p>이 논문의 핵심 novelty. 답 타입에 따라 10개 verifier 중 하나로 라우팅된다.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 520" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Center: Policy output -->
+      <g>
+        <rect x="360" y="230" width="180" height="60" rx="30" fill="#6c5ce7"/>
+        <text x="450" y="255" text-anchor="middle" fill="white" font-size="13" font-weight="700">Model Response y</text>
+        <text x="450" y="275" text-anchor="middle" fill="white" font-size="11" opacity="0.9">&lt;think&gt;...&lt;/think&gt;&lt;answer&gt;...&lt;/answer&gt;</text>
+      </g>
+
+      <!-- Router -->
+      <g>
+        <polygon points="450,300 380,340 520,340" fill="#e67e22"/>
+        <text x="450" y="330" text-anchor="middle" fill="white" font-size="11" font-weight="700">Task Router</text>
+      </g>
+
+      <!-- 10 verifiers arranged as 5x2 -->
+      <g font-size="10">
+        <!-- Row 1 -->
+        <rect x="20" y="80" width="140" height="55" rx="8" fill="#f0edff" stroke="#6c5ce7"/>
+        <text x="90" y="98" text-anchor="middle" font-weight="700" fill="#2c3e50">String Match</text>
+        <text x="90" y="115" text-anchor="middle" fill="#666">{0,1}</text>
+        <text x="90" y="128" text-anchor="middle" fill="#666" font-size="9">exact-string equality</text>
+
+        <rect x="180" y="80" width="140" height="55" rx="8" fill="#f0edff" stroke="#6c5ce7"/>
+        <text x="250" y="98" text-anchor="middle" font-weight="700" fill="#2c3e50">Multiple Choice</text>
+        <text x="250" y="115" text-anchor="middle" fill="#666">{0,1}</text>
+        <text x="250" y="128" text-anchor="middle" fill="#666" font-size="9">extract A~Z letter</text>
+
+        <rect x="340" y="80" width="140" height="55" rx="8" fill="#f0edff" stroke="#6c5ce7"/>
+        <text x="410" y="98" text-anchor="middle" font-weight="700" fill="#2c3e50">Numeric</text>
+        <text x="410" y="115" text-anchor="middle" fill="#666">{0,1}</text>
+        <text x="410" y="128" text-anchor="middle" fill="#666" font-size="9">MATH-VERIFY parse</text>
+
+        <rect x="500" y="80" width="140" height="55" rx="8" fill="#f0edff" stroke="#6c5ce7"/>
+        <text x="570" y="98" text-anchor="middle" font-weight="700" fill="#2c3e50">List Match</text>
+        <text x="570" y="115" text-anchor="middle" fill="#666">{0,1}</text>
+        <text x="570" y="128" text-anchor="middle" fill="#666" font-size="9">any-match / synonyms</text>
+
+        <rect x="660" y="80" width="140" height="55" rx="8" fill="#f0edff" stroke="#6c5ce7"/>
+        <text x="730" y="98" text-anchor="middle" font-weight="700" fill="#2c3e50">Ordering</text>
+        <text x="730" y="115" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="730" y="128" text-anchor="middle" fill="#666" font-size="9">full or 0.2× discount</text>
+
+        <!-- Row 2 -->
+        <rect x="20" y="380" width="140" height="55" rx="8" fill="#fdf3e6" stroke="#e67e22"/>
+        <text x="90" y="398" text-anchor="middle" font-weight="700" fill="#2c3e50">Web Action</text>
+        <text x="90" y="415" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="90" y="428" text-anchor="middle" fill="#666" font-size="9">ACTION/MARK/VALUE</text>
+
+        <rect x="180" y="380" width="140" height="55" rx="8" fill="#fdf3e6" stroke="#e67e22"/>
+        <text x="250" y="398" text-anchor="middle" font-weight="700" fill="#2c3e50">Grounding</text>
+        <text x="250" y="415" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="250" y="428" text-anchor="middle" fill="#666" font-size="9">Hungarian IoU/F1</text>
+
+        <rect x="340" y="380" width="140" height="55" rx="8" fill="#fdf3e6" stroke="#e67e22"/>
+        <text x="410" y="398" text-anchor="middle" font-weight="700" fill="#2c3e50">Clicking</text>
+        <text x="410" y="415" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="410" y="428" text-anchor="middle" fill="#666" font-size="9">point in gt bbox</text>
+
+        <rect x="500" y="380" width="140" height="55" rx="8" fill="#fdf3e6" stroke="#e67e22"/>
+        <text x="570" y="398" text-anchor="middle" font-weight="700" fill="#2c3e50">Instruction Follow</text>
+        <text x="570" y="415" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="570" y="428" text-anchor="middle" fill="#666" font-size="9">MMIFEval rules</text>
+
+        <rect x="660" y="380" width="140" height="55" rx="8" fill="#fdf3e6" stroke="#e67e22"/>
+        <text x="730" y="398" text-anchor="middle" font-weight="700" fill="#2c3e50">LLM-as-Judge</text>
+        <text x="730" y="415" text-anchor="middle" fill="#666">[0,1]</text>
+        <text x="730" y="428" text-anchor="middle" fill="#666" font-size="9">Qwen3-32B, 1~10 score</text>
+      </g>
+
+      <!-- Connecting lines -->
+      <g stroke="#6c5ce7" stroke-width="1.5" fill="none" opacity="0.5">
+        <path d="M 380,340 Q 250,220 90,135"/>
+        <path d="M 400,340 Q 320,240 250,135"/>
+        <path d="M 425,340 Q 400,250 410,135"/>
+        <path d="M 460,340 Q 500,250 570,135"/>
+        <path d="M 490,340 Q 620,250 730,135"/>
+      </g>
+      <g stroke="#e67e22" stroke-width="1.5" fill="none" opacity="0.5">
+        <path d="M 380,340 Q 250,400 90,380"/>
+        <path d="M 400,340 Q 320,400 250,380"/>
+        <path d="M 425,340 Q 400,400 410,380"/>
+        <path d="M 460,340 Q 500,400 570,380"/>
+        <path d="M 490,340 Q 620,400 730,380"/>
+      </g>
+
+      <!-- Total reward equation -->
+      <g>
+        <rect x="230" y="465" width="440" height="45" rx="8" fill="#eaf7ef" stroke="#27ae60"/>
+        <text x="450" y="490" text-anchor="middle" font-size="13" fill="#2c3e50" font-weight="700">R(y, y*) = 0.8·R_acc + 0.2·R_fmt + R_overlong</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 5 재현: 응답 y가 태스크 라우터를 거쳐 10개 verifier 중 하나로 라우팅. 결과는 format reward, overlong penalty와 결합.</div>
+  </div>
+
+  <div class="card card-green">
+    <h3>실증적 근거 (Table 4b)</h3>
+    <p>단일 <code>math_verify</code>만 사용하면 Captioning &amp; IF에서 <strong>64.8 → 34.3 (−30.5점)</strong> 붕괴. 10-way routing으로 Overall +5.4점 회복 (51.8 → 57.2).</p>
+  </div>
+</section>
+
+<section>
+  <h2>Vero 학습 파이프라인 (Single-stage GSPO)</h2>
+  <p>Warm start, curriculum, replay buffer 없이 <strong>단일 스테이지</strong>로 진행. 이것이 이 논문의 아이러니한 미덕 — 단순하지만 잘 작동한다.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 320" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Sampling block -->
+      <g>
+        <rect x="30" y="30" width="180" height="120" rx="10" fill="#eaf7ef" stroke="#27ae60" stroke-width="2"/>
+        <text x="120" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#1a4a1a">1. Rollout</text>
+        <text x="120" y="80" text-anchor="middle" font-size="11" fill="#333">Sample G responses</text>
+        <text x="120" y="100" text-anchor="middle" font-size="11" fill="#333">per prompt (v, q)</text>
+        <text x="120" y="120" text-anchor="middle" font-size="11" fill="#333">from π_old</text>
+        <text x="120" y="140" text-anchor="middle" font-size="10" fill="#666" font-style="italic">G=16 typically</text>
+      </g>
+      <path d="M 215,90 L 265,90" stroke="#333" stroke-width="2" fill="none" marker-end="url(#a2)"/>
+
+      <!-- Reward -->
+      <g>
+        <rect x="270" y="30" width="180" height="120" rx="10" fill="#fdf3e6" stroke="#e67e22" stroke-width="2"/>
+        <text x="360" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#5c3a00">2. Reward</text>
+        <text x="360" y="80" text-anchor="middle" font-size="11" fill="#333">Task-routed verifier</text>
+        <text x="360" y="98" text-anchor="middle" font-size="11" fill="#333">R_i for each response</text>
+        <text x="360" y="118" text-anchor="middle" font-size="11" fill="#333">+ format + overlong</text>
+      </g>
+      <path d="M 455,90 L 505,90" stroke="#333" stroke-width="2" fill="none" marker-end="url(#a2)"/>
+
+      <!-- Advantage -->
+      <g>
+        <rect x="510" y="30" width="180" height="120" rx="10" fill="#f0edff" stroke="#6c5ce7" stroke-width="2"/>
+        <text x="600" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#3a1a5c">3. Advantage</text>
+        <text x="600" y="80" text-anchor="middle" font-size="11" fill="#333">A_i = (r_i − μ_g)/σ_g</text>
+        <text x="600" y="100" text-anchor="middle" font-size="11" fill="#333">Group-normalized</text>
+        <text x="600" y="120" text-anchor="middle" font-size="11" fill="#333">Constant across tokens</text>
+      </g>
+      <path d="M 695,90 L 745,90" stroke="#333" stroke-width="2" fill="none" marker-end="url(#a2)"/>
+
+      <!-- Update -->
+      <g>
+        <rect x="750" y="30" width="130" height="120" rx="10" fill="#f4d5f5" stroke="#c85fca" stroke-width="2"/>
+        <text x="815" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#5c1a5c">4. GSPO</text>
+        <text x="815" y="80" text-anchor="middle" font-size="11" fill="#333">Update θ with</text>
+        <text x="815" y="100" text-anchor="middle" font-size="11" fill="#333">seq-level ratio</text>
+        <text x="815" y="120" text-anchor="middle" font-size="11" fill="#333">clip-higher</text>
+      </g>
+
+      <!-- Feedback loop -->
+      <path d="M 815,155 Q 815,220 450,220 Q 120,220 120,155" stroke="#c85fca" stroke-width="2" fill="none" stroke-dasharray="5,5" marker-end="url(#a2)"/>
+      <text x="465" y="215" text-anchor="middle" font-size="11" fill="#c85fca">π_old ← π_θ every step</text>
+
+      <!-- Key innovations at bottom -->
+      <g>
+        <rect x="30" y="245" width="270" height="60" rx="8" fill="#f8f9fa" stroke="#666"/>
+        <text x="165" y="265" text-anchor="middle" font-size="12" font-weight="700">Asymmetric clip-higher</text>
+        <text x="165" y="285" text-anchor="middle" font-size="10" fill="#666">ε_high > ε_low, less-restricted upside</text>
+      </g>
+      <g>
+        <rect x="315" y="245" width="270" height="60" rx="8" fill="#f8f9fa" stroke="#666"/>
+        <text x="450" y="265" text-anchor="middle" font-size="12" font-weight="700">No KL penalty</text>
+        <text x="450" y="285" text-anchor="middle" font-size="10" fill="#666">Free exploration, no reference tether</text>
+      </g>
+      <g>
+        <rect x="600" y="245" width="270" height="60" rx="8" fill="#f8f9fa" stroke="#666"/>
+        <text x="735" y="265" text-anchor="middle" font-size="12" font-weight="700">Soft overlong penalty</text>
+        <text x="735" y="285" text-anchor="middle" font-size="10" fill="#666">Linear ramp in buffer zone [Lmax−B, Lmax]</text>
+      </g>
+
+      <defs><marker id="a2" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><polygon points="0 0, 10 3, 0 6" fill="#333"/></marker></defs>
+    </svg>
+    <div class="caption">단일 스테이지 RL. GSPO는 GRPO 대비 sequence-level ratio를 사용해 entropy를 안정화 (0.58 vs 0.50).</div>
+  </div>
+</section>
+
+<section>
+  <h2>주 결과: 5개 초기 모델에서 일관된 개선 (Table 3, Figure 1 top right)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Axes -->
+      <line x1="60" y1="290" x2="860" y2="290" stroke="#333" stroke-width="2"/>
+      <line x1="60" y1="30" x2="60" y2="290" stroke="#333" stroke-width="2"/>
+
+      <!-- Y axis labels -->
+      <text x="50" y="50" text-anchor="end" font-size="11">80</text>
+      <text x="50" y="110" text-anchor="end" font-size="11">70</text>
+      <text x="50" y="170" text-anchor="end" font-size="11">60</text>
+      <text x="50" y="230" text-anchor="end" font-size="11">50</text>
+      <text x="50" y="290" text-anchor="end" font-size="11">40</text>
+      <text x="25" y="160" text-anchor="middle" font-size="12" transform="rotate(-90 25 160)">VeroEval Overall</text>
+
+      <!-- Y gridlines -->
+      <line x1="60" y1="50" x2="860" y2="50" stroke="#eee"/>
+      <line x1="60" y1="110" x2="860" y2="110" stroke="#eee"/>
+      <line x1="60" y1="170" x2="860" y2="170" stroke="#eee"/>
+      <line x1="60" y1="230" x2="860" y2="230" stroke="#eee"/>
+
+      <!-- Data pairs: (base, vero) -->
+      <!-- Qwen2.5-VL-7B: 52.9 → 57.8 -->
+      <g transform="translate(120 0)">
+        <rect x="0" y="217" width="35" height="73" fill="#a8c8e8"/>
+        <rect x="40" y="187" width="35" height="103" fill="#4a6fa5"/>
+        <text x="17" y="212" text-anchor="middle" font-size="11">52.9</text>
+        <text x="57" y="182" text-anchor="middle" font-size="11" font-weight="700">57.8</text>
+        <text x="35" y="308" text-anchor="middle" font-size="10">Qwen2.5-VL-7B</text>
+        <text x="35" y="175" text-anchor="middle" font-size="12" fill="#4a6fa5" font-weight="700">+4.9</text>
+      </g>
+
+      <!-- MiMo-VL-7B: 59.6 → 63.2 -->
+      <g transform="translate(260 0)">
+        <rect x="0" y="177" width="35" height="113" fill="#a8c8e8"/>
+        <rect x="40" y="155" width="35" height="135" fill="#4a6fa5"/>
+        <text x="17" y="172" text-anchor="middle" font-size="11">59.6</text>
+        <text x="57" y="150" text-anchor="middle" font-size="11" font-weight="700">63.2</text>
+        <text x="35" y="308" text-anchor="middle" font-size="10">MiMo-VL-7B</text>
+        <text x="35" y="140" text-anchor="middle" font-size="12" fill="#4a6fa5" font-weight="700">+3.6</text>
+      </g>
+
+      <!-- Qwen3-VL-8B-Instruct: 60.7 → 66.1 -->
+      <g transform="translate(400 0)">
+        <rect x="0" y="170" width="35" height="120" fill="#a8c8e8"/>
+        <rect x="40" y="138" width="35" height="152" fill="#4a6fa5"/>
+        <text x="17" y="165" text-anchor="middle" font-size="11">60.7</text>
+        <text x="57" y="133" text-anchor="middle" font-size="11" font-weight="700">66.1</text>
+        <text x="35" y="308" text-anchor="middle" font-size="10">Qwen3-VL-8B-Ins</text>
+        <text x="35" y="123" text-anchor="middle" font-size="12" fill="#4a6fa5" font-weight="700">+5.4</text>
+      </g>
+
+      <!-- Qwen3-VL-8B-Thinking: 62.3 → 65.8 -->
+      <g transform="translate(540 0)">
+        <rect x="0" y="160" width="35" height="130" fill="#a8c8e8"/>
+        <rect x="40" y="139" width="35" height="151" fill="#4a6fa5"/>
+        <text x="17" y="155" text-anchor="middle" font-size="11">62.3</text>
+        <text x="57" y="134" text-anchor="middle" font-size="11" font-weight="700">65.8</text>
+        <text x="35" y="308" text-anchor="middle" font-size="10">Qwen3-VL-8B-Thk</text>
+        <text x="35" y="124" text-anchor="middle" font-size="12" fill="#4a6fa5" font-weight="700">+3.5</text>
+      </g>
+
+      <!-- Qwen3.5-9B: 71.5 → 74.4 -->
+      <g transform="translate(680 0)">
+        <rect x="0" y="105" width="35" height="185" fill="#a8c8e8"/>
+        <rect x="40" y="88" width="35" height="202" fill="#4a6fa5"/>
+        <text x="17" y="100" text-anchor="middle" font-size="11">71.5</text>
+        <text x="57" y="83" text-anchor="middle" font-size="11" font-weight="700">74.4</text>
+        <text x="35" y="308" text-anchor="middle" font-size="10">Qwen3.5-9B</text>
+        <text x="35" y="73" text-anchor="middle" font-size="12" fill="#4a6fa5" font-weight="700">+2.9</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(700 40)">
+        <rect x="0" y="0" width="15" height="15" fill="#a8c8e8"/>
+        <text x="22" y="12" font-size="11">Initial</text>
+        <rect x="80" y="0" width="15" height="15" fill="#4a6fa5"/>
+        <text x="102" y="12" font-size="11">Vero</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 1 재현: 5개 base VLM 각각에 Vero recipe 적용 시 일관된 +2.9~+5.4점 개선. Overall = 30개 VeroEval 벤치마크 평균.</div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>모델</th><th>Overall</th><th>Δ</th><th>비교 대상</th><th>격차</th></tr>
+    <tr><td><strong>Vero-Qwen35-9B</strong></td><td class="win">74.4</td><td>+2.9</td><td>GPT-5-nano</td><td>2위</td></tr>
+    <tr><td>Vero-Qwen35-9B-Base</td><td class="win">73.0</td><td>+12.9</td><td>No SFT/distill warm start</td><td>—</td></tr>
+    <tr><td><strong>Vero-Qwen3I-8B</strong></td><td class="win">66.1</td><td>+5.4</td><td>Qwen3-VL-8B-Thinking (62.3)</td><td class="win">+3.8, 25/30 벤치</td></tr>
+    <tr><td>Vero-Qwen3T-8B</td><td>65.8</td><td>+3.5</td><td>Qwen3-VL-8B-Thinking (62.3)</td><td>+3.5, 22/30</td></tr>
+    <tr><td><strong>Vero-Qwen25-7B</strong></td><td>57.8</td><td>+4.9</td><td>OpenMMReasoner-7B (52.2)</td><td class="win">+5.6, Cap&amp;IF +24.3</td></tr>
+    <tr><td>Vero-MiMo-7B</td><td>63.2</td><td>+3.6</td><td>MiMo-VL-7B-RL (62.4, 폐쇄 RL)</td><td>+0.8</td></tr>
+  </table>
+</section>
+
+<section>
+  <h2>Cross-Task Transfer: "Breadth"의 실증 (Figure 7 재현)</h2>
+  <p>단일 카테고리만 학습하면 다른 카테고리 성능이 붕괴한다. 이것이 Vero의 중심 명제.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 480" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Title -->
+      <text x="400" y="25" text-anchor="middle" font-size="13" font-weight="700">Δ vs Qwen2.5-7B-VL-Instruct base</text>
+
+      <!-- Column labels -->
+      <g font-size="10">
+        <text x="180" y="55" text-anchor="middle" transform="rotate(-45 180 55)">Chart&amp;OCR</text>
+        <text x="230" y="55" text-anchor="middle" transform="rotate(-45 230 55)">STEM</text>
+        <text x="280" y="55" text-anchor="middle" transform="rotate(-45 280 55)">Spatial&amp;Act</text>
+        <text x="330" y="55" text-anchor="middle" transform="rotate(-45 330 55)">Knowl.&amp;Rec</text>
+        <text x="380" y="55" text-anchor="middle" transform="rotate(-45 380 55)">Grnd.&amp;Search</text>
+        <text x="430" y="55" text-anchor="middle" transform="rotate(-45 430 55)">Captioning IF</text>
+        <text x="480" y="55" text-anchor="middle" transform="rotate(-45 480 55)">Mix Comp.</text>
+        <text x="530" y="55" text-anchor="middle" transform="rotate(-45 530 55)">Mix Full</text>
+      </g>
+      <text x="290" y="470" text-anchor="middle" font-size="12" font-weight="700">Training →</text>
+
+      <!-- Row labels -->
+      <g font-size="11" text-anchor="end">
+        <text x="150" y="105">Chart&amp;OCR</text>
+        <text x="150" y="145">STEM</text>
+        <text x="150" y="185">Spatial&amp;Action</text>
+        <text x="150" y="225">Knowl.&amp;Recog.</text>
+        <text x="150" y="265">Grnd.&amp;Search</text>
+        <text x="150" y="305">Captioning IF</text>
+      </g>
+      <text x="70" y="200" font-size="12" font-weight="700" transform="rotate(-90 70 200)">Evaluation ↓</text>
+
+      <!-- Heatmap cells (row × column matrix). Each row: eval, columns: training.
+           Values from Figure 7 Δ vs Qwen2.5-VL. -->
+
+      <!-- Row Chart&OCR eval -->
+      <g>
+        <rect x="155" y="85" width="45" height="35" fill="#7abd7e"/><text x="177" y="107" text-anchor="middle" font-size="10">+3.7</text>
+        <rect x="205" y="85" width="45" height="35" fill="#eaf5ea"/><text x="227" y="107" text-anchor="middle" font-size="10">+0.2</text>
+        <rect x="255" y="85" width="45" height="35" fill="#eaf5ea"/><text x="277" y="107" text-anchor="middle" font-size="10">+0.3</text>
+        <rect x="305" y="85" width="45" height="35" fill="#f7d5d5"/><text x="327" y="107" text-anchor="middle" font-size="10">-1.8</text>
+        <rect x="355" y="85" width="45" height="35" fill="#f5eaea"/><text x="377" y="107" text-anchor="middle" font-size="10">-0.7</text>
+        <rect x="405" y="85" width="45" height="35" fill="#e88484"/><text x="427" y="107" text-anchor="middle" font-size="10">-4.4</text>
+        <rect x="455" y="85" width="45" height="35" fill="#8ec78e"/><text x="477" y="107" text-anchor="middle" font-size="10">+3.2</text>
+        <rect x="505" y="85" width="45" height="35" fill="#5aad5a"/><text x="527" y="107" text-anchor="middle" font-size="10">+4.8</text>
+      </g>
+      <!-- Row STEM -->
+      <g>
+        <rect x="155" y="125" width="45" height="35" fill="#a5d3a5"/><text x="177" y="147" text-anchor="middle" font-size="10">+2.1</text>
+        <rect x="205" y="125" width="45" height="35" fill="#5aad5a"/><text x="227" y="147" text-anchor="middle" font-size="10">+4.6</text>
+        <rect x="255" y="125" width="45" height="35" fill="#8ec78e"/><text x="277" y="147" text-anchor="middle" font-size="10">+3.5</text>
+        <rect x="305" y="125" width="45" height="35" fill="#a5d3a5"/><text x="327" y="147" text-anchor="middle" font-size="10">+3.0</text>
+        <rect x="355" y="125" width="45" height="35" fill="#c8e5c8"/><text x="377" y="147" text-anchor="middle" font-size="10">+1.2</text>
+        <rect x="405" y="125" width="45" height="35" fill="#f5eaea"/><text x="427" y="147" text-anchor="middle" font-size="10">-2.1</text>
+        <rect x="455" y="125" width="45" height="35" fill="#7abd7e"/><text x="477" y="147" text-anchor="middle" font-size="10">+4.2</text>
+        <rect x="505" y="125" width="45" height="35" fill="#4a9d4a"/><text x="527" y="147" text-anchor="middle" font-size="10">+5.7</text>
+      </g>
+      <!-- Row Spatial -->
+      <g>
+        <rect x="155" y="165" width="45" height="35" fill="#eaf5ea"/><text x="177" y="187" text-anchor="middle" font-size="10">+0.2</text>
+        <rect x="205" y="165" width="45" height="35" fill="#eaf5ea"/><text x="227" y="187" text-anchor="middle" font-size="10">+0.0</text>
+        <rect x="255" y="165" width="45" height="35" fill="#8ec78e"/><text x="277" y="187" text-anchor="middle" font-size="10">+3.1</text>
+        <rect x="305" y="165" width="45" height="35" fill="#f5eaea"/><text x="327" y="187" text-anchor="middle" font-size="10">-0.7</text>
+        <rect x="355" y="165" width="45" height="35" fill="#f7d5d5"/><text x="377" y="187" text-anchor="middle" font-size="10">-1.7</text>
+        <rect x="405" y="165" width="45" height="35" fill="#e88484"/><text x="427" y="187" text-anchor="middle" font-size="10">-6.3</text>
+        <rect x="455" y="165" width="45" height="35" fill="#c8e5c8"/><text x="477" y="187" text-anchor="middle" font-size="10">+1.9</text>
+        <rect x="505" y="165" width="45" height="35" fill="#5aad5a"/><text x="527" y="187" text-anchor="middle" font-size="10">+5.0</text>
+      </g>
+      <!-- Row Knowl -->
+      <g>
+        <rect x="155" y="205" width="45" height="35" fill="#eaf5ea"/><text x="177" y="227" text-anchor="middle" font-size="10">+0.9</text>
+        <rect x="205" y="205" width="45" height="35" fill="#eaf5ea"/><text x="227" y="227" text-anchor="middle" font-size="10">+0.3</text>
+        <rect x="255" y="205" width="45" height="35" fill="#f5eaea"/><text x="277" y="227" text-anchor="middle" font-size="10">-1.1</text>
+        <rect x="305" y="205" width="45" height="35" fill="#8ec78e"/><text x="327" y="227" text-anchor="middle" font-size="10">+4.3</text>
+        <rect x="355" y="205" width="45" height="35" fill="#f7d5d5"/><text x="377" y="227" text-anchor="middle" font-size="10">-1.5</text>
+        <rect x="405" y="205" width="45" height="35" fill="#e88484"/><text x="427" y="227" text-anchor="middle" font-size="10">-2.6</text>
+        <rect x="455" y="205" width="45" height="35" fill="#eaf5ea"/><text x="477" y="227" text-anchor="middle" font-size="10">+0.6</text>
+        <rect x="505" y="205" width="45" height="35" fill="#7abd7e"/><text x="527" y="227" text-anchor="middle" font-size="10">+3.6</text>
+      </g>
+      <!-- Row Grnd -->
+      <g>
+        <rect x="155" y="245" width="45" height="35" fill="#e88484"/><text x="177" y="267" text-anchor="middle" font-size="10">-3.2</text>
+        <rect x="205" y="245" width="45" height="35" fill="#e88484"/><text x="227" y="267" text-anchor="middle" font-size="10">-3.3</text>
+        <rect x="255" y="245" width="45" height="35" fill="#d95a5a"/><text x="277" y="267" text-anchor="middle" font-size="10">-4.3</text>
+        <rect x="305" y="245" width="45" height="35" fill="#eaf5ea"/><text x="327" y="267" text-anchor="middle" font-size="10">+0.9</text>
+        <rect x="355" y="245" width="45" height="35" fill="#7abd7e"/><text x="377" y="267" text-anchor="middle" font-size="10">+4.0</text>
+        <rect x="405" y="245" width="45" height="35" fill="#c93a3a"/><text x="427" y="267" text-anchor="middle" font-size="10">-7.7</text>
+        <rect x="455" y="245" width="45" height="35" fill="#a5d3a5"/><text x="477" y="267" text-anchor="middle" font-size="10">+2.8</text>
+        <rect x="505" y="245" width="45" height="35" fill="#7abd7e"/><text x="527" y="267" text-anchor="middle" font-size="10">+3.8</text>
+      </g>
+      <!-- Row CapIF -->
+      <g>
+        <rect x="155" y="285" width="45" height="35" fill="#8b0000"/><text x="177" y="307" text-anchor="middle" font-size="10" fill="white">-35.5</text>
+        <rect x="205" y="285" width="45" height="35" fill="#a03030"/><text x="227" y="307" text-anchor="middle" font-size="10" fill="white">-21.2</text>
+        <rect x="255" y="285" width="45" height="35" fill="#c93a3a"/><text x="277" y="307" text-anchor="middle" font-size="10" fill="white">-19.5</text>
+        <rect x="305" y="285" width="45" height="35" fill="#c93a3a"/><text x="327" y="307" text-anchor="middle" font-size="10" fill="white">-15.8</text>
+        <rect x="355" y="285" width="45" height="35" fill="#a03030"/><text x="377" y="307" text-anchor="middle" font-size="10" fill="white">-23.8</text>
+        <rect x="405" y="285" width="45" height="35" fill="#a5d3a5"/><text x="427" y="307" text-anchor="middle" font-size="10">+2.4</text>
+        <rect x="455" y="285" width="45" height="35" fill="#eaf5ea"/><text x="477" y="307" text-anchor="middle" font-size="10">+0.3</text>
+        <rect x="505" y="285" width="45" height="35" fill="#7abd7e"/><text x="527" y="307" text-anchor="middle" font-size="10">+4.2</text>
+      </g>
+
+      <!-- Divider between single-task columns and mixed columns -->
+      <line x1="450" y1="80" x2="450" y2="325" stroke="#333" stroke-width="2" stroke-dasharray="3,3"/>
+      <text x="300" y="405" text-anchor="middle" font-size="11" fill="#a03030" font-weight="700">← Single-task: -35 ~ +4.6 (mostly hurts non-target)</text>
+      <text x="490" y="405" text-anchor="middle" font-size="11" fill="#4a9d4a" font-weight="700">Mixed: all +positive →</text>
+
+      <!-- Color legend -->
+      <g transform="translate(600 400)">
+        <rect x="0" y="0" width="20" height="15" fill="#8b0000"/>
+        <text x="25" y="12" font-size="10">-35</text>
+        <rect x="60" y="0" width="20" height="15" fill="#e88484"/>
+        <text x="85" y="12" font-size="10">-5</text>
+        <rect x="115" y="0" width="20" height="15" fill="#eaf5ea"/>
+        <text x="140" y="12" font-size="10">0</text>
+        <rect x="160" y="0" width="20" height="15" fill="#7abd7e"/>
+        <text x="185" y="12" font-size="10">+4</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 7 재현: 각 열이 학습 카테고리, 각 행이 평가 카테고리. Cap&amp;IF 학습만이 다른 카테고리에서 최대 −35.5점 붕괴. Mix Full만이 모든 행에서 +를 달성.</div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card card-red">
+      <h3>단일 카테고리 학습의 위험</h3>
+      <p>Chart&amp;OCR만 학습 → Captioning&amp;IF <strong>−35.5</strong>. 이는 모델이 모든 답을 짧고 구조화된 형태로 collapse하기 때문.</p>
+    </div>
+    <div class="card card-green">
+      <h3>Mixed-task RL의 힘</h3>
+      <p>Mix Full은 모든 6개 카테고리에서 <strong>+3.6~+5.7</strong>. 이는 단순 평균이 아니라 <em>super-additive</em> 효과 (개별 카테고리 학습보다 큰 이득).</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Chain-of-Thought 행동 프로파일 (Figure 11 & 8 재현)</h2>
+  <p>왜 카테고리마다 다른 학습 결과가 나오는가? 각 카테고리는 서로 다른 <em>cognitive behavior</em>를 유도하기 때문. Vero는 34개 인지 행동 프레임워크로 이를 정량화한다.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 700 420" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Title -->
+      <text x="350" y="25" text-anchor="middle" font-size="13" font-weight="700">평균 CoT 길이 (Figure 8 재현)</text>
+
+      <!-- Y axis -->
+      <line x1="180" y1="60" x2="180" y2="350" stroke="#333" stroke-width="2"/>
+      <!-- X axis -->
+      <line x1="180" y1="350" x2="670" y2="350" stroke="#333" stroke-width="2"/>
+
+      <!-- Bars (horizontal) -->
+      <!-- Spatial&Action 1983 -->
+      <g>
+        <rect x="180" y="70" width="480" height="30" fill="#ffd58a"/>
+        <text x="670" y="90" text-anchor="end" font-size="12" font-weight="700">1983.3 ± 50.8 words</text>
+        <text x="175" y="90" text-anchor="end" font-size="11">Spatial &amp; Action</text>
+      </g>
+      <!-- Chart&OCR 1592 -->
+      <g>
+        <rect x="180" y="115" width="385" height="30" fill="#f4a3a3"/>
+        <text x="575" y="135" text-anchor="start" font-size="12" font-weight="700">1592.7</text>
+        <text x="175" y="135" text-anchor="end" font-size="11">Chart &amp; OCR</text>
+      </g>
+      <!-- STEM 1576 -->
+      <g>
+        <rect x="180" y="160" width="381" height="30" fill="#7db8f2"/>
+        <text x="571" y="180" text-anchor="start" font-size="12" font-weight="700">1576.1</text>
+        <text x="175" y="180" text-anchor="end" font-size="11">STEM</text>
+      </g>
+      <!-- CapIF 414 -->
+      <g>
+        <rect x="180" y="205" width="100" height="30" fill="#b0b0b0"/>
+        <text x="290" y="225" text-anchor="start" font-size="12" font-weight="700">413.8</text>
+        <text x="175" y="225" text-anchor="end" font-size="11">Captioning &amp; IF</text>
+      </g>
+      <!-- Grnd 125 -->
+      <g>
+        <rect x="180" y="250" width="30" height="30" fill="#c8a8f0"/>
+        <text x="220" y="270" text-anchor="start" font-size="12" font-weight="700">124.9</text>
+        <text x="175" y="270" text-anchor="end" font-size="11">Grnd. &amp; Search</text>
+      </g>
+      <!-- Knowl 76 -->
+      <g>
+        <rect x="180" y="295" width="18" height="30" fill="#a8d8a8"/>
+        <text x="208" y="315" text-anchor="start" font-size="12" font-weight="700">75.8</text>
+        <text x="175" y="315" text-anchor="end" font-size="11">Knowl. &amp; Recog.</text>
+      </g>
+
+      <!-- X labels -->
+      <text x="180" y="370" text-anchor="middle" font-size="10">0</text>
+      <text x="300" y="370" text-anchor="middle" font-size="10">500</text>
+      <text x="420" y="370" text-anchor="middle" font-size="10">1000</text>
+      <text x="540" y="370" text-anchor="middle" font-size="10">1500</text>
+      <text x="660" y="370" text-anchor="middle" font-size="10">2000</text>
+      <text x="425" y="395" text-anchor="middle" font-size="11" fill="#666">Average Number of Reasoning Words</text>
+    </svg>
+    <div class="caption">Figure 8 재현: 카테고리 간 CoT 길이 격차 26× (Spatial&amp;Action 1983 vs Knowledge 76). Multi-step 추론이 필요한 태스크에 긴 CoT가 집중.</div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card card-accent">
+      <h3>STEM → Backtracking</h3>
+      <p>Backtracking 행동 0.48 (다른 카테고리 평균 0.27의 <strong>1.8배</strong>). 수학 문제에서 중간 단계 재검토하는 metacognitive control.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>Grounding → Directed Search</h3>
+      <p>Self-Awareness 0.49로 하락 (다른 0.73). Attention 자원이 <em>내부 성찰</em>에서 <em>외부 시각 탐색</em>으로 재배분.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>Mixed → Strategy Selection</h3>
+      <p>Strategy Selection 0.80 (다른 0.71). 문제 유형에 따라 <em>먼저 접근을 선택</em>하는 메타 행동이 새로 등장.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Data Mixing 전략 비교 (Table 2 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 320" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="13" font-weight="700">Vero-Qwen3I-8B: 가중치 방식별 Overall Δ (30개 벤치)</text>
+
+      <!-- Y axis -->
+      <line x1="60" y1="60" x2="60" y2="270" stroke="#333"/>
+      <text x="50" y="65" text-anchor="end" font-size="10">+6</text>
+      <text x="50" y="105" text-anchor="end" font-size="10">+5</text>
+      <text x="50" y="145" text-anchor="end" font-size="10">+4</text>
+      <text x="50" y="185" text-anchor="end" font-size="10">+3</text>
+      <text x="50" y="225" text-anchor="end" font-size="10">+2</text>
+      <text x="50" y="265" text-anchor="end" font-size="10">+1</text>
+      <!-- gridlines -->
+      <line x1="60" y1="65" x2="770" y2="65" stroke="#eee"/>
+      <line x1="60" y1="105" x2="770" y2="105" stroke="#eee"/>
+      <line x1="60" y1="145" x2="770" y2="145" stroke="#eee"/>
+      <line x1="60" y1="185" x2="770" y2="185" stroke="#eee"/>
+      <line x1="60" y1="225" x2="770" y2="225" stroke="#eee"/>
+
+      <!-- Bars: +5.8, +5.2, +5.2, +4.8, +4.9 (from Table 2 last col) -->
+      <!-- Equal ratios +5.8 -->
+      <g>
+        <rect x="90" y="63" width="90" height="207" fill="#4a9d4a"/>
+        <text x="135" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#2c3e50">+5.8</text>
+        <text x="135" y="290" text-anchor="middle" font-size="11">Equal (uniform)</text>
+      </g>
+      <!-- (1-acc)^a +5.2 -->
+      <g>
+        <rect x="220" y="87" width="90" height="183" fill="#a5d3a5"/>
+        <text x="265" y="79" text-anchor="middle" font-size="14" font-weight="700">+5.2</text>
+        <text x="265" y="290" text-anchor="middle" font-size="11">Difficulty^a</text>
+      </g>
+      <!-- area^a +5.2 -->
+      <g>
+        <rect x="350" y="87" width="90" height="183" fill="#a5d3a5"/>
+        <text x="395" y="79" text-anchor="middle" font-size="14" font-weight="700">+5.2</text>
+        <text x="395" y="290" text-anchor="middle" font-size="11">Image area^a</text>
+      </g>
+      <!-- length^a +4.8 -->
+      <g>
+        <rect x="480" y="103" width="90" height="167" fill="#c8e5c8"/>
+        <text x="525" y="95" text-anchor="middle" font-size="14" font-weight="700">+4.8</text>
+        <text x="525" y="290" text-anchor="middle" font-size="11">Reason. length^a</text>
+      </g>
+      <!-- w/o KnowRec +4.9 -->
+      <g>
+        <rect x="610" y="99" width="90" height="171" fill="#c8e5c8"/>
+        <text x="655" y="91" text-anchor="middle" font-size="14" font-weight="700">+4.9</text>
+        <text x="655" y="290" text-anchor="middle" font-size="11">w/o Knowl.</text>
+      </g>
+    </svg>
+    <div class="caption">Table 2 재현: uniform이 최선. 어려운 카테고리·큰 이미지·긴 추론에 더 큰 배치를 줘도 오히려 손해.</div>
+  </div>
+  <div class="card card-accent">
+    <p><strong>인사이트</strong>: multi-task RL은 <em>optimizer design</em>이 아니라 <em>distribution design</em> 문제. 각 카테고리가 별개의 behavioral mode를 유도하기에, 어느 하나에 편중되면 다른 modes가 소실된다. FLAN 논문의 instruction tuning 결과와 유사한 패턴.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Ablations 요약 (Table 4a, 4c)</h2>
+  <div class="grid-2">
+    <div class="svg-wrap">
+      <svg viewBox="0 0 400 240" width="100%" xmlns="http://www.w3.org/2000/svg">
+        <text x="200" y="20" text-anchor="middle" font-size="12" font-weight="700">Table 4a: SFT vs RL</text>
+        <!-- Base 52.4 -->
+        <rect x="60" y="105" width="60" height="120" fill="#b0b0b0"/>
+        <text x="90" y="98" text-anchor="middle" font-size="12" font-weight="700">52.4</text>
+        <text x="90" y="235" text-anchor="middle" font-size="10">Base</text>
+        <!-- FineVis SFT 46.2 -->
+        <rect x="130" y="130" width="60" height="95" fill="#f7d5d5"/>
+        <text x="160" y="123" text-anchor="middle" font-size="12" font-weight="700">46.2</text>
+        <text x="160" y="235" text-anchor="middle" font-size="10">FineVis SFT</text>
+        <!-- Vero SFT 52.8 -->
+        <rect x="200" y="105" width="60" height="120" fill="#c8e5c8"/>
+        <text x="230" y="98" text-anchor="middle" font-size="12" font-weight="700">52.8</text>
+        <text x="230" y="235" text-anchor="middle" font-size="10">Vero SFT</text>
+        <!-- Vero RL 57.2 -->
+        <rect x="270" y="85" width="60" height="140" fill="#4a9d4a"/>
+        <text x="300" y="78" text-anchor="middle" font-size="12" font-weight="700">57.2</text>
+        <text x="300" y="235" text-anchor="middle" font-size="10">Vero RL</text>
+      </svg>
+      <div class="caption">Data + RL 모두 필요. SFT만으로도 base 앞서지만 RL이 +4.4점 추가 이득.</div>
+    </div>
+
+    <div class="svg-wrap">
+      <svg viewBox="0 0 400 240" width="100%" xmlns="http://www.w3.org/2000/svg">
+        <text x="200" y="20" text-anchor="middle" font-size="12" font-weight="700">Table 4c: RL Algorithm × Entropy</text>
+        <!-- DAPO 54.3, entropy 0.22 -->
+        <circle cx="120" cy="200" r="15" fill="#e74c3c"/>
+        <text x="120" y="205" text-anchor="middle" font-size="10" fill="white" font-weight="700">DAPO</text>
+        <text x="120" y="175" text-anchor="middle" font-size="10">54.3 / 0.22</text>
+        <!-- GRPO 54.3, 0.50 -->
+        <circle cx="220" cy="130" r="15" fill="#e67e22"/>
+        <text x="220" y="135" text-anchor="middle" font-size="9" fill="white" font-weight="700">GRPO</text>
+        <text x="220" y="105" text-anchor="middle" font-size="10">54.3 / 0.50</text>
+        <!-- GSPO 54.7, 0.58 -->
+        <circle cx="310" cy="80" r="17" fill="#27ae60"/>
+        <text x="310" y="85" text-anchor="middle" font-size="10" fill="white" font-weight="700">GSPO</text>
+        <text x="310" y="53" text-anchor="middle" font-size="10" font-weight="700">54.7 / 0.58 ★</text>
+        <!-- Axes -->
+        <line x1="60" y1="220" x2="380" y2="220" stroke="#666"/>
+        <line x1="60" y1="30" x2="60" y2="220" stroke="#666"/>
+        <text x="220" y="235" text-anchor="middle" font-size="10">Overall Avg →</text>
+        <text x="35" y="130" text-anchor="middle" font-size="10" transform="rotate(-90 35 130)">Entropy stability ↑</text>
+      </svg>
+      <div class="caption">GSPO가 성능·안정성 모두 최선. DAPO는 entropy가 0.22로 낮아 policy collapse 위험.</div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Visual Chat Quality 유지 (Figure 9 재현)</h2>
+  <p>Captioning &amp; IF 태스크를 데이터에 포함시켜야 하는 이유를 보여주는 ablation. 구조화된 답 강제만으로는 개방형 능력이 붕괴한다.</p>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 320" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="13" font-weight="700">Δ Score vs Base (개방형 태스크)</text>
+
+      <line x1="80" y1="60" x2="80" y2="270" stroke="#333"/>
+      <line x1="80" y1="165" x2="770" y2="165" stroke="#333" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="775" y="169" text-anchor="start" font-size="10" fill="#333">0</text>
+
+      <!-- Y labels -->
+      <text x="70" y="70" text-anchor="end" font-size="10">+10</text>
+      <text x="70" y="118" text-anchor="end" font-size="10">+5</text>
+      <text x="70" y="165" text-anchor="end" font-size="10">0</text>
+      <text x="70" y="220" text-anchor="end" font-size="10">-25</text>
+      <text x="70" y="265" text-anchor="end" font-size="10">-55</text>
+
+      <!-- Group 1: +Ans tag only -->
+      <g transform="translate(100 0)">
+        <text x="80" y="290" text-anchor="middle" font-size="10">+ Ans. tag</text>
+        <!-- MM-MTBench -36.5 -->
+        <rect x="20" y="165" width="20" height="95" fill="#e74c3c"/>
+        <text x="30" y="278" text-anchor="middle" font-size="9" fill="#c0392b">-36.5</text>
+        <!-- MIABench -54.8 -->
+        <rect x="45" y="165" width="20" height="140" fill="#8b0000"/>
+        <text x="55" y="278" text-anchor="middle" font-size="9" fill="white">-54.8</text>
+        <!-- MMIFEval -22.9 -->
+        <rect x="70" y="165" width="20" height="60" fill="#c0392b"/>
+        <text x="80" y="278" text-anchor="middle" font-size="9">-22.9</text>
+        <!-- Average -38 -->
+        <rect x="95" y="165" width="20" height="100" fill="#e74c3c"/>
+        <text x="105" y="278" text-anchor="middle" font-size="9">-38.0</text>
+      </g>
+
+      <!-- Group 2: +Sys + Boxed -->
+      <g transform="translate(300 0)">
+        <text x="80" y="290" text-anchor="middle" font-size="10">+ Sys + \boxed</text>
+        <rect x="20" y="165" width="20" height="49" fill="#e67e22"/>
+        <text x="30" y="278" text-anchor="middle" font-size="9">-18.6</text>
+        <rect x="45" y="165" width="20" height="64" fill="#c0392b"/>
+        <text x="55" y="278" text-anchor="middle" font-size="9">-24.2</text>
+        <rect x="70" y="165" width="20" height="22" fill="#e67e22"/>
+        <text x="80" y="278" text-anchor="middle" font-size="9">-8.3</text>
+        <rect x="95" y="165" width="20" height="45" fill="#e67e22"/>
+        <text x="105" y="278" text-anchor="middle" font-size="9">-17.1</text>
+      </g>
+
+      <!-- Group 3: +Cap&IF with LLM Judge -->
+      <g transform="translate(500 0)">
+        <text x="80" y="290" text-anchor="middle" font-size="10">+ Cap&amp;IF + Judge</text>
+        <rect x="20" y="146" width="20" height="19" fill="#27ae60"/>
+        <text x="30" y="140" text-anchor="middle" font-size="9" font-weight="700">+7.2</text>
+        <rect x="45" y="162" width="20" height="3" fill="#27ae60"/>
+        <text x="55" y="156" text-anchor="middle" font-size="9" font-weight="700">+1.0</text>
+        <rect x="70" y="141" width="20" height="24" fill="#27ae60"/>
+        <text x="80" y="135" text-anchor="middle" font-size="9" font-weight="700">+9.2</text>
+        <rect x="95" y="150" width="20" height="15" fill="#4a9d4a"/>
+        <text x="105" y="144" text-anchor="middle" font-size="9" font-weight="700">+5.8</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(80 300)">
+        <rect x="0" y="0" width="10" height="10" fill="#e74c3c"/>
+        <text x="15" y="9" font-size="9">MM-MTBench</text>
+        <rect x="100" y="0" width="10" height="10" fill="#8b0000"/>
+        <text x="115" y="9" font-size="9">MIA-Bench</text>
+        <rect x="200" y="0" width="10" height="10" fill="#c0392b"/>
+        <text x="215" y="9" font-size="9">MMIF-Eval</text>
+        <rect x="290" y="0" width="10" height="10" fill="#4a9d4a"/>
+        <text x="305" y="9" font-size="9">Average</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 9 재현: &lt;answer&gt; tag 파싱만 강제 시 개방형 벤치에서 최대 −54.8. Cap&amp;IF 태스크 + LLM Judge를 추가해야 base보다 +5.8 향상.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Reward Hacking과 대응 (Section 6)</h2>
+  <p>LLM-as-judge를 사용하면 모델이 <em>judge를 위한 자기평가</em>를 응답에 삽입해 점수를 조작하려 한다. 실제 관찰된 사례:</p>
+  <div class="grid-2">
+    <div class="card card-red">
+      <h3>자기평가 삽입</h3>
+      <p style="font-style:italic;color:#666;font-size:0.9rem;">"This description exhaustively documents every distinguishable visual element... to allow independent verification by another observer."</p>
+      <p>→ 응답이 사용자에게 무의미. Judge에게만 향한 문장.</p>
+    </div>
+    <div class="card card-red">
+      <h3>조작된 수치</h3>
+      <p style="font-style:italic;color:#666;font-size:0.9rem;">"15px vertical gap between username and password fields"</p>
+      <p>→ 스크린샷에서 검증 불가능한 정확한 수치를 발명해 <em>철저함의 인상</em>을 조작.</p>
+    </div>
+  </div>
+  <div class="card card-green">
+    <h3>대응: Automatic Failure Conditions</h3>
+    <p>Judge 프롬프트에 <strong>"self-evaluative language 감지 시 score=1"</strong> 규칙을 명시. 자기평가로 얻는 이득을 원천 봉쇄해, 모델은 실질적 정보로 승부하도록 유도된다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="grid-2">
+    <div class="card card-orange">
+      <h3>모델 스케일이 여전히 작다</h3>
+      <p>7~9B 파라미터. 32B+ 모델에서도 uniform mixing이 최선일지 미검증. 저자들도 limitations에서 인정.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Video, multi-turn 부재</h3>
+      <p>6개 카테고리 모두 정적 이미지. Video RL, 대화형 추론에서의 recipe 유효성은 미확인.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Behavioral 분석이 descriptive</h3>
+      <p>STEM이 backtracking을 유도한다는 <em>관찰</em>은 있지만, backtracking이 accuracy를 얼마나 유발하는지 <em>causal</em> 실험은 부재.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Taxonomy 검증 부족</h3>
+      <p>6개 카테고리 자체가 최적인지, 세분하거나 다른 축으로 나누는 것이 더 효과적일지 대안 비교 없음.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Judge collusion 위험</h3>
+      <p>Judge와 policy가 모두 Qwen 계열. 명시적 실패 조건으로 대응했지만 근본적 collusion 가능성은 잔존.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <p class="quote">"Multi-task visual reasoning은 optimizer가 아니라 distribution 문제다. Vero-600K의 균등 mix와 10-way task-routed reward만으로도 완전 오픈 recipe가 폐쇄적 프론티어를 넘는다."</p>
+  </div>
+  <div style="text-align: center; margin-top: 1.5rem;">
+    <a class="top-link" href="20260807_sarch_vero.html" style="background:#6c5ce7; color:white; padding:0.7rem 1.5rem; border-radius:6px; text-decoration:none; display:inline-block;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>Vero: An Open RL Recipe for General Visual Reasoning</strong></p>
+  <p>Gabriel Sarch, Linrong Cai, et al. · Princeton University · 2026</p>
+  <p><a href="https://arxiv.org/abs/2604.04917">arXiv:2604.04917</a></p>
+</footer>
+
+</body>
+</html>

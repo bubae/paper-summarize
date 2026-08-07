@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weak-to-Strong On-Policy Distillation (W2S-OPD)</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #6c5ce7; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Weak-to-Strong On-Policy Distillation (W2S-OPD)</h1>
+
+<a class="brief-link" href="20260807_yu_w2s-opd_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Fangxu Yu¹* (인턴십 during Microsoft Research), Weijia Xu², Michael Xu², Tianyi Zhou³, Zinan Lin²</li>
+  <li><strong>소속</strong>: ¹University of Maryland College Park, ²Microsoft Research, ³MBZUAI</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (Technical Report, 2026-08-03)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.26246">arXiv:2607.26246</a> · <a href="https://w2s-opd.github.io">Project page</a> · <a href="https://github.com/Yu-Fangxu/W2S-OPD">GitHub</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: On-Policy Distillation (OPD)은 학생의 rollout에서 강한 teacher가 token-level 감독을 제공하는 강력한 post-training 패러다임. 그러나 <em>frontier 모델은 더 강한 teacher가 없어</em> 이 방식이 성능 상한에 걸린다. Same-origin consolidation(여러 domain expert 학습 후 병합)은 <em>student scale에서 expert 학습</em>이 필요해 매우 비싸다.</li>
+  <li><strong>해결</strong>: <strong>##student보다 약한 두 모델의 logit 차이##</strong>가 <em>capability direction</em>을 encode한다는 통찰. Positive model $m^+$와 negative model $m^-$의 logit 차이 $z^+ - z^-$를 student의 base model logit에 <em>가산</em>해 proxy teacher를 합성. Student는 이 proxy teacher에 대한 per-token reverse KL을 자신의 on-policy rollout에서 최소화.</li>
+  <li><strong>왜 작동하는가</strong>: $m^+$와 $m^-$의 <em>공통된 약함</em>은 차이에서 상쇄되고, $m^+$가 $m^-$보다 나은 <em>방향만 남는다</em>. 이 방향을 student의 base 위에 얹으면 student는 (1) 이미 가진 general ability를 유지하면서 (2) 익힐 domain capability만 흡수한다. Proxy teacher가 <em>distributional하게 student에 근접</em>하므로 학습이 안정적.</li>
+  <li><strong>3가지 contrast pair</strong>: (i) <strong>Pre-RL / Post-RL</strong> — 작은 4B 모델의 RL 전후 checkpoint → RL이 심어준 skill 방향 (ii) <strong>Smaller / Larger base</strong> — 두 오픈 소스 base(0.6B, 4B) → scale에서 emerge한 capability (iii) <strong>Correct / Wrong hints</strong> — 같은 4B 모델에 정답 hint와 오답 hint 조건부 → instance-level direction toward solution.</li>
+  <li><strong>비유</strong>: 요리사(student)가 <em>세계 최고 셰프</em>는 이 세상에 없다. 대신 <em>같은 요리 학원의 두 조교</em> — 하나는 초급, 하나는 특훈 받은 조교 — 를 나란히 놓고 <strong>둘의 요리 차이</strong>를 관찰한다. 두 조교 모두 요리사보다 실력이 낮지만, 그 <em>차이 벡터</em>(예: 조미료 배합 방식)만 요리사의 스타일에 얹으면 요리사는 자기 실력을 잃지 않고 그 skill을 흡수할 수 있다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Weak-to-Strong OPD 프레임워크</strong>: OPD를 <em>weak teacher에서 strong student로</em> 확장. Frontier 모델도 자기보다 약한 supervision source로부터 지속 개선 가능함을 보인다.</li>
+  <li><strong>##Directional perspective##</strong>: 약한 모델을 직접 모방하는 대신 <em>capability direction</em>만 분리해 student의 base 위에 재정착. 이는 direct distillation의 두 문제 — (a) distributional mismatch, (b) student를 teacher 수준으로 <em>제한</em> — 를 동시에 해결.</li>
+  <li><strong>3가지 contrast pair instantiation</strong>: pre-RL/post-RL, smaller/larger base, correct/wrong hints. 각각 서로 다른 종류의 learning signal(RL이 심은 skill, scale에서 emerge한 capability, instance-level solution direction)을 추출.</li>
+  <li><strong>7개 벤치마크에서 SOTA</strong>: math 4개(AIME24/25, HMMT25 Feb/Nov), code 3개(HumanEval+, MBPP+, LiveCodeBench-v6). Qwen3-8B를 student로 사용 시 all three settings에서 OPD를 능가.</li>
+  <li><strong>Post-RL contrast로 domain teacher를 능가</strong>: 4B post-RL expert(Math avg 48.8)를 사용해 8B student가 <strong>Math avg 51.8</strong> 달성 — teacher를 <em>초월</em>. 이는 W2S-OPD가 teacher의 상한을 넘어서는 것을 실증.</li>
+  <li><strong>Reasoning pattern 분석</strong>: Schoenfeld의 8-episode 프레임워크로 각 contrast가 어떤 token을 강화하는지 분석. Post-RL과 hint contrast는 <em>reasoning framework(Plan, Monitor)</em>, scale contrast는 <em>solving procedure(Analyze, Implement)</em>에 집중.</li>
+</ol>
+
+<h2>배경: 왜 W2S가 필요한가</h2>
+
+<h3>On-Policy Distillation (OPD)</h3>
+<p>OPD는 GKD (Generalized Knowledge Distillation, Agarwal et al., 2024)이 정식화한 프레임워크로, RL과 imitation learning의 이점을 결합:</p>
+
+<p>$$\mathcal{L}_{\text{OPD}}(\pi_S) = \mathbb{E}_{x \sim \mathcal{D},\ y \sim \pi_S(\cdot|x)}\left[\sum_{t=1}^{|y|} D(\pi_S(\cdot|s_t) \| \pi_T(\cdot|s_t))\right] \tag{1}$$</p>
+
+<p>여기서 $s_t = (x, y_{<t})$는 student가 생성한 prefix, $D$는 per-token divergence (보통 reverse KL). 이 <em>student가 실제로 방문하는 state에서만</em> teacher가 correction을 준다는 점이 핵심 — offline distillation의 exposure bias를 피한다.</p>
+
+<h3>OPD의 두 가지 한계</h3>
+
+<p><strong>Strong-to-weak 방향</strong>: Qwen3, Gemma 등이 사용. 예: Qwen3의 235B를 8B로 distill. 그러나 <em>frontier 모델은 더 큰 teacher가 없다</em>. Performance ceiling.</p>
+
+<p><strong>Same-origin consolidation</strong>: MOPD (Ma et al., 2026), DeepSeek-V4 (Xu et al., 2026)가 사용. 여러 도메인 expert를 <em>student scale로</em> 학습 후 하나로 병합. Compute 매우 비싸다.</p>
+
+<h3>Weak-to-Strong의 도전 과제</h3>
+
+<p>Weak-to-strong learning (Burns et al., 2023)의 원 아이디어는 약한 supervisor로도 강한 student를 elicit 가능하다는 것. 그러나 <strong>direct OPD를 weak-to-strong에 적용하면</strong>:</p>
+
+<ol>
+  <li><strong>Distributional mismatch</strong>: weak model의 분포가 student와 다르므로 distillation signal이 약해진다.</li>
+  <li><strong>Capability ceiling</strong>: teacher가 student보다 약하므로 <em>student를 teacher 수준으로 끌어내려</em> general ability를 훼손할 위험.</li>
+</ol>
+
+<h2>W2S-OPD의 방법론 (Section 3)</h2>
+
+<h3>3.1 Proxy Teacher Synthesis (수식 2)</h3>
+
+<p>Student $\pi_S$가 강한 base 모델로 초기화됨. Weak model contrast pair: positive $m^+$, weaker negative $m^-$. 이 세 model의 <em>output logits만</em> 필요 (frozen). 각 position $t$에서 prefix $s_t$에 대해 logit $z_{\text{base}}(s_t)$, $z^+(s_t)$, $z^-(s_t)$를 계산. Proxy teacher:</p>
+
+<p>$$\pi_{T,\alpha}(\cdot | s_t) = \text{softmax}\big(z_{\text{base}}(s_t) + \alpha(z^+(s_t) - z^-(s_t))\big) \tag{2}$$</p>
+
+<p>$\alpha \geq 0$: amplification coefficient. $\alpha=0$이면 student base 자체 (signal 없음), $\alpha$가 클수록 direction을 강하게 주입하지만 <em>proxy teacher가 student에서 멀어져 학습 어려움</em>.</p>
+
+<p>직관적으로 말하면, $z^+ - z^-$는 두 weak model의 <em>공통 약점을 상쇄</em>하고 $m^+$가 $m^-$보다 나은 방향만 남긴다. 이 방향을 student의 base logit 위에 <em>가산</em>하면 student의 general capability는 유지하면서 target domain capability만 얹힌다.</p>
+
+<h3>W2S-OPD Objective (수식 3)</h3>
+
+<p>$$\mathcal{L}_{\text{W2S-OPD}}(\pi_S) = \mathbb{E}_{x \sim \mathcal{D},\ y \sim \pi_S(\cdot|x)}\left[\sum_{t=1}^{|y|} \text{KL}(\pi_S(\cdot|s_t) \| \pi_{T,\alpha}(\cdot|s_t))\right] \tag{3}$$</p>
+
+<p>Standard reverse KL을 proxy teacher $\pi_{T,\alpha}$에 대해 minimize. Student의 on-policy rollout에서 계산. 실무 구현: Appendix A의 Top-K OPD 사용 (Qwen3의 vocab 150K logit을 매번 통신 불가하므로 top-K만 전송, 오차는 잔여 확률 질량으로 bounded).</p>
+
+<h3>Trust-region 해석 (Appendix B)</h3>
+
+<p>Reward를 $r(s,a) = \log \pi^+(a|s) - \log \pi^-(a|s)$로 정의하면 proxy teacher는 <em>KL-constrained reward maximization</em>의 closed-form 해:</p>
+
+<p>$$\pi_{T,\alpha}(\cdot|s) = \arg\max_{q \in \Delta(\mathcal{V})} \left\{\mathbb{E}_{a \sim q}[r(s,a)] - \frac{1}{\alpha}\text{KL}(q \| \pi_{\text{base}}(\cdot|s))\right\} \tag{10}$$</p>
+
+<p>즉 W2S-OPD는 (a) capability direction을 reward로 삼고 (b) student base를 trust region의 anchor로 삼는 <em>RL의 특수 해</em>이다. $1/\alpha$는 trust region의 강도.</p>
+
+<h3>Compositional View (수식 11)</h3>
+
+<p>Logits 없이 표현하면:</p>
+
+<p>$$\pi_{T,\alpha}(a|s) \propto \pi_{\text{base}}(a|s) \left(\frac{\pi^+(a|s)}{\pi^-(a|s)}\right)^\alpha \tag{11}$$</p>
+
+<p>이는 <em>product-of-experts</em>: student base가 anchor, $\pi^+$는 conjoined expert, $\pi^-$는 negated expert. $\alpha$가 이 expert들의 강도를 조절.</p>
+
+<h2>3.2 Contrast Pair의 3가지 인스턴스</h2>
+
+<table>
+<tr><th>Setting</th><th>Positive $m^+$</th><th>Negative $m^-$</th><th>Anchor $z_{\text{base}}$</th><th>추출되는 신호</th></tr>
+<tr><td><strong>Pre-RL / Post-RL</strong></td><td>4B-RL (post-RL expert)</td><td>4B (pre-RL init)</td><td>8B (base)</td><td>RL이 심은 domain skill</td></tr>
+<tr><td><strong>Smaller / Larger</strong></td><td>4B (base)</td><td>0.6B (base)</td><td>8B (base)</td><td>scale에서 emerge한 capability</td></tr>
+<tr><td><strong>Correct / Wrong Hints</strong></td><td>4B w/ correct hint</td><td>4B w/ wrong hint</td><td>8B (base)</td><td>instance-level direction to solution</td></tr>
+</table>
+
+<p><strong>(i) Pre-RL / Post-RL</strong>: 작은 base 모델에 domain RL을 적용한 결과 vs 원 base. 그 차이는 <em>RL이 injects한 domain skill</em>. Student scale에서 RL을 실행할 필요 없음 — 이것이 계산 절감의 핵심.</p>
+
+<p><strong>(ii) Smaller / Larger</strong>: Qwen3-4B와 Qwen3-0.6B 같은 기존 오픈 소스 base 모델 페어. 차이는 <em>scale에서 emerge한 capability</em>. 신호는 이미 available, 추가 학습 불필요.</p>
+
+<p><strong>(iii) Correct / Wrong Hints</strong>: 같은 4B base에 <em>정답 solution hint</em>와 <em>오답 solution hint</em>를 조건화. Hint conditioning으로 인한 style shift는 공통이므로 차이는 <em>instance-level solution direction</em>만 남는다. Reference solution 하나만 필요하므로 token-level supervision을 매우 효율적으로 제공.</p>
+
+<h3>3.3 Multi-Teacher 통합 (수식 4)</h3>
+
+<p>K개의 positive-negative pair $\{m_k^+, m_k^-\}$가 있으면:</p>
+
+<p>$$\pi_{T,\boldsymbol{\alpha}}(\cdot|s_t) = \text{softmax}\left(z_{\text{base}}(s_t) + \sum_{k=1}^{K} \alpha_k(z_k^+(s_t) - z_k^-(s_t))\right) \tag{4}$$</p>
+
+<p>각 $\alpha_k$가 direction $k$의 강도를 조절. 예: 각 query를 자기 domain의 pair로 라우팅(예: math query → math expert pair)해 $\alpha_k \in \{0, 1\}$로 하드 스위칭. <strong>##단 한 번의 distillation run으로 여러 domain skill을 단일 student로 병합##</strong> — MOPD류 대비 획기적 비용 절감.</p>
+
+<h2>실험 결과 (Section 4)</h2>
+
+<h3>Setup</h3>
+<ul>
+  <li><strong>Student</strong>: Qwen3-8B (non-thinking mode)</li>
+  <li><strong>Math benchmarks</strong>: AIME24, AIME25, HMMT25 (Feb), HMMT25 (Nov)</li>
+  <li><strong>Code benchmarks</strong>: HumanEval+, MBPP+, LiveCodeBench-v6</li>
+  <li><strong>OOD benchmarks</strong>: GPQA-Diamond, IFBench</li>
+  <li><strong>Baselines</strong>: OPD (direct on positive model), SFT, positive/negative model themselves</li>
+  <li><strong>Sample</strong>: math 32 solutions/problem, code 4/problem, temp=1.0, top-p=1.0</li>
+</ul>
+
+<h3>i) Pre-RL / Post-RL Contrast (Table 2)</h3>
+
+<p>Single-teacher (math or code) 결과:</p>
+
+<table>
+<tr><th>Method</th><th>Math Avg</th><th>Code Avg</th></tr>
+<tr><td>Neg. Model (4B pre-RL)</td><td>14.9</td><td>54.8</td></tr>
+<tr><td>Pos. Model (4B-RL)</td><td>48.8</td><td>61.5</td></tr>
+<tr><td>Student Base (8B)</td><td>17.0</td><td>57.6</td></tr>
+<tr><td>SFT</td><td>45.7</td><td>59.7</td></tr>
+<tr><td>OPD</td><td>46.5</td><td>58.7</td></tr>
+<tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>51.8 (+5.3)</strong></td><td class="win"><strong>60.9 (+2.2)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: teacher가 4B expert(math 48.8)일 때 8B student를 얼마나 개선할 수 있는가? Direct OPD는 8B를 teacher 수준으로 pull down할 위험이 있는데?<br>
+<strong>결과</strong>: W2S-OPD는 OPD를 +5.3점 능가하고, 심지어 <strong>##teacher 자체(48.8)를 3.0점 초과##</strong>.<br>
+<strong>뒷받침 주장</strong>: capability direction 추출과 base anchoring이 teacher ceiling을 넘어서게 한다. 이는 이 논문의 가장 중요한 실증.</p>
+
+<p>Multi-teacher (math+code 병합):</p>
+
+<table>
+<tr><th>Method</th><th>Math Avg</th><th>Code Avg</th></tr>
+<tr><td>SFT</td><td>46.8</td><td>60.4</td></tr>
+<tr><td>OPD</td><td>46.5</td><td>59.5</td></tr>
+<tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>52.1 (+5.6)</strong></td><td class="win"><strong>61.1 (+1.6)</strong></td></tr>
+</table>
+
+<p>단일 teacher와 유사한 개선 폭. Multi-domain 병합이 자연스럽게 작동.</p>
+
+<h3>ii) Smaller / Larger Base Models (Table 3)</h3>
+
+<table>
+<tr><th>Method</th><th>Math Avg</th><th>Code Avg</th></tr>
+<tr><td>Neg. Model (0.6B)</td><td>1.7</td><td>18.8</td></tr>
+<tr><td>Pos. Model (4B)</td><td>14.9</td><td>54.8</td></tr>
+<tr><td>Student Base (8B)</td><td>17.0</td><td>57.6</td></tr>
+<tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>23.0 (+6.0)</strong></td><td class="win"><strong>58.8 (+1.2)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: 두 <em>훈련 없는</em> off-the-shelf base 모델(0.6B, 4B), <em>모두 student보다 약함</em>. 이런 pair가 signal을 담고 있는가?<br>
+<strong>결과</strong>: student가 +6.0(math), +1.2(code) 개선. positive model(14.9)도 student base(17.0)보다 약한데도 student를 <em>초월</em>시킨다.<br>
+<strong>뒷받침 주장</strong>: capability direction은 두 weak 모델의 <em>scale-driven capability gap</em>에서도 추출 가능. 훈련 데이터, reward, 추가 계산 <em>완전히 필요 없음</em>.</p>
+
+<h3>iii) Correct / Wrong Hints Contrast (Table 4)</h3>
+
+<table>
+<tr><th>Method</th><th>Math Avg</th><th>Code Avg</th></tr>
+<tr><td>Pos./Neg. Model (4B, 같은 모델)</td><td>14.9</td><td>54.8</td></tr>
+<tr><td>Student Base (8B)</td><td>17.0</td><td>57.6</td></tr>
+<tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>18.4 (+1.4)</strong></td><td class="win"><strong>58.7 (+1.1)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: 두 모델 대신 <em>같은 4B 모델에 다른 컨텍스트</em>(correct vs wrong hint)만 조건화. 이 privileged 정보 차이가 학습 신호가 되는가?<br>
+<strong>결과</strong>: 개선폭은 작지만 <em>positive gain</em>. 특히 <strong>##단일 4B 모델과 reference solution 하나만으로##</strong> 학습 신호 생성.<br>
+<strong>뒷받침 주장</strong>: capability direction 아이디어의 강력한 일반화. 두 모델 없이도 context-conditioned pair로 동일 프레임워크 적용 가능.</p>
+
+<h3>Amplification Coefficient α의 효과 (Figure 4)</h3>
+
+<p>Pre-RL/Post-RL setting에서 $\alpha$를 sweep:</p>
+
+<table>
+<tr><th>α</th><th>AIME24</th><th>AIME25</th><th>HMMT25 (Feb)</th><th>HumanEval+</th><th>MBPP+</th><th>LCB</th></tr>
+<tr><td>0.25</td><td>39.6</td><td>28.5</td><td>15.7</td><td>82.2</td><td>69.7</td><td>22.3</td></tr>
+<tr><td>0.5</td><td>53.1</td><td>41.5</td><td>24.7</td><td>84.8</td><td>71.0</td><td>25.9</td></tr>
+<tr><td>0.75</td><td>64.1</td><td>54.0</td><td>32.5</td><td>85.8</td><td><strong>72.4</strong></td><td><strong>26.8</strong></td></tr>
+<tr><td><strong>1.0</strong></td><td>68.9</td><td>60.1</td><td>35.1</td><td><strong>86.1</strong></td><td>72.5</td><td>19.7</td></tr>
+<tr><td>1.25</td><td><strong>70.9</strong></td><td>64.3</td><td>37.9</td><td>85.8</td><td>71.4</td><td>16.1</td></tr>
+<tr><td>1.5</td><td>70.3</td><td><strong>65.7</strong></td><td><strong>37.1</strong></td><td>85.8</td><td>71.9</td><td>15.9</td></tr>
+<tr><td>OPD (reference)</td><td>62.1</td><td>54.8</td><td>30.6</td><td>83.1</td><td>71.2</td><td>22.0</td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: proxy teacher를 student에 얼마나 가깝게 유지해야 하는가?<br>
+<strong>결과</strong>: <em>Moderate α (0.75~1.25)에서 최적</em>. 너무 작으면 signal 약함, 너무 크면 proxy teacher가 student에서 멀어져 학습 곤란. Math는 α=1.25~1.5에서 최고, code는 α=0.75~1.0에서 최고.<br>
+<strong>뒷받침 주장</strong>: signal strength vs distributional proximity trade-off. Direction 강도와 anchor 근접성의 균형이 실용 관건.</p>
+
+<h3>OOD Generalization (Table 5)</h3>
+
+<p>Math로 학습한 모델을 non-math OOD benchmark로 평가:</p>
+
+<table>
+<tr><th>Method</th><th>GPQA-Diamond</th><th>IFBench</th></tr>
+<tr><td>Positive Model (4B-RL)</td><td>51.8</td><td>26.0</td></tr>
+<tr><td>Student Base (8B)</td><td>38.9</td><td>26.3</td></tr>
+<tr><td>OPD</td><td>54.4</td><td>25.9 (base보다 후퇴)</td></tr>
+<tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>56.5 (+2.1)</strong></td><td class="win"><strong>27.0 (+1.1)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: Weak-to-strong distillation이 domain skill을 전이하면서 general ability를 유지할 수 있는가? OPD가 문제되는가?<br>
+<strong>결과</strong>: OPD는 IFBench에서 <em>base(26.3) → 25.9로 후퇴</em>. 이는 학생이 작은 전문가의 한계를 흡수했기 때문. W2S-OPD는 IFBench도 <em>27.0으로 개선</em>. GPQA-Diamond도 OPD 대비 +2.1점.<br>
+<strong>뒷받침 주장</strong>: capability direction 추출이 general ability 훼손을 방지. Domain skill은 이식하되 anchor는 학생의 base에 있다.</p>
+
+<h3>Section 4.4: 어떤 종류의 token이 강화되는가?</h3>
+
+<p>매 position $t$에서 <em>capability direction</em>이 각 token을 얼마나 강화하는지 측정:</p>
+
+<p>$$\Delta_t = \log \pi^+(x_t|s_t) - \log \pi^-(x_t|s_t), \quad \pi^\pm = \text{softmax}(z^\pm) \tag{5}$$</p>
+
+<p>Top-1% 높은 $\Delta$ token들을 200 math reasoning trace에서 수집하고 <strong>Schoenfeld의 8-episode 프레임워크</strong>(Read, Analyze, Plan, Implement, Explore, Verify, Monitor, Answer)로 분류:</p>
+
+<table>
+<tr><th>Contrast</th><th>Read</th><th>Analyze</th><th>Plan</th><th>Implement</th><th>Explore</th><th>Verify</th><th>Monitor</th><th>Answer</th></tr>
+<tr><td>All tokens (baseline)</td><td>10.3</td><td>33.2</td><td>8.6</td><td>40.7</td><td>0.5</td><td>2.4</td><td>0.5</td><td>3.8</td></tr>
+<tr><td>Pre-RL / Post-RL</td><td>9.6</td><td>40.5</td><td><strong>15.7</strong></td><td>24.0</td><td>1.2</td><td>4.3</td><td><strong>1.8</strong></td><td>2.9</td></tr>
+<tr><td>Smaller / Larger</td><td>6.5</td><td><strong>44.4</strong></td><td>12.6</td><td><strong>27.7</strong></td><td>0.8</td><td>4.2</td><td>0.9</td><td>2.9</td></tr>
+<tr><td>Correct / Wrong Hints</td><td>5.2</td><td>29.8</td><td><strong>20.2</strong></td><td>19.6</td><td>1.1</td><td>5.4</td><td><strong>2.3</strong></td><td><strong>16.4</strong></td></tr>
+</table>
+
+<p><strong>패턴 분석</strong>:</p>
+<ul>
+  <li><strong>Post-RL과 hint contrast</strong>: <em>Plan, Monitor</em>(reasoning framework, 문제 구조화)에 집중. Reasoning 궤적을 설계하고 감독하는 tokens.</li>
+  <li><strong>Scale contrast</strong>: <em>Analyze, Implement</em>(core solving steps)에 집중. 실제 계산과 문제 분해.</li>
+  <li><strong>Hint contrast</strong>는 특히 <em>Answer</em> tokens 16.4%(baseline 3.8%의 4배). 이는 correct vs wrong hint 조건화가 <em>정답 자체</em>로의 direction을 반영하기 때문.</li>
+</ul>
+
+<p><strong>##Complementary supervision##</strong>: 세 contrast가 <em>다른 종류의 reasoning tokens을 강화</em>. Case study(Figure 5)에서 같은 division trace에 세 contrast를 적용하면 각각 다른 tokens을 강화하는 것을 확인. 이는 <em>3가지 방식을 mix</em>하면 상호보완적 이득 가능성.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>개념적 elegance</strong>: Direct distillation의 두 문제(distributional mismatch, teacher ceiling)를 동시에 해결하는 <em>directional 접근</em>이 매우 우아. Decoding-time controlled generation의 아이디어를 학습 signal로 재해석한 것이 참신.</li>
+  <li><strong>Teacher 초월의 명확한 실증</strong>: 4B expert(48.8)로 8B student(51.8)를 학습시키는 것은 weak-to-strong의 강력한 use case. 이는 <em>frontier post-training</em>에 즉시 적용 가능.</li>
+  <li><strong>다양한 contrast pair의 general framework</strong>: pre-RL/post-RL, scale, hint 3가지 인스턴스가 모두 작동. 프레임워크의 강한 generality를 시사.</li>
+  <li><strong>OOD generalization 개선</strong>: OPD는 IFBench를 base 이하로 떨어뜨리지만 W2S-OPD는 개선. Practical한 큰 장점.</li>
+  <li><strong>Reasoning token 분석의 mechanistic 통찰</strong>: Schoenfeld 8-episode로 각 contrast가 <em>다른 종류의 tokens을 강화</em>함을 정량화. 프레임워크의 내부 작동을 열어 보임.</li>
+  <li><strong>Trust-region 해석의 이론적 근거</strong>: Appendix B에서 W2S-OPD가 KL-constrained reward maximization의 closed-form 해임을 증명. Ad hoc heuristic이 아니라 정확한 수학적 objective.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>α의 domain-dependent 튜닝</strong>: Math는 α=1.25~1.5, code는 α=0.75~1.0이 최적. 새 도메인마다 sweep 필요. 자동 결정 방법 부재.</li>
+  <li><strong>Direct-OPD (Feng et al., 2026) 대비 명확한 차이</strong>: Direct-OPD도 weak teacher의 pre/post-RL log-ratio를 dense reward로 전달. 논문에서는 (a) RL-trained teacher에 국한, (b) 여러 contrastive source를 포함하지 않음, (c) math task만 평가라고 지적. 그러나 이 논문은 Direct-OPD를 실험적으로 비교하지 않아 정확한 우위 폭이 불명.</li>
+  <li><strong>Hint contrast의 개선폭이 작다</strong>: math +1.4, code +1.1. Pre-RL/post-RL(+5.3, +2.2)이나 scale(+6.0, +1.2)보다 확실히 작음. Single-model contrast의 실용 가치가 marginal.</li>
+  <li><strong>Contrastive hint pair의 hint 생성 비용</strong>: correct/wrong hint가 필요하다. 이 hint를 자동 생성하는 방법(예: 정답을 masking해 wrong hint 만들기)이 논문에 명시되지 않음. 재현성 우려.</li>
+  <li><strong>Multi-teacher의 α 라우팅 heuristic</strong>: math query는 math pair로, code는 code pair로 hard routing한다고 함. 그러나 <em>도메인 판별 자체</em>가 문제일 수 있고, mixed-domain query 처리 방법 미명시.</li>
+  <li><strong>학생 크기가 하나(8B)만</strong>: Qwen3-8B로만 검증. 더 큰 student(70B+)에서도 동일 gain이 나오는지 미확인. Frontier scale(400B+)에서 유효한지는 큰 물음.</li>
+  <li><strong>Weak model의 domain 일치 요구</strong>: Positive model은 target domain에 대해 negative보다 나아야 함. 예컨대 non-math domain에는 non-math contrast pair가 필요. 새 domain마다 pair 확보 부담.</li>
+  <li><strong>Thinking mode 미검증</strong>: Qwen3-8B non-thinking mode로만 실험. Thinking mode에서 CoT 궤적이 훨씬 긴데 프레임워크가 그대로 확장되는지 불명.</li>
+</ul>
+
+<h3>실무 관점 트레이드오프</h3>
+<ul>
+  <li><strong>Compute 절감</strong>: student scale RL 대신 <em>작은 4B에 RL</em> 적용 후 distill → compute 상당 절감. Frontier post-training에 큰 실용 이득.</li>
+  <li><strong>Off-the-shelf model 재활용</strong>: Smaller/larger setting은 이미 공개된 모델로 학습 신호 생성. <em>훈련 없이</em> 6점 gain은 매우 매력적.</li>
+  <li><strong>Multi-teacher merge의 단순화</strong>: MOPD 대비 <em>단일 distillation run</em>으로 여러 domain 병합. Deployment 파이프라인 단순화.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways: 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Capability direction은 model 크기 무관한 transferable signal</strong>: 두 약한 모델의 logit 차이가 학생 base와 합쳐지면 학생을 능가하는 학습 신호를 만든다. 이는 post-training의 새 지평.</li>
+  <li><strong>Directional distillation이 imitation을 대체</strong>: 약한 supervisor를 imitate하지 말고 그 <em>capability direction</em>만 뽑아 student의 base에 얹어라. Distribution mismatch와 ceiling 문제를 동시 해결.</li>
+  <li><strong>3가지 contrast pair 인스턴스는 상호보완</strong>: pre-RL/post-RL(reasoning framework), scale(solving procedure), hint(instance-level solution). Ensemble할 여지 존재.</li>
+  <li><strong>Amplification coefficient α는 signal strength vs proximity의 trade-off</strong>: Moderate α가 최적. 실무 튜닝의 첫 하이퍼파라미터.</li>
+  <li><strong>Frontier post-training의 실용 지침</strong>: 강한 teacher가 없어도 <em>작은 모델 pair로 학습 신호를 만들 수 있다</em>. 이는 Anthropic, OpenAI 등 frontier lab에 즉시 유용.</li>
+  <li><strong>General ability preservation</strong>: OPD가 IFBench을 base 이하로 떨어뜨리는 반면 W2S-OPD는 유지. Anchor를 student base에 두는 것이 결정적.</li>
+  <li><strong>Product-of-experts 관점</strong>: $\pi_{T,\alpha} \propto \pi_{\text{base}} \cdot (\pi^+/\pi^-)^\alpha$는 새로운 decoding-time composition을 학습 signal로 변환. 다른 창의적 활용 가능성 열림.</li>
+  <li><strong>Schoenfeld episode framework의 유용성</strong>: 학습 신호의 semantic 분석 도구로 훌륭. 새 distillation 방법을 평가할 때 tokens의 종류를 정량화할 표준이 될 수 있다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<em>(아직 추가된 메모 없음)</em>
+</div>
+
+</div>
+</body>
+</html>

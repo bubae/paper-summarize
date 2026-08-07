@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>From RLVR to RLSVR: SpyRL for Open-Ended LLM Self-Improvement</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #6c5ce7; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>From RLVR to RLSVR: Task Transformation Induces Self-Verifiable Rewards for Open-Ended LLM Self-Improvement</h1>
+
+<a class="brief-link" href="20260807_wang_spyrl-rlsvr_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Qinsi Wang¹, Jing Shi², Huazheng Wang³, Kun Wan², Yiran Wu⁴, Bo Liu⁵, Qingyun Wu⁴, Hai Helen Li¹, Yiran Chen¹, Handong Zhao²†, Wentian Zhao⁶†‡</li>
+  <li><strong>소속</strong>: ¹Duke, ²Adobe, ³Oregon State, ⁴Penn State, ⁵NUS, ⁶Amazon</li>
+  <li><strong>학회/저널</strong>: COLM 2026 (Conference on Language Modeling)</li>
+  <li><strong>연도</strong>: 2026 (v2: 2026-07-31)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.23802">arXiv:2607.23802</a> · <a href="https://github.com/wangqinsi1/RLSVR/tree/SpyRL">GitHub (SpyRL)</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: RLVR (Reinforcement Learning with Verifiable Rewards)은 정답을 결정론적으로 검증할 수 있는 <em>수학·코딩 같은 도메인</em>에서만 작동한다. 요약, 창작, 열린 질의응답 같은 <em>open-ended task</em>는 RLHF/DPO/LLM-as-judge에 의존하는데, 이는 evaluation bias, judge capability 병목, 매 rollout마다 추가 inference cost를 초래한다.</li>
+  <li><strong>해결</strong>: Self-supervised learning의 pretext task 아이디어를 RLVR에 이식한다. 원 open-ended task를 <em>환경이 latent variable $z$를 미리 부여</em>한 proxy environment $\mathcal{E}$로 변환. 이 환경의 규칙에 대한 예측(예: 스파이 식별)이 <strong>환경 자체의 기록으로 정확히 검증 가능</strong>해진다. 이를 <strong>RLSVR</strong> (Reinforcement Learning with Self-Verifiable Rewards)이라 명명.</li>
+  <li><strong>구체 인스턴스: SpyRL</strong> — "Who Is the Spy?" 사회 추론 게임을 모방. $n{-}1$명의 civilian은 완전한 입력을 받고 1명의 spy는 정보 손상된 버전을 받는다. 모두 같은 target task(요약/창작/수학)를 수행 후, 결과물을 보고 서로 <strong>누가 spy인지 투표</strong>. Spy 신원은 환경이 pre-assign했으므로 vote outcome이 <em>완전히 검증 가능</em>. 좋은 output은 정보 손실을 드러내지 않으므로 spy로 지목되지 않는다 → <strong>##vote 수가 output quality의 verifiable proxy##</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: (1) Spy identity가 환경에 의해 결정론적으로 부여되므로 detection reward는 완전 검증 가능. (2) 좋은 output일수록 vote를 덜 받도록 zero-sum reward 설계. (3) 다중 player 경쟁이 fixed verifier의 bias를 완화. (4) Group-based advantage(GRPO 스타일)가 collective decision-making을 안정화.</li>
+  <li><strong>비유</strong>: 학생 5명에게 <em>같은 리포트</em>를 요약하게 하되 <em>1명에게만 리포트의 20%를 지운 버전</em>을 준다. 완성된 요약본 5개를 서로 보고 "누가 원본을 못 본 애 같아?" 투표. 정보가 모자란 학생은 세부 사실을 못 살려 티가 나고, 나머지 학생들은 <em>티가 안 나기 위해</em> 진짜 좋은 요약을 써야 한다. 게임 규칙이 학생의 요약 능력을 자동으로 훈련시킨다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>RLSVR 개념 프레임워크</strong>: Self-supervised learning의 pretext task 원리를 RL로 이식. 원 목적함수 $Q$의 근사 대신, 환경 규칙에 의해 <em>정확히 검증 가능한 proxy R</em>로 대체하는 4단계 task transformation $\Phi$를 정식화.</li>
+  <li><strong>##SpyRL 구현: 정보 비대칭 self-play##</strong>: "Who Is the Spy" 게임 구조로 open-ended task를 information asymmetry + identity inference 문제로 재구성. Performing stage(작업 수행)와 Detection stage(투표) 두 단계 alternating 최적화.</li>
+  <li><strong>Role-Advantage Estimation (RAE)</strong>: Spy와 civilian의 raw reward 분포가 정보 비대칭 때문에 근본적으로 다름을 인식. Role별 baseline을 빼서 role-specific advantage를 정정. 이를 제거하면 avg −13점 성능 하락.</li>
+  <li><strong>##3개 태스크에서 SOTA##</strong>: (a) 요약(GovReport/Multi-News/QmSum/VcSum/SamSum) 5개 벤치 전부에서 Absolute Zero, R-Zero 앞섬. (b) 창작(WritingPrompt/WritingBench) 모든 dimension win rate 우위. (c) 수학(GSM8K/Math500/AIME24/AIME25/Minerva) — verifiable task임에도 SpyRL이 여전히 최고. 즉 <em>SpyRL은 verifiable/non-verifiable 모두 개선</em>.</li>
+  <li><strong>Group size ablation</strong>: player 수 $n=3 \to 5$에서 gain 최대 (평균 +5.5 → +9.3), $n=6,8$에서 diminishing returns. <em>n=5가 sufficient game complexity</em>.</li>
+</ol>
+
+<h2>배경: 왜 RLVR을 open-ended task로 확장하기 어려운가</h2>
+
+<h3>RLVR의 verifiability bottleneck</h3>
+<p>RLVR은 다음 목적함수를 푼다:</p>
+
+<p>$$\max_\theta \mathbb{E}_{x \sim \mathcal{D},\ y \sim \pi_\theta(\cdot|x,\tau)}[V(x,y)] \tag{1}$$</p>
+
+<p>여기서 $V(x,y) \in \{0,1\}$은 결정론적 verifier (수학 답 checker, unit-test executor 등). RLVR이 scalable한 이유는 $V$가 <em>unbiased, unlimited, essentially free</em> supervision을 제공하기 때문.</p>
+
+<p><strong>Open-ended task의 문제</strong>: 진짜 목적함수는 latent quality function $Q(x,y)$인데 $Q$에 대한 verifier가 존재하지 않는다. 기존 접근들:</p>
+<ul>
+  <li>Learned reward model (RLHF): 사람 선호 데이터로 학습된 $\tilde{V}$ 사용</li>
+  <li>DPO: 페어 선호 데이터에서 preference signal</li>
+  <li>LLM-as-a-Judge: 다른 LLM이 채점</li>
+  <li>Rubric-based scoring: rubric으로 명시화된 기준</li>
+</ul>
+
+<p>모두 approximate evaluator $\tilde{V}$로 진짜 $Q$를 <em>직접 근사</em>하려 한다. 그러나 이는 evaluation bias, evaluator competence 상한, 매 rollout inference cost 문제를 재도입한다. <strong>근본 원인은 unverifiable objective $Q$를 직접 근사하려는 시도 자체</strong>이다.</p>
+
+<h3>Self-Supervised Learning의 해결책</h3>
+<p>SSL은 유사한 딜레마를 다르게 푼다: <em>진짜 label을 근사하지 않고</em> 데이터로부터 자동 label이 나오는 pretext task로 변환. 예:</p>
+<ul>
+  <li>Masked language modeling (BERT): masked token 예측</li>
+  <li>Contrastive learning (SimCLR): related view 판별</li>
+  <li>Context prediction (Doersch et al., 2015): 이미지 patch 관계</li>
+</ul>
+
+<p>이런 pretext는 downstream task와 다르지만, <em>proxy objective의 capability가 target task와 상당히 overlap</em>하면 task-specific human annotation 없이 학습이 진행된다.</p>
+
+<h3>RLSVR: task transformation의 4단계</h3>
+
+<p>RLSVR은 SSL의 이 원리를 RL에 이식한다. Task transformation $\Phi$가 원 task $(\mathcal{D}, \tau)$를 proxy environment $\mathcal{E}$로 매핑:</p>
+
+<ol>
+  <li><strong>Latent-variable injection</strong>: 환경이 input $x \sim \mathcal{D}$와 latent $z$를 sample. $z$는 episode의 ground truth이지만 policy에는 <em>직접 공개되지 않음</em>. $z$의 형태는 다양 — 어떤 input이 perturbed되었는가, $x$의 어느 부분이 withheld되었는가, 어떤 condition에서 output이 생성되는가 등.</li>
+  <li><strong>Conditioned task execution</strong>: 환경이 $(x, z)$로부터 observation $o$를 구성. Policy는 <em>원 target task를 각 observation에 대해</em> 수행: $y \sim \pi_\theta(\cdot | o, \tau)$. 이 단계가 target task와 능력 overlap을 보장한다.</li>
+  <li><strong>Verifiable interaction</strong>: 환경의 규칙이 $z$에 관한 질문을 던진다 — 예: <em>어떤 output이 hidden condition 하에 생성되었는가</em>. 이 질문에 정확히 답하려면 <em>task outputs 자체의 품질</em>이 필수적임이 transformation 설계에 내재.</li>
+  <li><strong>Rule-based reward</strong>: 환경이 interaction outcome을 $z$와 비교해 reward $R$ 계산.</li>
+</ol>
+
+<p>결과 reward는 <em>self-verifiable</em>: 환경이 부여한 $z$와 관찰 가능한 interaction outcome의 결정론적, 규칙 기반 함수. Human annotation, learned reward model, external judge 모두 불필요. RLSVR의 관점에서 <strong>RLVR machinery(GRPO 등)를 그대로 사용</strong>하되 $V$를 $R$로, unverifiable $Q$를 $R$로 치환한다.</p>
+
+<h2>SpyRL의 구체적 인스턴스 (Section 3)</h2>
+
+<h3>Overview</h3>
+
+<p>SpyRL의 각 학습 epoch은 두 stage를 alternate한다:</p>
+
+<div class="flow-diagram">Epoch t = 1..T:
+  ┌─────────────────────────────────────────────┐
+  │ Information Allocation (환경 → z, o_i)      │
+  │   x ~ D, spy index u ~ Unif({1,...,n})      │
+  │   o_i = x       if i ≠ u  (civilian)        │
+  │   o_i = g(x)    if i = u  (spy, degraded)   │
+  ├─────────────────────────────────────────────┤
+  │ Performing Stage (target task 수행)         │
+  │   y_i ~ π^P_θ(· | o_i, τ)   for i=1..n      │
+  ├─────────────────────────────────────────────┤
+  │ Detection Stage (누가 spy인지 투표)          │
+  │   v_i ~ π^D_φ(· | (o_i, Y))                 │
+  │   Y = {y_1, ..., y_n}                       │
+  ├─────────────────────────────────────────────┤
+  │ Reward Computation                          │
+  │   r^D_i = 1[v_i = u]   (verifiable)         │
+  │   m_i   = |{j: v_j = i}|                    │
+  │   r^P_u = -β(m_u - m̄_c)   (spy penalty)     │
+  │   r^P_cj = (β/n_c)(m_u - m̄_c) - λ(m_cj - m̄_c)│
+  ├─────────────────────────────────────────────┤
+  │ Alternate policy update:                    │
+  │   Odd epoch: update π^P (perform), fix π^D  │
+  │   Even epoch: update π^D (detect), fix π^P  │
+  └─────────────────────────────────────────────┘</div>
+
+<h3>3.2 Information-Asymmetric Performing Stage</h3>
+
+<p><strong>Capability-oriented task design</strong>: performing stage에서 요구되는 능력이 <em>target task와 정합</em>하도록 태스크를 설계. 3가지 인스턴스:</p>
+
+<table>
+<tr><th>Task</th><th>Dataset</th><th>Mask ratio</th><th>능력 정합</th></tr>
+<tr><td>Text Summarization</td><td>GovReport (long government reports)</td><td>20%</td><td>fact grounding, comprehensive coverage</td></tr>
+<tr><td>Creative Writing</td><td>WritingPrompts</td><td>20%</td><td>coherent narrative under uncertainty</td></tr>
+<tr><td>Mathematical Reasoning</td><td>Nemotron-CC-Math-v1</td><td>40%</td><td>problem formulation + solving</td></tr>
+</table>
+
+<p>Mask ratio는 태스크 특성 반영: 수학은 <em>redundancy와 structural regularity가 높아</em> 더 큰 마스킹이 필요.</p>
+
+<p><strong>Asymmetric information allocation (수식 2)</strong>:</p>
+<p>$$o_i = \begin{cases} x, & i \neq u \\ g(x), & i = u \end{cases} \tag{2}$$</p>
+
+<p>$g(\cdot)$은 information-degradation operator. 논문에서 사용한 형태는 <em>continuous span masking</em> — 원 텍스트의 연속된 20% 또는 40%를 [MASK]로 대체. 이는 style, length, thematic consistency를 보존하면서 <em>task 완성에 필수적인 정보만 가림</em>. 스타일 기반 shortcut 학습 방지.</p>
+
+<p>모든 player는 다음으로 output 생성:</p>
+<p>$$y_i \sim \pi^P_\theta(\cdot | o_i, \tau) \tag{3}$$</p>
+
+<p>Spy는 정보가 부족해 <em>구체 사실을 지어내거나 대충 얼버무릴</em> 위험이 있다. 이 gap을 detector가 감지.</p>
+
+<h3>3.3 Detection Stage with Verifiable Rewards</h3>
+
+<p>Detection state $s_i = (o_i, Y)$. Player $i$는 정책 $\pi^D_\phi$로 vote:</p>
+
+<p>$$v_i \sim \pi^D_\phi(\cdot | s_i), \quad v_i \in \{1, \ldots, n\} \tag{4}$$</p>
+
+<p>Spy identity $u$는 환경이 명시적으로 부여했으므로 detection reward는:</p>
+
+<p>$$r^D_i = \mathbb{I}[v_i = u]$$</p>
+
+<p><strong>완전히 검증 가능</strong>. Group-based advantage (GRPO 스타일, 수식 5):</p>
+
+<p>$$\mu_D = \frac{1}{n}\sum_i r^D_i, \quad \sigma_D = \sqrt{\frac{1}{n}\sum_i (r^D_i - \mu_D)^2}, \quad A^D_i = \frac{r^D_i - \mu_D}{\sigma_D + \epsilon} \tag{5}$$</p>
+
+<p>Within-group normalization으로 critic network 불필요. Collective vote 결과가 individual misjudgment의 영향을 완화 — <em>single verifier bias보다 robust</em>.</p>
+
+<h3>3.4 Two-Stage Coupled Optimization</h3>
+
+<p><strong>Zero-Sum Reward for Performers (수식 6)</strong>: performing stage reward는 <em>vote 수의 함수</em>:</p>
+
+<p>$$r^P_u = -\beta(m_u - \bar{m}_c), \quad r^P_{c_j} = \frac{\beta}{n_c}(m_u - \bar{m}_c) - \lambda(m_{c_j} - \bar{m}_c) \tag{6}$$</p>
+
+<p>여기서 $m_u$는 spy가 받은 vote 수, $m_{c_j}$는 civilian $j$가 받은 vote 수, $\bar{m}_c$는 civilian 평균 vote 수.</p>
+
+<p>직관적으로:</p>
+<ul>
+  <li>Spy가 많이 지목받을수록 → spy는 큰 penalty (그만큼 output이 티가 났다)</li>
+  <li>Civilian은 <em>diff between spy's votes and their own votes</em>가 클수록 reward — 즉, spy는 잘 걸리고 자신은 안 걸릴수록 이득</li>
+  <li>Within-group 페널티 $-\lambda(m_{c_j} - \bar{m}_c)$: civilian 중에서 유독 튀지 않도록 (한 civilian이 너무 티가 나면 대신 지목받으므로)</li>
+</ul>
+
+<p>##Zero-sum constraint##: $r^P_u + \sum_j r^P_{c_j} = 0$. Spy vs civilian이 지속적으로 <em>co-evolve</em>.</p>
+
+<p><strong>Role-Advantage Estimation (RAE)</strong>: Spy와 civilian은 <em>구조적으로 다른 task difficulty</em>를 가진다. Raw reward를 직접 쓰면 <em>advantage estimation이 systematic bias</em>. RAE는 각 role의 raw reward에서 <em>role-specific baseline</em>을 빼서 정정. Table 9의 ablation:</p>
+
+<table>
+<tr><th>Method</th><th>GSM8K</th><th>Math500</th><th>AIME24</th><th>AIME25</th><th>Minerva</th><th>MMLU-Pro</th><th>GPQA-D</th><th>Avg</th></tr>
+<tr><td>Qwen3-4B (base)</td><td>84.5</td><td>68.2</td><td>10.3</td><td>6.7</td><td>42.3</td><td>51.6</td><td>26.3</td><td>41.4</td></tr>
+<tr><td>SpyRL w/o RAE</td><td>76.1</td><td>61.9</td><td>10.3</td><td>6.7</td><td>36.2</td><td>46.5</td><td>25.1</td><td>37.5 (−3.9)</td></tr>
+<tr><td><strong>SpyRL w/ RAE</strong></td><td><strong>93.4</strong></td><td><strong>79.5</strong></td><td><strong>13.3</strong></td><td><strong>20.0</strong></td><td><strong>47.8</strong></td><td><strong>57.4</strong></td><td><strong>41.3</strong></td><td><strong>50.4 (+9.0)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: RAE가 정말 필요한가?<br>
+<strong>결과</strong>: RAE 없이는 base 대비 −3.9 <em>후퇴</em>. RAE와 함께는 +9.0 큰 개선.<br>
+<strong>뒷받침 주장</strong>: 정보 비대칭 상황에서 raw reward는 <em>spy의 information disadvantage와 poor policy quality를 혼동</em>시켜 optimizer가 <em>모델을 harm</em>. Role-aware calibration이 필수.</p>
+
+<h3>Alternating optimization (수식 7, 8)</h3>
+
+<p>Performing stage objective (GRPO-clipped + KL):</p>
+<p>$$\mathcal{L}_P(\theta) = -\mathbb{E}\left[\frac{1}{n}\sum_{k\in\{u\}\cup\mathcal{C}}\sum_t \min(\rho^P_{k,t}A^P_k, \text{clip}(\rho^P_{k,t}, 1-\epsilon, 1+\epsilon)A^P_k)\right] + \beta_P \text{KL}(\pi^P_\theta \| \pi^P_{\text{ref}}) \tag{7}$$</p>
+
+<p>Detection stage objective (action-level ratio):</p>
+<p>$$\mathcal{L}_D(\phi) = -\mathbb{E}\left[\frac{1}{n}\sum_i \min(\rho^D_i A^D_i, \text{clip}(\rho^D_i, 1-\epsilon, 1+\epsilon)A^D_i)\right] + \beta_D \text{KL}(\pi^D_\phi \| \pi^D_{\text{ref}}) \tag{8}$$</p>
+
+<p><strong>왜 alternate하는가</strong>: Detector가 spy를 너무 쉽게 식별하면 <em>더 강해져도 이득이 작다</em>. 이 시점에는 performer 개선(더 좋은 quality + 더 spy-티 안 나게)이 유효. 반대로 performer 분포가 detection을 어렵게 만들면 detector 개선이 유효. 두 stage가 서로의 능력을 shape하며 <em>local equilibrium을 회피</em>. Fixed self-play(Chae et al., 2025)에서 관찰되는 policy stagnation을 명시적으로 깬다.</p>
+
+<p>Ablation on modules (Table 8):</p>
+
+<table>
+<tr><th>Setting</th><th>Epoch 0</th><th>Epoch 20</th><th>Epoch 40</th><th>Epoch 60</th><th>Epoch 80</th><th>Epoch 100</th></tr>
+<tr><td>Only Performing (detect frozen)</td><td>68.2</td><td>70.1</td><td>71.8</td><td>72.2</td><td>71.9</td><td>72.3</td></tr>
+<tr><td>Only Detection (perform frozen)</td><td>68.2</td><td>69.0</td><td>69.4</td><td>69.0</td><td>69.2</td><td>69.2</td></tr>
+<tr><td>Without spy (no asymmetry)</td><td>68.2</td><td>69.6</td><td>71.1</td><td>69.8</td><td>70.5</td><td>71.6</td></tr>
+<tr><td><strong>Full SpyRL</strong></td><td><strong>68.2</strong></td><td><strong>73.3</strong></td><td><strong>78.2</strong></td><td><strong>78.8</strong></td><td><strong>79.3</strong></td><td><strong>79.5</strong></td></tr>
+</table>
+
+<p><strong>Detection frozen만</strong>은 초기 개선 후 detection module이 미묘한 quality 차이를 감지 못해 rapid plateau. <strong>Without spy</strong>는 asymmetric supervision 부재로 오래 못 감. Full SpyRL만이 co-evolve로 지속적 개선.</p>
+
+<h2>실험 결과 (Section 4)</h2>
+
+<h3>Setup</h3>
+
+<ul>
+  <li><strong>Backbone</strong>: Qwen3-4B, Qwen3-8B</li>
+  <li><strong>Batch size 1024, 100 epochs, max generation 2048 tokens, group size $n=5$</strong></li>
+  <li><strong>Baselines</strong>: R-Zero (Huang et al., 2025), Absolute Zero (Zhao et al., 2025) — SOTA self-play proposer-solver 프레임워크</li>
+  <li><strong>Metrics</strong>: automatic metric (ROUGE-L 등) + GPT-4o pairwise A/B win rate + human eval (10 PhD students, 400 samples)</li>
+</ul>
+
+<h3>Summarization (Table 1)</h3>
+
+<p>5개 벤치 (GovReport, Multi-News, QmSum, VcSum, SamSum) 모두에서 SpyRL이 최고 ROUGE-L. GovReport 예:</p>
+
+<table>
+<tr><th>Method (Qwen3-4B)</th><th>GovReport ROUGE-L</th><th>ABTest (SpyRL vs 좌)</th></tr>
+<tr><td>Qwen3-4B (base)</td><td>30.2</td><td>74.6%</td></tr>
+<tr><td>+ R-Zero</td><td>32.1</td><td>72.1%</td></tr>
+<tr><td>+ Absolute Zero</td><td>33.2</td><td>68.5%</td></tr>
+<tr><td><strong>+ SpyRL</strong></td><td><strong>36.7</strong></td><td>—</td></tr>
+</table>
+
+<p>Qwen3-8B에서도 유사: 29.0 → 34.1. R-Zero, Absolute Zero는 base 대비 marginal gain(1.9, 3.0). SpyRL은 +6.5.</p>
+
+<h3>Creative Writing (Table 2)</h3>
+
+<p>WritingPrompt, WritingBench에서 5개 dimension(Novel, Emotion, Coher., Consist., Overall) 모두 win rate SpyRL 우위:</p>
+
+<table>
+<tr><th>SpyRL vs (Qwen3-4B)</th><th>Novel</th><th>Emotion</th><th>Coher.</th><th>Consist.</th><th>Overall</th></tr>
+<tr><td>Qwen3-4B (base)</td><td>84.3%</td><td>76.8%</td><td>72.3%</td><td>70.1%</td><td><strong>81.3%</strong></td></tr>
+<tr><td>R-Zero</td><td>86.2%</td><td>80.3%</td><td>74.2%</td><td>74.8%</td><td><strong>78.9%</strong></td></tr>
+<tr><td>Absolute Zero</td><td>80.8%</td><td>78.1%</td><td>72.9%</td><td>70.5%</td><td><strong>75.6%</strong></td></tr>
+</table>
+
+<p>가장 큰 격차는 <strong>Novel</strong>(novelty)과 <strong>Emotion</strong> — 즉 surface fluency나 structural regularity 이상의 subjective aspect에서 SpyRL이 이득. Baselines는 verifiable feedback loop 부재로 open-ended task에서 큰 이득 못 얻음.</p>
+
+<h3>Mathematical Reasoning (Table 3)</h3>
+
+<p>Verifiable task임에도 SpyRL이 최고:</p>
+
+<table>
+<tr><th>Method (Qwen3-4B)</th><th>GSM8K</th><th>Math500</th><th>AIME24</th><th>AIME25</th><th>Minerva</th><th>MMLU-Pro</th><th>GPQA-D</th></tr>
+<tr><td>Base</td><td>84.5</td><td>68.2</td><td>10.3</td><td>6.7</td><td>42.3</td><td>51.6</td><td>26.3</td></tr>
+<tr><td>+ R-Zero</td><td>88.7</td><td>72.8</td><td>10.3</td><td>6.7</td><td>47.1</td><td>52.8</td><td>27.8</td></tr>
+<tr><td>+ Absolute Zero</td><td>89.3</td><td>76.2</td><td>12.2</td><td>13.4</td><td>41.9</td><td>52.6</td><td>35.3</td></tr>
+<tr><td><strong>+ SpyRL</strong></td><td><strong>93.4</strong></td><td><strong>79.5</strong></td><td><strong>13.3</strong></td><td><strong>20.0</strong></td><td><strong>47.8</strong></td><td><strong>57.4</strong></td><td><strong>41.3</strong></td></tr>
+</table>
+
+<p>Qwen3-4B 평균: base 41.4 → SpyRL <strong>50.4 (+9.0)</strong>. Qwen3-8B: 47.5 → <strong>53.6 (+6.1)</strong>. 특히 어려운 벤치(AIME24, AIME25, GPQA-D)에서 상대적 개선이 큼.<br>
+<strong>실험 의도</strong>: SpyRL의 이득이 pure verifiability에서 오는가, 아니면 information asymmetry가 verifiable task에도 도움되는가?<br>
+<strong>결과</strong>: verifier가 이미 있는 도메인에서도 SpyRL이 최고. <em>Fine-grained + stable learning signal</em>이 verifiability 자체를 넘어 유용.</p>
+
+<h3>Vote-Quality Correlation (Figure 4)</h3>
+
+<p>100 게임에서 각 player가 받은 vote 수와 GPT-4o가 매긴 output rank(1=best, 5=worst)의 관계:</p>
+
+<table>
+<tr><th>Votes Received</th><th>Avg GPT Rank (WritingPrompts)</th><th>Avg GPT Rank (GovReport)</th></tr>
+<tr><td>0</td><td>2.53</td><td>2.59</td></tr>
+<tr><td>1</td><td>3.19</td><td>3.36</td></tr>
+<tr><td>2</td><td>3.88</td><td>3.75</td></tr>
+<tr><td>3</td><td>4.00</td><td>4.22</td></tr>
+<tr><td>4</td><td>3.83</td><td>4.30</td></tr>
+<tr><td>5</td><td>3.70</td><td>4.06</td></tr>
+<tr><td>6</td><td>3.83</td><td>4.75</td></tr>
+<tr><td>7</td><td>4.36</td><td>4.50</td></tr>
+<tr><td>8</td><td><strong>4.80</strong></td><td><strong>5.00</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: Vote 수가 실제로 output quality의 verifiable proxy로 valid한가?<br>
+<strong>결과</strong>: <strong>vote 수와 rank가 monotonically increase</strong>. Vote를 많이 받는 output은 실제로 GPT-4o가 나쁘다고 평가.<br>
+<strong>뒷받침 주장</strong>: identity-recognition problem으로의 변환이 quality signal을 <em>실제로 잘 encode</em>한다는 실증. 이는 SpyRL의 이론적 정당성을 뒷받침.</p>
+
+<h3>Human Evaluation (Table 4)</h3>
+
+<p>10명 PhD 학생, 400 samples(200 WritingPrompt + 200 WritingBench), 5개 dimension:</p>
+
+<table>
+<tr><th>SpyRL vs</th><th>WP Overall win rate</th><th>WB Overall win rate</th></tr>
+<tr><td>Qwen3-4B</td><td>80.0%</td><td>85.0%</td></tr>
+<tr><td>R-Zero</td><td>78.5%</td><td>80.5%</td></tr>
+<tr><td>Absolute Zero</td><td>74.0%</td><td>72.0%</td></tr>
+</table>
+
+<p>Human 평가도 GPT-4o 평가와 일관. SpyRL의 개선이 <em>evaluator dependent artifact가 아니다</em>.</p>
+
+<h3>Comparison with Rubric-as-Reward (Table 5)</h3>
+
+<p>SpyRL vs Qwen3.5-27B-RaR (rubric-as-reward, verifier cost ~$200) 및 GPT-4o-RaR (verifier cost ~$900):</p>
+
+<table>
+<tr><th>SpyRL vs</th><th>WP Overall</th><th>WB Overall</th></tr>
+<tr><td>Qwen3.5-27B-RaR</td><td>59.3%</td><td>56.2%</td></tr>
+<tr><td>GPT-4o-RaR</td><td>48.9%</td><td>48.2%</td></tr>
+</table>
+
+<p>##SpyRL은 external verifier 없이도 Qwen3.5-27B-RaR을 능가하고, 훨씬 강한 GPT-4o-RaR과 대등## (Novelty, Emotion에서는 우위). 이는 verifier cost 절감의 상당한 실용적 가치.</p>
+
+<h3>Domain-Specific Summarization (Table 6)</h3>
+
+<p>Qwen3-4B를 PubMed corpus로 SpyRL 학습 후 arXiv, PubMed, BillSum에 evaluate:</p>
+
+<table>
+<tr><th>Method</th><th>arXiv ROUGE-L</th><th>PubMed ROUGE-L</th><th>BillSum ROUGE-L</th><th>Avg ABTest</th></tr>
+<tr><td>Qwen3-4B</td><td>28.1</td><td>30.3</td><td>41.3</td><td>52.9%</td></tr>
+<tr><td>+ SpyRL</td><td><strong>32.5</strong></td><td><strong>35.1</strong></td><td><strong>46.8</strong></td><td><strong>70.2%</strong></td></tr>
+</table>
+
+<p>Government report에 국한되지 않고 과학·법률 도메인으로 전이됨. Information-asymmetric self-play는 domain-agnostic.</p>
+
+<h3>Cross-Task Transfer (Table 7)</h3>
+
+<p>한 도메인 학습 → 다른 도메인 평가. 하이라이트:</p>
+<ul>
+  <li>Creative Writing 학습 → Summarization 평가: <strong>56.1% (positive transfer)</strong></li>
+  <li>Summarization 학습 → Creative Writing 평가: <strong>59.1% (positive transfer)</strong></li>
+  <li>Math 학습 → Summarization 평가: 45.6% (negative transfer)</li>
+  <li>Math 학습 → Creative Writing 평가: 40.9% (negative transfer)</li>
+</ul>
+
+<p>요약과 창작은 <em>content organization, completeness, discourse coherence</em> 같은 공유 능력이 있어 상호 전이. 수학은 <em>symbolic manipulation, multi-step reasoning</em> 특화라 writing에 전이 안 됨.</p>
+
+<h3>Group Size Ablation (Figure 5)</h3>
+
+<p>Player 수 $n \in \{3, 4, 5, 6, 8\}$의 gain(base 대비):</p>
+
+<table>
+<tr><th>Group size</th><th>GSM8K</th><th>Math500</th><th>MMLU-Pro</th><th>Minerva</th><th>GPQA-D</th><th>Mean</th></tr>
+<tr><td>n=3</td><td>5.8</td><td>7.6</td><td>2.9</td><td>3.0</td><td>9.2</td><td>5.5</td></tr>
+<tr><td>n=4</td><td>8.5</td><td>10.1</td><td>4.5</td><td>5.5</td><td>12.9</td><td>7.9</td></tr>
+<tr><td><strong>n=5</strong></td><td>8.9</td><td><strong>11.1</strong></td><td><strong>5.8</strong></td><td>6.2</td><td>15.0</td><td><strong>9.3</strong></td></tr>
+<tr><td>n=6</td><td>9.3</td><td>12.1</td><td>6.3</td><td>6.2</td><td>16.2</td><td>10.4</td></tr>
+<tr><td>n=8</td><td>9.7</td><td>12.9</td><td>6.3</td><td>6.6</td><td>16.8</td><td>10.5</td></tr>
+</table>
+
+<p>3→5 marginal gain 최대(+5.5→+9.3), 6, 8에서 diminishing returns. <em>n=5가 sufficient game complexity</em>. 이는 실용적: player 늘리면 비용은 선형 증가하지만 gain은 saturate.</p>
+
+<h3>Sensitivity to $g(\cdot)$ (Table 10)</h3>
+
+<p>Masking ratio 20% vs 40% for summarization: 결과가 <em>거의 동일</em>. Neither ratio가 uniformly 우위. 이는 continuous masking이 topic·surface form을 보존하면서 task-relevant content만 제거하므로, RAE가 각 role의 baseline에 자동 정정됨. <em>$g(\cdot)$은 asymmetry가 meaningful하고 non-degenerate하기만 하면 세밀한 task-specific 엔지니어링 불필요</em>.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>개념적 우아함</strong>: SSL의 pretext task 아이디어를 RL의 verifiability 문제에 이식하는 것은 매우 자연스럽고 통찰적. Verifiability를 task property가 아닌 <em>engineered property</em>로 재정의.</li>
+  <li><strong>Verifiable + Non-verifiable 모두 개선</strong>: 대부분 self-play 방법은 non-verifiable task에서만 이득. SpyRL이 verifiable task(수학)에서도 최고라는 점이 매우 인상적.</li>
+  <li><strong>Cost 절감의 실무 가치</strong>: External verifier ($200~$900) 없이 GPT-4o-RaR과 대등. 오픈 소스 학습에 즉시 적용 가능.</li>
+  <li><strong>Vote-quality correlation의 강한 실증</strong>: Figure 4가 SpyRL의 이론적 정당성을 정량화. 단순 heuristic이 아니라 quality proxy로 실제 작동함이 증명.</li>
+  <li><strong>Multi-player 경쟁의 bias 완화</strong>: single verifier의 편향 문제를 collective decision-making으로 완화하는 것이 elegant.</li>
+  <li><strong>Group size의 실용적 sweet spot</strong>: n=5 권장은 computational feasibility와 game complexity의 좋은 균형.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>$g(\cdot)$ 설계의 task-specific 요구</strong>: 논문은 masking으로 통일된 것처럼 보이지만, mask ratio는 태스크별 다름(요약 20%, 수학 40%). 새 도메인마다 이 값을 tune해야 하는 부담. RAE가 완화하지만 완전히 자동은 아니다.</li>
+  <li><strong>Detector와 performer가 같은 모델</strong>: policy $\pi^P$와 $\pi^D$가 같은 backbone 파라미터를 공유하면 collusion 위험. 서로 다른 모델일 때의 이점 미검증.</li>
+  <li><strong>Zero-sum reward의 exploitability</strong>: Civilian 그룹이 systematically strategic voting을 학습하면 game이 다른 equilibrium으로 수렴할 가능성. 예: civilian이 always vote for player 1 → spy detection이 아닌 arbitrary target으로. 이런 degenerate 균형에 대한 방어 미분석.</li>
+  <li><strong>Baselines의 fair comparison 여부</strong>: R-Zero, Absolute Zero가 SpyRL과 <em>같은 compute</em> 하에서 학습되었는지 불명확. Batch size 1024 × 100 epochs × 5 players = 상당한 rollout이 필요.</li>
+  <li><strong>Human evaluation의 rank order confound</strong>: 10명이 400 samples를 평가. Inter-annotator agreement가 명시 안됨. Table 4의 win rate만 제시.</li>
+  <li><strong>Alternating optimization의 hyperparam</strong>: 언제 stage를 switch하는가? "detector가 spy를 쉽게 식별하면" 스위치라는 heuristic만 있음. 실무 재현성에 위험.</li>
+  <li><strong>Long-context task에서의 scaling</strong>: 논문은 max 2048 token generation. 실제 요약/창작은 훨씬 긴 output가 필요. Longer context에서 detector가 quality를 감지할 수 있는지 미확인.</li>
+  <li><strong>Adversarial degradation의 부재</strong>: $g(\cdot)$이 masking에 국한. Paraphrasing, style perturbation, factual insertion 같은 다른 degradation operator의 효과 비교 없음.</li>
+</ul>
+
+<h3>실무 관점 트레이드오프</h3>
+<ul>
+  <li><strong>Compute cost</strong>: n=5 player가 각각 rollout 생성 + detection round = 5× standard RLVR 비용. 그러나 external verifier cost 절감이 이를 상쇄할 수 있다.</li>
+  <li><strong>도메인 이식성</strong>: PubMed 실험처럼 새 도메인으로 확장은 성공. 다만 $g(\cdot)$ 설계는 domain expertise 필요.</li>
+  <li><strong>Non-domain-agnostic vs domain-agnostic</strong>: SpyRL의 아이디어 자체는 domain-agnostic이지만, 실제 성능을 위해 $g(\cdot)$과 detection prompt를 태스크별로 조정해야 함.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways: 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Verifiability는 task property가 아니라 engineered property</strong>: 이 논문의 가장 중요한 명제. Open-ended task를 verifiable proxy로 변환하면 RLVR을 확장할 수 있다.</li>
+  <li><strong>Vote 수가 quality proxy로 작동</strong>: Information asymmetry 하에서 sub-optimal output이 티가 난다는 mechanism이 실증됨. Novel training signal 설계의 강력한 프레임워크.</li>
+  <li><strong>Role-Advantage Estimation이 information-asymmetric self-play에 필수</strong>: 없으면 오히려 base보다 후퇴. Multi-role RL의 hidden 필수 요소.</li>
+  <li><strong>Alternating stage update가 static self-play의 stagnation 해결</strong>: 두 policy가 동시 업데이트되지 않도록 하는 간단한 기법이 실제로 큰 차이를 만든다.</li>
+  <li><strong>Group size n=5의 sweet spot</strong>: 3→5는 큰 gain, 5→8은 diminishing. 실무 배포 시 참고할 heuristic.</li>
+  <li><strong>External verifier 없이 GPT-4o-RaR과 대등</strong>: cost/performance 관점에서 SpyRL은 매력적. 오픈 소스 학습에서 즉시 활용 가능.</li>
+  <li><strong>Cross-task transfer 방향성</strong>: 요약↔창작은 positive, 수학→writing은 negative. 학습 도메인 선정 지침.</li>
+  <li><strong>SSL의 pretext task 원리는 RL에도 이식 가능</strong>: 이 논문의 프레임워크는 SpyRL을 넘어 다른 pretext design을 열어둔다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<em>(아직 추가된 메모 없음)</em>
+</div>
+
+</div>
+</body>
+</html>

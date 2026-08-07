@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LongHorizon-Harness: Advancing Long-Horizon Agents for Real-World Tasks</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #6c5ce7; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>LongHorizon-Harness: Advancing Long-Horizon Agents for Real-World Tasks</h1>
+
+<a class="brief-link" href="20260807_ma_longhorizon-harness_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Ziyu Ma*, Hailang Huang*, Shun Zou*, Yong Wang*†, Shidong Yang, Yiming Hu, Fei Wei, Xiangxiang Chu (*Equal contribution, †Project lead)</li>
+  <li><strong>소속</strong>: DreamX Team, Alibaba Group</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026-08-03)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2608.01964">arXiv:2608.01964</a> · <a href="https://github.com/AMAP-ML/LongHorizon-Harness">GitHub</a> · <a href="https://lh-harness.pages.dev">Website</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 현재 agent harness들(Claude Code, Codex CLI, OpenClaw)은 (1) 태스크 실행과 태스크 상태 관리가 <em>같은 growing context</em>를 공유해 컨텍스트 자체가 부풀며 state tracking이 어려워지고, (2) executor가 스스로 완료를 판단하는 <em>self-assessment</em> 방식이라 잘못된 판단이 이후 결정에 그대로 전파된다. 결과적으로 long-horizon task에서 <em>compounding errors</em>, <em>context rot</em>, <em>task-state loss</em> 세 병목이 나타난다.</li>
+  <li><strong>해결</strong>: <strong>Manage-Execute-Audit (MEA) 루프</strong>로 세 역할을 분리한다. Manager가 태스크 상태를 유지하며 subtask contract를 발행, Executor는 <em>fresh context</em>에서 딱 그 contract만 수행, Auditor는 read-only 도구로 환경 상태를 <em>독립 검증</em>. Executor의 raw trajectory는 round마다 폐기하고 auditor report만 축적되어 <strong>컨텍스트가 O(rounds) 선형 증가</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: (1) State가 execution 외부에 명시적으로 유지되므로 부풀지 않는다. (2) Independent audit이 executor의 잘못된 완료 주장을 걸러내 error propagation을 차단. (3) Fresh-context executor는 context rot에서 벗어난다. (4) 모든 backend(Claude Code, Codex, OpenClaw)를 AgentAdapter로 감싸 native loop 그대로 활용 가능.</li>
+  <li><strong>비유</strong>: 전통적인 agent는 프리랜서 한 명이 <em>모든 것을 자기 메모에 적으며 스스로 검사하고 다음 일을 계획</em>하는 방식. LongHorizon-Harness는 <em>PM(Manager), 실무자(Executor), 감사관(Auditor)</em> 3인 팀으로 나누고, 실무자는 매 라운드 <strong>새로운 방에서 지시서만 받아 일</strong>하고, 감사관은 실무자의 자기평가를 못 보고 <strong>결과물만 검증</strong>한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Long-horizon execution을 task-state management 문제로 재정의</strong>: 단일 growing trajectory 대신 명시적 외부 태스크 상태와 environment-verified fact만으로 다음 subtask를 결정하는 문제 설정.</li>
+  <li><strong>##Manage-Execute-Audit 루프##</strong>: 세 역할(관리·실행·감사)을 fresh context, 독립 도구 접근, 역할별 environment 권한 등으로 <em>구조적으로 분리</em>. Executor의 self-assessment가 task state에 들어오지 못하도록 아키텍처 레벨에서 차단.</li>
+  <li><strong>AgentAdapter 인터페이스</strong>: Claude Code, Codex CLI, OpenClaw 등 서로 다른 agent framework를 <em>수정 없이</em> executor/auditor backend로 활용. Multi-backend, multi-model 실험을 통일된 프로토콜로 수행.</li>
+  <li><strong>3개 최신 long-horizon 벤치마크에서 SOTA</strong>: Qwen 3.7-Plus 백본으로 WeaveBench PassRate <strong>51.8% → 80.7%</strong>, Terminal-Bench 2.1 <strong>69.7% → 77.2%</strong>, OSWorld 2.0 binary completion <strong>2.8% → 8.3% (3×)</strong>. Claude Opus 4.7에서도 34-task subset에서 20.0% → <strong>34.3%</strong> (+14.3점).</li>
+  <li><strong>Agent capability는 model + harness의 시스템 속성</strong>이라는 실증적 명제: 같은 모델(Qwen 3.7-Plus)이 harness에 따라 mean score 0.524 → 0.733까지 변동. 강한 모델(Opus 4.7)조차 harness가 성능의 결정적 변수.</li>
+</ol>
+
+<h2>배경: 왜 이 시점에 필요한가</h2>
+
+<h3>Long-horizon agent의 3가지 병목</h3>
+<p>METR (Kwa et al., 2026) 보고에 따르면 최전선 agent의 task-completion horizon이 약 <em>7개월마다 두 배</em>가 되고 있다. 프론티어 코딩 agent는 이미 단일 프로젝트에서 <em>수 시간~수 일간</em>의 자율 작업을 지속할 수 있으나, 이 긴 horizon이 자동으로 실행 신뢰성을 보장하지는 않는다. 저자들은 3가지 병목을 정리한다:</p>
+
+<ol>
+  <li><strong>Compounding errors and goal drift</strong>: 초기 잘못된 결정이 뒤로 축적되어 결과적으로 원래 목표에서 이탈. (Sun et al., 2026)</li>
+  <li><strong>Context rot</strong>: 상호작용 이력이 커지면서 중요 정보 검색이 어려워지고, context utilization이 특정 threshold를 넘으면 성능이 급락. (Liu et al., 2024; Hong et al., 2025)</li>
+  <li><strong>Task-state loss</strong>: 만족해야 할 requirement, 이미 완료한 action, 생성한 artifact, 발견한 fact 등을 정확히 추적·유지·업데이트하지 못함.</li>
+</ol>
+
+<h3>기존 harness의 두 가지 구조적 한계</h3>
+
+<p><strong>(i) Task execution과 task-state management가 같은 growing context를 공유한다</strong>. Claude Code, Codex CLI 등은 agent가 하나의 확장되는 대화 context 안에서 실행과 상태 유지를 동시에 수행한다. Execution history가 커질수록 <em>state가 이 안에 묻혀서 tracking이 어려워진다</em>.</p>
+
+<p><strong>(ii) Task execution과 completion assessment가 결합되어 있다</strong>. Agent가 subtask를 수행한 뒤 스스로 완료 여부를 판단한다. 이 판단이 잘못되면 <em>완료 처리된 상태로 task state에 기록되어</em>, 이후 결정의 전제가 된다. Self-assessment 오류는 조기 발견 없이 downstream으로 전파.</p>
+
+<h2>LongHorizon-Harness의 방법론 (Section 2)</h2>
+
+<h3>2.1 Overview</h3>
+
+<p>Long-horizon task $\mathcal{T}$와 computer environment가 주어졌을 때, LongHorizon-Harness는 태스크를 <em>동적으로 결정되는 라운드의 시퀀스</em>로 실행한다. 각 라운드는 Manage-Execute-Audit (MEA) 루프를 따른다:</p>
+
+<div class="flow-diagram">Round i:
+   S_i (현재 task state), e_{i-1} (환경), V_{i-1}=(v_1,...,v_{i-1}) (audit history)
+   ↓
+   [Manager] c_i ← 다음 subtask contract 구성
+             (S_i, T, V_{i-1} 참조; 환경에 직접 접근 불가)
+   ↓
+   [Executor] (e_i, o_i) ← contract c_i를 fresh context에서 수행
+             (예산 20 turns / 1800s, e_{i-1} → e_i 변경)
+   ↓
+   [Auditor] v_i ← e_i를 read-only 검사, executor 궤적/추론 무시
+   ↓
+   [Manager] S_{i+1} ← S_i에 v_i의 검증 사실만 반영
+
+종료 조건: v_i가 T를 만족하고 integrity violation 없음, 또는
+          어떤 허용 subtask도 남은 requirement를 진전시키지 못함,
+          또는 사용자 입력 필요, 또는 라운드 예산 소진.</div>
+
+<p>핵심 특징: <strong>##오직 태스크 상태와 audit report만이 라운드 간에 지속##</strong>된다. Executor의 raw interaction trajectory는 매 라운드 종료 시 폐기되어 컨텍스트가 부풀지 않는다.</p>
+
+<h3>2.2 Manager</h3>
+
+<p>Manager는 persistent task state의 <em>유일한 소유자</em>이며 다음 control decision을 만든다:</p>
+
+<p>$$(S_{i+1}, q_{i+1}, c_{i+1}) = \Phi_{\text{mgr}}(\mathcal{T}, S_i, V_i) \tag{1}$$</p>
+
+<p>$q_{i+1} \in \{\text{EXECUTE}, \text{DONE}, \text{BLOCKED}, \text{ASK}\}$. Contract $c_{i+1}$은 EXECUTE일 때만 반환.</p>
+
+<p><strong>Task state의 구조</strong>: 3가지 record type으로 구성:</p>
+<ul>
+  <li><em>requirement</em>: 원 태스크에서 유도된 objective/constraint</li>
+  <li><em>artifact</em>: 실행 중 생성/수정된 output</li>
+  <li><em>fact</em>: 이후 subtask에 필요한 환경 정보</li>
+</ul>
+
+<p>각 record는 <em>completed, pending, blocked, untrusted</em> 중 하나로 표시되며 <strong>audit evidence 참조를 유지</strong>한다. Executor의 주장만으로 상태가 바뀌지 않는다 — clean audit evidence가 있어야만 completed로 표시된다.</p>
+
+<p><strong>Next-subtask construction</strong>: Manager는 $S_{i+1}$을 원 태스크와 비교해 진행 가능한 unresolved objective를 선택, dependency와 prerequisite를 확인한 뒤 bounded contract $c_{i+1}$을 구성. Contract는 즉시 goal, acceptance criteria, boundary constraints, 관련 task-state records, 관련 prior audit reports를 포함한다. Contract는 필요한 environment transition에 따라 GUI 또는 CLI executor에 라우팅.</p>
+
+<h3>2.3 Executor</h3>
+
+<p>Executor는 <em>환경을 의도적으로 수정할 수 있는 유일한 역할</em>이다. Round $i$에서:</p>
+
+<p>$$(e_i, o_i) = \Phi_{\text{exec}}(\mathcal{T}, S_i, c_i; e_{i-1}) \tag{2}$$</p>
+
+<p>Executor는 원 task $\mathcal{T}$, 현재 태스크 상태 $S_i$, subtask contract $c_i$, contract가 참조하는 prior audit report들만 받는다. 환경을 $e_{i-1}$ → $e_i$로 변화시키고 execution report $o_i$를 반환. $o_i$는 <em>수행한 행동, 결과 상태, 생성 artifact, 발생 이슈</em>를 요약하지만 <strong>contract 완료를 확립하지 않는다</strong> — 이는 auditor가 판단.</p>
+
+<p><strong>Fresh-context execution</strong>: 각 executor 호출은 <em>이전 라운드의 raw trajectory 없이</em> 시작한다. 에피소드 내부에서는 planning, environment interaction, observation, revision을 여러 사이클 반복할 수 있으나, 에피소드 종료 시 raw trajectory와 internal reasoning은 <em>폐기</em>되고 $o_i$만 auditor에 전달.</p>
+
+<p><strong>GUI vs CLI capability boundaries</strong>:</p>
+<ul>
+  <li><em>GUI executor</em>: 스크린샷, 클릭, 스크롤, 텍스트 입력 등 화면 기반 능력. Application/interface state 중심의 transition 담당.</li>
+  <li><em>CLI executor</em>: shell 실행, 파일 편집, 코딩, 테스팅 등. Workspace/process/program state 중심의 transition 담당.</li>
+</ul>
+
+<p><strong>Backend execution</strong>: AgentAdapter를 통해 Claude Code, Codex CLI, OpenClaw 같은 기존 backend를 <em>수정 없이</em> bounded episode로 실행. 저자들은 backend의 내부 실행 프로세스를 대체하지 않고 <em>제공되는 context, tools, environment permissions, execution budget, returned report</em>만 제어한다.</p>
+
+<h3>2.4 Auditor</h3>
+
+<p>Auditor는 executor가 만든 environment state를 <em>독립적으로 검증</em>. 실행 후 다음을 받는다: 원 태스크 $\mathcal{T}$, 태스크 상태 $S_i$, contract $c_i$, contract가 참조하는 prior audit report들, executor report $o_i$. <strong>Executor의 raw trajectory나 internal reasoning은 받지 않는다</strong>. Auditor는 결과 환경 $e_i$를 검사해:</p>
+
+<p>$$v_i = \Phi_{\text{aud}}(\mathcal{T}, S_i, c_i, o_i; e_i) \tag{3}$$</p>
+
+<p><strong>Independent environment inspection</strong>: Auditor는 fresh context에서 시작해 executor의 궤적을 배제한다. $o_i$를 힌트로 관련 파일/윈도우/로그/프로세스를 찾을 수 있으나, 완료 결정은 <em>환경을 goal, acceptance criteria, boundary constraints와 직접 비교</em>해서 결정. GUI auditor는 observation-oriented 상호작용으로 검사, CLI auditor는 non-mutating 명령과 inspection 도구로 검사.</p>
+
+<p><strong>Read-only authority</strong>: Auditor는 필요시 observation view를 바꿀 수 있으나 <em>task-relevant environment state를 수정할 수 없다</em>. Protected artifact를 편집/덮어쓰기/이동/삭제하거나 state-changing 명령을 실행하거나 결과에 영향을 주는 GUI 액션을 수행할 수 없다. Task-relevant workspace와 artifact state가 감사 중 감시되며, 감지된 mutation은 <em>integrity violation</em>으로 기록되고 결과 report는 completed 상태를 지지할 수 없다.</p>
+
+<p><strong>Audit-result construction</strong>: audit report $v_i$는 3가지 상태를 기록:</p>
+<ul>
+  <li><em>Completion status</em>: complete, incomplete, blocked</li>
+  <li><em>Integrity status</em>: clean, suspect, violation</li>
+  <li><em>Task-state updates</em>: verified facts, supporting evidence, remaining gaps</li>
+</ul>
+
+<h3>Figure 2의 다이어그램 요소들</h3>
+
+<p>논문 Figure 2의 시각 요소를 정리하면:</p>
+
+<table>
+<tr><th>역할</th><th>Sees</th><th>Can Modify</th><th>Interface</th></tr>
+<tr><td>Manager</td><td>모든 report + T</td><td>환경 X (task state만)</td><td>없음 (state machine)</td></tr>
+<tr><td>Executor</td><td>환경 + related reports</td><td>환경 O (contract 범위)</td><td>GUI Agent 또는 CLI Agent (스크린샷/클릭/스크롤/타이핑 vs shell/file edit/code/text)</td></tr>
+<tr><td>Auditor</td><td>환경 (read-only) + related reports</td><td>환경 X (관찰만)</td><td>Independent Audit tool (workspace mutation detection, artifact provenance, controlled deletion)</td></tr>
+</table>
+
+<h2>실험 결과 (Section 3)</h2>
+
+<h3>Setup</h3>
+
+<p><strong>Primary backbone</strong>: Qwen-3.7-Plus. 추가로 Claude Opus 4.7 평가. 각 backbone마다 원본 Claude Code evaluation framework와 LongHorizon-Harness(Claude Code를 execution backend로 사용)를 비교. Manager, executor, auditor는 <em>같은 backbone model</em>로 인스턴스화되어 harness 효과와 model 능력을 분리.</p>
+
+<p><strong>Implementation</strong>: Executor 예산 1800s, manager/auditor 예산 300s each. 최대 MEA 라운드 $N_{\max}=25$.</p>
+
+<p><strong>Benchmarks</strong>:</p>
+<ul>
+  <li><strong>WeaveBench</strong> (Li et al., 2026): 114 tasks. GUI+CLI 상호작용 조합.</li>
+  <li><strong>OSWorld 2.0</strong> (Yuan et al., 2026): 108 desktop workflows. 중앙값 human completion time 1.6시간.</li>
+  <li><strong>Terminal-Bench 2.1</strong> (Merrill et al., 2026): 어려운 커맨드라인 태스크.</li>
+</ul>
+
+<h3>Main Results (Table 1: WeaveBench)</h3>
+
+<table>
+<tr><th>모델</th><th>Harness</th><th>PassRate (%)</th><th>Overall Score</th></tr>
+<tr><td>Claude Opus 4.7</td><td>Claude Code</td><td>41.2</td><td>0.532</td></tr>
+<tr><td>Claude Opus 4.7</td><td>OpenClaw</td><td>35.1</td><td>0.482</td></tr>
+<tr><td>Claude Opus 4.7</td><td>Hermes Agent</td><td>28.1</td><td>0.516</td></tr>
+<tr><td>Claude Opus 4.7</td><td>Codex CLI</td><td>13.2</td><td>0.378</td></tr>
+<tr><td>GPT-5.5</td><td>Codex CLI</td><td>35.1</td><td>0.499</td></tr>
+<tr><td>Qwen 3.7-Plus</td><td>Claude Code</td><td>51.8</td><td>0.702</td></tr>
+<tr><td><strong>Qwen 3.7-Plus</strong></td><td><strong>LongHorizon-Harness (Claude Code)</strong></td><td class="win"><strong>80.7</strong></td><td class="win"><strong>0.835</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: Task-state management layer만 추가하면 얼마나 이득이 나는가?<br>
+<strong>결과</strong>: Qwen 3.7-Plus + Claude Code에서 <strong>PassRate +28.9점, Overall +0.133</strong>. 이는 <em>같은 executor backend + 같은 model</em>이므로 순수 harness의 기여. Claude Opus 4.7 + Claude Code의 41.2% (Anthropic 공식)도 넘어선다.<br>
+<strong>뒷받침 주장</strong>: 8개 도메인(DSK, DOC, GAM, WEB, DAV, OPS, SPA, DES) <em>모두에서</em> 개선 — 특정 도메인의 우연이 아니다.</p>
+
+<h3>OSWorld 2.0 (Table 2)</h3>
+
+<table>
+<tr><th>모델</th><th>Mode</th><th>Binary (%)</th><th>Partial</th></tr>
+<tr><td>Claude Opus 4.8</td><td>Batched actions</td><td>20.6</td><td>54.8</td></tr>
+<tr><td>Claude Opus 4.7</td><td>Batched actions</td><td>18.2</td><td>48.9</td></tr>
+<tr><td>GPT-5.5</td><td>Batched actions</td><td>13.0</td><td>49.5</td></tr>
+<tr><td>Qwen 3.7-Plus</td><td>Single action</td><td>2.8</td><td>21.5</td></tr>
+<tr><td><strong>Qwen 3.7-Plus</strong></td><td><strong>LongHorizon-Harness (hybrid)</strong></td><td class="win"><strong>8.3 (3.0×)</strong></td><td class="win"><strong>35.2</strong></td></tr>
+</table>
+
+<p>Qwen 3.7-Plus에서 binary completion이 <strong>3배 증가</strong>. Partial score도 +13.7. 이 벤치는 중앙값 완료 시간 1.6시간의 실제 데스크톱 workflow이므로 특히 어려운 long-horizon 조건.</p>
+
+<h3>Table 3: OSWorld 2.0 Opus 4.7 subset (34 tasks)</h3>
+
+<table>
+<tr><th>모델</th><th>Mode</th><th>Binary</th><th>Partial</th></tr>
+<tr><td>Claude Opus 4.7</td><td>Single action</td><td>20.6</td><td>55.8</td></tr>
+<tr><td><strong>Claude Opus 4.7</strong></td><td><strong>LongHorizon-Harness (hybrid)</strong></td><td class="win"><strong>35.3</strong></td><td class="win"><strong>66.9</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: Framework가 단순히 약한 model을 보완하는가, 아니면 강한 model에도 이득을 주는가?<br>
+<strong>결과</strong>: Opus 4.7에서도 binary +14.7점, partial +11.1점. <strong>Model과 harness는 상호보완적</strong>.<br>
+<strong>뒷받침 주장</strong>: 강한 모델도 harness가 부족하면 잠재력의 절반 이하만 활용된다는 강력한 실증.</p>
+
+<h3>Terminal-Bench 2.1 (Figure 3)</h3>
+
+<p>LongHorizon-Harness는 Qwen 3.7-Plus + Claude Code에서 <strong>69.7% → 77.2%</strong>. Codex + GPT-5.6 Luna 조합으로는 <strong>83.1%</strong> 도달, 이는 Claude Code (Fable 5, xhigh) 83.8%에 근접. 이 벤치는 <em>순수 CLI</em>라 GUI-CLI routing 이점을 활용하지 못하므로, 이 개선은 <em>일반 long-horizon execution reliability</em>가 원인이라 저자들은 결론.</p>
+
+<h2>Analysis (Section 3.3)</h2>
+
+<h3>Cost-performance frontier (Figure 4)</h3>
+<p>LongHorizon-Harness는 Qwen 3.7-Plus를 OSWorld 2.0 cost-performance frontier의 <em>훨씬 강한 위치</em>로 이동시킨다. Binary 2.8% → 8.3% 대신 output token은 28.9K → 104K (3.6×) 증가. Token cost는 executor의 능력에 강하게 의존.</p>
+
+<h3>Computation across roles (Figure 5)</h3>
+
+<table>
+<tr><th>벤치</th><th>Manager %</th><th>Executor %</th><th>Auditor %</th><th>LH tokens vs baseline</th></tr>
+<tr><td>WeaveBench</td><td>2.8</td><td>79</td><td>19.4</td><td>2.3× (27.4M vs 12.0M)</td></tr>
+<tr><td>OSWorld 2.0 (output)</td><td>2.0</td><td>73</td><td>24.8</td><td>3.6× (104K vs 28.9K)</td></tr>
+<tr><td>Terminal-Bench 2.1</td><td>8.1</td><td>54</td><td>38.1</td><td><strong>0.76× (3.5M vs 4.6M, 오히려 감소)</strong></td></tr>
+</table>
+
+<p>##Manager는 total token의 2~8%만 사용, Auditor는 19~38%##. Terminal-Bench는 LH가 오히려 <strong>token을 24% 덜 쓰고도 성공률이 높다</strong>. Token 이득의 방향은 태스크와 execution/recovery 라운드 수에 의존.</p>
+
+<h3>Task-dependent effectiveness (Figure 6)</h3>
+
+<p>Category별 개선폭이 크게 다르다:</p>
+<ul>
+  <li><strong>WeaveBench 최대 이득</strong>: Design +60.0점, Spatial/3D +50.0점. Desktop 도메인은 이미 83.3%라 개선폭이 5.6점으로 작다.</li>
+  <li><strong>OSWorld 2.0 최대 이득</strong>: streaming interaction, human-in-the-loop, tutorial following.</li>
+  <li><strong>Terminal-Bench 최대 이득</strong>: system-administration, game tasks. 반면 짧은 분석 category 몇 개는 개선이 작거나 <em>regression</em>.</li>
+</ul>
+
+<p><strong>패턴</strong>: 개선이 큰 category는 공통적으로 <em>여러 dependent environment state를 확장 궤적에 걸쳐 preserve, inspect, revise해야 하는 태스크</em>. 개선이 작은 것들은 individual model capability(visual perception, math reasoning, coding, algorithm design)이 병목인 태스크. Auditor는 잘못된 결과는 감지할 수 있지만 <em>모델에 없는 능력을 공급하지는 못한다</em>.</p>
+
+<h3>WeaveBench Games Case Study (Table 4)</h3>
+
+<p>17개 Games 태스크에서 Claude Opus 4.7과 Qwen 3.7-Plus 각각에 대해 CC(Claude Code) vs LH(LongHorizon-Harness):</p>
+
+<table>
+<tr><th>Backbone</th><th>CC Score (Mean)</th><th>LH Score (Mean)</th><th>CC Tok (M)</th><th>LH Tok (M)</th></tr>
+<tr><td>Claude Opus 4.7</td><td>0.680</td><td>0.809 (+0.129)</td><td>16.5</td><td>11.1 (33% 감소)</td></tr>
+<tr><td>Qwen 3.7-Plus</td><td>0.524</td><td>0.733 (+0.209)</td><td>10.7</td><td>34.3 (3.2× 증가)</td></tr>
+</table>
+
+<p><strong>흥미로운 대칭성</strong>: 강한 모델(Opus)에서는 LH가 <strong>토큰을 33% 절약</strong>하면서도 점수가 오른다. 약한 모델(Qwen)에서는 <strong>토큰이 3배 증가</strong>하지만 점수가 크게 뛴다. 강한 모델은 subtask contract를 더 적은 audit-replan 라운드로 만족시키는 반면, 약한 모델은 반복 실행/복구에 더 많은 inference를 쓴다.</p>
+
+<p>Qwen + LH의 mean 0.733은 <em>Opus + base Claude Code (0.680)를 능가</em>. 즉 <strong>##harness 개선이 model 업그레이드보다 크다##</strong>는 사례.</p>
+
+<h2>Case Studies (Section 3.4)</h2>
+
+<p>같은 Qwen 3.7-Plus 모델로 두 harness의 실제 궤적을 비교:</p>
+
+<h3>Case 1: Stalled Interaction 복구 (Figure 7, WEB_task_16)</h3>
+<p><strong>태스크</strong>: WebRTC simulcast-layer audit.<br>
+<strong>Baseline (0.59)</strong>: Wireshark의 "Decode As" 다이얼로그가 unresponsive임을 인식하지만, growing execution history에 이 관찰이 묻힌 채 <em>같은 상호작용을 400+ steps 반복</em>. 예산 소진까지 남은 태스크 증거를 수집하지 못함.<br>
+<strong>LH (0.92)</strong>: 실패한 상호작용과 unresolved evidence gap을 <em>task state에 기록</em>. 이후 executor들이 누락된 simulcast-layer chart와 packet-level evidence에 집중. <em>실패 궤적이 아닌 최신 audit 상태에서 recovery 재개</em>.</p>
+
+<h3>Case 2: Apparent Completion 감사 (Figure 8, DOC_task_2)</h3>
+<p><strong>태스크</strong>: LibreOffice에서 문서 heading style 정규화.<br>
+<strong>Baseline (0.00)</strong>: 문서 XML을 직접 편집해 <em>시각적으로 그럴듯한 결과</em>를 만든 뒤 종료. 그러나 LibreOffice workflow를 사용하지 않았고 실제 style이 적용되지 않음.<br>
+<strong>LH (0.89)</strong>: 규정된 GUI workflow로 heading style을 적용, 문서를 페이지별로 다시 검사. Auditor가 XML을 파싱해 15개 heading 모두 요구 style이 확인됨을 검증.</p>
+
+<h3>Case 3: Pre-repair Evidence 보존 (Figure 9, DOC_task_4)</h3>
+<p><strong>태스크</strong>: Calc VLOOKUP 수식 수리, before-and-after evidence 보존.<br>
+<strong>Baseline (0.45)</strong>: 초기 formula 오류를 캡처하고 spreadsheet를 수정했으나, <em>pre-repair evidence sequence 완료 전에 수정</em>해 파일이 재열림 시 forensic context가 사라짐.<br>
+<strong>LH (0.87)</strong>: 누락된 pre-repair evidence를 <em>pending requirement로 기록</em>. 다음 executor는 이 evidence를 먼저 완성, 그다음 수리. Auditor가 9-screenshot sequence를 리뷰. Evidence 체인 일관성 유지.</p>
+
+<h3>Case 4: Verified Progress 지속 (Figure 10, WEB_task_10)</h3>
+<p><strong>태스크</strong>: Lighthouse performance-optimization.<br>
+<strong>Baseline (0.53)</strong>: Core optimization 완료 후 DevTools evidence 수집에서 stuck. Growing session이 DevTools 조작을 계속 해야 하며 예산 소진.<br>
+<strong>LH (0.85)</strong>: 완료된 optimization을 task state에 유지. Fresh-context executor들이 페이지 상태 확인, script structure 검사, performance trace 수집을 분산 수행. 완료된 optimization이 execution history 밖에 있어 이후 executor들이 <em>reconstruct하지 않아도 됨</em>.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Model-agnostic 실증의 힘</strong>: Qwen 3.7-Plus와 Claude Opus 4.7 <em>모두에서</em> 개선을 보였다는 점이 접근의 일반성을 강하게 뒷받침.</li>
+  <li><strong>Backend-agnostic</strong>: Claude Code, Codex CLI, OpenClaw를 <em>수정 없이</em> executor로 사용. 실무자가 기존 tool을 버리지 않고 도입 가능.</li>
+  <li><strong>Case study의 구체성</strong>: 4개 case에서 baseline과 LH의 궤적을 스크린샷 단위로 비교. 왜 개선이 나오는지 mechanistic하게 설명.</li>
+  <li><strong>Independent auditor의 개념적 우아함</strong>: Executor의 self-assessment 오류가 task state에 스며들지 못하도록 아키텍처 레벨에서 차단. 이는 <em>테스트 이론</em>에서 self-testing의 근본적 한계를 우회하는 방식.</li>
+  <li><strong>Context 선형 증가 보장</strong>: Executor raw trajectory 폐기로 O(rounds) 성장. Long-horizon task에서 context rot 병목을 구조적으로 해결.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Token cost 증가</strong>: Qwen에서 3.6× (OSWorld) ~ 3.2× (Games) 증가. Terminal-Bench 예외를 제외하면 대체로 비용 상승. Cost-normalized 성능(품질/토큰) 관점의 분석이 부족.</li>
+  <li><strong>Auditor 비용의 큰 비중</strong>: 총 토큰의 19~38%가 auditor. Independent verification의 값은 명확하지만 이 비율이 최적인지 조사 안됨. 더 저렴한 auditor(smaller model)로 대체 가능한지 미검증.</li>
+  <li><strong>Manager/Executor/Auditor 모두 같은 backbone</strong>: 이는 harness 순수 효과를 분리하려는 실험 설계지만, 실무에서 각 역할에 최적화된 다른 모델을 쓰면 어떻게 되는지 조사 없음. Manager는 planning 모델, Executor는 tool-use 강한 모델, Auditor는 verification 강한 모델로 mix하는 자연스러운 확장이 부재.</li>
+  <li><strong>Task-dependent effectiveness의 원인 분석 부족</strong>: 개선이 큰 category(Design +60)와 작은 category(coding 강한 요구) 구분은 명확하나, <em>왜</em> 그런지 정량 지표로 예측 가능한 것은 아니다. 새 태스크에 LH가 도움될지 판단하는 rule of thumb이 부재.</li>
+  <li><strong>Contract 설계 heuristics의 불투명성</strong>: Manager가 <em>어떻게</em> subtask contract를 구성하는지의 프롬프트/heuristics 세부가 논문에 부족. 재현성에는 코드가 있지만, 원리 수준의 설명이 얕음.</li>
+  <li><strong>OSWorld의 부분 점수 8.3%는 여전히 낮다</strong>: 3× 개선은 인상적이지만 절대값 8.3%는 대부분 태스크에서 실패함을 의미. Human 완료 시간 중앙값 1.6h인 태스크의 어려움을 감안해도, harness만으로는 넘지 못하는 벽이 존재.</li>
+  <li><strong>Auditor collusion 가능성</strong>: Executor와 auditor가 같은 모델이라 유사한 blind spot을 공유. 예컨대 GUI reasoning 오류를 executor가 하면 같은 model의 auditor도 놓칠 수 있다. Adversarial auditor(다른 model family)의 유효성 미검증.</li>
+</ul>
+
+<h3>실무 관점 트레이드오프</h3>
+<ul>
+  <li><strong>Weaker model에는 큰 이득, 비용도 큼</strong>: Qwen에서 3× 토큰 증가로 3× 성능 상승. Cost/quality trade-off가 명확.</li>
+  <li><strong>Stronger model에서는 token 절약도 가능</strong>: Opus에서 33% 토큰 감소하며 성능 상승. 강한 모델일수록 LH가 pure win.</li>
+  <li><strong>도메인 dependent</strong>: 시각/공간/디자인 태스크에는 큰 이득, 순수 알고리즘/coding 태스크에는 작은 이득. Deployment 전 sample task로 예상 이득 측정 필요.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways: 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>Agent capability는 model + harness의 시스템 속성</strong>: 같은 모델도 harness에 따라 20~30점 변동. 이는 agent 연구에서 <em>harness는 종속변수가 아니라 독립변수</em>라는 강력한 재정의.</li>
+  <li><strong>Task-state를 execution 외부로 빼내라</strong>: Growing context의 자기 관리에 의존하지 말고, 명시적 외부 state + independent audit으로 유지해야 long-horizon reliability가 확보된다.</li>
+  <li><strong>Executor의 self-assessment를 task state에 넣지 말라</strong>: 잘못된 판단이 downstream으로 전파되는 것을 아키텍처 레벨에서 차단하는 것이 최선.</li>
+  <li><strong>Fresh-context executor 원칙</strong>: 매 라운드 raw trajectory 폐기로 context rot 회피. 이는 long agent session의 근본 병목을 해결하는 실용 기법.</li>
+  <li><strong>Auditor는 model에 없는 능력을 만들지 못한다</strong>: harness는 execution reliability를 크게 개선하지만, 코드/수학/알고리즘 근본 능력이 부족하면 도움이 제한적. Application category에 따라 도입 여부 결정.</li>
+  <li><strong>AgentAdapter 패턴</strong>: 서로 다른 agent framework를 감싸는 얇은 adapter로 상호 호환. 향후 harness 실험의 표준 패턴이 될 수 있다.</li>
+  <li><strong>Weaker model에서 harness ROI가 가장 크다</strong>: Qwen 3.7-Plus가 harness만 바꿔 Opus 4.7 + base harness를 능가. 오픈 모델 배포에 특히 매력적.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<em>(아직 추가된 메모 없음)</em>
+</div>
+
+</div>
+</body>
+</html>

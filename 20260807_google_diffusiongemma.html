@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DiffusionGemma Technical Report</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #6c5ce7; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DiffusionGemma Technical Report</h1>
+
+<a class="brief-link" href="20260807_google_diffusiongemma_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: DiffusionGemma Team</li>
+  <li><strong>소속</strong>: Google DeepMind</li>
+  <li><strong>학회/저널</strong>: arXiv Technical Report</li>
+  <li><strong>연도</strong>: 2026 (2026-07-31)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2608.00146">arXiv:2608.00146</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: AR (autoregressive) LLM은 batch size=1 서빙에서 메모리 대역폭에 병목이 걸려 <em>지연시간(latency)</em>이 근본적으로 나쁘다. Speculative decoding으로 3~6 tokens/forward-pass(TPF)까지 짜낼 수 있지만 이것도 sequential drafter가 병목. Text diffusion 모델들은 폐쇄적(Mercury 2, Gemini Diffusion)이거나 오픈이어도 지능·속도 어느 한쪽이 부족했다.</li>
+  <li><strong>해결</strong>: Gemma 4 26B A4B MoE 모델을 <strong>10% 미만의 원 학습 토큰 예산</strong>으로 2단계 파인튜닝(SFT → SD·RL)해 discrete diffusion 모델로 변환. 256 토큰 블록을 <strong>~12 forward pass</strong>에 병렬 refinement.</li>
+  <li><strong>왜 작동하는가</strong>: (1) AR weights를 재사용해 학습 비용을 획기적으로 절감. (2) Block-AR 구조: causal encoder(KV cache)로 컨텍스트 처리 + bidirectional decoder로 canvas denoising. (3) Sampler distillation과 RL을 <em>동시에</em> 학습(SD·RL)하는 online 목적함수로 quality와 few-step regime을 함께 최적화. (4) Entropy-bounded sampler + adaptive stopping으로 실제 denoising step을 12~15로 감소.</li>
+  <li><strong>비유</strong>: AR은 한 사람이 좌→우로 글자를 한 자씩 쓰는 것. Diffusion은 <em>256글자 도화지</em>를 흐릿한 상태에서 시작해 12번 정도 붓질하며 전체를 함께 다듬어 완성하는 방식이다. 매 붓질마다 모든 위치를 동시에 재검토할 수 있어 자기 수정과 미래 의존적 결정을 자연스럽게 처리한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>AR → Diffusion 변환의 실용 레시피</strong>: pretraining을 우회하고 fine-tuning만으로 discrete diffusion 모델을 얻는 2단계 파이프라인. Gemma 4의 <strong>10% 미만 토큰 예산</strong>으로 완료.</li>
+  <li><strong>##SD·RL 통합 목적함수##</strong>: reward 최대화(quality)와 sampler distillation(few-step 압축)을 별도 스테이지 없이 <em>단일 gradient update</em>로 동시 최적화. 결과적으로 SD·RL 학습 중 reward는 상승하면서 effective denoising steps는 50 → 20으로 자연 감소.</li>
+  <li><strong>Block-Autoregressive 아키텍처</strong>: 인코더(causal attention, KV cache)와 디코더(bidirectional attention on 256-token canvas)를 <em>같은 weights θ</em>로 공유. Gemma 4의 causal AR 능력을 그대로 재활용하면서 diffusion 모드를 추가.</li>
+  <li><strong>Entropy-Bounded Sampler + Adaptive Stopping</strong>: MaskGIT류의 rank-order 토큰 커밋 대신 <em>entropy 예산 b=0.1</em> 하에서 낮은 entropy 토큰들부터 확정, 나머지는 uniform noise로 다시 렌더링. Confident + stable 조건에서 조기 종료로 평균 12 step만 수행.</li>
+  <li><strong>Speed-Intelligence Pareto Frontier</strong>: 단일 H100 FP8에서 <strong>1,479 TPS</strong> — Gemma 4 AR(204 TPS) 대비 <strong>7.1×</strong>, MTP 적용 AR(303 TPS) 대비 <strong>4.8×</strong>. Multimodal, thinking mode, long context 유지.</li>
+  <li><strong>Dual Mode</strong>: 파인튜닝 후에도 AR mode로 seamless 전환 가능. 하이브리드 diffusion-AR decoding 경로 개방.</li>
+</ol>
+
+<h2>배경: 왜 이 시점에 필요한가</h2>
+
+<h3>AR LLM의 memory-bound 문제</h3>
+<p>현대 GPU 서빙에서 large LLM은 <strong>compute가 아니라 memory bandwidth</strong>가 병목이다. 매 forward pass마다 수십 GB의 weight와 KV cache를 HBM에서 accelerator로 옮겨야 하는데, single-token 생성은 accelerator의 연산 유닛을 대부분 idle 상태로 남겨둔다. Batching으로 총 throughput은 회복할 수 있으나 <em>per-user latency</em>는 여전히 나쁘다.</p>
+
+<p><strong>Speculative decoding</strong>: 작은 drafter 모델이 8 tokens를 미리 draft하고 큰 모델이 병렬로 verify → 3~6 TPF. 그러나 drafter가 여전히 sequential이며, blockwise/lookahead drafter는 후반 draft position에서 acceptance rate가 급락한다.</p>
+
+<h3>Text Diffusion의 등장과 한계</h3>
+<p>Diffusion은 <em>전체 시퀀스를 병렬 refinement</em>로 생성한다. 최근 모델들:</p>
+<ul>
+  <li><strong>폐쇄</strong>: Gemini Diffusion, Mercury 2 — API only, weights 미공개</li>
+  <li><strong>오픈 (early)</strong>: LLaDA 2.1 Flash 100B, Nemotron-Labs-Diffusion 14B — 지능 또는 속도 어느 한쪽이 부족</li>
+  <li><strong>Seed Diffusion, Fast-dVLM 등</strong> — 특정 분야 특화</li>
+</ul>
+<p>DiffusionGemma는 <em>고지능 + 매우 빠름 + 완전 오픈 weights (Apache 2.0)</em>를 동시에 달성한 첫 사례임을 주장한다.</p>
+
+<h2>Discrete Diffusion Framework (Section 2)</h2>
+
+<h3>연속시간 Markov chain (CTMC) 기반</h3>
+<p>어휘 $\mathcal{V}$의 크기 $V$, canvas 길이 $C$. 시점 $t \in [0,1]$의 상태를 $x_t \in \mathcal{V}^C$로 표기. Marginal probability path는 clean $x_0 \sim p(\cdot)$부터 fully corrupted $x_1 \sim \text{Unif}(\mathcal{V}^C)$까지 부드럽게 보간.</p>
+
+<h3>Forward process (수식 1)</h3>
+<p>$$\mathbb{P}(X_t = x_t \mid X_0 = x_0) = \prod_{i=1}^{C}\left[\kappa_t \delta(x_t^i, x_0^i) + (1-\kappa_t)\frac{1}{V}\right] \tag{1}$$</p>
+<p>여기서 $\kappa_t \in [0,1]$은 monotonically decreasing noise schedule($\kappa_0=1, \kappa_1=0$). 직관적으로 말하면, 시간이 지날수록 각 토큰이 <strong>어휘 전체에서 uniform하게 sample된 랜덤 토큰</strong>으로 대체될 확률이 커진다. 이는 BERT의 masking, ELECTRA의 replaced token detection과 계보가 닿는 <em>multinomial(uniform) diffusion</em>이며, 저자들이 masked diffusion보다 이 방식을 선택한 이유는 <strong>##앞 step에서 잘못 sample된 토큰도 이후 step에서 재수정 가능##</strong>하기 때문.</p>
+
+<h3>Backward denoising (수식 2, 5, 6)</h3>
+<p>Reverse process는 학습된 posterior $p_\theta(\nu \mid x_t)$로 근사:</p>
+<p>$$\mathbb{P}(X_{t-\Delta t} = \cdot \mid X_t = x_t) \approx \text{Step}(x_t, p_\theta(X_0 = \cdot \mid X_t = x_t)) \tag{2}$$</p>
+
+<p>Decoder forward pass (수식 5)로 unnormalized logits $L_t$를 얻고, 수식 6에서 temperature scaling과 self-conditioning 업데이트:</p>
+<p>$$\hat{p}_0 = \text{Softmax}(L_t/\tau_t), \quad z_{t-\Delta t} = \text{FFW}(\hat{p}_0 E), \quad x_{t-\Delta t} \sim \text{Step}(x_t, \hat{p}_0) \tag{6}$$</p>
+
+<p>여기서 $E$는 토큰 embedding matrix, FFW는 self-conditioning FFN. Self-conditioning은 <em>이전 step의 예측을 continuous 신호로 다음 step에 되먹인다</em>. 이는 masked/uniform corruption이 조건부 독립을 가정해 발생시키는 <em>local inconsistency</em> — 예를 들어 위치 $i$가 위치 $j$의 동시 결정을 볼 수 없어 문법이 어긋나는 문제 — 를 완화하기 위함이다.</p>
+
+<h2>Architecture: Block-Autoregressive Encoder-Decoder (Section 3)</h2>
+
+<h3>Shared-weight 인코더-디코더</h3>
+<p>DiffusionGemma는 encoder-decoder transformer이지만 <strong>단일 weights $\theta$</strong>를 공유한다. 이는 BART/T5의 bidirectional-encoder + causal-decoder와 <em>구조가 역전</em>된 형태이다:</p>
+
+<table>
+<tr><th>구성</th><th>Attention</th><th>역할</th></tr>
+<tr><td>Encoder</td><td>Causal</td><td>시스템 지시 + 사용자 입력 + 과거 canvases를 KV cache $H$로 인코딩</td></tr>
+<tr><td>Decoder</td><td>Bidirectional (canvas 내) + cross-attn (KV cache)</td><td>256-token canvas를 병렬 denoise</td></tr>
+</table>
+
+<p>왜 causal encoder인가? 이 방향이면 새 canvas가 완성될 때마다 <em>기존 KV cache를 재계산 없이 append</em>만 하면 되어 long context에서도 확장성이 확보된다.</p>
+
+<h3>블록 AR 생성 프로세스 (Figure 4)</h3>
+
+<div class="flow-diagram">1. Context Encoding (causal encoder)
+   input prompt → H = Encoder_θ(h)
+
+2. Denoising Loop (bidirectional decoder × N steps)
+   For n = 1..N:
+     L_t ← Decoder_θ(x_t, z_t, H)
+     x̂_0|t ← argmax(L_t)         [현재 deterministic 예측]
+     τ_t ← linear schedule (0.8 → 0.4)
+     p̂_0 ← Softmax(L_t/τ_t)
+     [entropy 계산 → adaptive stopping 체크]
+     if stop: return x̂_0|t
+     z_{t-Δt} ← FFW(p̂_0 E)         [self-conditioning]
+     [entropy-bounded token refinement]
+     x_{t-Δt} ← 저entropy 위치는 sample, 나머지는 uniform 재렌더
+
+3. Encode &amp; Append
+   H ← H ⊕ Encoder_θ(x̂_0)          [완성된 canvas를 KV cache에 append]
+
+Repeat until end-of-turn token 생성</div>
+
+<p>256 tokens씩 canvas 하나가 완성되면 그 결과는 <strong>영구히 freeze</strong>되고, 다음 canvas는 새 KV cache 위에서 시작. 이 block-AR 방식이 diffusion의 병렬성과 AR의 확장성을 결합한다.</p>
+
+<h3>Entropy-Bounded Sampler (Algorithm 1)</h3>
+
+<p>이 논문의 sampler는 MaskGIT의 rank-order 커밋 방식을 개선한 것으로, 다음과 같이 동작한다:</p>
+
+<ol>
+  <li><strong>Confident predictions</strong>: 각 위치 $i$의 entropy $e^i = \text{Entropy}(\hat{p}_0^i)$ 계산. 평균 $\bar{e}$가 $e_{\text{stop}}=0.005$ 이하이고 deterministic 예측이 이전 step과 같으면 <strong>early return</strong>.</li>
+  <li><strong>Entropy-bounded refinement</strong>: 낮은 entropy부터 순서대로 커밋. 누적 entropy가 budget $b=0.1$을 초과하기 직전까지의 토큰 집합 $U$만 sample에서 가져오고, $U^c$는 uniform noise로 다시 렌더링해 <em>다음 step의 exploration</em>을 유도.</li>
+  <li><strong>Temperature annealing</strong>: $\tau_{\max}=0.8$에서 $\tau_{\min}=0.4$로 linear anneal. 초기에는 다양성 탐색, 후반에는 고신뢰 커밋.</li>
+</ol>
+
+<p>Figure 5는 이 adaptive stopping이 실제 downstream 태스크에서 <strong>N=48 최대 예산 중 평균 12 step만 사용</strong>됨을 보여준다. 어려운 태스크(LiveCodeBench, GPQA-Diamond)는 15~19 step, 쉬운 태스크(HumanEval, GSM8K)는 8~11 step으로 <em>태스크 복잡도에 dynamic하게 적응</em>한다.</p>
+
+<h2>Training Pipeline (Section 4~5)</h2>
+
+<h3>Stage 1: Supervised Fine-tuning (Section 4)</h3>
+
+<p>Gemma 4 26B A4B checkpoint에서 초기화해 block-diagonal attention mask를 사용. 각 canvas에 대해 noise level $t \sim \text{Unif}[0,1]$을 sample하고 확률 $t$로 각 토큰을 noise. Cross-entropy loss:</p>
+
+<p>$$L(\theta) = -\sum_{i=1}^{C} \log p_\theta(x_0^i \mid x_t, z_t, H) \tag{11}$$</p>
+
+<p>Figures 6, 7의 관찰:</p>
+<ul>
+  <li>SFT 이전 모델은 denoising 불가능(성능 ≈ 0).</li>
+  <li><strong>Non-thinking mode</strong>: 초기 SFT의 적은 양으로 빠르게 회복. 예컨대 GPQA-Diamond는 SFT 25% 지점에서 60%+ 성능.</li>
+  <li><strong>Thinking mode</strong>: 더 긴 SFT 필요. Figure 7의 로그-선형 그래프에서 thinking 모드는 시작이 낮지만 slope가 steep해 학습 후반에 non-thinking을 추월. Reasoning trace의 stuttering/cycling 문제를 해소하기 위해 extended SFT가 필수적임을 시사.</li>
+</ul>
+
+<h3>Stage 2: Sampler Distillation + Reinforcement Learning (SD·RL) (Section 5)</h3>
+
+<p>SFT 후 모델은 <em>많은 denoising step</em>에서 좋은 성능을 보이나 <strong>ultra-low latency에 필요한 few-step regime에서는 quality가 붕괴</strong>한다. 이를 동시에 해결하는 것이 SD·RL의 목적.</p>
+
+<p>전통적으로 quality alignment(RL)와 sampler compression(distillation)은 별개 스테이지로 처리했으나, DiffusionGemma는 <strong>online teacher</strong>가 매 step 생성한 trajectory 위에서 두 목적을 하나의 gradient로 통합:</p>
+<ol>
+  <li><strong>Reward maximization</strong>: 응답 품질을 높이는 표준 RL objective (helpfulness, math, code, IF)</li>
+  <li><strong>Sampler distillation</strong>: 이 고품질 output을 few-step regime으로 압축</li>
+</ol>
+
+<h3>Curriculum Effect (Figure 8)</h3>
+
+<p>SD·RL 학습 dynamics는 자연스러운 curriculum을 형성한다:</p>
+<ul>
+  <li><strong>초기</strong>: predictive entropy가 높아 adaptive stopping이 늦게 발동 → teacher가 긴 trajectory 생성 → 학습.</li>
+  <li><strong>후기</strong>: model confidence 상승 → entropy 감소 → adaptive stopping 조기 발동 → teacher가 <em>더 짧은 trajectory</em>로 옮겨감 → few-step regime에 자연스럽게 특화.</li>
+</ul>
+
+<p>Figure 8: Reward Average가 0.27 → 0.38로 상승하는 동안 Effective Denoising Steps는 50 → 20으로 감소. 두 축이 동시에 개선되는 것이 SD·RL의 핵심 결과.</p>
+
+<h3>##Emergent Conciseness##</h3>
+
+<p>AR RL은 종종 응답을 길게 만드는 방향으로 reward를 maximizing한다. 반면 SD·RL은 반대로 <strong>predictive entropy 최소화 압박</strong> 때문에 <em>더 짧고 토큰 효율적인 output</em>을 생성. 최종 checkpoint의 total tokens가 SFT checkpoint의 <strong>거의 2배 더 짧다</strong>(Figure 9). 총 tokens 감소 × step per canvas 감소 → end-to-end latency에 곱셈적 이득.</p>
+
+<h2>Pareto Frontier: Quality × Speed (Figure 9)</h2>
+
+<p>Figure 9의 4개 axis에서 SD·RL이 SFT checkpoint의 frontier를 어떻게 밀어내는지:</p>
+
+<table>
+<tr><th>Axis</th><th>SFT (N=48~192 sweep)</th><th>+ SD·RL (N=48)</th></tr>
+<tr><td>Avg(GPQA-D, LCB-v6)</td><td>~58 (N=192에서)</td><td><strong>~68 (+10점)</strong></td></tr>
+<tr><td>Effective Denoising Steps</td><td>50~60</td><td><strong>~15 (4× 감소)</strong></td></tr>
+<tr><td>Total Tokens</td><td>~13,000+</td><td><strong>~6,000</strong></td></tr>
+<tr><td>TPF</td><td>~5</td><td><strong>~19 (4× 증가)</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: SD·RL이 SFT 대비 무엇을 개선하는가?<br>
+<strong>결과</strong>: quality 축 +10점, efficiency 축 4× 개선을 동시 달성.<br>
+<strong>뒷받침 주장</strong>: quality와 speed는 상충 관계가 아니라, 통합 목적함수로 동시 개선 가능한 다차원 최적화 문제. SFT의 few-step 실패는 <em>repetitive token loop</em>로의 degeneracy에서 오며 SD·RL은 이를 회피시킨다.</p>
+
+<h2>Inference Optimizations (Section 6)</h2>
+
+<h3>Per-Step GPU Time Breakdown (Figure 11)</h3>
+
+<p>Single-request(batch=1, FP8, 4096 in / 1024 out) 조건에서 H100:</p>
+
+<table>
+<tr><th>구성</th><th>Gemma 4 AR (1 tok/step)</th><th>DiffusionGemma (256 tok/step)</th><th>비율</th></tr>
+<tr><td>MoE Experts</td><td>1.08 ms</td><td>4.66 ms</td><td>×4.3 (activated experts 8 → 84)</td></tr>
+<tr><td>Sampling</td><td>0.56 ms</td><td>3.06 ms</td><td>×5.5 (256-token softmax + FFW)</td></tr>
+<tr><td>Attention</td><td>0.45 ms</td><td>1.84 ms</td><td>×4.1 (bidirectional over 256)</td></tr>
+<tr><td>Shared Expert</td><td>0.74 ms</td><td>1.12 ms</td><td>×1.5</td></tr>
+<tr><td>Attn Output Proj</td><td>0.61 ms</td><td>1.06 ms</td><td>×1.7</td></tr>
+<tr><td>기타</td><td>0.46 ms</td><td>~0.9 ms</td><td>×~2</td></tr>
+<tr><th>Total</th><th>4.01 ms/step</th><th><strong>12.63 ms/step</strong></th><th><strong>×3.2</strong></th></tr>
+</table>
+
+<p>##256 토큰을 처리하는데 시간은 3.2배만 증가##. TPF ≈ 20이므로 실질 speedup은 20/3.2 ≈ 6.3×. 이 부분이 DiffusionGemma의 hardware-friendly한 특성의 핵심:</p>
+<ul>
+  <li><strong>MoE ×4.3</strong>: AR은 8 experts activate, diffusion은 canvas당 평균 84 experts activate(더 다양한 요구가 canvas에 분산). Dense 모델이었다면 ×2 미만이었을 것.</li>
+  <li><strong>Sampling ×5.5</strong>: self-conditioning FFW (V=262k dim) + softmax over 256 canvas positions. PyTorch primitives + torch.compile 사용(kernel 최적화 안 함, 커뮤니티 확장성 위해).</li>
+  <li><strong>Attention ×4.1</strong>: FlashAttention-4 kernel 사용. Single-token AR 최적화 kernel을 못 쓰는 페널티.</li>
+</ul>
+
+<h2>실험 결과 (Section 7)</h2>
+
+<h3>Table 3: 벤치마크 총괄</h3>
+
+<p>DiffusionGemma vs 다른 모델들 (일부 발췌):</p>
+
+<table>
+<tr><th>Benchmark</th><th>DG TD (Think)</th><th>DG AR (Think)</th><th>Gemma 4 AR (MTP)</th><th>LLaDA 2.1 Flash</th><th>Nemotron Diff 14B</th><th>Mercury 2 High</th></tr>
+<tr><td>AIME 2026</td><td>69.1</td><td>84.2</td><td>88.3</td><td>80.0</td><td>40.0</td><td>91.7</td></tr>
+<tr><td>GPQA-Diamond</td><td>73.2</td><td>79.8</td><td>82.3</td><td>68.7</td><td>47.0</td><td>75.2</td></tr>
+<tr><td>LiveCodeBench-v6</td><td>69.1</td><td>71.4</td><td>77.1</td><td>39.4</td><td>28.6</td><td>79.4</td></tr>
+<tr><td>Codeforces ELO</td><td>1429</td><td>1569</td><td>1718</td><td>718</td><td>-</td><td>1986</td></tr>
+<tr><td>GSM8K</td><td>96.3</td><td>96.6</td><td>96.7</td><td>45.0</td><td>-</td><td>96.5</td></tr>
+<tr><td>HumanEval</td><td>94.5</td><td>98.8</td><td>98.8</td><td>90.2</td><td>86.0</td><td>98.2</td></tr>
+<tr><td>MMLU-Pro</td><td>54.3</td><td>63.3</td><td>73.8</td><td>-</td><td>-</td><td>-</td></tr>
+<tr><th>Output Speed (TPS)</th><th><strong>1479</strong></th><th>204</th><th>303</th><th>375</th><th>49</th><th>600</th></tr>
+<tr><th>TPF</th><th>19.74</th><th>1.00</th><th>1.40</th><th>4.63</th><th>1.79</th><th>-</th></tr>
+</table>
+
+<p><strong>Text Diffusion 모델 대비</strong>: DiffusionGemma는 LLaDA 2.1 Flash 100B(8× B200 필요), Nemotron Diffusion 14B를 <em>대부분 벤치에서 압도적 격차</em>로 능가하며, TPS도 4× 더 빠르다.</p>
+
+<p><strong>Mercury 2 대비</strong>: quality는 근소 열세(어려운 벤치 몇 개에서 5~10점 뒤짐), TPS는 <strong>2.5× 우위</strong>. Mercury 2는 폐쇄 모델이라 정확한 하드웨어 조건이 불명확한 점 참고.</p>
+
+<p><strong>Gemma 4 AR (자기 base) 대비</strong>: 절대 quality는 AR mode가 우수(TD는 3~15점 열세), 하지만 <strong>TPS는 5× 빠름</strong>. 이것이 Pareto trade-off의 본질.</p>
+
+<h3>Table 4: Think vs No-Think</h3>
+
+<table>
+<tr><th>Benchmark</th><th>Think Score</th><th>No-Think Score</th><th>Think TPS</th><th>Think E2E (s)</th></tr>
+<tr><td>AIME 2026</td><td>69.1</td><td>50.8 (−18.3)</td><td>1365.4</td><td>4.72</td></tr>
+<tr><td>GPQA-Diamond</td><td>73.2</td><td>64.6 (−8.6)</td><td>1207.8</td><td>4.68</td></tr>
+<tr><td>LiveCodeBench-v6</td><td>69.1</td><td>60.6 (−8.5)</td><td>1278.3</td><td>5.89</td></tr>
+<tr><td>MMLU-Pro</td><td>54.3</td><td>66.0 (+11.7)</td><td>1351.3</td><td>2.35</td></tr>
+</table>
+
+<p>흥미로운 관찰: reasoning-heavy 벤치(AIME, GPQA)는 thinking이 큰 이득을 주지만 MMLU-Pro 같은 knowledge 벤치는 오히려 <strong>thinking이 해가 된다</strong>(−11.7). Diffusion의 특성인 <em>토큰 재수정</em>이 knowledge recall에는 불필요할 수 있다는 시사점.</p>
+
+<h3>Figure 12: Throughput vs Batch Size</h3>
+
+<p>DiffusionGemma vs Gemma 4 AR (MTP)의 per-user throughput과 total GPU throughput:</p>
+<ul>
+  <li><strong>c=1 (single user)</strong>: DiffusionGemma가 4.11× 우위</li>
+  <li><strong>c=8</strong>: 여전히 1.62~1.73× 우위</li>
+  <li><strong>c=16</strong>: 1.22~1.35× 우위</li>
+  <li><strong>c=32+</strong>: AR (MTP)이 역전 시작</li>
+</ul>
+
+<p>이는 <strong>##DiffusionGemma의 sweet spot이 low-batch, latency-critical 서빙##</strong>임을 명확히 한다. 대화형 UI, 코드 에디터, 개인 에이전트 등 concurrent user가 적은 상황에서 압도적 우위.</p>
+
+<h2>다운스트림 활용 (Section 8, 9)</h2>
+
+<h3>Sudoku LoRA 실험 (Table 5, Figure 14)</h3>
+
+<p>Base DiffusionGemma는 Sudoku 정답률 <strong>0.00%</strong>. LoRA rank 8로 fine-tuning 후 <strong>84.40%</strong>. 특히 average denoising steps가 40.65 → 10.72로 감소(예측 entropy가 낮아짐).</p>
+
+<p>이는 diffusion의 <em>non-autoregressive 특성이 puzzle에 이상적</em>임을 시사. Sudoku는 좌→우 순서가 무의미하고 전역적 constraint 만족이 필요한 task라 bidirectional refinement에 자연 정합.</p>
+
+<h3>Bidirectional Reasoning &amp; Self-Correction (Section 9.1)</h3>
+
+<p>AR은 다단계 산술 문제에서 답을 <em>중간 계산 이전에 먼저 커밋</em>해야 하는 부담이 있다. 예로 "(어떤 계산) = ?"의 답 자리에 AR은 sequential하게 −1을 커밋했다가 이후 계산을 봤을 때 이를 수정할 수 없다. DiffusionGemma는 canvas의 후반 토큰이 초반 토큰에 영향을 주며 병렬 진화하므로 answer와 reasoning이 <em>공진화</em>한다. 논문 Figure 15는 초기 잘못된 −1 예측이 iteration을 거치며 최종 −25로 수렴하는 과정을 보여준다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>AR fine-tuning 비용의 10% 미만</strong>으로 diffusion mode를 활성화한 것은 실무적으로 커다란 이정표. 다른 팀들이 pretraining부터 다시 하는 접근을 시도할 때 이 논문은 <em>기존 AR weights의 재사용성</em>을 강하게 논증.</li>
+  <li>SD·RL의 통합 objective는 <strong>curriculum이 자연 발생</strong>한다는 특성이 매우 우아하다. Entropy 감소 → adaptive stopping 조기화 → teacher trajectory 축소의 자기 강화 루프.</li>
+  <li>Emergent conciseness는 AR RL의 length-hacking 문제를 우회하는 예상치 못한 이득. 실무적으로 매우 유용.</li>
+  <li>Dual mode(AR + Diffusion) 유지로 hybrid decoding 경로가 열림. Task-dependent routing이 가능해진다.</li>
+  <li>Open-weights Apache 2.0 배포로 재현성과 확장성 확보. 이미 다운스트림 SFT toolkit이 함께 릴리스됨.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>Absolute quality gap</strong>: TD mode는 AR mode 대비 여전히 3~15점 뒤진다. AIME 2026: 69.1 vs 84.2, LCB-v6: 69.1 vs 71.4. 폐쇄 모델 Mercury 2 High에는 대부분 벤치에서 뒤짐. Speed를 위해 지능을 얼마나 희생했는가에 대한 정직한 회계가 필요.</li>
+  <li><strong>Batch size scaling의 취약함</strong>: c=32+에서 AR (MTP)이 역전. 대규모 서빙 환경(chatbot 서비스)에는 여전히 AR이 더 효율적일 수 있다. Diffusion의 우위 영역이 low-batch에 제한됨.</li>
+  <li><strong>MoE 재사용의 우연성</strong>: DiffusionGemma는 canvas당 84 experts activate. 이는 memory bandwidth를 상당 부분 소진하는 결과. 만약 base 모델이 Dense였다면 결과가 어땠을지 미확인. 저자들 스스로 "Dense였다면 FFN 오버헤드가 2× 미만이었을 것"이라 언급.</li>
+  <li><strong>Sampling kernel 미최적화</strong>: sampling이 3.06ms로 전체의 24%. Custom CUDA kernel로 최적화 여지가 큼. 현재 결과는 여전히 conservative일 가능성.</li>
+  <li><strong>Thinking mode의 이해가 부족</strong>: MMLU-Pro 등 knowledge task에서 thinking이 −11.7점 해가 되는 이유가 분석되지 않음. Diffusion 특유의 무엇이 knowledge recall과 상충하는가?</li>
+  <li><strong>Adaptive stopping의 안정성</strong>: entropy threshold 0.005, budget 0.1 등 하이퍼파라미터의 sensitivity ablation 부재. Domain shift 시 이 값들이 어떻게 무너지는가는 미검증.</li>
+  <li><strong>Long context에서의 검증 부족</strong>: canvas 256 × K개 append 방식이 32K+ context에서도 quality가 유지되는지에 대한 실증이 약함.</li>
+</ul>
+
+<h3>실무 관점 트레이드오프</h3>
+<ul>
+  <li>대화형 UI, 에이전트 워크플로우, IDE 어시스턴트 등 <strong>latency-critical + low-concurrency</strong> 시나리오에 강력한 후보.</li>
+  <li>대규모 chatbot 서비스는 여전히 AR (MTP)이 유리할 가능성. Diffusion으로 마이그레이션은 시나리오 검증 필수.</li>
+  <li>다운스트림 SFT (LoRA rank 8)만으로 domain-specific 능력 획득 가능. Compute barrier가 낮아 커뮤니티 확산 예상.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways: 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>AR → Diffusion 변환은 실용적이다</strong>: pretraining 없이 10% 예산 fine-tune으로 diffusion mode를 켤 수 있다. 다른 오픈 AR 모델(Qwen, DeepSeek 등)로의 이식 가능성이 열림.</li>
+  <li><strong>SD·RL의 통합 objective 아이디어</strong>: sampler compression과 quality alignment를 별개 stage로 두지 말 것. Curriculum이 자연 발생한다.</li>
+  <li><strong>Entropy-bounded sampler + adaptive stopping</strong>은 diffusion inference의 새 표준 후보. Task complexity에 dynamic하게 적응하며 12~15 step으로 수렴.</li>
+  <li><strong>Emergent conciseness</strong>: SD·RL은 AR RL과 달리 응답을 길게 만들지 않는다. Diffusion RL의 유리한 편향.</li>
+  <li><strong>Text diffusion의 sweet spot은 low-batch, latency-critical 시나리오</strong>: 서빙 아키텍처 설계 시 명확한 지침이 됨.</li>
+  <li><strong>Dual mode 유지 전략</strong>: fine-tune 후에도 AR mode를 잃지 않도록 하는 것이 실용성의 관건.</li>
+  <li><strong>Puzzle/constraint satisfaction 태스크에 이상적</strong>: Sudoku 실험이 이 방향성을 입증. Non-sequential 문제 해결에 유망.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<em>(아직 추가된 메모 없음)</em>
+</div>
+
+</div>
+</body>
+</html>

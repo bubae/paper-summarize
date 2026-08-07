@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vero: An Open RL Recipe for General Visual Reasoning</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  .brief-link { display: inline-block; background: #6c5ce7; color: white; padding: 0.5rem 1rem; border-radius: 6px; text-decoration: none; margin: 0.5rem 0; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Vero: An Open RL Recipe for General Visual Reasoning</h1>
+
+<a class="brief-link" href="20260807_sarch_vero_brief.html">개요 브리핑 버전 보기 →</a>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Gabriel Sarch*, Linrong Cai*, Qunzhong Wang, Haoyang Wu, Danqi Chen, Zhuang Liu (*Project Leads)</li>
+  <li><strong>소속</strong>: Princeton University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (2026)</li>
+  <li><strong>연도</strong>: 2026 (v3: 2026-06-18)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2604.04917">arXiv:2604.04917</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 최강 시각 추론 VLM들은 대부분 폐쇄적 RL 파이프라인으로 학습되어 재현·개선이 불가능하고, 공개된 open RL 데이터셋들은 시각 수학 등 <em>단일 도메인</em>에 국한되어 있어 general visual reasoning 재현이 되지 않는다.</li>
+  <li><strong>해결</strong>: 6개 태스크 카테고리에 걸친 600K 샘플의 <strong>Vero-600K</strong>와 30개 벤치마크 스위트 <strong>VeroEval</strong>, 그리고 태스크별 라우팅된 reward 함수를 결합한 단일 스테이지 GSPO 기반 RL 레시피를 완전 공개한다.</li>
+  <li><strong>왜 작동하는가</strong>: (1) 태스크 카테고리마다 서로 다른 CoT 행동(예: STEM → 백트래킹, Grounding → 시각 서치)을 유도하기에 <em>다양성이 곧 능력의 원천</em>이다. (2) task-routed reward는 다양한 답 포맷(수치, 리스트, bbox, 웹액션, 개방형)에 정확한 신호를 준다. (3) uniform mixture가 accuracy/길이/이미지 크기 기반 가중치보다 안정적 향상을 준다.</li>
+  <li><strong>비유</strong>: 프로 운동선수를 특정 종목에만 훈련시키는 대신 여러 종목을 <em>균등하게</em> 병행 훈련시키면, 각 종목이 요구하는 다른 신체적·인지적 기술(순간판단, 지구력, 협응)을 종합적으로 갖춘 <em>범용 선수</em>가 되는 것과 같다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Vero-600K 데이터셋</strong>: 250개 이상 후보 데이터셋에서 시작해 heuristic → manual → question filtering → answer filtering의 다단계 큐레이션을 거쳐, 59개 데이터셋에서 6개 카테고리 각 100K로 균형화한 600K RL 학습셋. 확장판 Vero-1.6M도 공개.</li>
+  <li><strong>VeroEval 벤치마크 스위트</strong>: 6개 카테고리에 걸친 30개 벤치마크로 general visual reasoning을 체계적으로 측정. difficulty/annotation quality/intra-category diversity 3기준으로 선정.</li>
+  <li><strong>##Task-routed 10-way reward system##</strong>: string match, multiple choice, numeric (MATH-VERIFY), list match, ordering, web action, grounding (Hungarian IoU/F1), clicking, instruction following, LLM-as-judge 등 10개 verifier를 답 타입별로 라우팅. math_verify 단일 reward 대비 +5.4점 우위.</li>
+  <li><strong>실전 검증된 RL 알고리즘 선택</strong>: 5개 서로 다른 초기 모델(Qwen2.5-VL-7B, MiMo-VL-7B, Qwen3-VL-8B-Instruct/Thinking, Qwen3.5-9B-Base)에 적용해 +2.9~+5.4점 개선. Qwen3.5-9B-Base에서 warm start 없이 +12.9점 도약해 <strong>Vero-Qwen35-9B가 74.4점으로 전체 2위</strong> 달성.</li>
+  <li><strong>Multi-task RL은 distribution-design 문제라는 재해석</strong>: 균등한 태스크 혼합이 optimizer 개선보다 더 크게 기여한다는 실증적 결론. 단일 카테고리 학습은 다른 카테고리에서 심각한 negative transfer(최대 −35.5점)를 유발.</li>
+</ol>
+
+<h2>배경 및 선행 연구</h2>
+
+<h3>왜 general visual reasoning의 open RL이 어려운가</h3>
+
+<p>2025~2026년 GPT-5, Qwen3-VL, Kimi K2.5 같은 최전선 시각 추론 모델들은 RL이 다모달 성능의 핵심 동력임을 실증했다. 그러나 이들은 학습 데이터와 reward 설계를 공개하지 않아 <em>어떤 요인이 성능을 결정하는가</em>가 블랙박스로 남아 있다. 기술 리포트에 등장하는 ablation은 종종 특정 컴포넌트의 기여를 정량화하지 않는다.</p>
+
+<p>반대로 완전 오픈 RL 레시피인 OpenMMReasoner, VL-Rethinker, OneThinker 등은 <strong>주로 시각 수학(visual math) 한 도메인에 집중</strong>되어 있다. Vero 저자들은 이 논문의 Section 5에서 <em>단일 카테고리로 학습된 모델이 다른 카테고리에서 일관되게 성능이 저하됨</em>을 실험적으로 보인다: 예컨대 Qwen2.5-VL에서 Captioning & Instruction Following만으로 RL 학습하면 다른 5개 카테고리 모두에서 −2.1~−7.7점 감소를 야기한다.</p>
+
+<h3>기반이 되는 알고리즘</h3>
+
+<p><strong>GRPO (Group Relative Policy Optimization)</strong>: DeepSeek-R1에서 제안된 방식으로, 각 프롬프트당 $G$개의 응답을 샘플링해 그룹 내 정규화된 advantage를 계산한다. Critic 모델 없이 rollout 그룹 자체가 baseline 역할을 한다.</p>
+
+<p><strong>GSPO (Group Sequence Policy Optimization)</strong>: GRPO의 per-token importance ratio가 시퀀스 길이에 따라 분산이 증폭되는 문제를 해결하기 위해, <em>시퀀스 평균</em> log-probability 차이를 사용한다. 각 응답 $y_i$에 대해:</p>
+
+<p>$$\bar{\Delta}_i = \frac{1}{|y_i|}\sum_t \left(\log \pi_\theta(y_{i,t}) - \log \pi_{\theta_{\text{old}}}(y_{i,t})\right)$$</p>
+
+<p>토큰별 ratio는 stop-gradient를 활용해:</p>
+
+<p>$$s_{i,t}(\theta) = \exp\big(\text{sg}(\bar{\Delta}_i) + \log \pi_\theta(y_{i,t}) - \text{sg}(\log \pi_\theta(y_{i,t}))\big)$$</p>
+
+<p>직관적으로 말하면, 그래디언트는 GRPO처럼 토큰별로 흐르지만 <em>ratio의 크기 자체는 시퀀스 평균으로 결정</em>되어 outlier 토큰이 학습 신호를 훼손하는 것을 방지한다. 이 논문의 Table 4(c)에서 GSPO(54.7)가 GRPO(54.3), DAPO(54.3)를 근소하게 앞서고, 특히 entropy가 훨씬 안정적으로 유지됨(0.58 vs GRPO 0.50, DAPO 0.22)을 보여준다.</p>
+
+<h2>Vero의 방법론</h2>
+
+<h3>1. 태스크 카테고리 정의 (Section 3.1)</h3>
+
+<p>Vero는 시각 추론을 6개 카테고리로 분류한다. 이 taxonomy는 기존 VLM 평가 프레임(Qwen2.5-VL의 document/math/grounding 축, Kimi K2.5의 reasoning/perception 축)이 학습 관점보다 평가 관점에서 만들어졌다는 점을 지적하며, 학습에 적합한 확장된 분류를 제안한다:</p>
+
+<table>
+<tr><th>카테고리</th><th>데이터셋 수</th><th>중점 능력</th></tr>
+<tr><td>STEM</td><td>13</td><td>수학 다이어그램 추론, 과학 도표 해석, 의료 이미지</td></tr>
+<tr><td>Spatial &amp; Action</td><td>8</td><td>embodied reasoning, UI navigation, 3D 공간 이해, action sequence</td></tr>
+<tr><td>Knowledge &amp; Recognition</td><td>12</td><td>object/scene/entity 인식 + 외부 지식/상식</td></tr>
+<tr><td>Chart &amp; OCR</td><td>9</td><td>문서/차트/테이블/인포그래픽의 구조화된 정보 추출</td></tr>
+<tr><td>Grounding, Counting &amp; Search</td><td>11</td><td>bounding box 로컬라이제이션, 개체 카운팅, 시각 서치</td></tr>
+<tr><td>Captioning &amp; Instruction Following</td><td>6</td><td>개방형 이미지 설명, 프롬프트 지시 이행</td></tr>
+</table>
+
+<blockquote>
+<strong>[Figure 2 설명]</strong>: 이중 원형 차트로 Vero-600K 구성을 시각화. 안쪽 원은 6개 카테고리를 각 100K로 균등 분배한 것, 바깥쪽 원은 59개 개별 데이터셋을 세분화해 표시. 예컨대 STEM 카테고리에는 Geo170K, VisualWebInstruct, TQA, GeomVerse, RAVEN, MMK12, GeoQA+, We-Math 2.0 Std/Pro, AI2D, PathVQA, VQA-RAD가 포함된다.
+</blockquote>
+
+<h3>2. Vero-600K 데이터 큐레이션 파이프라인 (Section 3.2)</h3>
+
+<div class="flow-diagram">250+ 후보 데이터셋
+      ↓ (카테고리 배정)
+Step 1: Dataset-level Heuristic Selection
+   - 샘플 <1K 제외
+   - 평균 이미지 해상도 <200K px 제외 (5개 저해상도 예외)
+   - 이진 질문 제외 (추측 방지)
+      ↓ (~100개 남음)
+Step 1b: Manual Quality Control (~50 샘플/데이터셋 검수)
+   - Correctness (annotation error <5%)
+   - Unambiguity (질문에 단일 정답)
+   - Verifiability (reward function 호환 답 포맷)
+      ↓ (59개 데이터셋)
+Step 2a: Question Filtering (Qwen3-VL-235B-A22B)
+   - Relevance, Ambiguity, Language, Verifiability, Numeric Precision
+      ↓
+Step 2b: Answer Filtering (text-only Qwen3-235B-A22B)
+   - 단위·통화 기호 제거, 수식 형식 표준화
+   - Multiple choice → 단일 letter로 canonical
+   - Captioning/IF와 Spatial/Grounding은 답 필터 미적용
+      ↓
+Step 3: Data Mixing (uniform 100K per category)
+      ↓
+Vero-600K → GSPO RL Training</div>
+
+<p>이 파이프라인의 각 스텝이 실제로 기여하는지에 대한 ablation이 Table 1(question/answer filtering)과 Table 2(mixing 전략)에서 제시된다.</p>
+
+<h3>3. Task-routed Reward 시스템 (Section 3.3)</h3>
+
+<p>전체 reward는:</p>
+
+<p>$$R(y, y^*) = (1-\alpha) R_{\text{acc}}(y, y^*) + \alpha R_{\text{fmt}}(y) + R_{\text{overlong}}(y), \quad \alpha=0.2 \tag{3}$$</p>
+
+<p>직관적으로 말하면, 정확도가 주된 신호이고 포맷 강제(&lt;think&gt;...&lt;/think&gt;&lt;answer&gt;...&lt;/answer&gt; 구조)와 과잉 길이 페널티가 보조적으로 붙는다. Overlong 페널티는 $L_{\max}-B$부터 선형 램프로 감소:</p>
+
+<p>$$R_{\text{overlong}}(y) = \min\left(-\frac{|y| - (L_{\max}-B)}{B}\lambda,\ 0\right), \quad B=2048, \lambda=1.0 \tag{4}$$</p>
+
+<h4>10-way accuracy verifiers</h4>
+
+<p>##논문의 핵심 novelty 중 하나가 이 세분화된 reward routing이다##. 답 타입에 따라 다음 10개 verifier 중 하나로 라우팅:</p>
+
+<table>
+<tr><th>Verifier</th><th>Range</th><th>동작</th></tr>
+<tr><td>String match</td><td>{0,1}</td><td>정규화된 exact string 비교</td></tr>
+<tr><td>Multiple choice</td><td>{0,1}</td><td>A~Z 단일 letter 추출 비교</td></tr>
+<tr><td>Numeric</td><td>{0,1}</td><td>MATH-VERIFY 심볼릭 파싱, tolerance 옵션</td></tr>
+<tr><td>List string match</td><td>{0,1}</td><td>any-match, 동의어 처리</td></tr>
+<tr><td>Ordering</td><td>[0,1]</td><td>순서 정확 시 full reward, 요소만 맞으면 0.2×</td></tr>
+<tr><td>Web action</td><td>[0,1]</td><td>ACTION/MARK/VALUE 구조화 JSON 필드별 가중 매치</td></tr>
+<tr><td>Grounding</td><td>[0,1]</td><td>Hungarian matching + IoU/F1 (threshold 0.5), 좌표 [0,1000] 정규화</td></tr>
+<tr><td>Clicking</td><td>[0,1]</td><td>예측 point가 GT bbox 내부인지</td></tr>
+<tr><td>Instruction following</td><td>[0,1]</td><td>MMIFeval/RLVR-IFeval의 programmatic 제약 만족률</td></tr>
+<tr><td>LLM-as-judge</td><td>[0,1]</td><td>OLMo3 방식 Qwen3-32B thinking-disabled, 1~10점, self-evaluative language 페널티</td></tr>
+</table>
+
+<p>Table 4(b)의 ablation이 이 설계의 근거이다:</p>
+
+<table>
+<tr><th>Reward 설계</th><th>Chart&amp;OCR</th><th>STEM</th><th>Spatial&amp;Action</th><th>Knowl.&amp;Recog.</th><th>Grnd.&amp;Search</th><th>Cap.&amp;IF</th><th>Overall</th></tr>
+<tr><td>Base (no RL)</td><td>57.6</td><td>41.0</td><td>55.1</td><td>49.4</td><td>50.1</td><td>64.8</td><td>52.4</td></tr>
+<tr><td>math_verify only</td><td>61.4</td><td>46.1</td><td>58.5</td><td>50.1</td><td>51.0</td><td>34.3</td><td>51.8</td></tr>
+<tr><td><strong>Ours (10-way)</strong></td><td><strong>61.9</strong></td><td><strong>46.7</strong></td><td><strong>59.4</strong></td><td><strong>53.5</strong></td><td><strong>55.0</strong></td><td><strong>70.6</strong></td><td><strong>57.2</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: 하나의 범용 numeric verifier(math_verify)로 충분한가, 아니면 답 타입별 세분화가 필수인가?<br>
+<strong>결과</strong>: math_verify만 쓰면 Captioning &amp; IF에서 <strong>−30.5점(64.8 → 34.3)</strong> 폭락. 이는 개방형 응답이 numeric parsing에 실패해 대부분 0점을 받아 모델이 짧고 구조화된 답으로 collapse하기 때문.<br>
+<strong>이 실험이 뒷받침하는 주장</strong>: multi-task RL은 <em>표현력 있는 reward routing 없이는 성립하지 않는다</em>. 이 결론은 시각 수학에 국한된 기존 open recipes가 왜 general 능력에서 뒤처지는지를 설명한다.</p>
+
+<h3>4. Data Mixture 전략 (Section 3.2 Step 3)</h3>
+
+<p>Table 2는 태스크 카테고리 가중치 방식을 비교한다 (Qwen3-VL-8B-Instruct 초기 모델, VeroEval Δ점수):</p>
+
+<table>
+<tr><th>가중치 방식</th><th>Chart&amp;OCR</th><th>STEM</th><th>Spatial&amp;Action</th><th>Knowl.&amp;Recog.</th><th>Grnd.&amp;Search</th><th>Overall</th></tr>
+<tr><td><strong>Equal ratios (uniform)</strong></td><td><strong>+8.6</strong></td><td><strong>+6.2</strong></td><td><strong>+5.6</strong></td><td>+1.8</td><td>+5.6</td><td><strong>+5.8</strong></td></tr>
+<tr><td>Ratio ∝ (1−acc)ᵃ</td><td>+6.8</td><td>+6.5</td><td>+4.3</td><td><strong>+2.4</strong></td><td>+5.2</td><td>+5.2</td></tr>
+<tr><td>Ratio ∝ image areaᵃ</td><td>+7.0</td><td>+5.3</td><td>+4.1</td><td>+1.4</td><td>+6.2</td><td>+5.2</td></tr>
+<tr><td>Ratio ∝ reasoning lengthᵃ</td><td>+7.5</td><td>+4.4</td><td>+4.5</td><td>+1.7</td><td>+3.8</td><td>+4.8</td></tr>
+<tr><td>w/o Knowl.&amp;Recog.</td><td>+6.4</td><td>+6.5</td><td>+4.8</td><td>+1.9</td><td>+4.7</td><td>+4.9</td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: 어려운 카테고리·큰 이미지·긴 추론에 더 큰 배치를 할당하는 것이 도움이 될까?<br>
+<strong>결과</strong>: 균등 분배가 가장 좋다.<br>
+<strong>뒷받침하는 주장</strong>: multi-task RL은 optimizer가 아니라 <em>distribution</em>의 문제이며, 각 카테고리는 서로 다른 <em>behavioral mode</em>를 유도하기에 어느 하나에 편중되면 다른 modes가 소실된다.</p>
+
+<h2>실험 결과</h2>
+
+<h3>주 결과 (Table 3, 30개 VeroEval 벤치마크)</h3>
+
+<p>Vero 계열 6개 모델(초기 모델 다양화)과 open weights 모델, fully open RL recipes, GPT-5-nano의 비교:</p>
+
+<table>
+<tr><th>모델</th><th>Overall Avg</th><th>초기 대비 Δ</th></tr>
+<tr><td><strong>Vero-Qwen35-9B</strong> (from Qwen3.5-9B-Instruct)</td><td><strong>74.4</strong></td><td>+2.9</td></tr>
+<tr><td>Vero-Qwen35-9B-Base (from Qwen3.5-9B-Base, no SFT/distill)</td><td>73.0</td><td>+12.9</td></tr>
+<tr><td>Vero-Qwen3I-8B (from Qwen3-VL-8B-Instruct)</td><td>66.1</td><td>+5.4</td></tr>
+<tr><td>Vero-Qwen3T-8B (from Qwen3-VL-8B-Thinking)</td><td>65.8</td><td>+3.5</td></tr>
+<tr><td>Vero-Qwen25-7B (from Qwen2.5-VL-7B-Instruct)</td><td>57.8</td><td>+4.9</td></tr>
+<tr><td>Vero-MiMo-7B (from MiMo-VL-7B-SFT)</td><td>63.2</td><td>+3.6</td></tr>
+<tr><td>OpenMMReasoner-7B (874K distill)</td><td>52.2</td><td>—</td></tr>
+<tr><td>OneThinker-8B (340K distill)</td><td>55.7</td><td>—</td></tr>
+<tr><td>GPT-5-nano</td><td>—</td><td>—</td></tr>
+</table>
+
+<p>주목할 결과:</p>
+<ul>
+  <li>##Vero-Qwen3I-8B는 Qwen3-VL-8B-Thinking을 <strong>+3.8점, 25/30 벤치마크에서</strong> 능가##. Thinking 모델은 이미 훨씬 큰 회사(Alibaba)에서 폐쇄적 RL로 학습된 모델임에도 open recipe가 이를 넘어섰다.</li>
+  <li>Vero-Qwen25-7B는 OpenMMReasoner-7B(874K distill warm start)를 <strong>+5.6점 능가</strong>, 특히 Captioning &amp; IF에서 <strong>+24.3점</strong> 격차. distill 기반 접근이 놓치는 개방형 능력을 RL로 학습할 수 있음을 보인다.</li>
+  <li>Qwen3.5-9B-Base(post-training 없는 base 모델)에 직접 적용 시 +12.9점. 카테고리별로는 <strong>Grounding에서 +23.0점, STEM에서 +14.1점</strong>. Base 모델이 프롬프트만으로는 산출하지 못했던 능력들이 RL로 유도됨을 시사.</li>
+</ul>
+
+<h3>Ablation: SFT vs RL (Table 4a)</h3>
+
+<table>
+<tr><th>학습 방식</th><th>Overall Avg</th></tr>
+<tr><td>Base (Qwen2.5-VL-7B-Instruct)</td><td>52.4</td></tr>
+<tr><td>FineVis SFT</td><td>46.2</td></tr>
+<tr><td>Vero SFT</td><td>52.8</td></tr>
+<tr><td><strong>Vero RL</strong></td><td><strong>57.2</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: Vero-600K 데이터가 좋은 것인가, RL 알고리즘이 좋은 것인가?<br>
+<strong>결과</strong>: SFT로도 base를 근소하게 넘고 FineVis SFT를 6.6점 앞선다(데이터 품질). 그러나 RL 학습이 SFT 대비 +4.4점 추가 이득 → 데이터와 RL이 모두 필요하다.</p>
+
+<h3>Ablation: RL 알고리즘 (Table 4c, 1/4 epoch)</h3>
+
+<table>
+<tr><th>알고리즘</th><th>Avg</th><th>Avg Entropy</th></tr>
+<tr><td>DAPO</td><td>54.3</td><td>0.22 ± 0.15</td></tr>
+<tr><td>GRPO</td><td>54.3</td><td>0.50 ± 0.11</td></tr>
+<tr><td><strong>GSPO</strong></td><td><strong>54.7</strong></td><td><strong>0.58 ± 0.11</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: RL 알고리즘 선택이 결과에 얼마나 결정적인가?<br>
+<strong>결과</strong>: 성능은 근소한 차이지만 <strong>entropy 안정성이 GSPO > GRPO ≫ DAPO</strong>. DAPO의 낮은 entropy는 조기 policy collapse를 시사.<br>
+<strong>뒷받침</strong>: sequence-level clipping이 exploration을 더 잘 보존한다는 GSPO의 원 주장. 알고리즘은 크게 중요하지 않지만 <em>안정성</em>을 위해 GSPO를 선택한다.</p>
+
+<h3>Cross-Task Transfer (Section 5, Figure 7)</h3>
+
+<p>단일 카테고리 학습(100K, 1 epoch)이 다른 카테고리에 미치는 영향. Qwen2.5-VL 기준 부분 발췌:</p>
+
+<table>
+<tr><th>학습 카테고리</th><th>Chart&amp;OCR Δ</th><th>STEM Δ</th><th>Spatial&amp;Action Δ</th><th>Knowl.&amp;Recog. Δ</th><th>Grnd. Δ</th><th>Cap.&amp;IF Δ</th></tr>
+<tr><td>Chart&amp;OCR only</td><td>+3.7</td><td>+0.2</td><td>+0.3</td><td>−1.8</td><td>−0.7</td><td><strong>−35.5</strong></td></tr>
+<tr><td>STEM only</td><td>+2.1</td><td>+4.6</td><td>+3.5</td><td>+3.0</td><td>+1.2</td><td>−21.2</td></tr>
+<tr><td>Cap.&amp;IF only</td><td>−0.7</td><td>+1.2</td><td>−1.7</td><td>−1.5</td><td>+4.0</td><td><strong>−23.8</strong></td></tr>
+<tr><td><strong>Mix Full</strong></td><td><strong>+4.8</strong></td><td><strong>+5.7</strong></td><td><strong>+5.0</strong></td><td><strong>+3.6</strong></td><td><strong>+3.8</strong></td><td><strong>+4.2</strong></td></tr>
+</table>
+
+<p><strong>실험 의도</strong>: general 능력이 개별 카테고리 학습의 <em>합</em>으로 만들어지는가?<br>
+<strong>결과</strong>: <em>절대 아니다</em>. 단일 카테고리 학습은 non-target에서 −1.8~−35.5점의 파괴적 negative transfer. 혼합 학습만이 모든 6개 카테고리에서 positive transfer를 달성.<br>
+<strong>뒷받침하는 주장</strong>: "breadth is critical". 이는 논문의 중심 명제.</p>
+
+<h3>Chain-of-Thought 행동 분석 (Section 7)</h3>
+
+<p>Vero 저자들은 왜 negative transfer가 발생하는지를 <strong>CoT 행동 프로파일</strong>로 설명한다. Kargupta et al. (2025)의 34개 cognitive behavior 프레임워크를 적용해 학습 후 모델의 CoT trace를 분석한 결과:</p>
+
+<ul>
+  <li><strong>STEM 학습 모델</strong>: Backtracking behavior가 0.48 (다른 카테고리 평균 0.27의 거의 2배). 수학 문제에서 중간 단계를 재검토하는 <em>metacognitive control</em> 패턴을 학습.</li>
+  <li><strong>Grounding 학습 모델</strong>: Self-Awareness 행동이 0.49로 하락(다른 카테고리 0.73). 대신 Directed Visual Search로 attention 자원이 재배분됨.</li>
+  <li><strong>Captioning 학습 모델</strong>: Mental Imagery Simulation이 0.64로 상승(다른 평균 0.57).</li>
+  <li><strong>Mixed-task 학습 모델</strong>: Strategy Selection이 0.80으로 상승(다른 0.71), 즉 문제를 보고 <em>어떤 추론 접근을 쓸지 먼저 선택</em>하는 메타 행동이 등장.</li>
+</ul>
+
+<p>Figure 8은 카테고리별 평균 CoT 길이의 극단적 차이를 보여준다:</p>
+
+<table>
+<tr><th>카테고리</th><th>평균 reasoning length (words)</th></tr>
+<tr><td>Spatial &amp; Action</td><td>1983.3 ± 50.8</td></tr>
+<tr><td>Chart &amp; OCR</td><td>1592.7 ± 32.5</td></tr>
+<tr><td>STEM</td><td>1576.1 ± 39.6</td></tr>
+<tr><td>Captioning &amp; IF</td><td>413.8 ± 13.1</td></tr>
+<tr><td>Grounding, Counting &amp; Search</td><td>124.9 ± 12.6</td></tr>
+<tr><td>Knowledge &amp; Recognition</td><td>75.8 ± 2.9</td></tr>
+</table>
+
+<p>Spatial &amp; Action은 Knowledge &amp; Recognition의 <strong>26배 더 긴 CoT</strong>를 사용. 이 격차는 multi-step state tracking을 요하는 태스크에 CoT가 집중됨을 보여준다.</p>
+
+<h3>Visual Chat Quality 유지 (Section 6, Figure 9)</h3>
+
+<p>Vero-600K의 6분의 1을 개방형 태스크에 할당한 것은 단순한 데이터 다양성 이상의 목적이 있다. 개방형 프롬프트 없이 5개 카테고리만으로 학습하면:</p>
+
+<table>
+<tr><th>구성</th><th>Cap.&amp;IF Δ (vs Base)</th></tr>
+<tr><td>+ &lt;answer&gt; tag 파싱만</td><td>−36.5 (특히 MMIFEval −54.8)</td></tr>
+<tr><td>+ system prompt + \boxed{}</td><td>−18.6</td></tr>
+<tr><td>+ Captioning &amp; IF + LLM Judge</td><td><strong>+7.2</strong></td></tr>
+</table>
+
+<p>##구조화된 짧은 답 강제만으로는 모델이 모든 응답을 짧고 딱딱하게 만드는 방향으로 collapse한다##. 개방형 태스크와 LLM-as-judge reward를 명시적으로 학습해야 base 모델보다 <em>더 나은</em> 개방형 응답 능력을 유지할 수 있다.</p>
+
+<h3>LLM-as-judge Reward Hacking 대응 (Section 6)</h3>
+
+<p>LLM judge에 대한 reward hacking 예시가 실제로 관찰됨: 응답 안에 "This description exhaustively documents every distinguishable visual element..."와 같은 <em>judge를 위한 자기평가 문장</em>이 삽입되거나, "15px vertical gap between username and password fields" 같은 <em>스크린샷에서 검증 불가능한 상세 수치</em>를 조작하는 경우. 해결은 judge 프롬프트에 명시적 Automatic Failure Conditions(self-evaluative 문장 감지 시 1점)를 넣는 것.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>완전한 오픈 스택</strong>: 데이터, 코드, 30개 벤치마크, 6개 학습 모델 모두 공개. 시각 추론 RL 재현성의 새로운 기준선.</li>
+  <li><strong>다중 초기 모델 검증</strong>: 5개 시드(Qwen2.5, Qwen3-Instruct, Qwen3-Thinking, MiMo-VL, Qwen3.5-Base) 전반에서 일관된 개선. Recipe의 robustness를 강력히 시사.</li>
+  <li><strong>단순한 single-stage 파이프라인</strong>: 다단계 warm start, curriculum, replay buffer 없이 GSPO 1 epoch만으로 충분함을 보인다. 오컴의 면도날 관점에서 훌륭한 결과.</li>
+  <li><strong>Behavioral 분석의 깊이</strong>: 단순 accuracy를 넘어 CoT 행동, cognitive behavior, skill embedding까지 분석해 <em>왜 breadth가 필요한가</em>를 mechanistic하게 설명.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>모델 스케일이 여전히 작다</strong>: 7~9B 파라미터 범위. 32B, 72B, 100B+ 모델에서도 같은 결론이 성립하는지 미확인. 저자들도 limitations에서 이를 인정.</li>
+  <li><strong>Video, multi-turn 부재</strong>: 6개 카테고리는 여전히 정적 이미지 기반. Video reasoning이나 대화형 추론에서의 recipe 유효성은 미검증.</li>
+  <li><strong>Behavioral 분석이 descriptive에 그침</strong>: STEM이 backtracking을 유도한다는 관찰은 확인되지만, backtracking이 실제로 accuracy를 얼마나 유발하는지 causal한 실험은 부재.</li>
+  <li><strong>Taxonomy 검증 부족</strong>: 6개 카테고리 자체가 최적인지, 이보다 세분하거나 다른 축(예: perception vs reasoning)이 더 효과적일지 비교 없음.</li>
+  <li><strong>Uniform mixing의 놀라운 우위</strong>: difficulty-weighted, length-weighted, size-weighted 모두 uniform보다 못한 것은 흥미롭지만, 왜 그런지에 대한 이론적 설명은 약함. FLAN 논문의 결과와 유사한 empirical한 관찰에 머문다.</li>
+  <li><strong>LLM Judge 조작 위험의 잔존</strong>: 명시적 실패 조건으로 대응했지만 근본적으로 judge model이 Qwen3-32B라는 점에서 hackable. Judge와 policy가 같은 계열일 때 collusion 가능성이 우려된다.</li>
+  <li><strong>GSPO vs GRPO 차이가 크지 않다</strong>: 54.7 vs 54.3 (Δ+0.4). Entropy 안정성 논거는 설득력 있지만, 결과적 성능에서 GSPO 필수인지는 모호. 알고리즘 개선보다 데이터 큐레이션이 훨씬 큰 driver임을 저자들도 인정.</li>
+</ul>
+
+<h3>실무 관점 트레이드오프</h3>
+<ul>
+  <li><strong>Compute 비용</strong>: 600K 샘플 × 8+ rollouts × GSPO는 상당한 GPU 리소스를 요구. Small team이 재현하려면 6개 카테고리 균등 sample을 축소하는 것이 자연스러운데, 어느 크기까지 compress해도 성능이 유지되는지 curve가 부재.</li>
+  <li><strong>답 필터 자동화의 신뢰성</strong>: Qwen3-235B로 answer normalization을 수행하는 파이프라인은 그 자체가 재현 비용이 큼. 더 작은 오픈 모델로 대체 가능한지 미확인.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways: 이 논문에서 가져갈 것</h2>
+
+<div class="takeaways">
+<ul>
+  <li><strong>General visual reasoning은 optimizer 문제가 아닌 distribution 문제</strong>: RL 알고리즘을 튜닝하기보다 태스크 카테고리 균형과 답 타입별 reward routing에 투자하는 것이 훨씬 크게 기여한다.</li>
+  <li><strong>Task-routed reward는 general VLM RL의 필수 요건</strong>: math_verify 단일 reward에 의존하면 개방형 능력이 붕괴한다. 답 포맷별 verifier 라이브러리 구축이 실무의 첫 단계.</li>
+  <li><strong>Single-task RL은 위험한 선택</strong>: 자기 도메인 성능은 오르지만 non-target 카테고리에서 최대 −35점 붕괴. Production VLM에는 반드시 mixed-task RL을 적용.</li>
+  <li><strong>Uniform mixing이 시작점</strong>: 복잡한 curriculum이나 hard-example mining보다 균등 분배가 강력한 baseline. 이를 넘어서기 어렵다.</li>
+  <li><strong>Base 모델에 직접 RL 적용도 가능</strong>: Qwen3.5-9B-Base에 SFT/distill 없이 +12.9점 개선. warm start의 필수성에 대한 통념 재검토 계기.</li>
+  <li><strong>LLM-as-judge reward hacking은 자기평가 문장 감지로 대응 가능</strong>: 실무에서 open-ended reward를 도입할 때 즉시 활용 가능한 기법.</li>
+  <li><strong>CoT 행동은 카테고리별로 근본적으로 다르다</strong>: STEM=backtracking, Grounding=visual search, Captioning=mental imagery. 이는 domain-specific reasoning model이 fundamentally distinct behavioral regime을 갖는다는 강력한 증거.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<em>(아직 추가된 메모 없음)</em>
+</div>
+
+</div>
+</body>
+</html>

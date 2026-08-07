@@ -1,0 +1,768 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>W2S-OPD — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans KR', sans-serif; line-height: 1.7; color: #1a1a1a; margin: 0; background: #fff; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+  .hero { background: linear-gradient(135deg, #16a085 0%, #6c5ce7 100%); color: white; padding: 4rem 1.5rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+  .hero h1 { font-size: 2.5rem; margin: 1rem 0 0.5rem; }
+  .hero p.sub { font-size: 1.15rem; opacity: 0.95; max-width: 750px; margin: 0.5rem auto; }
+  .hero a.top-link { display: inline-block; background: rgba(255,255,255,0.15); color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.3); }
+  section { padding: 2.5rem 0; border-bottom: 1px solid #eee; }
+  section h2 { font-size: 1.7rem; margin-top: 0; color: #0e5f5f; border-left: 5px solid #16a085; padding-left: 0.8rem; }
+  .one-liner { background: linear-gradient(135deg, #16a085, #6c5ce7); color: white; padding: 1.5rem 2rem; border-radius: 12px; font-size: 1.15rem; text-align: center; margin: 1.5rem 0; }
+  .one-liner .quote { font-style: italic; font-weight: 500; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 180px; background: #f8f9fa; padding: 1.2rem; border-radius: 10px; text-align: center; border-top: 4px solid #16a085; }
+  .stat .num { font-size: 2rem; font-weight: 700; color: #0e5f5f; }
+  .stat .lbl { font-size: 0.9rem; color: #666; margin-top: 0.3rem; }
+  .card { background: #f8f9fa; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1rem 0; }
+  .card-accent { border-left: 5px solid #16a085; background: #e8f5f2; }
+  .card-green { border-left: 5px solid #27ae60; background: #eaf7ef; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fdf3e6; }
+  .card-red { border-left: 5px solid #e74c3c; background: #fbeae8; }
+  .card h3 { margin: 0 0 0.5rem; color: #0e5f5f; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { border: 1px solid #ddd; padding: 0.7rem; text-align: left; }
+  .comp-table th { background: #0e5f5f; color: white; }
+  .comp-table tr:nth-child(even) { background: #f8f9fa; }
+  .comp-table td.win { background: #d4edda; font-weight: 600; }
+  .svg-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }
+  .svg-wrap .caption { font-size: 0.9rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+  footer { background: #0e5f5f; color: white; padding: 2rem 1.5rem; text-align: center; }
+  footer a { color: #a0e0d0; }
+  @media (max-width: 600px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .stat-row { flex-direction: column; } .hero h1 { font-size: 1.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">Microsoft Research · UMD · MBZUAI</span>
+  <span class="badge">2026-08 · Technical Report</span>
+  <span class="badge">Distillation · Post-Training</span>
+  <h1>Weak-to-Strong<br>On-Policy Distillation</h1>
+  <p class="sub">Student보다 약한 두 모델의 logit 차이로 <strong>capability direction</strong>을 분리해, student의 base 위에 얹어 proxy teacher를 합성.</p>
+  <a class="top-link" href="20260807_yu_w2s-opd.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<section>
+  <h2>한 줄 요약</h2>
+  <div class="one-liner">
+    <p class="quote">"약한 모델을 imitate하지 말고, 두 약한 모델의 <em>차이 방향</em>만 뽑아 강한 student의 base 위에 얹어라."</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="num">8B</div><div class="lbl">Student (Qwen3-8B)</div></div>
+    <div class="stat"><div class="num">4B</div><div class="lbl">Positive teacher (weaker!)</div></div>
+    <div class="stat"><div class="num">51.8</div><div class="lbl">Math avg (teacher 48.8 초월)</div></div>
+    <div class="stat"><div class="num">+5.3</div><div class="lbl">Math vs OPD (pre-RL/post-RL)</div></div>
+    <div class="stat"><div class="num">+6.0</div><div class="lbl">Math vs base (0.6B+4B pair, 훈련 없이)</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>왜 W2S-OPD가 필요한가</h2>
+  <div class="grid-2">
+    <div class="card card-red">
+      <h3>Strong-to-Weak OPD의 한계</h3>
+      <p>Qwen3, Gemma 등은 <em>더 큰 teacher</em>(235B)에서 8B로 distill. 하지만 <strong>frontier 모델은 더 큰 teacher가 없다</strong>. Performance ceiling.</p>
+    </div>
+    <div class="card card-red">
+      <h3>Same-Origin Consolidation의 비용</h3>
+      <p>MOPD, DeepSeek-V4는 여러 domain expert를 <em>student scale</em>로 학습 후 병합. Student scale RL은 극도로 비싸다.</p>
+    </div>
+  </div>
+  <div class="card card-accent">
+    <h3>제3의 길: Weak-to-Strong</h3>
+    <p>이미 존재하거나 저비용으로 얻을 수 있는 <em>약한 supervision source</em>로 강한 student를 개선. 그러나 direct application은 (1) distributional mismatch, (2) teacher ceiling에 걸린다.</p>
+    <p><strong>W2S-OPD의 해답</strong>: 약한 모델을 imitate하지 않고, 두 약한 모델의 <em>capability direction</em>만 뽑아 student의 base에 anchoring.</p>
+  </div>
+</section>
+
+<section>
+  <h2>W2S-OPD Framework (Figure 2 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1000 500" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Weak Teacher Models -->
+      <g>
+        <rect x="20" y="30" width="290" height="170" rx="10" fill="#f2eef8" stroke="#6c5ce7" stroke-width="2"/>
+        <text x="165" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#4a2c76">Weak Teacher Models</text>
+
+        <!-- Positive Model -->
+        <g transform="translate(40 80)">
+          <rect x="0" y="0" width="80" height="45" rx="6" fill="#eaf3fe" stroke="#4a90d9"/>
+          <text x="40" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#1a3a6c">Positive</text>
+          <text x="40" y="35" text-anchor="middle" font-size="10" fill="#1a3a6c">Model m⁺</text>
+        </g>
+        <text x="130" y="105" font-size="14" fill="#8b2c8f">→ z⁺ (logits)</text>
+        <text x="235" y="118" font-size="12" fill="#666" font-family="monospace">z⁺−z̄</text>
+        <text x="235" y="132" font-size="10" fill="#666" font-style="italic">divide</text>
+
+        <!-- Negative Model -->
+        <g transform="translate(40 140)">
+          <rect x="0" y="0" width="80" height="45" rx="6" fill="#fbeae8" stroke="#e74c3c"/>
+          <text x="40" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#8b1a1a">Negative</text>
+          <text x="40" y="35" text-anchor="middle" font-size="10" fill="#8b1a1a">Model m⁻</text>
+        </g>
+        <text x="130" y="165" font-size="14" fill="#8b2c8f">→ z⁻ (logits)</text>
+        <text x="235" y="178" font-size="12" fill="#666" font-family="monospace">z⁻</text>
+        <text x="235" y="192" font-size="10" fill="#666" font-style="italic">minus</text>
+      </g>
+
+      <!-- Logits Offsets computation -->
+      <g>
+        <rect x="335" y="90" width="130" height="90" rx="6" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+        <text x="400" y="115" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a20">Logits</text>
+        <text x="400" y="132" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a20">Offsets</text>
+        <text x="400" y="155" text-anchor="middle" font-size="14" font-family="monospace" font-weight="700">z⁺ − z⁻</text>
+        <text x="400" y="172" text-anchor="middle" font-size="10" fill="#666">capability direction</text>
+      </g>
+
+      <path d="M 310,110 L 335,115" stroke="#333" stroke-width="1.5" marker-end="url(#w2s1)"/>
+      <path d="M 310,155 L 335,155" stroke="#333" stroke-width="1.5" marker-end="url(#w2s1)"/>
+
+      <!-- Anchor: Student Base -->
+      <g>
+        <rect x="20" y="290" width="290" height="150" rx="10" fill="#e8f5f2" stroke="#16a085" stroke-width="2"/>
+        <text x="165" y="315" text-anchor="middle" font-size="13" font-weight="700" fill="#0e5f5f">Strong Student Model</text>
+
+        <g transform="translate(40 335)">
+          <rect x="0" y="0" width="80" height="45" rx="6" fill="white" stroke="#16a085" stroke-width="2"/>
+          <text x="40" y="20" text-anchor="middle" font-size="11" font-weight="700" fill="#0e5f5f">Student</text>
+          <text x="40" y="35" text-anchor="middle" font-size="10" fill="#0e5f5f">Model (base)</text>
+        </g>
+        <text x="150" y="360" font-size="12" fill="#16a085">→ Output Logits</text>
+        <text x="235" y="373" font-size="12" fill="#666" font-family="monospace">z_base</text>
+        <text x="235" y="387" font-size="10" fill="#666" font-style="italic">anchor</text>
+      </g>
+
+      <path d="M 310,360 L 500,300" stroke="#16a085" stroke-width="2" stroke-dasharray="4,3" marker-end="url(#w2s2)"/>
+
+      <!-- Proxy Teacher composition -->
+      <g>
+        <rect x="480" y="90" width="230" height="200" rx="10" fill="#fce8e6" stroke="#c04a4a" stroke-width="2"/>
+        <text x="595" y="115" text-anchor="middle" font-size="14" font-weight="700" fill="#8b1a1a">Proxy Teacher</text>
+
+        <rect x="495" y="135" width="200" height="100" rx="6" fill="white" stroke="#c04a4a"/>
+        <text x="595" y="170" text-anchor="middle" font-size="14" font-family="monospace" font-weight="700">z_base + α · (z⁺ − z⁻)</text>
+        <text x="595" y="200" text-anchor="middle" font-size="11" fill="#666">↓ Softmax</text>
+        <text x="595" y="220" text-anchor="middle" font-size="14" font-family="monospace" font-weight="700" fill="#c04a4a">π_T,α</text>
+
+        <text x="595" y="260" text-anchor="middle" font-size="11" fill="#8b1a1a" font-style="italic">α: amplification coefficient</text>
+        <text x="595" y="278" text-anchor="middle" font-size="11" fill="#8b1a1a" font-style="italic">student proximity control</text>
+      </g>
+
+      <path d="M 465,135 L 480,135" stroke="#333" stroke-width="1.5" marker-end="url(#w2s1)"/>
+
+      <!-- Student rollout + Loss -->
+      <g>
+        <rect x="480" y="315" width="230" height="130" rx="10" fill="#eaf7ef" stroke="#4a9d4a" stroke-width="2"/>
+        <text x="595" y="335" text-anchor="middle" font-size="12" font-weight="700" fill="#1a5c1a">Student Rollout &amp; Loss</text>
+
+        <rect x="495" y="350" width="200" height="40" rx="6" fill="white" stroke="#4a9d4a"/>
+        <text x="595" y="373" text-anchor="middle" font-size="14" font-family="monospace" font-weight="700">π_S(· | s_t)</text>
+
+        <text x="595" y="405" text-anchor="middle" font-size="14" font-family="monospace" font-weight="700" fill="#0e5f5f">KL(π_S ‖ π_T,α)</text>
+        <text x="595" y="425" text-anchor="middle" font-size="11" fill="#1a5c1a">Minimize per-token reverse KL</text>
+      </g>
+
+      <path d="M 595,290 L 595,315" stroke="#c04a4a" stroke-width="2" marker-end="url(#w2s3)"/>
+
+      <!-- Right sidebar: Teacher Model Source -->
+      <g>
+        <rect x="740" y="30" width="230" height="440" rx="10" fill="#fff3f0" stroke="#e67e22" stroke-width="2"/>
+        <text x="855" y="55" text-anchor="middle" font-size="13" font-weight="700" fill="#8b5a00">Teacher Model Source</text>
+
+        <!-- Pre-RL/Post-RL -->
+        <rect x="755" y="75" width="200" height="105" rx="6" fill="white" stroke="#e67e22"/>
+        <text x="855" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a00">Pre-RL / Post-RL</text>
+        <rect x="765" y="105" width="80" height="18" rx="3" fill="#fbeae8" stroke="#e74c3c"/>
+        <text x="805" y="118" text-anchor="middle" font-size="9" fill="#8b1a1a">Neg: Base</text>
+        <text x="855" y="118" text-anchor="middle" font-size="9">→</text>
+        <rect x="865" y="105" width="80" height="18" rx="3" fill="#eaf7ef" stroke="#4a9d4a"/>
+        <text x="905" y="118" text-anchor="middle" font-size="9" fill="#1a5c1a">RL Training</text>
+        <rect x="765" y="130" width="80" height="18" rx="3" fill="#eaf3fe" stroke="#4a90d9"/>
+        <text x="805" y="143" text-anchor="middle" font-size="9" fill="#1a3a6c">Pos: Expert</text>
+        <text x="855" y="158" text-anchor="middle" font-size="8" fill="#666">Extracts RL-injected skill</text>
+
+        <!-- Smaller & Larger -->
+        <rect x="755" y="195" width="200" height="105" rx="6" fill="white" stroke="#e67e22"/>
+        <text x="855" y="215" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a00">Smaller &amp; Larger</text>
+        <rect x="765" y="225" width="80" height="18" rx="3" fill="#fbeae8" stroke="#e74c3c"/>
+        <text x="805" y="238" text-anchor="middle" font-size="9" fill="#8b1a1a">Neg: 0.6B</text>
+        <text x="855" y="238" text-anchor="middle" font-size="9">vs</text>
+        <rect x="865" y="225" width="80" height="18" rx="3" fill="#eaf3fe" stroke="#4a90d9"/>
+        <text x="905" y="238" text-anchor="middle" font-size="9" fill="#1a3a6c">Pos: 4B</text>
+        <text x="855" y="265" text-anchor="middle" font-size="8" fill="#666">Extracts scale capability</text>
+        <text x="855" y="280" text-anchor="middle" font-size="8" fill="#666" font-style="italic">Free! No training</text>
+
+        <!-- Contrastive Hints -->
+        <rect x="755" y="315" width="200" height="120" rx="6" fill="white" stroke="#e67e22"/>
+        <text x="855" y="335" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a00">Contrastive Hints</text>
+        <rect x="765" y="345" width="80" height="18" rx="3" fill="#fbeae8" stroke="#e74c3c"/>
+        <text x="805" y="358" text-anchor="middle" font-size="9" fill="#8b1a1a">Neg: 4B</text>
+        <text x="855" y="358" text-anchor="middle" font-size="9">+</text>
+        <rect x="865" y="345" width="80" height="18" rx="3" fill="#fef7e0" stroke="#f9ab00"/>
+        <text x="905" y="358" text-anchor="middle" font-size="9" fill="#8b5a00">Wrong hint</text>
+        <rect x="765" y="370" width="80" height="18" rx="3" fill="#eaf3fe" stroke="#4a90d9"/>
+        <text x="805" y="383" text-anchor="middle" font-size="9" fill="#1a3a6c">Pos: 4B</text>
+        <text x="855" y="383" text-anchor="middle" font-size="9">+</text>
+        <rect x="865" y="370" width="80" height="18" rx="3" fill="#eaf7ef" stroke="#4a9d4a"/>
+        <text x="905" y="383" text-anchor="middle" font-size="9" fill="#1a5c1a">Correct hint</text>
+        <text x="855" y="405" text-anchor="middle" font-size="8" fill="#666">Same model, different context</text>
+        <text x="855" y="420" text-anchor="middle" font-size="8" fill="#666" font-style="italic">Instance-level direction</text>
+      </g>
+
+      <defs>
+        <marker id="w2s1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#333"/></marker>
+        <marker id="w2s2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#16a085"/></marker>
+        <marker id="w2s3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#c04a4a"/></marker>
+      </defs>
+    </svg>
+    <div class="caption">Figure 2 재현: (좌) 두 weak model이 logit 차이 z⁺−z⁻ 생성. (중) student base logits에 α배로 얹어 proxy teacher π_T,α 합성. Student는 자신의 on-policy rollout에서 이 proxy teacher에 대한 KL을 최소화. (우) 세 종류의 contrast pair.</div>
+  </div>
+</section>
+
+<section>
+  <h2>수식 요약</h2>
+  <div class="grid-2">
+    <div class="card card-accent">
+      <h3>Proxy Teacher (수식 2)</h3>
+      <p style="font-family: monospace; text-align: center; font-size: 1.1rem; padding: 0.5rem;">π_T,α(·|s_t) = softmax(z_base + α · (z⁺ − z⁻))</p>
+      <p>Base logit을 anchor로 하고 capability direction만 α배로 얹는다. α=0이면 student base 자체.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>W2S-OPD Loss (수식 3)</h3>
+      <p style="font-family: monospace; text-align: center; font-size: 1.0rem; padding: 0.5rem;">L = E[Σ_t KL(π_S(·|s_t) ‖ π_T,α(·|s_t))]</p>
+      <p>Student의 rollout에서 per-token reverse KL. On-policy 이점 그대로.</p>
+    </div>
+    <div class="card card-green">
+      <h3>Trust-region 해석 (수식 10)</h3>
+      <p>W2S-OPD의 proxy teacher는 <em>KL-constrained reward maximization</em>의 closed-form 해:</p>
+      <p style="font-family: monospace; font-size: 0.9rem;">π_T,α = argmax {E_q[r(s,a)] − (1/α)·KL(q ‖ π_base)}</p>
+      <p>여기서 r(s,a) = log π⁺ − log π⁻. Ad hoc heuristic이 아니라 정확한 objective.</p>
+    </div>
+    <div class="card card-green">
+      <h3>Product-of-Experts 관점 (수식 11)</h3>
+      <p style="font-family: monospace; text-align: center; font-size: 1.0rem;">π_T,α(a|s) ∝ π_base(a|s) · (π⁺(a|s)/π⁻(a|s))^α</p>
+      <p>Base가 anchor, π⁺가 conjoined expert, π⁻가 negated expert. Decoding-time composition을 학습 signal로 재해석.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>3가지 Contrast Pair (Table 1 재현)</h2>
+  <table class="comp-table">
+    <tr><th>Setting</th><th>Positive m⁺</th><th>Negative m⁻</th><th>Anchor z_base</th><th>추출 신호</th></tr>
+    <tr><td><strong>Pre-RL / Post-RL</strong></td><td>4B-RL (post-RL expert)</td><td>4B (pre-RL init)</td><td>8B (base)</td><td>RL이 심은 domain skill</td></tr>
+    <tr><td><strong>Smaller / Larger</strong></td><td>4B (off-the-shelf base)</td><td>0.6B (off-the-shelf base)</td><td>8B (base)</td><td>scale에서 emerge한 capability</td></tr>
+    <tr><td><strong>Correct / Wrong Hints</strong></td><td>4B w/ correct hint</td><td>4B w/ wrong hint</td><td>8B (base)</td><td>instance-level solution direction</td></tr>
+  </table>
+
+  <div class="card card-accent">
+    <h3>핵심 관찰</h3>
+    <p><strong>모든 인스턴스에서 m⁺와 m⁻ 둘 다 student(8B)보다 작다</strong>. 그럼에도 그들의 차이(direction)가 student를 improvement 방향으로 유도한다. 이것이 weak-to-strong의 핵심 기적.</p>
+  </div>
+</section>
+
+<section>
+  <h2>주 결과 (Figure 1 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 380" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">Qwen3-8B student improvement (4B models as teachers)</text>
+
+      <!-- (a) Distill from small RL experts -->
+      <g>
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">(a) Post-RL Expert</text>
+
+        <!-- Math Reasoning -->
+        <text x="120" y="75" text-anchor="middle" font-size="11" font-weight="700">Math Reasoning</text>
+        <line x1="60" y1="85" x2="60" y2="200" stroke="#333"/>
+        <line x1="60" y1="200" x2="200" y2="200" stroke="#333"/>
+        <text x="50" y="88" text-anchor="end" font-size="9">62</text>
+        <text x="50" y="115" text-anchor="end" font-size="9">55</text>
+        <text x="50" y="142" text-anchor="end" font-size="9">50</text>
+        <text x="50" y="169" text-anchor="end" font-size="9">40</text>
+        <text x="50" y="200" text-anchor="end" font-size="9">30</text>
+
+        <!-- W2S-OPD: 51.8 -->
+        <rect x="70" y="127" width="25" height="73" fill="#6c5ce7"/>
+        <text x="82" y="122" text-anchor="middle" font-size="10" font-weight="700" fill="#6c5ce7">51.8</text>
+        <text x="82" y="215" text-anchor="middle" font-size="8" transform="rotate(-40 82 215)">W2S-OPD</text>
+
+        <!-- OPD: 46.5 -->
+        <rect x="98" y="145" width="25" height="55" fill="#888"/>
+        <text x="110" y="140" text-anchor="middle" font-size="10" font-weight="700">46.5</text>
+        <text x="110" y="215" text-anchor="middle" font-size="8" transform="rotate(-40 110 215)">OPD</text>
+
+        <!-- Teacher (4B): 48.8 -->
+        <rect x="126" y="137" width="25" height="63" fill="#aaa"/>
+        <text x="138" y="132" text-anchor="middle" font-size="10">48.8</text>
+        <text x="138" y="215" text-anchor="middle" font-size="8" transform="rotate(-40 138 215)">Teacher</text>
+
+        <!-- Student (8B): 17.0 -->
+        <rect x="154" y="181" width="25" height="19" fill="#ccc"/>
+        <text x="166" y="176" text-anchor="middle" font-size="10">17.0</text>
+        <text x="166" y="215" text-anchor="middle" font-size="8" transform="rotate(-40 166 215)">Student</text>
+
+        <!-- Code Generation -->
+        <text x="330" y="75" text-anchor="middle" font-size="11" font-weight="700">Code Generation</text>
+        <line x1="270" y1="85" x2="270" y2="200" stroke="#333"/>
+        <line x1="270" y1="200" x2="410" y2="200" stroke="#333"/>
+        <text x="260" y="88" text-anchor="end" font-size="9">64</text>
+        <text x="260" y="115" text-anchor="end" font-size="9">62</text>
+        <text x="260" y="142" text-anchor="end" font-size="9">60</text>
+        <text x="260" y="169" text-anchor="end" font-size="9">58</text>
+        <text x="260" y="200" text-anchor="end" font-size="9">56</text>
+
+        <rect x="280" y="88" width="25" height="112" fill="#6c5ce7"/>
+        <text x="292" y="83" text-anchor="middle" font-size="10" font-weight="700" fill="#6c5ce7">60.9</text>
+        <rect x="308" y="140" width="25" height="60" fill="#888"/>
+        <text x="320" y="135" text-anchor="middle" font-size="10">58.7</text>
+        <rect x="336" y="80" width="25" height="120" fill="#aaa"/>
+        <text x="348" y="75" text-anchor="middle" font-size="10">61.5</text>
+        <rect x="364" y="152" width="25" height="48" fill="#ccc"/>
+        <text x="376" y="147" text-anchor="middle" font-size="10">57.6</text>
+      </g>
+
+      <!-- (b) Distill from two weak base models -->
+      <g transform="translate(450 0)">
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">(b) Two Weak Base Models</text>
+
+        <!-- Math Reasoning -->
+        <text x="120" y="75" text-anchor="middle" font-size="11" font-weight="700">Math Reasoning</text>
+        <line x1="60" y1="85" x2="60" y2="200" stroke="#333"/>
+        <line x1="60" y1="200" x2="200" y2="200" stroke="#333"/>
+        <text x="50" y="88" text-anchor="end" font-size="9">25</text>
+        <text x="50" y="145" text-anchor="end" font-size="9">10</text>
+        <text x="50" y="200" text-anchor="end" font-size="9">0</text>
+
+        <!-- W2S-OPD: 23.0 -->
+        <rect x="70" y="93" width="25" height="107" fill="#6c5ce7"/>
+        <text x="82" y="88" text-anchor="middle" font-size="10" font-weight="700" fill="#6c5ce7">23.0</text>
+
+        <!-- Student: 17.0 -->
+        <rect x="98" y="115" width="25" height="85" fill="#ccc"/>
+        <text x="110" y="110" text-anchor="middle" font-size="10">17.0</text>
+
+        <!-- Base (4B): 15.4 -->
+        <rect x="126" y="123" width="25" height="77" fill="#aaa"/>
+        <text x="138" y="118" text-anchor="middle" font-size="10">15.4</text>
+
+        <!-- Base (0.6B): 1.7 -->
+        <rect x="154" y="192" width="25" height="8" fill="#c8c8c8"/>
+        <text x="166" y="187" text-anchor="middle" font-size="10">1.7</text>
+
+        <!-- Code Generation -->
+        <text x="330" y="75" text-anchor="middle" font-size="11" font-weight="700">Code Generation</text>
+        <line x1="270" y1="85" x2="270" y2="200" stroke="#333"/>
+        <line x1="270" y1="200" x2="410" y2="200" stroke="#333"/>
+        <text x="260" y="88" text-anchor="end" font-size="9">60</text>
+        <text x="260" y="145" text-anchor="end" font-size="9">30</text>
+        <text x="260" y="200" text-anchor="end" font-size="9">0</text>
+
+        <rect x="280" y="90" width="25" height="110" fill="#6c5ce7"/>
+        <text x="292" y="85" text-anchor="middle" font-size="10" font-weight="700" fill="#6c5ce7">58.8</text>
+        <rect x="308" y="95" width="25" height="105" fill="#ccc"/>
+        <text x="320" y="90" text-anchor="middle" font-size="10">57.6</text>
+        <rect x="336" y="99" width="25" height="101" fill="#aaa"/>
+        <text x="348" y="94" text-anchor="middle" font-size="10">54.8</text>
+        <rect x="364" y="166" width="25" height="34" fill="#c8c8c8"/>
+        <text x="376" y="161" text-anchor="middle" font-size="10">18.8</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 1 재현: (a) 4B post-RL expert로 8B student가 51.8 달성 — teacher(48.8) 초월. (b) 훈련 없는 0.6B+4B base pair만으로 8B student를 17.0→23.0으로 개선. 모든 supervision source가 student보다 약함에도 개선.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Table 2: Pre-RL / Post-RL 결과 상세</h2>
+  <table class="comp-table">
+    <tr><th>Method</th><th>AIME24</th><th>AIME25</th><th>HMMT25 Feb</th><th>HMMT25 Nov</th><th>Math Avg</th><th>HumanEval+</th><th>MBPP+</th><th>LCB</th><th>Code Avg</th></tr>
+    <tr><td>Neg. Model (4B)</td><td>21.6</td><td>19.9</td><td>10.0</td><td>8.2</td><td>14.9</td><td>79.9</td><td>63.6</td><td>20.9</td><td>54.8</td></tr>
+    <tr><td>Pos. Model (4B-RL)</td><td>62.0</td><td>57.9</td><td>34.8</td><td>40.4</td><td>48.8</td><td>86.3</td><td>71.0</td><td>27.1</td><td>61.5</td></tr>
+    <tr><td>Student Base (8B)</td><td>26.1</td><td>21.1</td><td>11.6</td><td>9.0</td><td>17.0</td><td>81.2</td><td>70.0</td><td>21.7</td><td>57.6</td></tr>
+    <tr><td colspan="10"><strong>Single-Teacher Distillation</strong></td></tr>
+    <tr><td>SFT</td><td>60.2</td><td>54.4</td><td>30.7</td><td>37.6</td><td>45.7</td><td>82.5</td><td>71.8</td><td>24.8</td><td>59.7</td></tr>
+    <tr><td>OPD</td><td>62.1</td><td>54.8</td><td>30.6</td><td>38.3</td><td>46.5</td><td>83.1</td><td>71.2</td><td>22.0</td><td>58.7</td></tr>
+    <tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>68.9</strong></td><td class="win"><strong>60.1</strong></td><td class="win"><strong>35.1</strong></td><td class="win"><strong>43.1</strong></td><td class="win"><strong>51.8 (+5.3)</strong></td><td class="win"><strong>84.8</strong></td><td class="win"><strong>72.4</strong></td><td class="win"><strong>26.8</strong></td><td class="win"><strong>60.9 (+2.2)</strong></td></tr>
+    <tr><td colspan="10"><strong>Multi-Teacher Distillation (math+code)</strong></td></tr>
+    <tr><td>OPD</td><td>64.3</td><td>54.9</td><td>29.6</td><td>37.4</td><td>46.5</td><td>83.4</td><td>69.5</td><td>25.6</td><td>59.5</td></tr>
+    <tr><td><strong>W2S-OPD</strong></td><td class="win"><strong>67.4</strong></td><td class="win"><strong>61.0</strong></td><td class="win"><strong>34.7</strong></td><td class="win"><strong>45.2</strong></td><td class="win"><strong>52.1 (+5.6)</strong></td><td class="win"><strong>85.2</strong></td><td class="win"><strong>71.1</strong></td><td class="win"><strong>27.1</strong></td><td class="win"><strong>61.1 (+1.6)</strong></td></tr>
+  </table>
+
+  <div class="card card-green">
+    <h3>이 표에서 주목할 것</h3>
+    <p><strong>Math Avg 열</strong>: W2S-OPD 51.8은 teacher 자체 48.8을 <strong>3.0점 초과</strong>. Student base 17.0에서 <strong>+34.8점</strong> 도약. OPD 대비 <strong>+5.3점</strong>.</p>
+  </div>
+</section>
+
+<section>
+  <h2>Amplification Coefficient α (Figure 4 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">α 변화에 따른 성능 (AIME25, HMMT25 Feb, HumanEval+, LCB)</text>
+
+      <!-- Grid layout: 2x2 subplots -->
+      <!-- AIME25 -->
+      <g transform="translate(50 50)">
+        <text x="120" y="15" text-anchor="middle" font-size="11" font-weight="700">AIME25</text>
+        <line x1="30" y1="30" x2="30" y2="130" stroke="#333"/>
+        <line x1="30" y1="130" x2="210" y2="130" stroke="#333"/>
+        <text x="25" y="35" text-anchor="end" font-size="8">70</text>
+        <text x="25" y="80" text-anchor="end" font-size="8">50</text>
+        <text x="25" y="130" text-anchor="end" font-size="8">28</text>
+
+        <!-- OPD dashed reference: 54.8 → y = 30+(70-54.8)/(70-28)*100 = 30+36 = 66 -->
+        <line x1="30" y1="66" x2="210" y2="66" stroke="#888" stroke-dasharray="4,3"/>
+        <text x="212" y="69" font-size="8" fill="#888">OPD: 54.8</text>
+
+        <!-- W2S-OPD curve: α=0.25→28.5, 0.5→41.5, 0.75→54.0, 1.0→60.1, 1.25→64.3, 1.5→65.7 -->
+        <polyline points="45,130 75,102 105,72 135,53 165,42 195,38" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+        <circle cx="45" cy="130" r="3" fill="#6c5ce7"/><text x="45" y="145" text-anchor="middle" font-size="7">28.5</text>
+        <circle cx="75" cy="102" r="3" fill="#6c5ce7"/><text x="75" y="145" text-anchor="middle" font-size="7">41.5</text>
+        <circle cx="105" cy="72" r="3" fill="#6c5ce7"/><text x="105" y="145" text-anchor="middle" font-size="7">54.0</text>
+        <circle cx="135" cy="53" r="3" fill="#6c5ce7"/><text x="135" y="145" text-anchor="middle" font-size="7">60.1</text>
+        <circle cx="165" cy="42" r="4" fill="#6c5ce7"/><text x="165" y="145" text-anchor="middle" font-size="7" font-weight="700">64.3★</text>
+        <circle cx="195" cy="38" r="4" fill="#6c5ce7"/><text x="195" y="145" text-anchor="middle" font-size="7" font-weight="700">65.7★</text>
+      </g>
+
+      <!-- HMMT25 Feb -->
+      <g transform="translate(300 50)">
+        <text x="120" y="15" text-anchor="middle" font-size="11" font-weight="700">HMMT25 Feb</text>
+        <line x1="30" y1="30" x2="30" y2="130" stroke="#333"/>
+        <line x1="30" y1="130" x2="210" y2="130" stroke="#333"/>
+        <text x="25" y="35" text-anchor="end" font-size="8">40</text>
+        <text x="25" y="80" text-anchor="end" font-size="8">25</text>
+        <text x="25" y="130" text-anchor="end" font-size="8">15</text>
+
+        <!-- OPD ref: 30.6 → y = 30+(40-30.6)/(40-15)*100 = 30+38 = 68 -->
+        <line x1="30" y1="68" x2="210" y2="68" stroke="#888" stroke-dasharray="4,3"/>
+        <text x="212" y="71" font-size="8" fill="#888">OPD: 30.6</text>
+
+        <!-- 15.7, 24.7, 32.5, 35.1, 37.9, 37.1 -->
+        <polyline points="45,130 75,90 105,60 135,48 165,38 195,42" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+        <circle cx="45" cy="130" r="3" fill="#6c5ce7"/><text x="45" y="145" text-anchor="middle" font-size="7">15.7</text>
+        <circle cx="75" cy="90" r="3" fill="#6c5ce7"/><text x="75" y="145" text-anchor="middle" font-size="7">24.7</text>
+        <circle cx="105" cy="60" r="3" fill="#6c5ce7"/><text x="105" y="145" text-anchor="middle" font-size="7">32.5</text>
+        <circle cx="135" cy="48" r="3" fill="#6c5ce7"/><text x="135" y="145" text-anchor="middle" font-size="7">35.1</text>
+        <circle cx="165" cy="38" r="4" fill="#6c5ce7"/><text x="165" y="145" text-anchor="middle" font-size="7" font-weight="700">37.9★</text>
+        <circle cx="195" cy="42" r="3" fill="#6c5ce7"/><text x="195" y="145" text-anchor="middle" font-size="7">37.1</text>
+      </g>
+
+      <!-- HumanEval+ -->
+      <g transform="translate(50 200)">
+        <text x="120" y="15" text-anchor="middle" font-size="11" font-weight="700">HumanEval+</text>
+        <line x1="30" y1="30" x2="30" y2="130" stroke="#333"/>
+        <line x1="30" y1="130" x2="210" y2="130" stroke="#333"/>
+        <text x="25" y="35" text-anchor="end" font-size="8">86</text>
+        <text x="25" y="80" text-anchor="end" font-size="8">84</text>
+        <text x="25" y="130" text-anchor="end" font-size="8">82</text>
+
+        <!-- OPD: 83.1 -->
+        <line x1="30" y1="88" x2="210" y2="88" stroke="#888" stroke-dasharray="4,3"/>
+        <text x="212" y="91" font-size="8" fill="#888">OPD: 83.1</text>
+
+        <!-- 82.2, 84.8, 85.8, 86.1, 85.8, 85.8 -->
+        <polyline points="45,120 75,80 105,55 135,45 165,55 195,55" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+        <circle cx="45" cy="120" r="3" fill="#6c5ce7"/><text x="45" y="145" text-anchor="middle" font-size="7">82.2</text>
+        <circle cx="75" cy="80" r="3" fill="#6c5ce7"/><text x="75" y="145" text-anchor="middle" font-size="7">84.8</text>
+        <circle cx="105" cy="55" r="3" fill="#6c5ce7"/><text x="105" y="145" text-anchor="middle" font-size="7">85.8</text>
+        <circle cx="135" cy="45" r="4" fill="#6c5ce7"/><text x="135" y="145" text-anchor="middle" font-size="7" font-weight="700">86.1★</text>
+        <circle cx="165" cy="55" r="3" fill="#6c5ce7"/><text x="165" y="145" text-anchor="middle" font-size="7">85.8</text>
+        <circle cx="195" cy="55" r="3" fill="#6c5ce7"/><text x="195" y="145" text-anchor="middle" font-size="7">85.8</text>
+      </g>
+
+      <!-- LiveCodeBench -->
+      <g transform="translate(300 200)">
+        <text x="120" y="15" text-anchor="middle" font-size="11" font-weight="700">LiveCodeBench</text>
+        <line x1="30" y1="30" x2="30" y2="130" stroke="#333"/>
+        <line x1="30" y1="130" x2="210" y2="130" stroke="#333"/>
+        <text x="25" y="35" text-anchor="end" font-size="8">30</text>
+        <text x="25" y="80" text-anchor="end" font-size="8">20</text>
+        <text x="25" y="130" text-anchor="end" font-size="8">15</text>
+
+        <!-- OPD: 22.0 -->
+        <line x1="30" y1="70" x2="210" y2="70" stroke="#888" stroke-dasharray="4,3"/>
+        <text x="212" y="73" font-size="8" fill="#888">OPD: 22.0</text>
+
+        <!-- 22.3, 25.9, 26.8, 19.7, 16.1, 15.9 -->
+        <polyline points="45,66 75,45 105,38 135,80 165,110 195,113" stroke="#6c5ce7" stroke-width="2" fill="none"/>
+        <circle cx="45" cy="66" r="3" fill="#6c5ce7"/><text x="45" y="145" text-anchor="middle" font-size="7">22.3</text>
+        <circle cx="75" cy="45" r="3" fill="#6c5ce7"/><text x="75" y="145" text-anchor="middle" font-size="7">25.9</text>
+        <circle cx="105" cy="38" r="4" fill="#6c5ce7"/><text x="105" y="145" text-anchor="middle" font-size="7" font-weight="700">26.8★</text>
+        <circle cx="135" cy="80" r="3" fill="#c04a4a"/><text x="135" y="145" text-anchor="middle" font-size="7">19.7</text>
+        <circle cx="165" cy="110" r="3" fill="#c04a4a"/><text x="165" y="145" text-anchor="middle" font-size="7">16.1</text>
+        <circle cx="195" cy="113" r="3" fill="#c04a4a"/><text x="195" y="145" text-anchor="middle" font-size="7">15.9</text>
+      </g>
+
+      <!-- x-axis label -->
+      <text x="450" y="330" text-anchor="middle" font-size="11">α (0.25 → 1.5)</text>
+
+      <!-- Legend -->
+      <g transform="translate(600 100)">
+        <line x1="0" y1="0" x2="20" y2="0" stroke="#6c5ce7" stroke-width="2.5"/>
+        <circle cx="10" cy="0" r="4" fill="#6c5ce7"/>
+        <text x="30" y="4" font-size="10">W2S-OPD (varying α)</text>
+        <line x1="0" y1="18" x2="20" y2="18" stroke="#888" stroke-dasharray="4,3"/>
+        <text x="30" y="22" font-size="10">OPD baseline</text>
+        <text x="0" y="60" font-size="11" fill="#666">💡 Math: 최적 α = 1.25~1.5</text>
+        <text x="0" y="78" font-size="11" fill="#666">💡 Code: 최적 α = 0.75~1.0</text>
+        <text x="0" y="102" font-size="11" fill="#666" font-weight="700">Signal strength vs</text>
+        <text x="0" y="118" font-size="11" fill="#666" font-weight="700">student proximity trade-off</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 4 재현: Moderate α가 최적. 너무 작으면 signal 약함, 너무 크면 proxy teacher가 student에서 멀어져 학습 어려움. Math는 1.25~1.5, code는 0.75~1.0에서 최고.</div>
+  </div>
+</section>
+
+<section>
+  <h2>어떤 종류의 Token이 강화되는가 (Table 6, Section 4.4 재현)</h2>
+  <p>Schoenfeld의 8-episode 프레임워크로 각 contrast가 어떤 reasoning token을 top-1%로 강화하는지 분석.</p>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">Top-1% Δ tokens 분포 (%): 3 contrast × 8 episodes</text>
+
+      <!-- Grouped bars: 8 episodes × 3 contrasts + baseline -->
+      <!-- Episodes: Read, Analyze, Plan, Implement, Explore, Verify, Monitor, Answer -->
+      <line x1="80" y1="60" x2="80" y2="270" stroke="#333"/>
+      <line x1="80" y1="270" x2="870" y2="270" stroke="#333"/>
+
+      <text x="70" y="65" text-anchor="end" font-size="10">45</text>
+      <text x="70" y="105" text-anchor="end" font-size="10">35</text>
+      <text x="70" y="145" text-anchor="end" font-size="10">25</text>
+      <text x="70" y="185" text-anchor="end" font-size="10">15</text>
+      <text x="70" y="225" text-anchor="end" font-size="10">5</text>
+      <text x="70" y="270" text-anchor="end" font-size="10">0</text>
+
+      <!-- Bar groups. 8 episodes, 4 bars per episode (All, Pre/Post-RL, Sm/Lg, Hint) -->
+      <!-- Widths: 15 each, group width 65 -->
+
+      <!-- Read: 10.3, 9.6, 6.5, 5.2 -->
+      <g transform="translate(90 0)">
+        <rect x="0" y="223" width="12" height="47" fill="#c8c8c8"/>
+        <rect x="14" y="226" width="12" height="44" fill="#4a90d9"/>
+        <rect x="28" y="238" width="12" height="32" fill="#e67e22"/>
+        <rect x="42" y="245" width="12" height="25" fill="#c04a4a"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Read</text>
+      </g>
+
+      <!-- Analyze: 33.2, 40.5, 44.4, 29.8 -->
+      <g transform="translate(180 0)">
+        <rect x="0" y="137" width="12" height="133" fill="#c8c8c8"/>
+        <rect x="14" y="108" width="12" height="162" fill="#4a90d9"/>
+        <rect x="28" y="93" width="12" height="177" fill="#e67e22" stroke="#8b3a00" stroke-width="1.5"/>
+        <rect x="42" y="151" width="12" height="119" fill="#c04a4a"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Analyze</text>
+      </g>
+
+      <!-- Plan: 8.6, 15.7, 12.6, 20.2 -->
+      <g transform="translate(270 0)">
+        <rect x="0" y="235" width="12" height="35" fill="#c8c8c8"/>
+        <rect x="14" y="207" width="12" height="63" fill="#4a90d9" stroke="#1a3a6c" stroke-width="1.5"/>
+        <rect x="28" y="220" width="12" height="50" fill="#e67e22"/>
+        <rect x="42" y="189" width="12" height="81" fill="#c04a4a" stroke="#8b1a1a" stroke-width="1.5"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Plan</text>
+      </g>
+
+      <!-- Implement: 40.7, 24.0, 27.7, 19.6 -->
+      <g transform="translate(360 0)">
+        <rect x="0" y="107" width="12" height="163" fill="#c8c8c8"/>
+        <rect x="14" y="174" width="12" height="96" fill="#4a90d9"/>
+        <rect x="28" y="159" width="12" height="111" fill="#e67e22" stroke="#8b3a00" stroke-width="1.5"/>
+        <rect x="42" y="192" width="12" height="78" fill="#c04a4a"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Implement</text>
+      </g>
+
+      <!-- Explore: 0.5, 1.2, 0.8, 1.1 -->
+      <g transform="translate(450 0)">
+        <rect x="0" y="268" width="12" height="2" fill="#c8c8c8"/>
+        <rect x="14" y="265" width="12" height="5" fill="#4a90d9"/>
+        <rect x="28" y="267" width="12" height="3" fill="#e67e22"/>
+        <rect x="42" y="266" width="12" height="4" fill="#c04a4a"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Explore</text>
+      </g>
+
+      <!-- Verify: 2.4, 4.3, 4.2, 5.4 -->
+      <g transform="translate(540 0)">
+        <rect x="0" y="260" width="12" height="10" fill="#c8c8c8"/>
+        <rect x="14" y="253" width="12" height="17" fill="#4a90d9"/>
+        <rect x="28" y="253" width="12" height="17" fill="#e67e22"/>
+        <rect x="42" y="248" width="12" height="22" fill="#c04a4a"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Verify</text>
+      </g>
+
+      <!-- Monitor: 0.5, 1.8, 0.9, 2.3 -->
+      <g transform="translate(630 0)">
+        <rect x="0" y="268" width="12" height="2" fill="#c8c8c8"/>
+        <rect x="14" y="263" width="12" height="7" fill="#4a90d9" stroke="#1a3a6c" stroke-width="1.5"/>
+        <rect x="28" y="266" width="12" height="4" fill="#e67e22"/>
+        <rect x="42" y="261" width="12" height="9" fill="#c04a4a" stroke="#8b1a1a" stroke-width="1.5"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Monitor</text>
+      </g>
+
+      <!-- Answer: 3.8, 2.9, 2.9, 16.4 -->
+      <g transform="translate(720 0)">
+        <rect x="0" y="255" width="12" height="15" fill="#c8c8c8"/>
+        <rect x="14" y="259" width="12" height="11" fill="#4a90d9"/>
+        <rect x="28" y="259" width="12" height="11" fill="#e67e22"/>
+        <rect x="42" y="205" width="12" height="65" fill="#c04a4a" stroke="#8b1a1a" stroke-width="1.5"/>
+        <text x="27" y="285" text-anchor="middle" font-size="9">Answer</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(120 305)">
+        <rect x="0" y="0" width="12" height="12" fill="#c8c8c8"/>
+        <text x="18" y="10" font-size="10">All tokens (baseline)</text>
+        <rect x="140" y="0" width="12" height="12" fill="#4a90d9"/>
+        <text x="158" y="10" font-size="10">Pre-RL/Post-RL</text>
+        <rect x="280" y="0" width="12" height="12" fill="#e67e22"/>
+        <text x="298" y="10" font-size="10">Smaller/Larger</text>
+        <rect x="420" y="0" width="12" height="12" fill="#c04a4a"/>
+        <text x="438" y="10" font-size="10">Correct/Wrong Hints</text>
+      </g>
+    </svg>
+    <div class="caption">Table 6 재현: 세 contrast가 서로 다른 종류의 tokens을 강화. Pre-RL/Post-RL과 Hint는 <em>Plan, Monitor</em>(reasoning framework)에 집중. Scale contrast는 <em>Analyze, Implement</em>(solving procedure)에 집중. Hint는 특히 <em>Answer</em> tokens을 16.4%까지 증폭 (baseline 3.8%의 4배).</div>
+  </div>
+
+  <div class="grid-3">
+    <div class="card card-accent">
+      <h3>Post-RL Contrast</h3>
+      <p>Plan 15.7% (baseline 8.6%), Monitor 1.8% (0.5%). <strong>Reasoning framework</strong> 강화 — 문제를 구조화하고 궤적을 감시.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>Scale Contrast</h3>
+      <p>Analyze 44.4% (33.2%), Implement 27.7% (40.7% ↓). <strong>Solving procedure</strong> 강화 — 문제 분해와 계산 실행.</p>
+    </div>
+    <div class="card card-accent">
+      <h3>Hint Contrast</h3>
+      <p>Answer 16.4% (3.8%), Plan 20.2%, Monitor 2.3%. <strong>Solution token 자체</strong>가 특히 강화 — 정답 방향으로의 direct guidance.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>OOD Generalization (Table 5 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 280" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Math로 학습 → OOD 벤치마크 평가</text>
+
+      <!-- GPQA-Diamond -->
+      <g>
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">GPQA-Diamond</text>
+        <line x1="70" y1="70" x2="70" y2="230" stroke="#333"/>
+        <line x1="70" y1="230" x2="330" y2="230" stroke="#333"/>
+        <text x="60" y="75" text-anchor="end" font-size="10">60</text>
+        <text x="60" y="130" text-anchor="end" font-size="10">50</text>
+        <text x="60" y="185" text-anchor="end" font-size="10">40</text>
+
+        <!-- Positive Model 51.8 -->
+        <rect x="90" y="115" width="50" height="115" fill="#aaa"/>
+        <text x="115" y="110" text-anchor="middle" font-size="11" font-weight="700">51.8</text>
+        <text x="115" y="248" text-anchor="middle" font-size="9">Teacher</text>
+
+        <!-- Student Base 38.9 -->
+        <rect x="145" y="185" width="50" height="45" fill="#ccc"/>
+        <text x="170" y="180" text-anchor="middle" font-size="11" font-weight="700">38.9</text>
+        <text x="170" y="248" text-anchor="middle" font-size="9">Base</text>
+
+        <!-- OPD 54.4 -->
+        <rect x="200" y="100" width="50" height="130" fill="#888"/>
+        <text x="225" y="95" text-anchor="middle" font-size="11" font-weight="700">54.4</text>
+        <text x="225" y="248" text-anchor="middle" font-size="9">OPD</text>
+
+        <!-- W2S-OPD 56.5 -->
+        <rect x="255" y="88" width="50" height="142" fill="#16a085"/>
+        <text x="280" y="83" text-anchor="middle" font-size="11" font-weight="700" fill="#0e5f5f">56.5 ★</text>
+        <text x="280" y="248" text-anchor="middle" font-size="9" font-weight="700">W2S-OPD</text>
+      </g>
+
+      <!-- IFBench -->
+      <g transform="translate(400 0)">
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">IFBench (instruction following)</text>
+        <line x1="70" y1="70" x2="70" y2="230" stroke="#333"/>
+        <line x1="70" y1="230" x2="330" y2="230" stroke="#333"/>
+        <text x="60" y="75" text-anchor="end" font-size="10">28</text>
+        <text x="60" y="150" text-anchor="end" font-size="10">26</text>
+        <text x="60" y="225" text-anchor="end" font-size="10">25</text>
+
+        <!-- Positive 26.0 -->
+        <rect x="90" y="150" width="50" height="80" fill="#aaa"/>
+        <text x="115" y="145" text-anchor="middle" font-size="11" font-weight="700">26.0</text>
+        <text x="115" y="248" text-anchor="middle" font-size="9">Teacher</text>
+
+        <!-- Student Base 26.3 -->
+        <rect x="145" y="139" width="50" height="91" fill="#ccc"/>
+        <text x="170" y="134" text-anchor="middle" font-size="11" font-weight="700">26.3</text>
+        <text x="170" y="248" text-anchor="middle" font-size="9">Base</text>
+
+        <!-- OPD 25.9 (WORSE than base) -->
+        <rect x="200" y="153" width="50" height="77" fill="#c04a4a"/>
+        <text x="225" y="148" text-anchor="middle" font-size="11" font-weight="700" fill="#c04a4a">25.9 ✗</text>
+        <text x="225" y="248" text-anchor="middle" font-size="9" fill="#c04a4a">OPD 후퇴</text>
+
+        <!-- W2S-OPD 27.0 -->
+        <rect x="255" y="112" width="50" height="118" fill="#16a085"/>
+        <text x="280" y="107" text-anchor="middle" font-size="11" font-weight="700" fill="#0e5f5f">27.0 ★</text>
+        <text x="280" y="248" text-anchor="middle" font-size="9" font-weight="700">W2S-OPD</text>
+      </g>
+    </svg>
+    <div class="caption">Table 5 재현: OPD는 IFBench에서 base(26.3) → 25.9로 <strong>후퇴</strong> (student가 4B teacher의 한계를 흡수). W2S-OPD는 <strong>27.0으로 개선</strong>. General ability 훼손 방지가 W2S-OPD의 큰 장점.</div>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="grid-2">
+    <div class="card card-orange">
+      <h3>α의 domain-dependent 튜닝</h3>
+      <p>Math는 α=1.25~1.5, code는 α=0.75~1.0이 최적. 새 도메인마다 sweep 필요. 자동 결정 방법 부재.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Direct-OPD와 명시적 비교 부재</h3>
+      <p>Concurrent work Direct-OPD (Feng et al., 2026)와 개념적으로 유사하나 실험 비교 없음. 정확한 우위폭 불명.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Hint contrast의 marginal gain</h3>
+      <p>Math +1.4, Code +1.1로 다른 setting보다 확실히 작음. Single-model contrast의 실용 가치 제한.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>학생 크기가 하나만</h3>
+      <p>Qwen3-8B로만 검증. Frontier scale(70B+, 400B+)에서 동일 gain 나오는지 미확인.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Thinking mode 미검증</h3>
+      <p>Non-thinking mode로만 실험. Thinking mode에서 CoT 궤적이 훨씬 긴데 프레임워크가 그대로 확장되는지 불명.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <p class="quote">"강한 teacher가 없어도 두 약한 모델의 capability direction으로 frontier 모델을 개선할 수 있다. Distillation은 imitation이 아니라 <em>directional</em> engineering이다."</p>
+  </div>
+  <div style="text-align: center; margin-top: 1.5rem;">
+    <a class="top-link" href="20260807_yu_w2s-opd.html" style="background:#16a085; color:white; padding:0.7rem 1.5rem; border-radius:6px; text-decoration:none; display:inline-block;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>Weak-to-Strong On-Policy Distillation</strong></p>
+  <p>Fangxu Yu et al. · Microsoft Research · UMD · MBZUAI · 2026-08</p>
+  <p><a href="https://arxiv.org/abs/2607.26246">arXiv:2607.26246</a> · <a href="https://w2s-opd.github.io">Project</a> · <a href="https://github.com/Yu-Fangxu/W2S-OPD">GitHub</a></p>
+</footer>
+
+</body>
+</html>

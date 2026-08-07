@@ -1,0 +1,944 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpyRL / RLSVR — 개요 브리핑</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, 'Noto Sans KR', sans-serif; line-height: 1.7; color: #1a1a1a; margin: 0; background: #fff; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 1.5rem; }
+  .hero { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); color: white; padding: 4rem 1.5rem; text-align: center; }
+  .hero .badge { display: inline-block; background: rgba(255,255,255,0.2); padding: 0.3rem 1rem; border-radius: 20px; font-size: 0.85rem; margin: 0.2rem; }
+  .hero h1 { font-size: 2.5rem; margin: 1rem 0 0.5rem; }
+  .hero p.sub { font-size: 1.15rem; opacity: 0.95; max-width: 750px; margin: 0.5rem auto; }
+  .hero a.top-link { display: inline-block; background: rgba(255,255,255,0.15); color: white; padding: 0.5rem 1.2rem; border-radius: 6px; text-decoration: none; margin-top: 1.5rem; border: 1px solid rgba(255,255,255,0.3); }
+  section { padding: 2.5rem 0; border-bottom: 1px solid #eee; }
+  section h2 { font-size: 1.7rem; margin-top: 0; color: #4a2c76; border-left: 5px solid #764ba2; padding-left: 0.8rem; }
+  .one-liner { background: linear-gradient(135deg, #764ba2, #667eea); color: white; padding: 1.5rem 2rem; border-radius: 12px; font-size: 1.15rem; text-align: center; margin: 1.5rem 0; }
+  .one-liner .quote { font-style: italic; font-weight: 500; }
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat { flex: 1 1 180px; background: #f8f9fa; padding: 1.2rem; border-radius: 10px; text-align: center; border-top: 4px solid #764ba2; }
+  .stat .num { font-size: 2rem; font-weight: 700; color: #4a2c76; }
+  .stat .lbl { font-size: 0.9rem; color: #666; margin-top: 0.3rem; }
+  .card { background: #f8f9fa; padding: 1.2rem 1.5rem; border-radius: 10px; margin: 1rem 0; }
+  .card-accent { border-left: 5px solid #764ba2; background: #f2eef8; }
+  .card-green { border-left: 5px solid #27ae60; background: #eaf7ef; }
+  .card-orange { border-left: 5px solid #e67e22; background: #fdf3e6; }
+  .card-red { border-left: 5px solid #e74c3c; background: #fbeae8; }
+  .card h3 { margin: 0 0 0.5rem; color: #4a2c76; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin: 1rem 0; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin: 1rem 0; }
+  .comp-table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: 0.95rem; }
+  .comp-table th, .comp-table td { border: 1px solid #ddd; padding: 0.7rem; text-align: left; }
+  .comp-table th { background: #4a2c76; color: white; }
+  .comp-table tr:nth-child(even) { background: #f8f9fa; }
+  .comp-table td.win { background: #d4edda; font-weight: 600; }
+  .comp-table td.lose { background: #f8d7da; }
+  .svg-wrap { background: #fff; border: 1px solid #e0e0e0; border-radius: 10px; padding: 1rem; margin: 1rem 0; overflow-x: auto; text-align: center; }
+  .svg-wrap .caption { font-size: 0.9rem; color: #555; margin-top: 0.5rem; font-style: italic; }
+  footer { background: #4a2c76; color: white; padding: 2rem 1.5rem; text-align: center; }
+  footer a { color: #d5c8f0; }
+  @media (max-width: 600px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } .stat-row { flex-direction: column; } .hero h1 { font-size: 1.8rem; } }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="badge">COLM 2026</span>
+  <span class="badge">Duke · Adobe · Amazon</span>
+  <span class="badge">Self-Play RL · Open-Ended</span>
+  <h1>RLSVR &amp; SpyRL</h1>
+  <p class="sub">Open-ended task를 <strong>"Who Is the Spy" 사회 추론 게임</strong>으로 변환해 self-verifiable reward를 induce. External verifier 없이 GPT-4o-RaR와 대등한 성능.</p>
+  <a class="top-link" href="20260807_wang_spyrl-rlsvr.html">전문가용 상세 요약 보기 →</a>
+</div>
+
+<div class="container">
+
+<section>
+  <h2>한 줄 요약</h2>
+  <div class="one-liner">
+    <p class="quote">"Verifiability는 task의 intrinsic property가 아니라 task transformation으로 engineered 가능한 property다."</p>
+  </div>
+  <div class="stat-row">
+    <div class="stat"><div class="num">n=5</div><div class="lbl">Player (1 spy + 4 civilians)</div></div>
+    <div class="stat"><div class="num">20% / 40%</div><div class="lbl">Masking ratio (summ / math)</div></div>
+    <div class="stat"><div class="num">+9.0</div><div class="lbl">Math avg (Qwen3-4B) w/ RAE</div></div>
+    <div class="stat"><div class="num">80%+</div><div class="lbl">Creative writing win rate</div></div>
+    <div class="stat"><div class="num">$0</div><div class="lbl">External verifier cost (vs $900 GPT-4o-RaR)</div></div>
+  </div>
+</section>
+
+<section>
+  <h2>RLVR → SSL → RLSVR: 세 학습 패러다임의 비교 (Figure 1 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- (a) RLVR -->
+      <g>
+        <rect x="20" y="30" width="270" height="270" rx="10" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="155" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#1a3a6c">(a) RLVR</text>
+        <text x="155" y="75" text-anchor="middle" font-size="11" fill="#666">"수학은 정답이 있다"</text>
+
+        <!-- Robot student -->
+        <circle cx="70" cy="160" r="25" fill="#a4c8f0" stroke="#333" stroke-width="1.5"/>
+        <text x="70" y="167" text-anchor="middle" font-size="14">🤖</text>
+
+        <!-- Blackboard -->
+        <rect x="110" y="140" width="80" height="50" fill="#2c3e50"/>
+        <text x="150" y="170" text-anchor="middle" font-size="14" fill="white" font-weight="700">3+4=?</text>
+
+        <!-- Teacher -->
+        <circle cx="240" cy="160" r="25" fill="#fef7e0" stroke="#333" stroke-width="1.5"/>
+        <text x="240" y="167" text-anchor="middle" font-size="14">👨‍🏫</text>
+        <text x="240" y="110" text-anchor="middle" font-size="11" fill="#1a5c1a" font-weight="700">"The answer is 7."</text>
+
+        <!-- Check/X marks -->
+        <text x="80" y="230" font-size="18">✓</text>
+        <text x="80" y="235" font-size="12">7!</text>
+        <text x="130" y="230" font-size="18" fill="#c04a4a">✗</text>
+        <text x="130" y="235" font-size="12">8!</text>
+
+        <text x="155" y="275" text-anchor="middle" font-size="10" fill="#666" font-style="italic">Exact rule-based reward</text>
+        <text x="155" y="290" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">✓ 수학·코딩만 가능</text>
+      </g>
+
+      <!-- (b) SSL -->
+      <g transform="translate(300 0)">
+        <rect x="20" y="30" width="270" height="270" rx="10" fill="#eaf7ef" stroke="#4a9d4a" stroke-width="2"/>
+        <text x="155" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#1a5c1a">(b) SSL (BERT류)</text>
+        <text x="155" y="75" text-anchor="middle" font-size="11" fill="#666">"데이터 자체가 정답을 준다"</text>
+
+        <!-- Robot with masked docs -->
+        <circle cx="155" cy="180" r="30" fill="#a4d4a4" stroke="#333" stroke-width="1.5"/>
+        <text x="155" y="187" text-anchor="middle" font-size="18">🤖</text>
+
+        <!-- Masked docs on side -->
+        <g transform="translate(50 120)">
+          <rect x="0" y="0" width="35" height="45" fill="white" stroke="#333"/>
+          <line x1="4" y1="10" x2="14" y2="10" stroke="#333" stroke-width="2"/>
+          <line x1="18" y1="10" x2="25" y2="10" stroke="#c04a4a" stroke-width="3"/>
+          <line x1="4" y1="17" x2="30" y2="17" stroke="#333"/>
+          <line x1="4" y1="24" x2="20" y2="24" stroke="#333"/>
+          <text x="17" y="65" text-anchor="middle" font-size="8">mask</text>
+        </g>
+        <g transform="translate(230 120)">
+          <rect x="0" y="0" width="35" height="45" fill="white" stroke="#333"/>
+          <line x1="4" y1="10" x2="30" y2="10" stroke="#333"/>
+          <line x1="4" y1="17" x2="15" y2="17" stroke="#c04a4a" stroke-width="3"/>
+          <line x1="19" y1="17" x2="30" y2="17" stroke="#333"/>
+          <line x1="4" y1="24" x2="30" y2="24" stroke="#333"/>
+          <text x="17" y="65" text-anchor="middle" font-size="8">mask</text>
+        </g>
+
+        <text x="155" y="120" text-anchor="middle" font-size="11" fill="#1a5c1a" font-weight="700">"guess the hidden words"</text>
+        <text x="155" y="235" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">✓ 데이터가 answer</text>
+        <text x="155" y="275" text-anchor="middle" font-size="10" fill="#666" font-style="italic">Pretext task</text>
+        <text x="155" y="290" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">✓ Label-by-construction</text>
+      </g>
+
+      <!-- (c) RLSVR -->
+      <g transform="translate(600 0)">
+        <rect x="20" y="30" width="270" height="270" rx="10" fill="#f2eef8" stroke="#764ba2" stroke-width="3"/>
+        <text x="155" y="55" text-anchor="middle" font-size="14" font-weight="700" fill="#4a2c76">(c) RLSVR (본 논문)</text>
+        <text x="155" y="75" text-anchor="middle" font-size="11" fill="#666">"게임 환경이 정답을 미리 안다"</text>
+
+        <!-- 3 robots in a circle -->
+        <circle cx="70" cy="180" r="22" fill="#c8a8f0" stroke="#333" stroke-width="1.5"/>
+        <text x="70" y="187" text-anchor="middle" font-size="14">🤖</text>
+        <circle cx="240" cy="180" r="22" fill="#c8a8f0" stroke="#333" stroke-width="1.5"/>
+        <text x="240" y="187" text-anchor="middle" font-size="14">🤖</text>
+        <circle cx="155" cy="230" r="22" fill="#c8a8f0" stroke="#333" stroke-width="1.5"/>
+        <text x="155" y="237" text-anchor="middle" font-size="14">🤖</text>
+
+        <!-- Hand + Pre-assigned answer -->
+        <text x="80" y="130" font-size="18">👆</text>
+        <rect x="105" y="105" width="105" height="35" fill="white" stroke="#764ba2"/>
+        <text x="157" y="120" text-anchor="middle" font-size="9" font-weight="700">Pre-assigned</text>
+        <text x="157" y="132" text-anchor="middle" font-size="9" font-weight="700">answer: MASK</text>
+
+        <!-- Chat bubbles -->
+        <text x="70" y="215" text-anchor="middle" font-size="9" fill="#333">"It was you!"</text>
+        <text x="240" y="215" text-anchor="middle" font-size="9" fill="#333">"No, you!"</text>
+        <text x="155" y="270" text-anchor="middle" font-size="9" fill="#c04a4a" font-weight="700">"You had</text>
+        <text x="155" y="282" text-anchor="middle" font-size="9" fill="#c04a4a" font-weight="700">the mask!"</text>
+
+        <text x="155" y="295" text-anchor="middle" font-size="10" fill="#4a2c76" font-weight="700">✓ Verifiable identity + task</text>
+      </g>
+    </svg>
+    <div class="caption">Figure 1 재현: (a) RLVR은 known correct answer로만 채점 → 수학·코딩에 국한. (b) SSL은 데이터 자체가 label(masked token 예측). (c) RLSVR은 SSL 원리를 RL에 이식 — 환경이 latent variable(spy identity 등)을 pre-assign해 verifiable reward를 induce.</div>
+  </div>
+</section>
+
+<section>
+  <h2>SpyRL Framework 개요 (Figure 2 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 1000 480" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- Non-verifiable tasks (left) -->
+      <g>
+        <rect x="20" y="60" width="140" height="230" rx="8" fill="#f2eef8" stroke="#764ba2" stroke-width="2"/>
+        <text x="90" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#4a2c76">Non-verifiable</text>
+        <text x="90" y="95" text-anchor="middle" font-size="12" font-weight="700" fill="#4a2c76">Reward Tasks</text>
+
+        <rect x="35" y="115" width="110" height="45" rx="6" fill="white" stroke="#8b2c8f"/>
+        <text x="90" y="130" text-anchor="middle" font-size="10">📝 Summary</text>
+        <text x="90" y="148" text-anchor="middle" font-size="9" fill="#666">GovReport</text>
+
+        <rect x="35" y="170" width="110" height="45" rx="6" fill="white" stroke="#8b2c8f"/>
+        <text x="90" y="185" text-anchor="middle" font-size="10">✍ Writing</text>
+        <text x="90" y="203" text-anchor="middle" font-size="9" fill="#666">WritingPrompts</text>
+
+        <rect x="35" y="225" width="110" height="45" rx="6" fill="white" stroke="#8b2c8f"/>
+        <text x="90" y="240" text-anchor="middle" font-size="10">🔬 Research</text>
+        <text x="90" y="258" text-anchor="middle" font-size="9" fill="#666">Math reasoning</text>
+      </g>
+
+      <path d="M 165,175 L 200,175" stroke="#764ba2" stroke-width="3" marker-end="url(#sp1)"/>
+
+      <!-- Task Transformation Φ -->
+      <g>
+        <rect x="200" y="60" width="180" height="120" rx="8" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="290" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#1a3a6c">Civilian (n−1명)</text>
+        <text x="290" y="98" text-anchor="middle" font-size="10" fill="#666">받는 것: 완전한 x</text>
+        <circle cx="235" cy="130" r="18" fill="#a4c8f0" stroke="#333"/>
+        <text x="235" y="137" text-anchor="middle" font-size="12">🤖</text>
+        <circle cx="275" cy="130" r="18" fill="#a4c8f0" stroke="#333"/>
+        <text x="275" y="137" text-anchor="middle" font-size="12">🤖</text>
+        <circle cx="315" cy="130" r="18" fill="#a4c8f0" stroke="#333"/>
+        <text x="315" y="137" text-anchor="middle" font-size="12">🤖</text>
+        <text x="290" y="167" text-anchor="middle" font-size="9" fill="#4a90d9">Info Loss X</text>
+
+        <rect x="200" y="200" width="180" height="90" rx="8" fill="#fce8e6" stroke="#c04a4a" stroke-width="2"/>
+        <text x="290" y="220" text-anchor="middle" font-size="12" font-weight="700" fill="#8b1a1a">Spy (1명)</text>
+        <text x="290" y="235" text-anchor="middle" font-size="10" fill="#666">받는 것: g(x) (20~40% masked)</text>
+        <circle cx="290" cy="265" r="18" fill="#f5a5a5" stroke="#333"/>
+        <text x="290" y="272" text-anchor="middle" font-size="12">🕵</text>
+      </g>
+
+      <path d="M 385,175 L 420,175" stroke="#764ba2" stroke-width="3" marker-end="url(#sp1)"/>
+
+      <!-- Performing Stage -->
+      <g>
+        <rect x="420" y="60" width="250" height="170" rx="8" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+        <text x="545" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#8b5a20">Performing Stage</text>
+        <text x="545" y="95" text-anchor="middle" font-size="10" fill="#666">Same target task on provided info</text>
+
+        <!-- Grid of robots -->
+        <g transform="translate(440 105)">
+          <circle cx="0" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="0" y="4" text-anchor="middle" font-size="10">C</text>
+          <circle cx="40" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="40" y="4" text-anchor="middle" font-size="10">C</text>
+          <circle cx="80" cy="0" r="15" fill="#f5a5a5" stroke="#c04a4a" stroke-width="2"/>
+          <text x="80" y="4" text-anchor="middle" font-size="10">S</text>
+          <circle cx="120" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="120" y="4" text-anchor="middle" font-size="10">C</text>
+          <circle cx="160" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="160" y="4" text-anchor="middle" font-size="10">C</text>
+
+          <!-- Outputs below -->
+          <rect x="-10" y="20" width="25" height="20" fill="white" stroke="#666"/>
+          <rect x="30" y="20" width="25" height="20" fill="white" stroke="#666"/>
+          <rect x="70" y="20" width="25" height="20" fill="#fce8e6" stroke="#c04a4a"/>
+          <rect x="110" y="20" width="25" height="20" fill="white" stroke="#666"/>
+          <rect x="150" y="20" width="25" height="20" fill="white" stroke="#666"/>
+        </g>
+
+        <text x="545" y="180" text-anchor="middle" font-size="11" fill="#8b5a20" font-weight="700">y_i ~ π^P_θ(· | o_i, τ)</text>
+        <text x="545" y="200" text-anchor="middle" font-size="10" fill="#666">Output on target task</text>
+        <text x="545" y="215" text-anchor="middle" font-size="10" fill="#c04a4a" font-style="italic">Spy는 정보 부족으로 티 남</text>
+      </g>
+
+      <!-- Detection Stage -->
+      <g>
+        <rect x="420" y="245" width="250" height="180" rx="8" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="545" y="265" text-anchor="middle" font-size="12" font-weight="700" fill="#1a3a6c">Detection Stage</text>
+        <text x="545" y="280" text-anchor="middle" font-size="10" fill="#666">Detect who is spy based on outputs</text>
+
+        <!-- Voting arrows -->
+        <g transform="translate(440 300)">
+          <circle cx="0" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="0" y="4" text-anchor="middle" font-size="10">C</text>
+          <path d="M 15,0 L 65,0" stroke="#c04a4a" stroke-width="2" marker-end="url(#sp1r)"/>
+
+          <circle cx="40" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="40" y="4" text-anchor="middle" font-size="10">C</text>
+          <path d="M 55,0 L 65,0" stroke="#c04a4a" stroke-width="2" marker-end="url(#sp1r)"/>
+
+          <circle cx="80" cy="0" r="15" fill="#f5a5a5" stroke="#c04a4a" stroke-width="2"/>
+          <text x="80" y="4" text-anchor="middle" font-size="10">S</text>
+          <text x="80" y="30" text-anchor="middle" font-size="9" fill="#c04a4a" font-weight="700">3 votes!</text>
+
+          <circle cx="120" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="120" y="4" text-anchor="middle" font-size="10">C</text>
+          <path d="M 105,0 L 95,0" stroke="#c04a4a" stroke-width="2" marker-end="url(#sp1r)"/>
+
+          <circle cx="160" cy="0" r="15" fill="#a4c8f0" stroke="#333"/>
+          <text x="160" y="4" text-anchor="middle" font-size="10">C</text>
+        </g>
+
+        <text x="545" y="360" text-anchor="middle" font-size="11" fill="#1a3a6c" font-weight="700">v_i ~ π^D_φ(· | (y_i, o_i))</text>
+        <text x="545" y="378" text-anchor="middle" font-size="10" fill="#666">Votes on spy</text>
+      </g>
+
+      <!-- Rewards (right) -->
+      <g>
+        <rect x="700" y="60" width="270" height="170" rx="8" fill="#eaf7ef" stroke="#4a9d4a" stroke-width="2"/>
+        <text x="835" y="80" text-anchor="middle" font-size="12" font-weight="700" fill="#1a5c1a">Performer Training</text>
+        <text x="835" y="105" text-anchor="middle" font-size="11" fill="#333">R_P ∝ 1 / VotedNum</text>
+        <text x="835" y="130" text-anchor="middle" font-size="10" fill="#666" font-style="italic">Non-verifiable → verifiable proxy</text>
+        <text x="835" y="160" text-anchor="middle" font-size="11" font-weight="700" fill="#1a5c1a">Perform ↑ → R_P ↑</text>
+        <text x="835" y="185" text-anchor="middle" font-size="10" fill="#666">더 좋은 output → vote 덜 받음</text>
+        <text x="835" y="205" text-anchor="middle" font-size="10" fill="#666">→ 더 큰 reward</text>
+      </g>
+
+      <g>
+        <rect x="700" y="245" width="270" height="180" rx="8" fill="#fef0f5" stroke="#c9346a" stroke-width="2"/>
+        <text x="835" y="265" text-anchor="middle" font-size="12" font-weight="700" fill="#8b2c50">Detector Training</text>
+
+        <rect x="720" y="285" width="230" height="35" rx="4" fill="white" stroke="#c9346a"/>
+        <text x="835" y="305" text-anchor="middle" font-size="12" font-weight="700">R_D = 1 if vote right</text>
+
+        <rect x="720" y="330" width="230" height="35" rx="4" fill="white" stroke="#c9346a"/>
+        <text x="835" y="352" text-anchor="middle" font-size="12" font-weight="700">R_D = 0 if vote wrong</text>
+
+        <text x="835" y="390" text-anchor="middle" font-size="11" font-weight="700" fill="#8b2c50">Fully Verifiable</text>
+        <text x="835" y="408" text-anchor="middle" font-size="10" fill="#666">Spy identity is pre-assigned</text>
+      </g>
+
+      <path d="M 675,145 L 700,145" stroke="#764ba2" stroke-width="3" marker-end="url(#sp1)"/>
+      <path d="M 675,335 L 700,335" stroke="#764ba2" stroke-width="3" marker-end="url(#sp1)"/>
+
+      <defs>
+        <marker id="sp1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#764ba2"/></marker>
+        <marker id="sp1r" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#c04a4a"/></marker>
+      </defs>
+    </svg>
+    <div class="caption">Figure 2 재현: (좌) unverifiable open-ended task → (중) 비대칭 정보 배분 후 target task 수행 → (우) 투표로 spy 식별. Detection reward는 pre-assigned identity로 검증 가능, Performing reward는 vote 수 역비례.</div>
+  </div>
+</section>
+
+<section>
+  <h2>RLSVR의 4단계 Task Transformation (Section 2)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 240" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <!-- 4 steps flow -->
+      <g>
+        <rect x="30" y="60" width="180" height="120" rx="10" fill="#f2eef8" stroke="#764ba2" stroke-width="2"/>
+        <text x="120" y="45" text-anchor="middle" font-size="11" fill="#764ba2" font-weight="700">STEP 1</text>
+        <text x="120" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#4a2c76">Latent-Variable</text>
+        <text x="120" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#4a2c76">Injection</text>
+        <text x="120" y="128" text-anchor="middle" font-size="10" fill="#666">환경이 x, z 샘플</text>
+        <text x="120" y="145" text-anchor="middle" font-size="10" fill="#666">z = spy index u</text>
+        <text x="120" y="165" text-anchor="middle" font-size="9" fill="#c9346a" font-style="italic">policy에 직접 공개 X</text>
+      </g>
+
+      <path d="M 215,120 L 245,120" stroke="#764ba2" stroke-width="2" marker-end="url(#sp3)"/>
+
+      <g>
+        <rect x="250" y="60" width="180" height="120" rx="10" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="340" y="45" text-anchor="middle" font-size="11" fill="#4a90d9" font-weight="700">STEP 2</text>
+        <text x="340" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Conditioned Task</text>
+        <text x="340" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Execution</text>
+        <text x="340" y="128" text-anchor="middle" font-size="10" fill="#666">o = f(x, z) → observation</text>
+        <text x="340" y="145" text-anchor="middle" font-size="10" fill="#666">y ~ π(· | o, τ)</text>
+        <text x="340" y="165" text-anchor="middle" font-size="9" fill="#4a90d9" font-style="italic">target task 수행</text>
+      </g>
+
+      <path d="M 435,120 L 465,120" stroke="#764ba2" stroke-width="2" marker-end="url(#sp3)"/>
+
+      <g>
+        <rect x="470" y="60" width="180" height="120" rx="10" fill="#fef7e0" stroke="#f9ab00" stroke-width="2"/>
+        <text x="560" y="45" text-anchor="middle" font-size="11" fill="#f9ab00" font-weight="700">STEP 3</text>
+        <text x="560" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#8b5a20">Verifiable</text>
+        <text x="560" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#8b5a20">Interaction</text>
+        <text x="560" y="128" text-anchor="middle" font-size="10" fill="#666">규칙 → z에 대한 질문</text>
+        <text x="560" y="145" text-anchor="middle" font-size="10" fill="#666">예: 누가 spy인가?</text>
+        <text x="560" y="165" text-anchor="middle" font-size="9" fill="#8b5a20" font-style="italic">답이 output 품질에 의존</text>
+      </g>
+
+      <path d="M 655,120 L 685,120" stroke="#764ba2" stroke-width="2" marker-end="url(#sp3)"/>
+
+      <g>
+        <rect x="690" y="60" width="180" height="120" rx="10" fill="#eaf7ef" stroke="#4a9d4a" stroke-width="2"/>
+        <text x="780" y="45" text-anchor="middle" font-size="11" fill="#4a9d4a" font-weight="700">STEP 4</text>
+        <text x="780" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#1a5c1a">Rule-Based</text>
+        <text x="780" y="102" text-anchor="middle" font-size="13" font-weight="700" fill="#1a5c1a">Reward</text>
+        <text x="780" y="128" text-anchor="middle" font-size="10" fill="#666">R = f(interaction, z)</text>
+        <text x="780" y="145" text-anchor="middle" font-size="10" fill="#666">환경이 정확 계산</text>
+        <text x="780" y="165" text-anchor="middle" font-size="9" fill="#1a5c1a" font-style="italic">no human, no judge</text>
+      </g>
+
+      <text x="450" y="215" text-anchor="middle" font-size="12" fill="#666" font-style="italic">= RLVR machinery(GRPO 등)에 R을 그대로 대입</text>
+
+      <defs><marker id="sp3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#764ba2"/></marker></defs>
+    </svg>
+    <div class="caption">RLSVR의 프레임워크: SSL의 pretext task 원리를 RL로 이식. 원 unverifiable objective Q를 verifiable proxy R로 <em>변환</em>.</div>
+  </div>
+</section>
+
+<section>
+  <h2>3개 도메인의 SpyRL 구현 (Figure 3 재현)</h2>
+  <div class="grid-3">
+    <div class="card card-accent">
+      <h3>📝 Summarization (GovReport)</h3>
+      <p><strong>Civilian obs</strong>: [Report] The structure of the armed forces is based on the Total Force concept, which recognises that all elements of the contractor...</p>
+      <p><strong>Spy obs (20% masked)</strong>: [Report] The structure of the armed forces is based on the Total Force concept. xxxxxxxxxx (continuous span masked)</p>
+      <p><strong>Perform</strong>: Give a summary based on provided report</p>
+      <p><strong>Detect criteria</strong>: 정보 완전성? 구조 명료? 핵심 의미 포착?</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>✍ Creative Writing (WritingPrompts)</h3>
+      <p><strong>Civilian obs</strong>: [WP] You've finally managed to discover the secret to immortality. Suddenly, Death appears before you, hands you a business card, and says...</p>
+      <p><strong>Spy obs</strong>: [WP] You've finally managed to discover the secret to immortality. xxxxxxxxxx</p>
+      <p><strong>Perform</strong>: Write an essay based on provided prompt</p>
+      <p><strong>Detect criteria</strong>: 프롬프트 관련성? 충분한 깊이? 창의성?</p>
+    </div>
+
+    <div class="card card-accent">
+      <h3>🧮 Math &amp; Reasoning (Nemotron-CC-Math)</h3>
+      <p><strong>Civilian obs</strong>: # Advanced Algebra ## Trace of a Large Inverse Matrix. I am dealing with computations involving huge weight matrices ($3000 \times 3000$)...</p>
+      <p><strong>Spy obs (40% masked)</strong>: # Advanced Algebra: xxxxxxxxxx (40% span). "I am wanting to seek your help in estimating..."</p>
+      <p><strong>Perform</strong>: Design &amp; solve based on materials</p>
+      <p><strong>Detect criteria</strong>: 핵심 원리 맞음? 문제 난이도 적절? 답 검증 가능?</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>Reward 수식 시각화 (수식 6)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Zero-Sum Reward Design (Performing Stage)</text>
+
+      <!-- Spy reward formula -->
+      <g>
+        <rect x="30" y="60" width="340" height="130" rx="10" fill="#fce8e6" stroke="#c04a4a" stroke-width="2"/>
+        <text x="200" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#8b1a1a">Spy Reward (u)</text>
+        <rect x="60" y="100" width="280" height="40" rx="6" fill="white"/>
+        <text x="200" y="127" text-anchor="middle" font-size="14" font-family="monospace">r^P_u = −β · (m_u − m̄_c)</text>
+        <text x="200" y="160" text-anchor="middle" font-size="10" fill="#666">m_u: spy가 받은 vote 수</text>
+        <text x="200" y="175" text-anchor="middle" font-size="10" fill="#666">m̄_c: civilian 평균 vote 수</text>
+      </g>
+
+      <!-- Civilian reward -->
+      <g transform="translate(400 0)">
+        <rect x="30" y="60" width="340" height="130" rx="10" fill="#eaf3fe" stroke="#4a90d9" stroke-width="2"/>
+        <text x="200" y="85" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3a6c">Civilian Reward (c_j)</text>
+        <rect x="45" y="100" width="310" height="45" rx="6" fill="white"/>
+        <text x="200" y="127" text-anchor="middle" font-size="14" font-family="monospace">r^P_c_j = (β/n_c)(m_u−m̄_c) − λ(m_c_j−m̄_c)</text>
+        <text x="200" y="160" text-anchor="middle" font-size="10" fill="#666">첫 항: spy 걸릴수록 +, 둘째 항: 자신이 튀면 −</text>
+        <text x="200" y="175" text-anchor="middle" font-size="10" fill="#666">m_c_j: civilian j가 받은 vote</text>
+      </g>
+
+      <!-- Zero-sum constraint -->
+      <g>
+        <rect x="200" y="215" width="400" height="60" rx="10" fill="#f2eef8" stroke="#764ba2" stroke-width="2"/>
+        <text x="400" y="240" text-anchor="middle" font-size="14" font-weight="700" fill="#4a2c76">Zero-sum: r^P_u + Σ r^P_c_j = 0</text>
+        <text x="400" y="260" text-anchor="middle" font-size="11" fill="#666" font-style="italic">Spy와 civilian이 지속적으로 co-evolve</text>
+      </g>
+
+      <!-- Insight boxes -->
+      <text x="400" y="300" text-anchor="middle" font-size="12" font-weight="700" fill="#4a2c76">💡 Spy가 많이 지목받을수록 → spy는 penalty, civilian은 ↑</text>
+      <text x="400" y="320" text-anchor="middle" font-size="12" font-weight="700" fill="#4a2c76">💡 Civilian은 다른 civilian보다 튀지 않아야 안전</text>
+    </svg>
+    <div class="caption">Zero-sum 설계가 competitive co-evolution 유도. Within-group 페널티는 civilian이 자기들끼리 similar quality를 유지하도록 힘.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Alternating Optimization의 필요성 (Table 8 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 340" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Math500 Accuracy 학습 곡선 (Ablation on Modules)</text>
+
+      <!-- Axes -->
+      <line x1="80" y1="70" x2="80" y2="290" stroke="#333"/>
+      <line x1="80" y1="290" x2="720" y2="290" stroke="#333"/>
+
+      <text x="70" y="75" text-anchor="end" font-size="10">80</text>
+      <text x="70" y="130" text-anchor="end" font-size="10">75</text>
+      <text x="70" y="185" text-anchor="end" font-size="10">70</text>
+      <text x="70" y="240" text-anchor="end" font-size="10">68.2</text>
+
+      <text x="80" y="305" text-anchor="middle" font-size="10">0</text>
+      <text x="200" y="305" text-anchor="middle" font-size="10">20</text>
+      <text x="320" y="305" text-anchor="middle" font-size="10">40</text>
+      <text x="440" y="305" text-anchor="middle" font-size="10">60</text>
+      <text x="560" y="305" text-anchor="middle" font-size="10">80</text>
+      <text x="680" y="305" text-anchor="middle" font-size="10">100</text>
+      <text x="400" y="325" text-anchor="middle" font-size="11">Epoch</text>
+
+      <!-- Baseline -->
+      <line x1="80" y1="240" x2="720" y2="240" stroke="#888" stroke-dasharray="4,3"/>
+      <text x="725" y="243" font-size="10" fill="#888">Base 68.2</text>
+
+      <!-- Only Performing: 68.2, 70.1, 71.8, 72.2, 71.9, 72.3 -->
+      <polyline points="80,240 200,220 320,201 440,196 560,199 680,195" stroke="#f9ab00" stroke-width="2.5" fill="none"/>
+      <circle cx="80" cy="240" r="4" fill="#f9ab00"/>
+      <circle cx="200" cy="220" r="4" fill="#f9ab00"/>
+      <circle cx="320" cy="201" r="4" fill="#f9ab00"/>
+      <circle cx="440" cy="196" r="4" fill="#f9ab00"/>
+      <circle cx="560" cy="199" r="4" fill="#f9ab00"/>
+      <circle cx="680" cy="195" r="4" fill="#f9ab00"/>
+      <text x="680" y="188" text-anchor="middle" font-size="10" fill="#f9ab00" font-weight="700">72.3</text>
+
+      <!-- Only Detection: 68.2, 69.0, 69.4, 69.0, 69.2, 69.2 -->
+      <polyline points="80,240 200,231 320,228 440,231 560,229 680,229" stroke="#c04a4a" stroke-width="2.5" fill="none"/>
+      <circle cx="80" cy="240" r="4" fill="#c04a4a"/>
+      <circle cx="680" cy="229" r="4" fill="#c04a4a"/>
+      <text x="680" y="222" text-anchor="middle" font-size="10" fill="#c04a4a" font-weight="700">69.2</text>
+
+      <!-- Without spy: 68.2, 69.6, 71.1, 69.8, 70.5, 71.6 -->
+      <polyline points="80,240 200,225 320,209 440,222 560,215 680,206" stroke="#666" stroke-width="2.5" fill="none" stroke-dasharray="3,3"/>
+      <circle cx="80" cy="240" r="4" fill="#666"/>
+      <circle cx="680" cy="206" r="4" fill="#666"/>
+      <text x="680" y="199" text-anchor="middle" font-size="10" fill="#666" font-weight="700">71.6</text>
+
+      <!-- Full SpyRL: 68.2, 73.3, 78.2, 78.8, 79.3, 79.5 -->
+      <polyline points="80,240 200,184 320,130 440,124 560,119 680,117" stroke="#764ba2" stroke-width="3.5" fill="none"/>
+      <circle cx="80" cy="240" r="5" fill="#764ba2"/>
+      <circle cx="200" cy="184" r="5" fill="#764ba2"/>
+      <circle cx="320" cy="130" r="5" fill="#764ba2"/>
+      <circle cx="440" cy="124" r="5" fill="#764ba2"/>
+      <circle cx="560" cy="119" r="5" fill="#764ba2"/>
+      <circle cx="680" cy="117" r="5" fill="#764ba2"/>
+      <text x="680" y="107" text-anchor="middle" font-size="12" fill="#764ba2" font-weight="700">79.5 ★</text>
+
+      <!-- Legend -->
+      <g transform="translate(120 55)">
+        <line x1="0" y1="0" x2="15" y2="0" stroke="#764ba2" stroke-width="3"/>
+        <text x="20" y="4" font-size="10" font-weight="700">SpyRL (Full)</text>
+        <line x1="120" y1="0" x2="135" y2="0" stroke="#f9ab00" stroke-width="2"/>
+        <text x="140" y="4" font-size="10">Only Performing</text>
+        <line x1="270" y1="0" x2="285" y2="0" stroke="#c04a4a" stroke-width="2"/>
+        <text x="290" y="4" font-size="10">Only Detection</text>
+        <line x1="410" y1="0" x2="425" y2="0" stroke="#666" stroke-width="2" stroke-dasharray="3,3"/>
+        <text x="430" y="4" font-size="10">Without Spy</text>
+      </g>
+    </svg>
+    <div class="caption">Table 8 재현: Full SpyRL만이 continuous 개선. Detection frozen은 rapid plateau (미묘한 quality 차이 감지 못함), Only Detection도 rapid saturate, Without spy는 asymmetric supervision 부재로 저조.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Vote 수 = Quality Proxy 검증 (Figure 4 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 300" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Received Votes vs GPT-4o Quality Rank</text>
+
+      <!-- Left: WritingPrompts -->
+      <g>
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">WritingPrompts (100 games)</text>
+        <line x1="60" y1="80" x2="60" y2="260" stroke="#333"/>
+        <line x1="60" y1="260" x2="380" y2="260" stroke="#333"/>
+        <text x="50" y="85" text-anchor="end" font-size="10">5</text>
+        <text x="50" y="125" text-anchor="end" font-size="10">4</text>
+        <text x="50" y="165" text-anchor="end" font-size="10">3</text>
+        <text x="50" y="205" text-anchor="end" font-size="10">2</text>
+        <text x="50" y="255" text-anchor="end" font-size="10">1</text>
+        <text x="30" y="170" text-anchor="middle" font-size="11" transform="rotate(-90 30 170)">GPT Rank (1=best)</text>
+
+        <!-- Bars: vote counts 0-8 -->
+        <g>
+          <rect x="80" y="222" width="30" height="38" fill="#c8a8f0"/>
+          <text x="95" y="218" text-anchor="middle" font-size="9">2.53</text>
+          <text x="95" y="278" text-anchor="middle" font-size="9">0</text>
+
+          <rect x="115" y="169" width="30" height="91" fill="#c8a8f0"/>
+          <text x="130" y="165" text-anchor="middle" font-size="9">3.19</text>
+          <text x="130" y="278" text-anchor="middle" font-size="9">1</text>
+
+          <rect x="150" y="114" width="30" height="146" fill="#c8a8f0"/>
+          <text x="165" y="110" text-anchor="middle" font-size="9">3.88</text>
+          <text x="165" y="278" text-anchor="middle" font-size="9">2</text>
+
+          <rect x="185" y="105" width="30" height="155" fill="#c8a8f0"/>
+          <text x="200" y="101" text-anchor="middle" font-size="9">4.00</text>
+          <text x="200" y="278" text-anchor="middle" font-size="9">3</text>
+
+          <rect x="220" y="119" width="30" height="141" fill="#c8a8f0"/>
+          <text x="235" y="115" text-anchor="middle" font-size="9">3.83</text>
+          <text x="235" y="278" text-anchor="middle" font-size="9">4</text>
+
+          <rect x="255" y="133" width="30" height="127" fill="#c8a8f0"/>
+          <text x="270" y="129" text-anchor="middle" font-size="9">3.70</text>
+          <text x="270" y="278" text-anchor="middle" font-size="9">5</text>
+
+          <rect x="290" y="119" width="30" height="141" fill="#c8a8f0"/>
+          <text x="305" y="115" text-anchor="middle" font-size="9">3.83</text>
+          <text x="305" y="278" text-anchor="middle" font-size="9">6</text>
+
+          <rect x="325" y="82" width="30" height="178" fill="#764ba2"/>
+          <text x="340" y="78" text-anchor="middle" font-size="9" font-weight="700">4.36</text>
+          <text x="340" y="278" text-anchor="middle" font-size="9">7</text>
+
+          <rect x="360" y="70" width="30" height="190" fill="#764ba2"/>
+          <text x="375" y="66" text-anchor="middle" font-size="9" font-weight="700">4.80</text>
+          <text x="375" y="278" text-anchor="middle" font-size="9">8</text>
+        </g>
+      </g>
+
+      <!-- Right: GovReport -->
+      <g transform="translate(400 0)">
+        <text x="200" y="55" text-anchor="middle" font-size="12" font-weight="700">GovReport (100 games)</text>
+        <line x1="60" y1="80" x2="60" y2="260" stroke="#333"/>
+        <line x1="60" y1="260" x2="380" y2="260" stroke="#333"/>
+        <text x="50" y="85" text-anchor="end" font-size="10">5</text>
+        <text x="50" y="125" text-anchor="end" font-size="10">4</text>
+        <text x="50" y="165" text-anchor="end" font-size="10">3</text>
+        <text x="50" y="205" text-anchor="end" font-size="10">2</text>
+        <text x="50" y="255" text-anchor="end" font-size="10">1</text>
+
+        <g>
+          <rect x="80" y="222" width="30" height="38" fill="#c8a8f0"/>
+          <text x="95" y="218" text-anchor="middle" font-size="9">2.59</text>
+          <text x="95" y="278" text-anchor="middle" font-size="9">0</text>
+
+          <rect x="115" y="160" width="30" height="100" fill="#c8a8f0"/>
+          <text x="130" y="156" text-anchor="middle" font-size="9">3.36</text>
+          <text x="130" y="278" text-anchor="middle" font-size="9">1</text>
+
+          <rect x="150" y="121" width="30" height="139" fill="#c8a8f0"/>
+          <text x="165" y="117" text-anchor="middle" font-size="9">3.75</text>
+          <text x="165" y="278" text-anchor="middle" font-size="9">2</text>
+
+          <rect x="185" y="86" width="30" height="174" fill="#c8a8f0"/>
+          <text x="200" y="82" text-anchor="middle" font-size="9">4.22</text>
+          <text x="200" y="278" text-anchor="middle" font-size="9">3</text>
+
+          <rect x="220" y="79" width="30" height="181" fill="#c8a8f0"/>
+          <text x="235" y="75" text-anchor="middle" font-size="9">4.30</text>
+          <text x="235" y="278" text-anchor="middle" font-size="9">4</text>
+
+          <rect x="255" y="118" width="30" height="142" fill="#c8a8f0"/>
+          <text x="270" y="114" text-anchor="middle" font-size="9">4.06</text>
+          <text x="270" y="278" text-anchor="middle" font-size="9">5</text>
+
+          <rect x="290" y="70" width="30" height="190" fill="#764ba2"/>
+          <text x="305" y="66" text-anchor="middle" font-size="9" font-weight="700">4.75</text>
+          <text x="305" y="278" text-anchor="middle" font-size="9">6</text>
+
+          <rect x="325" y="80" width="30" height="180" fill="#764ba2"/>
+          <text x="340" y="76" text-anchor="middle" font-size="9" font-weight="700">4.50</text>
+          <text x="340" y="278" text-anchor="middle" font-size="9">7</text>
+
+          <rect x="360" y="60" width="30" height="200" fill="#764ba2"/>
+          <text x="375" y="56" text-anchor="middle" font-size="9" font-weight="700">5.00 ★</text>
+          <text x="375" y="278" text-anchor="middle" font-size="9">8</text>
+        </g>
+      </g>
+
+      <text x="400" y="295" text-anchor="middle" font-size="11" fill="#666" font-style="italic">Votes Received (0=아무도 지목 안함, 8=모두 지목)</text>
+    </svg>
+    <div class="caption">Figure 4 재현: Vote를 많이 받은 player의 output일수록 GPT-4o가 낮게 평가. Monotone 관계가 vote-based reward의 정당성을 실증.</div>
+  </div>
+</section>
+
+<section>
+  <h2>주 결과: 3개 도메인 (Table 1, 2, 3 재현)</h2>
+
+  <table class="comp-table">
+    <tr><th>Method</th><th>Summ (Avg ROUGE-L)</th><th>Writing (Overall win rate vs 상단)</th><th>Math (Qwen3-4B Avg)</th></tr>
+    <tr><td>Base (Qwen3-4B)</td><td>26.4</td><td>—</td><td>41.4</td></tr>
+    <tr><td>+ R-Zero (SOTA)</td><td>28.4</td><td>78.9%</td><td>44.4</td></tr>
+    <tr><td>+ Absolute Zero (SOTA)</td><td>29.4</td><td>75.6%</td><td>45.6</td></tr>
+    <tr><td><strong>+ SpyRL</strong></td><td class="win"><strong>31.1 (+4.7)</strong></td><td class="win"><strong>81.3% vs base</strong></td><td class="win"><strong>50.4 (+9.0)</strong></td></tr>
+  </table>
+
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 300" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">Math Reasoning (Qwen3-4B): 벤치별 SpyRL 개선</text>
+
+      <line x1="80" y1="50" x2="80" y2="230" stroke="#333"/>
+      <line x1="80" y1="230" x2="840" y2="230" stroke="#333"/>
+      <text x="70" y="55" text-anchor="end" font-size="10">100</text>
+      <text x="70" y="105" text-anchor="end" font-size="10">75</text>
+      <text x="70" y="155" text-anchor="end" font-size="10">50</text>
+      <text x="70" y="205" text-anchor="end" font-size="10">25</text>
+
+      <!-- Groups: GSM8K, Math500, AIME24, AIME25, Minerva, MMLU-Pro, GPQA-D -->
+      <!-- Base and SpyRL bars per group -->
+      <g>
+        <!-- GSM8K: 84.5 → 93.4 -->
+        <rect x="110" y="60" width="30" height="170" fill="#c8a8f0"/>
+        <text x="125" y="55" text-anchor="middle" font-size="10">84.5</text>
+        <rect x="145" y="42" width="30" height="188" fill="#764ba2"/>
+        <text x="160" y="37" text-anchor="middle" font-size="10" font-weight="700">93.4</text>
+        <text x="142" y="248" text-anchor="middle" font-size="9">GSM8K</text>
+        <text x="142" y="260" text-anchor="middle" font-size="9" fill="#4a9d4a" font-weight="700">+8.9</text>
+
+        <!-- Math500: 68.2 → 79.5 -->
+        <rect x="215" y="94" width="30" height="136" fill="#c8a8f0"/>
+        <text x="230" y="89" text-anchor="middle" font-size="10">68.2</text>
+        <rect x="250" y="71" width="30" height="159" fill="#764ba2"/>
+        <text x="265" y="66" text-anchor="middle" font-size="10" font-weight="700">79.5</text>
+        <text x="247" y="248" text-anchor="middle" font-size="9">Math500</text>
+        <text x="247" y="260" text-anchor="middle" font-size="9" fill="#4a9d4a" font-weight="700">+11.3</text>
+
+        <!-- AIME24: 10.3 → 13.3 -->
+        <rect x="320" y="209" width="30" height="21" fill="#c8a8f0"/>
+        <text x="335" y="204" text-anchor="middle" font-size="10">10.3</text>
+        <rect x="355" y="203" width="30" height="27" fill="#764ba2"/>
+        <text x="370" y="198" text-anchor="middle" font-size="10" font-weight="700">13.3</text>
+        <text x="352" y="248" text-anchor="middle" font-size="9">AIME24</text>
+        <text x="352" y="260" text-anchor="middle" font-size="9" fill="#4a9d4a" font-weight="700">+3.0</text>
+
+        <!-- AIME25: 6.7 → 20.0 -->
+        <rect x="425" y="216" width="30" height="14" fill="#c8a8f0"/>
+        <text x="440" y="211" text-anchor="middle" font-size="10">6.7</text>
+        <rect x="460" y="190" width="30" height="40" fill="#764ba2"/>
+        <text x="475" y="185" text-anchor="middle" font-size="10" font-weight="700">20.0</text>
+        <text x="457" y="248" text-anchor="middle" font-size="9">AIME25</text>
+        <text x="457" y="260" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">+13.3★</text>
+
+        <!-- Minerva: 42.3 → 47.8 -->
+        <rect x="530" y="145" width="30" height="85" fill="#c8a8f0"/>
+        <text x="545" y="140" text-anchor="middle" font-size="10">42.3</text>
+        <rect x="565" y="134" width="30" height="96" fill="#764ba2"/>
+        <text x="580" y="129" text-anchor="middle" font-size="10" font-weight="700">47.8</text>
+        <text x="562" y="248" text-anchor="middle" font-size="9">Minerva</text>
+        <text x="562" y="260" text-anchor="middle" font-size="9" fill="#4a9d4a" font-weight="700">+5.5</text>
+
+        <!-- MMLU-Pro: 51.6 → 57.4 -->
+        <rect x="635" y="127" width="30" height="103" fill="#c8a8f0"/>
+        <text x="650" y="122" text-anchor="middle" font-size="10">51.6</text>
+        <rect x="670" y="115" width="30" height="115" fill="#764ba2"/>
+        <text x="685" y="110" text-anchor="middle" font-size="10" font-weight="700">57.4</text>
+        <text x="667" y="248" text-anchor="middle" font-size="9">MMLU-Pro</text>
+        <text x="667" y="260" text-anchor="middle" font-size="9" fill="#4a9d4a" font-weight="700">+5.8</text>
+
+        <!-- GPQA-D: 26.3 → 41.3 -->
+        <rect x="740" y="177" width="30" height="53" fill="#c8a8f0"/>
+        <text x="755" y="172" text-anchor="middle" font-size="10">26.3</text>
+        <rect x="775" y="147" width="30" height="83" fill="#764ba2"/>
+        <text x="790" y="142" text-anchor="middle" font-size="10" font-weight="700">41.3</text>
+        <text x="772" y="248" text-anchor="middle" font-size="9">GPQA-D</text>
+        <text x="772" y="260" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">+15.0★</text>
+      </g>
+
+      <!-- Legend -->
+      <g transform="translate(700 55)">
+        <rect x="0" y="0" width="12" height="12" fill="#c8a8f0"/>
+        <text x="18" y="10" font-size="10">Qwen3-4B base</text>
+        <rect x="0" y="18" width="12" height="12" fill="#764ba2"/>
+        <text x="18" y="28" font-size="10">+ SpyRL</text>
+      </g>
+    </svg>
+    <div class="caption">Table 3 재현: SpyRL이 verifiable task(math)에서도 최고. 어려운 벤치(AIME25, GPQA-D)에서 상대적 개선이 큰 것이 특히 인상적.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Role-Advantage Estimation의 필요성 (Table 9 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 300" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Qwen3-4B: RAE 없이는 오히려 성능 후퇴</text>
+
+      <!-- Base vs SpyRL w/o RAE vs SpyRL w/ RAE -->
+      <line x1="120" y1="60" x2="120" y2="230" stroke="#333"/>
+      <line x1="120" y1="230" x2="720" y2="230" stroke="#333"/>
+
+      <text x="110" y="65" text-anchor="end" font-size="10">55</text>
+      <text x="110" y="103" text-anchor="end" font-size="10">50</text>
+      <text x="110" y="141" text-anchor="end" font-size="10">45</text>
+      <text x="110" y="179" text-anchor="end" font-size="10">40</text>
+      <text x="110" y="217" text-anchor="end" font-size="10">35</text>
+
+      <text x="105" y="145" text-anchor="middle" font-size="10" transform="rotate(-90 105 145)">Avg (7 math benchmarks, %)</text>
+
+      <!-- Base: 41.4 -->
+      <rect x="180" y="149" width="80" height="81" fill="#c8a8f0"/>
+      <text x="220" y="144" text-anchor="middle" font-size="14" font-weight="700">41.4</text>
+      <text x="220" y="255" text-anchor="middle" font-size="11">Qwen3-4B</text>
+      <text x="220" y="270" text-anchor="middle" font-size="10" fill="#666">Base</text>
+
+      <!-- SpyRL w/o RAE: 37.5 (worse!) -->
+      <rect x="360" y="180" width="80" height="50" fill="#f5a5a5"/>
+      <text x="400" y="175" text-anchor="middle" font-size="14" font-weight="700" fill="#c04a4a">37.5</text>
+      <text x="400" y="255" text-anchor="middle" font-size="11">SpyRL</text>
+      <text x="400" y="270" text-anchor="middle" font-size="10" fill="#c04a4a" font-weight="700">w/o RAE</text>
+
+      <!-- SpyRL w/ RAE: 50.4 -->
+      <rect x="540" y="80" width="80" height="150" fill="#764ba2"/>
+      <text x="580" y="75" text-anchor="middle" font-size="14" font-weight="700" fill="#764ba2">50.4</text>
+      <text x="580" y="255" text-anchor="middle" font-size="11">SpyRL</text>
+      <text x="580" y="270" text-anchor="middle" font-size="10" fill="#4a9d4a" font-weight="700">w/ RAE</text>
+
+      <!-- Delta -->
+      <path d="M 260,140 L 360,175" stroke="#c04a4a" stroke-width="2" marker-end="url(#sp5)"/>
+      <text x="310" y="120" text-anchor="middle" font-size="11" fill="#c04a4a" font-weight="700">−3.9 (후퇴)</text>
+
+      <path d="M 440,175 L 540,90" stroke="#4a9d4a" stroke-width="2" marker-end="url(#sp5)"/>
+      <text x="490" y="120" text-anchor="middle" font-size="11" fill="#4a9d4a" font-weight="700">+12.9</text>
+
+      <defs><marker id="sp5" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#666"/></marker></defs>
+    </svg>
+    <div class="caption">Table 9 재현: 정보 비대칭 상황에서 raw reward를 그대로 쓰면 spy의 information disadvantage와 policy quality를 optimizer가 혼동. RAE로 role-specific baseline을 빼야 학습이 유효.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Group Size Ablation (Figure 5 재현)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 900 320" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="450" y="25" text-anchor="middle" font-size="14" font-weight="700">Group size n의 SpyRL 성능 gain (5개 벤치 avg)</text>
+
+      <line x1="80" y1="60" x2="80" y2="260" stroke="#333"/>
+      <line x1="80" y1="260" x2="820" y2="260" stroke="#333"/>
+
+      <text x="70" y="65" text-anchor="end" font-size="10">12</text>
+      <text x="70" y="105" text-anchor="end" font-size="10">10</text>
+      <text x="70" y="145" text-anchor="end" font-size="10">8</text>
+      <text x="70" y="185" text-anchor="end" font-size="10">6</text>
+      <text x="70" y="225" text-anchor="end" font-size="10">4</text>
+      <text x="70" y="255" text-anchor="end" font-size="10">2</text>
+      <text x="40" y="160" text-anchor="middle" font-size="11" transform="rotate(-90 40 160)">Mean Gain over Base</text>
+
+      <!-- Groups n=3,4,5,6,8 -->
+      <!-- n=3: 5.5 -->
+      <g transform="translate(130 0)">
+        <rect x="0" y="150" width="35" height="110" fill="#fef7e0"/>
+        <text x="17" y="145" text-anchor="middle" font-size="12" font-weight="700">5.5</text>
+        <text x="17" y="278" text-anchor="middle" font-size="12" font-weight="700">n=3</text>
+      </g>
+
+      <!-- n=4: 7.9 -->
+      <g transform="translate(280 0)">
+        <rect x="0" y="102" width="35" height="158" fill="#ffd58a"/>
+        <text x="17" y="97" text-anchor="middle" font-size="12" font-weight="700">7.9</text>
+        <text x="17" y="278" text-anchor="middle" font-size="12" font-weight="700">n=4</text>
+      </g>
+
+      <!-- n=5: 9.3 (STAR) -->
+      <g transform="translate(430 0)">
+        <rect x="0" y="74" width="45" height="186" fill="#764ba2"/>
+        <text x="22" y="68" text-anchor="middle" font-size="14" font-weight="700" fill="#764ba2">9.3 ★</text>
+        <text x="22" y="278" text-anchor="middle" font-size="14" font-weight="700" fill="#764ba2">n=5</text>
+      </g>
+
+      <!-- n=6: 10.4 -->
+      <g transform="translate(590 0)">
+        <rect x="0" y="52" width="35" height="208" fill="#a8d8a8"/>
+        <text x="17" y="47" text-anchor="middle" font-size="12" font-weight="700">10.4</text>
+        <text x="17" y="278" text-anchor="middle" font-size="12" font-weight="700">n=6</text>
+      </g>
+
+      <!-- n=8: 10.5 -->
+      <g transform="translate(740 0)">
+        <rect x="0" y="50" width="35" height="210" fill="#7abd7e"/>
+        <text x="17" y="45" text-anchor="middle" font-size="12" font-weight="700">10.5</text>
+        <text x="17" y="278" text-anchor="middle" font-size="12" font-weight="700">n=8</text>
+      </g>
+
+      <!-- Marginal gain annotation -->
+      <path d="M 165,145 Q 220,140 297,97" stroke="#4a9d4a" stroke-width="1.5" fill="none" marker-end="url(#sp6)"/>
+      <text x="230" y="120" font-size="11" fill="#4a9d4a" font-weight="700">+2.4</text>
+
+      <path d="M 315,97 Q 385,85 452,68" stroke="#4a9d4a" stroke-width="1.5" fill="none" marker-end="url(#sp6)"/>
+      <text x="385" y="82" font-size="11" fill="#4a9d4a" font-weight="700">+1.4</text>
+
+      <path d="M 475,68 Q 540,60 607,47" stroke="#f9ab00" stroke-width="1.5" fill="none" marker-end="url(#sp6)" stroke-dasharray="3,3"/>
+      <text x="540" y="62" font-size="11" fill="#f9ab00" font-weight="700">+1.1</text>
+
+      <path d="M 625,47 Q 690,48 757,45" stroke="#f9ab00" stroke-width="1.5" fill="none" marker-end="url(#sp6)" stroke-dasharray="3,3"/>
+      <text x="690" y="42" font-size="11" fill="#f9ab00" font-weight="700">+0.1</text>
+
+      <defs><marker id="sp6" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><polygon points="0 0, 8 3, 0 6" fill="#666"/></marker></defs>
+    </svg>
+    <div class="caption">Figure 5 재현: n=3→5에서 marginal gain 최대(+3.8), n=6, 8에서 diminishing returns. n=5가 sufficient game complexity의 sweet spot.</div>
+  </div>
+</section>
+
+<section>
+  <h2>Rubric-as-Reward 대비 비용/성능 (Table 5)</h2>
+  <div class="svg-wrap">
+    <svg viewBox="0 0 800 280" width="100%" xmlns="http://www.w3.org/2000/svg">
+      <text x="400" y="25" text-anchor="middle" font-size="14" font-weight="700">Verifier Cost × Overall Win Rate</text>
+
+      <line x1="80" y1="50" x2="80" y2="230" stroke="#333"/>
+      <line x1="80" y1="230" x2="720" y2="230" stroke="#333"/>
+
+      <text x="70" y="55" text-anchor="end" font-size="10">70%</text>
+      <text x="70" y="100" text-anchor="end" font-size="10">60%</text>
+      <text x="70" y="145" text-anchor="end" font-size="10">50%</text>
+      <text x="70" y="190" text-anchor="end" font-size="10">40%</text>
+
+      <text x="120" y="248" text-anchor="middle" font-size="10">$0</text>
+      <text x="360" y="248" text-anchor="middle" font-size="10">$200</text>
+      <text x="620" y="248" text-anchor="middle" font-size="10">$900</text>
+      <text x="400" y="270" text-anchor="middle" font-size="11">Verifier cost (per training run)</text>
+
+      <!-- Parity line at 50% -->
+      <line x1="80" y1="145" x2="720" y2="145" stroke="#888" stroke-dasharray="4,3"/>
+      <text x="725" y="148" font-size="10" fill="#888">parity 50%</text>
+
+      <!-- SpyRL: $0, ~60% -->
+      <circle cx="120" cy="93" r="18" fill="#764ba2" stroke="#fff" stroke-width="3"/>
+      <text x="120" y="70" text-anchor="middle" font-size="12" font-weight="700" fill="#764ba2">SpyRL</text>
+      <text x="120" y="55" text-anchor="middle" font-size="11" font-weight="700" fill="#4a9d4a">59% ★</text>
+
+      <!-- Qwen3.5-RaR: $200, 41% win rate (vs SpyRL 59%) -->
+      <circle cx="360" cy="170" r="12" fill="#f9ab00" stroke="#333"/>
+      <text x="360" y="200" text-anchor="middle" font-size="11">Qwen3.5-27B-RaR</text>
+      <text x="360" y="215" text-anchor="middle" font-size="10" fill="#c9346a">SpyRL wins 59%</text>
+
+      <!-- GPT-4o-RaR: $900, 51% (SpyRL loses just barely) -->
+      <circle cx="620" cy="140" r="12" fill="#e67e22" stroke="#333"/>
+      <text x="620" y="170" text-anchor="middle" font-size="11">GPT-4o-RaR</text>
+      <text x="620" y="185" text-anchor="middle" font-size="10" fill="#c9346a">SpyRL wins 49% (tie)</text>
+
+      <!-- Sweet spot annotation -->
+      <path d="M 120,93 Q 200,60 300,80" stroke="#4a9d4a" stroke-width="2" stroke-dasharray="4,3" fill="none"/>
+      <text x="220" y="45" text-anchor="middle" font-size="12" fill="#4a9d4a" font-weight="700">$0로 GPT-4o-RaR와 대등</text>
+    </svg>
+    <div class="caption">Table 5 재현: SpyRL은 external verifier가 필요 없다. Qwen3.5-27B-RaR($200)을 넘고, GPT-4o-RaR($900)과 대등. Novelty/Emotion에서는 GPT-4o-RaR도 능가.</div>
+  </div>
+</section>
+
+<section>
+  <h2>한계점</h2>
+  <div class="grid-2">
+    <div class="card card-orange">
+      <h3>Task-specific g(·) 설계 요구</h3>
+      <p>Mask ratio: 요약 20%, 수학 40%로 태스크마다 다름. 새 도메인 도입 시 튜닝 필요. RAE가 완화하지만 완전 자동은 아님.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Detector-Performer collusion 위험</h3>
+      <p>Policy π^P와 π^D가 같은 backbone. 서로 다른 모델을 쓸 때의 이점 미검증. 같은 backbone은 shared blind spot 가능.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Zero-sum reward의 exploitability</h3>
+      <p>Civilian이 systematic strategic voting을 학습하면 spy detection이 아닌 arbitrary target에 몰릴 위험. Degenerate 균형 방어 미분석.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Compute cost</h3>
+      <p>n=5 rollout + detection round = 5× standard RLVR. External verifier cost 절감이 상쇄 여지 있지만 순수 GPU 비용은 증가.</p>
+    </div>
+    <div class="card card-orange">
+      <h3>Long context 미검증</h3>
+      <p>Max generation 2048 tokens. 실제 요약/창작은 훨씬 긴 output가 필요할 수 있음. Longer context에서 detector 능력 검증 없음.</p>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    <p class="quote">"Verifiability는 태스크의 intrinsic property가 아니라 <em>engineered</em> property다. Information-asymmetric self-play는 open-ended task를 verifiable proxy로 변환하는 강력한 도구."</p>
+  </div>
+  <div style="text-align: center; margin-top: 1.5rem;">
+    <a class="top-link" href="20260807_wang_spyrl-rlsvr.html" style="background:#764ba2; color:white; padding:0.7rem 1.5rem; border-radius:6px; text-decoration:none; display:inline-block;">전문가용 상세 요약 보기 →</a>
+  </div>
+</section>
+
+</div>
+
+<footer>
+  <p><strong>From RLVR to RLSVR: Task Transformation Induces Self-Verifiable Rewards for Open-Ended LLM Self-Improvement</strong></p>
+  <p>Qinsi Wang et al. · COLM 2026 · Duke · Adobe · Amazon</p>
+  <p><a href="https://arxiv.org/abs/2607.23802">arXiv:2607.23802</a> · <a href="https://github.com/wangqinsi1/RLSVR/tree/SpyRL">GitHub</a></p>
+</footer>
+
+</body>
+</html>
