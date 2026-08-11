@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Critique-GRPO — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #fff; color: #1e293b; line-height: 1.75; }
+
+  .hero { background: linear-gradient(135deg, #064e3b 0%, #047857 40%, #10b981 100%); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.18); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 3rem; font-weight: 900; margin-bottom: 0.4rem; }
+  .hero .subtitle { font-size: 1.15rem; font-weight: 300; opacity: 0.92; max-width: 720px; margin: 0.5rem auto; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.65rem; font-weight: 700; margin-bottom: 1rem; color: #064e3b; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #047857, #10b981); border-radius: 3px; }
+  section h3 { margin-top: 1.8rem; font-size: 1.15rem; color: #1e293b; }
+  p { margin: 0.8rem 0; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #10b981; }
+  .card-green { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red { border-left: 5px solid #dc2626; }
+  .card-blue { border-left: 5px solid #2563eb; }
+
+  .one-liner { background: linear-gradient(135deg, #047857, #10b981); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.2rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; font-style: italic; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #047857, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; font-size: 0.92rem; }
+  .comp-table th { background: #064e3b; color: #fff; padding: 12px 14px; font-weight: 500; }
+  .comp-table td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #ecfdf5; font-weight: 700; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #10b981; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 140px; }
+  .step-box .step-num { font-size: 0.75rem; color: #10b981; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #10b981; padding: 0 0.4rem; }
+
+  .version-toggle { text-align: center; margin: 1.5rem 0; }
+  .version-toggle a { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #ecfdf5; color: #047857; border: 1px solid #6ee7b7; }
+  .version-toggle a:hover { background: #047857; color: #fff; }
+
+  .callout { background: #ecfdf5; border-left: 5px solid #10b981; padding: 1rem 1.5rem; margin: 1rem 0; border-radius: 8px; }
+  .callout .callout-title { font-weight: 700; color: #047857; margin-bottom: 0.4rem; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.5rem 1.8rem; margin: 1.5rem 0; }
+  .analogy-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="hero-badge">CUHK · Cambridge · MMLab · Shanghai AI Lab · ICML 2026</div>
+  <h1>Critique-GRPO</h1>
+  <p class="subtitle">"틀렸다"라는 신호만으론 부족하다.<br><b>왜 · 어디가 · 어떻게</b> 틀렸는지의 자연어 critique를 online RL loop 안에 넣는다.</p>
+</div>
+
+<div class="container">
+
+<div class="version-toggle"><a href="20260811_zhang_critique-grpo.html">전문가용 상세 요약 보기 →</a></div>
+
+<div class="one-liner">
+"학생에게 '40점'만 알려주는 대신 '3번은 부호 실수, 5번은 접근 자체가 틀림'을 알려주고<br>
+학생이 그 지적을 참고해 다시 푼 답까지 함께 학습.<br>
+Numerical RL이 못 뚫는 <b>29% persistent failure</b>의 55%를 refinement로 해결."
+</div>
+
+<!-- 문제 -->
+<section>
+  <h2>이 논문이 짚는 문제 — Numerical RL의 세 벽</h2>
+
+  <p>R1-Zero (2025) 이후 <b>scalar reward만으로 online RL을 걸어 LLM reasoning을 향상</b>시키는 recipe가 표준이 되었다. 그러나 이 recipe에는 세 개의 근본적 한계가 있다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Three walls of numerical-only RL</text>
+
+      <g transform="translate(20,50)">
+        <rect x="0" y="0" width="220" height="150" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="10"/>
+        <text x="110" y="24" font-size="12" font-weight="800" fill="#991b1b" text-anchor="middle">① Performance Plateau</text>
+        <text x="110" y="46" font-size="10" fill="#7f1d1d" text-anchor="middle">Qwen2.5-7B-Base @ 120 steps</text>
+        <line x1="20" y1="120" x2="200" y2="120" stroke="#334155"/>
+        <line x1="20" y1="70" x2="20" y2="120" stroke="#334155"/>
+        <path d="M20,110 Q60,90 100,75 L200,74" stroke="#dc2626" stroke-width="2" fill="none"/>
+        <line x1="100" y1="60" x2="100" y2="120" stroke="#94a3b8" stroke-dasharray="3 3"/>
+        <text x="100" y="60" font-size="9" fill="#94a3b8" text-anchor="middle">saturation</text>
+        <text x="110" y="140" font-size="9" fill="#64748b" text-anchor="middle">8× data scale, extended training</text>
+        <text x="110" y="155" font-size="9" fill="#64748b" text-anchor="middle">→ 유의한 개선 없음</text>
+      </g>
+
+      <g transform="translate(260,50)">
+        <rect x="0" y="0" width="220" height="150" fill="#fef3c7" stroke="#d97706" stroke-width="2" rx="10"/>
+        <text x="110" y="24" font-size="12" font-weight="800" fill="#92400e" text-anchor="middle">② Ineffective Self-Reflection</text>
+        <text x="110" y="46" font-size="10" fill="#78350f" text-anchor="middle">"Aha" 순간은 나오지만…</text>
+        <rect x="15" y="60" width="70" height="70" fill="#fbbf24" opacity="0.3"/>
+        <text x="50" y="90" font-size="9" text-anchor="middle" fill="#78350f">Verification</text>
+        <text x="50" y="105" font-size="9" text-anchor="middle" fill="#78350f">Backtracking</text>
+        <rect x="105" y="70" width="90" height="60" fill="#f97316" opacity="0.3"/>
+        <text x="150" y="90" font-size="9" text-anchor="middle" fill="#7c2d12">Backward chaining</text>
+        <text x="150" y="105" font-size="9" text-anchor="middle" fill="#7c2d12">Anticipation</text>
+        <text x="110" y="150" font-size="9" fill="#dc2626" text-anchor="middle">→ 성공률 기여 거의 없음</text>
+      </g>
+
+      <g transform="translate(500,50)">
+        <rect x="0" y="0" width="200" height="150" fill="#f3e8ff" stroke="#7c3aed" stroke-width="2" rx="10"/>
+        <text x="100" y="24" font-size="12" font-weight="800" fill="#5b21b6" text-anchor="middle">③ Persistent Failures</text>
+        <circle cx="60" cy="90" r="35" fill="#c4b5fd"/>
+        <path d="M60,55 A35,35 0 0,1 90,105 L60,90 Z" fill="#7c3aed"/>
+        <text x="60" y="93" font-size="14" font-weight="800" text-anchor="middle" fill="#fff">29%</text>
+        <text x="140" y="80" font-size="10" fill="#4c1d95">Qwen2.5-7B-Base</text>
+        <text x="140" y="93" font-size="10" fill="#4c1d95">+ R1-GRPO 이후</text>
+        <text x="140" y="106" font-size="10" fill="#4c1d95">Pass@4 = 0 문제</text>
+        <text x="100" y="155" font-size="9" fill="#64748b" text-anchor="middle">4번 시도 모두 실패</text>
+      </g>
+
+      <g transform="translate(160,240)">
+        <rect x="0" y="0" width="400" height="140" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="12"/>
+        <text x="200" y="26" font-size="13" font-weight="800" fill="#065f46" text-anchor="middle">Deliberate CoT critique로 55.37% 해결</text>
+        <text x="200" y="52" font-size="11" fill="#064e3b" text-anchor="middle">Indicative critique ("틀렸다"): 2.09% refinement 성공</text>
+        <text x="200" y="70" font-size="11" fill="#064e3b" text-anchor="middle">Indicative w/ GT ("틀렸다, 정답은 X"): 1.98%</text>
+        <text x="200" y="88" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">CoT Critique (step-by-step): 36.47% refinement, 55.37% questions</text>
+        <text x="200" y="115" font-size="10" fill="#64748b" text-anchor="middle">→ Verbal credit assignment가 numerical reward가 못하는 일을 한다</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Figure 1/Table 1 재현: 세 한계를 진단하고 CoT critique가 지속 실패의 55%를 refinement로 해결함을 실증.</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">29%</div><div class="label">Persistent failure (Pass@4=0)</div></div>
+    <div class="stat-box"><div class="num">55%</div><div class="label">CoT critique로 refine 성공</div></div>
+    <div class="stat-box"><div class="num">2%</div><div class="label">Indicative critique로 refine 성공</div></div>
+    <div class="stat-box"><div class="num">60%</div><div class="label">Valid CoT critique 비율</div></div>
+  </div>
+</section>
+
+<!-- GRPO 리마인더 -->
+<section>
+  <h2>GRPO 리마인더</h2>
+
+  <p>GRPO는 value function 없이 group 내 상대 성과로 학습하는 online RL. 같은 query에 대해 $n$개 rollout을 sampling, group의 mean/std로 advantage 정규화.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 260" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">GRPO의 group-relative advantage</text>
+
+      <g transform="translate(30,50)">
+        <rect x="0" y="0" width="140" height="70" fill="#dbeafe" stroke="#2563eb" rx="8"/>
+        <text x="70" y="28" font-size="11" font-weight="700" text-anchor="middle" fill="#1e40af">Query q</text>
+        <text x="70" y="48" font-size="10" text-anchor="middle" fill="#1e40af">"Prove ..."</text>
+      </g>
+
+      <line x1="170" y1="85" x2="220" y2="85" stroke="#334155" stroke-width="1.5"/>
+
+      <g transform="translate(230,30)">
+        <rect x="0" y="0" width="130" height="35" fill="#dcfce7" stroke="#059669" rx="6"/>
+        <text x="65" y="22" font-size="10" text-anchor="middle" fill="#065f46">y^(1) → R=1</text>
+        <rect x="0" y="45" width="130" height="35" fill="#fee2e2" stroke="#dc2626" rx="6"/>
+        <text x="65" y="67" font-size="10" text-anchor="middle" fill="#991b1b">y^(2) → R=0</text>
+        <rect x="0" y="90" width="130" height="35" fill="#dcfce7" stroke="#059669" rx="6"/>
+        <text x="65" y="112" font-size="10" text-anchor="middle" fill="#065f46">y^(3) → R=1</text>
+        <rect x="0" y="135" width="130" height="35" fill="#fee2e2" stroke="#dc2626" rx="6"/>
+        <text x="65" y="157" font-size="10" text-anchor="middle" fill="#991b1b">y^(4) → R=0</text>
+      </g>
+
+      <line x1="360" y1="115" x2="420" y2="115" stroke="#334155" stroke-width="1.5"/>
+
+      <g transform="translate(430,60)">
+        <rect x="0" y="0" width="240" height="130" fill="#f5f3ff" stroke="#7c3aed" rx="10"/>
+        <text x="120" y="24" font-size="11" font-weight="700" text-anchor="middle" fill="#5b21b6">Group-relative advantage</text>
+        <text x="120" y="50" font-size="11" fill="#4c1d95" text-anchor="middle" font-family="monospace">Â^(i) = (R^(i) − μ) / σ</text>
+        <text x="120" y="72" font-size="10" fill="#5b21b6" text-anchor="middle">μ = 0.5, σ = 0.5</text>
+        <text x="120" y="90" font-size="10" fill="#059669" text-anchor="middle">Â^(1) = +1, Â^(3) = +1</text>
+        <text x="120" y="106" font-size="10" fill="#dc2626" text-anchor="middle">Â^(2) = −1, Â^(4) = −1</text>
+        <text x="120" y="122" font-size="9" fill="#64748b" text-anchor="middle">→ 그룹 대비 상대 성과로 학습</text>
+      </g>
+
+      <text x="360" y="230" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">
+        문제: R=0인 rollout들이 모두 동일한 zero-info 신호. "어디가 틀렸는가"의 정보 없음.
+      </text>
+    </svg>
+    <div class="diagram-caption">GRPO는 그룹 내 성과 순위로만 학습. 하지만 R=0 rollout들이 모두 동일한 zero-info라 verbal credit assignment는 없다.</div>
+  </div>
+</section>
+
+<!-- Critique-GRPO 전체 아키텍처 -->
+<section>
+  <h2>Critique-GRPO 전체 아키텍처 (Figure 1a/2 재현)</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 900 500" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrG" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#334155"/></marker>
+      </defs>
+
+      <text x="450" y="24" font-size="15" font-weight="800" fill="#064e3b" text-anchor="middle">Critique-GRPO: Online RL with dual sources</text>
+
+      <!-- Query -->
+      <g transform="translate(30,60)">
+        <rect x="0" y="0" width="130" height="60" fill="#dbeafe" stroke="#2563eb" rx="8"/>
+        <text x="65" y="26" font-size="11" font-weight="700" text-anchor="middle" fill="#1e40af">Query q</text>
+        <text x="65" y="44" font-size="9" text-anchor="middle" fill="#1e40af">(math / STEM problem)</text>
+      </g>
+
+      <!-- Policy model -->
+      <g transform="translate(200,50)">
+        <rect x="0" y="0" width="140" height="80" fill="#f3e8ff" stroke="#7c3aed" rx="10"/>
+        <text x="70" y="26" font-size="11" font-weight="800" text-anchor="middle" fill="#5b21b6">Policy π_θ</text>
+        <text x="70" y="48" font-size="9" text-anchor="middle" fill="#4c1d95">(current LLM)</text>
+        <text x="70" y="66" font-size="9" text-anchor="middle" fill="#64748b">initial gen + refinement</text>
+      </g>
+      <line x1="160" y1="90" x2="200" y2="90" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+      <!-- Initial responses -->
+      <g transform="translate(380,20)">
+        <text x="0" y="0" font-size="10" font-weight="700" fill="#064e3b">Initial Responses</text>
+        <rect x="0" y="10" width="120" height="26" fill="#dcfce7" stroke="#059669" rx="4"/>
+        <text x="60" y="27" font-size="10" text-anchor="middle" fill="#065f46">y^(1) → R=1</text>
+        <rect x="0" y="42" width="120" height="26" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+        <text x="60" y="59" font-size="10" text-anchor="middle" fill="#991b1b">y^(2) → R=0</text>
+        <rect x="0" y="74" width="120" height="26" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+        <text x="60" y="91" font-size="10" text-anchor="middle" fill="#991b1b">y^(3) → R=0</text>
+        <rect x="0" y="106" width="120" height="26" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+        <text x="60" y="123" font-size="10" text-anchor="middle" fill="#991b1b">y^(n) → R=0</text>
+      </g>
+      <line x1="340" y1="90" x2="380" y2="90" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+      <!-- Reward system -->
+      <g transform="translate(560,50)">
+        <rect x="0" y="0" width="140" height="80" fill="#fef3c7" stroke="#d97706" rx="10"/>
+        <text x="70" y="26" font-size="11" font-weight="700" text-anchor="middle" fill="#92400e">Reward System</text>
+        <text x="70" y="46" font-size="9" text-anchor="middle" fill="#78350f">rule-based (c_I, c_GT)</text>
+        <text x="70" y="62" font-size="9" text-anchor="middle" fill="#78350f">or model-based (c_CoT)</text>
+      </g>
+      <line x1="500" y1="90" x2="560" y2="90" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+      <!-- Critiques -->
+      <g transform="translate(740,20)">
+        <text x="0" y="0" font-size="10" font-weight="700" fill="#064e3b">Critiques</text>
+        <rect x="0" y="10" width="140" height="35" fill="#fef2f2" stroke="#f87171" rx="4"/>
+        <text x="70" y="30" font-size="9" text-anchor="middle" fill="#7f1d1d">c_I: "incorrect"</text>
+        <rect x="0" y="50" width="140" height="35" fill="#fef2f2" stroke="#f87171" rx="4"/>
+        <text x="70" y="70" font-size="9" text-anchor="middle" fill="#7f1d1d">c_GT: "GT is 7/25"</text>
+        <rect x="0" y="90" width="140" height="45" fill="#f3e8ff" stroke="#a78bfa" rx="4"/>
+        <text x="70" y="107" font-size="9" text-anchor="middle" fill="#4c1d95">c_CoT: Step 1 ...</text>
+        <text x="70" y="122" font-size="9" text-anchor="middle" fill="#4c1d95">Step 7: 계산 오류</text>
+      </g>
+      <line x1="700" y1="90" x2="740" y2="90" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+      <!-- Refinement generation -->
+      <g transform="translate(150,220)">
+        <rect x="0" y="0" width="600" height="90" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="12"/>
+        <text x="300" y="26" font-size="12" font-weight="800" fill="#065f46" text-anchor="middle">Critique-Guided Refinement (Self-Refining w/ Critiques)</text>
+        <text x="300" y="52" font-size="10.5" fill="#064e3b" text-anchor="middle" font-family="monospace">y'_refined^(i) ~ π_θ(· | I_refine, q, y^(i), c^(i))</text>
+        <text x="300" y="72" font-size="10" fill="#065f46" text-anchor="middle">"이 critique를 참고해 다시 풀어보세요" → in-context refinement 샘플링</text>
+      </g>
+      <line x1="800" y1="130" x2="700" y2="220" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+
+      <!-- Refined responses & rewards -->
+      <g transform="translate(150,340)">
+        <text x="0" y="0" font-size="10" font-weight="700" fill="#064e3b">Refined Responses + Rewards</text>
+        <rect x="0" y="10" width="140" height="26" fill="#dcfce7" stroke="#059669" rx="4"/>
+        <text x="70" y="27" font-size="10" text-anchor="middle" fill="#065f46">y'^(1) → R=1 (correct!)</text>
+        <rect x="160" y="10" width="140" height="26" fill="#dcfce7" stroke="#059669" rx="4"/>
+        <text x="230" y="27" font-size="10" text-anchor="middle" fill="#065f46">y'^(2) → R=1</text>
+        <rect x="320" y="10" width="140" height="26" fill="#fee2e2" stroke="#dc2626" rx="4"/>
+        <text x="390" y="27" font-size="10" text-anchor="middle" fill="#991b1b">y'^(3) → R=0</text>
+        <rect x="480" y="10" width="140" height="26" fill="#fef3c7" stroke="#d97706" rx="4"/>
+        <text x="550" y="27" font-size="9" text-anchor="middle" fill="#92400e">Subset select k (correct 우선)</text>
+      </g>
+
+      <!-- Policy update -->
+      <g transform="translate(200,410)">
+        <rect x="0" y="0" width="500" height="70" fill="#0f172a" rx="12"/>
+        <text x="250" y="26" font-size="13" font-weight="800" text-anchor="middle" fill="#facc15">Policy Update</text>
+        <text x="250" y="48" font-size="11" text-anchor="middle" fill="#e2e8f0" font-family="monospace">J = J_init + J_refi (with policy shaping ρ = π/(π+γ))</text>
+        <text x="250" y="65" font-size="9.5" text-anchor="middle" fill="#94a3b8">unified baseline: mean over init + refined rewards</text>
+      </g>
+      <line x1="450" y1="376" x2="450" y2="410" stroke="#334155" stroke-width="1.5" marker-end="url(#arrG)"/>
+      <line x1="450" y1="480" x2="270" y2="130" stroke="#7c3aed" stroke-width="1" stroke-dasharray="4 3"/>
+      <text x="330" y="490" font-size="9" fill="#7c3aed">Feedback loop: 업데이트된 π_θ로 다음 step</text>
+    </svg>
+    <div class="diagram-caption">Figure 2 재현: 초기 response 샘플링 → reward system이 critique 생성 → critique로 refinement 샘플링 → 두 종류 rollout으로 policy update.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">직관적 비유</div>
+    <p>학생이 시험 답안을 낸다 → 채점자가 "40점, 3번은 이런 이유로 틀렸고 5번은 접근이 다르게 필요합니다" 라고 말한다 → 학생이 그 조언을 참고해 다시 푼 답안까지 함께 제출한다 → 선생은 두 답안 모두를 보면서 학생의 학습 방향을 잡는다. Numerical RL은 첫 답안만 보고 "40점"이라고만 한다.</p>
+  </div>
+</section>
+
+<!-- 세 종류 critique -->
+<section>
+  <h2>세 종류 Critique 비교</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Three types of critiques (Table 1 재현)</text>
+
+      <g transform="translate(30,50)">
+        <rect x="0" y="0" width="200" height="150" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="10"/>
+        <text x="100" y="24" font-size="12" font-weight="800" fill="#991b1b" text-anchor="middle">① Indicative</text>
+        <rect x="15" y="40" width="170" height="35" fill="#fff" stroke="#94a3b8" rx="4"/>
+        <text x="100" y="60" font-size="9.5" text-anchor="middle" fill="#334155" font-style="italic">"The generated solution</text>
+        <text x="100" y="72" font-size="9.5" text-anchor="middle" fill="#334155" font-style="italic">is incorrect."</text>
+        <text x="100" y="98" font-size="10" fill="#7f1d1d" text-anchor="middle">Only binary signal</text>
+        <text x="100" y="115" font-size="10" fill="#7f1d1d" text-anchor="middle">= scalar reward와 동등</text>
+        <text x="100" y="140" font-size="14" font-weight="800" fill="#dc2626" text-anchor="middle">2.09% refined</text>
+      </g>
+
+      <g transform="translate(260,50)">
+        <rect x="0" y="0" width="200" height="150" fill="#fef3c7" stroke="#d97706" stroke-width="2" rx="10"/>
+        <text x="100" y="24" font-size="12" font-weight="800" fill="#92400e" text-anchor="middle">② Indicative w/ GT</text>
+        <rect x="15" y="40" width="170" height="35" fill="#fff" stroke="#94a3b8" rx="4"/>
+        <text x="100" y="60" font-size="9.5" text-anchor="middle" fill="#334155" font-style="italic">"The generated solution</text>
+        <text x="100" y="72" font-size="9.5" text-anchor="middle" fill="#334155" font-style="italic">is incorrect, GT is 7/25."</text>
+        <text x="100" y="98" font-size="10" fill="#78350f" text-anchor="middle">Correctness + target value</text>
+        <text x="100" y="115" font-size="10" fill="#78350f" text-anchor="middle">여전히 "왜"가 없음</text>
+        <text x="100" y="140" font-size="14" font-weight="800" fill="#d97706" text-anchor="middle">1.98% refined</text>
+      </g>
+
+      <g transform="translate(490,50)">
+        <rect x="0" y="0" width="200" height="150" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="10"/>
+        <text x="100" y="24" font-size="12" font-weight="800" fill="#065f46" text-anchor="middle">③ CoT Critique</text>
+        <rect x="15" y="40" width="170" height="80" fill="#fff" stroke="#94a3b8" rx="4"/>
+        <text x="100" y="55" font-size="9" text-anchor="middle" fill="#334155" font-style="italic">"Let's analyze step by step</text>
+        <text x="100" y="67" font-size="9" text-anchor="middle" fill="#334155" font-style="italic">### Step 1: Geometry ...</text>
+        <text x="100" y="79" font-size="9" text-anchor="middle" fill="#334155" font-style="italic">### Step 7: Precise Calc.</text>
+        <text x="100" y="91" font-size="9" text-anchor="middle" fill="#334155" font-style="italic">Error: 분모 부호 실수</text>
+        <text x="100" y="103" font-size="9" text-anchor="middle" fill="#334155" font-style="italic">Conclusion: incorrect"</text>
+        <text x="100" y="140" font-size="14" font-weight="800" fill="#059669" text-anchor="middle">36.47% refined</text>
+      </g>
+
+      <g transform="translate(60,230)">
+        <text x="300" y="0" font-size="12" font-weight="800" fill="#064e3b" text-anchor="middle">Questions refined (Table 1 marginal aggregation)</text>
+        <line x1="30" y1="130" x2="580" y2="130" stroke="#334155"/>
+        <text x="30" y="147" font-size="10" fill="#64748b">Indicative</text>
+        <text x="220" y="147" font-size="10" fill="#64748b">Ind. w/ GT</text>
+        <text x="410" y="147" font-size="10" fill="#64748b">CoT Critique</text>
+        <rect x="70" y="122" width="60" height="8" fill="#dc2626"/>
+        <text x="100" y="118" font-size="10" font-weight="700" fill="#dc2626" text-anchor="middle">7.05%</text>
+        <rect x="260" y="123" width="55" height="7" fill="#d97706"/>
+        <text x="290" y="118" font-size="10" font-weight="700" fill="#d97706" text-anchor="middle">6.88%</text>
+        <rect x="450" y="46" width="90" height="84" fill="#059669"/>
+        <text x="495" y="41" font-size="13" font-weight="800" fill="#059669" text-anchor="middle">55.37%</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Indicative는 실질적으로 numerical signal과 동등 (거의 refine 실패). CoT critique만이 유의미하게 지속 실패를 해결.</div>
+  </div>
+</section>
+
+<!-- Policy Shaping -->
+<section>
+  <h2>Policy Shaping — Refined Response의 gradient 살리기</h2>
+
+  <p>Refined response는 <em>critique를 in-context에 넣고</em> 샘플링한 결과이므로, current policy $\pi_\theta$에서는 <b>낮은 확률</b>의 unfamiliar trajectory다. 표준 importance sampling ratio $\pi_\theta / \pi_{\text{old}}$를 쓰면 이 low-prob token의 gradient가 vanishingly small해진다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Standard IS ratio vs Policy Shaping ρ</text>
+
+      <g transform="translate(30,50)">
+        <text x="140" y="0" font-size="12" font-weight="700" fill="#334155" text-anchor="middle">Standard: r = π_θ / π_old</text>
+        <line x1="20" y1="200" x2="260" y2="200" stroke="#334155"/>
+        <line x1="20" y1="50" x2="20" y2="200" stroke="#334155"/>
+        <text x="15" y="55" font-size="10" fill="#64748b" text-anchor="end">1.0</text>
+        <text x="15" y="200" font-size="10" fill="#64748b" text-anchor="end">0</text>
+        <text x="140" y="220" font-size="10" fill="#64748b" text-anchor="middle">token probability π_θ</text>
+        <path d="M20,60 Q40,90 60,140 L120,180 L260,195" stroke="#dc2626" stroke-width="2" fill="none"/>
+        <text x="140" y="255" font-size="10" fill="#dc2626" text-anchor="middle">low-prob token → r 매우 작음</text>
+        <text x="140" y="270" font-size="10" fill="#dc2626" text-anchor="middle">→ gradient 소실</text>
+      </g>
+
+      <g transform="translate(370,50)">
+        <text x="140" y="0" font-size="12" font-weight="700" fill="#059669" text-anchor="middle">Shaped: ρ = π_θ / (π_θ + γ)</text>
+        <line x1="20" y1="200" x2="260" y2="200" stroke="#334155"/>
+        <line x1="20" y1="50" x2="20" y2="200" stroke="#334155"/>
+        <text x="15" y="55" font-size="10" fill="#64748b" text-anchor="end">1.0</text>
+        <text x="15" y="200" font-size="10" fill="#64748b" text-anchor="end">0</text>
+        <text x="140" y="220" font-size="10" fill="#64748b" text-anchor="middle">token probability π_θ</text>
+        <path d="M20,80 Q80,130 130,150 L200,175 L260,190" stroke="#059669" stroke-width="2" fill="none"/>
+        <text x="140" y="255" font-size="10" fill="#059669" text-anchor="middle">low-prob token → ρ 유의미</text>
+        <text x="140" y="270" font-size="10" fill="#059669" text-anchor="middle">→ gradient 살아있음</text>
+      </g>
+
+      <text x="360" y="308" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">
+        Yan et al. 2025의 shaping factor γ ∈ (0, 1). Low-probability token에 더 큰 gradient 배분.
+      </text>
+    </svg>
+    <div class="diagram-caption">Shaping은 rare-but-valuable refinement token이 학습에 반영되도록 gradient magnitude를 살린다.</div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">Fine-grained ablation에서 policy shaping이 가장 큰 gain</div>
+    <p>Table 6에서 각 컴포넌트 순차 추가 결과: KL removal +1.5 → language FB +0.6 → refinement sampling +0.7 → <b>policy shaping +3.1</b>. Shaping이 최대 gain. Rare한 valuable pattern을 amplify하는 것이 결정적.</p>
+  </div>
+</section>
+
+<!-- 이론 -->
+<section>
+  <h2>이론: Eluder Dimension으로 본 sample efficiency</h2>
+
+  <p>Hidden optimal sequence $a^* = (s_1^*, \dots, s_L^*)$, $s_i \in \mathcal{S}$일 때 hypothesis space $\mathcal{F}$의 Eluder dimension (Russo & Van Roy 2013).</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 340" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Hypothesis Space 축소 (Proposition 4.1)</text>
+
+      <g transform="translate(30,50)">
+        <rect x="0" y="0" width="200" height="120" fill="#fef2f2" stroke="#dc2626" stroke-width="2" rx="10"/>
+        <text x="100" y="22" font-size="12" font-weight="800" fill="#991b1b" text-anchor="middle">Reward-Only</text>
+        <text x="100" y="45" font-size="10" fill="#7f1d1d" text-anchor="middle">이진 reward만</text>
+        <text x="100" y="80" font-size="18" font-weight="800" fill="#dc2626" text-anchor="middle">O(|S|^L)</text>
+        <text x="100" y="100" font-size="9" fill="#7f1d1d" text-anchor="middle">전체 action space 열거</text>
+      </g>
+
+      <g transform="translate(260,50)">
+        <rect x="0" y="0" width="200" height="120" fill="#fef3c7" stroke="#d97706" stroke-width="2" rx="10"/>
+        <text x="100" y="22" font-size="12" font-weight="800" fill="#92400e" text-anchor="middle">Indicative Critique</text>
+        <text x="100" y="45" font-size="10" fill="#78350f" text-anchor="middle">c_I, c_GT (worst-case)</text>
+        <text x="100" y="80" font-size="18" font-weight="800" fill="#d97706" text-anchor="middle">O(|S| · L)</text>
+        <text x="100" y="100" font-size="9" fill="#78350f" text-anchor="middle">L개 subproblem으로 분해</text>
+      </g>
+
+      <g transform="translate(490,50)">
+        <rect x="0" y="0" width="200" height="120" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="10"/>
+        <text x="100" y="22" font-size="12" font-weight="800" fill="#065f46" text-anchor="middle">Constructive Critique</text>
+        <text x="100" y="45" font-size="10" fill="#064e3b" text-anchor="middle">c_CoT with correction</text>
+        <text x="100" y="80" font-size="18" font-weight="800" fill="#059669" text-anchor="middle">O(L)</text>
+        <text x="100" y="100" font-size="9" fill="#064e3b" text-anchor="middle">search space에서 독립</text>
+      </g>
+
+      <g transform="translate(60,210)">
+        <rect x="0" y="0" width="600" height="100" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="12"/>
+        <text x="300" y="26" font-size="12" font-weight="800" fill="#5b21b6" text-anchor="middle">Fixed compute budget M</text>
+        <text x="300" y="52" font-size="11" fill="#4c1d95" text-anchor="middle" font-family="monospace">|S|L ≪ M ≪ |S|^L</text>
+        <text x="300" y="74" font-size="10.5" fill="#5b21b6" text-anchor="middle">→ P(a* ∈ refined trajectories) ≫ P(a* ∈ standard trajectories)</text>
+        <text x="300" y="92" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">즉 verbal critique는 numerical reward가 못 찾는 solution을 sample-efficient하게 발견</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Verbal critique의 정보량이 hypothesis space를 지수적으로 축소. $O(|\mathcal{S}|^L) \to O(L)$은 근본적 sample efficiency 개선.</div>
+  </div>
+</section>
+
+<!-- Algorithm flow -->
+<section>
+  <h2>학습 절차</h2>
+
+  <div class="step-flow">
+    <div class="step-box"><div class="step-num">STEP 1</div><div class="step-title">Sample init</div><div class="step-desc">y^(1), ..., y^(n) ~ π_old</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 2</div><div class="step-title">Reward</div><div class="step-desc">c^(i), R^(i) 계산</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 3</div><div class="step-title">Critique</div><div class="step-desc">CoT critique 생성 (failure에)</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 4</div><div class="step-title">Refinement</div><div class="step-desc">y'_refined ~ π_old with critique</div></div>
+  </div>
+  <div class="step-flow">
+    <div class="step-box"><div class="step-num">STEP 5</div><div class="step-title">Subset</div><div class="step-desc">Correct refinement k개 선택</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 6</div><div class="step-title">Advantage</div><div class="step-desc">Unified baseline (init + refined)</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 7</div><div class="step-title">Shape</div><div class="step-desc">ρ = π_θ/(π_θ+γ) for refined</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 8</div><div class="step-title">Update</div><div class="step-desc">J = J_init + J_refi</div></div>
+  </div>
+</section>
+
+<!-- 결과 -->
+<section>
+  <h2>핵심 결과</h2>
+
+  <h3>Qwen2.5-7B-Base (non-reasoning, 4k prompt)</h3>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Avg Pass@1 (8 벤치마크)</text>
+      <line x1="80" y1="280" x2="680" y2="280" stroke="#334155"/>
+      <line x1="80" y1="50" x2="80" y2="280" stroke="#334155"/>
+      <text x="70" y="55" font-size="10" fill="#64748b" text-anchor="end">50</text>
+      <text x="70" y="165" font-size="10" fill="#64748b" text-anchor="end">40</text>
+      <text x="70" y="280" font-size="10" fill="#64748b" text-anchor="end">30</text>
+
+      <rect x="105" y="235" width="55" height="45" fill="#94a3b8"/>
+      <text x="132" y="295" font-size="9" fill="#334155" text-anchor="middle">Base</text>
+      <text x="132" y="230" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">32.04</text>
+
+      <rect x="180" y="223" width="55" height="57" fill="#a1a1aa"/>
+      <text x="207" y="295" font-size="9" fill="#334155" text-anchor="middle">SFT</text>
+      <text x="207" y="218" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">33.04</text>
+
+      <rect x="255" y="185" width="55" height="95" fill="#a78bfa"/>
+      <text x="282" y="295" font-size="9" fill="#334155" text-anchor="middle">CITL-FT</text>
+      <text x="282" y="180" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">35.66</text>
+
+      <rect x="330" y="120" width="55" height="160" fill="#c084fc"/>
+      <text x="357" y="295" font-size="9" fill="#334155" text-anchor="middle">R1-GRPO</text>
+      <text x="357" y="115" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">41.18</text>
+
+      <rect x="405" y="105" width="55" height="175" fill="#c084fc"/>
+      <text x="432" y="295" font-size="9" fill="#334155" text-anchor="middle">Dr.GRPO</text>
+      <text x="432" y="100" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">42.66</text>
+
+      <rect x="480" y="80" width="55" height="200" fill="#34d399"/>
+      <text x="507" y="295" font-size="9" fill="#334155" text-anchor="middle">C-GRPO(Ind)</text>
+      <text x="507" y="75" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">44.62</text>
+
+      <rect x="555" y="70" width="55" height="210" fill="#10b981"/>
+      <text x="582" y="295" font-size="9" fill="#334155" text-anchor="middle">C-GRPO(GT)</text>
+      <text x="582" y="65" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">45.30</text>
+
+      <rect x="620" y="50" width="55" height="230" fill="#047857"/>
+      <text x="647" y="295" font-size="9" fill="#334155" text-anchor="middle">C-GRPO(CoT)</text>
+      <text x="647" y="45" font-size="10" font-weight="800" text-anchor="middle" fill="#047857">47.08</text>
+    </svg>
+    <div class="diagram-caption">Table 2 재현: Critique-GRPO(CoT)가 R1-GRPO 대비 +5.9, base 대비 +15.0. 4k prompt만 사용.</div>
+  </div>
+
+  <h3>Qwen3-8B (with thinking)</h3>
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">68.26</div><div class="label">C-GRPO(CoT) avg</div></div>
+    <div class="stat-box"><div class="num">+4.5</div><div class="label">vs R1-GRPO (63.75)</div></div>
+    <div class="stat-box"><div class="num">+15.0</div><div class="label">vs base (53.23)</div></div>
+    <div class="stat-box"><div class="num">60.00</div><div class="label">AIME24 (self-critique)</div></div>
+  </div>
+
+  <h3>Self-Improvement via Self-Critique (Table 4)</h3>
+  <table class="comp-table">
+    <tr><th>Method</th><th>MATH500</th><th>AMC23</th><th>AIME24</th><th>AIME25</th><th>Avg</th></tr>
+    <tr><td>Qwen3-8B (w/Think)</td><td>82.00</td><td>67.50</td><td>30.00</td><td>23.30</td><td>53.23</td></tr>
+    <tr><td>+ SFT</td><td>83.20</td><td>82.50</td><td>40.00</td><td>—</td><td>60.00</td></tr>
+    <tr><td>+ R1-GRPO</td><td>91.00</td><td>82.50</td><td>53.33</td><td>43.30</td><td>63.75</td></tr>
+    <tr class="highlight-row"><td>+ C-GRPO (Self)</td><td><b>92.60</b></td><td><b>95.00</b></td><td><b>60.00</b></td><td><b>46.70</b></td><td><b>68.13</b></td></tr>
+  </table>
+  <p>Self-critique만으로 AIME24 +16.7 (vs R1-GRPO). ##외부 강한 critique 모델 없이 self-improvement 가능##.</p>
+
+  <h3>Math-Centric Base — 4k vs 46k prompt</h3>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 240" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Qwen2.5-Math-7B-Base: Critique-GRPO 4k vs baselines 46k</text>
+
+      <line x1="80" y1="200" x2="680" y2="200" stroke="#334155"/>
+      <line x1="80" y1="60" x2="80" y2="200" stroke="#334155"/>
+      <text x="70" y="65" font-size="10" fill="#64748b" text-anchor="end">55</text>
+      <text x="70" y="200" font-size="10" fill="#64748b" text-anchor="end">25</text>
+
+      <rect x="120" y="180" width="55" height="20" fill="#94a3b8"/>
+      <text x="147" y="215" font-size="9" fill="#334155" text-anchor="middle">Base</text>
+      <text x="147" y="175" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">29.5</text>
+
+      <rect x="200" y="80" width="55" height="120" fill="#a78bfa"/>
+      <text x="227" y="215" font-size="9" fill="#334155" text-anchor="middle">SimpleRL*</text>
+      <text x="227" y="75" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">~54</text>
+
+      <rect x="280" y="90" width="55" height="110" fill="#a78bfa"/>
+      <text x="307" y="215" font-size="9" fill="#334155" text-anchor="middle">PRIME*</text>
+      <text x="307" y="85" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">~53</text>
+
+      <rect x="360" y="85" width="55" height="115" fill="#a78bfa"/>
+      <text x="387" y="215" font-size="9" fill="#334155" text-anchor="middle">Oat-Zero*</text>
+      <text x="387" y="80" font-size="9" font-weight="700" text-anchor="middle" fill="#334155">~54</text>
+
+      <rect x="500" y="70" width="80" height="130" fill="#047857"/>
+      <text x="540" y="215" font-size="10" font-weight="700" fill="#065f46" text-anchor="middle">C-GRPO 4k</text>
+      <text x="540" y="65" font-size="11" font-weight="800" text-anchor="middle" fill="#047857">51.06</text>
+
+      <text x="147" y="235" font-size="8" fill="#94a3b8" text-anchor="middle">— data</text>
+      <text x="227" y="235" font-size="8" fill="#94a3b8" text-anchor="middle">46k</text>
+      <text x="307" y="235" font-size="8" fill="#94a3b8" text-anchor="middle">46k</text>
+      <text x="387" y="235" font-size="8" fill="#94a3b8" text-anchor="middle">46k</text>
+      <text x="540" y="235" font-size="9" font-weight="700" fill="#047857" text-anchor="middle">4k prompt</text>
+    </svg>
+    <div class="diagram-caption">Critique-GRPO는 4k prompt로 46k prompt를 사용하는 SimpleRL/PRIME/Oat-Zero baseline 모두 능가. Verbal feedback의 sample efficiency.</div>
+  </div>
+</section>
+
+<!-- Entropy dynamics -->
+<section>
+  <h2>Entropy Dynamics — 지속되는 exploration</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">Figure 4 재현: Entropy over training steps (Qwen2.5-7B-Base)</text>
+      <line x1="80" y1="220" x2="680" y2="220" stroke="#334155"/>
+      <line x1="80" y1="50" x2="80" y2="220" stroke="#334155"/>
+      <text x="70" y="55" font-size="10" fill="#64748b" text-anchor="end">2.0</text>
+      <text x="70" y="120" font-size="10" fill="#64748b" text-anchor="end">1.0</text>
+      <text x="70" y="220" font-size="10" fill="#64748b" text-anchor="end">0</text>
+      <text x="680" y="240" font-size="10" fill="#64748b" text-anchor="end">step 250</text>
+      <text x="80" y="240" font-size="10" fill="#64748b">step 0</text>
+
+      <!-- R1-GRPO: rapid collapse -->
+      <path d="M80,60 Q120,180 180,210 L680,215" stroke="#f97316" stroke-width="2" fill="none"/>
+      <text x="450" y="212" font-size="10" fill="#c2410c">R1-GRPO: rapid entropy collapse</text>
+
+      <!-- R1-Dr.GRPO -->
+      <path d="M80,60 Q140,175 210,208 L680,214" stroke="#fbbf24" stroke-width="2" fill="none" stroke-dasharray="3 2"/>
+
+      <!-- Critique-GRPO: higher, sustained -->
+      <path d="M80,60 L120,85 L160,55 L200,90 Q280,150 400,180 L680,190" stroke="#059669" stroke-width="3" fill="none"/>
+      <text x="450" y="185" font-size="11" font-weight="700" fill="#059669">Critique-GRPO: sustained higher entropy</text>
+      <circle cx="160" cy="55" r="4" fill="#059669"/>
+      <text x="180" y="45" font-size="9" fill="#059669">refinement peaks</text>
+    </svg>
+    <div class="diagram-caption">R1-GRPO는 빠르게 entropy collapse (exploration 소멸). Critique-GRPO는 refinement로 sustained higher entropy.</div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">왜 higher entropy가 좋은가?</div>
+    <p>Cui et al. 2025b: rare high-advantage action이 entropy를 증가시키고, common high-advantage action이 감소시킨다. Critique-GRPO의 refinement는 low-probability이지만 correct — 정확히 rare high-advantage. 이 pattern을 학습하면서 entropy 유지 = exploration의 근본이 유지된다.</p>
+  </div>
+</section>
+
+<!-- Ablation Table 6 -->
+<section>
+  <h2>Fine-grained Ablation (Table 6)</h2>
+
+  <p>R1-GRPO에서 각 컴포넌트 순차 추가. 각 요소의 기여를 정확히 분리.</p>
+
+  <table class="comp-table">
+    <tr><th>Setting</th><th>KL Removal</th><th>Language FB</th><th>Refinement</th><th>Policy Shape</th><th>Avg</th><th>Δ</th></tr>
+    <tr><td>R1-GRPO</td><td>×</td><td>×</td><td>×</td><td>×</td><td>41.18</td><td>—</td></tr>
+    <tr><td>+ KL removal</td><td>✓</td><td>×</td><td>×</td><td>×</td><td>42.66</td><td>+1.48</td></tr>
+    <tr><td>+ Language FB</td><td>✓</td><td>✓</td><td>×</td><td>×</td><td>43.26</td><td>+0.60</td></tr>
+    <tr><td>+ Refinement</td><td>✓</td><td>✓</td><td>✓</td><td>×</td><td>43.95</td><td>+0.69</td></tr>
+    <tr class="highlight-row"><td>+ Policy Shape (Full)</td><td>✓</td><td>✓</td><td>✓</td><td>✓</td><td><b>47.08</b></td><td><b>+3.13</b></td></tr>
+  </table>
+
+  <p>##Policy shaping이 단일 요소로 가장 큰 기여 (+3.13)##. 즉 refinement를 <em>제대로 학습에 반영</em>하는 gradient 재설정이 method 전체의 결정적 요소.</p>
+</section>
+
+<!-- Robustness -->
+<section>
+  <h2>Robustness — 다양한 모델과 critique</h2>
+
+  <table class="comp-table">
+    <tr><th>Backbone</th><th>Base</th><th>R1-GRPO</th><th>Critique-GRPO</th></tr>
+    <tr><td>Llama-3.2-3B-Instruct</td><td>22.52</td><td>24.79</td><td><b>29.86 (+5.07)</b></td></tr>
+    <tr><td>Qwen3-32B</td><td>—</td><td>—</td><td><b>+4.0</b></td></tr>
+  </table>
+
+  <table class="comp-table">
+    <tr><th>Critique model</th><th>Qwen2.5-7B-Base avg</th></tr>
+    <tr><td>Llama-3.1-405B</td><td>43.26</td></tr>
+    <tr><td>GPT-4o</td><td>47.08</td></tr>
+    <tr class="highlight-row"><td>DeepCritic-7B-RL</td><td><b>47.98</b></td></tr>
+  </table>
+
+  <p>Method가 (a) architecture(Qwen2.5, Qwen3, Llama-3.2), (b) scale(3B-32B), (c) critique model(405B general - 7B specialized 모두)에 robust.</p>
+</section>
+
+<!-- Sequential vs Joint -->
+<section>
+  <h2>Sequential vs Joint (Table 8)</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 280" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="800" fill="#064e3b" text-anchor="middle">같은 재료, 다른 조합 방식</text>
+
+      <g transform="translate(30,50)">
+        <rect x="0" y="0" width="290" height="160" fill="#fef3c7" stroke="#d97706" stroke-width="2" rx="10"/>
+        <text x="145" y="24" font-size="12" font-weight="800" fill="#92400e" text-anchor="middle">Sequential (R1-GRPO + Ref-SFT)</text>
+        <text x="145" y="48" font-size="10" fill="#78350f" text-anchor="middle">1단계: R1-GRPO 수렴까지 훈련</text>
+        <text x="145" y="66" font-size="10" fill="#78350f" text-anchor="middle">2단계: 남은 failure에 critique + SFT</text>
+        <rect x="20" y="80" width="120" height="30" fill="#c084fc"/><text x="80" y="100" font-size="10" text-anchor="middle" fill="#fff">R1-GRPO</text>
+        <text x="150" y="100" font-size="14" text-anchor="middle" fill="#78350f">→</text>
+        <rect x="160" y="80" width="120" height="30" fill="#fbbf24"/><text x="220" y="100" font-size="10" text-anchor="middle" fill="#78350f">Ref-SFT</text>
+        <text x="145" y="140" font-size="13" font-weight="800" fill="#d97706" text-anchor="middle">Avg: 43.15</text>
+      </g>
+
+      <g transform="translate(370,50)">
+        <rect x="0" y="0" width="290" height="160" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="10"/>
+        <text x="145" y="24" font-size="12" font-weight="800" fill="#065f46" text-anchor="middle">Joint (Critique-GRPO)</text>
+        <text x="145" y="48" font-size="10" fill="#064e3b" text-anchor="middle">Online loop 안에서 통합</text>
+        <text x="145" y="66" font-size="10" fill="#064e3b" text-anchor="middle">initial + refined 동시 학습</text>
+        <rect x="20" y="80" width="250" height="30" fill="#10b981"/>
+        <text x="145" y="100" font-size="11" font-weight="700" text-anchor="middle" fill="#fff">Critique-GRPO (joint objective)</text>
+        <text x="145" y="140" font-size="13" font-weight="800" fill="#059669" text-anchor="middle">Avg: 47.08 (+3.9)</text>
+      </g>
+
+      <text x="360" y="250" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">
+        AMC23에서 특히 큰 격차: 47.5 → 62.5 (+15). Online real-time adaptation의 값어치.
+      </text>
+    </svg>
+    <div class="diagram-caption">같은 critique/refinement 재료라도 online joint 사용 시 훨씬 강력. 특히 어려운 벤치마크에서 격차 확대.</div>
+  </div>
+</section>
+
+<!-- 한계 -->
+<section>
+  <h2>한계 및 남은 질문</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">① Critique 생성 비용</h3>
+    <p>각 failure에 대해 CoT critique 생성 필요 — GPT-4o 호출 or reward model inference. 표준 GRPO 대비 compute overhead 정량화 부족. 특히 failure 비율이 높은 초반에는 critique 호출량이 rollout보다 많을 수 있음.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">② Critique quality의 sensitivity</h3>
+    <p>"Valid critique %"가 CoT에서 60.06%로 완벽하지 않음 (40%가 invalid). Invalid critique가 학습에 미치는 negative effect가 논의 부족. 특히 잘못된 correction suggestion이 학생을 오답 쪽으로 밀 위험.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">③ Non-math 도메인의 일반화</h3>
+    <p>Math + STEM/general OOD로만 평가. 코딩, factual QA, planning, agentic task에서도 verbal credit assignment가 유효한지는 open. 특히 verifier가 명확하지 않은 도메인은 challenge.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">④ Persistent failure의 실체</h3>
+    <p>"29% persistent failure"가 문제 자체의 근본적 난이도인지, dataset의 mislabeling/ambiguity인지 구분 부족. 후자라면 "critique로 해결"의 의미가 약해진다.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">⑤ Shaping factor γ와 KL removal</h3>
+    <p>γ의 구체적 값과 학습 dynamics에 미치는 영향 미탐색. KL removal이 +1.5의 gain을 주는데, 이는 method의 gain 중 상당 부분이 KL-free training에서 온다는 뜻. Long training에서 안정성 검증 필요.</p>
+  </div>
+</section>
+
+<!-- 한 줄 결론 -->
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "Numerical reward의 information ceiling은 이론적/실증적으로 존재한다.<br>
+    <b>자연어 critique를 online RL loop 안에 넣어</b><br>
+    hypothesis space를 O(|S|^L) → O(L)로 축소하고,<br>
+    policy shaping으로 rare-but-valuable refinement의 gradient를 살린다."
+  </div>
+</section>
+
+<div class="version-toggle"><a href="20260811_zhang_critique-grpo.html">전문가용 상세 요약 보기 →</a></div>
+
+</div>
+
+<div class="footer">
+  Zhang et al. · Critique-GRPO · ICML 2026 · arXiv:2506.03106<br>
+  CUHK · Cambridge · MMLab · Shanghai AI Lab · <a href="https://github.com/zhangxy-2019/critique-GRPO">github.com/zhangxy-2019/critique-GRPO</a>
+</div>
+
+</body>
+</html>

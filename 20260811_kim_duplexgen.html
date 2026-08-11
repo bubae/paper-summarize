@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DuplexGen: Adaptive Synthesis of Human–AI Turn-Taking Dialogues</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>DuplexGen: Adaptive Synthesis of Human–AI Turn-Taking Dialogues</h1>
+<p style="text-align:center;"><a href="20260811_kim_duplexgen_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Takyoung Kim, Kang-wook Kim, Sang Hoon Woo, Julia Hirschberg, Gunhee Kim, Dilek Hakkani-Tür</li>
+  <li><strong>소속</strong>: UIUC · Seoul National University · Columbia · UC Berkeley · Georgia Tech</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.CL)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.26178">arXiv:2607.26178</a> · <a href="https://duplexgen.github.io">Project page</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Full-duplex spoken dialogue 모델은 언제 backchannel(맞장구)을, 언제 floor-taking(끼어들기)을 할지 매 순간 결정해야 한다. 그러나 실제로 적절한 turn-taking 동작은 <em>시나리오</em>에 따라 달라진다 (튜터는 조용히 듣고, 협상자는 자주 끼어든다). 기존 학습 데이터는 (a) 무연출 human-human corpus, (b) 프롬프트/휴리스틱 기반 synthetic로만 존재하고, <em>인간이 실제로 선호하는 시나리오별 turn-taking 분포</em>를 담지 못한다.</li>
+  <li><strong>해결</strong>: ##DuplexGen## — 4-stage 파이프라인으로 시나리오-적응적 turn-taking dialogue를 합성한다. (1) 텍스트 대화를 spoken-style로 변환, (2) turn-taking slot 후보를 heuristic + LLM으로 식별, (3) 각 슬롯에서 인간이 선호하는 action 분포를 소규모 human annotation으로 LLM에 <em>calibrate</em>, (4) calibrated 모델로 target scenario 대화 합성. 6개 시나리오(협력 3 + 경쟁 3)에서 검증.</li>
+  <li><strong>왜 작동하는가</strong>: 인간 라벨을 soft distribution(다수결이 아닌)으로 만들고, LLM의 verbalized confidence 분포와 KL을 맞추는 <em>context-aware calibration</em>을 fine-tuning으로 학습한다. 이는 temperature 같은 context-agnostic scaling이 못 잡는 시나리오-의존 miscalibration을 교정한다.</li>
+  <li><strong>비유</strong>: 초짜 통역자에게 여러 상황(강의, 협상, 잡담) 각각에서 "언제 끼어드는 게 자연스러운가"를 시나리오별 소규모 정답지로 재훈련시켜, 상황마다 다른 인간의 감각을 학습시키는 것.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Scenario-adaptive synthesis framework</strong>: LLM 기반 turn-taking을 <em>시나리오별 인간 선호</em>에 정렬시키는 최초의 프레임워크. Per-scenario annotation budget이 작아도 (총 1395 utterance) calibration이 가능.</li>
+  <li><strong>Six scenarios covering cooperative & competitive dynamics</strong>: 협력 (TEA / PLN / INT) + 경쟁 (NEG / PER / SOC). Cross-scenario 통계로 backchannel/floor-taking 비율이 시나리오마다 유의미하게 다름을 증명.</li>
+  <li><strong>Soft-label KL calibration</strong>: 5명의 annotator label을 majority-vote가 아닌 empirical distribution으로 유지. LLM의 verbalized action distribution과 KL divergence를 최소화하는 LoRA fine-tuning. 이는 hard label의 disagreement 정보 손실을 회피.</li>
+  <li><strong>Full-duplex 모델 훈련 실증</strong>: DuplexGen으로 합성한 1,623 시간 데이터로 PersonaPlex fine-tune (PP-DG) → Instruction Following (GPT judge)과 Turn-Taking Naturalness (human) 양쪽에서 baseline (Moshi, PP) 대비 유의한 개선.</li>
+  <li><strong>Distributional evaluation</strong>: 단일 correct label이 아닌 D_KL(Human ‖ Model)로 평가. Qwen3 1.7B/4B/14B 세 스케일에서 DuplexGen 방법이 최저 KL 달성.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Turn-taking과 full-duplex dialogue</h3>
+<p>Full-duplex language model (Moshi, PersonaPlex 등)은 half-duplex와 달리 <em>동시에 listening + speaking</em>을 지원한다. 이런 시스템에서 turn-taking은 conversational floor(누가 지금 말하는 권리를 가졌는가)의 순간별 조정을 의미한다. 매 순간 어시스턴트는 다음 중 하나를 결정해야 한다:</p>
+<ul>
+  <li><code>[LISTEN]</code>: 침묵하며 계속 청취 (기본값)</li>
+  <li><code>[BACKCHANNEL]</code>: "mm-hmm", "right", "yeah" 같은 짧은 acknowledgement — floor는 사용자에게 유지</li>
+  <li><code>[TAKE_FLOOR]</code>: floor를 가져와 발화 시작 — 사용자 발화를 truncate</li>
+</ul>
+
+<h3>Turn-taking은 <em>시나리오 의존적</em>이다</h3>
+<p>Conversation analysis(Sacks et al. 1978; Skantze 2021)는 turn-taking이 사회적 맥락에 의존한다는 것을 오래전부터 확립했다. 예컨대:</p>
+<ul>
+  <li>튜터/강사: 학생을 조용히 청취하며 짧은 격려 위주 (backchannel↑, floor-taking↓)</li>
+  <li>협상가: 자주 끼어들어 자기 주장을 관철 (floor-taking↑)</li>
+</ul>
+<p>그러나 현재 full-duplex 모델은 <em>단일 turn-taking prior</em>를 사전학습 corpus에서 학습하고, 배포 시에도 시나리오 무관하게 그 prior를 적용한다. 이 논문은 이를 <b>"scenario-sensitivity의 부재"</b>로 명명.</p>
+
+<h3>기존 학습 데이터의 두 가지 한계</h3>
+<ol>
+  <li><strong>Human-human corpus</strong> (Switchboard, Fisher, Candor): 자연스러운 timing은 담지만 <em>역할/시나리오 grounding이 없다</em>. 낯선 두 사람에게 임의 topic을 주고 대화시킨 corpus라 assigned role이 없다.</li>
+  <li><strong>Synthetic dialogue with turn-taking</strong> (Duplex-UltraChat, Behavior-SD, InteractSpeech): heuristic rule이나 LLM prompt로 turn-taking action을 삽입. 그러나 <em>인간 선호에 대한 validation이 없다</em>. LLM은 자체 prior에 따라 action을 배분할 뿐, target scenario에서 실제 인간이 선호하는 분포와 다를 수 있다.</li>
+</ol>
+
+<h3>Calibration의 배경</h3>
+<p>Post-RL LLM은 verbalized confidence가 miscalibrated된다는 관찰(Tian et al. 2023). Post-hoc temperature scaling은 <em>context-agnostic</em>이라 global miscalibration은 잡지만 시나리오-context 변화를 못 잡는다. 이 논문은 대신 <em>context-aware calibration</em>을 LoRA fine-tuning으로 수행한다.</p>
+
+<h2>방법: DuplexGen 파이프라인</h2>
+
+<h3>3.1 시나리오 큐레이션</h3>
+<p>Yang (2001)의 cooperative vs competitive 이분법에 따라 6개 시나리오 curation:</p>
+
+<table>
+<tr><th>Type</th><th>Task</th><th>Reference Text Dataset</th></tr>
+<tr><td rowspan="3"><b>Cooperative</b></td><td>Socratic Teaching (TEA)</td><td>SocraticLM (Liu et al. 2024)</td></tr>
+<tr><td>Mixed-Initiative Planning (PLN)</td><td>MultiWOZ (Budzianowski et al. 2018)</td></tr>
+<tr><td>Interviewing (INT)</td><td>Anthropic Interviewer (Handa et al. 2025)</td></tr>
+<tr><td rowspan="3"><b>Competitive</b></td><td>Negotiation (NEG)</td><td>CraigslistBargain (He et al. 2018)</td></tr>
+<tr><td>Persuasion (PER)</td><td>DailyPersuasion (Jin et al. 2024)</td></tr>
+<tr><td>Social Chat (SOC)</td><td>SODA (Kim et al. 2023)</td></tr>
+</table>
+
+<p>이 6개는 (a) task-driven vs knowledge-seeking vs social, (b) system-led/user-led/mixed, (c) expert-novice/transactional/peer-like의 relational dynamics를 넓게 포괄한다.</p>
+
+<h3>3.2 Turn-Taking Dialogue Generation (4 stages)</h3>
+
+<p>Dialogue turn $D$에서 utterance는 token 시퀀스:</p>
+<p>$$U_D = [u_D^1, u_D^2, \dots, u_D^{n_D}]$$</p>
+
+<h4>3.2.1 Spoken-Style Dialogue Conversion</h4>
+<p>Text-based dialogue를 spoken-style로 변환 (GPT-4.1-2025-04-14 사용).</p>
+<ul>
+  <li>Text 특유 요소 제거: 괄호, 번호 매김</li>
+  <li>Spoken 요소 추가: filler ("um", "uh", "you know"), self-repair, contractions ("I'm", "don't")</li>
+  <li>Assistant는 disfluency 제거 (professional tone), user는 자연스러운 disfluency 허용</li>
+</ul>
+<p>Switchboard corpus와의 lexical 비교(Table 3): DuplexGen user의 filler 사용률 3.50% (Switchboard 3.88%와 근접), repetition은 낮음(0.43% vs 1.39%) — 과도한 disfluency 방지가 의도적.</p>
+
+<h4>3.2.2 Turn-Taking Slot Identification</h4>
+<p>각 spoken-style utterance에서 turn-taking action이 <em>가능한</em> 슬롯을 식별. Rule + LLM 결합:</p>
+<ol>
+  <li><strong>Candidate detection</strong>: 각 토큰 뒤에서 다음 중 하나면 candidate — (a) clause/sentence punctuation (. , ? !), (b) hesitation marker (um, uh, umm, hm, huh), (c) GPT-4.1-mini가 clause/sentence boundary로 마킹</li>
+  <li><strong>Cluster thinning</strong>: 연속 candidate (스택된 disfluency)를 축약 — length≥2 run에서 2번째, 4번째, ...만 유지</li>
+  <li><strong>Long-gap fallback</strong>: 이전 slot으로부터 8 tokens 초과 gap이면 4 token 간격으로 추가 slot 삽입</li>
+  <li><strong>Tail handling</strong>: 마지막 slot에서 turn 끝까지 gap rule 적용, final token 제외</li>
+</ol>
+<p>슬롯 최대 간격은 8 tokens (conversational phrase 단위). 슬롯은 user turn에만 삽입 (assistant turn은 슬롯 없음).</p>
+
+<h4>3.2.3 Scenario-Specific Annotation Calibration</h4>
+<p><strong>Annotation collection</strong>:</p>
+<ul>
+  <li>Prolific로 US/UK 영어 화자 248명 recruit, 각자 20 annotation, €2 보상</li>
+  <li>각 dialogue slot마다 <strong>5명이 독립 annotation</strong> → distribution over {LISTEN, BACKCHANNEL, TAKE_FLOOR}</li>
+  <li>사용자 utterance를 chunk 단위로 순차 공개 (retroactive bias 방지, Umair et al. 2024)</li>
+  <li>Human annotations: $A_H = \{(l_j, a_j)\}$ — slot 위치와 action</li>
+  <li>LLM annotations: $A_L = \{(l_j, a'_j)\}$ — verbalized confidence score로 action distribution 예측</li>
+</ul>
+
+<p><strong>Distribution calibration</strong>: 목표는 calibration function $f_{\text{cal}}$을 학습해 LLM raw prediction을 human distribution에 정렬. Context $c$와 partial utterance $x_D^{l_j}$에 조건. 핵심 design choice: 훈련 target을 majority-vote hard label이 아닌 <b>empirical distribution soft label</b>로 삼음:</p>
+<p>$$P_H(a \mid x_D^{l_j}, c) = \text{normalized 5-annotator count}$$</p>
+
+<p>KL loss:</p>
+<p>$$\mathcal{L} = \sum_{(c, U_D) \in \mathcal{D}_{\text{cal}}} \sum_{l_j \in L_D} D_{\text{KL}}(P_H(\cdot \mid x_D^{l_j}, c) \| P_{\text{cal}}(\cdot \mid x_D^{l_j}, c))$$</p>
+
+<p><em>직관</em>: turn-taking은 본질적으로 주관적 — 같은 슬롯에서도 여러 action이 모두 적절할 수 있다. Hard label은 이 disagreement 정보를 버리지만, KL은 다양성 preserved.</p>
+
+<h4>3.2.4 Turn-Taking Dialogue Synthesis</h4>
+<p>Calibrated $f_{\text{cal}}$을 target scenario 대화에 turn-by-turn 적용. Candidate slot을 스캔하며 <code>[TAKE_FLOOR]</code>나 <code>[BACKCHANNEL]</code> 삽입 여부 결정:</p>
+<ul>
+  <li><code>[TAKE_FLOOR]</code>: current turn을 truncate하고 assistant 발화 시작 (interruption 시뮬레이션)</li>
+  <li><code>[BACKCHANNEL]</code>: 짧은 acknowledgement 삽입, user는 계속 발화</li>
+  <li><code>[LISTEN]</code>: default, 마킹 없음</li>
+</ul>
+<p>Backchannel expression은 별도 prompt로 삽입 (§B.5): "mhm", "mm-hmm", "uh-huh", "yeah", "right", "okay", "oh", "wow", "really", "huh?".</p>
+
+<h3>Algorithm 1 (전체 파이프라인)</h3>
+<div class="flow-diagram">──── Phase 1: Calibration ────
+Require: D_cal = {(c, U_D)}
+for each dialogue (c, U_D) in D_cal:
+    L_D ← IdentifyCandidates(c, U_D)
+    {A_H^{l_j}} ← HumanAnnotate(U_D, L_D, c)   # 5 humans per slot
+    {A_L^{l_j}} ← LLMAnnotate(U_D, L_D, c)
+f_cal ← Calibrate(A_H, A_L)                    # KL fine-tuning
+
+──── Phase 2: Dialogue Synthesis ────
+Require: Dialogue context c, learned f_cal
+Ensure: Utterance with turn-taking markers
+
+U_D ← TurnGenerate(c)
+L_D ← IdentifyCandidates(c, U_D)
+for each slot l_j in L_D:
+    a_j ← f_cal(LLMAnnotate(x_D^{l_j}, c))     # Calibrated decision
+return Ũ_D with [TAKE_FLOOR] or [BACKCHANNEL] inserted</div>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>4.1 Turn-Taking Preference의 시나리오 차이 검증</h3>
+<p><strong>Figure 3 (backchannel vs floor-taking proportion per scenario)</strong>:</p>
+
+<table>
+<tr><th>Scenario</th><th>Type</th><th>Backchannel ratio</th><th>Floor-taking ratio</th></tr>
+<tr><td>TEA</td><td>Cooperative</td><td>0.32</td><td>0.08</td></tr>
+<tr><td>PLN</td><td>Cooperative</td><td>0.27</td><td>0.09</td></tr>
+<tr><td>INT</td><td>Cooperative</td><td>0.25</td><td>0.05</td></tr>
+<tr><td>NEG</td><td>Competitive</td><td>0.23</td><td>0.11</td></tr>
+<tr><td>PER</td><td>Competitive</td><td>0.24</td><td>0.12</td></tr>
+<tr><td>SOC</td><td>Competitive</td><td>0.23</td><td>0.12</td></tr>
+</table>
+
+<p>Pairwise chi-square (Holm correction) → <b>거의 모든 시나리오 쌍에서 유의차</b> ($p < 0.05$). 단 competitive 내부에서는 유의차 없음 → 시나리오 <em>type</em>이 turn-taking norm의 major 축이지만 task별 미세한 편차도 존재. Backchannel은 협력적일수록↑, floor-taking은 경쟁적일수록↑.</p>
+
+<h3>4.2 Calibrated LLM이 인간 turn-taking을 예측하는가?</h3>
+
+<h4>4.2.1 Data 구성 (Table 4, 5)</h4>
+<ul>
+  <li>Calibration split: 각 dataset에서 20 dialog × 2 utterance = 40 slot × 6 = 240 utterance</li>
+  <li>Evaluation split: 각 dataset에서 50 dialog × 2 utterance = 100 × 6 = 600 utterance</li>
+  <li>총 slot 수: Calibration 1,395 / Evaluation 3,353</li>
+</ul>
+
+<h4>4.2.2 비교 방법</h4>
+<ul>
+  <li><strong>Prompt-Only</strong>: verbalized confidence prompt만 (§B.3)</li>
+  <li><strong>SWBD-Only</strong>: Switchboard (2.4K dialog)로 fine-tune, prediction head 추가</li>
+  <li><strong>DuplexGen-Only</strong>: DuplexGen calibration set만으로 fine-tune, soft label</li>
+  <li><strong>SWBD+DuplexGen</strong>: SWBD로 pre-fine-tune 후 DuplexGen으로 calibrate</li>
+</ul>
+
+<h4>4.2.3 결과 (Table 6): D_KL(Human ‖ Model), lower is better</h4>
+
+<table>
+<tr><th>Size</th><th>Method</th><th>TEA</th><th>PLN</th><th>INT</th><th>NEG</th><th>PER</th><th>SOC</th><th>Avg</th></tr>
+<tr><td rowspan="4">1.7B</td><td>Prompt-Only</td><td>9.49</td><td>7.23</td><td>4.24</td><td>6.34</td><td>4.55</td><td>6.62</td><td>6.41</td></tr>
+<tr><td>SWBD-Only</td><td>1.33</td><td>1.21</td><td>0.80</td><td>1.42</td><td>1.55</td><td>1.25</td><td>1.26</td></tr>
+<tr><td>DuplexGen-Only</td><td><b>0.47</b></td><td><b>0.41</b></td><td>0.35</td><td><b>0.51</b></td><td><b>0.49</b></td><td>0.56</td><td><b>0.47</b></td></tr>
+<tr><td>SWBD+DuplexGen</td><td>0.53</td><td>0.49</td><td><b>0.27</b></td><td>0.49</td><td>0.51</td><td><b>0.49</b></td><td>0.47</td></tr>
+<tr><td rowspan="4">4B</td><td>Prompt-Only</td><td>0.37</td><td>0.61</td><td>0.36</td><td>0.48</td><td>0.49</td><td>0.75</td><td>0.46</td></tr>
+<tr><td>SWBD-Only</td><td>0.76</td><td>0.73</td><td>0.65</td><td>0.80</td><td>0.83</td><td>0.75</td><td>0.75</td></tr>
+<tr><td>DuplexGen-Only</td><td>0.56</td><td>0.67</td><td>0.60</td><td>0.59</td><td>0.59</td><td>0.78</td><td>0.61</td></tr>
+<tr><td>SWBD+DuplexGen</td><td><b>0.30</b></td><td><b>0.34</b></td><td><b>0.26</b></td><td><b>0.35</b></td><td><b>0.39</b></td><td><b>0.39</b></td><td><b>0.34</b></td></tr>
+<tr><td rowspan="4">14B</td><td>Prompt-Only</td><td>0.70</td><td>0.64</td><td>0.51</td><td>0.70</td><td>0.76</td><td>0.78</td><td>0.68</td></tr>
+<tr><td>SWBD-Only</td><td>1.72</td><td>1.38</td><td>0.96</td><td>1.57</td><td>1.73</td><td>1.49</td><td>1.47</td></tr>
+<tr><td>DuplexGen-Only</td><td>1.23</td><td>0.92</td><td>0.70</td><td>1.13</td><td>1.07</td><td>0.92</td><td>0.99</td></tr>
+<tr><td>SWBD+DuplexGen</td><td><b>0.36</b></td><td><b>0.31</b></td><td><b>0.26</b></td><td><b>0.41</b></td><td><b>0.44</b></td><td><b>0.38</b></td><td><b>0.36</b></td></tr>
+</table>
+
+<p><b>관찰 1</b>: ##SWBD+DuplexGen이 1.7B를 제외한 모든 사이즈에서 최저 KL##. 즉 human-human corpus의 general timing signal을 pre-fine-tune으로 흡수한 후 DuplexGen의 시나리오별 calibration이 top-up으로 작동.</p>
+
+<p><b>관찰 2</b>: SWBD-Only는 모든 사이즈에서 DuplexGen-Only보다 <em>나쁘다</em>. Silence를 과대 예측하고 backchannel을 과소 예측 — general corpus에는 시나리오-specific norm이 담기지 않음.</p>
+
+<p><b>관찰 3</b>: Prompt-Only의 성능은 4B에서 상대적으로 좋지만 (0.46, 1.7B의 6.41 대비 극적 감소), 여전히 시나리오간 variation을 못 잡음.</p>
+
+<h3>4.2.4 시나리오 diversity 유지 (Table 7)</h3>
+<p>Prompt-Only vs SWBD+DuplexGen을 4B 모델에서 비교. Δ = competitive와 cooperative의 per-action rate difference:</p>
+
+<table>
+<tr><th>Action</th><th>Metric</th><th>Human</th><th>Prompt-Only</th><th>SWBD+DG</th></tr>
+<tr><td>Floor-Taking</td><td>Δ</td><td>+0.056</td><td><b>+0.008</b></td><td>+0.052</td></tr>
+<tr><td>Floor-Taking</td><td>SD</td><td>0.032</td><td>0.014</td><td>0.029</td></tr>
+<tr><td>Backchannel</td><td>Δ</td><td>−0.053</td><td>+0.011</td><td>−0.062</td></tr>
+<tr><td>Backchannel</td><td>SD</td><td>0.037</td><td>0.011</td><td>0.038</td></tr>
+</table>
+
+<p>Prompt-Only는 |Δ|가 작고 SD도 작다 → 시나리오간 diversity 미확보. SWBD+DuplexGen의 Δ와 SD는 Human과 매우 근접. ##즉 저KL만 봐선 부족하고 diversity를 봐야 진짜 scenario-adaptive인지 판별##.</p>
+
+<h3>4.3 Full-Duplex Model 훈련 실증</h3>
+<p>DuplexGen으로 합성한 dialogue를 실제 full-duplex 모델 훈련에 사용:</p>
+<ul>
+  <li><strong>Moshi</strong> (Défossez et al. 2024): baseline</li>
+  <li><strong>PersonaPlex (PP)</strong> (Roy et al. 2026): baseline</li>
+  <li><strong>PP-DG</strong>: PP를 1,623 시간의 DuplexGen 데이터로 6개 task별 fine-tune (task마다 별도 checkpoint)</li>
+</ul>
+
+<h4>4.3.2 Turn-Taking Pattern (Figure 4)</h4>
+<p>Evaluation set 200 user turn을 ChatTTS로 오디오화하여 각 모델에 입력. Floor-taking과 backchannel frequency 측정:</p>
+<ul>
+  <li>Moshi, PP: 시나리오간 range 좁음 (uniform behavior)</li>
+  <li>PP-DG: ##시나리오간 뚜렷한 편차 — competitive 시나리오(NEG, PER, SOC)에서 floor-taking↑##</li>
+</ul>
+
+<h4>4.3.3 Multi-turn dialogue evaluation (Table 8)</h4>
+<p>5-point Likert scale로 25 dialogue × 6 시나리오 평가:</p>
+<ul>
+  <li><strong>Instruction Following</strong>: transcribed dialogue를 GPT-4.1이 시나리오 준수 여부 평가</li>
+  <li><strong>Turn-Taking Naturalness</strong>: 3명 human이 listening test로 자연스러움 평가</li>
+  <li>User simulator: PersonaPlex (backchannel 처리 이슈로 gpt-realtime 사용 불가)</li>
+  <li>Human evaluator: AMT (Amazon MTurk)</li>
+</ul>
+
+<table>
+<tr><th></th><th>Instruction Following (GPT)</th><th>Turn-Taking Naturalness (Human)</th></tr>
+<tr><th>Model</th><th>Moshi / PP / PP-DG</th><th>Moshi / PP / PP-DG</th></tr>
+<tr><td>TEA</td><td>1.44 / 2.96 / <b>3.40</b></td><td>3.09 / 3.37 / <b>3.75</b></td></tr>
+<tr><td>PLN</td><td>1.40 / <b>2.04</b> / 1.72</td><td>3.59 / 3.73 / <b>3.76</b></td></tr>
+<tr><td>INT</td><td>3.96 / 3.76 / <b>4.09</b></td><td><b>3.68</b> / 3.56 / 3.56</td></tr>
+<tr><td>NEG</td><td>2.12 / 4.00 / <b>4.12</b></td><td>3.46 / 3.60 / <b>3.63</b></td></tr>
+<tr><td>PER</td><td>3.12 / 3.96 / <b>4.12</b></td><td>3.60 / 3.49 / <b>3.75</b></td></tr>
+<tr><td>SOC</td><td>3.64 / 3.72 / <b>3.92</b></td><td>3.46 / 3.57 / <b>3.69</b></td></tr>
+<tr><td><b>Avg</b></td><td>2.61 / 3.41 / <b>3.55</b></td><td>3.48 / 3.56 / <b>3.69</b></td></tr>
+</table>
+
+<p>Welch's t-test: PP-DG > PP ($p = 0.034$), PP-DG > Moshi ($p = 0.0026$), 95% CI.</p>
+
+<h2>알고리즘 흐름</h2>
+<div class="flow-diagram">─────────────────────────────────────────────────
+Phase 1: Calibration (offline, one-time)
+─────────────────────────────────────────────────
+1. 6 scenarios × ~20 dialog × 2 utt = 240 utt
+2. Convert text → spoken style (GPT-4.1)
+3. IdentifyCandidates → 1,395 slot
+4. 5 humans annotate each slot ({LISTEN, BC, FLOOR})
+5. LLM verbalized confidence → distribution
+6. Fine-tune Qwen3 with KL loss (soft target)
+
+─────────────────────────────────────────────────
+Phase 2: Synthesis (per new dialog)
+─────────────────────────────────────────────────
+1. Take reference text dialogue (SocraticLM, etc.)
+2. Convert to spoken style
+3. For each user utterance:
+     a. IdentifyCandidates → slot list
+     b. For each slot: run calibrated LLM
+        → distribution over {LISTEN, BC, FLOOR}
+     c. Sample action, insert marker in utterance
+        (FLOOR truncates, BC preserved)
+4. Assistant turn: no slots, spoken conversion only
+
+─────────────────────────────────────────────────
+Phase 3: Downstream (optional)
+─────────────────────────────────────────────────
+1. Convert synthesized dialogue to audio (TTS)
+2. Fine-tune full-duplex model (PersonaPlex) on it
+3. Deploy scenario-specific checkpoint</div>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>문제 정의의 명확성</strong>: "시나리오별 turn-taking preference가 다르다"는 empirical fact를 Figure 3의 chi-square로 정량 증명한 후 문제를 build up. Motivation의 근거가 튼튼.</li>
+  <li><strong>Soft label KL의 사용</strong>: Turn-taking처럼 본질적으로 주관적인 task에서 majority-vote hard label의 정보 손실을 피한 것은 합리적. 5명 annotator가 각각 다른 판단을 내리는 사례가 많다는 사실은 (a) 문제 자체가 어렵고 (b) hard label로 짜지 않아야 한다는 점을 지지.</li>
+  <li><strong>Distribution 평가</strong>: Single-correct label이 아닌 D_KL(Human ‖ Model)로 평가한 것은 문제 성격에 맞는 선택. 다른 turn-taking 벤치마크(FullDuplexBench, FD-Bench, TalkingTurns)와 상보적.</li>
+  <li><strong>End-to-end 실증</strong>: Prediction level (§4.2)뿐 아니라 full-duplex 모델 훈련 (§4.3)까지 이어져, calibration → synthesis → downstream까지 파이프라인 전체가 실효성 있음을 보임.</li>
+  <li><strong>Data efficiency</strong>: 1,395 calibration slot으로 KL 0.4 대로 진입 (baseline 6.4 대비). Small annotation budget으로 큰 개선.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>Text-grounded supervision의 한계</strong>: Calibration이 <em>incrementally revealed transcript</em>에 기반. 실제 turn-taking은 prosody, pause duration, intonation, speech rate, overlap 같은 acoustic cue에 강하게 의존. 저자들도 §Limitations에서 인정. 특히 협상/설득 시나리오의 미묘한 turn-taking은 tone에 크게 의존.</li>
+  <li><strong>주요 시나리오 카테고리의 이분법</strong>: Cooperative/competitive 이분법이 편리하지만 실제 대화는 이 두 모드를 자유롭게 오간다 (예: 튜터가 학생 실수에 강하게 개입하는 경우). Mixed dynamics 시나리오는 별도 category로 다뤄지지 않음.</li>
+  <li><strong>Backchannel expression 선택의 별도 처리</strong>: "무엇을 backchannel로 발화할지"는 별도 prompt(§B.5)로 처리 — calibration의 범위 밖. Backchannel expression 자체가 시나리오 의존적일 텐데(협상에서 "yeah"와 튜터의 "mm-hmm"은 다름) 이 축은 미탐색.</li>
+  <li><strong>Slot identification의 sensitivity</strong>: Maximum gap 8 tokens, cluster thinning의 rule 파라미터가 결과에 미치는 영향에 대한 ablation 없음. Slot의 granularity가 KL에 영향을 줄 것으로 예상.</li>
+  <li><strong>User simulator 편향</strong>: Full-duplex 평가에서 PersonaPlex를 user simulator로 사용. Simulator 자체가 realistic한 user behavior를 못 내면 평가 오염. gpt-realtime을 쓸 수 없었다는 이유(backchannel 처리)도 논문에서 명시.</li>
+  <li><strong>PP-DG는 task별 6개 checkpoint</strong>: 이는 배포 시 시나리오 감지 → 적절한 checkpoint 로드하는 라우팅 필요. Single unified model이 아님.</li>
+  <li><strong>KL의 modality</strong>: KL은 대칭이 아니므로 D_KL(Human ‖ Model)과 D_KL(Model ‖ Human)의 차이가 있다. 논문은 (Human ‖ Model)만 리포트 — model이 human의 mode를 커버하지 못하는 실패(mode-drop)를 잡지만 model이 human이 안 하는 action을 부여하는 실패는 덜 강조.</li>
+  <li><strong>4B에서 SWBD-Only 성능 하락</strong>: 1.7B에서 SWBD-Only가 1.26으로 나쁘지 않으나 4B에서 오히려 0.75로, 14B에선 1.47로 악화. 이 non-monotonic 스케일링에 대한 설명 부족.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Scenario-adaptive는 corpus scale로 해결되지 않는다</strong>: 2.4K dialog Switchboard(SWBD-Only)로도 시나리오 편차를 못 담는다. Small-but-targeted human calibration이 훨씬 강력. 이는 도메인-specific fine-tuning의 일반적 recipe에 대한 evidence.</li>
+  <li><strong>Soft label + KL은 주관적 task에 표준 recipe가 되어야 한다</strong>: Turn-taking처럼 정답이 여러 개인 문제에서 hard label majority vote는 정보 손실. Empirical distribution을 target으로 KL 최소화는 이런 문제 전반에 적용 가능한 pattern (RLHF의 preference distribution과 유사).</li>
+  <li><strong>Verbalized confidence + fine-tuning의 조합</strong>: LLM의 raw verbalized probability는 miscalibrated. Post-hoc temperature scaling은 context 무관한 fix밖에 못 한다. LoRA fine-tuning으로 context-aware calibration이 유효함.</li>
+  <li><strong>Diversity metric의 필요성</strong>: KL divergence만 보면 mode collapse된 model이 유리해질 수 있다. 시나리오간 Δ와 SD를 함께 리포트해야 진짜 adaptive인지 판별 가능.</li>
+  <li><strong>Data-centric approach의 유효성</strong>: 모델 구조나 loss 대신 <em>훈련 데이터의 turn-taking distribution</em>을 시나리오별로 정렬하는 접근. Full-duplex 모델 훈련의 practical recipe로 즉시 활용 가능.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p><em>추가 코멘트, 관련 아이디어 등을 여기 누적 기록.</em></p>
+</div>
+
+</div>
+</body>
+</html>

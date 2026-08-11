@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPOD: On-Policy Omni Distillation</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>OPOD: On-Policy Omni Distillation</h1>
+<p style="text-align:center;"><a href="20260811_zhao_opod_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Tong Zhao, Yuyang Hu, Yutao Zhu, Reed Li, Haijin Liang, Haibo Shi, Yu Lu, Zhicheng Dou</li>
+  <li><strong>소속</strong>: Renmin University of China; Tencent</li>
+  <li><strong>학회/저널</strong>: arXiv preprint</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2607.20918">arXiv:2607.20918</a> · <a href="https://github.com/VincentZhao2002/OPOD">Code</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: Text/Vision/Audio 각 modality specialist teacher들을 하나의 omni-modal student로 통합하려 할 때, (1) 여러 teacher가 shared backbone을 서로 다른 방향으로 밀어 충돌이 생기고, (2) OPD의 symmetric 목적함수가 student가 이미 teacher를 넘어선 부분까지 뒤로 잡아당기는 "teacher ceiling" 문제가 발생한다.</li>
+  <li><strong>해결</strong>: ##OPOD (On-Policy Omni Distillation)##. 세 가지 컴포넌트로 해결한다 — (1) <strong>One-Sided Teacher Guidance</strong>: teacher가 student보다 앞선 토큰에만 constraint 적용 (ReLU로 negative margin 제거), (2) <strong>Adaptive Modality Control</strong>: modality별 constraint budget과 dual weight $\beta_m$을 별도로 유지하여 modality마다 다른 속도로 훈련, (3) <strong>Verification Reward</strong>: 라우팅된 teacher가 answer confidence(정답 게이팅)와 reasoning gain(gain 게이팅 없이)을 별도로 평가.</li>
+  <li><strong>왜 작동하는가</strong>: One-sided는 학생이 이미 넘어선 부분까지 끌어당기지 않으므로 teacher ceiling을 우회한다. Modality-adaptive weight는 text/audio/image의 discrepancy 자연 스케일이 12.7배 차이나는 것을 흡수해 shared weight의 broad tradeoff를 방지한다. Verification reward는 outcome sparsity를 완화한다.</li>
+  <li><strong>비유</strong>: 세 명의 서로 다른 스포츠 코치가 한 선수를 가르치는 상황. 기존 방식은 세 코치 모두 매 순간 선수를 "잡아당기고" 서로 방향이 어긋난다. OPOD는 각 종목의 코치는 자기 종목 데이터에서만 조언하되, 선수가 코치보다 잘하는 순간엔 물러나고, 코치별 강도(β)를 균형 잡히게 자동 조절한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>문제 규명</strong>: Modality-specialist teacher를 하나의 shared backbone에 OPD로 통합할 때 발생하는 두 가지 challenge — <em>conflicting guidance</em>와 <em>teacher ceiling</em>을 정량적으로 분석 (Figure 1a-c).</li>
+  <li><strong>One-Sided Guidance</strong>: 표준 OPD의 log-ratio를 ReLU로 잘라 teacher가 앞설 때만 constraint를 적용. 이로써 student가 이미 강한 token에서는 "backward pull"이 사라진다.</li>
+  <li><strong>Adaptive Modality Control</strong>: 각 modality $m$에 대해 warm-up에서 average constraint $\bar{c}_m$을 계산해 target budget $\epsilon_m$을 개별 calibration. Dual variable $\beta_m$이 constraint gap $\bar{c}_m - \epsilon_m$을 따라 자동 조정.</li>
+  <li><strong>Verification Reward</strong>: 라우팅된 teacher를 verifier로 재활용. Answer confidence는 correctness로 게이팅, reasoning gain은 gain을 clip만 하고 correctness 게이팅 없이 사용 → 오답에서도 학습 신호 확보.</li>
+  <li><strong>실증</strong>: 12개 벤치마크(text 5개, vision 4개, audio 2개, omni 1개)에서 30B-A3B / 7B / 3B 세 스케일 모두 최고 평균 달성. ##Qwen3-Omni-30B-A3B 기준 70.8## 로 baseline 대비 +3.8, 강한 비교군 대비 +2.1 개선.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Omni-modal 모델과 post-training의 어려움</h3>
+<p>Omni-modal LLM은 text, image, audio를 shared backbone에서 처리한다. 그러나 shared backbone은 한 modality의 개선이 다른 modality의 성능을 그대로 유지해준다는 <em>보장</em>이 없다 — 각 modality가 요구하는 표현 특성이 다르기 때문이다. 저자들이 통제된 실험(same base model, GRPO만 다르게 적용)에서 관찰한 바에 따르면, text/image/audio 각각의 specialist는 자기 modality에서 강력해지지만 pooled data로 훈련한 mixed model은 이 강점들을 "합집합"으로 모으지 못한다 (Figure 1a의 radar chart).</p>
+
+<p>더구나 각 specialist가 base로부터 이동한 parameter direction을 비교하면 <em>modality 쌍 사이의 방향 충돌(direction conflict)</em>이 빈번하다 (Figure 1b). 즉 하나의 shared weight가 세 방향의 gradient를 동시에 만족시키는 것은 근본적으로 어렵다.</p>
+
+<h3>On-Policy Distillation (OPD)</h3>
+<p>OPD는 최근 model post-training의 표준 도구가 되었다. Sequence-level distillation이 pre-collected teacher trajectory를 imitation하는 반면, OPD는 <em>student</em>가 sampling한 rollout에 대해 teacher와 student의 next-token distribution을 각 prefix에서 비교한다.</p>
+
+<p>Student policy $\pi_\theta$와 teacher policy $\pi_T$에 대해 OPD reward는 다음과 같다:</p>
+<p>$$r^{\text{opd}}_{i,t} = \log \pi_T(y_{i,t} \mid x_i, y_{i,<t}) - \log \pi_\theta(y_{i,t} \mid x_i, y_{i,<t}) \tag{1}$$</p>
+<p>이 log-ratio는 student rollout에 대한 reverse-KL의 dense token-level reward에 대응한다. 직관적으로 말하면, teacher와 student의 확률차가 각 위치에서 "얼마나 학생이 이 토큰을 더 잘/못 예측하는가"의 dense signal이다. 이는 outcome reward만 있는 sparse RL과 달리 매 토큰에서 감독을 준다.</p>
+
+<h3>Omni 상황에서의 두 가지 문제</h3>
+<p>이 OPD를 여러 modality teacher로 확장하면:</p>
+<ul>
+  <li><strong>Conflicting guidance</strong>: 각 teacher는 자기 modality를 잘 다루는 방향으로 backbone을 밀지만 방향이 어긋난다. 하나의 <em>공유된</em> guidance weight로는 세 신호를 독립적으로 조절하기 어렵다.</li>
+  <li><strong>Teacher ceiling</strong>: 표준 OPD의 log-ratio는 대칭적이다. Student가 teacher보다 이미 잘하는 token에서도 mismatch를 줄이려 하므로 student를 뒤로 잡아당길 수 있다. 즉 teacher 수준이 student의 상한선이 된다.</li>
+</ul>
+
+<p>기존 확장(Ma et al. 2026, Yin et al. 2026 등)은 multi-teacher OPD를 routing/arbitration으로 다루지만, 위 두 문제를 <em>동시에</em> 해결하지 않는다.</p>
+
+<h2>방법: OPOD</h2>
+
+<h3>3.1 Preliminary와 표기</h3>
+<p>Prompt를 $(x_i, m_i)$로 표기하고 $m_i \in \{\text{text}, \text{audio}, \text{image}\}$가 modality label. 각 modality마다 미리 GRPO로 훈련된 specialist teacher $\pi_T^{m_i}$가 존재한다. 매 iteration에서 student가 rollout $y_i = (y_{i,1}, \dots, y_{i,T_i})$를 $\pi_\theta$에서 뽑고, 이 rollout은 $m_i$에 따라 routing된 teacher에게 평가된다.</p>
+
+<h3>3.2 전체 파이프라인</h3>
+<p>Figure 2에 정리된 OPOD의 흐름:</p>
+<div class="flow-diagram">Query (x_i, m_i) → Student rollout y_i
+                → Routing by m_i
+                → Routed teacher π_T^{m_i}
+
+  ┌───────────────────┬───────────────────┬────────────────────┐
+  │ One-Sided         │ Adaptive Modality │ Verification       │
+  │ Teacher Guidance  │ Control           │ Reward             │
+  │  (token-level)    │  (modality-level) │  (rollout-level)   │
+  └────────┬──────────┴─────────┬─────────┴──────────┬─────────┘
+           │                    │                    │
+           ▼                    ▼                    ▼
+        L_tc              β_m 업데이트           r^proc → advantage
+                                                → L_rl
+
+           ┌── + α L_ref (KL to π_ref) ──┐
+           ▼
+   L = L_rl + L_tc + α L_ref  (shared student만 업데이트)</div>
+
+<h3>3.3 One-Sided Teacher Guidance</h3>
+<p>Routed teacher-student margin을 다음과 같이 정의:</p>
+<p>$$c_{i,t} = \text{ReLU}(r^{\text{opd}}_{i,t}) \tag{2}$$</p>
+<p>즉 teacher가 student보다 앞선 토큰(margin > 0)에서만 constraint가 살아있다. Student가 이미 이 토큰을 잘 맞추면 margin=0이 되어 teacher가 뒤로 잡아당기지 않는다.</p>
+<p>Rollout-level average는:</p>
+<p>$$c_i = \frac{1}{T_i}\sum_{t=1}^{T_i} c_{i,t}$$</p>
+<p><em>직관</em>: 학생이 이미 잘하는 부분은 자유롭게 두고, 아직 약한 부분에서만 선생님의 감독을 유지한다. 표준 OPD의 backward pull을 제거하면서도 학습 자체는 계속된다.</p>
+
+<h3>3.4 Adaptive Modality Control</h3>
+<p>Modality $m$의 mini-batch subset $\mathcal{B}_m = \{i \in \mathcal{B} : m_i = m\}$과 modality-average constraint:</p>
+<p>$$\bar{c}_m = \frac{1}{|\mathcal{B}_m|}\sum_{i \in \mathcal{B}_m} c_i$$</p>
+<p>각 modality에 target budget $\epsilon_m > 0$이 설정되어 있고 (아래 warm-up으로 자동 결정), dual weight $\beta_m$의 update rule은:</p>
+<p>$$\beta_m \leftarrow \text{clip}(\beta_m + \eta(\bar{c}_m - \epsilon_m), \beta_{\min}, \beta_{\max}) \tag{3}$$</p>
+<p>이때 $\eta > 0$은 dual step size, $0 \le \beta_{\min} < \beta_{\max}$. 이 update는 $|\mathcal{B}_m| > 0$일 때만 적용된다.</p>
+<p><em>직관</em>: constraint gap $\bar{c}_m - \epsilon_m > 0$이면 그 modality는 예산을 초과했다는 뜻이므로 weight 증가로 pressure 강화. 이미 gap이 작으면 weight 감소.</p>
+<p>Routed teacher constraint loss:</p>
+<p>$$\mathcal{L}_{\text{tc}} = \frac{1}{|\mathcal{B}|}\sum_{i \in \mathcal{B}} \beta_{m_i} c_i$$</p>
+<p><strong>Budget calibration</strong>: $\epsilon_m$은 10-step warm-up 동안 관측된 mean warm-up constraint에서 결정하고, 이후 고정. 하한 $\epsilon_{\min}$으로 too-small budget을 방지. 실험에서 Qwen3-Omni-30B의 자동 calibration 결과는 $\epsilon_{\text{text}}=0.020$, $\epsilon_{\text{image}}=0.191$, $\epsilon_{\text{audio}}=0.254$로 12.7배 spread. 즉 modality마다 자연 스케일이 크게 다르므로 shared weight는 부적절하다.</p>
+
+<h3>3.5 Verification Reward</h3>
+<p>같은 modality teacher를 verifier로 재활용한다. 두 개의 signal:</p>
+<p><strong>(a) Answer confidence</strong>: Final answer position $S_i$에서 teacher가 gold answer $a_i^\star$에 얼마나 확률을 배분하는가:</p>
+<p>$$A_i = \frac{1}{|S_i|}\sum_{t \in S_i} \log \pi_T^{m_i}(y_{i,t} \mid x_i, y_{i,<t})$$</p>
+<p>Correctness 게이팅:</p>
+<p>$$\tilde{A}_i = \mathbf{1}[a_i = a_i^\star] \cdot \text{clip}(A_i, -C, 0)$$</p>
+<p>즉 학생이 정답을 낸 rollout에서만 answer confidence를 신호로 삼는다.</p>
+<p><strong>(b) Reasoning gain</strong>: Reasoning trace $z_i$가 teacher가 gold answer를 예측하는 데 도움이 되는가:</p>
+<p>$$B_i = \log \pi_T^{m_i}(a_i^\star \mid x_i, z_i) - \log \pi_T^{m_i}(a_i^\star \mid x_i)$$</p>
+<p>Clip: $\tilde{B}_i = \text{clip}(B_i, -C, C)$.</p>
+<p>중요: reasoning gain은 <em>correctness 게이팅을 하지 않는다</em>. Reasoning이 좋아 teacher가 정답 쪽으로 이동했다면 최종 정답이 틀렸어도 학습 신호가 남는다. 이는 어려운 sample에서 특히 값어치가 있다.</p>
+<p>Process reward:</p>
+<p>$$r_i^{\text{proc}} = w_A \tilde{A}_i + w_B \tilde{B}_i \tag{4}$$</p>
+<p>기본값 $w_A = w_B = 0.2$, $C = 2.0$.</p>
+
+<h3>3.6 Training Objective</h3>
+<p>Task reward와 process reward의 합:</p>
+<p>$$r_i = r_i^{\text{task}} + r_i^{\text{proc}}$$</p>
+<p>Rollout group $\mathcal{G}_i$의 mean $\mu_i$, std $\sigma_i$에 대해 group-normalized advantage:</p>
+<p>$$\hat{R}_i = \frac{r_i - \mu_i}{\sigma_i + \delta}$$</p>
+<p>Policy loss:</p>
+<p>$$\mathcal{L}_{\text{rl}} = -\frac{1}{|\mathcal{B}|}\sum_{i \in \mathcal{B}} \hat{R}_i \frac{1}{T_i}\sum_{t=1}^{T_i}\log \pi_\theta(y_{i,t} \mid x_i, y_{i,<t})$$</p>
+<p>Reference KL regularizer (rollout-averaged):</p>
+<p>$$\mathcal{L}_{\text{ref}} = \frac{1}{|\mathcal{B}|}\sum_i \frac{1}{T_i}\sum_{t=1}^{T_i} D_{\text{KL}}(\pi_\theta(\cdot \mid h_{i,t}) \| \pi_{\text{ref}}(\cdot \mid h_{i,t}))$$</p>
+<p>여기서 $h_{i,t} = (x_i, y_{i,<t})$, $\pi_{\text{ref}}$는 훈련 시작 이전 policy (고정).</p>
+<p>최종 objective:</p>
+<p>$$\mathcal{L} = \mathcal{L}_{\text{rl}} + \mathcal{L}_{\text{tc}} + \alpha \mathcal{L}_{\text{ref}} \tag{5}$$</p>
+<p>세 항은 동일한 on-policy batch로 계산. Task+verification reward가 rollout-level advantage를 만들고, $\mathcal{L}_{\text{tc}}$가 token-level guidance를 (teacher가 앞선 곳에만) 준다. Gradient는 shared student만 업데이트 — routed teacher와 reference는 고정.</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>4.1 실험 세팅</h3>
+<ul>
+  <li><strong>Student backbone</strong>: 주 실험은 Qwen3-Omni-30B-A3B-Instruct. 추가로 dense Qwen2.5-Omni 7B/3B에 대해서도 검증.</li>
+  <li><strong>Teacher 구성</strong>: 같은 base에서 각 modality data로 GRPO를 개별 적용한 세 명의 specialist.</li>
+  <li><strong>학습 데이터</strong>: text/image/audio reasoning 및 multimodal QA를 다루는 modality-balanced prompt set (공개 데이터). 12개 벤치마크와의 exact + normalized string overlap을 제거하여 contamination 배제.</li>
+  <li><strong>비교 대상</strong>: base model / pooled GRPO / native OPD (Agarwal et al., Gu et al.) / ExOPD (reward extrapolation, Yang et al. 2026) / 세 modality specialist 자체.</li>
+  <li><strong>벤치마크 (12개)</strong>:
+    <ul>
+      <li>Text: AIME25, AIME26, HotpotQA, MMLU-Pro, GPQA</li>
+      <li>Vision: MMMU, MathVista, ChartQA, A-OKVQA</li>
+      <li>Audio: MMAU, AVQA</li>
+      <li>Omni: OmniBench</li>
+    </ul>
+  </li>
+  <li><strong>하드웨어/하이퍼파라미터</strong>: 32 × NVIDIA H20. Student 16 GPU + 나머지 GPU에 teacher server 호스팅. Prompt당 8 sample, rollout batch 16, global batch 64. Max prompt/response length 각 8192. Verification reward $w_A = w_B = 0.2$, $C = 2.0$. Dual controller warm-up 10-step, $\epsilon_{\min} = 0.02$. 모든 baseline이 같은 backbone/data/batch/seed 사용.</li>
+</ul>
+
+<h3>4.2 Main Results</h3>
+
+<p><strong>Table 1: 12 벤치마크 종합 결과 (Pass@1, %)</strong></p>
+<table>
+<tr><th>Model</th><th>AIME25</th><th>AIME26</th><th>HQA</th><th>MMLU-P</th><th>GPQA</th><th>MMMU</th><th>MathV</th><th>ChartQA</th><th>AOKVQA</th><th>MMAU</th><th>AVQA</th><th>OmniB</th><th>Avg.</th></tr>
+<tr><td colspan="14"><em>Qwen3-Omni-30B-A3B</em></td></tr>
+<tr><td>Text teacher</td><td>47.9</td><td>57.7</td><td><strong>41.5</strong></td><td>76.8</td><td>65.8</td><td>67.7</td><td>76.3</td><td>86.5</td><td>87.7</td><td>76.0</td><td>79.8</td><td>61.1</td><td>68.7</td></tr>
+<tr><td>Image teacher</td><td>47.9</td><td>52.1</td><td>27.3</td><td>77.3</td><td>64.8</td><td>68.2</td><td>77.3</td><td>87.8</td><td>88.6</td><td>75.7</td><td>80.8</td><td>61.5</td><td>67.4</td></tr>
+<tr><td>Audio teacher</td><td>52.1</td><td>59.2</td><td>27.3</td><td>76.9</td><td>64.0</td><td>67.4</td><td>76.4</td><td>87.2</td><td>88.9</td><td>79.1</td><td>84.4</td><td>55.6</td><td>68.2</td></tr>
+<tr><td>Base</td><td>49.2</td><td>52.9</td><td>26.8</td><td>77.0</td><td>65.3</td><td>67.9</td><td>75.8</td><td>86.4</td><td>87.6</td><td>75.6</td><td>79.3</td><td>60.3</td><td>67.0</td></tr>
+<tr><td>GRPO (pooled)</td><td>49.2</td><td>53.8</td><td>28.0</td><td>76.7</td><td>65.3</td><td>67.9</td><td>76.7</td><td>86.2</td><td>87.9</td><td>76.2</td><td>80.5</td><td>59.7</td><td>67.3</td></tr>
+<tr><td>Native OPD</td><td>51.7</td><td>55.8</td><td>41.1</td><td>77.5</td><td>64.9</td><td>68.4</td><td>76.4</td><td>73.4</td><td>88.0</td><td>75.8</td><td>81.2</td><td>60.3</td><td>67.9</td></tr>
+<tr><td>ExOPD</td><td>50.0</td><td>64.2</td><td>41.0</td><td>77.1</td><td>63.5</td><td>68.0</td><td>76.5</td><td>87.2</td><td>88.7</td><td>65.1</td><td>83.2</td><td>58.8</td><td>68.6</td></tr>
+<tr><td><strong>OPOD</strong></td><td><strong>55.0</strong></td><td><strong>63.3</strong></td><td>41.1</td><td><strong>78.2</strong></td><td><strong>68.7</strong></td><td><strong>68.7</strong></td><td><strong>77.6</strong></td><td><strong>87.6</strong></td><td><strong>89.1</strong></td><td>76.6</td><td>82.6</td><td>61.1</td><td><strong>70.8</strong></td></tr>
+</table>
+
+<p>##OPOD는 30B-A3B backbone에서 12개 중 11개 벤치마크에 base와 pooled GRPO를 능가하며, native OPD의 11개를 개선, ExOPD의 10개를 exceed##. Specialist teacher를 포함한 비교에서도 11/12에서 1위 또는 2위. 강한 modality-specialist 대비 +2.1 개선 (다른 스케일에선 +1.8, +1.7).</p>
+
+<p><strong>Specialist consolidation</strong>: Oracle이 벤치마크마다 최고의 specialist를 골라도 avg 70.3인데, single OPOD student가 70.8로 <em>0.5점 앞선다</em>. 즉 단순히 각 벤치마크의 최고 specialist를 보존하는 것을 넘어, joint consolidation이 추가 gain을 만든다.</p>
+
+<p><strong>Cross-modal balance</strong>: Base 대비 aggregated text/vision/audio/omni score를 각각 +7.0/+1.4/+2.2/+0.8 개선. 반면 GRPO는 omni에서 -0.6, native OPD는 vision에서 -2.9, ExOPD는 audio에서 -3.3, omni에서 -1.5. Shared backbone에 대해 teacher guidance를 modality별로 분리 조절해야 한다는 필요성을 지지한다.</p>
+
+<h3>4.2 Scaling across backbones (Figure 3)</h3>
+<p>Base 대비 평균 gain: <strong>3B +5.5</strong>, <strong>7B +4.8</strong>, <strong>30B-A3B +3.8</strong>. 방법 순서(OPOD &gt; ExOPD &gt; native OPD &gt; GRPO)는 모든 스케일에서 유지. 강한 대안 대비 margin: 1.7 (3B) → 1.8 (7B) → 2.2 (30B-A3B).</p>
+<p>Base가 강해질수록 general post-training headroom은 줄어들지만, OPOD의 gain은 3.8점 유지 (ExOPD 1.6, native OPD 0.9, GRPO 0.3). ##OPOD의 우위는 특정 parameter regime에 국한되지 않고 dense 및 MoE backbone 모두에 이전된다##.</p>
+
+<h3>4.3 Ablation Study (Table 2)</h3>
+<p>Qwen3-Omni-30B-A3B에서 각 컴포넌트를 제거한 결과. Δ는 Full OPOD (70.8) 대비 감소량.</p>
+
+<table>
+<tr><th>Variant</th><th>Text avg</th><th>Vision avg</th><th>Audio avg</th><th>Omni</th><th>Overall</th><th>Δ</th></tr>
+<tr><td>Full OPOD</td><td>—</td><td>—</td><td>—</td><td>—</td><td>70.8</td><td>—</td></tr>
+<tr><td>− One-Sided Guidance</td><td>—</td><td>—</td><td>—</td><td>—</td><td>69.0</td><td>−1.8</td></tr>
+<tr><td>− Modality Control</td><td>—</td><td>—</td><td>—</td><td>—</td><td>68.6</td><td><strong>−2.2</strong></td></tr>
+<tr><td>− Verification Reward</td><td>—</td><td>—</td><td>—</td><td>—</td><td>68.8</td><td>−2.0</td></tr>
+<tr><td>− Reasoning Gain only</td><td>—</td><td>—</td><td>—</td><td>—</td><td>69.2</td><td>−1.6</td></tr>
+<tr><td>− Answer Confidence only</td><td>—</td><td>—</td><td>—</td><td>—</td><td>69.4</td><td>−1.4</td></tr>
+</table>
+
+<p>60개 (12 benchmark × 5 ablation) 비교 중 <strong>59개에서 full OPOD가 ablation보다 우수</strong>. 개선이 소수 favorable task가 아닌 광범위한 pattern임을 확인.</p>
+
+<p><strong>Modality control의 중요성</strong>: 세 개의 $\beta_m$을 하나의 shared weight로 대체하면 2.2점 감소 (가장 큰 drop). Text/vision/audio/omni group score가 각각 -3.7, -1.0, -1.5, -0.6 감소. <em>모든 modality group에서 성능 하락</em>이 관찰된다는 점은 shared weight가 특정 modality 실패가 아닌 broad cross-modal tradeoff를 만든다는 뜻이다.</p>
+
+<p><strong>Reasoning gain vs answer confidence</strong>: Full OPOD가 <em>reasoning gain</em>이 있는 변형을 11/12 벤치마크에서, <em>answer confidence</em>가 있는 변형을 11/12에서 매치 또는 초과. Reasoning gain은 AVQA와 OmniBench에 크게 기여, answer confidence는 AIME25/AIME26/GPQA에서 큰 역할. 두 신호가 상호 보완적임을 보여준다.</p>
+
+<h3>4.4 Adaptive Modality Control의 동역학 (Figure 4)</h3>
+
+<p><strong>Calibration ($\epsilon_m$)</strong>: 10-step warm-up 후 frozen 값 $\epsilon_{\text{text}} = 0.020$, $\epsilon_{\text{image}} = 0.191$, $\epsilon_{\text{audio}} = 0.254$. 12.7배 range → teacher-student discrepancy의 자연 스케일이 modality별로 크게 다름을 시사. Modality의 "난이도 순위"가 아닌 <em>calibrated constraint gap의 스케일</em>이다.</p>
+
+<p><strong>Constraint gap trajectory</strong>: 5-step moving average $\bar{c}_m - \epsilon_m$을 훈련 80 step에 걸쳐 관찰. Audio는 지속적으로 target 아래에 머무름 (예산 내), text는 점진적으로 target 아래로 내려감, image는 target 근처에 오래 머무름.</p>
+
+<p><strong>Control weight $\beta_m$ 도달 시점</strong>: 모두 약 0.6에서 시작. $\beta_{\min} = 0.1$에 처음 도달하는 step은 audio 24, text 54, image 80. 즉 audio는 빨리 예산에 진입해 controller가 pressure를 풀고, image는 훨씬 오래 boundary에 머물러 guidance가 지속. ##Weight schedule은 사전 지식이 아닌 관측된 constraint gap에서 데이터 주도적으로 자동 결정된다##.</p>
+
+<h2>알고리즘 흐름 요약</h2>
+<div class="flow-diagram">──────────────────────────────────────────────
+For each training step:
+──────────────────────────────────────────────
+
+1. Sample prompt (x_i, m_i) from balanced set
+
+2. Student rollout y_i ~ π_θ(·|x_i)
+
+3. Routing: pick teacher π_T^{m_i} by modality
+
+4. Compute:
+   (a) One-sided margin c_{i,t} = ReLU(log π_T - log π_θ)
+   (b) Rollout summary c_i = mean_t c_{i,t}
+   (c) Verification: A_i (answer confidence gated by correctness),
+                     B_i (reasoning gain, unclipped by correctness)
+   (d) Process reward r^proc = w_A Ã_i + w_B B̃_i
+
+5. Modality aggregation: c̄_m = mean(c_i in modality m)
+   Dual update: β_m ← clip(β_m + η(c̄_m − ε_m), β_min, β_max)
+
+6. Combine reward r_i = r^task + r^proc
+   Group-normalize → R̂_i
+
+7. Compute losses:
+      L_rl  = −mean_i R̂_i · (1/T_i) Σ_t log π_θ
+      L_tc  = mean_i β_{m_i} · c_i
+      L_ref = mean rollout-averaged KL(π_θ || π_ref)
+
+8. Total L = L_rl + L_tc + α L_ref
+   Update ONLY student θ (teachers/reference fixed)
+
+──────────────────────────────────────────────
+Post-training: discard teachers → deploy student
+──────────────────────────────────────────────</div>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>Diagnostic가 명확함</strong>: Figure 1a-c의 세 그림은 문제를 실증적으로 설득한다 (specialist strengths, direction conflict, broad gain). 이 진단이 setup의 정당화 역할을 완결한다.</li>
+  <li><strong>Modality budget의 데이터 주도적 결정</strong>: $\epsilon_m$을 수동 튜닝이 아닌 warm-up에서 자동으로 결정한 점은 실용적. 12.7배 스케일 차이가 실증적으로 관찰되어 shared weight의 부적절함을 강하게 뒷받침.</li>
+  <li><strong>Reasoning gain의 asymmetric 게이팅</strong>: Answer confidence는 correctness로 게이팅, reasoning gain은 게이팅 없이 clip만 사용. 오답 rollout에서도 학습 신호를 살릴 수 있어 sparsity를 줄인다. AVQA/OmniBench에서 특히 유효.</li>
+  <li><strong>Ablation의 breadth</strong>: 60개 비교 중 59개에서 full이 우위 — 광범위한 pattern임을 통계적으로 뒷받침.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>단일 seed</strong>: "single run per configuration with the same random seed" (§4.1). Small-scale ablation은 seed 다중 실행 표준편차가 없어 point difference의 통계적 유의성이 불분명하다. Δ가 1점 대인 항목(reasoning gain 제거)은 특히.</li>
+  <li><strong>$w_A = w_B = 0.2$의 sensitivity 부재</strong>: Verification reward의 강도 튜닝에 대한 sweep이 논문에 없다. Reasoning gain vs answer confidence의 balance가 modality 조합에 어떻게 의존하는지는 open.</li>
+  <li><strong>$\beta_{\min}$의 역할</strong>: $\beta_m$이 0.1에 언제 도달하는지가 modality간 큰 차이를 보이는데, $\beta_{\min}$이 없으면 어떻게 되는가? $\beta_m = 0$까지 허용하면 modality guidance가 사라지는 실험이 필요.</li>
+  <li><strong>Teacher pretraining 비용</strong>: 세 modality specialist를 GRPO로 미리 훈련하는 비용은 method cost에서 제외되어 있다. Compute-fair 비교는 (teacher training + distillation) vs (pooled GRPO)로 이뤄져야 한다.</li>
+  <li><strong>Reference KL의 스케일</strong>: $\alpha$가 방법의 안정성에 미치는 영향에 대한 ablation이 없다. On-policy drift 방지의 필요성을 강조하지만 정량적 증거는 부족.</li>
+  <li><strong>Modality가 3개인 세팅 특유의 결과일 수 있음</strong>: Video, 3D 등 추가 modality가 붙으면 conflict가 3-way를 넘어 4-way, 5-way로 확장된다. Dual variable update의 안정성과 calibration의 확장성은 실증되지 않음.</li>
+  <li><strong>Verification의 answer extraction 가정</strong>: Final answer position $S_i$가 정확히 식별된다고 가정한다. Long-form reasoning trace에서 answer parsing이 실패하면 answer confidence 신호가 왜곡됨.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Multi-teacher OPD에서 "backward pull"을 제거하라</strong>: ReLU로 log-ratio를 한 방향으로만 자르는 간단한 변형만으로도 teacher ceiling을 우회할 수 있다. 다른 distillation setup(단일 teacher/task도 가능)에도 훈련시에 즉시 적용 가능한 아이디어.</li>
+  <li><strong>Modality-specific dual weight는 필수</strong>: Text/image/audio의 자연 스케일 차이(12.7배)는 shared weight로 감당 불가. Multi-domain RL/distillation에서 hyperparameter를 domain별로 분리해야 하는 강한 실증적 근거.</li>
+  <li><strong>Reward decomposition의 gating asymmetry</strong>: Correctness에 의존하는 신호(answer confidence)와 그렇지 않은 신호(reasoning gain)를 명시적으로 분리하는 것은 sparse reward 환경에 일반적으로 유효한 recipe. Reasoning-heavy 도메인(수학, 논리)에서 자체 응용 가치가 있다.</li>
+  <li><strong>Deploy-time 부담 없음</strong>: 훈련 시엔 teacher server를 별도로 운영해야 하지만 (16 GPU + teacher servers) 배포 시 teacher는 모두 폐기 — inference latency와 memory에는 영향 없음.</li>
+  <li><strong>범용성 시사</strong>: MoE(30B-A3B), dense(7B, 3B) 모두에서 gain 유지. Method가 특정 model class에 의존하지 않는다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p><em>추가 코멘트, 관련 아이디어 등을 여기 누적 기록.</em></p>
+</div>
+
+</div>
+</body>
+</html>

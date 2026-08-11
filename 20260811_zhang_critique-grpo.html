@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Critique-GRPO: Advancing LLM Reasoning with Natural Language and Numerical Feedback</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ]});"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Critique-GRPO: Advancing LLM Reasoning with Natural Language and Numerical Feedback</h1>
+<p style="text-align:center;"><a href="20260811_zhang_critique-grpo_brief.html">개요 브리핑 버전 보기 →</a></p>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Xiaoying Zhang, Yipeng Zhang, Hao Sun, Kaituo Feng, Chaochao Lu, Chao Yang, Helen Meng</li>
+  <li><strong>소속</strong>: CUHK · University of Cambridge · MMLab · Shanghai AI Lab</li>
+  <li><strong>학회/저널</strong>: ICML 2026 (PMLR 306)</li>
+  <li><strong>연도</strong>: 2026</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2506.03106">arXiv:2506.03106</a> · <a href="https://github.com/zhangxy-2019/critique-GRPO">Code</a></li>
+</ul>
+</div>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 순수 numerical reward(scalar reward)로 학습하는 online RL은 세 가지 한계에 걸린다 — (i) <em>performance plateau</em>(8× data scaling도 효과 없음), (ii) <em>ineffective spontaneous self-reflection</em>("aha" 순간이 성공에 거의 기여 안 함), (iii) <em>persistent failures</em>(specific 훈련 문제에 반복 실패).</li>
+  <li><strong>해결</strong>: ##Critique-GRPO## — 동일 online RL loop 내에서 initial response + critique-guided refinement를 모두 활용. Reward system이 CoT critique를 생성 → 이 critique를 in-context로 넣어 refined response 샘플링 → 초기 response와 합쳐 policy 업데이트.</li>
+  <li><strong>왜 작동하는가</strong>: Critique는 <em>단순 correctness 신호를 넘어 어디가 왜 틀렸는지</em>의 verbal credit assignment를 제공. Eluder dimension 프레임워크로 분석하면 hypothesis space 복잡도가 $O(|\mathcal{S}|^L) \to O(L)$까지 축소된다.</li>
+  <li><strong>비유</strong>: 학생에게 "40점"이라고만 알려주는 대신 "3번 문제에서 분모 부호 실수, 5번은 접근 자체가 틀렸음"을 알려주고, 학생이 그 지적을 참고해 다시 풀게 한 답까지 함께 학습. 정답률뿐 아니라 <em>수정 능력</em>도 함께 향상.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Numerical RL의 세 한계 진단</strong>: Qwen2.5-7B-Base / Qwen3-8B-Base / Qwen3-8B(w/ thinking)를 대상으로 (i) plateau, (ii) ineffective self-reflection, (iii) persistent failure를 실증. Persistent failure는 Qwen2.5-7B-Base의 훈련 데이터 중 ##약 29%가 Pass@4=0 (RL 후에도 끝까지 못 풀리는 문제)##.</li>
+  <li><strong>Critique-Guided Refinement의 정량 분석</strong>: 세 종류 critique(Indicative / Indicative w/ GT / CoT Critique) 중 CoT critique가 지속 실패 문제의 <em>55.37%를 refinement로 성공시킴</em>. Numerical reward만으로는 접근 불가능한 trajectory에 도달.</li>
+  <li><strong>Critique-GRPO 알고리즘</strong>: (a) 초기 response 샘플링, (b) 실패 문제에 대해 critique 생성 및 refinement 샘플링, (c) 두 종류 rollout을 함께 사용하는 dual-objective RL. Policy shaping과 shaping factor $\gamma$로 rare하지만 valuable한 refinement를 강화, incorrect한 시도는 penalize.</li>
+  <li><strong>이론적 분석</strong>: Transfer Eluder Dimension 프레임워크로 critique를 <em>Reward-Informative Feedback</em>으로 특성화. Standard generation의 action space가 $\dim_E(\mathcal{F}) \approx O(|\mathcal{S}|^L)$일 때, indicative critique는 $O(|\mathcal{S}|L)$, constructive critique는 $O(L)$까지 축소. 즉 sample efficiency의 지수적 개선.</li>
+  <li><strong>실증</strong>: 5 Qwen 모델 × 8 벤치마크. Qwen2.5-7B-Base 기준 Pass@1 avg +15.0~21.6, Qwen3-8B(w/ Think) 기준 avg 68.26. AIME 2024 self-critique로 +16.7 (R1-GRPO 대비). Weak-to-strong: 약한 모델의 refinement로 강한 모델 학습 시 +12.3.</li>
+</ol>
+
+<h2>배경 (Background)</h2>
+
+<h3>Numerical-only RL과 R1-Zero paradigm</h3>
+<p>DeepSeek-R1-Zero(2025)는 pretrained model에 numerical scalar reward만으로 online RL을 걸어 reasoning capability를 향상시켰다. 이후 이 recipe는 open LLM reasoning의 표준이 되었다 (Qwen2.5-Math, ProRL 등). 그러나 scalar reward는 <em>infomation-theoretically sparse</em>하다 — 정답/오답 이진 신호만 있고 "어디가 왜 틀렸는가"의 diagnostic이 없다.</p>
+
+<h3>GRPO (Group Relative Policy Optimization)</h3>
+<p>Shao et al. 2024. Query $q$에 대해 old policy에서 $n$개 response $\{y^{(i)}\}$를 샘플링, 각 reward $R^{(i)}$를 그룹 내에서 정규화하여 advantage 계산. 목적함수:</p>
+<p>$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q \sim Q, \{y^{(i)}\}_{i=1}^n \sim \pi_{\text{old}}}\left[\frac{1}{n}\sum_{i=1}^{n}\frac{1}{|y^{(i)}|}\sum_{t=1}^{|y^{(i)}|} \min(r_t^{(i)} \hat{A}_t^{(i)}, \text{clip}(r_t^{(i)}, 1-\epsilon, 1+\epsilon) \hat{A}_t^{(i)})\right] \tag{1}$$</p>
+<p>여기서 $r_t^{(i)} = \pi_\theta(y_t^{(i)} | q, y_{<t}^{(i)}) / \pi_{\text{old}}(y_t^{(i)} | q, y_{<t}^{(i)})$이고, advantage는 group mean/std로 정규화:</p>
+<p>$$\hat{A}_t^{(i)} = \frac{R^{(i)} - \text{mean}(\{R^{(i)}\})}{\text{std}(\{R^{(i)}\})}$$</p>
+<p>Value function을 estimate할 필요가 없고 (PPO 대비 단순) 각 그룹 내 상대적 성과로 학습.</p>
+
+<h3>Natural Language Feedback (NLF)</h3>
+<p>Saunders et al. 2022 이후 텍스트 critique로 reasoning을 개선하려는 시도가 있다. 그러나 기존 NLF 접근은 대부분 <em>offline</em> — pre-collected critique나 critique-guided refinement로 SFT (Wang et al. 2025 Critique-FT, Chen et al. 2024 Refinement-FT, Xi et al. 2024 CITL-FT). Offline은 (1) 큐레이션 비용, (2) real-time adaptation 부재, (3) online exploration 부재의 문제가 있다.</p>
+
+<h2>Section 3: Numerical-Only RL의 세 한계</h2>
+
+<h3>3.1 Three limitations (Qwen2.5-7B-Base 기준)</h3>
+
+<h4>(i) Performance plateau</h4>
+<p>Figure 5a (Appendix E): Qwen2.5-7B-Base는 120 step 이후 성능 saturation. Training data를 4k → 32k로 8배 증량해도, extended training으로도 유의한 개선이 나오지 않는다. 이는 numerical signal이 있는 <em>information plateau</em>를 시사.</p>
+
+<h4>(ii) Ineffective spontaneous self-reflection</h4>
+<p>Gandhi et al. 2025의 6 cognitive behavior 프레임워크 (planning: subgoal setting, summarization / self-reflection: verification, backtracking, backward chaining, anticipation)를 사용. Figure 6a: RL-fine-tuned model이 <em>혼자서만 풀 수 있는</em> 문제(base가 못 푸는 문제)에서 self-reflection behavior의 성공 기여도가 <em>거의 없음</em>. 즉 "aha" 순간은 나오지만 문제 해결로 이어지지 않는다.</p>
+
+<h4>(iii) Persistent failures</h4>
+<p>Table 1: Qwen2.5-7B-Base + R1-GRPO가 훈련 데이터 중 <b>29.07%에서 Pass@4=0</b> (4번 시도 모두 실패). 이 지속 실패 문제는 어떤 sampling으로도 해결되지 않는다.</p>
+
+<h3>3.2 Natural Language Feedback의 promise</h3>
+<p>세 종류 critique를 지속 실패 문제 (Pass@4=0)에 적용:</p>
+
+<table>
+<tr><th>Critique Type</th><th>내용</th><th>Valid critique %</th><th>Valid refinement %</th><th>Questions refined %</th></tr>
+<tr><td>Indicative Critique</td><td>"The generated solution is incorrect."</td><td>100.00</td><td>2.09</td><td>7.05</td></tr>
+<tr><td>Indicative w/ GT</td><td>"...incorrect, the ground truth is 7/25."</td><td>100.00</td><td>1.98</td><td>6.88</td></tr>
+<tr><td>CoT Critique</td><td>Step-by-step error 분석 + Conclusion</td><td>60.06</td><td><b>36.47</b></td><td><b>55.37</b></td></tr>
+</table>
+
+<p><b>핵심 관찰</b>: Indicative critique는 correctness label과 다름없고 (거의) 개선 없음. CoT critique는 <em>어디가 어떻게 틀렸는지</em>의 verbal credit assignment를 통해 지속 실패의 55%를 해결. ##Deliberate critique outperforms spontaneous self-reflection##.</p>
+
+<h2>방법: Critique-GRPO</h2>
+
+<h3>4.1 Online RL with dual sources</h3>
+<p>Figure 2 (전체 파이프라인) 요약:</p>
+<div class="flow-diagram">Query q
+   │
+   ├── Initial Response Sampling: y^(1), ..., y^(n) ~ π_old(·|q)
+   │        │
+   │        └── Reward System: c^(i), R^(i) ← Reward(q, y^(i))
+   │
+   ├── Critique Generation (only for failures):
+   │        c_l^(i)   ← "The solution is incorrect."
+   │        c_GT^(i)  ← "...ground truth is X."
+   │        c_CoT^(i) ~ π_RM(· | I_c, q, y^(i))   # Model-based
+   │
+   ├── Critique-Guided Refinement:
+   │        y'_refined^(i) ~ π_old(· | I_refine, q, y^(i), c^(i))
+   │        R_refine^(i) ← Reward(q, y'_refined^(i))
+   │
+   ├── Subset Selection:
+   │        k refinements from correct 우선; 없으면 random
+   │        Combined batch: {y^(i)} ∪ {y'_refined^(i')}
+   │
+   └── Policy Update: J = J_init + J_refi</div>
+
+<h3>4.2 Reward system 두 종류</h3>
+<ul>
+  <li><strong>Rule-based</strong>: $R^{(i)} = \text{is\_equivalent}(y^{(i)}, y_{\text{GT}})$. 두 종류 critique 자동 생성 — $c_I^{(i)}$ (indicative, without GT), $c_{\text{GT}}^{(i)}$ (with GT).</li>
+  <li><strong>Model-based</strong>: Reward model $\pi_{\text{RM}}$이 CoT critique 생성. $c_{\text{CoT}}^{(i)} \sim \pi_{\text{RM}}(\cdot | I_c, q, y^{(i)})$. Critique의 binary correctness가 scalar reward.</li>
+</ul>
+
+<h3>4.3 Critique-guided refinement 목적함수</h3>
+
+<p><strong>Initial responses</strong>: 표준 GRPO objective 사용:</p>
+<p>$$\mathcal{J}_{\text{init}}(\theta) = \mathbb{E}\left[\frac{1}{n}\sum_{i=1}^{n}\frac{1}{|y^{(i)}|}\sum_{t=1}^{|y^{(i)}|} \min(r_t^{(i)} \hat{A}_t^{(i)}, \text{clip}(...) \hat{A}_t^{(i)})\right] \tag{3}$$</p>
+
+<p><strong>Refined responses</strong>: Policy shaping을 사용:</p>
+<p>$$\rho_t^{(i')}(\theta) = \frac{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},<t}^{(i')})}{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},<t}^{(i')}) + \gamma}$$</p>
+<p>여기서 $0 < \gamma < 1$ (Yan et al. 2025의 shaping factor). $\gamma$가 커질수록 low-probability token에 더 큰 gradient가 배분된다.</p>
+<p><em>직관</em>: Refined responses는 <em>현재 policy에서는 낮은 확률의 unfamiliar trajectory</em>다. 표준 importance sampling ratio를 쓰면 이 rare trajectory의 gradient가 vanishingly small해진다. Shaping은 이를 완화해 unfamiliar but valuable한 refinement token에 더 많은 학습을 배정.</p>
+<p>Refined objective:</p>
+<p>$$\mathcal{J}_{\text{refi}}(\theta) = \mathbb{E}\left[\frac{1}{k}\sum_{i'=1}^{k}\frac{1}{|y_{\text{refined}}^{(i')}|}\sum_{t=1}^{|y_{\text{refined}}^{(i')}|} \min(\rho_t^{(i')}(\theta) \hat{A}_t^{(i')}, \text{clip}(\rho_t^{(i')}, 1-\epsilon, 1+\epsilon) \hat{A}_t^{(i')})\right] \tag{4}$$</p>
+
+<p><strong>Advantage</strong>: Initial과 refined의 unified baseline:</p>
+<p>$$\hat{A}_t^{(i/i')} = R^{(i/i')} - \text{mean}(\{R^{(i)}\}_{i=1}^n \cup \{R_{\text{refined}}^{(i')}\}_{i'=1}^k)$$</p>
+
+<p><strong>총 objective</strong>:</p>
+<p>$$\mathcal{J}_{\text{Critique-GRPO}}(\theta) = \mathcal{J}_{\text{init}}(\theta) + \mathcal{J}_{\text{refi}}(\theta) \tag{2}$$</p>
+
+<h3>4.4 Refinement subset selection</h3>
+<p>모든 refined response를 다 쓰지 않고 $k$개만 선택 — <em>quality-based sampling</em>:</p>
+<ul>
+  <li>Refinement 중 correct(정답)이 있으면 그것들부터 우선 선택</li>
+  <li>Correct refinement 부족하면 random</li>
+  <li>Correct refinement가 하나도 없으면 refined 전체 skip (entropy explosion 방지)</li>
+</ul>
+
+<h3>4.5 이론적 분석: Transfer Eluder Dimension</h3>
+
+<p><strong>Proposition 4.1 (Complexity Reduction via Critique-Guided Exploration)</strong>. Hidden optimal solution sequence $a^* = (s_1^*, \dots, s_L^*)$, $s_i \in \mathcal{S}$, action space $\mathcal{A} = \bigcup_{k=1}^{L} \mathcal{S}^k$, hypothesis space $\mathcal{F}$.</p>
+
+<ul>
+  <li><strong>Standard Generation (Reward-Only)</strong>: 이진 reward만 있으면 incorrect sequence는 동일한 zero-information을 준다. Agent는 사실상 action space를 exhaustively enumerate해야 한다. Eluder dimension (Russo & Van Roy 2013): $\dim_E(\mathcal{F}) \approx O(|\mathcal{S}|^L)$.</li>
+  <li><strong>Indicative Feedback ($c_I, c_{\text{GT}}$)</strong>: Failure에 대해 critique conditioning으로 policy가 subspace $\mathcal{A}_c \subset \mathcal{A}$로 제한. Worst-case complexity는 여전히 $O(|\mathcal{S}|^L)$이지만 critique가 pruning 신호로 작동.</li>
+  <li><strong>Constructive Feedback ($c_{\text{CoT}}$)</strong>: Critique가 first error step $t$를 localize하면 문제가 $L$ independent subproblem으로 decompose. 각 subproblem은 size $|\mathcal{S}|$. 총 complexity $O(|\mathcal{S}|L)$. Critique가 correction suggestion까지 주면 각 subproblem이 search space와 독립: $O(L)$.</li>
+</ul>
+
+<p>Fixed compute budget $M$에서 $|\mathcal{S}|L \ll M \ll |\mathcal{S}|^L$이면:</p>
+<p>$$P(a^* \in \{y_{\text{refined},j}^{(i)}\}_{j=1}^{M}) \gg P(a^* \in \{y^{(i)}\}_{j=1}^{M})$$</p>
+
+<h2>실험 (Experiments)</h2>
+
+<h3>5.1 Setup</h3>
+<ul>
+  <li><strong>Data</strong>: OpenR1-Math-220k의 4k 서브셋 (Yan et al. 2025), validation은 curated set. 대부분의 baseline은 46k prompt 사용.</li>
+  <li><strong>Backbone</strong>: Qwen2.5-7B-Base / Qwen3-8B(-Base와 w/Think 둘 다) / Qwen2.5-Math-7B-Base / Llama-3.2-3B-Instruct / Qwen3-32B</li>
+  <li><strong>Critique model</strong>: 주 실험은 GPT-4o. Robustness는 Llama-3.1-405B, DeepCritic-7B-RL로도.</li>
+  <li><strong>Evaluation</strong>: MATH-500, Minerva-Math, OlympiadBench, AIME 2024, AMC 2023 (ID) / TheoremQA, GPQA-Diamond, MMLU-Pro (OOD). Greedy decoding (T=0), Pass@1 report.</li>
+</ul>
+
+<h3>5.2 Main Results (Table 2)</h3>
+
+<p><strong>Qwen2.5-7B-Base (non-reasoning) 결과:</strong></p>
+<table>
+<tr><th>Method</th><th>Expert Demo</th><th>Num FB</th><th>Lang FB</th><th>Math avg (ID)</th><th>OOD avg</th><th>All avg</th></tr>
+<tr><td>Qwen2.5-7B-Base</td><td>—</td><td>—</td><td>—</td><td>28.85</td><td>32.22</td><td>32.04</td></tr>
+<tr><td>+ SFT</td><td>✓</td><td>×</td><td>×</td><td>29.35</td><td>34.32</td><td>33.04</td></tr>
+<tr><td>+ RAFT</td><td>×</td><td>✓</td><td>×</td><td>36.10</td><td>32.32</td><td>34.27</td></tr>
+<tr><td>+ Refinement FT</td><td>×</td><td>✓</td><td>✓</td><td>36.10</td><td>32.53</td><td>35.21</td></tr>
+<tr><td>+ Critique FT</td><td>×</td><td>×</td><td>✓</td><td>28.05</td><td>34.55</td><td>34.76</td></tr>
+<tr><td>+ CITL-FT</td><td>×</td><td>✓</td><td>✓</td><td>37.40</td><td>32.36</td><td>35.66</td></tr>
+<tr><td>+ R1-GRPO</td><td>×</td><td>✓</td><td>×</td><td>42.30</td><td>40.35</td><td>41.18</td></tr>
+<tr><td>+ R1-Dr.GRPO</td><td>×</td><td>✓</td><td>×</td><td>43.75</td><td>38.16</td><td>42.66</td></tr>
+<tr><td>+ Critique-GRPO (Indicative)</td><td>×</td><td>✓</td><td>✓</td><td>44.15</td><td>40.24</td><td>44.62</td></tr>
+<tr><td>+ Critique-GRPO (Ind. w/ GT)</td><td>×</td><td>✓</td><td>✓</td><td>44.15</td><td>42.57</td><td>45.30</td></tr>
+<tr><td><strong>+ Critique-GRPO (CoT)</strong></td><td>×</td><td>✓</td><td>✓</td><td><b>45.55</b></td><td><b>43.71</b></td><td><b>47.08</b></td></tr>
+</table>
+
+<p><strong>Qwen3-8B (reasoning) 결과 (avg):</strong></p>
+<ul>
+  <li>Qwen3-8B(w/Think): 53.23</li>
+  <li>+ R1-GRPO: 63.75</li>
+  <li>+ R1-Dr.GRPO: 64.46</li>
+  <li>+ Critique-GRPO (Indicative): 66.03</li>
+  <li>+ Critique-GRPO (Ind. w/ GT): 66.29</li>
+  <li><b>+ Critique-GRPO (CoT): 68.26</b></li>
+</ul>
+
+<p>##Critique-GRPO(CoT)가 Qwen2.5-7B-Base 기준 R1-GRPO 대비 +5.90, Qwen3-8B 기준 +4.51##. Refinement FT를 online RL과 sequential하게 조합한 baseline(§5.9)에서도 +3.93 우세.</p>
+
+<h3>5.3 Math-Centric Backbone (Qwen2.5-Math-7B-Base)</h3>
+<table>
+<tr><th>Method</th><th>Training data</th><th>All avg</th></tr>
+<tr><td>Qwen2.5-Math-7B-Base</td><td>—</td><td>29.46</td></tr>
+<tr><td>+ SimpleRL-Zero*</td><td>46k</td><td>—</td></tr>
+<tr><td>+ PRIME-Zero*</td><td>46k</td><td>—</td></tr>
+<tr><td>+ Oat-Zero*</td><td>46k</td><td>—</td></tr>
+<tr><td>+ Critique-GRPO (CoT)</td><td><b>4k</b></td><td><b>51.06</b></td></tr>
+</table>
+<p>##4k prompt로 46k prompt를 쓰는 numerical-only baseline들을 크게 우세##. Verbal credit assignment의 <em>sample efficiency</em>를 강하게 뒷받침.</p>
+
+<h3>5.4 Self-Improvement via Self-Critiquing (Table 4)</h3>
+<p>Qwen3-8B이 <em>자기 자신의 critique</em>로 학습:</p>
+<table>
+<tr><th>Method</th><th>Math avg</th><th>OOD avg</th><th>Avg</th><th>AIME24 @1</th><th>AIME25 @1</th></tr>
+<tr><td>Qwen3-8B (w/Think)</td><td>50.98</td><td>50.02</td><td>53.23</td><td>30.00</td><td>23.30</td></tr>
+<tr><td>+ SFT</td><td>—</td><td>—</td><td>60.00</td><td>40.00</td><td>—</td></tr>
+<tr><td>+ R1-GRPO</td><td>—</td><td>—</td><td>63.75</td><td>53.33</td><td>43.30</td></tr>
+<tr><td><b>+ Critique-GRPO (Self-Critique)</b></td><td><b>74.32</b></td><td><b>59.36</b></td><td><b>68.13</b></td><td><b>60.00</b></td><td><b>46.70</b></td></tr>
+</table>
+<p>##Self-critique로 R1-GRPO 대비 AIME24 +16.7 (43.3 → 60.0)##.  외부 강한 critique 모델 없이도 self-improvement가 가능하다는 강한 실증.</p>
+
+<p><strong>Figure 3: Pass@k for k=1~256 on AIME24</strong> — Critique-GRPO(Self)가 모든 k에서 R1-GRPO와 SFT를 능가. Base Qwen3-8B(w/Think)의 exploration boundary를 명확히 넘어선다.</p>
+
+<h3>5.5 Varying Models (Table 5)</h3>
+<ul>
+  <li><strong>Llama-3.2-3B-Instruct</strong>: base 22.52, R1-GRPO 24.79, Critique-GRPO 29.86 (+5.07)</li>
+  <li><strong>Qwen3-32B</strong>: R1-GRPO 대비 +4.0 (Appendix D)</li>
+  <li><strong>Critique model 변경</strong>: Llama-3.1-405B (avg 43.26), GPT-4o (47.08), DeepCritic-7B-RL (47.98)</li>
+</ul>
+<p>Critique-GRPO가 <em>architecture와 critique model 모두에</em> robust. DeepCritic-7B-RL(specialized critique model)이 general GPT-4o보다 약간 우수, 하지만 open-source model로도 유효.</p>
+
+<h3>5.6 Policy Exploration (Figure 4)</h3>
+<p>Qwen2.5-7B-Base의 entropy dynamics:</p>
+<ul>
+  <li>Critique-GRPO (CoT / GT / Indicative)가 R1-GRPO와 R1-Dr.GRPO보다 <b>지속적으로 높은 entropy</b> 유지</li>
+  <li>Step 200 이전 초반에는 entropy peak (refinement가 initial과 크게 다를 때 발생)</li>
+  <li>이후 refinement를 내재화하면서 entropy 감소</li>
+</ul>
+<p>Cui et al. 2025b의 관찰(rare high-advantage action이 entropy 증가, common high-advantage action이 entropy 감소)과 일치. ##Higher entropy = maintained exploration = numerical-only가 도달 못 하는 trajectory에 도달 가능##.</p>
+
+<h3>5.7 Fine-grained Ablation (Table 6)</h3>
+<p>R1-GRPO에서 순차 추가:</p>
+<table>
+<tr><th>Setting</th><th>KL Loss Removal</th><th>Language FB</th><th>Refinement Sampling</th><th>Policy Shaping</th><th>Avg</th></tr>
+<tr><td>+ R1-GRPO</td><td>×</td><td>×</td><td>×</td><td>×</td><td>41.18</td></tr>
+<tr><td>+ Critique-GRPO (CoT)</td><td>✓</td><td>×</td><td>×</td><td>×</td><td>42.66 (+1.5)</td></tr>
+<tr><td>+ Critique-GRPO (CoT)</td><td>✓</td><td>✓</td><td>×</td><td>×</td><td>43.26 (+0.6)</td></tr>
+<tr><td>+ Critique-GRPO (CoT)</td><td>✓</td><td>✓</td><td>✓</td><td>×</td><td>43.95 (+0.7)</td></tr>
+<tr><td><b>+ Critique-GRPO (CoT)</b></td><td><b>✓</b></td><td><b>✓</b></td><td><b>✓</b></td><td><b>✓</b></td><td><b>47.08 (+3.1)</b></td></tr>
+</table>
+<p>##Policy shaping이 가장 큰 gain (+3.1)##. Rare but valuable한 reasoning pattern을 amplify하는 것이 RL fine-tuning의 결정적 요소임을 시사.</p>
+
+<h3>5.8 Weak-to-Strong Generalization (Table 7)</h3>
+<p>Qwen3-8B-Base를 <em>weaker teacher</em>로 사용해 indicative critique w/ GT를 만들고, Qwen3-8B(w/Think)를 학습:</p>
+<ul>
+  <li>Qwen3-8B(w/Think): 53.23</li>
+  <li>+ R1-GRPO: 63.75</li>
+  <li><b>+ Critique-GRPO (Weaker Refinement via Critique w/GT): 65.55 (+12.3 vs base)</b></li>
+</ul>
+<p>약한 모델의 refinement로도 강한 모델을 능가시킬 수 있다 (Burns et al. 2023 weak-to-strong).</p>
+
+<h3>5.9 Sequential Baseline vs Joint Optimization (Table 8)</h3>
+<p><strong>Sequential</strong>: (1) R1-GRPO 수렴, (2) 남은 failure에 대해 critique/refinement + SFT.</p>
+<p><strong>Joint (Critique-GRPO)</strong>: Online joint optimization.</p>
+
+<table>
+<tr><th>Method</th><th>MATH-500</th><th>AMC23</th><th>GPQA-D</th><th>Avg</th></tr>
+<tr><td>Qwen2.5-7B-Base</td><td>60.80</td><td>35.00</td><td>28.79</td><td>32.04</td></tr>
+<tr><td>R1-GRPO</td><td>74.00</td><td>42.50</td><td>33.33</td><td>41.18</td></tr>
+<tr><td>R1-GRPO + Ref.-SFT (sequential)</td><td>75.40</td><td>47.50</td><td>34.34</td><td>43.15</td></tr>
+<tr><td><b>Critique-GRPO (joint)</b></td><td><b>77.80</b></td><td><b>62.50</b></td><td><b>37.88</b></td><td><b>47.08</b></td></tr>
+</table>
+<p>AMC23에서 sequential vs joint의 격차가 특히 큼 (47.5 → 62.5). ##Online joint의 real-time adaptation이 offline sequential보다 유의미하게 우수##.</p>
+
+<h2>알고리즘 흐름</h2>
+<div class="flow-diagram">─────── Critique-GRPO training step ───────
+
+Query q
+   ↓
+[Sample initial responses] y^(1), ..., y^(n) ~ π_old(·|q)
+   ↓
+[Reward system evaluation]
+   c^(i), R^(i) ← Reward(q, y^(i))
+   (rule-based: c_I, c_GT / model-based: c_CoT)
+   ↓
+[Refinement condition check]
+   IF ∃i where R^(i)=1 (positive exists):
+      Skip refinement, use only initial
+   ELSE (all failed):
+      GOTO refinement
+   ↓
+[Refinement generation]
+   y'_refined^(i) ~ π_old(·|I_refine, q, y^(i), c^(i))
+   R_refined^(i) ← Reward(q, y'_refined^(i))
+   ↓
+[Subset selection (size k)]
+   Prefer correct refinements
+   IF no correct refinement: random from all
+   ↓
+[Combined batch]
+   B = {y^(i)}_{i=1}^n ∪ {y'_refined^(i')}_{i'=1}^k
+   ↓
+[Advantage]
+   Â^{(i/i')} = R^{(i/i')} − mean(rewards in B)
+   (KL loss removed; std normalization removed per Liu 2025a)
+   ↓
+[Loss]
+   J_init = standard GRPO objective on {y^(i)}
+   J_refi = policy-shaped GRPO on {y'_refined^(i')}
+            ρ_t = π_θ(y | ...) / (π_θ + γ)  ← low-prob token 강조
+   J = J_init + J_refi
+   ↓
+[Update θ via backprop]
+
+────────────────────────────────────</div>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>문제 진단이 견고</strong>: 세 한계(plateau, ineffective self-reflection, persistent failure)를 각각 실증. 특히 Table 1의 "CoT critique로 55.37% refine"는 method의 필요성을 강하게 뒷받침.</li>
+  <li><strong>이론적 정당화</strong>: Transfer Eluder Dimension 프레임워크로 hypothesis space 축소를 정량화. $O(|\mathcal{S}|^L) \to O(L)$은 지수적 improvement로, 왜 verbal signal이 sparse binary reward보다 근본적으로 informativestreatment한지 formal한 answer.</li>
+  <li><strong>Data efficiency</strong>: 4k prompt로 46k prompt SimpleRL-Zero/PRIME-Zero 등을 능가. Verbal feedback이 sample efficiency의 leverage임을 실증.</li>
+  <li><strong>Self-improvement</strong>: Self-critique만으로 AIME24 +16.7. 외부 강한 모델 없이도 improvement 가능. Weak-to-strong도 성립.</li>
+  <li><strong>Ablation의 정밀함</strong>: Table 6의 fine-grained ablation이 각 컴포넌트 기여를 분리해 보여줌. Policy shaping이 +3.1로 가장 큰 gain — 이 실용적 insight는 다른 online RL setup에도 즉시 응용 가능.</li>
+  <li><strong>Critique model robustness</strong>: 405B, 4o, 7B specialized 세 종류 critique 모델 모두 유효. Method가 critique model에 tightly coupled되지 않음.</li>
+</ul>
+
+<h3>약점 및 의문점</h3>
+<ul>
+  <li><strong>Critique 생성 비용</strong>: 각 failure에 대해 CoT critique 생성 필요. GPT-4o 호출 or reward model inference가 추가된다. Compute overhead 정량화 부족 (RL step 대비 몇 배 비용?).</li>
+  <li><strong>Critique quality의 sensitivity</strong>: Critique가 <em>부정확할</em> 때의 실패 모드가 논의 부족. "Valid critique %"가 CoT에서 60.06%로 완벽하지 않은데, invalid critique가 학습에 미치는 negative effect는 미탐색.</li>
+  <li><strong>Non-math 도메인의 일반화</strong>: Math + STEM/general OOD로만 평가. 코딩, factual QA, planning에서도 verbal credit assignment가 유효한지는 open.</li>
+  <li><strong>Refinement subset의 $k$ 선택</strong>: $k$ 값에 대한 sweep이 논문에 없음. "correct refinement 우선"이라는 heuristic이 특정 문제 유형(대부분 오답인 어려운 문제)에 얼마나 sensitive한지 미확인.</li>
+  <li><strong>Shaping factor $\gamma$</strong>: 구체적 값 논문에 없음 (Yan et al. 2025 참조). $\gamma$가 학습 초반/후반 dynamics에 미치는 영향, 특히 refinement가 얼마나 unfamiliar한지에 따른 sensitivity 미탐색.</li>
+  <li><strong>KL loss 제거</strong>: Ablation에서 KL 제거만으로 +1.5. 이는 method의 gain이 부분적으로 KL removal에서 온다는 뜻인데, base RL의 안정성이 KL 없이도 유지되는지 (특히 long training에서) 검증 부족.</li>
+  <li><strong>Critique-in-loop vs offline SFT의 진짜 격차</strong>: Table 8이 sequential baseline과 비교하지만, sequential setup이 online refinement의 온갖 heuristic (shaping, subset selection)을 못 쓴 상황. Fair 비교인지 재고 필요.</li>
+  <li><strong>Persistent failure의 실체</strong>: "29% persistent failure"가 문제 자체의 근본적 난이도 때문인지, 아니면 dataset noise/mislabeling 때문인지 구분 부족. 후자라면 critique-guided refinement로 "고쳐졌다"는 의미가 약해진다.</li>
+</ul>
+
+</div>
+
+<h2>Key Takeaways</h2>
+<div class="takeaways">
+<ul>
+  <li><strong>Verbal credit assignment는 scalar reward의 근본적 한계를 우회한다</strong>: Numerical RL의 information ceiling은 이론적으로 (Eluder dimension) 그리고 실증적으로 (29% persistent failure) 존재. CoT critique로 이 ceiling을 뚫는 것이 가능.</li>
+  <li><strong>Online joint vs offline sequential은 진지한 격차가 있다</strong>: 같은 critique/refinement 재료라도 online loop 안에서 사용될 때 훨씬 강력. 이는 다른 online RL setup에 대한 일반적 recipe.</li>
+  <li><strong>Policy shaping이 rare-but-valuable trajectory를 살린다</strong>: Refinement 같은 low-probability but valuable action을 학습시키려면 표준 importance ratio는 부족. Shaping factor 도입은 다른 exploration-critical setup에 응용 가능.</li>
+  <li><strong>Self-critique만으로 self-improvement 가능</strong>: 외부 강한 모델 없이도 same-model critique로 유의한 개선 (AIME24 +16.7). 이는 실무에서 (특히 강한 critique 모델에 접근 못 하는 경우) 큰 practical value.</li>
+  <li><strong>Higher entropy = maintained exploration</strong>: Numerical RL이 빨리 entropy를 잃고 collapse하는 반면 Critique-GRPO는 entropy를 유지. Entropy를 exploration proxy로 monitoring하는 것이 유용.</li>
+  <li><strong>Data efficiency가 explicit contribution</strong>: 4k prompt로 46k baseline 능가. Verbal feedback이 dataset scale의 alternative가 될 수 있다.</li>
+</ul>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+<p><em>추가 코멘트, 관련 아이디어 등을 여기 누적 기록.</em></p>
+</div>
+
+</div>
+</body>
+</html>

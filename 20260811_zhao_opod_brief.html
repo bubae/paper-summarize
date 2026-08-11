@@ -1,0 +1,931 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OPOD — 개요 브리핑</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap');
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Noto Sans KR', sans-serif; background: #fff; color: #1e293b; line-height: 1.75; }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 40%, #7c3aed 100%); color: #fff; padding: 4rem 2rem 3rem; text-align: center; }
+  .hero-badge { display: inline-block; background: rgba(255,255,255,0.15); padding: 4px 16px; border-radius: 20px; font-size: 0.85rem; margin-bottom: 1.2rem; letter-spacing: 0.05em; }
+  .hero h1 { font-size: 3rem; font-weight: 900; margin-bottom: 0.4rem; }
+  .hero .subtitle { font-size: 1.15rem; font-weight: 300; opacity: 0.92; max-width: 700px; margin: 0.5rem auto; }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 0 1.5rem; }
+  section { margin: 3rem 0; }
+  section h2 { font-size: 1.65rem; font-weight: 700; margin-bottom: 1rem; color: #1e3a8a; position: relative; padding-left: 1.2rem; }
+  section h2::before { content: ''; position: absolute; left: 0; top: 0.15em; width: 5px; height: 1.3em; background: linear-gradient(180deg, #1e3a8a, #7c3aed); border-radius: 3px; }
+  section h3 { margin-top: 1.8rem; font-size: 1.15rem; color: #1e293b; }
+  p { margin: 0.8rem 0; }
+
+  .card { background: #f8fafc; border-radius: 16px; padding: 2rem; margin: 1.5rem 0; border: 1px solid #e2e8f0; }
+  .card-accent { border-left: 5px solid #7c3aed; }
+  .card-green { border-left: 5px solid #059669; }
+  .card-orange { border-left: 5px solid #d97706; }
+  .card-red { border-left: 5px solid #dc2626; }
+  .card-blue { border-left: 5px solid #2563eb; }
+
+  .one-liner { background: linear-gradient(135deg, #1e3a8a, #7c3aed); color: #fff; border-radius: 16px; padding: 2rem 2.5rem; font-size: 1.2rem; font-weight: 500; text-align: center; margin: 2rem 0; line-height: 1.6; }
+
+  .diagram-wrap { text-align: center; margin: 1.5rem 0; overflow-x: auto; }
+  .diagram-wrap svg { max-width: 100%; height: auto; background: #f8fafc; border-radius: 12px; border: 1px solid #e2e8f0; padding: 8px; }
+  .diagram-caption { font-size: 0.85rem; color: #64748b; margin-top: 0.5rem; text-align: center; font-style: italic; }
+
+  .stat-row { display: flex; gap: 1rem; flex-wrap: wrap; margin: 1.5rem 0; }
+  .stat-box { flex: 1; min-width: 140px; background: #f8fafc; border-radius: 12px; padding: 1.2rem; text-align: center; border: 1px solid #e2e8f0; }
+  .stat-box .num { font-size: 2rem; font-weight: 900; background: linear-gradient(135deg, #1e3a8a, #7c3aed); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .stat-box .label { font-size: 0.85rem; color: #64748b; margin-top: 0.3rem; }
+
+  .comp-table { width: 100%; border-collapse: separate; border-spacing: 0; border-radius: 12px; overflow: hidden; margin: 1.5rem 0; border: 1px solid #e2e8f0; font-size: 0.92rem; }
+  .comp-table th { background: #1e3a8a; color: #fff; padding: 12px 14px; font-weight: 500; }
+  .comp-table td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; }
+  .comp-table tr:last-child td { border-bottom: none; }
+  .comp-table .highlight-row { background: #f5f3ff; font-weight: 700; }
+  .comp-table .subhead td { background: #e0e7ff; font-weight: 700; color: #1e3a8a; }
+
+  .step-flow { display: flex; align-items: center; gap: 0; flex-wrap: wrap; justify-content: center; margin: 1.5rem 0; }
+  .step-box { background: #fff; border: 2px solid #7c3aed; border-radius: 12px; padding: 1rem 1.2rem; text-align: center; min-width: 140px; }
+  .step-box .step-num { font-size: 0.75rem; color: #7c3aed; font-weight: 700; letter-spacing: 0.1em; }
+  .step-box .step-title { font-weight: 700; font-size: 0.95rem; margin: 0.2rem 0; }
+  .step-box .step-desc { font-size: 0.8rem; color: #475569; }
+  .step-arrow { font-size: 1.5rem; color: #7c3aed; padding: 0 0.4rem; }
+
+  .version-toggle { text-align: center; margin: 1.5rem 0; }
+  .version-toggle a { display: inline-block; padding: 8px 20px; border-radius: 20px; font-size: 0.9rem; font-weight: 600; text-decoration: none; background: #f5f3ff; color: #6d28d9; border: 1px solid #c4b5fd; }
+  .version-toggle a:hover { background: #6d28d9; color: #fff; }
+
+  .callout { background: #eef2ff; border-left: 5px solid #4f46e5; padding: 1rem 1.5rem; margin: 1rem 0; border-radius: 8px; }
+  .callout .callout-title { font-weight: 700; color: #4338ca; margin-bottom: 0.4rem; }
+
+  .analogy { background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 16px; border: 1px solid #fcd34d; padding: 1.5rem 1.8rem; margin: 1.5rem 0; }
+  .analogy-title { font-weight: 700; font-size: 1.05rem; margin-bottom: 0.5rem; color: #92400e; }
+
+  .footer { text-align: center; padding: 2rem; font-size: 0.8rem; color: #94a3b8; border-top: 1px solid #e2e8f0; }
+
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 2rem; }
+    .stat-row { flex-direction: column; }
+    .step-flow { flex-direction: column; }
+    .step-arrow { transform: rotate(90deg); }
+  }
+</style>
+</head>
+<body>
+
+<!-- Hero -->
+<div class="hero">
+  <div class="hero-badge">RUC × Tencent · 2026 · arXiv 2607.20918</div>
+  <h1>OPOD</h1>
+  <p class="subtitle">Text · Image · Audio specialist teacher 세 명을<br>하나의 omni-modal student로 <b>충돌 없이</b> 통합하는 On-Policy Distillation</p>
+</div>
+
+<div class="container">
+
+<div class="version-toggle"><a href="20260811_zhao_opod.html">전문가용 상세 요약 보기 →</a></div>
+
+<div class="one-liner">
+"각 modality의 코치는 자기 종목만 담당한다.<br>학생이 이미 잘하는 부분에서는 물러나고,<br>modality마다 자기만의 예산과 강도로 개입한다."
+</div>
+
+<!-- ================================================== -->
+<!-- 이 논문 특유의 문제 상황                              -->
+<!-- ================================================== -->
+<section>
+  <h2>이 논문이 짚는 문제</h2>
+
+  <div class="card card-accent">
+    <p><b>Omni-modal LLM</b> (Qwen3-Omni, Gemini 등)은 하나의 shared backbone에서 text, image, audio를 처리한다. 그런데 이 backbone을 post-training으로 개선할 때 <b>modality 간 tradeoff</b>가 반복 관찰된다. 예컨대 audio RL로 튜닝하면 text가 떨어지고, vision RL로 튜닝하면 audio가 떨어진다. 이 논문은 세 개의 modality-specialist teacher가 있을 때 그것들을 하나의 student로 통합하는 문제를 다룬다.</p>
+  </div>
+
+  <p>가장 직관적인 시도는 세 modality data를 pooled해서 GRPO로 훈련하는 것이다. 그러나 <em>같은 base에서 시작했을 때</em>, 각 modality specialist는 자기 modality에서 강력해지지만 pooled model은 그 강점들의 합집합을 못 만든다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arr1" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#334155"/></marker>
+      </defs>
+      <text x="360" y="26" font-size="15" font-weight="800" fill="#1e3a8a" text-anchor="middle">Figure 1 재현: OPOD가 짚는 세 관찰</text>
+
+      <!-- Panel (a): specialist radar -->
+      <g transform="translate(20,60)">
+        <text x="110" y="0" font-size="12" font-weight="700" fill="#1e293b" text-anchor="middle">(a) Specialist strengths</text>
+        <polygon points="110,20 190,80 170,180 50,180 30,80" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+        <polygon points="110,45 165,90 145,155 75,150 55,90" fill="#ef4444" fill-opacity="0.15" stroke="#ef4444" stroke-width="1.5"/>
+        <polygon points="110,55 170,110 155,130 65,155 60,100" fill="#10b981" fill-opacity="0.15" stroke="#10b981" stroke-width="1.5"/>
+        <polygon points="110,60 145,105 135,170 90,135 75,80" fill="#8b5cf6" fill-opacity="0.15" stroke="#8b5cf6" stroke-width="1.5"/>
+        <polygon points="110,70 155,115 145,150 75,140 80,105" fill="#f59e0b" fill-opacity="0.10" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="4 2"/>
+        <text x="110" y="220" font-size="10" fill="#64748b" text-anchor="middle">Text · Image · Audio 각각 자기 모달에서 강함</text>
+        <text x="110" y="234" font-size="10" fill="#f59e0b" text-anchor="middle">Mixed GRPO(주황 점선)는 합집합 실패</text>
+      </g>
+
+      <!-- Panel (b): update conflicts -->
+      <g transform="translate(260,60)">
+        <text x="120" y="0" font-size="12" font-weight="700" fill="#1e293b" text-anchor="middle">(b) Cross-modal update conflicts</text>
+        <line x1="10" y1="180" x2="230" y2="180" stroke="#334155" stroke-width="1"/>
+        <line x1="30" y1="180" x2="30" y2="30" stroke="#334155" stroke-width="1"/>
+        <text x="120" y="200" font-size="10" fill="#64748b" text-anchor="middle">modality pair (text-audio / text-image / audio-image)</text>
+        <text x="20" y="30" font-size="10" fill="#64748b" text-anchor="end">각도 차이</text>
+        <!-- bars -->
+        <rect x="45"  y="90" width="20" height="90"  fill="#10b981"/>
+        <rect x="70"  y="50" width="20" height="130" fill="#10b981"/>
+        <rect x="95"  y="70" width="20" height="110" fill="#10b981"/>
+        <rect x="125" y="110" width="20" height="70" fill="#8b5cf6"/>
+        <rect x="150" y="85"  width="20" height="95" fill="#8b5cf6"/>
+        <rect x="175" y="120" width="20" height="60" fill="#f59e0b"/>
+        <text x="120" y="220" font-size="10" fill="#64748b" text-anchor="middle">→ pooled backbone은 세 방향을 동시에 만족 못함</text>
+      </g>
+
+      <!-- Panel (c): broad benchmark gains -->
+      <g transform="translate(500,60)">
+        <text x="110" y="0" font-size="12" font-weight="700" fill="#1e293b" text-anchor="middle">(c) OPOD의 broad gains</text>
+        <polygon points="110,20 190,80 170,180 50,180 30,80" fill="none" stroke="#cbd5e1" stroke-width="1"/>
+        <polygon points="110,90 145,105 140,145 90,145 80,105" fill="#94a3b8" fill-opacity="0.20" stroke="#94a3b8" stroke-width="1"/>
+        <polygon points="110,80 155,100 150,150 85,150 75,100" fill="#ea580c" fill-opacity="0.15" stroke="#ea580c" stroke-width="1"/>
+        <polygon points="110,50 170,90 160,155 65,155 60,95" fill="#7c3aed" fill-opacity="0.20" stroke="#7c3aed" stroke-width="2"/>
+        <text x="110" y="220" font-size="10" fill="#64748b" text-anchor="middle">Base(회) / OPD(주) / OPOD(보라)</text>
+        <text x="110" y="234" font-size="10" fill="#7c3aed" text-anchor="middle">OPOD가 12개 벤치마크 전방향 확장</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Figure 1: (a) 세 specialist가 서로 다른 방향으로 강해진다. (b) parameter 이동 방향이 modality 쌍마다 크게 갈린다. (c) OPOD만이 모든 벤치마크에서 broad하게 이긴다.</div>
+  </div>
+
+  <p>여기서 두 가지 challenge가 부상한다:</p>
+
+  <div class="stat-row">
+    <div class="stat-box">
+      <div class="num">Conflict</div>
+      <div class="label">세 teacher가 shared backbone을 다른 방향으로 밈</div>
+    </div>
+    <div class="stat-box">
+      <div class="num">Ceiling</div>
+      <div class="label">Symmetric OPD는 student가 이미 teacher를 넘어선 곳에서도 뒤로 잡아당김</div>
+    </div>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- OPD 자체를 짧게                                       -->
+<!-- ================================================== -->
+<section>
+  <h2>OPD 자체는 어떻게 생겼나?</h2>
+
+  <p>OPD (On-Policy Distillation)는 student가 만든 rollout $y_i$의 각 위치에서 teacher와 student의 next-token log-prob를 비교한다. Token-level margin이 곧 dense reward가 된다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">OPD의 token-level margin</text>
+
+      <!-- Student sequence -->
+      <g transform="translate(40,60)">
+        <text x="0" y="0" font-size="11" font-weight="700" fill="#1e293b">Student rollout y_i (tokens)</text>
+        <g transform="translate(0,10)">
+          <rect x="0"   y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="60"  y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="120" y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="180" y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="240" y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="300" y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <rect x="360" y="0" width="60" height="30" fill="#f1f5f9" stroke="#94a3b8"/>
+          <text x="30" y="20" font-size="12" text-anchor="middle">The</text>
+          <text x="90" y="20" font-size="12" text-anchor="middle">image</text>
+          <text x="150" y="20" font-size="12" text-anchor="middle">shows</text>
+          <text x="210" y="20" font-size="12" text-anchor="middle">a</text>
+          <text x="270" y="20" font-size="12" text-anchor="middle">graph</text>
+          <text x="330" y="20" font-size="12" text-anchor="middle">of</text>
+          <text x="390" y="20" font-size="12" text-anchor="middle">...</text>
+        </g>
+      </g>
+
+      <!-- Bars: log π_T -->
+      <g transform="translate(40,120)">
+        <text x="0" y="0" font-size="11" font-weight="700" fill="#059669">log π_T (teacher)</text>
+        <rect x="10"  y="10" width="40" height="50" fill="#a7f3d0"/>
+        <rect x="70"  y="10" width="40" height="60" fill="#6ee7b7"/>
+        <rect x="130" y="10" width="40" height="35" fill="#a7f3d0"/>
+        <rect x="190" y="10" width="40" height="45" fill="#6ee7b7"/>
+        <rect x="250" y="10" width="40" height="55" fill="#a7f3d0"/>
+        <rect x="310" y="10" width="40" height="40" fill="#6ee7b7"/>
+        <rect x="370" y="10" width="40" height="50" fill="#a7f3d0"/>
+      </g>
+
+      <!-- Bars: log π_theta -->
+      <g transform="translate(40,200)">
+        <text x="0" y="0" font-size="11" font-weight="700" fill="#7c3aed">log π_θ (student)</text>
+        <rect x="10"  y="10" width="40" height="30" fill="#e9d5ff"/>
+        <rect x="70"  y="10" width="40" height="20" fill="#c4b5fd"/>
+        <rect x="130" y="10" width="40" height="45" fill="#a78bfa"/>
+        <rect x="190" y="10" width="40" height="35" fill="#c4b5fd"/>
+        <rect x="250" y="10" width="40" height="15" fill="#c4b5fd"/>
+        <rect x="310" y="10" width="40" height="45" fill="#a78bfa"/>
+        <rect x="370" y="10" width="40" height="30" fill="#c4b5fd"/>
+      </g>
+
+      <!-- Highlight negative margin (student ahead) -->
+      <g transform="translate(40,120)">
+        <rect x="130" y="0" width="40" height="140" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="150" y="160" font-size="10" fill="#dc2626" text-anchor="middle">student ahead</text>
+        <text x="150" y="172" font-size="10" fill="#dc2626" text-anchor="middle">→ ReLU로 자름</text>
+      </g>
+      <g transform="translate(40,120)">
+        <rect x="310" y="0" width="40" height="140" fill="none" stroke="#dc2626" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="330" y="160" font-size="10" fill="#dc2626" text-anchor="middle">student ahead</text>
+      </g>
+
+      <text x="360" y="285" font-size="10.5" font-style="italic" fill="#64748b" text-anchor="middle">margin r^opd = log π_T − log π_θ. 양수면 teacher가 앞선 것, 음수면 student가 앞선 것</text>
+    </svg>
+    <div class="diagram-caption">OPD의 dense reward = teacher와 student의 log-prob 차이. OPOD는 이 중 음수 부분을 잘라낸다.</div>
+  </div>
+
+  <p>표준 OPD는 이 margin의 부호에 무관하게 최소화한다. Student가 이미 teacher보다 잘 예측하는 토큰에서도 학생을 teacher 방향으로 끌어당기므로, teacher가 student의 상한선(ceiling)이 된다.</p>
+</section>
+
+<!-- ================================================== -->
+<!-- 전체 아키텍처                                          -->
+<!-- ================================================== -->
+<section>
+  <h2>OPOD 전체 파이프라인</h2>
+
+  <p>Figure 2의 전체 흐름을 재현. 세 가지 컴포넌트(One-Sided Guidance / Adaptive Modality Control / Verification Reward)가 하나의 batch loss로 합쳐진다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 900 460" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <marker id="arrow2" markerWidth="10" markerHeight="10" refX="7" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="#334155"/></marker>
+        <linearGradient id="tgrad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#a5b4fc"/><stop offset="100%" stop-color="#c4b5fd"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Queries -->
+      <g transform="translate(20,60)">
+        <rect x="0" y="0" width="120" height="60" fill="#dbeafe" stroke="#2563eb" rx="8"/>
+        <text x="60" y="24" font-size="11" font-weight="700" text-anchor="middle" fill="#1e40af">Query</text>
+        <text x="60" y="42" font-size="10" text-anchor="middle" fill="#1e40af">(x_i, m_i)</text>
+      </g>
+      <g transform="translate(20,140)">
+        <rect x="0" y="0" width="120" height="55" fill="#fef3c7" stroke="#f59e0b" rx="8"/>
+        <text x="60" y="20" font-size="10.5" font-weight="700" text-anchor="middle" fill="#92400e">text · image · audio</text>
+        <text x="60" y="40" font-size="10" text-anchor="middle" fill="#92400e">balanced prompt set</text>
+      </g>
+
+      <!-- Student -->
+      <g transform="translate(190,60)">
+        <rect x="0" y="0" width="140" height="135" fill="url(#tgrad)" stroke="#4338ca" rx="12"/>
+        <text x="70" y="30" font-size="12" font-weight="800" text-anchor="middle" fill="#1e1b4b">Omni-Modal</text>
+        <text x="70" y="48" font-size="12" font-weight="800" text-anchor="middle" fill="#1e1b4b">Student π_θ</text>
+        <text x="70" y="80" font-size="10" text-anchor="middle" fill="#1e1b4b">(Qwen3-Omni-30B-A3B)</text>
+        <text x="70" y="105" font-size="10" text-anchor="middle" fill="#1e1b4b">SHARED backbone</text>
+        <text x="70" y="122" font-size="10" text-anchor="middle" fill="#1e1b4b">→ rollout y_i</text>
+      </g>
+      <line x1="140" y1="90" x2="190" y2="127" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow2)"/>
+      <line x1="140" y1="170" x2="190" y2="150" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+      <!-- Routing -->
+      <g transform="translate(370,110)">
+        <circle cx="0" cy="0" r="35" fill="#fde68a" stroke="#d97706" stroke-width="2"/>
+        <text x="0" y="4" font-size="12" font-weight="700" text-anchor="middle" fill="#78350f">Route</text>
+        <text x="0" y="18" font-size="10" text-anchor="middle" fill="#78350f">by m_i</text>
+      </g>
+      <line x1="330" y1="127" x2="335" y2="110" stroke="#334155" stroke-width="1.5" marker-end="url(#arrow2)"/>
+
+      <!-- Teachers -->
+      <g transform="translate(450,40)">
+        <rect x="0" y="0" width="150" height="55" fill="#fee2e2" stroke="#dc2626" rx="8"/>
+        <text x="75" y="24" font-size="11" font-weight="700" text-anchor="middle" fill="#991b1b">Text Teacher π_T^text</text>
+        <text x="75" y="40" font-size="9.5" text-anchor="middle" fill="#7f1d1d">GRPO-tuned (text only)</text>
+      </g>
+      <g transform="translate(450,100)">
+        <rect x="0" y="0" width="150" height="55" fill="#dcfce7" stroke="#16a34a" rx="8"/>
+        <text x="75" y="24" font-size="11" font-weight="700" text-anchor="middle" fill="#166534">Image Teacher π_T^image</text>
+        <text x="75" y="40" font-size="9.5" text-anchor="middle" fill="#166534">GRPO-tuned (image only)</text>
+      </g>
+      <g transform="translate(450,160)">
+        <rect x="0" y="0" width="150" height="55" fill="#e0e7ff" stroke="#4338ca" rx="8"/>
+        <text x="75" y="24" font-size="11" font-weight="700" text-anchor="middle" fill="#3730a3">Audio Teacher π_T^audio</text>
+        <text x="75" y="40" font-size="9.5" text-anchor="middle" fill="#3730a3">GRPO-tuned (audio only)</text>
+      </g>
+      <line x1="405" y1="105" x2="450" y2="68" stroke="#dc2626" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="405" y1="115" x2="450" y2="127" stroke="#16a34a" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="405" y1="130" x2="450" y2="185" stroke="#4338ca" stroke-width="1.2" marker-end="url(#arrow2)"/>
+
+      <!-- Three components -->
+      <g transform="translate(640,25)">
+        <rect x="0" y="0" width="240" height="90" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="10"/>
+        <text x="120" y="20" font-size="11.5" font-weight="800" text-anchor="middle" fill="#5b21b6">① One-Sided Guidance</text>
+        <text x="120" y="40" font-size="10" text-anchor="middle" fill="#4c1d95">c_i,t = ReLU(log π_T − log π_θ)</text>
+        <text x="120" y="56" font-size="10" text-anchor="middle" fill="#64748b">student가 앞서면 constraint=0</text>
+        <text x="120" y="72" font-size="10" text-anchor="middle" fill="#64748b">→ backward pull 제거</text>
+      </g>
+      <g transform="translate(640,130)">
+        <rect x="0" y="0" width="240" height="90" fill="#eff6ff" stroke="#2563eb" stroke-width="2" rx="10"/>
+        <text x="120" y="20" font-size="11.5" font-weight="800" text-anchor="middle" fill="#1e3a8a">② Adaptive Modality Control</text>
+        <text x="120" y="40" font-size="10" text-anchor="middle" fill="#1e40af">β_m ← clip(β_m + η(c̄_m − ε_m), ...)</text>
+        <text x="120" y="56" font-size="10" text-anchor="middle" fill="#64748b">modality별 budget ε_m 자동 calibration</text>
+        <text x="120" y="72" font-size="10" text-anchor="middle" fill="#64748b">→ text 0.020 / image 0.191 / audio 0.254</text>
+      </g>
+      <g transform="translate(640,235)">
+        <rect x="0" y="0" width="240" height="90" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="10"/>
+        <text x="120" y="20" font-size="11.5" font-weight="800" text-anchor="middle" fill="#065f46">③ Verification Reward</text>
+        <text x="120" y="40" font-size="10" text-anchor="middle" fill="#065f46">Answer Confidence (correctness-gated)</text>
+        <text x="120" y="56" font-size="10" text-anchor="middle" fill="#065f46">Reasoning Gain (un-gated, clipped)</text>
+        <text x="120" y="72" font-size="10" text-anchor="middle" fill="#64748b">→ r^proc = w_A Ã + w_B B̃</text>
+      </g>
+
+      <line x1="600" y1="70"  x2="640" y2="70"  stroke="#334155" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="600" y1="130" x2="640" y2="175" stroke="#334155" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="600" y1="185" x2="640" y2="280" stroke="#334155" stroke-width="1.2" marker-end="url(#arrow2)"/>
+
+      <!-- Joint loss -->
+      <g transform="translate(240,335)">
+        <rect x="0" y="0" width="460" height="90" fill="#0f172a" rx="12"/>
+        <text x="230" y="26" font-size="14" font-weight="800" text-anchor="middle" fill="#facc15">Joint Student Update</text>
+        <text x="230" y="52" font-size="13" text-anchor="middle" fill="#e2e8f0" font-family="monospace">L = L_rl + L_tc + α · L_ref</text>
+        <text x="230" y="72" font-size="10.5" text-anchor="middle" fill="#94a3b8">outcome + process + token constraint + KL to reference</text>
+      </g>
+      <line x1="760" y1="115" x2="600" y2="335" stroke="#7c3aed" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="760" y1="220" x2="600" y2="335" stroke="#2563eb" stroke-width="1.2" marker-end="url(#arrow2)"/>
+      <line x1="760" y1="325" x2="600" y2="365" stroke="#059669" stroke-width="1.2" marker-end="url(#arrow2)"/>
+
+      <text x="470" y="450" font-size="11" font-style="italic" fill="#64748b" text-anchor="middle">Teacher는 학습 후 폐기 → 배포 시 student만 남는다 (single-model deployment)</text>
+    </svg>
+    <div class="diagram-caption">Figure 2 재현: OPOD의 전체 구조. 왼쪽에서 student 생성, 가운데에서 modality routing, 오른쪽에서 세 가지 컴포넌트가 하나의 loss로 결합된다.</div>
+  </div>
+
+  <div class="analogy">
+    <div class="analogy-title">직관적 비유</div>
+    <p>세 명의 전문 코치(text 코치, image 코치, audio 코치)가 한 선수를 훈련시키는 상황. 기존 방식은 세 코치가 모든 순간마다 선수를 자기 쪽으로 잡아당기고, 심지어 선수가 이미 코치보다 잘하는 부분에서도 놓아주지 않는다. OPOD는 (1) 각 코치는 자기 종목 상황에서만 조언, (2) 선수가 이미 코치보다 잘하면 놓아줌, (3) 각 코치의 목소리 크기를 자동 조절해 서로 목소리를 눌러 죽이지 않도록 한다.</p>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 컴포넌트 1: One-Sided                                -->
+<!-- ================================================== -->
+<section>
+  <h2>컴포넌트 ① One-Sided Teacher Guidance</h2>
+
+  <p>Log-ratio의 음수부(student가 앞선 부분)를 ReLU로 잘라낸다. 매우 단순한 변경이지만 효과가 크다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 320" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Symmetric OPD vs One-Sided (OPOD)</text>
+
+      <!-- Left: symmetric -->
+      <g transform="translate(30,50)">
+        <text x="140" y="0" font-size="12" font-weight="700" fill="#64748b" text-anchor="middle">Native OPD (symmetric)</text>
+        <line x1="0" y1="130" x2="280" y2="130" stroke="#334155" stroke-width="1"/>
+        <line x1="140" y1="30" x2="140" y2="230" stroke="#334155" stroke-width="1"/>
+        <text x="285" y="134" font-size="10" fill="#334155">r^opd</text>
+        <text x="144" y="30" font-size="10" fill="#334155">constraint</text>
+        <!-- V shape -->
+        <path d="M20,50 L140,130 L260,50" stroke="#dc2626" stroke-width="2.5" fill="none"/>
+        <circle cx="140" cy="130" r="4" fill="#dc2626"/>
+        <text x="60" y="70" font-size="10" fill="#dc2626">잡아당김</text>
+        <text x="220" y="70" font-size="10" fill="#dc2626">잡아당김</text>
+        <text x="30" y="150" font-size="10" fill="#64748b">student ahead</text>
+        <text x="180" y="150" font-size="10" fill="#64748b">teacher ahead</text>
+      </g>
+
+      <!-- Right: one-sided -->
+      <g transform="translate(390,50)">
+        <text x="140" y="0" font-size="12" font-weight="700" fill="#7c3aed" text-anchor="middle">One-Sided (OPOD)</text>
+        <line x1="0" y1="130" x2="280" y2="130" stroke="#334155" stroke-width="1"/>
+        <line x1="140" y1="30" x2="140" y2="230" stroke="#334155" stroke-width="1"/>
+        <text x="285" y="134" font-size="10" fill="#334155">r^opd</text>
+        <text x="144" y="30" font-size="10" fill="#334155">constraint</text>
+        <!-- L shape: 0 for negative, linear for positive -->
+        <line x1="20" y1="130" x2="140" y2="130" stroke="#059669" stroke-width="3"/>
+        <line x1="140" y1="130" x2="260" y2="50" stroke="#059669" stroke-width="3"/>
+        <circle cx="140" cy="130" r="4" fill="#059669"/>
+        <text x="60" y="150" font-size="10" fill="#059669">놓아줌 (c=0)</text>
+        <text x="220" y="70" font-size="10" fill="#059669">감독 유지</text>
+        <text x="30" y="270" font-size="10" fill="#7c3aed" font-style="italic">student가 이미 잘하는 부분은 자유</text>
+        <text x="30" y="286" font-size="10" fill="#7c3aed" font-style="italic">→ teacher ceiling 우회</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">왼쪽: 표준 OPD는 음수 margin에서도 loss가 커지므로 student를 뒤로 잡아당긴다. 오른쪽: OPOD는 음수 방향으로는 constraint=0.</div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">이 하나의 변경만으로 얼마나 이득인가?</div>
+    <p>Ablation에서 One-Sided를 제거하면 30B-A3B avg가 <b>70.8 → 69.0 (−1.8)</b> 하락. 즉 이 단순 clipping이 방법 전체 gain의 상당 부분을 담당한다.</p>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 컴포넌트 2: Adaptive Modality Control                 -->
+<!-- ================================================== -->
+<section>
+  <h2>컴포넌트 ② Adaptive Modality Control</h2>
+
+  <p>Modality마다 별도의 dual weight $\beta_m$과 별도의 target budget $\epsilon_m$을 유지한다. Budget은 10-step warm-up에서 자동 결정 후 고정, weight는 매 step 관측된 gap에 따라 자동 조정된다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 380" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Adaptive Modality Control의 두 stage</text>
+
+      <!-- Stage 1: warm-up calibration -->
+      <g transform="translate(30,50)">
+        <rect x="0" y="0" width="300" height="150" fill="#fef3c7" stroke="#f59e0b" rx="10"/>
+        <text x="150" y="22" font-size="12" font-weight="800" fill="#92400e" text-anchor="middle">Stage 1: Warm-up (10 steps)</text>
+        <text x="150" y="45" font-size="10" fill="#78350f" text-anchor="middle">각 modality의 average constraint 관찰</text>
+        <rect x="30" y="65" width="60" height="60" fill="#fecaca" stroke="#dc2626"/>
+        <text x="60" y="85" font-size="10" font-weight="700" text-anchor="middle" fill="#7f1d1d">TEXT</text>
+        <text x="60" y="105" font-size="11" font-weight="800" text-anchor="middle" fill="#7f1d1d">ε=0.020</text>
+        <rect x="120" y="65" width="60" height="60" fill="#a7f3d0" stroke="#059669"/>
+        <text x="150" y="85" font-size="10" font-weight="700" text-anchor="middle" fill="#065f46">IMAGE</text>
+        <text x="150" y="105" font-size="11" font-weight="800" text-anchor="middle" fill="#065f46">ε=0.191</text>
+        <rect x="210" y="65" width="60" height="60" fill="#c7d2fe" stroke="#4338ca"/>
+        <text x="240" y="85" font-size="10" font-weight="700" text-anchor="middle" fill="#3730a3">AUDIO</text>
+        <text x="240" y="105" font-size="11" font-weight="800" text-anchor="middle" fill="#3730a3">ε=0.254</text>
+        <text x="150" y="140" font-size="10" fill="#78350f" text-anchor="middle">→ 12.7× spread. modality마다 자연 스케일이 다름</text>
+      </g>
+
+      <!-- Stage 2: dual update -->
+      <g transform="translate(360,50)">
+        <rect x="0" y="0" width="330" height="150" fill="#dbeafe" stroke="#2563eb" rx="10"/>
+        <text x="165" y="22" font-size="12" font-weight="800" fill="#1e3a8a" text-anchor="middle">Stage 2: Dual update (매 step)</text>
+        <text x="165" y="45" font-size="10.5" fill="#1e40af" text-anchor="middle" font-family="monospace">β_m ← clip(β_m + η·(c̄_m − ε_m), β_min, β_max)</text>
+        <line x1="30" y1="80" x2="30" y2="130" stroke="#1e3a8a"/>
+        <line x1="30" y1="130" x2="290" y2="130" stroke="#1e3a8a"/>
+        <line x1="30" y1="105" x2="290" y2="105" stroke="#94a3b8" stroke-dasharray="3 3"/>
+        <text x="15" y="80" font-size="9" fill="#64748b" text-anchor="end">high</text>
+        <text x="15" y="130" font-size="9" fill="#64748b" text-anchor="end">low</text>
+        <text x="295" y="108" font-size="9" fill="#64748b">target</text>
+        <path d="M30,120 Q80,90 160,95 T280,115" stroke="#dc2626" stroke-width="1.5" fill="none"/>
+        <path d="M30,105 Q80,100 160,110 T280,115" stroke="#059669" stroke-width="1.5" fill="none"/>
+        <path d="M30,120 Q80,130 160,128 T280,132" stroke="#4338ca" stroke-width="1.5" fill="none"/>
+        <text x="285" y="115" font-size="9" fill="#dc2626">text</text>
+        <text x="285" y="120" font-size="9" fill="#059669">image</text>
+        <text x="285" y="135" font-size="9" fill="#4338ca">audio</text>
+        <text x="165" y="150" font-size="10" fill="#1e40af" text-anchor="middle">gap이 양수면 pressure↑, 음수면 pressure↓</text>
+      </g>
+
+      <!-- β trajectory -->
+      <g transform="translate(30,230)">
+        <text x="330" y="0" font-size="12" font-weight="800" fill="#1e3a8a" text-anchor="middle">Figure 4(c) 재현: β_m 궤적 (30B-A3B 실측)</text>
+        <line x1="30" y1="120" x2="620" y2="120" stroke="#334155"/>
+        <line x1="30" y1="20" x2="30" y2="120" stroke="#334155"/>
+        <line x1="30" y1="100" x2="620" y2="100" stroke="#94a3b8" stroke-dasharray="3 3"/>
+        <text x="20" y="20" font-size="9" fill="#64748b" text-anchor="end">0.6</text>
+        <text x="20" y="105" font-size="9" fill="#64748b" text-anchor="end">0.1</text>
+        <text x="620" y="140" font-size="9" fill="#64748b" text-anchor="end">step 80</text>
+        <!-- audio: reaches 0.1 at step 24 -->
+        <path d="M30,25 Q70,60 130,100 L620,100" stroke="#4338ca" stroke-width="2.5" fill="none"/>
+        <circle cx="130" cy="100" r="4" fill="#4338ca"/>
+        <text x="130" y="90" font-size="9" fill="#4338ca">audio: 24</text>
+        <!-- text: reaches 0.1 at step 54 -->
+        <path d="M30,25 Q120,50 235,100 L620,100" stroke="#dc2626" stroke-width="2.5" fill="none"/>
+        <circle cx="235" cy="100" r="4" fill="#dc2626"/>
+        <text x="235" y="90" font-size="9" fill="#dc2626">text: 54</text>
+        <!-- image: reaches 0.1 at step 80 -->
+        <path d="M30,25 Q200,45 380,80 L470,100 L620,100" stroke="#059669" stroke-width="2.5" fill="none"/>
+        <circle cx="470" cy="100" r="4" fill="#059669"/>
+        <text x="470" y="90" font-size="9" fill="#059669">image: 80</text>
+        <text x="325" y="160" font-size="10" font-style="italic" fill="#64748b" text-anchor="middle">audio는 24 step 만에 예산 안에 진입 → controller가 pressure 해제</text>
+        <text x="325" y="175" font-size="10" font-style="italic" fill="#64748b" text-anchor="middle">image는 boundary에 오래 머물러 guidance 지속</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">Stage 1: warm-up으로 modality별 budget $\epsilon_m$ 자동 결정. Stage 2: 관측된 gap을 따라 $\beta_m$을 dual update.</div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">"modality 난이도"가 아니라 "constraint 스케일" 차이다</div>
+    <p>Text의 $\epsilon$이 가장 작다고 해서 "text가 가장 쉽다"는 뜻이 아니다. Teacher-student discrepancy의 자연 스케일이 다르다는 뜻. Audio는 스케일이 커서 (0.254) 초반 constraint가 크고 controller가 빨리 pressure를 풀어야 한다.</p>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 컴포넌트 3: Verification Reward                       -->
+<!-- ================================================== -->
+<section>
+  <h2>컴포넌트 ③ Verification Reward</h2>
+
+  <p>같은 modality teacher를 <b>verifier</b>로 재활용한다. Rollout 전체에 대해 두 개의 신호를 얻는다:</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 400" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="24" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Verification의 두 signal — 서로 다른 gating</text>
+
+      <!-- Student rollout illustration -->
+      <g transform="translate(50,60)">
+        <rect x="0" y="0" width="620" height="60" fill="#f8fafc" stroke="#cbd5e1" rx="6"/>
+        <text x="10" y="18" font-size="10" font-weight="700" fill="#334155">Student rollout y_i</text>
+        <rect x="15" y="28" width="380" height="24" fill="#e0e7ff" stroke="#4338ca"/>
+        <text x="205" y="45" font-size="10" text-anchor="middle" fill="#3730a3">reasoning trace z_i (긴 CoT)</text>
+        <rect x="410" y="28" width="180" height="24" fill="#fde68a" stroke="#d97706"/>
+        <text x="500" y="45" font-size="10" text-anchor="middle" fill="#78350f">final answer a_i (positions S_i)</text>
+      </g>
+
+      <!-- Signal A: Answer confidence -->
+      <g transform="translate(30,150)">
+        <rect x="0" y="0" width="320" height="200" fill="#ecfdf5" stroke="#059669" stroke-width="2" rx="10"/>
+        <text x="160" y="22" font-size="12" font-weight="800" fill="#065f46" text-anchor="middle">① Answer Confidence Ã</text>
+        <text x="160" y="45" font-size="10.5" fill="#064e3b" text-anchor="middle">A_i = (1/|S_i|) Σ log π_T^m(y_t | ..., y_<t)</text>
+        <text x="160" y="65" font-size="10" fill="#064e3b" text-anchor="middle">teacher가 이 최종 답에 얼마나 확신을 갖나?</text>
+        <line x1="20" y1="90" x2="300" y2="90" stroke="#059669" stroke-dasharray="3 3"/>
+        <text x="160" y="115" font-size="11" font-weight="700" fill="#dc2626" text-anchor="middle">CORRECTNESS-GATED</text>
+        <text x="160" y="135" font-size="10" fill="#7f1d1d" text-anchor="middle" font-family="monospace">Ã = 1[a_i = a*] · clip(A, −C, 0)</text>
+        <text x="160" y="160" font-size="10" fill="#64748b" text-anchor="middle">정답을 낸 경우에만 신호 사용</text>
+        <text x="160" y="180" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">"확신 있게 틀린 답"에 보상 안 함</text>
+      </g>
+
+      <!-- Signal B: Reasoning gain -->
+      <g transform="translate(380,150)">
+        <rect x="0" y="0" width="320" height="200" fill="#f5f3ff" stroke="#7c3aed" stroke-width="2" rx="10"/>
+        <text x="160" y="22" font-size="12" font-weight="800" fill="#5b21b6" text-anchor="middle">② Reasoning Gain B̃</text>
+        <text x="160" y="45" font-size="10.5" fill="#4c1d95" text-anchor="middle">B_i = log π_T(a* | x, z_i) − log π_T(a* | x)</text>
+        <text x="160" y="65" font-size="10" fill="#4c1d95" text-anchor="middle">reasoning이 정답 예측에 도움이 되었나?</text>
+        <line x1="20" y1="90" x2="300" y2="90" stroke="#7c3aed" stroke-dasharray="3 3"/>
+        <text x="160" y="115" font-size="11" font-weight="700" fill="#059669" text-anchor="middle">UN-GATED (clip만)</text>
+        <text x="160" y="135" font-size="10" fill="#065f46" text-anchor="middle" font-family="monospace">B̃ = clip(B, −C, C)</text>
+        <text x="160" y="160" font-size="10" fill="#64748b" text-anchor="middle">최종 답이 틀려도 reasoning이</text>
+        <text x="160" y="176" font-size="10" fill="#64748b" text-anchor="middle" font-style="italic">teacher를 정답 쪽으로 밀었다면 보상</text>
+      </g>
+
+      <text x="360" y="386" font-size="10.5" fill="#334155" text-anchor="middle">최종 process reward: r^proc = w_A · Ã + w_B · B̃   (w_A = w_B = 0.2)</text>
+    </svg>
+    <div class="diagram-caption">Answer confidence는 정답인 경우에만 세고, reasoning gain은 정답이 아니어도 reasoning의 유용성을 인정한다. 이 gating asymmetry가 어려운 sample의 학습 신호를 살린다.</div>
+  </div>
+
+  <div class="callout">
+    <div class="callout-title">왜 reasoning gain은 gating을 하지 않나?</div>
+    <p>학습 초반에는 어려운 문제에서 최종 답이 대부분 틀린다. 만약 reasoning gain에도 correctness gating을 걸면 이 어려운 sample들은 process reward가 0이 되어 사실상 outcome reward만 남게 된다. Gating을 풀되 clip으로 magnitude만 제한하면, "정답까지 못 갔지만 방향은 맞았던" 시도에서도 학습 signal이 살아난다.</p>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 학습 절차                                              -->
+<!-- ================================================== -->
+<section>
+  <h2>학습 절차 (단일 optimization step)</h2>
+
+  <div class="step-flow">
+    <div class="step-box"><div class="step-num">STEP 1</div><div class="step-title">Sample</div><div class="step-desc">(x_i, m_i) from balanced set</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 2</div><div class="step-title">Rollout</div><div class="step-desc">y_i ~ π_θ(·|x_i)</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 3</div><div class="step-title">Route</div><div class="step-desc">π_T^{m_i} 선택</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 4</div><div class="step-title">Compute margins</div><div class="step-desc">c_i,t, Ã_i, B̃_i</div></div>
+  </div>
+  <div class="step-flow">
+    <div class="step-box"><div class="step-num">STEP 5</div><div class="step-title">Modality avg</div><div class="step-desc">c̄_m, dual update β_m</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 6</div><div class="step-title">Advantage</div><div class="step-desc">R̂_i = (r_i − μ)/σ</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 7</div><div class="step-title">Loss</div><div class="step-desc">L = L_rl + L_tc + α L_ref</div></div>
+    <div class="step-arrow">→</div>
+    <div class="step-box"><div class="step-num">STEP 8</div><div class="step-title">Update</div><div class="step-desc">student θ만 (teachers 고정)</div></div>
+  </div>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Loss 구성의 계층</text>
+
+      <!-- Level 1: token -->
+      <g transform="translate(60,50)">
+        <rect x="0" y="0" width="180" height="60" fill="#f5f3ff" stroke="#7c3aed" rx="8"/>
+        <text x="90" y="22" font-size="11" font-weight="700" text-anchor="middle" fill="#5b21b6">Token level</text>
+        <text x="90" y="42" font-size="10" text-anchor="middle" fill="#4c1d95">L_tc — teacher가 앞선 곳만 guidance</text>
+      </g>
+      <!-- Level 2: modality -->
+      <g transform="translate(260,50)">
+        <rect x="0" y="0" width="180" height="60" fill="#eff6ff" stroke="#2563eb" rx="8"/>
+        <text x="90" y="22" font-size="11" font-weight="700" text-anchor="middle" fill="#1e3a8a">Modality level</text>
+        <text x="90" y="42" font-size="10" text-anchor="middle" fill="#1e40af">β_m 각 modality별 dual weight</text>
+      </g>
+      <!-- Level 3: rollout -->
+      <g transform="translate(460,50)">
+        <rect x="0" y="0" width="180" height="60" fill="#ecfdf5" stroke="#059669" rx="8"/>
+        <text x="90" y="22" font-size="11" font-weight="700" text-anchor="middle" fill="#065f46">Rollout level</text>
+        <text x="90" y="42" font-size="10" text-anchor="middle" fill="#064e3b">L_rl — advantage로 policy update</text>
+      </g>
+      <!-- Level 4: reference -->
+      <g transform="translate(160,140)">
+        <rect x="0" y="0" width="380" height="60" fill="#fef3c7" stroke="#d97706" rx="8"/>
+        <text x="190" y="22" font-size="11" font-weight="700" text-anchor="middle" fill="#92400e">Reference regularizer</text>
+        <text x="190" y="42" font-size="10" text-anchor="middle" fill="#78350f">α · L_ref = KL(π_θ || π_ref) — on-policy drift 방지</text>
+      </g>
+      <g transform="translate(60,230)">
+        <rect x="0" y="0" width="580" height="55" fill="#0f172a" rx="10"/>
+        <text x="290" y="22" font-size="12" font-weight="800" fill="#facc15" text-anchor="middle">L = L_rl + L_tc + α L_ref</text>
+        <text x="290" y="42" font-size="10" fill="#94a3b8" text-anchor="middle">세 항은 같은 on-policy batch에서 계산. Shared student만 업데이트</text>
+      </g>
+    </svg>
+    <div class="diagram-caption">OPOD의 세 항은 서로 다른 수준(token / modality / rollout)에서 supervision을 제공한다.</div>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 실험 세팅                                              -->
+<!-- ================================================== -->
+<section>
+  <h2>실험 세팅</h2>
+
+  <div class="card card-blue">
+    <h3 style="margin-top:0;">모델 및 데이터</h3>
+    <ul style="margin-left: 1.2rem;">
+      <li><b>Student</b>: Qwen3-Omni-30B-A3B-Instruct (MoE), Qwen2.5-Omni-7B / 3B (dense)</li>
+      <li><b>Teachers</b>: 같은 base에서 각 modality data로 GRPO 개별 훈련</li>
+      <li><b>Training data</b>: text/image/audio reasoning + multimodal QA. 12개 벤치마크와의 exact + normalized string overlap 제거로 contamination 방지</li>
+      <li><b>Benchmarks (12)</b>: AIME25, AIME26, HotpotQA, MMLU-Pro, GPQA (text) / MMMU, MathVista, ChartQA, A-OKVQA (vision) / MMAU, AVQA (audio) / OmniBench (omni)</li>
+    </ul>
+  </div>
+
+  <div class="card card-green">
+    <h3 style="margin-top:0;">Hardware & Hyperparameters</h3>
+    <ul style="margin-left: 1.2rem;">
+      <li><b>Hardware</b>: 32 × NVIDIA H20. Student 16 GPU + 남은 GPU에 teacher server</li>
+      <li><b>Rollout</b>: prompt당 8 sample, batch 16, global batch 64. Max prompt/response 각 8192</li>
+      <li><b>Verification</b>: w_A = w_B = 0.2, C = 2.0</li>
+      <li><b>Dual controller</b>: 10-step warm-up, ε_min = 0.02</li>
+      <li><b>Baselines</b>: 모두 같은 backbone/data/batch/seed 사용, guidance objective만 다름</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 결과                                                  -->
+<!-- ================================================== -->
+<section>
+  <h2>핵심 결과</h2>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">70.8</div><div class="label">Overall Avg (30B-A3B)</div></div>
+    <div class="stat-box"><div class="num">+3.8</div><div class="label">vs Base (30B)</div></div>
+    <div class="stat-box"><div class="num">+2.1</div><div class="label">vs 최강 대안 (30B)</div></div>
+    <div class="stat-box"><div class="num">11/12</div><div class="label">wins over base+GRPO</div></div>
+  </div>
+
+  <h3>Table 1 재현 — 30B-A3B 종합</h3>
+  <table class="comp-table">
+    <tr><th>Model</th><th>Text avg</th><th>Vision avg</th><th>Audio avg</th><th>OmniBench</th><th>Overall</th></tr>
+    <tr><td>Base</td><td>54.2</td><td>79.4</td><td>77.5</td><td>60.3</td><td>67.0</td></tr>
+    <tr><td>GRPO (pooled)</td><td>54.6</td><td>79.4</td><td>78.4</td><td>59.7</td><td>67.3</td></tr>
+    <tr><td>Native OPD</td><td>58.0</td><td>77.5</td><td>78.5</td><td>60.3</td><td>67.9</td></tr>
+    <tr><td>ExOPD</td><td>59.2</td><td>80.1</td><td>74.2</td><td>58.8</td><td>68.6</td></tr>
+    <tr><td>Text teacher (ref)</td><td>57.9</td><td>79.6</td><td>77.9</td><td>61.1</td><td>68.7</td></tr>
+    <tr class="highlight-row"><td>OPOD (ours)</td><td><b>61.3</b></td><td><b>80.8</b></td><td><b>79.6</b></td><td><b>61.1</b></td><td><b>70.8</b></td></tr>
+  </table>
+  <p><b>Cross-modal balance</b>: OPOD는 base 대비 text +7.0, vision +1.4, audio +2.2, omni +0.8. 반면 native OPD는 vision에서 −2.9, ExOPD는 audio에서 −3.3, omni에서 −1.5. Modality tradeoff 없이 전 방향 개선한 유일한 방법.</p>
+
+  <h3>Scaling (Figure 3 재현)</h3>
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 300" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="24" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Base 대비 평균 개선폭 (3B → 7B → 30B-A3B)</text>
+      <line x1="60" y1="250" x2="640" y2="250" stroke="#334155"/>
+      <line x1="60" y1="50" x2="60" y2="250" stroke="#334155"/>
+      <text x="55" y="55" font-size="10" fill="#64748b" text-anchor="end">6</text>
+      <text x="55" y="120" font-size="10" fill="#64748b" text-anchor="end">4</text>
+      <text x="55" y="185" font-size="10" fill="#64748b" text-anchor="end">2</text>
+      <text x="55" y="250" font-size="10" fill="#64748b" text-anchor="end">0</text>
+      <text x="180" y="270" font-size="11" fill="#334155" text-anchor="middle">3B</text>
+      <text x="360" y="270" font-size="11" fill="#334155" text-anchor="middle">7B</text>
+      <text x="560" y="270" font-size="11" fill="#334155" text-anchor="middle">30B-A3B</text>
+
+      <!-- GRPO points -->
+      <circle cx="180" cy="235" r="4" fill="#94a3b8"/>
+      <circle cx="360" cy="217" r="4" fill="#94a3b8"/>
+      <circle cx="560" cy="240" r="4" fill="#94a3b8"/>
+      <path d="M180,235 L360,217 L560,240" stroke="#94a3b8" stroke-width="1.5" fill="none"/>
+      <text x="590" y="245" font-size="10" fill="#64748b">GRPO 0.3</text>
+
+      <!-- OPD -->
+      <circle cx="180" cy="185" r="4" fill="#f97316"/>
+      <circle cx="360" cy="200" r="4" fill="#f97316"/>
+      <circle cx="560" cy="220" r="4" fill="#f97316"/>
+      <path d="M180,185 L360,200 L560,220" stroke="#f97316" stroke-width="1.5" fill="none"/>
+      <text x="590" y="225" font-size="10" fill="#c2410c">OPD 0.9</text>
+
+      <!-- ExOPD -->
+      <circle cx="180" cy="150" r="4" fill="#059669"/>
+      <circle cx="360" cy="160" r="4" fill="#059669"/>
+      <circle cx="560" cy="190" r="4" fill="#059669"/>
+      <path d="M180,150 L360,160 L560,190" stroke="#059669" stroke-width="1.5" fill="none"/>
+      <text x="590" y="195" font-size="10" fill="#065f46">ExOPD 1.6</text>
+
+      <!-- OPOD -->
+      <circle cx="180" cy="70" r="6" fill="#7c3aed"/>
+      <circle cx="360" cy="95" r="6" fill="#7c3aed"/>
+      <circle cx="560" cy="125" r="6" fill="#7c3aed"/>
+      <path d="M180,70 L360,95 L560,125" stroke="#7c3aed" stroke-width="3" fill="none"/>
+      <text x="200" y="65" font-size="11" font-weight="700" fill="#5b21b6">+5.5</text>
+      <text x="380" y="90" font-size="11" font-weight="700" fill="#5b21b6">+4.8</text>
+      <text x="580" y="120" font-size="11" font-weight="700" fill="#5b21b6">+3.8</text>
+    </svg>
+    <div class="diagram-caption">Figure 3 재현: OPOD는 모든 스케일에서 최대 gain. 강한 base일수록 headroom이 줄지만 OPOD는 여전히 +3.8 유지.</div>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- Ablation                                             -->
+<!-- ================================================== -->
+<section>
+  <h2>Ablation (Table 2 재현)</h2>
+
+  <p>30B-A3B에서 각 컴포넌트를 제거한 결과. 60개 (12 benchmark × 5 ablation) 비교 중 <b>59개에서 full OPOD가 우위</b> — 개선이 소수 favorable task에 국한되지 않는다.</p>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 700 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="350" y="22" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Ablation drop (Δ from Full OPOD 70.8)</text>
+      <line x1="60" y1="320" x2="660" y2="320" stroke="#334155"/>
+      <line x1="60" y1="40" x2="60" y2="320" stroke="#334155"/>
+      <text x="55" y="45" font-size="10" fill="#64748b" text-anchor="end">70.8</text>
+      <text x="55" y="150" font-size="10" fill="#64748b" text-anchor="end">70</text>
+      <text x="55" y="230" font-size="10" fill="#64748b" text-anchor="end">69</text>
+      <text x="55" y="320" font-size="10" fill="#64748b" text-anchor="end">68</text>
+      <line x1="60" y1="45" x2="660" y2="45" stroke="#7c3aed" stroke-dasharray="4 3"/>
+      <text x="70" y="35" font-size="10" font-weight="700" fill="#7c3aed">Full OPOD 70.8</text>
+
+      <!-- Bars -->
+      <rect x="90" y="45" width="80" height="275" fill="#7c3aed"/>
+      <text x="130" y="335" font-size="10" text-anchor="middle" fill="#334155">Full</text>
+      <text x="130" y="35" font-size="10" font-weight="700" text-anchor="middle" fill="#7c3aed">70.8</text>
+
+      <rect x="200" y="205" width="80" height="115" fill="#a78bfa"/>
+      <text x="240" y="335" font-size="10" text-anchor="middle" fill="#334155">− One-Sided</text>
+      <text x="240" y="200" font-size="10" font-weight="700" text-anchor="middle" fill="#5b21b6">69.0 (−1.8)</text>
+
+      <rect x="310" y="245" width="80" height="75" fill="#c4b5fd"/>
+      <text x="350" y="335" font-size="10" text-anchor="middle" fill="#334155">− Modality</text>
+      <text x="350" y="240" font-size="10" font-weight="700" text-anchor="middle" fill="#5b21b6">68.6 (−2.2)</text>
+
+      <rect x="420" y="225" width="80" height="95" fill="#a78bfa"/>
+      <text x="460" y="335" font-size="10" text-anchor="middle" fill="#334155">− Verify</text>
+      <text x="460" y="220" font-size="10" font-weight="700" text-anchor="middle" fill="#5b21b6">68.8 (−2.0)</text>
+
+      <rect x="530" y="185" width="80" height="135" fill="#c4b5fd"/>
+      <text x="570" y="335" font-size="10" text-anchor="middle" fill="#334155">− Rea. gain</text>
+      <text x="570" y="180" font-size="10" font-weight="700" text-anchor="middle" fill="#5b21b6">69.2 (−1.6)</text>
+    </svg>
+    <div class="diagram-caption">가장 큰 drop은 modality control 제거 (−2.2). 다음으로 verification reward (−2.0), one-sided (−1.8). 모든 컴포넌트가 유의미하게 기여한다.</div>
+  </div>
+
+  <table class="comp-table">
+    <tr><th>Variant</th><th>Text</th><th>Vision</th><th>Audio</th><th>Omni</th><th>Overall</th><th>Δ</th></tr>
+    <tr class="highlight-row"><td>Full OPOD</td><td>61.3</td><td>80.8</td><td>79.6</td><td>61.1</td><td><b>70.8</b></td><td>—</td></tr>
+    <tr><td>− One-Sided</td><td>60.0</td><td>78.4</td><td>78.6</td><td>60.3</td><td>69.0</td><td>−1.8</td></tr>
+    <tr><td>− Modality control</td><td>57.6</td><td>79.8</td><td>78.1</td><td>60.5</td><td>68.6</td><td><b>−2.2</b></td></tr>
+    <tr><td>− Verification</td><td>60.0</td><td>80.0</td><td>78.4</td><td>59.7</td><td>68.8</td><td>−2.0</td></tr>
+    <tr><td>− Reasoning gain</td><td>60.9</td><td>80.5</td><td>78.0</td><td>59.1</td><td>69.2</td><td>−1.6</td></tr>
+    <tr><td>− Answer confidence</td><td>60.1</td><td>80.4</td><td>78.9</td><td>59.8</td><td>69.4</td><td>−1.4</td></tr>
+  </table>
+</section>
+
+<!-- ================================================== -->
+<!-- Modality Control Dynamics                            -->
+<!-- ================================================== -->
+<section>
+  <h2>Adaptive Control의 동역학 (Figure 4)</h2>
+
+  <div class="diagram-wrap">
+    <svg viewBox="0 0 720 360" xmlns="http://www.w3.org/2000/svg">
+      <text x="360" y="22" font-size="14" font-weight="800" fill="#1e3a8a" text-anchor="middle">Figure 4(a-c) 재현: budget calibration & constraint gap & β 궤적</text>
+
+      <!-- (a) Modality calibration -->
+      <g transform="translate(20,50)">
+        <text x="115" y="0" font-size="11" font-weight="700" text-anchor="middle" fill="#334155">(a) ε_m calibration</text>
+        <line x1="30" y1="150" x2="220" y2="150" stroke="#334155"/>
+        <line x1="30" y1="20" x2="30" y2="150" stroke="#334155"/>
+        <text x="20" y="25" font-size="9" fill="#64748b" text-anchor="end">0.3</text>
+        <text x="20" y="150" font-size="9" fill="#64748b" text-anchor="end">0</text>
+        <text x="115" y="170" font-size="9" fill="#64748b" text-anchor="middle">warm-up step 1 → 10</text>
+        <!-- text: 0.020 -->
+        <path d="M40,145 L60,144 L100,144 L140,144 L180,144 L215,144" stroke="#dc2626" stroke-width="2" fill="none"/>
+        <circle cx="215" cy="144" r="3" fill="#dc2626"/>
+        <text x="220" y="147" font-size="9" fill="#dc2626">0.020</text>
+        <!-- image: 0.191 -->
+        <path d="M40,80 L60,75 L100,73 L140,71 L180,68 L215,65" stroke="#059669" stroke-width="2" fill="none"/>
+        <circle cx="215" cy="65" r="3" fill="#059669"/>
+        <text x="220" y="68" font-size="9" fill="#059669">0.191</text>
+        <!-- audio: 0.254 -->
+        <path d="M40,50 L60,42 L100,38 L140,42 L180,45 L215,42" stroke="#4338ca" stroke-width="2" fill="none"/>
+        <circle cx="215" cy="42" r="3" fill="#4338ca"/>
+        <text x="220" y="45" font-size="9" fill="#4338ca">0.254</text>
+      </g>
+
+      <!-- (b) Constraint gap -->
+      <g transform="translate(260,50)">
+        <text x="115" y="0" font-size="11" font-weight="700" text-anchor="middle" fill="#334155">(b) constraint gap c̄_m − ε_m</text>
+        <line x1="30" y1="90" x2="220" y2="90" stroke="#94a3b8" stroke-dasharray="3 3"/>
+        <line x1="30" y1="150" x2="220" y2="150" stroke="#334155"/>
+        <line x1="30" y1="20" x2="30" y2="150" stroke="#334155"/>
+        <text x="20" y="90" font-size="9" fill="#64748b" text-anchor="end">0</text>
+        <text x="20" y="150" font-size="9" fill="#64748b" text-anchor="end">−0.3</text>
+        <text x="225" y="93" font-size="8" fill="#94a3b8">target</text>
+        <text x="115" y="170" font-size="9" fill="#64748b" text-anchor="middle">training step 10 → 80</text>
+        <path d="M40,95 L80,110 L120,120 L160,125 L200,120 L220,115" stroke="#dc2626" stroke-width="2" fill="none"/>
+        <path d="M40,95 L80,100 L120,90 L160,105 L200,110 L220,115" stroke="#059669" stroke-width="2" fill="none"/>
+        <path d="M40,100 L80,115 L120,130 L160,138 L200,140 L220,138" stroke="#4338ca" stroke-width="2" fill="none"/>
+      </g>
+
+      <!-- (c) β_m -->
+      <g transform="translate(500,50)">
+        <text x="115" y="0" font-size="11" font-weight="700" text-anchor="middle" fill="#334155">(c) control weight β_m</text>
+        <line x1="30" y1="150" x2="220" y2="150" stroke="#334155"/>
+        <line x1="30" y1="20" x2="30" y2="150" stroke="#334155"/>
+        <line x1="30" y1="130" x2="220" y2="130" stroke="#94a3b8" stroke-dasharray="3 3"/>
+        <text x="20" y="30" font-size="9" fill="#64748b" text-anchor="end">0.6</text>
+        <text x="20" y="132" font-size="9" fill="#64748b" text-anchor="end">0.1</text>
+        <text x="225" y="132" font-size="8" fill="#94a3b8">β_min</text>
+        <text x="115" y="170" font-size="9" fill="#64748b" text-anchor="middle">step 10 → 80</text>
+        <path d="M40,30 Q60,50 90,90 L110,130 L220,130" stroke="#4338ca" stroke-width="2" fill="none"/>
+        <circle cx="110" cy="130" r="4" fill="#4338ca"/>
+        <text x="110" y="120" font-size="8" fill="#4338ca">audio: 24</text>
+        <path d="M40,30 Q80,50 130,90 L155,130 L220,130" stroke="#dc2626" stroke-width="2" fill="none"/>
+        <circle cx="155" cy="130" r="4" fill="#dc2626"/>
+        <text x="160" y="120" font-size="8" fill="#dc2626">text: 54</text>
+        <path d="M40,30 Q120,50 180,80 L210,130 L220,130" stroke="#059669" stroke-width="2" fill="none"/>
+        <circle cx="210" cy="130" r="4" fill="#059669"/>
+        <text x="210" y="120" font-size="8" fill="#059669">image: 80</text>
+      </g>
+
+      <text x="360" y="290" font-size="10.5" fill="#334155" text-anchor="middle" font-style="italic">Weight schedule은 사전 지정이 아닌 관측된 constraint gap으로부터 data-driven하게 결정된다.</text>
+    </svg>
+    <div class="diagram-caption">(a) 각 modality의 예산이 자동 결정 (12.7× spread). (b) 훈련 중 실제 constraint gap 관측. (c) β_m가 자동으로 감소해 β_min에 도달하는 시점은 modality마다 다르다.</div>
+  </div>
+
+  <div class="stat-row">
+    <div class="stat-box"><div class="num">0.020</div><div class="label">ε_text</div></div>
+    <div class="stat-box"><div class="num">0.191</div><div class="label">ε_image</div></div>
+    <div class="stat-box"><div class="num">0.254</div><div class="label">ε_audio</div></div>
+    <div class="stat-box"><div class="num">12.7×</div><div class="label">natural scale spread</div></div>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 다른 방법과 비교                                       -->
+<!-- ================================================== -->
+<section>
+  <h2>기존 방법과의 비교</h2>
+
+  <table class="comp-table">
+    <tr><th>Method</th><th>Backward pull 방지</th><th>Modality-specific control</th><th>Verification reward</th><th>Teacher ensemble at inference</th></tr>
+    <tr><td>Pooled GRPO</td><td>N/A</td><td>N/A</td><td>—</td><td>없음 (single student)</td></tr>
+    <tr><td>Native OPD</td><td><span style="color:#dc2626;">✗</span></td><td><span style="color:#dc2626;">✗ (single β)</span></td><td>—</td><td>없음</td></tr>
+    <tr><td>ExOPD</td><td>부분적 (reward extrapolation)</td><td><span style="color:#dc2626;">✗</span></td><td>—</td><td>없음</td></tr>
+    <tr><td>Multi-teacher routing (Ma et al. 2026)</td><td>—</td><td>routing만</td><td>—</td><td>없음</td></tr>
+    <tr class="highlight-row"><td>OPOD (ours)</td><td><b>✓ (ReLU)</b></td><td><b>✓ (dual β_m + ε_m)</b></td><td><b>✓ (answer + reasoning)</b></td><td>없음</td></tr>
+  </table>
+
+  <p>중요한 특성: 세 방법 모두 <b>배포 시엔 teacher를 폐기</b>하고 student만 남긴다. 즉 inference latency/memory 차이는 없다. 차이는 훈련 objective에만 있다.</p>
+</section>
+
+<!-- ================================================== -->
+<!-- 한계                                                  -->
+<!-- ================================================== -->
+<section>
+  <h2>한계 및 남은 질문</h2>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">① 단일 seed 결과</h3>
+    <p>"single run per configuration with the same random seed" (§4.1). Ablation에서 1점 대 Δ의 통계적 유의성이 불분명. 특히 reasoning gain 제거의 −1.6은 재현 실험이 필요.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">② Verification reward weight의 sensitivity 부재</h3>
+    <p>w_A = w_B = 0.2와 C=2.0 고정으로만 실험. 이 값들이 modality 조합에 얼마나 robust한지는 sweep 없음. Reasoning-heavy 도메인(수학)과 perception-heavy 도메인(오디오 이해)이 서로 다른 최적값을 요구할 가능성.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">③ Teacher pretraining 비용 미제외</h3>
+    <p>세 modality specialist를 GRPO로 미리 훈련하는 비용은 method cost에서 빠져있다. Compute-fair 비교는 (teacher training + distillation) vs (pooled GRPO)로 이뤄져야 함.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">④ 3-modality 특화 세팅</h3>
+    <p>Video, 3D 등이 붙어 4-5 modality가 되면 dual variable의 안정성과 calibration의 확장성은 실증 부족. 3-way conflict가 K-way로 확장되었을 때 β_m 사이의 상호작용이 어떻게 될지는 open.</p>
+  </div>
+
+  <div class="card card-orange">
+    <h3 style="margin-top:0;">⑤ Answer parsing 가정</h3>
+    <p>Final answer position S_i가 명확히 식별된다고 가정. Long CoT에서 answer parsing이 실패하면 answer confidence 신호가 왜곡됨. Verifier의 robustness에 대한 논의 없음.</p>
+  </div>
+</section>
+
+<!-- ================================================== -->
+<!-- 한 줄 결론                                            -->
+<!-- ================================================== -->
+<section>
+  <h2>한 줄 결론</h2>
+  <div class="one-liner">
+    "여러 modality teacher를 하나의 shared student로 합치려면,<br>
+    <b>token 수준에서 뒤로 잡아당기지 않고 · modality 수준에서 각자의 예산으로 조절하고 · rollout 수준에서 verification까지</b> 다층 감독을 설계해야 한다."
+  </div>
+</section>
+
+<div class="version-toggle"><a href="20260811_zhao_opod.html">전문가용 상세 요약 보기 →</a></div>
+
+</div>
+
+<div class="footer">
+  Zhao et al. · OPOD: On-Policy Omni Distillation · arXiv:2607.20918 · 2026<br>
+  Renmin University of China × Tencent · <a href="https://github.com/VincentZhao2002/OPOD">github.com/VincentZhao2002/OPOD</a>
+</div>
+
+</body>
+</html>
