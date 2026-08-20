@@ -1,0 +1,2315 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+
+<h1>Gated Attention for Large Language Models: Non-linearity, Sparsity, and Attention-Sink-Free</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Zihan Qiu*, Zekun Wang*, Bo Zheng*, Zeyu Huang*, Kaiyue Wen, Songlin Yang, Rui Men, Le Yu, Fei Huang, Suozhi Huang, Dayiheng Liu✉, Jingren Zhou, Junyang Lin✉ (*동등 기여, ✉교신저자)</li>
+  <li><strong>소속</strong>: Qwen Team, Alibaba Group / University of Edinburgh / Stanford University / MIT / Tsinghua University</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2505.06708v1, cs.CL)</li>
+  <li><strong>연도</strong>: 2025 (2025년 5월 10일 제출, PDF 빌드 2025-06-11)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2505.06708">https://arxiv.org/abs/2505.06708</a></li>
+  <li><strong>분량</strong>: 17페이지 (본문 §1~§6 9페이지 + Limitations + References + 부록 A.1~A.5)</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: gating은 LSTM부터 Mamba·linear attention·FFN(SwiGLU)까지 도처에 쓰이지만, "gate가 정확히 무엇을 해서 성능이 오르는가"는 거의 검증된 적이 없다. Switch Heads나 NSA (Native Sparse Attention)처럼 gating과 routing/sparse attention을 함께 도입한 연구들은 <em>gate 자체의 기여를 분리하지 못한다</em>.</li>
+  <li><strong>해결</strong>: 표준 softmax attention에 gate를 넣을 수 있는 5개 위치(Q·K·V 뒤, SDPA 출력 뒤, dense 출력 뒤) × granularity × head-specific/shared × 곱셈/덧셈 × 활성함수를 격자로 펼쳐, ##15B MoE와 1.7B dense 모델로 30개 이상의 변종을 최대 3.5T 토큰까지 학습해 비교##했다. 승자는 아주 단순하다 — <strong>SDPA 출력에 head별 sigmoid gate를 곱한다</strong>.</li>
+  <li><strong>왜 작동하는가</strong>: 두 가지가 동시에 일어난다. (1) <strong>비선형성</strong> — attention의 $W_V$와 $W_O$는 사실 하나의 low-rank 선형사상으로 합쳐지는데, 그 사이에 비선형을 끼워 표현력을 회복한다. (2) <strong>sparsity</strong> — sigmoid 점수가 평균 0.116으로 0 근처에 쏠려, query에 무관한 문맥 정보를 입력 의존적으로 지운다. 이 sparsity가 ##attention sink를 없앤다(첫 토큰 attention 46.7% → 4.8%)##.</li>
+  <li><strong>비유</strong>: 기존 softmax attention은 "합이 반드시 1이 되어야 하는 투표"다. 아무 데도 표를 주고 싶지 않은 head는 표를 버릴 수 없어서 <em>맨 앞 토큰에 몰아 버린다</em> — 그것이 attention sink다. SDPA 출력 gate는 투표 결과를 받은 뒤 "이번엔 기권"이라고 말할 수 있는 밸브를 head마다 하나씩 달아주는 것이다. 기권할 수 있게 되면 첫 토큰에 표를 버릴 이유가 사라진다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>gating 설계 공간의 체계적 격자 탐색</strong>: 위치($G_1$~$G_5$) · granularity(elementwise/headwise) · head-specific/head-shared · 곱셈/덧셈 · 활성함수(sigmoid/SiLU/Identity/RMSNorm)의 조합으로 30개 이상의 변종을 동일 조건에서 학습·비교. 파라미터가 늘어나는 효과와 gate 고유 효과를 분리하기 위해 <em>KV head 증설·query head 증설·expert 증설</em>이라는 파라미터 확장 baseline을 함께 세웠다.</li>
+  <li><strong>단일 승자 레시피</strong>: ##SDPA 출력에 head-specific elementwise sigmoid gate를 곱하는 것##이 가장 효과적. 15A2B MoE에서 test PPL 6.026 → 5.761 (−0.265), MMLU 58.79 → 60.82 (+2.03), GSM8k 52.92 → 55.27. 지연 시간 증가는 2% 미만.</li>
+  <li><strong>학습 안정성과 스케일링</strong>: 3.5T 토큰 1.7B dense 학습에서 loss spike를 거의 제거하고, baseline이 발산하는 학습률(8e-3)에서도 안정적으로 수렴하며 <em>더 큰 LR이 오히려 성능을 올린다</em>. sandwich norm은 수렴은 회복시키지만 성능 개선은 없다.</li>
+  <li><strong>효과의 원인 규명 — 비선형성 + sparsity</strong>: $W_V W_O$ 병합으로 생기는 low-rank 선형성 문제를 gate가 깨뜨린다는 것을 RMSNorm/SiLU/Identity/additive 변종의 대조로 보이고, 그 위에 <em>query 의존적 sparsity</em>가 추가 이득의 출처임을 head-shared 변종·input-independent gate·NS-sigmoid라는 세 가지 대조 실험으로 분리했다.</li>
+  <li><strong>Attention-sink-free 모델</strong>: 3.5T 토큰으로 학습한 dense(1.7B)·MoE(15B) 모델에서 ##attention sink가 관측되지 않는 최초의 대규모 모델##을 만들고 공개를 약속. 부수 효과로 massive activation(최대 활성값 1053 → 94)도 사라지며, 이것이 BF16 학습 안정성 개선의 설명이 된다.</li>
+  <li><strong>Attention sink에 대한 반례 제시</strong>: value 위치 gate($G_2$)는 massive activation을 없애지만 attention sink는 남긴다 → ##massive activation은 attention sink의 필요조건이 아니다##. Sun et al. (2024)의 통설을 직접 반박하는 관측.</li>
+  <li><strong>Long-context extension 이득</strong>: YaRN으로 32k → 128k 확장 시 baseline은 32k 구간에서 41.6점 폭락하지만 gate 모델은 6.9점만 하락하고, ##128k에서 RULER 31.65 → 58.82 (+27.2점)##.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="mapArw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="15" font-weight="bold">이 논문 전체 지도 — 하나의 곱셈이 왜 이렇게 많은 것을 바꾸는가</text>
+
+  <rect x="30" y="30" width="740" height="46" rx="7" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="400" y="48" text-anchor="middle" font-size="11.5" font-weight="bold">출발 문제 — gating은 어디에나 있지만, gate 자체의 효과가 측정된 적이 없다</text>
+  <text x="400" y="64" text-anchor="middle" font-size="10">Switch Heads는 gate와 top-k routing이 섞여 있고, NSA는 gate와 sparse attention이 섞여 있다 → 무엇이 이득의 출처인지 알 수 없다</text>
+
+  <path d="M400,78 L400,92" stroke="#666" marker-end="url(#mapArw)"/>
+
+  <text x="400" y="108" text-anchor="middle" font-size="12" font-weight="bold">방법 — 설계 공간을 격자로 펼쳐 30+ 변종을 동일 조건에서 학습 (§1, §2)</text>
+  <g font-size="10">
+    <rect x="30" y="116" width="176" height="70" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="118" y="134" text-anchor="middle" font-weight="bold">위치 5곳</text>
+    <text x="118" y="151" text-anchor="middle">G₁ SDPA 출력 · G₂ V · G₃ K</text>
+    <text x="118" y="166" text-anchor="middle">G₄ Q · G₅ dense 출력</text>
+    <text x="118" y="180" text-anchor="middle" font-size="9.5" fill="#1e40af">§1.2, 그림 5</text>
+
+    <rect x="214" y="116" width="176" height="70" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="302" y="134" text-anchor="middle" font-weight="bold">granularity · 공유</text>
+    <text x="302" y="151" text-anchor="middle">elementwise / headwise</text>
+    <text x="302" y="166" text-anchor="middle">head-specific / head-shared</text>
+    <text x="302" y="180" text-anchor="middle" font-size="9.5" fill="#1e40af">§1.2, 그림 6~8</text>
+
+    <rect x="398" y="116" width="176" height="70" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="486" y="134" text-anchor="middle" font-weight="bold">적용 형태 · 활성함수</text>
+    <text x="486" y="151" text-anchor="middle">곱셈 / 덧셈</text>
+    <text x="486" y="166" text-anchor="middle">sigmoid / SiLU / Identity / RMSNorm</text>
+    <text x="486" y="180" text-anchor="middle" font-size="9.5" fill="#1e40af">§1.2, §4.1</text>
+
+    <rect x="582" y="116" width="188" height="70" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="676" y="134" text-anchor="middle" font-weight="bold">파라미터 확장 baseline</text>
+    <text x="676" y="151" text-anchor="middle">k=8 · q=48 · +4 experts</text>
+    <text x="676" y="166" text-anchor="middle" font-size="9.5">gate보다 많은 파라미터를 추가해도</text>
+    <text x="676" y="180" text-anchor="middle" font-size="9.5">gate를 못 이긴다 (§3.1)</text>
+  </g>
+
+  <path d="M400,190 L400,204" stroke="#666" marker-end="url(#mapArw)"/>
+
+  <rect x="150" y="208" width="500" height="42" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="226" text-anchor="middle" font-size="12" font-weight="bold">승자 — SDPA 출력 × head별 sigmoid gate (G₁, elementwise)</text>
+  <text x="400" y="242" text-anchor="middle" font-size="10">PPL 6.026 → 5.761 · MMLU 58.79 → 60.82 · 추가 지연 2% 미만 · loss spike 소멸</text>
+
+  <path d="M400,254 L400,268" stroke="#666" marker-end="url(#mapArw)"/>
+
+  <text x="400" y="284" text-anchor="middle" font-size="12" font-weight="bold">왜 작동하는가 — 두 개의 독립적 원인 (§4.1, §4.2)</text>
+  <g font-size="10">
+    <rect x="60" y="292" width="330" height="86" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="225" y="310" text-anchor="middle" font-weight="bold" font-size="11">① 비선형성 (§4.1)</text>
+    <text x="225" y="328" text-anchor="middle">W_V · W_O 는 하나의 low-rank 선형사상으로 합쳐진다</text>
+    <text x="225" y="344" text-anchor="middle">그 사이에 비선형을 끼우면 표현력이 회복된다</text>
+    <text x="225" y="362" text-anchor="middle" font-size="9.5" fill="#92400e">근거: RMSNorm · SiLU · Identity · additive 대조 (Table 3)</text>
+
+    <rect x="410" y="292" width="330" height="86" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="575" y="310" text-anchor="middle" font-weight="bold" font-size="11">② query 의존 sparsity (§4.2)</text>
+    <text x="575" y="328" text-anchor="middle">sigmoid 점수 평균 0.116, 분포가 0에 쏠린다</text>
+    <text x="575" y="344" text-anchor="middle">현재 query에 무관한 문맥을 입력 의존적으로 지운다</text>
+    <text x="575" y="362" text-anchor="middle" font-size="9.5" fill="#92400e">근거: head-shared · input-independent · NS-sigmoid 대조 (Table 4)</text>
+  </g>
+
+  <path d="M575,382 L575,396" stroke="#666" marker-end="url(#mapArw)"/>
+
+  <rect x="330" y="400" width="440" height="42" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="550" y="418" text-anchor="middle" font-size="11.5" font-weight="bold">③ Attention sink 소멸 (§4.3) — 첫 토큰 attention 46.7% → 4.8%</text>
+  <text x="550" y="434" text-anchor="middle" font-size="10">부수 효과: massive activation 1053 → 94 → BF16 수치 오류 감소 → 학습 안정성</text>
+
+  <path d="M225,382 L225,470" stroke="#666" stroke-dasharray="4 3" marker-end="url(#mapArw)"/>
+  <path d="M550,444 L550,470" stroke="#666" marker-end="url(#mapArw)"/>
+
+  <rect x="30" y="474" width="740" height="46" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="492" text-anchor="middle" font-size="11.5" font-weight="bold">귀결 — 학습 안정성(§3.2) + long-context extension 견고성(§4.4)</text>
+  <text x="400" y="508" text-anchor="middle" font-size="10">baseline이 발산하는 LR 8e-3에서 수렴 · YaRN 128k 확장 후 RULER 31.65 → 58.82 (+27.2)</text>
+
+  <rect x="30" y="528" width="740" height="26" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="545" text-anchor="middle" font-size="10">이 논문의 가장 큰 빈틈: ablation은 촘촘하지만 seed 반복·표준편차가 전혀 없고, sparsity→sink→length-extension의 인과는 가설로만 남는다 (비판적 분석)</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 이 문서를 읽는 순서와 각 부분이 존재하는 이유를 한 장에 정리한 것이다. 붙잡고 있으면 좋은 논리는 "위에서 아래로 갈수록 <em>왜</em>에 답한다"이다 — 격자 탐색(§1~§2)이 승자를 고르고, 승자의 효과를 비선형성과 sparsity로 분해하고(§4.1~§4.2), sparsity가 attention sink를 없애며(§4.3), sink가 없어진 것이 학습 안정성(§3.2)과 length extension(§4.4)으로 환금된다. 보라색 박스(파라미터 확장 baseline)가 이 논문 실험 설계의 핵심 장치다 — "gate가 좋은 게 아니라 파라미터가 늘어서 좋아진 것"이라는 반론을 미리 차단한다. 맨 아래 주황 박스는 이 논증 사슬에서 실제로 증명되지 않고 남은 부분이다.</figcaption>
+</figure>
+
+<h2>배경 (Background)</h2>
+
+<p>이 논문은 새로운 아키텍처를 제안하는 논문이 아니라 <strong>이미 널리 쓰이는 부품 하나를 해부하는 논문</strong>이다. 따라서 배경은 세 갈래로 나뉜다: (1) gating이 지금까지 어디에 어떻게 쓰였는가, (2) 그럼에도 무엇이 검증되지 않았는가, (3) 이 논문이 "부수 효과"로 다루게 되는 attention sink·massive activation이 무엇인가.</p>
+
+<h3>gating의 계보 — 30년간 이름만 바뀌며 반복된 부품</h3>
+
+<p>gating의 원형은 하나다. <strong>어떤 텐서 $Y$에 $[0,1]$ 범위의 점수를 곱해 정보를 통과시키거나 지운다.</strong> 이 아이디어는 다음 경로로 전파되었다.</p>
+
+<ul>
+  <li><strong>LSTM (Hochreiter &amp; Schmidhuber, 1997)</strong> / <strong>GRU (Dey &amp; Salem, 2017)</strong>: 시간 축으로 정보 흐름을 조절해 gradient 소실/폭발을 완화. input/forget/output gate가 "무엇을 기억하고 무엇을 버릴지" 결정한다.</li>
+  <li><strong>Highway Networks (Srivastava et al., 2015)</strong>: 같은 원리를 <em>깊이 축</em>으로 옮겨, 매우 깊은 feedforward 망의 학습을 가능하게 했다.</li>
+  <li><strong>SwiGLU (Shazeer, 2020)</strong>: Transformer의 FFN 안에 gating을 넣었다. 현재 거의 모든 오픈소스 LLM(Llama 3, Qwen2.5)의 기본 부품이다. <em>즉 LLM은 이미 FFN에서는 gating을 쓰고 있다 — attention에서만 안 쓰고 있었다.</em></li>
+  <li><strong>SSM / linear attention 계열</strong>: Mamba (Gu &amp; Dao, 2023), Mamba-2 (Dao &amp; Gu, 2024), FLASH (Hua et al., 2022), RetNet (Sun et al., 2023), Lightning Attention (Qin et al., 2024a;b), Gated DeltaNet (Yang et al., 2024b) — 모두 token-mixer 출력에 gate를 붙인다. 여기서 gate는 <em>고정 크기 상태를 얼마나 감쇠시킬지</em>를 결정하는, 사실상 필수 부품이다.</li>
+  <li><strong>Forgetting Transformer (Lin et al., 2025)</strong>: softmax attention 출력에 forget gate를 붙여 개선을 관측. 이 논문의 $G_1$과 가장 가까운 선행 연구다.</li>
+  <li><strong>Quantizable Transformers (Bondarenko et al., 2023)</strong>: 이 논문과 <strong>가장 밀접한 선행 연구</strong>. BERT·ViT 같은 encoder 모델에서 softmax attention에 gate를 붙이면 극단적 attention 집중과 hidden state outlier가 완화된다는 것을 이미 발견했다. 다만 목적이 <em>양자화를 위한 outlier 제거</em>였고, 이 논문은 그것을 decoder-only LLM으로 옮겨 3.5T 토큰 규모에서 성능·안정성·length extension까지 확장했다.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="genArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#94a3b8"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">gating의 계보 — 같은 부품이 세 개의 축으로 이동해 왔다</text>
+  <text x="400" y="36" text-anchor="middle" font-size="10" fill="#666">핵심 연산은 30년간 동일: Y ⊙ σ(XW). 바뀐 것은 "무엇을 곱하는가"와 "어느 축을 조절하는가"뿐이다</text>
+
+  <line x1="40" y1="286" x2="770" y2="286" stroke="#333"/>
+  <text x="60" y="302" font-size="10" fill="#555">1997</text>
+  <text x="240" y="302" font-size="10" fill="#555">2015</text>
+  <text x="400" y="302" font-size="10" fill="#555">2020</text>
+  <text x="560" y="302" font-size="10" fill="#555">2023–24</text>
+  <text x="720" y="302" font-size="10" fill="#555">2025</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="60" width="150" height="52" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="115" y="78" text-anchor="middle" font-size="10.5" font-weight="bold">LSTM · GRU</text>
+    <text x="115" y="94" text-anchor="middle">시간 축 정보 흐름</text>
+    <text x="115" y="107" text-anchor="middle" fill="#666">gradient 소실 완화</text>
+    <path d="M115,112 L115,284" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+
+    <rect x="205" y="128" width="150" height="52" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="280" y="146" text-anchor="middle" font-size="10.5" font-weight="bold">Highway Networks</text>
+    <text x="280" y="162" text-anchor="middle">깊이 축으로 이동</text>
+    <text x="280" y="175" text-anchor="middle" fill="#666">아주 깊은 망 학습 가능</text>
+    <path d="M280,180 L280,284" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+
+    <rect x="330" y="60" width="150" height="52" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="405" y="78" text-anchor="middle" font-size="10.5" font-weight="bold">SwiGLU (FFN)</text>
+    <text x="405" y="94" text-anchor="middle">Transformer FFN 내부</text>
+    <text x="405" y="107" text-anchor="middle" fill="#15803d">현재 LLM 표준 부품</text>
+    <path d="M405,112 L405,284" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+
+    <rect x="470" y="128" width="180" height="66" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="560" y="146" text-anchor="middle" font-size="10.5" font-weight="bold">SSM · linear attention</text>
+    <text x="560" y="161" text-anchor="middle">Mamba · RetNet · Lightning</text>
+    <text x="560" y="175" text-anchor="middle">Gated DeltaNet</text>
+    <text x="560" y="189" text-anchor="middle" fill="#1e40af">고정 크기 상태의 감쇠 제어</text>
+    <path d="M560,194 L560,284" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+
+    <rect x="600" y="52" width="170" height="66" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="685" y="70" text-anchor="middle" font-size="10.5" font-weight="bold">softmax attention</text>
+    <text x="685" y="85" text-anchor="middle">Forgetting Transformer</text>
+    <text x="685" y="99" text-anchor="middle">Switch Heads · NSA · MoSA</text>
+    <text x="685" y="113" text-anchor="middle" fill="#92400e">← 이 논문이 해부하는 지점</text>
+    <path d="M685,118 L685,284" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+  </g>
+
+  <rect x="40" y="206" width="380" height="66" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="230" y="224" text-anchor="middle" font-size="11" font-weight="bold">공백 — 검증되지 않은 것</text>
+  <text x="230" y="241" text-anchor="middle" font-size="9.5">"gate를 넣으면 좋아진다"는 관측은 많지만,</text>
+  <text x="230" y="255" text-anchor="middle" font-size="9.5">gate가 <tspan font-style="italic">왜</tspan> 좋은지, 다른 부품과 섞였을 때</text>
+  <text x="230" y="268" text-anchor="middle" font-size="9.5">gate 고유 기여가 얼마인지는 측정된 적이 없다</text>
+
+  <rect x="430" y="206" width="340" height="66" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="600" y="224" text-anchor="middle" font-size="11" font-weight="bold">가장 가까운 선행: Quantizable Transformers</text>
+  <text x="600" y="241" text-anchor="middle" font-size="9.5">BERT·ViT에서 attention gate가 극단적 집중과</text>
+  <text x="600" y="255" text-anchor="middle" font-size="9.5">hidden outlier를 없앤다는 것을 이미 발견 (2023)</text>
+  <text x="600" y="268" text-anchor="middle" font-size="9.5" fill="#7e22ce">목적이 양자화 → 이 논문은 성능·안정성·길이로 확장</text>
+</svg>
+<figcaption><strong>[Figure: gating의 계보]</strong>: 점선은 각 연구가 놓인 대략적 시점이다. 이 그림의 요점은 두 개의 색 대비다 — 초록(SwiGLU)은 <strong>LLM이 이미 FFN에서는 gating을 표준으로 쓰고 있다</strong>는 사실이고, 주황(2025)은 <strong>attention에서만 유독 쓰지 않았다</strong>는 공백이다. 파란 박스(SSM·linear attention)에서 gate는 선택이 아니라 필수 부품인데, 그 이유가 "고정 크기 상태를 얼마나 지울지"라는 명확한 역할이 있기 때문이라는 점이 §4.2의 sparsity 논의와 직접 연결된다. 빨간 박스가 이 논문의 존재 이유이고, 보라 박스는 저자들이 §5.1에서 스스로 "가장 밀접한 선행 연구"로 지목한 것이다.</figcaption>
+</figure>
+
+<h3>왜 지금까지 측정되지 않았는가 — 혼재(confounding) 문제</h3>
+
+<p>저자들이 §1에서 드는 두 가지 사례가 이 논문의 동기를 정확히 보여준다.</p>
+
+<p><strong>사례 1 — Switch Heads (Csordas et al., 2024a;b)</strong>: 각 토큰이 key/value/output expert 풀에서 learnable sigmoid routing으로 top-$k$개를 고르는 구조다. 성능이 좋아지므로 "sparse attention expert 선택이 효과적"이라고 해석된다. 그런데 저자들이 부록 A.1에서 <strong>expert를 1개로 줄여 routing을 완전히 제거해도(‘Switch v, 1top1’) 이득이 거의 그대로 남는다</strong>는 것을 확인했다. 이 설정에서 sigmoid는 더 이상 무엇을 고르지 않고, 그냥 value 출력에 점수를 곱하는 <em>gate</em>일 뿐이다. 즉 Switch Heads의 이득 중 상당 부분은 routing이 아니라 gate에서 나왔을 가능성이 크다.</p>
+
+<p><strong>사례 2 — NSA (Native Sparse Attention, Yuan et al., 2025)</strong>: sparse attention 설계와 gating을 함께 도입하고 전체 개선을 보고하지만, 둘의 기여를 분리하지 않는다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: 새 부품 A와 이미 알려진 부품 B를 함께 넣고 "A가 효과적"이라고 결론 내리는 실험 설계의 문제다. 이 논문의 기여 중 절반은 <em>새 방법</em>이 아니라 <strong>B를 단독으로 측정하는 실험 설계</strong>에 있다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 780 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="cfArw" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker></defs>
+  <text x="390" y="18" text-anchor="middle" font-size="14" font-weight="bold">혼재 문제 — Switch Heads의 이득은 routing에서 왔는가, gate에서 왔는가</text>
+
+  <text x="195" y="44" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#92400e">(a) 원 논문의 해석</text>
+  <rect x="40" y="54" width="310" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="195" y="74" text-anchor="middle" font-size="10.5">token → sigmoid router → top-k expert 선택</text>
+  <g font-size="9">
+    <circle cx="90" cy="100" r="13" fill="#fff" stroke="#f59e0b"/><text x="90" y="104" text-anchor="middle">E1</text>
+    <circle cx="130" cy="100" r="13" fill="#f59e0b" stroke="#b45309"/><text x="130" y="104" text-anchor="middle" fill="#fff">E2</text>
+    <circle cx="170" cy="100" r="13" fill="#fff" stroke="#f59e0b"/><text x="170" y="104" text-anchor="middle">E3</text>
+    <circle cx="210" cy="100" r="13" fill="#f59e0b" stroke="#b45309"/><text x="210" y="104" text-anchor="middle" fill="#fff">E4</text>
+    <circle cx="250" cy="100" r="13" fill="#fff" stroke="#f59e0b"/><text x="250" y="104" text-anchor="middle">E5</text>
+    <circle cx="290" cy="100" r="13" fill="#fff" stroke="#f59e0b"/><text x="290" y="104" text-anchor="middle">E6</text>
+  </g>
+  <text x="195" y="132" text-anchor="middle" font-size="10">결론: "attention에서의 sparse expert 선택이 효과적"</text>
+  <text x="195" y="145" text-anchor="middle" font-size="9.5" fill="#92400e">→ 그런데 sigmoid 점수는 선택도 하고 곱해지기도 한다</text>
+
+  <text x="585" y="44" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">(b) 이 논문의 대조 실험 (부록 A.1)</text>
+  <rect x="430" y="54" width="310" height="96" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="585" y="74" text-anchor="middle" font-size="10.5">expert를 1개로 줄임 → routing 자체가 사라짐</text>
+  <circle cx="585" cy="100" r="15" fill="#3b82f6" stroke="#1e40af"/><text x="585" y="104" text-anchor="middle" font-size="9" fill="#fff">E1</text>
+  <text x="640" y="96" font-size="9.5" fill="#1e40af">남은 것은 곱셈뿐:</text>
+  <text x="640" y="109" font-size="9.5" fill="#1e40af">Y ⊙ σ(XW)</text>
+  <text x="585" y="132" text-anchor="middle" font-size="10">PPL 5.808 (‘Switch v, 1top1’) — 8top8의 5.847보다 오히려 좋다</text>
+  <text x="585" y="145" text-anchor="middle" font-size="9.5" fill="#1e40af">추가 파라미터는 38M → 3M으로 12배 감소</text>
+
+  <path d="M195,152 L195,178" stroke="#666" marker-end="url(#cfArw)"/>
+  <path d="M585,152 L585,178" stroke="#666" marker-end="url(#cfArw)"/>
+
+  <rect x="40" y="182" width="700" height="46" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="390" y="200" text-anchor="middle" font-size="11.5" font-weight="bold">routing을 제거해도 이득이 남는다 → 이득의 주 출처는 gate 자체다</text>
+  <text x="390" y="217" text-anchor="middle" font-size="10">이 관측이 논문 전체의 출발점이다. "gate를 단독으로, 모든 위치에서, 대규모로 측정하자"</text>
+
+  <rect x="40" y="238" width="700" height="48" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="390" y="256" text-anchor="middle" font-size="10.5" font-weight="bold">같은 함정이 반복되는 곳들</text>
+  <text x="390" y="272" text-anchor="middle" font-size="9.5">NSA(sparse attention + gate) · MoSA(expert-choice routing + gate) — gate 있는 baseline과 비교하지 않으면 새 설계의 순수 기여를 알 수 없다</text>
+</svg>
+<figcaption><strong>[Figure: 혼재 문제와 대조 실험]</strong>: (a)의 진한 원이 선택된 expert, 흐린 원이 선택되지 않은 것이다. (b)에서 expert 수를 1로 만들면 top-k 선택이라는 개념 자체가 소멸하고 sigmoid 점수는 순수한 곱셈 gate가 되는데, 그때 PPL이 5.808로 8top8(5.847)보다 <em>좋다</em>. 이 한 줄의 대조가 논문 전체를 정당화한다. 부록 A.1의 Table 6 전체는 §부록 A.1에서 다시 다룬다. 주의할 점은 이것이 Switch Heads를 반박하는 것이 아니라 <strong>비교 baseline이 잘못 설정되어 있었다</strong>는 지적이라는 것이다 — 같은 함정이 NSA·MoSA에도 있다는 §5.1의 논평으로 이어진다.</figcaption>
+</figure>
+
+<h3>Attention sink와 massive activation — 이 논문이 "없앤" 두 가지</h3>
+
+<p>이 논문의 후반부(§4.3, §4.4)는 gate의 부수 효과를 다루는데, 그 부수 효과가 최근 LLM 해석 연구의 두 화두를 정면으로 건드린다. 두 용어를 먼저 정리한다.</p>
+
+<p><strong>Attention sink (Xiao et al., 2023)</strong>: 학습된 LLM에서 <em>특정 토큰(주로 시퀀스의 첫 토큰)이 불균형하게 큰 attention 점수를 받는</em> 현상. 이 논문의 baseline에서는 층 평균 46.7%, 특정 층(layer 21)에서는 83%의 attention이 첫 토큰 하나에 간다. 첫 토큰이 실제로 정보가 많아서가 아니다 — 표준적인 설명은 <strong>softmax의 정규화 제약</strong>이다. softmax는 출력이 음이 아니고 행 합이 반드시 1이므로, "이 query에는 참조할 만한 문맥이 없다"를 표현할 방법이 없다. 그래서 모델은 <em>남는 attention을 버리는 쓰레기통</em>으로 첫 토큰을 사용한다 (Gu et al., 2024는 이를 정보 없는 ‘key bias’라고 부른다). ViT에서는 같은 역할을 하는 토큰을 ‘register’라 부른다 (Darcet et al., 2023).</p>
+
+<p><strong>Massive activation (Sun et al., 2024)</strong>: hidden state의 일부 차원에서 다른 값보다 수십~수백 배 큰 활성값이 나타나는 현상. baseline에서 층별 최대 활성값의 평균이 1053에 이른다. Sun et al.은 massive activation을 가진 토큰에 과도한 attention이 몰린다고 보고하여, <em>massive activation과 attention sink가 같은 현상의 두 얼굴</em>이라는 견해가 형성되었다.</p>
+
+<p>이 논문의 §4.3은 이 통설에 대한 <strong>깔끔한 반례</strong>를 제시한다. value 위치 gate($G_2$)를 쓰면 massive activation은 사라지는데(1053 → 125) attention sink는 남는다(F-Attn 0.297). 따라서 <strong>massive activation은 attention sink의 필요조건이 아니다.</strong></p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Attention sink가 왜 생기는가 — softmax의 "합이 1" 제약</text>
+
+  <text x="200" y="44" text-anchor="middle" font-size="12" font-weight="bold" fill="#b45309">(a) 표준 softmax attention</text>
+  <text x="200" y="60" text-anchor="middle" font-size="9.5" fill="#666">"참조할 문맥이 없다"를 표현할 수 없다</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="70" width="280" height="30" rx="4" fill="#f8fafc" stroke="#94a3b8"/>
+    <text x="200" y="89" text-anchor="middle">query: "이 head는 지금 볼 게 없다"</text>
+
+    <path d="M200,102 L200,116" stroke="#666"/>
+    <text x="200" y="130" text-anchor="middle">softmax: 출력 ≥ 0, 행 합 = 1 (강제)</text>
+
+    <rect x="60" y="142" width="52" height="40" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="86" y="166" text-anchor="middle" font-weight="bold">0.83</text>
+    <rect x="112" y="142" width="52" height="40" fill="#fef2f2" stroke="#fca5a5"/>
+    <text x="138" y="166" text-anchor="middle">0.04</text>
+    <rect x="164" y="142" width="52" height="40" fill="#fef2f2" stroke="#fca5a5"/>
+    <text x="190" y="166" text-anchor="middle">0.05</text>
+    <rect x="216" y="142" width="52" height="40" fill="#fef2f2" stroke="#fca5a5"/>
+    <text x="242" y="166" text-anchor="middle">0.04</text>
+    <rect x="268" y="142" width="72" height="40" fill="#fef2f2" stroke="#fca5a5"/>
+    <text x="304" y="166" text-anchor="middle">0.04 …</text>
+    <text x="86" y="196" text-anchor="middle" font-size="9" fill="#b91c1c">첫 토큰</text>
+    <text x="230" y="196" text-anchor="middle" font-size="9" fill="#666">나머지 토큰들</text>
+  </g>
+  <text x="200" y="216" text-anchor="middle" font-size="10" fill="#b91c1c">남는 attention을 첫 토큰에 버린다 = attention sink</text>
+  <text x="200" y="232" text-anchor="middle" font-size="9.5" fill="#666">baseline 층 평균 46.7%, layer 21에서 83%</text>
+
+  <line x1="380" y1="40" x2="380" y2="380" stroke="#e5e7eb"/>
+
+  <text x="590" y="44" text-anchor="middle" font-size="12" font-weight="bold" fill="#1e40af">(b) SDPA 출력 gate 추가</text>
+  <text x="590" y="60" text-anchor="middle" font-size="9.5" fill="#666">softmax 뒤에 head별 밸브를 하나 달아준다</text>
+
+  <g font-size="9.5">
+    <rect x="440" y="70" width="300" height="30" rx="4" fill="#f8fafc" stroke="#94a3b8"/>
+    <text x="590" y="89" text-anchor="middle">query: "이 head는 지금 볼 게 없다"</text>
+
+    <path d="M590,102 L590,116" stroke="#666"/>
+    <text x="590" y="130" text-anchor="middle">softmax는 그대로 (합 = 1) …</text>
+
+    <rect x="440" y="142" width="60" height="34" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="470" y="163" text-anchor="middle">0.20</text>
+    <rect x="500" y="142" width="60" height="34" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="530" y="163" text-anchor="middle">0.19</text>
+    <rect x="560" y="142" width="60" height="34" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="590" y="163" text-anchor="middle">0.21</text>
+    <rect x="620" y="142" width="60" height="34" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="650" y="163" text-anchor="middle">0.20</text>
+    <rect x="680" y="142" width="60" height="34" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="710" y="163" text-anchor="middle">0.20</text>
+    <text x="590" y="190" text-anchor="middle" font-size="9" fill="#1e40af">첫 토큰에 쏠릴 이유가 없다 (F-Attn 0.048)</text>
+
+    <path d="M590,196 L590,210" stroke="#666"/>
+    <rect x="470" y="214" width="240" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="590" y="233" text-anchor="middle">× gate 점수 g (head마다 다름, 평균 0.116)</text>
+
+    <path d="M590,246 L590,260" stroke="#666"/>
+    <rect x="470" y="264" width="240" height="34" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="590" y="279" text-anchor="middle" font-weight="bold">출력의 크기 자체를 줄일 수 있다</text>
+    <text x="590" y="292" text-anchor="middle" font-size="9">"이번엔 기권" = 정규화 제약 밖의 자유도</text>
+  </g>
+
+  <rect x="40" y="252" width="320" height="60" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="200" y="270" text-anchor="middle" font-size="10.5" font-weight="bold">동반 현상: massive activation</text>
+  <text x="200" y="286" text-anchor="middle" font-size="9.5">첫 토큰의 hidden state에 거대한 값이 실린다</text>
+  <text x="200" y="300" text-anchor="middle" font-size="9.5">baseline 층별 최대 활성값 평균 1053 → gate 94</text>
+
+  <rect x="40" y="326" width="720" height="58" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="345" text-anchor="middle" font-size="11" font-weight="bold">§4.3의 반례 — 이 둘은 같은 현상이 아니다</text>
+  <text x="400" y="362" text-anchor="middle" font-size="10">value 위치 gate(G₂): massive activation 1053 → 125로 사라짐, 그런데 attention sink는 F-Attn 0.297로 남는다</text>
+  <text x="400" y="377" text-anchor="middle" font-size="10" fill="#7e22ce">→ massive activation은 attention sink의 필요조건이 아니다 (Sun et al., 2024의 통설에 대한 직접 반례)</text>
+</svg>
+<figcaption><strong>[Figure: attention sink의 발생 원리와 gate의 개입]</strong>: (a)의 진한 빨간 칸이 첫 토큰이 독차지한 attention이다. softmax는 행 합을 1로 강제하므로 "아무것도 참조하지 않음"이라는 상태가 표현 불가능하고, 모델은 그 잉여를 정보가 없는 첫 토큰에 버린다. (b)의 요점은 gate가 softmax를 건드리지 않는다는 것이다 — attention 분포는 여전히 합이 1이지만, <em>그 결과에 곱해지는 밸브</em>가 생겨 출력의 크기를 0으로 만들 수 있다. 즉 gate는 정규화 제약 밖에 새 자유도를 하나 추가한다. 아래 보라 박스가 §4.3의 가장 학술적으로 값진 관측이며, 이 반례가 성립하는 이유는 §4.2의 query 의존성 논의(그림 20)에서 드러난다.</figcaption>
+</figure>
+
+<h2>1. Gated-Attention Layer (§2)</h2>
+
+<h3>1.1 Preliminary — multi-head softmax attention의 네 단계</h3>
+
+<p>gate를 "어디에" 넣을 수 있는지 말하려면 attention 층을 네 단계로 쪼개야 한다. 입력을 $X \in \mathbb{R}^{n \times d_{model}}$ ($n$은 시퀀스 길이, $d_{model}$은 모델 차원)이라 하자.</p>
+
+<p><strong>① QKV 선형 사영</strong>: 학습 가중치 $W_Q, W_K, W_V \in \mathbb{R}^{d_{model} \times d_k}$로 query·key·value를 만든다.</p>
+$$Q = XW_Q, \quad K = XW_K, \quad V = XW_V \tag{1}$$
+
+<p><strong>② Scaled Dot-Product Attention (SDPA)</strong>: query와 key의 유사도를 계산해 softmax로 정규화하고, value의 가중합을 낸다.</p>
+$$\mathrm{Attention}(Q,K,V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V \tag{2}$$
+<p>여기서 $\frac{QK^\top}{\sqrt{d_k}} \in \mathbb{R}^{n \times n}$이며, softmax는 attention 가중치가 <strong>음이 아니고 각 행의 합이 1</strong>이 되도록 보장한다. 이 성질이 attention sink의 근원이라는 점을 기억해 두자.</p>
+
+<p><strong>③ Multi-head 결합</strong>: 위 과정을 $h$개 head에 대해 병렬로 수행하고 이어 붙인다.</p>
+$$\mathrm{MultiHead}(Q,K,V) = \mathrm{Concat}(\mathrm{head}_1, \dots, \mathrm{head}_h) \tag{3}$$
+<p>여기서 $\mathrm{head}_i = \mathrm{Attention}(QW_Q^i, KW_K^i, VW_V^i)$이다.</p>
+
+<p><strong>④ 최종 출력 층</strong>: 결합된 출력을 $W_o \in \mathbb{R}^{h d_k \times d_{model}}$로 사영한다.</p>
+$$O = \mathrm{MultiHead}(Q,K,V) W_o \tag{4}$$
+
+<blockquote><strong>직관적으로 말하면</strong>: gate를 넣을 수 있는 "틈"은 이 네 단계 사이의 다섯 지점이다. ①의 출력 세 갈래(Q, K, V) 뒤, ②③의 출력 뒤, ④의 출력 뒤. 논문의 $G_4, G_3, G_2, G_1, G_5$가 정확히 이 다섯 지점에 대응한다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 470" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="mhaArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 1 (left) 재구성 — attention 층의 네 단계와 gate를 넣을 수 있는 다섯 지점</text>
+
+  <rect x="320" y="34" width="160" height="28" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="52" text-anchor="middle" font-size="11">입력 X ∈ ℝ^(n × d_model)</text>
+  <path d="M400,62 L400,76" stroke="#64748b" marker-end="url(#mhaArw)"/>
+
+  <text x="400" y="92" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#475569">① QKV 선형 사영 (Eq. 1)</text>
+
+  <rect x="90" y="102" width="140" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="160" y="124" text-anchor="middle" font-size="11">Query Layer  W_Q</text>
+  <rect x="330" y="102" width="140" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="400" y="124" text-anchor="middle" font-size="11">Key Layer  W_K</text>
+  <rect x="570" y="102" width="140" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="640" y="124" text-anchor="middle" font-size="11">Value Layer  W_V</text>
+
+  <path d="M330,48 L240,48 L240,102" stroke="#cbd5e1" fill="none"/>
+  <path d="M480,48 L660,48 L660,102" stroke="#cbd5e1" fill="none"/>
+
+  <circle cx="160" cy="156" r="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="160" y="161" text-anchor="middle" font-size="11" font-weight="bold">G₄</text>
+  <circle cx="400" cy="156" r="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="400" y="161" text-anchor="middle" font-size="11" font-weight="bold">G₃</text>
+  <circle cx="640" cy="156" r="14" fill="#fde68a" stroke="#f59e0b" stroke-width="2"/>
+  <text x="640" y="161" text-anchor="middle" font-size="11" font-weight="bold">G₂</text>
+
+  <path d="M160,136 L160,142" stroke="#64748b"/>
+  <path d="M400,136 L400,142" stroke="#64748b"/>
+  <path d="M640,136 L640,142" stroke="#64748b"/>
+  <path d="M160,170 L160,190 L340,190" stroke="#64748b" fill="none" marker-end="url(#mhaArw)"/>
+  <path d="M400,170 L400,190" stroke="#64748b" marker-end="url(#mhaArw)"/>
+  <path d="M640,170 L640,190 L460,190" stroke="#64748b" fill="none" marker-end="url(#mhaArw)"/>
+
+  <rect x="250" y="196" width="300" height="40" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="213" text-anchor="middle" font-size="11" font-weight="bold">② Scaled Dot-Product Attention (Eq. 2)</text>
+  <text x="400" y="229" text-anchor="middle" font-size="10">softmax(QKᵀ/√d_k) V  — 행 합 = 1 강제</text>
+
+  <path d="M400,236 L400,250" stroke="#64748b"/>
+  <circle cx="400" cy="266" r="16" fill="#fbbf24" stroke="#d97706" stroke-width="2.5"/>
+  <text x="400" y="271" text-anchor="middle" font-size="12" font-weight="bold">G₁</text>
+  <text x="470" y="262" font-size="11" font-weight="bold" fill="#b45309">가장 효과적!</text>
+  <text x="470" y="276" font-size="9.5" fill="#92400e">head별 sigmoid 곱셈</text>
+
+  <path d="M400,282 L400,296" stroke="#64748b" marker-end="url(#mhaArw)"/>
+  <rect x="300" y="300" width="200" height="32" rx="5" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="320" text-anchor="middle" font-size="11">③ Concat (h개 head, Eq. 3)</text>
+
+  <path d="M400,332 L400,346" stroke="#64748b" marker-end="url(#mhaArw)"/>
+  <rect x="300" y="350" width="200" height="32" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="400" y="370" text-anchor="middle" font-size="11">④ Dense Layer W_o (Eq. 4)</text>
+
+  <path d="M400,382 L400,392" stroke="#64748b"/>
+  <circle cx="400" cy="408" r="14" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+  <text x="400" y="413" text-anchor="middle" font-size="11" font-weight="bold">G₅</text>
+  <path d="M400,422 L400,436" stroke="#64748b" marker-end="url(#mhaArw)"/>
+  <rect x="320" y="440" width="160" height="26" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="458" text-anchor="middle" font-size="11">출력 O</text>
+
+  <rect x="20" y="220" width="215" height="180" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="127" y="240" text-anchor="middle" font-size="10.5" font-weight="bold">다섯 위치의 결과 (Table 1)</text>
+  <g font-size="9.5">
+    <text x="32" y="260">G₁ SDPA 출력</text><text x="225" y="260" text-anchor="end" font-weight="bold" fill="#15803d">5.761 ★</text>
+    <text x="32" y="278">G₂ value 뒤</text><text x="225" y="278" text-anchor="end" fill="#16a34a">5.820</text>
+    <text x="32" y="296">G₃ key 뒤</text><text x="225" y="296" text-anchor="end" fill="#b91c1c">6.016</text>
+    <text x="32" y="314">G₄ query 뒤</text><text x="225" y="314" text-anchor="end" fill="#b91c1c">5.981</text>
+    <text x="32" y="332">G₅ dense 출력</text><text x="225" y="332" text-anchor="end" fill="#b91c1c">6.017</text>
+    <line x1="32" y1="342" x2="225" y2="342" stroke="#cbd5e1"/>
+    <text x="32" y="358">baseline</text><text x="225" y="358" text-anchor="end">6.026</text>
+    <text x="32" y="378" font-size="9" fill="#666">숫자는 test PPL (낮을수록 좋음)</text>
+    <text x="32" y="392" font-size="9" fill="#666">G₃·G₄·G₅는 baseline과 사실상 동일</text>
+  </g>
+</svg>
+<figcaption><strong>[Figure 1 (left) 재구성]</strong>: 왼쪽 표를 함께 보면 이 그림의 요점이 한눈에 들어온다 — 다섯 위치 중 <strong>value 경로 위(G₂)와 SDPA 출력(G₁)만 효과가 있고, key·query·dense 출력은 baseline과 구분되지 않는다</strong>. §4.1이 이 패턴을 정확히 설명한다: G₁·G₂만이 $W_V$와 $W_o$ <em>사이</em>에 있어서, 두 선형층이 하나의 low-rank 사상으로 합쳐지는 것을 깨뜨릴 수 있다. G₅는 $W_o$ 뒤에 있으므로 아무리 비선형을 넣어도 그 병합을 막지 못한다. 원 논문 그림에는 결과 수치가 없고 위치만 표시되어 있어 Table 1의 PPL을 옮겨 붙였다.</figcaption>
+</figure>
+
+<h3>1.2 gating 메커니즘의 형식화와 다섯 개의 설계 축</h3>
+
+<p>gating은 다음과 같이 형식화된다.</p>
+$$Y' = g(Y, X, W_\theta, \sigma) = Y \odot \sigma(X W_\theta) \tag{5}$$
+<p>$Y$는 조절 대상 텐서, $X$는 gate 점수를 계산하는 데 쓰는 입력(<strong>이 논문은 pre-normalization 이후의 hidden state를 쓴다</strong>), $W_\theta$는 gate의 학습 파라미터, $\sigma$는 활성함수(주로 sigmoid)다. $\sigma(XW_\theta)$는 <em>동적 필터</em>로서 $Y$의 특징을 선택적으로 보존하거나 지운다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: 수식 (5)에서 정작 중요한 것은 $Y$가 아니라 $X$다. <strong>$X$가 무엇이냐에 따라 gate가 "누구의 관점에서" 필터링하는지가 결정된다.</strong> $G_1$에서 $X$는 현재 query 토큰의 hidden state이고, $G_2$에서 $X$는 과거 key/value 토큰들의 hidden state다. 이 차이가 §4.2에서 두 위치의 성능 격차를 설명하는 핵심이 된다.</blockquote>
+
+<p>저자들은 이 형식화 위에 <strong>다섯 개의 설계 축</strong>을 세운다.</p>
+
+<table>
+<thead><tr><th>축</th><th>선택지</th><th>의미</th></tr></thead>
+<tbody>
+<tr><td><strong>(1) 위치</strong></td><td>$G_1$ (SDPA 출력) / $G_2$ (V 뒤) / $G_3$ (K 뒤) / $G_4$ (Q 뒤) / $G_5$ (dense 출력 뒤)</td><td>어느 텐서를 조절할 것인가</td></tr>
+<tr><td><strong>(2) Granularity</strong></td><td>Headwise (head당 스칼라 1개) / Elementwise (차원마다 별도 점수)</td><td>얼마나 세밀하게 조절할 것인가</td></tr>
+<tr><td><strong>(3) Head-specific / shared</strong></td><td>head별 독립 점수 / 모든 head가 같은 점수 공유</td><td>head마다 다른 sparsity를 허용할 것인가</td></tr>
+<tr><td><strong>(4) 곱셈 / 덧셈</strong></td><td>$Y' = Y \cdot \sigma(X\theta)$ / $Y' = Y + \sigma(X\theta)$</td><td>지우는 연산인가, 더하는 연산인가</td></tr>
+<tr><td><strong>(5) 활성함수</strong></td><td>sigmoid (곱셈용, 출력 $[0,1]$) / SiLU (덧셈용, 비유계) / + 대조군으로 Identity, RMSNorm</td><td>점수의 범위와 분포를 무엇으로 정할 것인가</td></tr>
+</tbody>
+</table>
+
+<p>기본 설정은 <strong>head-specific · 곱셈 · sigmoid</strong>($\sigma(x) = \frac{1}{1+e^{-x}}$)이며, 별도 언급이 없으면 이 설정이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">gate 점수의 형태(score shape) — 네 가지 변종을 텐서 모양으로 비교</text>
+  <text x="400" y="36" text-anchor="middle" font-size="10" fill="#666">15A2B MoE 설정: q=32 query head, k=4 KV head, d_k=128 → q·d_k = 4096</text>
+
+  <g font-size="9.5">
+    <text x="130" y="62" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e40af">(a) SDPA Elementwise (G₁)</text>
+    <text x="130" y="76" text-anchor="middle" font-size="9.5">점수 모양 n × q × d_k</text>
+    <g>
+      <rect x="40" y="86" width="180" height="80" fill="#fff" stroke="#3b82f6"/>
+      <line x1="62" y1="86" x2="62" y2="166" stroke="#93c5fd"/>
+      <line x1="84" y1="86" x2="84" y2="166" stroke="#93c5fd"/>
+      <line x1="106" y1="86" x2="106" y2="166" stroke="#93c5fd"/>
+      <line x1="128" y1="86" x2="128" y2="166" stroke="#93c5fd"/>
+      <line x1="150" y1="86" x2="150" y2="166" stroke="#93c5fd"/>
+      <line x1="172" y1="86" x2="172" y2="166" stroke="#93c5fd"/>
+      <line x1="194" y1="86" x2="194" y2="166" stroke="#93c5fd"/>
+      <line x1="40" y1="106" x2="220" y2="106" stroke="#93c5fd"/>
+      <line x1="40" y1="126" x2="220" y2="126" stroke="#93c5fd"/>
+      <line x1="40" y1="146" x2="220" y2="146" stroke="#93c5fd"/>
+      <rect x="40" y="86" width="22" height="20" fill="#1d4ed8"/>
+      <rect x="62" y="86" width="22" height="20" fill="#93c5fd"/>
+      <rect x="84" y="86" width="22" height="20" fill="#dbeafe"/>
+      <rect x="106" y="86" width="22" height="20" fill="#3b82f6"/>
+      <rect x="128" y="106" width="22" height="20" fill="#1d4ed8"/>
+      <rect x="150" y="106" width="22" height="20" fill="#dbeafe"/>
+      <rect x="172" y="126" width="22" height="20" fill="#60a5fa"/>
+      <rect x="40" y="146" width="22" height="20" fill="#bfdbfe"/>
+    </g>
+    <text x="130" y="182" text-anchor="middle" fill="#1e40af">모든 (head, 차원)마다 독립 점수</text>
+    <text x="130" y="196" text-anchor="middle">추가 파라미터 201M · PPL <tspan font-weight="bold">5.761</tspan></text>
+
+    <text x="330" y="62" text-anchor="middle" font-size="11" font-weight="bold" fill="#0f766e">(b) SDPA Headwise (G₁)</text>
+    <text x="330" y="76" text-anchor="middle" font-size="9.5">점수 모양 n × q</text>
+    <g>
+      <rect x="240" y="86" width="180" height="80" fill="#fff" stroke="#14b8a6"/>
+      <line x1="240" y1="106" x2="420" y2="106" stroke="#99f6e4"/>
+      <line x1="240" y1="126" x2="420" y2="126" stroke="#99f6e4"/>
+      <line x1="240" y1="146" x2="420" y2="146" stroke="#99f6e4"/>
+      <rect x="240" y="86" width="180" height="20" fill="#0d9488"/>
+      <rect x="240" y="106" width="180" height="20" fill="#5eead4"/>
+      <rect x="240" y="126" width="180" height="20" fill="#ccfbf1"/>
+      <rect x="240" y="146" width="180" height="20" fill="#2dd4bf"/>
+    </g>
+    <text x="330" y="182" text-anchor="middle" fill="#0f766e">head 전체가 하나의 스칼라로</text>
+    <text x="330" y="196" text-anchor="middle">추가 파라미터 <tspan font-weight="bold">1.6M</tspan> · PPL 5.792</text>
+
+    <text x="530" y="62" text-anchor="middle" font-size="11" font-weight="bold" fill="#b45309">(c) SDPA Head-Shared (G₁)</text>
+    <text x="530" y="76" text-anchor="middle" font-size="9.5">점수 모양 n × d_k (q에 대해 평균)</text>
+    <g>
+      <rect x="440" y="86" width="180" height="80" fill="#fff" stroke="#f59e0b"/>
+      <line x1="462" y1="86" x2="462" y2="166" stroke="#fde68a"/>
+      <line x1="484" y1="86" x2="484" y2="166" stroke="#fde68a"/>
+      <line x1="506" y1="86" x2="506" y2="166" stroke="#fde68a"/>
+      <line x1="528" y1="86" x2="528" y2="166" stroke="#fde68a"/>
+      <line x1="550" y1="86" x2="550" y2="166" stroke="#fde68a"/>
+      <line x1="572" y1="86" x2="572" y2="166" stroke="#fde68a"/>
+      <line x1="594" y1="86" x2="594" y2="166" stroke="#fde68a"/>
+      <rect x="440" y="86" width="22" height="80" fill="#d97706"/>
+      <rect x="462" y="86" width="22" height="80" fill="#fcd34d"/>
+      <rect x="484" y="86" width="22" height="80" fill="#fef3c7"/>
+      <rect x="506" y="86" width="22" height="80" fill="#f59e0b"/>
+      <rect x="528" y="86" width="22" height="80" fill="#fde68a"/>
+      <rect x="550" y="86" width="22" height="80" fill="#fbbf24"/>
+      <rect x="572" y="86" width="22" height="80" fill="#fef9c3"/>
+      <rect x="594" y="86" width="26" height="80" fill="#fcd34d"/>
+    </g>
+    <text x="530" y="182" text-anchor="middle" fill="#b45309">차원별로는 다르지만 모든 head가 동일</text>
+    <text x="530" y="196" text-anchor="middle">추가 파라미터 201M · PPL 5.801</text>
+
+    <text x="710" y="62" text-anchor="middle" font-size="11" font-weight="bold" fill="#7e22ce">(d) v Elementwise (G₂)</text>
+    <text x="710" y="76" text-anchor="middle" font-size="9.5">n × k × d_k (k=4)</text>
+    <g>
+      <rect x="640" y="86" width="140" height="80" fill="#fff" stroke="#a855f7"/>
+      <line x1="640" y1="106" x2="780" y2="106" stroke="#e9d5ff"/>
+      <line x1="640" y1="126" x2="780" y2="126" stroke="#e9d5ff"/>
+      <line x1="640" y1="146" x2="780" y2="146" stroke="#e9d5ff"/>
+      <line x1="675" y1="86" x2="675" y2="166" stroke="#e9d5ff"/>
+      <line x1="710" y1="86" x2="710" y2="166" stroke="#e9d5ff"/>
+      <line x1="745" y1="86" x2="745" y2="166" stroke="#e9d5ff"/>
+      <rect x="640" y="86" width="35" height="20" fill="#7e22ce"/>
+      <rect x="710" y="106" width="35" height="20" fill="#c084fc"/>
+      <rect x="675" y="146" width="35" height="20" fill="#e9d5ff"/>
+    </g>
+    <text x="710" y="182" text-anchor="middle" fill="#7e22ce">KV head만큼만 (8배 적다)</text>
+    <text x="710" y="196" text-anchor="middle">추가 파라미터 <tspan font-weight="bold">25M</tspan> · PPL 5.820</text>
+  </g>
+
+  <line x1="40" y1="212" x2="770" y2="212" stroke="#e5e7eb"/>
+
+  <text x="400" y="232" text-anchor="middle" font-size="12" font-weight="bold">수치 예제 — 추가 파라미터 수는 어디서 나오는가</text>
+  <text x="400" y="248" text-anchor="middle" font-size="9.5" fill="#666">Table 1의 ‘Added Param’ 열을 역산하면 d_model = 2048, 층 수 L = 24 로 일관되게 맞는다 (논문에 명시되지 않음)</text>
+
+  <g font-size="10">
+    <rect x="40" y="258" width="730" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="50" y="273" font-weight="bold">변종</text>
+    <text x="250" y="273" font-weight="bold">gate 가중치 W_θ 모양</text>
+    <text x="470" y="273" font-weight="bold">층당 파라미터</text>
+    <text x="600" y="273" font-weight="bold">× L=24</text>
+    <text x="700" y="273" font-weight="bold">논문 표기</text>
+
+    <rect x="40" y="280" width="730" height="22" fill="#dbeafe" stroke="#cbd5e1"/>
+    <text x="50" y="295">SDPA Elementwise (G₁)</text>
+    <text x="250" y="295">2048 × (32·128) = 2048 × 4096</text>
+    <text x="470" y="295">8.39M</text>
+    <text x="600" y="295">201.3M</text>
+    <text x="700" y="295" font-weight="bold" fill="#15803d">201 ✓</text>
+
+    <rect x="40" y="302" width="730" height="22" fill="#f3e8ff" stroke="#cbd5e1"/>
+    <text x="50" y="317">v Elementwise (G₂)</text>
+    <text x="250" y="317">2048 × (4·128) = 2048 × 512</text>
+    <text x="470" y="317">1.05M</text>
+    <text x="600" y="317">25.2M</text>
+    <text x="700" y="317" font-weight="bold" fill="#15803d">25 ✓</text>
+
+    <rect x="40" y="324" width="730" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="50" y="339">Dense Output (G₅)</text>
+    <text x="250" y="339">2048 × 2048</text>
+    <text x="470" y="339">4.19M</text>
+    <text x="600" y="339">100.7M</text>
+    <text x="700" y="339" font-weight="bold" fill="#15803d">100 ✓</text>
+
+    <rect x="40" y="346" width="730" height="22" fill="#ccfbf1" stroke="#cbd5e1"/>
+    <text x="50" y="361">SDPA Headwise (G₁)</text>
+    <text x="250" y="361">2048 × 32</text>
+    <text x="470" y="361">0.066M</text>
+    <text x="600" y="361">1.57M</text>
+    <text x="700" y="361" font-weight="bold" fill="#15803d">1.6 ✓</text>
+
+    <rect x="40" y="368" width="730" height="22" fill="#fef3c7" stroke="#cbd5e1"/>
+    <text x="50" y="383">v Headwise (G₂)</text>
+    <text x="250" y="383">2048 × 4  (표의 ‘n × q’는 오기로 보임)</text>
+    <text x="470" y="383">0.008M</text>
+    <text x="600" y="383">0.197M</text>
+    <text x="700" y="383" font-weight="bold" fill="#15803d">0.2 ✓</text>
+  </g>
+
+  <rect x="40" y="396" width="730" height="28" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="414" text-anchor="middle" font-size="10.5">핵심: headwise G₁은 elementwise의 <tspan font-weight="bold">1/128 파라미터(201M → 1.6M)</tspan>로 PPL 개선의 88%를 가져온다 (−0.265 대비 −0.234)</text>
+</svg>
+<figcaption><strong>[Figure: gate 점수 형태와 추가 파라미터 수치 예제]</strong>: 위쪽 격자는 각 변종의 점수 텐서를 한 토큰 단면으로 그린 것이다 — 색이 다르면 점수가 다르다는 뜻이고, (c)에서 열 전체가 같은 색인 것이 "모든 head가 같은 점수를 공유한다"는 의미다. 아래 표는 Table 1의 ‘Added Param’ 열을 $d_{model} \times (\text{점수 차원}) \times L$로 역산한 것이며, 다섯 행 모두 논문 값에 맞아떨어져 $d_{model}=2048$, $L=24$라는 재구성의 정합성이 확인된다(논문은 이 두 값을 명시하지 않는다). 이 계산의 실무적 결론은 맨 아래 초록 박스다 — <strong>headwise gate는 파라미터를 128배 아끼면서 개선의 대부분을 가져온다</strong>. 다만 Table 1 row 11의 점수 모양 표기 ‘$n \times q$’는 계산과 맞지 않아 ‘$n \times k$’의 오기로 보이며, 이 점은 비판적 분석에서 다시 다룬다.</figcaption>
+</figure>
+
+<h2>2. 실험 설정 (§3.1)</h2>
+
+<h3>2.1 모델과 학습 설정</h3>
+
+<p>두 종류의 모델로 실험한다.</p>
+
+<ul>
+  <li><strong>MoE — 15A2B</strong>: 총 15B 파라미터 / 활성 2.54B. 전문가 128개에 top-8 softmax gating, fine-grained expert (Dai et al., 2024, DeepSeekMoE), global-batch LBL (load balancing loss, Qiu et al., 2025), z-loss (Zoph et al., 2022). attention은 GQA (Grouped Query Attention, Ainslie et al., 2023)로 <strong>query head 32개 / KV head 4개 / $d_k = 128$</strong>. 변종 탐색의 주력 모델이며 <em>학습 효율이 좋아서</em> 격자 탐색용으로 선택되었다.</li>
+  <li><strong>Dense — 1.7B</strong>: Qwen2.5 계열 설정을 따른다. 28층 또는 48층 구성. gate를 넣을 때는 <strong>FFN 폭을 줄여 총 파라미터 수를 baseline과 동일하게 맞춘다</strong> (Table 2에만 적용되는 규칙).</li>
+</ul>
+
+<p><strong>데이터</strong>: 3.5T 고품질 토큰(다국어·수학·일반 지식)의 부분집합. 컨텍스트 길이 4096. 실험 조건에 따라 400B / 1T / 3.5T 토큰을 사용한다.</p>
+
+<p><strong>최적화</strong>: AdamW 기본값. MoE 격자 탐색은 1k step warmup으로 최대 LR 2e-3까지 올린 뒤 cosine으로 3e-5까지 감쇠, global batch size 1024, 총 100k step. Dense 실험은 설정별로 LR 4.0e-3 ~ 8.0e-3, batch size 1024 / 2048 / 4096을 조합한다.</p>
+
+<p><strong>비용</strong>: ##gate가 추가하는 파라미터와 FLOPs가 작아 wall-time 지연 증가는 2% 미만##.</p>
+
+<p><strong>평가</strong>: few-shot 벤치마크 — Hellaswag(영어 상식), MMLU (Massive Multitask Language Understanding, 일반 지식), GSM8k(수학), HumanEval(코딩), C-eval·CMMLU(중국어). 여기에 영어·중국어·코드·수학·법률·문학 등 여러 도메인의 held-out 테스트셋에 대한 perplexity (PPL)를 함께 보고한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">실험 설계의 구조 — 무엇을 어디서 측정했는가</text>
+
+  <rect x="30" y="34" width="360" height="128" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="210" y="54" text-anchor="middle" font-size="11.5" font-weight="bold">MoE 15A2B — 변종 격자 탐색용</text>
+  <g font-size="9.5">
+    <text x="44" y="74">총 15B / 활성 2.54B · 전문가 128개 top-8</text>
+    <text x="44" y="90">fine-grained expert · global-batch LBL · z-loss</text>
+    <text x="44" y="106">GQA: q=32, k=4, d_k=128 (재구성: d_model=2048, L=24)</text>
+    <text x="44" y="122">400B 토큰 · bsz 1024 · 100k step · LR 2e-3 → 3e-5</text>
+    <text x="44" y="140" fill="#1e40af">담당: Table 1(15행) · Table 3 · Table 4 · Table 6</text>
+    <text x="44" y="154" fill="#1e40af">= 위치·granularity·공유·곱셈/덧셈·활성함수 전 격자</text>
+  </g>
+
+  <rect x="410" y="34" width="360" height="128" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="590" y="54" text-anchor="middle" font-size="11.5" font-weight="bold">Dense 1.7B — 승자 검증 + 안정성·스케일링</text>
+  <g font-size="9.5">
+    <text x="424" y="74">28층 또는 48층 · gate 적용 시 FFN 폭 축소로 파라미터 동일</text>
+    <text x="424" y="90">400B / 1T / 3.5T 토큰 · bsz 1024 / 2048 / 4096</text>
+    <text x="424" y="106">LR 4.0e-3 / 4.5e-3 / 5.3e-3 / 8.0e-3</text>
+    <text x="424" y="122">컨텍스트 4096 → (32k 계속학습 80B) → YaRN 128k</text>
+    <text x="424" y="140" fill="#15803d">담당: Table 2(14행) · Fig 1(right) 학습 곡선 · Table 5 RULER</text>
+    <text x="424" y="154" fill="#15803d">= "큰 LR·큰 배치·깊은 망에서도 되는가"</text>
+  </g>
+
+  <text x="400" y="184" text-anchor="middle" font-size="12" font-weight="bold">이 설계의 핵심 장치 — 세 종류의 대조군</text>
+
+  <rect x="30" y="194" width="240" height="94" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="150" y="212" text-anchor="middle" font-size="10.5" font-weight="bold">① 파라미터 확장 baseline</text>
+  <g font-size="9.5">
+    <text x="42" y="230">k=8 (KV head 증설) +50M</text>
+    <text x="42" y="246">q=48 (query head 증설) +201M</text>
+    <text x="42" y="262">전문가 4개 추가 +400M</text>
+    <text x="42" y="280" fill="#7e22ce">gate와 동등하거나 더 많은 파라미터</text>
+  </g>
+
+  <rect x="280" y="194" width="240" height="94" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="212" text-anchor="middle" font-size="10.5" font-weight="bold">② 비선형성만 주는 대조군</text>
+  <g font-size="9.5">
+    <text x="292" y="230">RMSNorm (파라미터 거의 0)</text>
+    <text x="292" y="246">SiLU만 삽입 (파라미터 0)</text>
+    <text x="292" y="262">additive + Identity (비선형 제거)</text>
+    <text x="292" y="280" fill="#92400e">§4.1: 비선형성의 몫을 분리</text>
+  </g>
+
+  <rect x="530" y="194" width="240" height="94" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="650" y="212" text-anchor="middle" font-size="10.5" font-weight="bold">③ sparsity를 죽인 대조군</text>
+  <g font-size="9.5">
+    <text x="542" y="230">head-shared (head별 sparsity 제거)</text>
+    <text x="542" y="246">input-independent (입력 의존 제거)</text>
+    <text x="542" y="262">NS-sigmoid (점수 [0.5,1]로 제한)</text>
+    <text x="542" y="280" fill="#b91c1c">§4.2: sparsity의 몫을 분리</text>
+  </g>
+
+  <rect x="30" y="300" width="740" height="30" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="319" text-anchor="middle" font-size="10.5">평가: PPL(영어·중국어·코드·수학·법률·문학 held-out) + Hellaswag · MMLU · GSM8k · HumanEval · C-eval · CMMLU + RULER(길이)</text>
+
+  <rect x="30" y="338" width="740" height="34" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="356" text-anchor="middle" font-size="10">빠져 있는 것: <tspan font-weight="bold">seed 반복 횟수와 표준편차가 어디에도 없다.</tspan> Table 1의 C-eval은 59.43~63.19 범위에서 순서가 뒤섞이는데</text>
+  <text x="400" y="368" text-anchor="middle" font-size="10">(baseline 60.26 &lt; ‘+4 experts’ 63.19), 이 변동이 노이즈인지 신호인지 판별할 근거가 제시되지 않는다</text>
+</svg>
+<figcaption><strong>[Figure: 실험 설계의 구조]</strong>: 위 두 박스가 역할 분담을 보여준다 — MoE는 <em>변종을 넓게 훑는</em> 용도(학습 효율이 좋으므로), dense는 <em>승자를 깊게 검증하는</em> 용도(3.5T 토큰, 큰 LR·배치, 길이 확장)다. 중간 세 박스가 이 논문 실험 설계의 진짜 기여다: ①은 "파라미터가 늘어서 좋아진 것 아니냐"를, ②는 "비선형성만으로 설명되는 것 아니냐"를, ③은 "sparsity가 정말 필요하냐"를 각각 차단한다. 이 세 대조군이 §3.1·§4.1·§4.2와 정확히 대응한다. 맨 아래 주황 박스는 이 설계에서 유일하게 큰 구멍이며, C-eval 열의 순서 뒤섞임이 그 증상이다.</figcaption>
+</figure>
+
+<h2>3. 주요 결과 (§3.2)</h2>
+
+<h3>3.1 MoE 모델에서의 gated attention (§3.2.1)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: 다섯 위치 중 어디가 좋은가? granularity·head 공유·곱셈/덧셈·활성함수는 각각 얼마나 중요한가? 그리고 이 모든 이득이 <em>파라미터가 늘어난 것</em>으로 설명되지는 않는가?</p>
+
+<p>15A2B MoE를 400B 토큰으로 학습한 결과가 Table 1이다. 논문 표를 그대로 옮긴다.</p>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>방법</th><th>활성함수</th><th>점수 모양</th><th>추가 파라미터(M)</th><th>Avg PPL</th><th>Hellaswag</th><th>MMLU</th><th>GSM8k</th><th>C-eval</th></tr></thead>
+<tbody>
+<tr><td colspan="10" style="background:#f8fafc"><em>참조 baseline (baseline은 q=32, k=4. 모든 방법 $d_k$=128)</em></td></tr>
+<tr><td>1</td><td>Baseline</td><td>–</td><td>–</td><td>0</td><td>6.026</td><td>73.07</td><td>58.79</td><td>52.92</td><td>60.26</td></tr>
+<tr><td>2</td><td>k = 8</td><td>–</td><td>–</td><td>50</td><td>5.979</td><td>73.51</td><td>59.78</td><td>52.16</td><td>62.26</td></tr>
+<tr><td>3</td><td>q = 48</td><td>–</td><td>–</td><td>201</td><td>5.953</td><td>73.59</td><td>58.45</td><td>53.30</td><td>59.67</td></tr>
+<tr><td>4</td><td>전문가 4개 추가</td><td>–</td><td>–</td><td>400</td><td>5.964</td><td>73.19</td><td>58.84</td><td>52.54</td><td>63.19</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>gate 위치 변종</em></td></tr>
+<tr style="background:#dcfce7"><td>5</td><td><strong>SDPA Elementwise $G_1$</strong></td><td>sigmoid</td><td>$n \times q \times d_k$</td><td>201</td><td><strong>5.761</strong></td><td><strong>74.64</strong></td><td><strong>60.82</strong></td><td><strong>55.27</strong></td><td>62.20</td></tr>
+<tr><td>6</td><td>v Elementwise $G_2$</td><td>sigmoid</td><td>$n \times k \times d_k$</td><td>25</td><td>5.820</td><td>74.38</td><td>59.17</td><td>53.97</td><td>61.00</td></tr>
+<tr><td>7</td><td>k Elementwise $G_3$</td><td>sigmoid</td><td>$n \times k \times d_k$</td><td>25</td><td>6.016</td><td>72.88</td><td>59.18</td><td>50.49</td><td>61.74</td></tr>
+<tr><td>8</td><td>q Elementwise $G_4$</td><td>sigmoid</td><td>$n \times q \times d_k$</td><td>201</td><td>5.981</td><td>73.01</td><td>58.74</td><td>53.97</td><td>62.14</td></tr>
+<tr><td>9</td><td>Dense Output $G_5$</td><td>sigmoid</td><td>$n \times d_{model}$</td><td>100</td><td>6.017</td><td>73.32</td><td>59.41</td><td>50.87</td><td>59.43</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>granularity 변종</em></td></tr>
+<tr><td>10</td><td>SDPA Headwise $G_1$</td><td>sigmoid</td><td>$n \times q$</td><td>1.6</td><td>5.792</td><td>74.50</td><td>60.05</td><td>54.44</td><td><strong>62.61</strong></td></tr>
+<tr><td>11</td><td>v Headwise $G_2$</td><td>sigmoid</td><td>$n \times q$*</td><td>0.2</td><td>5.808</td><td>74.38</td><td>59.32</td><td>53.53</td><td>62.61</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>head-specific vs head-shared</em></td></tr>
+<tr><td>12</td><td>SDPA Head-Shared $G_1$</td><td>sigmoid</td><td>$n \times d_k$</td><td>201</td><td>5.801</td><td>74.34</td><td>60.06</td><td>53.15</td><td>61.01</td></tr>
+<tr><td>13</td><td>v Head-Shared $G_2$</td><td>sigmoid</td><td>$n \times d_k$</td><td>25</td><td>5.867</td><td>74.10</td><td>59.02</td><td>53.03</td><td>60.61</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>곱셈 vs 덧셈</em></td></tr>
+<tr><td>14</td><td>SDPA Additive $G_1$</td><td>SiLU</td><td>$n \times q \times d_k$</td><td>201</td><td>5.821</td><td>74.81</td><td>60.06</td><td>53.30</td><td>60.98</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>활성함수 변종</em></td></tr>
+<tr><td>15</td><td>SDPA Elementwise $G_1$</td><td>SiLU</td><td>$n \times q \times d_k$</td><td>201</td><td>5.822</td><td>74.22</td><td>60.49</td><td>54.59</td><td>62.34</td></tr>
+</tbody>
+</table>
+<p style="font-size:0.85em;color:#666">* row 11의 점수 모양은 원문 표기 그대로 옮긴 것이나, 추가 파라미터 0.2M과 맞지 않아 $n \times k$의 오기로 보인다 (그림 8 참조).</p>
+
+<p><strong>논문이 제시하는 네 가지 관찰</strong>:</p>
+
+<ol>
+  <li><strong>SDPA와 value 출력 gate가 효과적이다</strong>. $G_1$ 또는 $G_2$에 gate를 넣는 것이 다른 위치보다 명확히 좋다 (PPL 5.761 / 5.820 vs 나머지 5.981~6.017). $G_3$(key), $G_4$(query), $G_5$(dense 출력)는 <em>baseline과 사실상 구분되지 않는다</em>.</li>
+  <li><strong>head-specific이 중요하다</strong>. $G_1$·$G_2$에 headwise gate를 넣으면 15A2B에서 추가 파라미터가 2M도 안 되는데(1.6M / 0.2M) 개선의 대부분을 얻는다(row 10, 11). 반대로 head 간 점수를 공유하면(query head 차원 $q$에 대해 평균하여 $n \times q \times d_k$를 $n \times d_k$로 축약) 벤치마크 개선이 headwise보다도 작아진다 (row 12 vs 10, row 13 vs 11).</li>
+  <li><strong>곱셈이 덧셈보다 낫다</strong>. additive SDPA gate(row 14)는 baseline보다는 좋지만 곱셈형(row 5)에 못 미친다.</li>
+  <li><strong>sigmoid가 SiLU보다 낫다</strong>. 최적 설정의 활성함수를 SiLU로 바꾸면(row 15) 개선폭이 줄어든다 (PPL 5.761 → 5.822).</li>
+</ol>
+
+<p><strong>파라미터 확장 baseline과의 대조가 이 표의 진짜 요점이다.</strong> KV head를 두 배로(+50M), query head를 1.5배로(+201M), 전문가를 4개 더(+400M) 늘려도 PPL은 5.953~5.979에 머문다. 반면 <strong>파라미터를 1.6M만 추가하는 headwise gate가 5.792</strong>다. ##즉 400M 파라미터를 붓는 것보다 1.6M짜리 gate 하나가 더 효과적이다.## 이것이 "gate의 이득은 파라미터 증가로 설명되지 않는다"는 주장의 근거다.</p>
+
+<figure>
+<svg viewBox="0 0 800 470" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 1 시각 요약 — PPL 개선폭과 추가 파라미터의 관계</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">막대는 baseline(6.026) 대비 PPL 감소량. 길수록 좋다. 괄호는 추가 파라미터</text>
+
+  <line x1="230" y1="46" x2="230" y2="330" stroke="#333"/>
+  <text x="228" y="344" text-anchor="middle" font-size="9" fill="#666">0</text>
+  <text x="380" y="344" text-anchor="middle" font-size="9" fill="#666">0.1</text>
+  <text x="530" y="344" text-anchor="middle" font-size="9" fill="#666">0.2</text>
+  <text x="680" y="344" text-anchor="middle" font-size="9" fill="#666">0.3</text>
+  <line x1="380" y1="46" x2="380" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="530" y1="46" x2="530" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="680" y1="46" x2="680" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="455" y="358" text-anchor="middle" font-size="9.5" fill="#555">PPL 감소량 (baseline 대비)</text>
+
+  <g font-size="9.5">
+    <text x="224" y="62" text-anchor="end">k = 8 (+50M)</text>
+    <rect x="230" y="52" width="70.5" height="13" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="308" y="62" font-size="9" fill="#6d28d9">0.047</text>
+
+    <text x="224" y="82" text-anchor="end">q = 48 (+201M)</text>
+    <rect x="230" y="72" width="109.5" height="13" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="347" y="82" font-size="9" fill="#6d28d9">0.073</text>
+
+    <text x="224" y="102" text-anchor="end">전문가 +4 (+400M)</text>
+    <rect x="230" y="92" width="93" height="13" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="331" y="102" font-size="9" fill="#6d28d9">0.062</text>
+
+    <line x1="130" y1="112" x2="770" y2="112" stroke="#cbd5e1"/>
+    <text x="224" y="128" text-anchor="end" font-weight="bold">SDPA Elementwise (+201M)</text>
+    <rect x="230" y="118" width="397.5" height="13" fill="#22c55e" stroke="#15803d"/>
+    <text x="635" y="128" font-size="9" font-weight="bold" fill="#15803d">0.265 ★ 최고</text>
+
+    <text x="224" y="148" text-anchor="end" font-weight="bold">SDPA Headwise (+1.6M)</text>
+    <rect x="230" y="138" width="351" height="13" fill="#4ade80" stroke="#15803d"/>
+    <text x="589" y="148" font-size="9" fill="#15803d">0.234 — 파라미터 1/128</text>
+
+    <text x="224" y="168" text-anchor="end" font-weight="bold">v Headwise (+0.2M)</text>
+    <rect x="230" y="158" width="327" height="13" fill="#4ade80" stroke="#15803d"/>
+    <text x="565" y="168" font-size="9" fill="#15803d">0.218 — 파라미터 1/1000</text>
+
+    <text x="224" y="188" text-anchor="end">SDPA Head-Shared (+201M)</text>
+    <rect x="230" y="178" width="337.5" height="13" fill="#fcd34d" stroke="#d97706"/>
+    <text x="575" y="188" font-size="9" fill="#b45309">0.225</text>
+
+    <text x="224" y="208" text-anchor="end">v Elementwise (+25M)</text>
+    <rect x="230" y="198" width="309" height="13" fill="#4ade80" stroke="#15803d"/>
+    <text x="547" y="208" font-size="9" fill="#15803d">0.206</text>
+
+    <text x="224" y="228" text-anchor="end">SDPA Additive/SiLU (+201M)</text>
+    <rect x="230" y="218" width="307.5" height="13" fill="#fcd34d" stroke="#d97706"/>
+    <text x="545" y="228" font-size="9" fill="#b45309">0.205</text>
+
+    <text x="224" y="248" text-anchor="end">SDPA Elementwise/SiLU (+201M)</text>
+    <rect x="230" y="238" width="306" height="13" fill="#fcd34d" stroke="#d97706"/>
+    <text x="544" y="248" font-size="9" fill="#b45309">0.204</text>
+
+    <text x="224" y="268" text-anchor="end">v Head-Shared (+25M)</text>
+    <rect x="230" y="258" width="238.5" height="13" fill="#fcd34d" stroke="#d97706"/>
+    <text x="476" y="268" font-size="9" fill="#b45309">0.159</text>
+
+    <line x1="130" y1="278" x2="770" y2="278" stroke="#cbd5e1"/>
+    <text x="224" y="294" text-anchor="end" fill="#b91c1c">q Elementwise G₄ (+201M)</text>
+    <rect x="230" y="284" width="67.5" height="13" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="305" y="294" font-size="9" fill="#b91c1c">0.045</text>
+
+    <text x="224" y="314" text-anchor="end" fill="#b91c1c">Dense Output G₅ (+100M)</text>
+    <rect x="230" y="304" width="13.5" height="13" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="251" y="314" font-size="9" fill="#b91c1c">0.009</text>
+
+    <text x="224" y="330" text-anchor="end" fill="#b91c1c">k Elementwise G₃ (+25M)</text>
+    <rect x="230" y="322" width="15" height="13" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="252" y="332" font-size="9" fill="#b91c1c">0.010</text>
+  </g>
+
+  <rect x="130" y="368" width="310" height="94" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="285" y="386" text-anchor="middle" font-size="10.5" font-weight="bold">읽어야 할 패턴 ①</text>
+  <text x="142" y="404" font-size="9.5">보라 막대(파라미터 확장)는 모두 0.08 미만.</text>
+  <text x="142" y="419" font-size="9.5">초록 막대(효과적 gate)는 0.2 이상.</text>
+  <text x="142" y="434" font-size="9.5">0.2M짜리 v Headwise(0.218)가 400M짜리</text>
+  <text x="142" y="449" font-size="9.5">전문가 증설(0.062)의 3.5배다.</text>
+
+  <rect x="455" y="368" width="315" height="94" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="612" y="386" text-anchor="middle" font-size="10.5" font-weight="bold">읽어야 할 패턴 ②</text>
+  <text x="467" y="404" font-size="9.5">PPL만 보면 head-shared(0.225)가 headwise</text>
+  <text x="467" y="419" font-size="9.5">(0.234)와 거의 같다. 두 변종을 갈라놓는 것은</text>
+  <text x="467" y="434" font-size="9.5">벤치마크(GSM8k 53.15 vs 54.44)와 §4.3의</text>
+  <text x="467" y="449" font-size="9.5">attention sink(F-Attn 0.301 vs 0.073)다.</text>
+</svg>
+<figcaption><strong>[Figure: Table 1 시각 요약]</strong>: 색이 세 그룹을 나눈다 — 보라는 파라미터 확장 baseline, 초록은 효과적인 gate, 노랑은 효과가 줄어든 gate 변종, 빨강은 사실상 무효인 위치($G_3$·$G_4$·$G_5$)다. 첫 번째 요점(왼쪽 아래)은 <strong>파라미터 양과 개선폭이 전혀 비례하지 않는다</strong>는 것이다. 두 번째 요점(오른쪽 아래)이 더 중요하다 — PPL만으로는 head-shared와 head-specific을 구분할 수 없고, 둘의 진짜 차이는 §4.3의 attention sink 지표에서 드러난다. 즉 <em>PPL은 이 논문의 핵심 주장을 판별하기에 충분한 해상도를 갖지 못한다</em>. 논문에는 이런 막대 비교가 없고 Table 1의 수치로부터 계산해 구성한 것이다.</figcaption>
+</figure>
+
+<h3>3.2 Dense 모델에서의 gated attention — 안정성과 스케일링 (§3.2.2)</h3>
+
+<p><strong>이 실험이 답하려는 질문 세 개</strong>: (a) MoE에서 고른 승자가 dense 모델·다른 데이터 규모에서도 통하는가? (b) gate가 학습 안정성을 개선한다는 관찰이 재현되는가? (c) 안정성이 개선되면 <em>더 공격적인 하이퍼파라미터(깊은 망·큰 LR·큰 배치)를 쓸 수 있게 되는가</em>?</p>
+
+<p>세 번째 질문이 이 절의 핵심이다. 선행 연구들은 망 깊이 증가·큰 LR·큰 배치가 성능과 분산 학습 효율을 크게 올리지만(McCandlish et al., 2018; Wang et al., 2022; D'Angelo et al., 2024) <em>학습 불안정을 유발</em>한다는 것을 확립해 놓았다(Wang et al., 2022; Zeng et al., 2022; Takase et al., 2023). 저자들은 gate가 loss spike를 줄이는 것을 관측하고, 그렇다면 <strong>gate가 이 trade-off의 한쪽을 완화해 주는 것 아닌가</strong>를 검증하기 위해 층 수·LR·배치를 모두 키운 설정을 추가로 만들었다. gate를 쓸 때는 FFN 폭을 줄여 파라미터 총량을 맞춘다.</p>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>방법</th><th>Max LR</th><th>Avg PPL</th><th>HumanEval</th><th>MMLU</th><th>GSM8k</th><th>Hellaswag</th><th>C-eval</th><th>CMMLU</th></tr></thead>
+<tbody>
+<tr><td colspan="10" style="background:#f8fafc"><em>28층, 1.7B 파라미터, 400B 토큰, batch size 1024</em></td></tr>
+<tr><td>1</td><td>Baseline</td><td>4.0e-3</td><td>7.499</td><td>28.66</td><td>50.21</td><td>27.82</td><td>64.94</td><td>49.15</td><td>49.52</td></tr>
+<tr><td>2</td><td>SDPA Elementwise</td><td>4.0e-3</td><td>7.404</td><td>29.27</td><td>51.15</td><td>28.28</td><td>65.48</td><td>50.72</td><td>50.72</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>28층, 1.7B 파라미터, <strong>3.5T 토큰</strong>, batch size 2048</em></td></tr>
+<tr><td>3</td><td>Baseline</td><td>4.5e-3</td><td>6.180</td><td>34.15</td><td>59.10</td><td>69.07</td><td>68.02</td><td>68.19</td><td>64.95</td></tr>
+<tr style="background:#dcfce7"><td>4</td><td>SDPA Elementwise</td><td>4.5e-3</td><td>6.130</td><td><strong>37.80</strong></td><td>59.61</td><td>70.20</td><td>68.84</td><td>68.52</td><td>65.76</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>48층, 1.7B 파라미터, 400B 토큰, batch size 1024</em></td></tr>
+<tr><td>5</td><td>Baseline</td><td>4.0e-3</td><td>7.421</td><td>28.05</td><td>52.04</td><td>32.98</td><td>65.96</td><td>51.11</td><td>51.86</td></tr>
+<tr style="background:#fee2e2"><td>6</td><td>Baseline</td><td>8.0e-3</td><td>9.195</td><td>21.34</td><td>44.28</td><td>15.24</td><td>57.00</td><td>43.11</td><td>42.63</td></tr>
+<tr><td>7</td><td>Baseline + Sandwich Norm</td><td>8.0e-3</td><td>7.407</td><td>30.49</td><td>52.07</td><td>32.90</td><td>66.00</td><td>52.04</td><td>51.72</td></tr>
+<tr><td>8</td><td>SDPA Elementwise</td><td>4.0e-3</td><td>7.288</td><td>31.71</td><td>52.44</td><td>32.37</td><td>66.28</td><td>52.06</td><td>52.29</td></tr>
+<tr><td>9</td><td>SDPA Headwise</td><td>4.0e-3</td><td>7.370</td><td>31.10</td><td>53.83</td><td>34.12</td><td>65.59</td><td><strong>55.07</strong></td><td>52.38</td></tr>
+<tr style="background:#dcfce7"><td>10</td><td>SDPA Elementwise</td><td><strong>8.0e-3</strong></td><td>7.325</td><td>31.10</td><td>54.47</td><td>36.62</td><td>66.40</td><td>53.91</td><td>53.80</td></tr>
+<tr><td colspan="10" style="background:#f8fafc"><em>48층, 1.7B 파라미터, 1T 토큰, batch size 4096</em></td></tr>
+<tr><td>11</td><td>Baseline</td><td>5.3e-3</td><td>7.363</td><td>29.88</td><td>54.44</td><td>32.22</td><td>65.43</td><td>53.72</td><td>53.37</td></tr>
+<tr style="background:#fee2e2"><td>12</td><td>Baseline</td><td>8.0e-3</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td><td>–</td></tr>
+<tr><td>13</td><td>SDPA Elementwise</td><td>5.3e-3</td><td>7.101</td><td>34.15</td><td>55.70</td><td>36.69</td><td>67.17</td><td>54.51</td><td>54.68</td></tr>
+<tr style="background:#dcfce7"><td>14</td><td>SDPA Elementwise</td><td><strong>8.0e-3</strong></td><td><strong>7.078</strong></td><td>31.71</td><td><strong>56.47</strong></td><td><strong>39.73</strong></td><td><strong>67.38</strong></td><td>55.52</td><td><strong>55.77</strong></td></tr>
+</tbody>
+</table>
+<p style="font-size:0.85em;color:#666">‘–’는 학습 중 발산을 뜻한다.</p>
+
+<p><strong>관찰 1 — gate는 모든 설정에서 통한다.</strong> 모델 구성(row 1 vs 2, row 5 vs 8), 데이터 규모(row 3 vs 4), 하이퍼파라미터(row 11 vs 13)를 바꿔도 SDPA 출력 gate는 일관되게 이득을 준다.</p>
+
+<p><strong>관찰 2 — 안정성이 성능으로 환금된다.</strong> 여기가 흥미로운 부분이다. 48층 설정에서 baseline은 LR을 4.0e-3 → 8.0e-3으로 올리면 <em>망가진다</em> (PPL 7.421 → 9.195, GSM8k 32.98 → 15.24). 1T·bsz 4096 설정에서는 아예 발산한다(row 12). sandwich norm (Ding et al., 2021 — attention/FFN 출력을 residual에 더하기 <em>전에</em> 정규화)을 넣으면 수렴은 회복되지만 성능은 4.0e-3 baseline과 거의 같다(7.407 vs 7.421). 반면 <strong>gate 모델은 LR 8.0e-3에서 오히려 더 좋아진다</strong> (row 13 → 14: PPL 7.101 → 7.078, MMLU 55.70 → 56.47, GSM8k 36.69 → 39.73).</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: sandwich norm은 "발산을 막는" 장치이고 gate는 "발산을 막으면서 큰 LR의 이득까지 챙기는" 장치다. 이 차이가 중요한 이유는, 실무에서 큰 LR·큰 배치는 <em>분산 학습 효율</em>과 직결되기 때문이다. gate는 성능 개선(0.2 PPL)에 더해 <strong>더 공격적인 학습 레시피를 쓸 수 있는 여지</strong>를 준다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 1 (right) 재구성 — 3.5T 토큰 학습 곡선과 loss spike</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">원 논문 그림은 축 값이 표시되지 않은 smoothed(0.9) 곡선이다. 여기서는 형태와 spike 패턴만 개념 재구성했다</text>
+
+  <line x1="70" y1="230" x2="470" y2="230" stroke="#333"/>
+  <line x1="70" y1="60" x2="70" y2="230" stroke="#333"/>
+  <text x="270" y="248" text-anchor="middle" font-size="10" fill="#555">학습 토큰 (→ 3.5T)</text>
+  <text x="58" y="145" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 58 145)">training loss</text>
+
+  <path d="M70,72 Q110,120 150,150 Q200,172 260,186 Q330,196 400,202 Q440,205 470,206" stroke="#e67e22" stroke-width="2" fill="none"/>
+  <path d="M150,150 L154,120 L158,152" stroke="#e67e22" stroke-width="1.6" fill="none"/>
+  <path d="M212,178 L216,140 L220,180" stroke="#e67e22" stroke-width="1.6" fill="none"/>
+  <path d="M286,190 L290,158 L294,192" stroke="#e67e22" stroke-width="1.6" fill="none"/>
+  <path d="M352,196 L356,170 L360,198" stroke="#e67e22" stroke-width="1.6" fill="none"/>
+  <path d="M418,202 L422,180 L426,204" stroke="#e67e22" stroke-width="1.6" fill="none"/>
+  <text x="470" y="200" font-size="10" fill="#e67e22" text-anchor="end">baseline</text>
+
+  <path d="M70,74 Q110,122 150,152 Q200,174 260,188 Q330,198 400,203 Q440,207 470,212" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <text x="470" y="226" font-size="10" fill="#3b82f6" text-anchor="end">SDPA gate</text>
+
+  <text x="160" y="112" font-size="9.5" fill="#b45309">↑ loss spike</text>
+  <text x="300" y="152" font-size="9.5" fill="#b45309">↑ 반복 발생</text>
+
+  <rect x="90" y="70" width="180" height="46" rx="5" fill="#fffbea" stroke="#eab308"/>
+  <text x="180" y="87" text-anchor="middle" font-size="9.5">baseline: spike가 반복되고</text>
+  <text x="180" y="101" text-anchor="middle" font-size="9.5">최종 loss가 더 높다</text>
+  <text x="180" y="113" text-anchor="middle" font-size="9" fill="#92400e">PPL 6.180 · HumanEval 34.15</text>
+
+  <rect x="290" y="70" width="180" height="46" rx="5" fill="#eff6ff" stroke="#3b82f6"/>
+  <text x="380" y="87" text-anchor="middle" font-size="9.5">gate: spike가 거의 사라지고</text>
+  <text x="380" y="101" text-anchor="middle" font-size="9.5">최종 loss가 더 낮다</text>
+  <text x="380" y="113" text-anchor="middle" font-size="9" fill="#1e40af">PPL 6.130 · HumanEval 37.80</text>
+
+  <line x1="500" y1="46" x2="500" y2="400" stroke="#e5e7eb"/>
+
+  <text x="650" y="56" text-anchor="middle" font-size="12" font-weight="bold">학습률을 올렸을 때 (48층 설정)</text>
+
+  <g font-size="9.5">
+    <text x="530" y="80" font-size="10" fill="#555">Avg PPL (낮을수록 좋음)</text>
+    <line x1="530" y1="200" x2="770" y2="200" stroke="#333"/>
+    <text x="570" y="214" text-anchor="middle" font-size="9">4.0e-3</text>
+    <text x="700" y="214" text-anchor="middle" font-size="9">8.0e-3</text>
+    <text x="635" y="230" text-anchor="middle" font-size="9.5" fill="#555">Max LR</text>
+
+    <line x1="530" y1="90" x2="770" y2="90" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+    <text x="524" y="93" text-anchor="end" font-size="8.5" fill="#999">9.2</text>
+    <line x1="530" y1="150" x2="770" y2="150" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+    <text x="524" y="153" text-anchor="end" font-size="8.5" fill="#999">7.4</text>
+    <line x1="530" y1="170" x2="770" y2="170" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+    <text x="524" y="173" text-anchor="end" font-size="8.5" fill="#999">7.3</text>
+
+    <path d="M570,148 L700,90" stroke="#e67e22" stroke-width="2"/>
+    <circle cx="570" cy="148" r="4" fill="#e67e22"/><circle cx="700" cy="90" r="4" fill="#e67e22"/>
+    <text x="716" y="90" font-size="9" fill="#e67e22">9.195 (붕괴)</text>
+    <text x="560" y="140" font-size="9" fill="#e67e22" text-anchor="end">7.421</text>
+
+    <path d="M570,166 L700,163" stroke="#3b82f6" stroke-width="2"/>
+    <circle cx="570" cy="166" r="4" fill="#3b82f6"/><circle cx="700" cy="163" r="4" fill="#3b82f6"/>
+    <text x="716" y="166" font-size="9" fill="#3b82f6">7.325 (개선)</text>
+    <text x="560" y="176" font-size="9" fill="#3b82f6" text-anchor="end">7.288</text>
+
+    <circle cx="700" cy="152" r="4" fill="#a855f7"/>
+    <text x="716" y="150" font-size="9" fill="#7e22ce">7.407 sandwich norm</text>
+  </g>
+
+  <rect x="520" y="244" width="260" height="76" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="650" y="262" text-anchor="middle" font-size="10.5" font-weight="bold">baseline이 LR을 못 올리는 이유</text>
+  <text x="532" y="280" font-size="9.5">48층·400B: 8e-3에서 PPL 9.195로 붕괴</text>
+  <text x="532" y="295" font-size="9.5">1T·bsz 4096: 8e-3에서 <tspan font-weight="bold">발산</tspan> (row 12)</text>
+  <text x="532" y="310" font-size="9.5">GSM8k 32.98 → 15.24 (절반 이하)</text>
+
+  <rect x="520" y="328" width="260" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="650" y="346" text-anchor="middle" font-size="10.5" font-weight="bold">gate 모델은 LR을 올리면 좋아진다</text>
+  <text x="532" y="364" font-size="9.5">1T·bsz 4096, 5.3e-3 → 8.0e-3:</text>
+  <text x="532" y="379" font-size="9.5">PPL 7.101 → 7.078 · MMLU 55.70 → 56.47</text>
+  <text x="532" y="394" font-size="9.5">GSM8k 36.69 → <tspan font-weight="bold">39.73</tspan> (+3.04)</text>
+
+  <rect x="60" y="266" width="420" height="70" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="270" y="284" text-anchor="middle" font-size="10.5" font-weight="bold">sandwich norm과 gate의 차이가 이 절의 핵심</text>
+  <text x="72" y="302" font-size="9.5">sandwich norm: 8e-3에서 <tspan font-style="italic">수렴은 회복</tspan>. 그런데 PPL 7.407 ≈ 4e-3 baseline 7.421.</text>
+  <text x="72" y="317" font-size="9.5">→ "발산을 막았을 뿐, 큰 LR의 이득은 얻지 못했다"</text>
+  <text x="72" y="332" font-size="9.5" fill="#7e22ce">gate: 발산을 막으면서 큰 LR의 이득까지 챙긴다 → §4.3이 그 이유를 설명한다</text>
+
+  <rect x="60" y="344" width="420" height="60" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="270" y="362" text-anchor="middle" font-size="10.5" font-weight="bold">주의해서 볼 지점</text>
+  <text x="72" y="379" font-size="9.5">3.5T 설정의 PPL 이득은 −0.05로, 400B 설정(−0.095)이나 MoE(−0.265)보다 작다.</text>
+  <text x="72" y="394" font-size="9.5">대신 HumanEval이 +3.65로 가장 크게 벌어진다 — PPL과 벤치마크가 같은 방향으로 움직이지 않는다.</text>
+</svg>
+<figcaption><strong>[Figure 1 (right) 재구성 + Table 2 시각화]</strong>: 왼쪽 곡선의 주황 톱니가 loss spike이며, 원 논문 그림에서는 baseline에만 나타나고 gate 모델은 매끄럽다. 원문에 축 값이 없어 spike의 크기와 발생 시점은 개념 재구성이고, 최종 성능 수치는 Table 2 row 3·4의 실제 값이다. 오른쪽이 이 절의 진짜 논증이다 — 주황 선은 LR을 올리면 <em>붕괴</em>, 파란 선은 <em>개선</em>, 보라 점(sandwich norm)은 <em>수렴하지만 이득 없음</em>. 세 결과의 대비가 "gate는 단순한 안정화 장치가 아니다"를 보인다. 아래 주황 박스는 저자들이 강조하지 않는 관측인데, 데이터가 3.5T로 늘어나면 PPL 격차가 좁혀진다는 점은 §비판적 분석에서 다시 다룬다.</figcaption>
+</figure>
+
+<h2>4. 분석 — 왜 작동하는가 (§4)</h2>
+
+<p>이 절이 논문의 본체다. 저자들은 두 개의 독립적 원인을 주장하고, 각각을 <em>대조 실험으로 분리</em>한다.</p>
+
+<div class="flow-diagram">Q1. gate가 없을 때 attention의 무엇이 부족한가?
+   → §4.1 W_V·W_O 가 하나의 low-rank 선형사상으로 합쳐진다 → 비선형성이 필요하다
+   → 대조군: RMSNorm(파라미터 0) / SiLU만 삽입 / additive+Identity(비선형 제거)
+
+Q2. 비선형성만으로 G₁ 과 G₂ 의 격차가 설명되는가?
+   → 아니다. §4.2 sigmoid 점수의 sparsity가 추가 요인이다
+   → 대조군: head-shared(head별 sparsity 제거) / input-independent(입력 의존 제거) / NS-sigmoid(sparsity 제거)
+
+Q3. sparsity가 모델의 무엇을 바꾸는가?
+   → §4.3 attention sink 소멸 + massive activation 소멸 → BF16 학습 안정성
+
+Q4. sink가 없어지면 무엇이 좋아지는가?
+   → §4.4 YaRN 기반 컨텍스트 확장에 훨씬 견고해진다 (RULER 128k +27.2점)</div>
+
+<h3>4.1 비선형성이 low-rank 사상의 표현력을 높인다 (§4.1)</h3>
+
+<p><strong>출발점이 되는 관측</strong>: 저자들은 RetNet(Sun et al., 2023)과 Differential Transformer(Ye et al., 2024)가 SDPA 출력에 group norm을 쓰는 것에서 힌트를 얻어, <strong>각 head 출력에 concat 전에 RMSNorm을 독립적으로 적용</strong>해 보았다. 그 결과 <em>파라미터를 거의 추가하지 않는데도</em> PPL이 6.026 → 5.847로 유의하게 줄었다 (Table 3 row 5). gate가 아닌 것으로도 개선이 나온다면, 개선의 원인은 "gate"라는 이름이 아니라 <strong>gate가 하는 어떤 연산적 성질</strong>이어야 한다.</p>
+
+<p><strong>핵심 관찰 — attention에는 숨은 low-rank 선형층이 있다.</strong> $k$번째 head에서 $i$번째 토큰의 출력은 다음과 같이 쓸 수 있다.</p>
+$$o_i^k = \left(\sum_{j=0}^{i} S_{ij}^k \cdot X_j W_V^k\right) W_O^k = \sum_{j=0}^{i} S_{ij}^k \cdot X_j (W_V^k W_O^k) \tag{6}$$
+<p>여기서 $S_{ij}^k$는 $k$번째 head에서 토큰 $i$가 토큰 $j$에 주는 attention 점수, $X_j$는 토큰 $j$의 attention 입력, $W_O^k$는 출력층 $W_O$ 중 $k$번째 head에 대응하는 부분이다. (head별 출력을 concat한 뒤 $W_O$를 곱하는 것은 각 head 출력에 대응 $W_O^k$를 곱한 뒤 더하는 것과 같다.)</p>
+
+<p>수식 (6)의 두 번째 등호가 문제의 핵심이다. <strong>$W_V^k$와 $W_O^k$ 사이에 아무 비선형도 없으므로 두 행렬을 하나로 곱해 버릴 수 있다.</strong> 그런데 $W_V^k \in \mathbb{R}^{d_{model} \times d_k}$, $W_O^k \in \mathbb{R}^{d_k \times d_{model}}$이고 $d_k < d_{model}$이므로, 합쳐진 $W_V^k W_O^k \in \mathbb{R}^{d_{model} \times d_{model}}$의 <strong>rank는 최대 $d_k$</strong>다. 즉 attention의 value 경로는 사실상 <em>rank $d_k$짜리 선형 사상 하나</em>다. 게다가 GQA를 쓰면 $W_V$가 같은 그룹 내 head들에서 공유되므로 표현력은 더 떨어진다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: "$V$를 만들고 attention으로 섞고 다시 $W_O$로 사영한다"는 3단계 중 첫 단계와 마지막 단계는 <em>한 단계로 접힌다</em>. 우리가 두 개의 층을 학습시키고 있다고 생각했지만 실제로는 하나의 얇은 층을 학습시키고 있었던 것이다. 그 사이에 비선형을 끼워 넣으면 접힘이 풀린다.</blockquote>
+
+<p>깊은 망에서 두 선형 사상 사이에 비선형을 넣으면 표현력이 올라간다는 것은 알려진 결과다(Montufar et al., 2014). 저자들은 두 가지 삽입 방식을 제시한다.</p>
+$$o_i^k = \left(\sum_{j=0}^{i} S_{ij}^k \cdot \text{Non-Linearity-Map}(X_j W_V^k)\right) W_O^k \tag{7}$$
+$$o_i^k = \text{Non-Linearity-Map}\left(\sum_{j=0}^{i} S_{ij}^k \cdot X_j W_V^k\right) W_O^k \tag{8}$$
+
+<p><strong>이 두 수식이 논문 전체 결과를 한 번에 설명한다</strong>:</p>
+<ul>
+  <li><strong>$G_2$(value 뒤) gate = 수식 (7)</strong>. 비선형이 attention 가중합 <em>안쪽</em>, 즉 각 $X_j$마다 적용된다.</li>
+  <li><strong>$G_1$(SDPA 출력) gate 또는 group norm = 수식 (8)</strong>. 비선형이 가중합 <em>바깥쪽</em>, 즉 $X_i$에 대해 한 번 적용된다.</li>
+  <li><strong>$G_5$(dense 출력 뒤)는 어느 쪽도 아니다.</strong> $W_O$ 뒤에 있으므로 $W_V W_O$ 병합을 막지 못한다. ##그래서 Table 1 row 9의 $G_5$ gate는 아무 효과가 없다(6.017 vs baseline 6.026).## 이것이 논문에서 가장 깔끔한 예측-검증 쌍이다.</li>
+  <li><strong>$G_3$(key 뒤), $G_4$(query 뒤)도 아니다.</strong> $Q$·$K$는 attention 점수 $S$를 만드는 경로이고 $W_V W_O$ 병합과 무관하다. 실제로 효과가 없다(6.016 / 5.981).</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 450" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="lrArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Eq. 6 — attention의 숨은 low-rank 선형층, 그리고 세 가지 개입 지점</text>
+
+  <text x="400" y="42" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b45309">(a) gate 없음 — 두 선형층이 하나로 접힌다</text>
+
+  <g font-size="10">
+    <rect x="60" y="54" width="90" height="34" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="105" y="75" text-anchor="middle">X_j</text>
+    <path d="M150,71 L176,71" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="180" y="54" width="100" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="230" y="70" text-anchor="middle">W_V (선형)</text>
+    <text x="230" y="83" text-anchor="middle" font-size="8.5" fill="#1e40af">d_model → d_k</text>
+    <path d="M280,71 L306,71" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="310" y="54" width="110" height="34" rx="5" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="365" y="70" text-anchor="middle">Σ S_ij · (…)</text>
+    <text x="365" y="83" text-anchor="middle" font-size="8.5" fill="#4338ca">attention 가중합</text>
+    <path d="M420,71 L446,71" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="450" y="54" width="100" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="500" y="70" text-anchor="middle">W_O (선형)</text>
+    <text x="500" y="83" text-anchor="middle" font-size="8.5" fill="#1e40af">d_k → d_model</text>
+    <path d="M550,71 L576,71" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="580" y="54" width="80" height="34" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="620" y="75" text-anchor="middle">o_i^k</text>
+  </g>
+
+  <path d="M230,92 L230,104 L500,104 L500,92" stroke="#e67e22" stroke-width="1.6" fill="none" stroke-dasharray="4 3"/>
+  <text x="365" y="120" text-anchor="middle" font-size="10.5" fill="#b45309">사이에 비선형이 없으므로 W_V·W_O 를 곱해 하나로 접을 수 있다 (Eq. 6 두 번째 등호)</text>
+  <rect x="250" y="128" width="230" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="365" y="147" text-anchor="middle" font-size="10.5">rank(W_V W_O) ≤ d_k = 128 ≪ d_model = 2048</text>
+  <text x="620" y="140" font-size="9.5" fill="#92400e">GQA면 W_V 가 8개 head에</text>
+  <text x="620" y="153" font-size="9.5" fill="#92400e">공유되어 더 나빠진다</text>
+
+  <line x1="40" y1="170" x2="770" y2="170" stroke="#e5e7eb"/>
+
+  <text x="400" y="190" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">(b) 비선형을 어디에 끼우는가 — Eq. 7 vs Eq. 8</text>
+
+  <g font-size="10">
+    <rect x="40" y="202" width="350" height="112" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="215" y="220" text-anchor="middle" font-size="11" font-weight="bold">Eq. 7 — 가중합 안쪽 (G₂, value 뒤)</text>
+    <rect x="56" y="230" width="60" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="86" y="247" text-anchor="middle" font-size="9.5">X_j W_V</text>
+    <path d="M116,243 L134,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="138" y="230" width="72" height="26" rx="4" fill="#c084fc" stroke="#7e22ce"/>
+    <text x="174" y="247" text-anchor="middle" font-size="9.5" fill="#fff">비선형</text>
+    <path d="M210,243 L228,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="232" y="230" width="70" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="267" y="247" text-anchor="middle" font-size="9.5">Σ S_ij ·</text>
+    <path d="M302,243 L320,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="324" y="230" width="52" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="350" y="247" text-anchor="middle" font-size="9.5">W_O</text>
+    <text x="215" y="274" text-anchor="middle" font-size="9.5">비선형이 <tspan font-style="italic">모든 과거 토큰 j</tspan>마다 적용된다</text>
+    <text x="215" y="290" text-anchor="middle" font-size="9.5" fill="#7e22ce">→ gate 점수가 <tspan font-weight="bold">key·value 쪽 hidden state</tspan>에 의존</text>
+    <text x="215" y="306" text-anchor="middle" font-size="9.5">PPL 5.820 (Table 3 row 3)</text>
+
+    <rect x="410" y="202" width="350" height="112" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="585" y="220" text-anchor="middle" font-size="11" font-weight="bold">Eq. 8 — 가중합 바깥쪽 (G₁, SDPA 출력)</text>
+    <rect x="426" y="230" width="60" height="26" rx="4" fill="#fff" stroke="#3b82f6"/>
+    <text x="456" y="247" text-anchor="middle" font-size="9.5">X_j W_V</text>
+    <path d="M486,243 L504,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="508" y="230" width="70" height="26" rx="4" fill="#fff" stroke="#3b82f6"/>
+    <text x="543" y="247" text-anchor="middle" font-size="9.5">Σ S_ij ·</text>
+    <path d="M578,243 L596,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="600" y="230" width="72" height="26" rx="4" fill="#60a5fa" stroke="#1e40af"/>
+    <text x="636" y="247" text-anchor="middle" font-size="9.5" fill="#fff">비선형</text>
+    <path d="M672,243 L690,243" stroke="#64748b" marker-end="url(#lrArw)"/>
+    <rect x="694" y="230" width="52" height="26" rx="4" fill="#fff" stroke="#3b82f6"/>
+    <text x="720" y="247" text-anchor="middle" font-size="9.5">W_O</text>
+    <text x="585" y="274" text-anchor="middle" font-size="9.5">비선형이 <tspan font-style="italic">현재 토큰 i에 대해 한 번</tspan> 적용된다</text>
+    <text x="585" y="290" text-anchor="middle" font-size="9.5" fill="#1e40af">→ gate 점수가 <tspan font-weight="bold">현재 query의 hidden state</tspan>에 의존</text>
+    <text x="585" y="306" text-anchor="middle" font-size="9.5" font-weight="bold">PPL 5.761 (Table 3 row 2) ★</text>
+  </g>
+
+  <line x1="40" y1="326" x2="770" y2="326" stroke="#e5e7eb"/>
+
+  <text x="400" y="346" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b91c1c">(c) 왜 G₅·G₃·G₄는 효과가 없는가 — 이 프레임의 예측</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="356" width="210" height="76" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="165" y="374" text-anchor="middle" font-size="10.5" font-weight="bold">G₅ (dense 출력 뒤)</text>
+    <text x="165" y="392" text-anchor="middle">비선형이 W_O <tspan font-style="italic">뒤</tspan>에 있다</text>
+    <text x="165" y="408" text-anchor="middle">→ W_V·W_O 병합을 막지 못한다</text>
+    <text x="165" y="424" text-anchor="middle" font-weight="bold">PPL 6.017 ≈ baseline 6.026</text>
+
+    <rect x="290" y="356" width="210" height="76" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="395" y="374" text-anchor="middle" font-size="10.5" font-weight="bold">G₃ (key 뒤) · G₄ (query 뒤)</text>
+    <text x="395" y="392" text-anchor="middle">Q·K는 attention 점수 S를 만드는 경로</text>
+    <text x="395" y="408" text-anchor="middle">→ value 경로의 low-rank와 무관</text>
+    <text x="395" y="424" text-anchor="middle" font-weight="bold">PPL 6.016 / 5.981</text>
+
+    <rect x="520" y="356" width="240" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="640" y="374" text-anchor="middle" font-size="10.5" font-weight="bold">프레임의 검증력</text>
+    <text x="640" y="392" text-anchor="middle">"비선형이 W_V와 W_O 사이에 있는가"</text>
+    <text x="640" y="408" text-anchor="middle">라는 <tspan font-weight="bold">단일 기준</tspan>이 다섯 위치의</text>
+    <text x="640" y="424" text-anchor="middle">성패를 정확히 예측한다</text>
+  </g>
+</svg>
+<figcaption><strong>[Figure: Eq. 6~8과 low-rank 병합]</strong>: (a)의 주황 점선이 문제의 핵심이다 — $W_V$와 $W_O$ 사이에 비선형이 없으면 두 층은 rank $d_k$짜리 하나로 접히고, 우리가 두 층을 학습시킨다고 믿는 것은 착각이 된다. (b)는 비선형을 <em>attention 가중합의 안쪽(Eq. 7)</em>과 <em>바깥쪽(Eq. 8)</em> 중 어디에 넣느냐가 $G_2$와 $G_1$의 차이라는 것을 보인다. 이 구분이 §4.2의 query 의존성 논의(그림 20)로 직결된다 — 안쪽은 과거 토큰 $X_j$에, 바깥쪽은 현재 토큰 $X_i$에 의존하기 때문이다. (c)가 이 프레임의 설명력을 보여주는 대목이다: "비선형이 $W_V$와 $W_O$ <em>사이</em>에 있는가"라는 한 가지 기준만으로 다섯 위치의 성패가 모두 예측되며, 특히 $G_5$가 무효라는 예측은 Table 1 row 9로 정확히 확인된다.</figcaption>
+</figure>
+
+<h4>비선형성의 몫을 분리하는 대조 실험 (Table 3)</h4>
+
+<p>비선형성 가설을 검증하려면 <em>gate가 아닌 비선형</em>과 <em>비선형이 아닌 gate</em>를 모두 만들어 봐야 한다. Table 3이 그 격자다.</p>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>방법</th><th>활성함수</th><th>Avg PPL</th><th>Hellaswag</th><th>MMLU</th><th>GSM8k</th><th>C-eval</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Baseline</td><td>–</td><td>6.026</td><td>73.07</td><td>58.79</td><td>52.92</td><td>60.26</td></tr>
+<tr style="background:#dcfce7"><td>2</td><td>SDPA Elementwise Gate ($G_1$)</td><td>Sigmoid</td><td><strong>5.761</strong></td><td>74.64</td><td><strong>60.82</strong></td><td><strong>55.27</strong></td><td>62.20</td></tr>
+<tr><td>3</td><td>v Elementwise Gate ($G_2$)</td><td>Sigmoid</td><td>5.820</td><td>74.38</td><td>59.17</td><td>53.97</td><td>61.00</td></tr>
+<tr><td>4</td><td>SDPA Additive Gate</td><td>SiLU</td><td>5.821</td><td><strong>74.81</strong></td><td>60.06</td><td>53.30</td><td>60.98</td></tr>
+<tr><td>5</td><td>SDPA GroupNorm</td><td>RMSNorm</td><td>5.847</td><td>74.10</td><td>60.15</td><td>53.75</td><td>61.14</td></tr>
+<tr><td>6</td><td>SDPA SiLU (파라미터 0)</td><td>SiLU</td><td>5.975</td><td>73.34</td><td>59.55</td><td>53.19</td><td>60.90</td></tr>
+<tr><td>7</td><td>SDPA Additive Gate</td><td>Identity</td><td>5.882</td><td>74.17</td><td>59.20</td><td>52.77</td><td>59.86</td></tr>
+</tbody>
+</table>
+
+<p>이 표를 <strong>비선형성 강도의 사다리</strong>로 읽으면 논증이 보인다.</p>
+
+<ol>
+  <li><strong>row 5 (RMSNorm, 파라미터 거의 0)</strong>: gate가 전혀 아닌데 5.847. → 개선의 상당 부분은 "$G_1$ 위치에 비선형이 있다"만으로 나온다.</li>
+  <li><strong>row 6 (SiLU만 삽입, 파라미터 정확히 0)</strong>: 5.975. PPL은 조금 줄지만 <em>벤치마크 점수는 거의 변하지 않는다</em>. → 비선형성만으로는 부족하다.</li>
+  <li><strong>row 7 (additive gate에서 SiLU 제거 = Identity)</strong>: 5.882로 row 4(5.821)보다 나빠진다. → additive gate의 이득 중 일부도 비선형에서 왔다.</li>
+  <li><strong>row 2 (곱셈 sigmoid gate)</strong>: 5.761로 최고. → 비선형성 위에 <em>무언가 더</em> 있다. 그 무언가가 §4.2의 sparsity다.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 3 — 비선형성 사다리와 "설명되지 않는 잔여"</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">가로축은 PPL(왼쪽이 좋음). 세로 위치는 비선형성/파라미터 조합의 차이</text>
+
+  <line x1="80" y1="330" x2="750" y2="330" stroke="#333"/>
+  <text x="120" y="346" text-anchor="middle" font-size="9">5.75</text>
+  <text x="270" y="346" text-anchor="middle" font-size="9">5.85</text>
+  <text x="420" y="346" text-anchor="middle" font-size="9">5.95</text>
+  <text x="570" y="346" text-anchor="middle" font-size="9">6.05</text>
+  <text x="415" y="362" text-anchor="middle" font-size="9.5" fill="#555">Avg PPL (낮을수록 좋음)</text>
+
+  <line x1="120" y1="56" x2="120" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="270" y1="56" x2="270" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="420" y1="56" x2="420" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="570" y1="56" x2="570" y2="330" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+
+  <g font-size="9.5">
+    <circle cx="534" cy="76" r="6" fill="#94a3b8" stroke="#475569"/>
+    <text x="548" y="80">baseline 6.026 — 비선형 없음, gate 없음</text>
+
+    <circle cx="457" cy="116" r="6" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="471" y="120">SiLU만 삽입 5.975 — 비선형 O, 파라미터 0, <tspan font-weight="bold">벤치마크 개선 거의 없음</tspan></text>
+
+    <circle cx="318" cy="156" r="6" fill="#fcd34d" stroke="#d97706"/>
+    <text x="332" y="160">additive + Identity 5.882 — gate O, 비선형 X</text>
+
+    <circle cx="266" cy="196" r="6" fill="#a5b4fc" stroke="#4f46e5"/>
+    <text x="280" y="200">RMSNorm (GroupNorm) 5.847 — 비선형 O, 파라미터 ≈ 0, <tspan font-weight="bold">gate 아님</tspan></text>
+
+    <circle cx="227" cy="236" r="6" fill="#c084fc" stroke="#7e22ce"/>
+    <text x="241" y="240">additive + SiLU 5.821 · v Elementwise (G₂) 5.820 — 비선형 O, sparsity 약함</text>
+
+    <circle cx="137" cy="276" r="7.5" fill="#22c55e" stroke="#15803d" stroke-width="1.6"/>
+    <text x="152" y="280" font-weight="bold">SDPA Elementwise sigmoid 5.761 ★ — 비선형 O + query 의존 sparsity O</text>
+  </g>
+
+  <path d="M534,86 L457,106" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+  <path d="M457,126 L318,146" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+  <path d="M318,166 L266,186" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+  <path d="M266,206 L227,226" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+  <path d="M227,246 L137,266" stroke="#cbd5e1" stroke-dasharray="3 2"/>
+
+  <rect x="100" y="292" width="300" height="30" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="250" y="311" text-anchor="middle" font-size="10">§4.2가 설명해야 하는 잔여: 5.847 → 5.761 (0.086)</text>
+
+  <rect x="410" y="292" width="340" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="580" y="311" text-anchor="middle" font-size="10">비선형성으로 설명되는 몫: 6.026 → 5.847 (0.179), 전체의 68%</text>
+
+  <rect x="80" y="46" width="670" height="0" fill="none"/>
+</svg>
+<figcaption><strong>[Figure: Table 3 비선형성 사다리]</strong>: 위에서 아래로 내려갈수록 PPL이 좋아지고, 점선이 각 단계의 이동을 잇는다. 이 그림의 요점은 아래 두 박스의 분해다 — <strong>전체 개선 0.265 중 0.179(68%)는 "그 위치에 비선형이 있다"만으로 설명되고(RMSNorm이 그 증거), 남은 0.086이 §4.2가 설명해야 하는 잔여</strong>다. 빨간 점(SiLU만 삽입)이 특히 중요한데, 파라미터를 전혀 추가하지 않고 비선형만 넣으면 PPL은 조금 좋아지지만 벤치마크는 움직이지 않는다 — 즉 <em>PPL 개선과 능력 개선이 다른 메커니즘에서 온다</em>는 신호다. 이 분해는 논문에 명시되어 있지 않고 Table 3의 수치에서 계산한 것이며, 세 변종의 파라미터 수가 서로 달라 엄밀한 몫 분해가 아니라 근사적 읽기라는 점에 주의해야 한다.</figcaption>
+</figure>
+
+<h3>4.2 gate는 입력 의존적 sparsity를 도입한다 (§4.2)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: 비선형성만으로는 $G_1$과 $G_2$의 격차(5.761 vs 5.820), 그리고 head-specific과 head-shared의 격차(5.761 vs 5.801)를 설명할 수 없다. 무엇이 다른가?</p>
+
+<p>저자들은 학습된 모델의 <strong>gate 점수 자체를 측정</strong>한다. 테스트 언어모델링 데이터에서 전 층의 평균 gate 점수와 분포를 뽑은 것이 Table 4와 Figure 3이다.</p>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>방법</th><th>활성함수</th><th>Gate 점수 평균</th><th>M-Act</th><th>F-Attn</th><th>PPL</th><th>Hellaswag</th><th>MMLU</th><th>GSM8k</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Baseline</td><td>–</td><td>–</td><td>1053</td><td>0.467</td><td>6.026</td><td>73.07</td><td>58.79</td><td>52.92</td></tr>
+<tr style="background:#dcfce7"><td>2</td><td>SDPA Elementwise Gate</td><td>Sigmoid</td><td><strong>0.116</strong></td><td><strong>94</strong></td><td><strong>0.048</strong></td><td><strong>5.761</strong></td><td>74.64</td><td>60.82</td><td>55.27</td></tr>
+<tr style="background:#dcfce7"><td>3</td><td>SDPA Headwise Gate</td><td>Sigmoid</td><td>0.172</td><td>98</td><td>0.073</td><td>5.792</td><td>74.50</td><td>60.05</td><td>54.44</td></tr>
+<tr><td>4</td><td>SDPA Elementwise Head-shared</td><td>Sigmoid</td><td>0.271</td><td>286</td><td>0.301</td><td>5.801</td><td>74.34</td><td>60.06</td><td>53.15</td></tr>
+<tr><td>5</td><td>v Elementwise Gate</td><td>Sigmoid</td><td>0.221</td><td>125</td><td>0.297</td><td>5.820</td><td>74.38</td><td>59.17</td><td>51.33*</td></tr>
+<tr><td>6</td><td>SDPA Input Independent Gate</td><td>Sigmoid</td><td>0.335</td><td>471</td><td>0.364</td><td>5.917</td><td>73.64</td><td>59.02</td><td>52.40</td></tr>
+<tr><td>7</td><td>SDPA Elementwise Gate</td><td>NS-sigmoid</td><td>0.653</td><td>892</td><td>0.451</td><td>5.900</td><td>74.05</td><td>60.05</td><td>52.75</td></tr>
+</tbody>
+</table>
+<p style="font-size:0.85em;color:#666">
+‘M-Act’ = 각 층 hidden state 출력의 최대 활성값(반올림)의 평균 — massive activation의 지표.<br>
+‘F-Attn’ = 첫 토큰이 받는 attention 점수 — 높을수록 attention sink가 심하다.<br>
+* row 5의 GSM8k 51.33은 같은 설정인 Table 1 row 6·Table 3 row 3의 53.97과 일치하지 않는다 (비판적 분석 참조).
+</p>
+
+<p><strong>이 표가 이 논문에서 가장 밀도 높은 표다.</strong> 세 지표(Gate 점수 · M-Act · F-Attn)가 PPL과 <em>같은 방향으로 단조롭게</em> 움직인다. 위에서 아래로 갈수록 gate 점수가 커지고(sparsity가 약해지고), massive activation이 커지고, attention sink가 심해지고, PPL이 나빠진다.</p>
+
+<p><strong>논문이 제시하는 네 가지 관찰</strong>:</p>
+
+<ol>
+  <li><strong>효과적인 gate 점수는 sparse하다.</strong> SDPA 출력 gate(element/head-wise)의 평균 점수가 가장 낮고(0.116 / 0.172), 분포가 0 근처에 강하게 몰려 있다. 성능 순위와 정확히 일치한다.</li>
+  <li><strong>head별 sparsity가 중요하다.</strong> head 간 점수를 공유하도록 강제하면 전체 gate 점수가 올라가고(0.116 → 0.271) 이득이 줄어든다. 이는 <em>attention head마다 입력의 다른 측면을 포착한다</em>는 선행 연구(Voita et al., 2019; Olsson et al., 2022 등)와 정합한다 — head마다 필요한 sparsity 수준이 다르다.</li>
+  <li><strong>query 의존성이 중요하다.</strong> ##$G_2$(value) gate의 점수(0.221)가 $G_1$(0.116)보다 높고 성능도 낮다.## 왜인가? 수식 (8)의 비선형 사상은 <strong>현재 query 토큰의 hidden state $X_i$</strong>에 의존하고, 수식 (7)의 것은 <strong>과거 key/value 토큰들의 hidden state $X_j$</strong>에 의존한다. 즉 $G_1$의 sparsity는 "이 query에게 무엇이 무관한가"를 판단할 수 있고, $G_2$의 sparsity는 그럴 수 없다. 이를 더 검증하기 위해 <strong>input-independent gate</strong>를 만들었다 — 학습 가능한 파라미터 $q \times d_k$를 0으로 초기화하고 sigmoid를 통과시켜 SDPA 출력에 곱하는(즉 입력에 전혀 의존하지 않는) 변종이다. row 6은 baseline보다는 좋지만(5.917) 훨씬 못하고, gate 점수가 0.335로 높다. <em>비선형성은 얻지만 유용한 sparsity는 얻지 못한다</em>는 해석과 맞는다.</li>
+  <li><strong>sparsity를 죽이면 나빠진다.</strong> sigmoid를 다음의 <strong>Non-Sparse (NS) 버전</strong>으로 바꾼다.
+  $$\mathrm{NS\text{-}sigmoid}(x) = 0.5 + 0.5 \cdot \mathrm{sigmoid}(x)$$
+  이는 gate 점수를 $[0.5, 1.0]$에 갇히게 하여 <strong>비선형성은 유지하면서 sparsity만 제거</strong>한다. 결과는 5.900으로 sigmoid gate(5.761)보다 크게 나쁘다.</li>
+</ol>
+
+<blockquote><strong>직관적으로 말하면</strong>: NS-sigmoid는 이 논문에서 가장 잘 설계된 대조군이다. gate라는 부품을 그대로 두고 <em>"0에 가까운 값을 낼 수 있는 능력"만</em> 정확히 제거한다. 그것만으로 개선의 절반 이상이 사라진다면, 남은 원인은 sparsity일 수밖에 없다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 3 재현 — gate 점수 분포. sparsity가 성능 순서를 그대로 따른다</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">세 패널 모두 가로축 gate score 0~1, 세로축 normalized density. 점선은 평균</text>
+
+  <g font-size="9">
+    <text x="140" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e40af">SDPA Elementwise (G₁)</text>
+    <text x="140" y="70" text-anchor="middle" font-size="9.5">Mean = 0.116 · PPL 5.761</text>
+    <line x1="45" y1="230" x2="245" y2="230" stroke="#333"/>
+    <line x1="45" y1="80" x2="45" y2="230" stroke="#333"/>
+    <text x="45" y="244" text-anchor="middle">0.0</text><text x="145" y="244" text-anchor="middle">0.5</text><text x="245" y="244" text-anchor="middle">1.0</text>
+    <path d="M45,96 Q58,110 68,150 Q80,196 96,216 Q120,228 150,229 Q200,230 245,230" fill="#bfdbfe" stroke="#3b82f6" stroke-width="1.8"/>
+    <line x1="68" y1="80" x2="68" y2="230" stroke="#1e40af" stroke-dasharray="4 3"/>
+    <text x="74" y="92" font-size="8.5" fill="#1e40af">0.116</text>
+    <text x="150" y="120" font-size="9" fill="#1e40af">0 근처에 강하게 집중</text>
+
+    <text x="400" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#7e22ce">v Elementwise (G₂)</text>
+    <text x="400" y="70" text-anchor="middle" font-size="9.5">Mean = 0.221 · PPL 5.820</text>
+    <line x1="305" y1="230" x2="505" y2="230" stroke="#333"/>
+    <line x1="305" y1="80" x2="305" y2="230" stroke="#333"/>
+    <text x="305" y="244" text-anchor="middle">0.0</text><text x="405" y="244" text-anchor="middle">0.5</text><text x="505" y="244" text-anchor="middle">1.0</text>
+    <path d="M305,120 Q322,124 340,158 Q360,198 385,214 Q420,226 450,229 Q480,230 505,230" fill="#e9d5ff" stroke="#a855f7" stroke-width="1.8"/>
+    <line x1="349" y1="80" x2="349" y2="230" stroke="#7e22ce" stroke-dasharray="4 3"/>
+    <text x="355" y="92" font-size="8.5" fill="#7e22ce">0.221</text>
+    <text x="430" y="140" font-size="9" fill="#7e22ce">꼬리가 더 두껍다</text>
+
+    <text x="660" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#b45309">SDPA Head-Shared (G₁)</text>
+    <text x="660" y="70" text-anchor="middle" font-size="9.5">Mean = 0.271 · PPL 5.801</text>
+    <line x1="565" y1="230" x2="765" y2="230" stroke="#333"/>
+    <line x1="565" y1="80" x2="565" y2="230" stroke="#333"/>
+    <text x="565" y="244" text-anchor="middle">0.0</text><text x="665" y="244" text-anchor="middle">0.5</text><text x="765" y="244" text-anchor="middle">1.0</text>
+    <path d="M565,138 Q585,132 606,150 Q630,186 660,206 Q700,222 730,228 Q750,230 765,230" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+    <line x1="619" y1="80" x2="619" y2="230" stroke="#b45309" stroke-dasharray="4 3"/>
+    <text x="625" y="92" font-size="8.5" fill="#b45309">0.271</text>
+    <text x="700" y="150" font-size="9" fill="#b45309">중간 영역이 두껍다</text>
+  </g>
+
+  <rect x="45" y="256" width="720" height="36" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="405" y="273" text-anchor="middle" font-size="10.5">세 분포 모두 대부분의 점수가 0.5 미만 = gate는 학습되면서 <tspan font-weight="bold">스스로 sparse해진다</tspan>. 강제한 것이 아니다.</text>
+  <text x="405" y="287" text-anchor="middle" font-size="10">그리고 <tspan font-weight="bold">0에 몰린 정도의 순서(G₁ elementwise &gt; G₂ &gt; head-shared)가 성능 순서와 일치한다</tspan></text>
+</svg>
+<figcaption><strong>[Figure 3 재현]</strong>: 원 논문 히스토그램의 형태를 곡선으로 옮긴 것이며, 평균값(0.116 / 0.221 / 0.271)과 PPL은 Table 4의 실제 값이다. 세로축 절대 스케일은 원문에서 0~0.16 범위의 normalized density이나 여기서는 형태 비교에 맞춰 재구성했다. 이 그림의 가장 중요한 점은 <strong>sparsity가 설계자가 강제한 것이 아니라 학습 과정에서 스스로 나타난다</strong>는 것이다 — sigmoid는 $[0,1]$ 전체를 쓸 수 있는데도 모델이 0 근처를 선택했다. 세 분포의 "0에 몰린 정도" 순서가 §3.1의 성능 순서와 정확히 일치하고, §4.3의 attention sink 지표 순서와도 일치한다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="qdArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">query 의존성이 왜 결정적인가 — G₁과 G₂의 gate 점수는 다른 것을 보고 있다</text>
+
+  <text x="200" y="44" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#7e22ce">(a) G₂ — gate 점수가 과거 토큰 X_j 에 의존</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="56" width="46" height="26" rx="4" fill="#e9d5ff" stroke="#a855f7"/><text x="63" y="74" text-anchor="middle">X₁</text>
+    <rect x="90" y="56" width="46" height="26" rx="4" fill="#e9d5ff" stroke="#a855f7"/><text x="113" y="74" text-anchor="middle">X₂</text>
+    <rect x="140" y="56" width="46" height="26" rx="4" fill="#e9d5ff" stroke="#a855f7"/><text x="163" y="74" text-anchor="middle">X₃</text>
+    <rect x="190" y="56" width="46" height="26" rx="4" fill="#e9d5ff" stroke="#a855f7"/><text x="213" y="74" text-anchor="middle">X₄</text>
+    <rect x="290" y="56" width="60" height="26" rx="4" fill="#fbbf24" stroke="#d97706"/><text x="320" y="74" text-anchor="middle">X_i (query)</text>
+
+    <text x="63" y="98" text-anchor="middle" font-size="8.5" fill="#7e22ce">g(X₁)</text>
+    <text x="113" y="98" text-anchor="middle" font-size="8.5" fill="#7e22ce">g(X₂)</text>
+    <text x="163" y="98" text-anchor="middle" font-size="8.5" fill="#7e22ce">g(X₃)</text>
+    <text x="213" y="98" text-anchor="middle" font-size="8.5" fill="#7e22ce">g(X₄)</text>
+
+    <path d="M63,82 L63,104" stroke="#a855f7"/><path d="M113,82 L113,104" stroke="#a855f7"/>
+    <path d="M163,82 L163,104" stroke="#a855f7"/><path d="M213,82 L213,104" stroke="#a855f7"/>
+
+    <rect x="40" y="108" width="196" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="138" y="126" text-anchor="middle">gate가 걸린 value: V'_j = V_j ⊙ g(X_j)</text>
+
+    <path d="M138,134 L138,150" stroke="#64748b" marker-end="url(#qdArw)"/>
+    <path d="M320,82 L320,150" stroke="#d97706" marker-end="url(#qdArw)"/>
+    <rect x="40" y="154" width="310" height="26" rx="4" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="195" y="172" text-anchor="middle">SDPA: Σ_j S_ij · V'_j  (query가 여기서 처음 등장)</text>
+
+    <rect x="40" y="190" width="310" height="56" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+    <text x="195" y="208" text-anchor="middle" font-size="10">gate는 "이 토큰 j 자체가 중요한가"만 판단할 수 있다</text>
+    <text x="195" y="224" text-anchor="middle" font-size="10">→ <tspan font-weight="bold">query와 무관한 전역적 필터</tspan></text>
+    <text x="195" y="240" text-anchor="middle" font-size="9.5" fill="#b91c1c">평균 점수 0.221 (sparse해질 여지가 적다) · F-Attn 0.297 (sink 잔존)</text>
+  </g>
+
+  <line x1="378" y1="40" x2="378" y2="400" stroke="#e5e7eb"/>
+
+  <text x="590" y="44" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">(b) G₁ — gate 점수가 현재 query X_i 에 의존</text>
+
+  <g font-size="9.5">
+    <rect x="410" y="56" width="46" height="26" rx="4" fill="#f1f5f9" stroke="#94a3b8"/><text x="433" y="74" text-anchor="middle">X₁</text>
+    <rect x="460" y="56" width="46" height="26" rx="4" fill="#f1f5f9" stroke="#94a3b8"/><text x="483" y="74" text-anchor="middle">X₂</text>
+    <rect x="510" y="56" width="46" height="26" rx="4" fill="#f1f5f9" stroke="#94a3b8"/><text x="533" y="74" text-anchor="middle">X₃</text>
+    <rect x="560" y="56" width="46" height="26" rx="4" fill="#f1f5f9" stroke="#94a3b8"/><text x="583" y="74" text-anchor="middle">X₄</text>
+    <rect x="660" y="56" width="60" height="26" rx="4" fill="#fbbf24" stroke="#d97706"/><text x="690" y="74" text-anchor="middle">X_i (query)</text>
+
+    <path d="M433,82 L433,100" stroke="#94a3b8"/><path d="M483,82 L483,100" stroke="#94a3b8"/>
+    <path d="M533,82 L533,100" stroke="#94a3b8"/><path d="M583,82 L583,100" stroke="#94a3b8"/>
+
+    <rect x="410" y="104" width="196" height="26" rx="4" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="508" y="122" text-anchor="middle">SDPA: Y = Σ_j S_ij · V_j</text>
+
+    <path d="M508,130 L508,152" stroke="#64748b" marker-end="url(#qdArw)"/>
+    <path d="M690,82 L690,140 L620,140 L620,152" stroke="#d97706" fill="none" marker-end="url(#qdArw)"/>
+    <text x="700" y="112" font-size="8.5" fill="#b45309">g(X_i)</text>
+
+    <rect x="410" y="156" width="310" height="26" rx="4" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="565" y="174" text-anchor="middle">Y' = Y ⊙ g(X_i)  ← query가 결과 전체를 조절</text>
+
+    <rect x="410" y="190" width="310" height="56" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="565" y="208" text-anchor="middle" font-size="10">gate는 "지금 이 query에게 이 결과가 쓸모 있는가"를 판단</text>
+    <text x="565" y="224" text-anchor="middle" font-size="10">→ <tspan font-weight="bold">query 조건부 필터. "이번엔 기권"이 가능하다</tspan></text>
+    <text x="565" y="240" text-anchor="middle" font-size="9.5" fill="#15803d">평균 점수 0.116 (강하게 sparse) · F-Attn 0.048 (sink 소멸)</text>
+  </g>
+
+  <rect x="40" y="260" width="720" height="66" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="279" text-anchor="middle" font-size="11.5" font-weight="bold">이 차이가 attention sink 반례를 낳는다 (§4.3)</text>
+  <text x="400" y="297" text-anchor="middle" font-size="10">attention sink는 "이 query에게 볼 것이 없다"를 표현할 방법이 없어서 생긴다. 따라서 그것을 없애려면 필터가 <tspan font-weight="bold">query 조건부</tspan>여야 한다.</text>
+  <text x="400" y="313" text-anchor="middle" font-size="10">G₂는 query와 무관한 필터이므로 massive activation은 줄여도(1053 → 125) sink는 못 없앤다(0.297). G₁은 둘 다 없앤다(94 / 0.048).</text>
+
+  <rect x="40" y="336" width="720" height="70" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="355" text-anchor="middle" font-size="11" font-weight="bold">세 번째 대조군 — input-independent gate로 "입력 의존"만 제거하면</text>
+  <text x="400" y="373" text-anchor="middle" font-size="10">학습 파라미터 q × d_k 를 0으로 초기화 → sigmoid → SDPA 출력에 곱한다. 입력에 전혀 의존하지 않는 <tspan font-style="italic">고정 마스크</tspan>다.</text>
+  <text x="400" y="389" text-anchor="middle" font-size="10">결과: PPL 5.917 (baseline 6.026보다는 좋다 = 비선형성 이득은 남는다), 그런데 gate 점수 0.335 · F-Attn 0.364 · M-Act 471</text>
+  <text x="400" y="402" text-anchor="middle" font-size="9.5" fill="#7e22ce">→ 비선형성과 sparsity가 서로 다른 두 원인임을 가장 직접적으로 보여주는 실험</text>
+</svg>
+<figcaption><strong>[Figure: query 의존성의 구조적 차이]</strong>: 두 패널의 유일한 차이는 <em>주황 화살표(query)가 어디서 들어오는가</em>다. (a)에서 gate는 SDPA 이전에 각 과거 토큰에 걸리므로 query를 볼 수 없고, (b)에서는 SDPA 이후에 걸리므로 query 전체를 조건으로 삼는다. 논문의 표현으로는 수식 (7)의 Non-Linearity-Map은 $X_j$에, 수식 (8)의 것은 $X_i$에 의존한다. 아래 노란 박스가 §4.3의 반례를 <em>미리</em> 설명한다 — attention sink는 본질적으로 "이 query에게 볼 것이 없다"를 표현하지 못해 생기는 현상이므로, 그것을 없애는 필터는 반드시 query 조건부여야 한다. 보라 박스의 input-independent gate는 이 논문에서 비선형성과 sparsity를 가장 깔끔하게 분리하는 대조군이다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — NS-sigmoid는 무엇을 정확히 제거하는가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">sigmoid(x) vs 0.5 + 0.5·sigmoid(x) 를 같은 x에서 계산. 비선형성은 유지, "0을 낼 능력"만 제거</text>
+
+  <line x1="70" y1="200" x2="330" y2="200" stroke="#333"/>
+  <line x1="200" y1="70" x2="200" y2="215" stroke="#333"/>
+  <text x="336" y="204" font-size="10">x</text>
+  <text x="206" y="80" font-size="10">g</text>
+  <line x1="70" y1="70" x2="330" y2="70" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="64" y="73" text-anchor="end" font-size="9" fill="#999">1.0</text>
+  <line x1="70" y1="135" x2="330" y2="135" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="64" y="138" text-anchor="end" font-size="9" fill="#999">0.5</text>
+  <text x="64" y="204" text-anchor="end" font-size="9" fill="#999">0.0</text>
+
+  <path d="M70,198 Q120,196 160,182 Q190,160 200,135 Q212,108 240,86 Q285,72 330,70" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <text x="326" y="62" font-size="10" fill="#3b82f6" text-anchor="end">sigmoid</text>
+  <text x="80" y="190" font-size="9" fill="#1e40af">0 에 도달 가능</text>
+
+  <path d="M70,134 Q120,133 160,127 Q190,116 200,102 Q212,90 240,79 Q285,71 330,70" stroke="#e67e22" stroke-width="2" fill="none"/>
+  <text x="326" y="112" font-size="10" fill="#e67e22" text-anchor="end">NS-sigmoid</text>
+  <path d="M70,135 L330,135" stroke="#e67e22" stroke-dasharray="4 3" stroke-width="1.2"/>
+  <text x="80" y="128" font-size="9" fill="#b45309">하한 0.5 — 아무리 작아도 절반은 통과</text>
+
+  <text x="200" y="228" text-anchor="middle" font-size="9.5" fill="#555">두 곡선 모두 매끄러운 비선형 함수다. 다른 것은 <tspan font-weight="bold">치역</tspan>뿐이다</text>
+
+  <g font-size="10">
+    <rect x="380" y="56" width="390" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="392" y="71" font-weight="bold">x</text>
+    <text x="470" y="71" font-weight="bold">sigmoid(x)</text>
+    <text x="570" y="71" font-weight="bold">NS-sigmoid(x)</text>
+    <text x="690" y="71" font-weight="bold">비율</text>
+
+    <rect x="380" y="78" width="390" height="20" fill="#fff" stroke="#e5e7eb"/>
+    <text x="392" y="92">−6</text><text x="470" y="92">0.0025</text><text x="570" y="92">0.5012</text><text x="690" y="92" fill="#b45309">200×</text>
+
+    <rect x="380" y="98" width="390" height="20" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="392" y="112">−4</text><text x="470" y="112">0.0180</text><text x="570" y="112">0.5090</text><text x="690" y="112" fill="#b45309">28×</text>
+
+    <rect x="380" y="118" width="390" height="20" fill="#fff" stroke="#e5e7eb"/>
+    <text x="392" y="132">−2</text><text x="470" y="132">0.1192</text><text x="570" y="132">0.5596</text><text x="690" y="132" fill="#b45309">4.7×</text>
+
+    <rect x="380" y="138" width="390" height="20" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="392" y="152">0</text><text x="470" y="152">0.5000</text><text x="570" y="152">0.7500</text><text x="690" y="152">1.5×</text>
+
+    <rect x="380" y="158" width="390" height="20" fill="#fff" stroke="#e5e7eb"/>
+    <text x="392" y="172">+2</text><text x="470" y="172">0.8808</text><text x="570" y="172">0.9404</text><text x="690" y="172">1.07×</text>
+
+    <rect x="380" y="178" width="390" height="20" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="392" y="192">+4</text><text x="470" y="192">0.9820</text><text x="570" y="192">0.9910</text><text x="690" y="192">1.01×</text>
+
+    <rect x="380" y="204" width="390" height="34" rx="4" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="575" y="219" text-anchor="middle" font-size="9.5">두 함수는 x가 큰 쪽에서는 사실상 같다.</text>
+    <text x="575" y="232" text-anchor="middle" font-size="9.5">차이가 나는 곳은 <tspan font-weight="bold">"지우고 싶은" 영역(x &lt; 0)뿐</tspan>이다</text>
+  </g>
+
+  <line x1="40" y1="250" x2="770" y2="250" stroke="#e5e7eb"/>
+
+  <text x="400" y="270" text-anchor="middle" font-size="12" font-weight="bold">실측 결과 — 이 하한 하나가 무엇을 되돌리는가 (Table 4 row 2 vs row 7)</text>
+
+  <g font-size="10">
+    <rect x="60" y="282" width="680" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="72" y="297" font-weight="bold">지표</text>
+    <text x="300" y="297" font-weight="bold">sigmoid gate</text>
+    <text x="430" y="297" font-weight="bold">NS-sigmoid gate</text>
+    <text x="580" y="297" font-weight="bold">baseline</text>
+    <text x="680" y="297" font-weight="bold">해석</text>
+
+    <rect x="60" y="304" width="680" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="72" y="319">gate 점수 평균</text>
+    <text x="300" y="319" fill="#15803d" font-weight="bold">0.116</text>
+    <text x="430" y="319" fill="#b91c1c">0.653</text>
+    <text x="580" y="319">–</text>
+    <text x="680" y="319" font-size="9">5.6배 증가</text>
+
+    <rect x="60" y="326" width="680" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="72" y="341">M-Act (massive activation)</text>
+    <text x="300" y="341" fill="#15803d" font-weight="bold">94</text>
+    <text x="430" y="341" fill="#b91c1c">892</text>
+    <text x="580" y="341">1053</text>
+    <text x="680" y="341" font-size="9">baseline 수준 복귀</text>
+
+    <rect x="60" y="348" width="680" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="72" y="363">F-Attn (attention sink)</text>
+    <text x="300" y="363" fill="#15803d" font-weight="bold">0.048</text>
+    <text x="430" y="363" fill="#b91c1c">0.451</text>
+    <text x="580" y="363">0.467</text>
+    <text x="680" y="363" font-size="9">sink 완전 복귀</text>
+
+    <rect x="60" y="370" width="680" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="72" y="385">Avg PPL</text>
+    <text x="300" y="385" fill="#15803d" font-weight="bold">5.761</text>
+    <text x="430" y="385" fill="#b91c1c">5.900</text>
+    <text x="580" y="385">6.026</text>
+    <text x="680" y="385" font-size="9">개선의 52% 소멸</text>
+  </g>
+
+  <rect x="60" y="396" width="680" height="20" rx="4" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="410" text-anchor="middle" font-size="10">비선형성은 그대로 두고 치역 하한만 0 → 0.5로 올렸을 때 개선의 절반이 사라진다 → sparsity는 독립적 원인이다</text>
+</svg>
+<figcaption><strong>[Figure: NS-sigmoid 수치 예제]</strong>: 왼쪽 곡선에서 두 함수는 $x$가 큰 영역에서 겹치고 $x < 0$ 영역에서만 갈라진다 — 즉 NS-sigmoid는 "통과시키는 능력"은 그대로 두고 <strong>"지우는 능력"만</strong> 제거한다. 오른쪽 표에서 $x=-6$일 때 두 함수의 출력이 200배 차이 난다는 것이 이 제거의 실질적 크기다. 아래 실측 표가 이 논문에서 가장 인상적인 대조다: 하한 하나를 올렸을 뿐인데 massive activation(892)과 attention sink(0.451)가 <em>baseline 수준으로 되돌아가고</em> PPL 개선의 52%가 사라진다. 표의 sigmoid·NS-sigmoid·baseline 수치는 Table 4의 실제 값이고, 왼쪽 함수값 표는 정의식으로 직접 계산한 것이다.</figcaption>
+</figure>
+
+<h3>4.3 SDPA 출력 gate가 attention sink를 없앤다 (§4.3)</h3>
+
+<p><strong>가설</strong>: gate가 SDPA 출력에 입력 의존적 sparsity를 도입한다면, 그것은 <em>현재 query에 무관한 문맥을 걸러내는</em> 기능이다. attention sink는 바로 그 기능이 없어서 생기는 우회로였다. 따라서 gate가 있으면 sink가 불필요해진다.</p>
+
+<p>검증 지표는 세 개다. (1) 층별로 첫 토큰이 받는 attention 비율(Table 4 ‘F-Attn’), (2) head별 평균 attention map, (3) 층별 hidden state 최대 활성값의 평균(Table 4 ‘M-Act’).</p>
+
+<p><strong>결과</strong>:</p>
+<ul>
+  <li><strong>headwise·elementwise query 의존 sigmoid gate($G_1$)는 첫 토큰 attention을 크게 줄이고 massive activation도 줄인다.</strong> 층 평균 46.7% → 4.8%, 최대 활성값 1053 → 94.</li>
+  <li><strong>head 간 점수를 공유하거나($G_1$ head-shared) value 위치에만 gate를 걸면($G_2$), massive activation은 줄지만 첫 토큰 attention은 줄지 않는다.</strong> M-Act 286 / 125로 감소하는데 F-Attn은 0.301 / 0.297로 baseline(0.467)과 크게 다르지 않다. ##즉 massive activation은 attention sink의 필요조건이 아니다.##</li>
+  <li><strong>입력 의존성을 없애거나(row 6) NS-sigmoid로 sparsity를 줄이면(row 7) 둘 다 악화된다.</strong> M-Act 471 / 892, F-Attn 0.364 / 0.451.</li>
+</ul>
+
+<p><strong>학습 안정성으로 이어지는 연결</strong>: sparsity가 SDPA 출력을 작게 만들면 residual stream에 실리는 값이 작아지고 massive activation이 줄어든다. 저자들은 이것이 §3.2.2에서 관측된 학습 안정성 개선의 설명이라고 본다 — <strong>거대한 활성값이 줄면 BF16 학습에서의 수치 오류에 덜 취약해진다</strong> (Budzinskiy et al., 2025).</p>
+
+<p>여기서 부록 A.3의 층별 분석이 인과의 방향을 짚어준다. baseline에서 massive activation은 <strong>이른 층(6번째 층)의 FFN 출력</strong>에서 처음 발생하고, 이것이 residual stream에 더해진 뒤 pre-norm 구조를 통해 이후 모든 층으로 전파된다 (Yona et al., 2025와 일치). 그리고 <em>attention sink도 정확히 6번째 층부터 나타난다.</em> 이 관측은 sandwich norm이 왜 안정성을 개선하는지도 설명한다 — FFN 출력에 LayerNorm을 걸어 거대한 값이 residual에 들어가는 것을 애초에 막기 때문이다 (Table 2 row 7).</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 2 재현 — 층별 첫 토큰 attention 비율과 head별 attention map</text>
+
+  <text x="215" y="42" text-anchor="middle" font-size="11.5" font-weight="bold">(left) 층별로 첫 토큰이 받는 attention 비율</text>
+
+  <line x1="70" y1="230" x2="380" y2="230" stroke="#333"/>
+  <line x1="70" y1="60" x2="70" y2="230" stroke="#333"/>
+  <text x="70" y="246" text-anchor="middle" font-size="9">0</text>
+  <text x="148" y="246" text-anchor="middle" font-size="9">5</text>
+  <text x="226" y="246" text-anchor="middle" font-size="9">10</text>
+  <text x="304" y="246" text-anchor="middle" font-size="9">15</text>
+  <text x="376" y="246" text-anchor="middle" font-size="9">21</text>
+  <text x="225" y="262" text-anchor="middle" font-size="9.5" fill="#555">layer</text>
+  <text x="64" y="63" text-anchor="end" font-size="9" fill="#999">1.0</text>
+  <line x1="70" y1="60" x2="380" y2="60" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="64" y="148" text-anchor="end" font-size="9" fill="#999">0.5</text>
+  <line x1="70" y1="145" x2="380" y2="145" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="64" y="233" text-anchor="end" font-size="9" fill="#999">0.0</text>
+
+  <path d="M70,226 L86,222 L102,216 L118,210 L148,120 L164,96 L180,104 L196,92 L212,88 L228,100 L244,84 L260,92 L276,80 L292,96 L308,86 L324,90 L340,78 L356,102 L372,88" stroke="#e67e22" stroke-width="2" fill="none"/>
+  <path d="M70,151 L380,151" stroke="#e67e22" stroke-dasharray="5 3" stroke-width="1.2"/>
+  <text x="376" y="146" text-anchor="end" font-size="9" fill="#b45309">baseline 평균 0.467</text>
+  <text x="120" y="112" font-size="9" fill="#b45309">6번째 층부터 급등</text>
+
+  <path d="M70,228 L102,227 L134,226 L166,225 L198,224 L230,223 L262,222 L294,221 L326,220 L358,219 L372,218" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <path d="M70,222 L380,222" stroke="#3b82f6" stroke-dasharray="5 3" stroke-width="1.2"/>
+  <text x="376" y="216" text-anchor="end" font-size="9" fill="#1e40af">SDPA gate 평균 0.048</text>
+
+  <line x1="400" y1="34" x2="400" y2="420" stroke="#e5e7eb"/>
+
+  <text x="600" y="42" text-anchor="middle" font-size="11.5" font-weight="bold">(right) head별 평균 attention map</text>
+
+  <text x="500" y="62" text-anchor="middle" font-size="10" fill="#b45309">baseline · layer 21</text>
+  <g>
+    <rect x="440" y="70" width="120" height="120" fill="#fff" stroke="#666"/>
+    <path d="M440,70 L560,70 L560,190 z" fill="#f8fafc"/>
+    <rect x="440" y="70" width="12" height="120" fill="#dc2626"/>
+    <line x1="440" y1="70" x2="560" y2="190" stroke="#94a3b8" stroke-width="1"/>
+    <rect x="440" y="70" width="120" height="120" fill="none" stroke="#666"/>
+  </g>
+  <text x="500" y="206" text-anchor="middle" font-size="9.5" fill="#b91c1c">첫 열이 83% 독차지</text>
+  <text x="500" y="219" text-anchor="middle" font-size="9" fill="#666">(진한 빨강 = 첫 토큰 열)</text>
+
+  <text x="700" y="62" text-anchor="middle" font-size="10" fill="#1e40af">SDPA gate · layer 21</text>
+  <g>
+    <rect x="640" y="70" width="120" height="120" fill="#fff" stroke="#666"/>
+    <path d="M640,70 L760,70 L760,190 z" fill="#f8fafc"/>
+    <rect x="640" y="70" width="12" height="120" fill="#dbeafe"/>
+    <line x1="640" y1="70" x2="760" y2="190" stroke="#94a3b8" stroke-width="1"/>
+    <g fill="#60a5fa">
+      <rect x="652" y="82" width="10" height="10"/><rect x="676" y="106" width="10" height="10"/>
+      <rect x="664" y="130" width="10" height="10"/><rect x="700" y="142" width="10" height="10"/>
+      <rect x="688" y="166" width="10" height="10"/><rect x="724" y="178" width="10" height="10"/>
+      <rect x="712" y="118" width="10" height="10"/><rect x="736" y="154" width="10" height="10"/>
+    </g>
+    <rect x="640" y="70" width="120" height="120" fill="none" stroke="#666"/>
+  </g>
+  <text x="700" y="206" text-anchor="middle" font-size="9.5" fill="#1e40af">첫 열 4% — 실제 문맥에 분산</text>
+  <text x="700" y="219" text-anchor="middle" font-size="9" fill="#666">(파란 점 = 개별 토큰에 대한 attention)</text>
+
+  <rect x="420" y="234" width="350" height="46" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="595" y="252" text-anchor="middle" font-size="10">마지막 출력 층에서는 gate가 <tspan font-style="italic">반대</tspan> 방향으로 작동한다 —</text>
+  <text x="595" y="268" text-anchor="middle" font-size="10">"개별 토큰에 집중하는" 기존 경향을 <tspan font-weight="bold">증폭</tspan>시킨다</text>
+
+  <line x1="40" y1="292" x2="770" y2="292" stroke="#e5e7eb"/>
+
+  <text x="400" y="312" text-anchor="middle" font-size="12" font-weight="bold">부록 A.3이 짚어주는 인과의 순서</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="324" width="140" height="66" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="120" y="342" text-anchor="middle" font-size="10.5" font-weight="bold">① layer 6 FFN</text>
+    <text x="120" y="358" text-anchor="middle">FFN 출력에서 거대한</text>
+    <text x="120" y="372" text-anchor="middle">활성값이 처음 발생</text>
+    <text x="120" y="386" text-anchor="middle" font-size="9" fill="#b91c1c">(Yona et al. 2025과 일치)</text>
+
+    <path d="M192,357 L214,357" stroke="#666" stroke-width="1.5"/>
+    <rect x="216" y="324" width="140" height="66" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="286" y="342" text-anchor="middle" font-size="10.5" font-weight="bold">② residual stream</text>
+    <text x="286" y="358" text-anchor="middle">pre-norm 구조를 통해</text>
+    <text x="286" y="372" text-anchor="middle">이후 모든 층으로 전파</text>
+    <text x="286" y="386" text-anchor="middle" font-size="9" fill="#92400e">M-Act 평균 1053</text>
+
+    <path d="M358,357 L380,357" stroke="#666" stroke-width="1.5"/>
+    <rect x="382" y="324" width="140" height="66" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+    <text x="452" y="342" text-anchor="middle" font-size="10.5" font-weight="bold">③ layer 6부터 sink</text>
+    <text x="452" y="358" text-anchor="middle">attention sink가 같은</text>
+    <text x="452" y="372" text-anchor="middle">층에서 나타나기 시작</text>
+    <text x="452" y="386" text-anchor="middle" font-size="9" fill="#b91c1c">F-Attn 평균 0.467</text>
+
+    <path d="M524,357 L546,357" stroke="#666" stroke-width="1.5"/>
+    <rect x="548" y="324" width="200" height="66" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="648" y="342" text-anchor="middle" font-size="10.5" font-weight="bold">④ BF16 수치 오류 → loss spike</text>
+    <text x="648" y="358" text-anchor="middle">거대한 활성값은 저정밀도에서</text>
+    <text x="648" y="372" text-anchor="middle">오차에 취약 (Budzinskiy et al. 2025)</text>
+    <text x="648" y="386" text-anchor="middle" font-size="9" fill="#b91c1c">→ §3.2.2의 발산·spike</text>
+  </g>
+
+  <rect x="50" y="398" width="698" height="34" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="399" y="415" text-anchor="middle" font-size="10">두 가지 개입이 이 사슬의 서로 다른 지점을 끊는다 — <tspan font-weight="bold">sandwich norm은 ②를</tspan> (FFN 출력을 residual에 넣기 전 정규화),</text>
+  <text x="399" y="428" text-anchor="middle" font-size="10"><tspan font-weight="bold">SDPA gate는 ①③을 동시에</tspan> (query 무관 문맥을 지워 sink의 필요성과 활성 크기를 함께 없앤다) → 그래서 gate만 성능까지 개선한다</text>
+</svg>
+<figcaption><strong>[Figure 2 재현 + 부록 A.3의 인과 사슬]</strong>: 왼쪽 곡선에서 주황(baseline)이 layer 6 부근에서 급등해 이후 0.8~0.9를 오가고, 파랑(gate)은 전 층에서 0.05 아래에 머문다 — 층별 세부 값은 원문 그림에 축 숫자가 없어 개념 재구성이고, 평균값 0.467/0.048은 Table 4의 실제 값이다. 오른쪽 attention map에서 진한 빨간 열이 첫 토큰을 향한 attention이며, layer 21에서 83% → 4%로 바뀐다. 보라 박스의 관측이 흥미로운데, gate는 sink를 없애기만 하는 것이 아니라 <em>마지막 층에서는 기존 경향을 증폭</em>한다 — 즉 gate는 균일하게 억제하는 장치가 아니라 층마다 다른 역할을 학습한다. 아래 사슬은 §3.2.2(안정성)와 §4.3(sink)이 왜 같은 이야기인지를 잇는 것이며, sandwich norm과 gate가 <strong>같은 사슬의 다른 지점을 끊는다</strong>는 점이 Table 2 row 7의 결과(수렴 회복, 성능 개선 없음)를 설명한다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 470" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 6 재현 — 다섯 설정의 massive activation과 attention sink 층별 비교</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">왼쪽 열: 층별 최대 활성값 (세로 스케일이 행마다 다름). 오른쪽 열: 층별 첫 토큰 attention (0~1 공통 스케일)</text>
+
+  <g font-size="9">
+    <text x="70" y="58" font-size="10" font-weight="bold">① baseline</text>
+    <rect x="150" y="46" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M150,104 L166,102 L182,100 L198,98 L214,56 L230,60 L246,58 L262,62 L278,56 L294,60 L310,58 L326,62 L342,56 L358,60 L374,58 L390,62" stroke="#dc2626" stroke-width="1.6" fill="none"/>
+    <text x="396" y="56" font-size="8.5" fill="#b91c1c">1600</text>
+    <text x="215" y="98" font-size="8.5" fill="#b91c1c">layer 6에서 급등</text>
+    <rect x="450" y="46" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M450,104 L466,102 L482,100 L498,96 L514,58 L530,52 L546,56 L562,50 L578,54 L594,48 L610,56 L626,50 L642,54 L658,58 L674,50 L690,54" stroke="#dc2626" stroke-width="1.6" fill="none"/>
+    <text x="696" y="76" font-size="8.5" fill="#b91c1c">평균 0.467</text>
+
+    <text x="70" y="130" font-size="10" font-weight="bold" fill="#1e40af">② SDPA gate</text>
+    <rect x="150" y="118" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M150,176 L182,174 L214,170 L246,166 L278,160 L310,154 L342,148 L374,142 L390,138" stroke="#3b82f6" stroke-width="1.6" fill="none"/>
+    <text x="396" y="128" font-size="8.5" fill="#1e40af">400</text>
+    <text x="230" y="160" font-size="8.5" fill="#1e40af">깊이에 따라 완만히 증가</text>
+    <rect x="450" y="118" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M450,176 L482,175 L514,174 L546,174 L578,173 L610,173 L642,172 L674,172 L690,171" stroke="#3b82f6" stroke-width="1.6" fill="none"/>
+    <text x="696" y="150" font-size="8.5" fill="#1e40af">평균 0.048</text>
+    <text x="560" y="166" font-size="8.5" fill="#1e40af">어느 층에도 sink 없음</text>
+
+    <text x="70" y="202" font-size="10" font-weight="bold" fill="#7e22ce">③ v gate (G₂)</text>
+    <rect x="150" y="190" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M150,248 L182,246 L214,242 L246,238 L278,232 L310,226 L342,220 L374,214 L390,210" stroke="#a855f7" stroke-width="1.6" fill="none"/>
+    <text x="396" y="200" font-size="8.5" fill="#7e22ce">350</text>
+    <text x="250" y="232" font-size="8.5" fill="#7e22ce">②와 거의 같다</text>
+    <rect x="450" y="190" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M450,248 L466,246 L482,242 L498,236 L514,212 L530,206 L546,214 L562,208 L578,216 L594,204 L610,212 L626,206 L642,214 L658,208 L674,216 L690,210" stroke="#a855f7" stroke-width="1.6" fill="none"/>
+    <text x="696" y="222" font-size="8.5" fill="#7e22ce">평균 0.297</text>
+    <text x="545" y="240" font-size="8.5" fill="#7e22ce">sink는 남는다 ★</text>
+
+    <text x="70" y="274" font-size="10" font-weight="bold" fill="#b45309">④ head-shared</text>
+    <rect x="150" y="262" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M150,320 L182,316 L214,308 L246,300 L278,290 L310,282 L342,290 L374,278 L390,282" stroke="#f59e0b" stroke-width="1.6" fill="none"/>
+    <text x="396" y="272" font-size="8.5" fill="#b45309">500</text>
+    <rect x="450" y="262" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M450,320 L466,318 L482,312 L498,304 L514,282 L530,276 L546,284 L562,278 L578,286 L594,272 L610,282 L626,276 L642,284 L658,278 L674,286 L690,280" stroke="#f59e0b" stroke-width="1.6" fill="none"/>
+    <text x="696" y="294" font-size="8.5" fill="#b45309">평균 0.301</text>
+
+    <text x="70" y="346" font-size="10" font-weight="bold" fill="#b91c1c">⑤ NS-sigmoid</text>
+    <rect x="150" y="334" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M150,392 L166,390 L182,388 L198,384 L214,346 L230,350 L246,348 L262,352 L278,344 L294,350 L310,346 L326,352 L342,344 L358,350 L374,346 L390,350" stroke="#dc2626" stroke-width="1.6" fill="none"/>
+    <text x="396" y="344" font-size="8.5" fill="#b91c1c">1600</text>
+    <text x="250" y="384" font-size="8.5" fill="#b91c1c">baseline과 동일한 모양</text>
+    <rect x="450" y="334" width="240" height="60" fill="#fff" stroke="#cbd5e1"/>
+    <path d="M450,392 L466,390 L482,386 L498,382 L514,346 L530,340 L546,344 L562,338 L578,342 L594,336 L610,344 L626,338 L642,342 L658,346 L674,338 L690,342" stroke="#dc2626" stroke-width="1.6" fill="none"/>
+    <text x="696" y="364" font-size="8.5" fill="#b91c1c">평균 0.481*</text>
+  </g>
+
+  <rect x="40" y="404" width="360" height="58" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="220" y="422" text-anchor="middle" font-size="10.5" font-weight="bold">③행이 이 그림의 결정적 증거다</text>
+  <text x="52" y="440" font-size="9.5">massive activation은 ②와 같은 수준으로 사라졌는데</text>
+  <text x="52" y="454" font-size="9.5">attention sink는 남아 있다 → 두 현상은 <tspan font-weight="bold">분리 가능</tspan>하다</text>
+
+  <rect x="410" y="404" width="350" height="58" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="585" y="422" text-anchor="middle" font-size="10.5" font-weight="bold">주의 — 수치 불일치</text>
+  <text x="422" y="440" font-size="9.5">* Fig. 6 ⑤행의 F-Attn 평균은 원문에 0.481로 표기되나</text>
+  <text x="422" y="454" font-size="9.5">Table 4 row 7에는 0.451로 적혀 있다 (같은 설정)</text>
+</svg>
+<figcaption><strong>[Figure 6 재현]</strong>: 다섯 행이 각각 하나의 학습된 모델이고, 왼쪽이 massive activation, 오른쪽이 attention sink다. <strong>①⑤행의 모양이 같고 ②③행의 왼쪽이 같다</strong>는 두 가지 패턴이 핵심이다 — 전자는 "sparsity를 죽이면 baseline으로 돌아간다", 후자는 "$G_2$도 massive activation은 없앤다"를 뜻한다. 그래서 ③행의 오른쪽(sink 잔존)이 §4.3의 반례가 성립하는 지점이다. 각 행의 왼쪽 세로 스케일이 원문에서도 서로 다르므로(1600 / 400 / 350 / 500 / 1600) <em>행 간 높이를 직접 비교하면 안 되고</em> 표기된 최대값을 함께 봐야 한다. 층별 궤적 모양은 개념 재구성이며 F-Attn 평균값은 원문 표기를 그대로 옮겼다 — ⑤행의 0.481과 Table 4의 0.451이 불일치하는 점도 원문 그대로 표시했다.</figcaption>
+</figure>
+
+<h3>4.4 SDPA 출력 gate가 컨텍스트 길이 확장을 돕는다 (§4.4)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: attention sink가 없는 모델은 긴 컨텍스트에서 다르게 행동하는가?</p>
+
+<p><strong>절차</strong>: 3.5T 토큰으로 학습한 모델에서 출발해 (1) RoPE (Rotary Position Embedding, Su et al., 2024) base를 10k → 1M으로 올리고 시퀀스 길이 32k 데이터로 <strong>80B 토큰 추가 학습</strong> → 32k 컨텍스트 모델을 얻는다. (2) 여기에 <strong>YaRN</strong> (Peng et al., 2023)을 적용해 학습 없이 128k로 확장한다. RULER 벤치마크(Hsieh et al., 2024)로 평가한다.</p>
+
+<table>
+<thead><tr><th>방법</th><th>4k</th><th>8k</th><th>16k</th><th>32k</th><th>64k</th><th>128k</th></tr></thead>
+<tbody>
+<tr><td colspan="7" style="background:#f8fafc"><em>32k 계속학습 직후 (YaRN 미적용)</em></td></tr>
+<tr><td>Baseline</td><td>88.89</td><td>85.88</td><td>83.15</td><td>79.50</td><td>–</td><td>–</td></tr>
+<tr><td>SDPA-Gate</td><td>90.56</td><td>87.11</td><td>84.61</td><td>79.77</td><td>–</td><td>–</td></tr>
+<tr><td colspan="7" style="background:#f8fafc"><em>YaRN으로 128k 확장 후 (괄호는 확장 전 대비 하락폭)</em></td></tr>
+<tr><td>Baseline</td><td>82.90 <span style="color:#b91c1c">(−6.0)</span></td><td>71.52 <span style="color:#b91c1c">(−14.4)</span></td><td>61.23 <span style="color:#b91c1c">(−21.9)</span></td><td>37.94 <span style="color:#b91c1c">(−41.56)</span></td><td>37.51</td><td>31.65</td></tr>
+<tr style="background:#dcfce7"><td>SDPA-Gate</td><td>88.13 <span style="color:#15803d">(−2.4)</span></td><td>80.01 <span style="color:#15803d">(−7.1)</span></td><td>76.74 <span style="color:#15803d">(−7.87)</span></td><td>72.88 <span style="color:#15803d">(−6.89)</span></td><td><strong>66.60</strong></td><td><strong>58.82</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>세 가지 관찰</strong>:</p>
+<ol>
+  <li><strong>32k 학습 길이 안에서는 차이가 작다</strong> (79.50 vs 79.77). 저자들의 해석: <em>학습된 길이 범위 안에서는 attention sink가 long-context 성능을 해치지 않을 수 있다.</em></li>
+  <li><strong>YaRN 확장 후 두 모델 모두 원래 32k 범위에서 성능이 하락한다.</strong> RoPE를 수정해 컨텍스트를 늘리는 기법의 알려진 부작용이다(Chen et al., 2023; Peng et al., 2023; Dong et al., 2025). 그러나 하락폭이 완전히 다르다 — 32k에서 baseline은 <strong>−41.56</strong>, gate 모델은 <strong>−6.89</strong>.</li>
+  <li><strong>64k·128k에서는 격차가 압도적이다.</strong> 37.51 → 66.60, 31.65 → 58.82. ##논문이 초록에서 말하는 "RULER 10점 이상 향상"은 사실 훨씬 큰 격차의 보수적 표현이다.##</li>
+</ol>
+
+<p><strong>저자들의 가설</strong>: baseline 모델은 <em>attention 점수 분포를 조절하는 수단으로 attention sink에 의존</em>한다. Dong et al. (2025)은 RoPE base를 바꾸는 것이 attention·hidden state 분포에 미치는 영향을 유도했는데, YaRN 같은 기법으로 RoPE를 수정하면 <strong>sink 패턴이 학습 없이 적응하지 못한다</strong>. 반면 gate 모델은 정보 흐름 제어를 <em>위치가 아니라 입력 의존적 gate 점수</em>에 맡기므로 RoPE 변경에 훨씬 견고하다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: attention sink는 모델이 스스로 만든 "임시 배관"이다. 그 배관은 <em>위치</em>에 고정되어 있다(첫 토큰). RoPE를 바꾸면 위치 체계가 흔들리므로 배관이 새기 시작한다. gate 모델은 배관 대신 <em>내용에 반응하는 밸브</em>를 쓰므로, 위치 체계가 바뀌어도 밸브는 그대로 작동한다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 5 시각화 — YaRN 확장이 두 모델에 미치는 서로 다른 타격</text>
+
+  <line x1="80" y1="250" x2="720" y2="250" stroke="#333"/>
+  <line x1="80" y1="50" x2="80" y2="250" stroke="#333"/>
+  <text x="80" y="266" text-anchor="middle" font-size="9.5">4k</text>
+  <text x="208" y="266" text-anchor="middle" font-size="9.5">8k</text>
+  <text x="336" y="266" text-anchor="middle" font-size="9.5">16k</text>
+  <text x="464" y="266" text-anchor="middle" font-size="9.5">32k</text>
+  <text x="592" y="266" text-anchor="middle" font-size="9.5">64k</text>
+  <text x="720" y="266" text-anchor="middle" font-size="9.5">128k</text>
+  <text x="400" y="282" text-anchor="middle" font-size="10" fill="#555">평가 컨텍스트 길이 (RULER)</text>
+  <text x="72" y="53" text-anchor="end" font-size="9" fill="#999">100</text>
+  <line x1="80" y1="50" x2="720" y2="50" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="72" y="153" text-anchor="end" font-size="9" fill="#999">50</text>
+  <line x1="80" y1="150" x2="720" y2="150" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="72" y="253" text-anchor="end" font-size="9" fill="#999">0</text>
+  <text x="66" y="150" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 66 150)">RULER 점수</text>
+
+  <path d="M80,72 L208,78 L336,84 L464,91" stroke="#94a3b8" stroke-width="1.8" stroke-dasharray="5 3" fill="none"/>
+  <circle cx="80" cy="72" r="3.5" fill="#94a3b8"/><circle cx="208" cy="78" r="3.5" fill="#94a3b8"/>
+  <circle cx="336" cy="84" r="3.5" fill="#94a3b8"/><circle cx="464" cy="91" r="3.5" fill="#94a3b8"/>
+  <text x="474" y="88" font-size="9" fill="#64748b">YaRN 적용 전 (두 모델 거의 동일: 79.50 / 79.77)</text>
+
+  <path d="M80,84 L208,107 L336,128 L464,174 L592,175 L720,187" stroke="#e67e22" stroke-width="2" fill="none"/>
+  <circle cx="80" cy="84" r="4" fill="#e67e22"/><circle cx="208" cy="107" r="4" fill="#e67e22"/>
+  <circle cx="336" cy="128" r="4" fill="#e67e22"/><circle cx="464" cy="174" r="4" fill="#e67e22"/>
+  <circle cx="592" cy="175" r="4" fill="#e67e22"/><circle cx="720" cy="187" r="4" fill="#e67e22"/>
+  <text x="76" y="78" font-size="9" fill="#b45309" text-anchor="end">82.90</text>
+  <text x="208" y="121" text-anchor="middle" font-size="9" fill="#b45309">71.52</text>
+  <text x="336" y="142" text-anchor="middle" font-size="9" fill="#b45309">61.23</text>
+  <text x="464" y="188" text-anchor="middle" font-size="9" fill="#b45309">37.94</text>
+  <text x="592" y="189" text-anchor="middle" font-size="9" fill="#b45309">37.51</text>
+  <text x="720" y="201" text-anchor="middle" font-size="9" fill="#b45309">31.65</text>
+
+  <path d="M80,74 L208,90 L336,97 L464,104 L592,117 L720,132" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <circle cx="80" cy="74" r="4" fill="#3b82f6"/><circle cx="208" cy="90" r="4" fill="#3b82f6"/>
+  <circle cx="336" cy="97" r="4" fill="#3b82f6"/><circle cx="464" cy="104" r="4" fill="#3b82f6"/>
+  <circle cx="592" cy="117" r="4" fill="#3b82f6"/><circle cx="720" cy="132" r="4" fill="#3b82f6"/>
+  <text x="76" y="70" font-size="9" fill="#1e40af" text-anchor="end">88.13</text>
+  <text x="208" y="82" text-anchor="middle" font-size="9" fill="#1e40af">80.01</text>
+  <text x="336" y="89" text-anchor="middle" font-size="9" fill="#1e40af">76.74</text>
+  <text x="464" y="96" text-anchor="middle" font-size="9" fill="#1e40af">72.88</text>
+  <text x="592" y="109" text-anchor="middle" font-size="9" fill="#1e40af">66.60</text>
+  <text x="700" y="124" text-anchor="middle" font-size="9" fill="#1e40af" font-weight="bold">58.82</text>
+
+  <path d="M464,104 L464,174" stroke="#a855f7" stroke-width="1.4" stroke-dasharray="3 2"/>
+  <text x="452" y="145" text-anchor="end" font-size="9.5" fill="#7e22ce">격차 34.94</text>
+  <path d="M720,132 L720,187" stroke="#a855f7" stroke-width="1.4" stroke-dasharray="3 2"/>
+  <text x="712" y="164" text-anchor="end" font-size="9.5" fill="#7e22ce">격차 27.17</text>
+
+  <text x="240" y="42" font-size="10" fill="#e67e22">— baseline (YaRN 후)</text>
+  <text x="420" y="42" font-size="10" fill="#3b82f6">— SDPA-Gate (YaRN 후)</text>
+  <text x="600" y="42" font-size="10" fill="#64748b">‑ ‑ YaRN 전</text>
+
+  <rect x="60" y="298" width="330" height="60" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="225" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">패턴 ① — 학습 길이 안에서는 차이가 없다</text>
+  <text x="72" y="334" font-size="9.5">32k 계속학습 직후: 79.50 vs 79.77 (거의 동일)</text>
+  <text x="72" y="349" font-size="9.5">→ attention sink 자체가 long-context를 해치는 게 아니다</text>
+
+  <rect x="410" y="298" width="330" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="575" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">패턴 ② — 문제는 <tspan font-style="italic">확장 과정</tspan>에 대한 견고성이다</text>
+  <text x="422" y="334" font-size="9.5">32k에서 하락폭: baseline −41.56 vs gate −6.89 (6배)</text>
+  <text x="422" y="349" font-size="9.5">→ gate 모델의 이득은 "긴 문맥 이해"가 아니라 "RoPE 변경 내성"</text>
+
+  <rect x="60" y="366" width="680" height="56" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="384" text-anchor="middle" font-size="10.5" font-weight="bold">저자들의 가설 — sink는 위치에 고정된 배관, gate는 내용에 반응하는 밸브</text>
+  <text x="400" y="401" text-anchor="middle" font-size="10">baseline은 attention 분포 조절을 <tspan font-weight="bold">첫 토큰이라는 위치</tspan>에 의존한다. YaRN이 RoPE base를 바꾸면 위치 체계가 흔들려 이 배관이 학습 없이 적응하지 못한다.</text>
+  <text x="400" y="416" text-anchor="middle" font-size="10">gate 모델은 <tspan font-weight="bold">입력 의존 gate 점수</tspan>로 흐름을 제어하므로 위치 체계 변화와 무관하다 — 다만 이것은 <tspan font-style="italic">가설이며 논문은 증명하지 않는다</tspan> (Limitations에서 스스로 인정)</text>
+</svg>
+<figcaption><strong>[Figure: Table 5 시각화]</strong>: 회색 점선이 YaRN 적용 <em>전</em> 두 모델의 성능(구분되지 않음)이고, 주황·파랑이 적용 <em>후</em>다. 이 그림의 요점은 두 아래 박스의 대비다 — 학습 길이 안에서는 차이가 없으므로 <strong>gate의 이득은 "긴 문맥을 더 잘 이해한다"가 아니라 "컨텍스트 확장 기법에 덜 망가진다"로 해석해야 한다</strong>. 이 구분은 실무적으로 중요하다: 32k까지만 쓸 계획이라면 이 이득은 나타나지 않는다. 보라 점선이 32k(34.94)와 128k(27.17)의 격차이며, 초록 박스에서 밝혔듯 인과 설명은 가설로 남아 있고 저자들도 Limitations에서 이를 인정한다. baseline의 8k(71.52)와 16k(61.23) 사이 궤적이 단조롭지 않은 것은 원문 수치 그대로다.</figcaption>
+</figure>
+
+<h2>5. 관련 연구 (§5)</h2>
+
+<h3>5.1 신경망의 gating (§5.1)</h3>
+
+<p>배경 절에서 계보를 다뤘으므로, 여기서는 이 논문이 <strong>선행 연구에 대해 취하는 입장</strong>만 정리한다.</p>
+
+<ul>
+  <li><strong>gate를 쓰는 연구들에 대한 요청</strong>: Switch Heads, NSA, MoSA (Piękos et al., 2025)는 모두 sigmoid 기반 gating을 <em>선택 메커니즘</em>으로 쓴다. 저자들은 이들이 "gate 자체의 기여를 분리하지 않았다"고 지적하며, <strong>표준 Transformer에 동등한 gating을 넣은 baseline과 비교해야</strong> 새 선택 메커니즘의 순수 기여를 알 수 있다고 주장한다. 이는 후속 연구에 대한 구체적인 실험 설계 요청이다.</li>
+  <li><strong>Forgetting Transformer (Lin et al., 2025)</strong>와의 관계: softmax attention 출력에 forget gate를 적용해 개선을 관측한 선행 연구. 이 논문은 그 관측을 위치·granularity·활성함수의 격자로 확장하고 <em>왜</em>에 답한다.</li>
+  <li><strong>Quantizable Transformers (Bondarenko et al., 2023)</strong>: 가장 밀접한 선행. encoder 모델(BERT·ViT)에서 attention gating이 극단적 집중과 outlier를 완화한다는 것을 이미 발견. 차이는 (a) 목적 — 저쪽은 양자화, 이쪽은 성능·안정성·길이, (b) 범위 — decoder-only LLM으로 확장하고 3.5T 토큰까지 스케일업, (c) 분석 — 비선형성과 sparsity로 원인을 분해.</li>
+</ul>
+
+<h3>5.2 Attention sink (§5.2)</h3>
+
+<p>attention sink 연구의 흐름과 이 논문의 위치를 정리하면 다음과 같다.</p>
+
+<table class="small-table">
+<thead><tr><th>연구</th><th>주장</th><th>이 논문의 관계</th></tr></thead>
+<tbody>
+<tr><td>Xiao et al. (2023)</td><td>attention sink 현상을 최초로 규정. 특정 토큰이 큰 attention을 받는다</td><td>이 현상을 없애는 것이 목표</td></tr>
+<tr><td>Darcet et al. (2023)</td><td>ViT에서 잉여 토큰이 attention을 저장하는 ‘register’ 역할</td><td>같은 현상의 vision 대응</td></tr>
+<tr><td>Sun et al. (2024)</td><td>massive activation을 가진 토큰에 과도한 attention이 몰린다</td><td>##반례 제시: $G_2$ gate는 massive activation을 없애도 sink를 남긴다##</td></tr>
+<tr><td>Gu et al. (2024)</td><td>sink는 정보 없는 ‘key bias’이며, softmax의 정규화 의존성이 원인</td><td>정합. gate는 정규화 밖의 자유도를 추가하는 것으로 해석 가능</td></tr>
+<tr><td>Ramapuram et al. (2024) / Gu et al. (2024)</td><td>softmax를 정규화 없는 sigmoid attention으로 교체</td><td>대안 접근. 이 논문은 softmax를 <em>건드리지 않고</em> 뒤에 gate를 붙인다</td></tr>
+<tr><td>Bondarenko et al. (2023)</td><td>attention gate/clip으로 sink 완화</td><td>가장 밀접. encoder → decoder LLM으로 확장</td></tr>
+<tr><td>Zuhri et al. (2025) ‘Softpick’ / Miller (2023)</td><td>softmax 계산·분모를 수정</td><td>대안 접근</td></tr>
+</tbody>
+</table>
+
+<p>이 논문의 차별점은 세 가지다: (1) sink 제거를 <strong>dense 1.7B와 MoE 15B, 3.5T 토큰</strong>이라는 실용 규모에서 달성, (2) sink 제거가 <strong>성능·안정성 개선과 함께</strong> 온다는 것을 보임(기존 sink 제거 시도들은 종종 성능 손실을 동반), (3) sink 제거가 <strong>컨텍스트 확장에 이롭다</strong>는 새 효용을 발견.</p>
+
+<h2>6. 결론과 한계 (§6, Limitations)</h2>
+
+<p><strong>결론</strong>: 30개 이상의 변종을 15B MoE와 1.7B dense에서 최대 3.5T 토큰까지 학습해 비교한 결과, <strong>SDPA 뒤에 sigmoid gate를 두는 것</strong>이 가장 큰 개선을 준다. 이 단순한 메커니즘은 비선형성을 강화하고, 입력 의존적 sparsity를 도입하며, attention sink 같은 비효율을 제거한다. 또한 컨텍스트 길이 확장을 도와 재학습 없이 더 긴 시퀀스로 일반화하게 한다. attention-sink-free 모델을 최초로 공개한다.</p>
+
+<p><strong>저자들이 스스로 밝힌 한계</strong>:</p>
+<ul>
+  <li>비선형성이 attention 동역학과 학습 과정 전반에 미치는 함의가 충분히 탐구되지 않았다.</li>
+  <li>attention sink 제거가 long-context extension 성능을 개선한다는 것은 관측했지만, <strong>attention sink가 긴 시퀀스 일반화 능력에 어떻게 영향을 주는지에 대한 엄밀한 이론적 설명이 없다.</strong></li>
+</ul>
+
+<h2>부록 (Appendix A)</h2>
+
+<h3>A.1 Switch Head baseline (Table 6)</h3>
+
+<p><strong>이 실험의 의도</strong>: 배경 절에서 다룬 혼재 문제를 직접 실험으로 확인한다. Switch Heads는 각 토큰이 key/value/output expert 풀에서 learnable sigmoid routing으로 top-$k$를 고르는 구조이며, "expert 파라미터와 활성 파라미터가 많을수록 좋다"는 것이 원 논문의 해석이다.</p>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>방법</th><th>추가 파라미터(M)</th><th>PPL</th><th>MMLU</th><th>GSM8k</th><th>Hellaswag</th><th>C-eval</th></tr></thead>
+<tbody>
+<tr><td>1</td><td>Baseline (q32, kv4)</td><td>–</td><td>6.026</td><td>58.79</td><td>52.92</td><td>73.07</td><td>60.26</td></tr>
+<tr><td>2</td><td>Switch kv, 8top8</td><td>38</td><td>5.847</td><td>59.17</td><td>52.54</td><td>73.32</td><td>61.01</td></tr>
+<tr><td>3</td><td>Switch kv, 4top4</td><td>13</td><td>5.935</td><td>58.14</td><td>53.27</td><td>73.75</td><td>59.67</td></tr>
+<tr><td>4</td><td>Switch v, 4top4</td><td>13</td><td>5.820</td><td>59.02</td><td>52.77</td><td>73.34</td><td>61.74</td></tr>
+<tr><td>5</td><td>Switch v, 8top2</td><td>25</td><td>5.870</td><td>59.10</td><td>53.53</td><td>74.17</td><td>62.34</td></tr>
+<tr style="background:#dcfce7"><td>6</td><td><strong>Switch v, 1top1</strong> (= v Headwise Gate)</td><td><strong>3</strong></td><td><strong>5.808</strong></td><td><strong>59.32</strong></td><td>53.53</td><td><strong>74.38</strong></td><td><strong>62.61</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: 활성 kv expert 수를 늘리면 PPL은 조금 좋아지는 듯하나(row 4 vs 5) 벤치마크 개선은 뚜렷하지 않다. ##PPL과 벤치마크 모두에서 가장 좋은 것은 ‘Switch v, 1top1’(row 6) — 파라미터를 3M만 추가하는, 사실상 value 출력에 sigmoid gate를 곱하는 것과 동일한 설정이다.## 이 결과가 "개선의 주 동력은 gate 자체"라는 주장의 직접 증거다.</p>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 6 재구성 — expert를 줄일수록 좋아진다</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">가로: 추가 파라미터(M), 세로: PPL. 왼쪽 아래가 가장 좋은 위치다</text>
+
+  <line x1="90" y1="240" x2="700" y2="240" stroke="#333"/>
+  <line x1="90" y1="56" x2="90" y2="240" stroke="#333"/>
+  <text x="90" y="256" text-anchor="middle" font-size="9">0</text>
+  <text x="212" y="256" text-anchor="middle" font-size="9">10</text>
+  <text x="334" y="256" text-anchor="middle" font-size="9">20</text>
+  <text x="456" y="256" text-anchor="middle" font-size="9">30</text>
+  <text x="578" y="256" text-anchor="middle" font-size="9">40</text>
+  <text x="395" y="272" text-anchor="middle" font-size="10" fill="#555">추가 파라미터 (M)</text>
+  <text x="82" y="60" text-anchor="end" font-size="9" fill="#999">6.05</text>
+  <text x="82" y="240" text-anchor="end" font-size="9" fill="#999">5.79</text>
+  <line x1="90" y1="56" x2="700" y2="56" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <line x1="90" y1="146" x2="700" y2="146" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="82" y="150" text-anchor="end" font-size="9" fill="#999">5.92</text>
+  <text x="76" y="150" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 76 150)">PPL</text>
+
+  <circle cx="90" cy="73" r="5" fill="#94a3b8" stroke="#475569"/>
+  <text x="100" y="70" font-size="9.5">Baseline 6.026</text>
+  <circle cx="554" cy="200" r="5" fill="#c4b5fd" stroke="#8b5cf6"/>
+  <text x="564" y="197" font-size="9.5">Switch kv 8top8 (38M) 5.847</text>
+
+  <circle cx="249" cy="137" r="5" fill="#c4b5fd" stroke="#8b5cf6"/>
+  <text x="259" y="133" font-size="9.5">Switch kv 4top4 (13M) 5.935</text>
+
+  <circle cx="249" cy="219" r="5" fill="#a5b4fc" stroke="#4f46e5"/>
+  <text x="259" y="216" font-size="9.5">Switch v 4top4 (13M) 5.820</text>
+
+  <circle cx="395" cy="183" r="5" fill="#a5b4fc" stroke="#4f46e5"/>
+  <text x="405" y="180" font-size="9.5">Switch v 8top2 (25M) 5.870</text>
+
+  <circle cx="127" cy="227" r="7" fill="#22c55e" stroke="#15803d" stroke-width="1.6"/>
+  <text x="140" y="231" font-size="10" font-weight="bold" fill="#15803d">Switch v 1top1 (3M) 5.808  ★ = v Headwise Gate</text>
+
+  <path d="M554,207 L138,224" stroke="#a855f7" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <text x="420" y="252" font-size="9.5" fill="#7e22ce">expert 8개 → 1개, 파라미터 38M → 3M, PPL 5.847 → 5.808</text>
+
+  <rect x="60" y="284" width="680" height="30" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="303" text-anchor="middle" font-size="10.5">routing을 완전히 제거한 설정이 <tspan font-weight="bold">PPL·MMLU·Hellaswag·C-eval 모두에서 1위</tspan> — 파라미터는 1/12 → "이득의 출처는 routing이 아니라 gate"</text>
+</svg>
+<figcaption><strong>[Figure: Table 6 재구성]</strong>: 왼쪽 아래로 갈수록 "적은 파라미터로 좋은 PPL"을 뜻한다. 보라 점선이 이 표의 핵심 이동이다 — expert 8개에서 1개로 줄이면 파라미터가 12배 줄어드는데 PPL이 오히려 좋아진다. 초록 점(‘Switch v, 1top1’)은 Table 1 row 11의 ‘v Headwise Gate’와 <em>같은 연산</em>이며(논문이 명시), 다만 Table 6에서는 추가 파라미터가 3M, Table 1에서는 0.2M으로 표기되어 두 표의 파라미터 집계 기준이 다르다는 점은 주의가 필요하다. 이 그림이 §배경의 혼재 문제 도식(그림 3)에서 예고한 대조를 실제 수치로 채운 것이다.</figcaption>
+</figure>
+
+<h3>A.2 sparse gate 점수가 hidden state를 얼마나 sparse하게 만드는가</h3>
+
+<p><strong>이 실험의 의도</strong>: "gate 점수가 sparse하다"는 것과 "SDPA 출력이 실제로 sparse해진다"는 것은 다른 주장이다. 후자를 직접 측정한다.</p>
+
+<p><strong>측정 1 (Figure 4)</strong>: 각 층에서 $G_1$ 적용 전 $Y$와 적용 후 $Y'$의 절댓값 평균. 결과 — <strong>gate 적용 후 hidden state 평균이 0.71 → 0.05로 줄어든다.</strong> 그리고 흥미롭게도 <em>gate 이후 값이 baseline(0.04)과 거의 같다</em>. 저자들의 해석: gate가 baseline의 attention sink와 <strong>유사한 기능</strong>(무관한 정보 걸러내기)을 수행하고 있는 것일 수 있다.</p>
+
+<p><strong>측정 2 (Figure 5)</strong>: 임계값 미만인 값의 비율(sparsity ratio). 임계값 $10^{-2}$에서 gate 전 0.03 → gate 후 0.44. 임계값 $10^{-3}$에서 0.003 → 0.126.</p>
+
+<p>여기서 저자들은 중요한 대조군을 하나 더 넣는다. <strong>gate 전 hidden state에 "평균 gate 점수"를 곱한 경우</strong>다. 단순히 작은 수를 곱하면 값들이 임계값 아래로 내려가는 것은 당연하므로, 그 효과를 뺀 순수 sparsity 기여를 보려는 것이다. 결과 — 평균 점수를 곱했을 때는 0.33(임계값 $10^{-2}$) / 0.080($10^{-3}$)에 그친다. 즉 <strong>실제 gate는 평균 스케일링만으로 설명되지 않는 추가 sparsity를 만든다.</strong></p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 4·5 재현 + 수치 예제 — "평균을 곱한 것"과 "실제 gate"의 차이</text>
+
+  <text x="200" y="42" text-anchor="middle" font-size="11.5" font-weight="bold">Figure 4 재현 — 층별 hidden state 절댓값 평균</text>
+  <line x1="70" y1="180" x2="350" y2="180" stroke="#333"/>
+  <line x1="70" y1="60" x2="70" y2="180" stroke="#333"/>
+  <text x="70" y="196" text-anchor="middle" font-size="9">0</text>
+  <text x="140" y="196" text-anchor="middle" font-size="9">5</text>
+  <text x="210" y="196" text-anchor="middle" font-size="9">10</text>
+  <text x="280" y="196" text-anchor="middle" font-size="9">15</text>
+  <text x="345" y="196" text-anchor="middle" font-size="9">20</text>
+  <text x="210" y="212" text-anchor="middle" font-size="9.5" fill="#555">layer</text>
+  <text x="64" y="63" text-anchor="end" font-size="9" fill="#999">4</text>
+  <text x="64" y="120" text-anchor="end" font-size="9" fill="#999">2</text>
+  <text x="64" y="180" text-anchor="end" font-size="9" fill="#999">0</text>
+
+  <path d="M70,120 L98,108 L126,96 L154,112 L182,100 L210,116 L238,104 L266,110 L294,98 L322,106 L350,114" stroke="#e67e22" stroke-width="2" fill="none"/>
+  <text x="356" y="114" font-size="9" fill="#b45309" text-anchor="end">gate 전 평균 0.71</text>
+  <path d="M70,178 L350,177" stroke="#3b82f6" stroke-width="2"/>
+  <text x="356" y="170" font-size="9" fill="#1e40af" text-anchor="end">gate 후 평균 0.05</text>
+  <path d="M70,179 L350,178" stroke="#94a3b8" stroke-width="1.4" stroke-dasharray="4 3"/>
+  <text x="200" y="164" font-size="9" fill="#555">baseline 평균 0.04 (gate 후와 거의 겹친다)</text>
+
+  <line x1="380" y1="34" x2="380" y2="230" stroke="#e5e7eb"/>
+
+  <text x="590" y="42" text-anchor="middle" font-size="11.5" font-weight="bold">Figure 5 재현 — 임계값 미만 비율 (sparsity ratio)</text>
+  <line x1="430" y1="180" x2="760" y2="180" stroke="#333"/>
+  <line x1="430" y1="60" x2="430" y2="180" stroke="#333"/>
+  <text x="430" y="196" text-anchor="middle" font-size="9">0</text>
+  <text x="595" y="196" text-anchor="middle" font-size="9">10</text>
+  <text x="755" y="196" text-anchor="middle" font-size="9">20</text>
+  <text x="595" y="212" text-anchor="middle" font-size="9.5" fill="#555">layer (임계값 1e-2)</text>
+  <text x="424" y="63" text-anchor="end" font-size="9" fill="#999">1.0</text>
+  <text x="424" y="122" text-anchor="end" font-size="9" fill="#999">0.5</text>
+  <text x="424" y="180" text-anchor="end" font-size="9" fill="#999">0.0</text>
+
+  <path d="M430,132 L463,126 L496,134 L529,124 L562,130 L595,120 L628,128 L661,122 L694,130 L727,124 L760,128" stroke="#3b82f6" stroke-width="2" fill="none"/>
+  <text x="756" y="118" font-size="9" fill="#1e40af" text-anchor="end">gate 후 0.44</text>
+  <path d="M430,150 L463,146 L496,152 L529,144 L562,150 L595,142 L628,148 L661,144 L694,150 L727,146 L760,148" stroke="#a855f7" stroke-width="2" stroke-dasharray="5 3" fill="none"/>
+  <text x="756" y="164" font-size="9" fill="#7e22ce" text-anchor="end">평균 점수만 곱함 0.33</text>
+  <path d="M430,177 L760,176" stroke="#e67e22" stroke-width="2"/>
+  <text x="640" y="174" font-size="9" fill="#b45309">gate 전 0.03</text>
+
+  <line x1="40" y1="232" x2="770" y2="232" stroke="#e5e7eb"/>
+
+  <text x="400" y="252" text-anchor="middle" font-size="12" font-weight="bold">수치 예제 — 세 숫자로 분해해 보면</text>
+
+  <g font-size="10">
+    <rect x="70" y="264" width="660" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="82" y="279" font-weight="bold">측정</text>
+    <text x="300" y="279" font-weight="bold">gate 전</text>
+    <text x="410" y="279" font-weight="bold">평균 점수만 곱함</text>
+    <text x="560" y="279" font-weight="bold">실제 gate</text>
+    <text x="660" y="279" font-weight="bold">순수 기여</text>
+
+    <rect x="70" y="286" width="660" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="82" y="301">절댓값 평균</text>
+    <text x="300" y="301">0.71</text>
+    <text x="410" y="301">0.71 × 0.116 = 0.082</text>
+    <text x="560" y="301" font-weight="bold" fill="#15803d">0.05</text>
+    <text x="660" y="301" font-size="9">추가로 39% 더 작다</text>
+
+    <rect x="70" y="308" width="660" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="82" y="323">sparsity ratio (임계값 1e-2)</text>
+    <text x="300" y="323">0.03</text>
+    <text x="410" y="323">0.33</text>
+    <text x="560" y="323" font-weight="bold" fill="#15803d">0.44</text>
+    <text x="660" y="323" font-size="9">+0.11</text>
+
+    <rect x="70" y="330" width="660" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="82" y="345">sparsity ratio (임계값 1e-3)</text>
+    <text x="300" y="345">0.003</text>
+    <text x="410" y="345">0.080</text>
+    <text x="560" y="345" font-weight="bold" fill="#15803d">0.126</text>
+    <text x="660" y="345" font-size="9">+0.046 (1.6배)</text>
+  </g>
+
+  <rect x="70" y="358" width="660" height="36" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="375" text-anchor="middle" font-size="10">해석: "평균 0.116을 곱하면 당연히 작아진다"로 설명되는 몫과, <tspan font-weight="bold">gate가 큰 값을 골라서 지우기 때문에 생기는 몫</tspan>이 구분된다.</text>
+  <text x="400" y="389" text-anchor="middle" font-size="10">실제 gate가 평균 스케일링보다 더 sparse한 결과를 만든다 = gate 점수가 hidden state의 크기와 <tspan font-weight="bold">상관관계를 갖도록</tspan> 학습되었다</text>
+</svg>
+<figcaption><strong>[Figure 4·5 재현 + 수치 예제]</strong>: 왼쪽에서 <strong>파란 선(gate 후)이 회색 점선(baseline)과 거의 겹친다</strong>는 것이 저자들이 지목한 관측이다 — gate가 baseline에서 attention sink가 담당했던 필터링 역할을 대신하고 있음을 시사한다. 오른쪽에서 보라 점선(평균 점수만 곱한 경우)이 파란 선(실제 gate) 아래에 있는 것이 핵심이며, 그 간격이 gate의 <em>선택적</em> 기여다. 아래 표는 이 간격을 숫자로 분해한 것으로, 절댓값 평균 행이 특히 명료하다 — 단순 스케일링이라면 0.082가 나와야 하는데 실제로는 0.05다. 즉 gate는 무작위로 작은 값을 곱하는 것이 아니라 <strong>큰 값이 있는 곳을 골라 지운다</strong>. 층별 궤적은 개념 재구성이고 평균값은 원문 Figure 4·5의 범례 값이다.</figcaption>
+</figure>
+
+<h3>A.3 층별 massive activation과 attention sink</h3>
+
+<p>§4.3에서 다룬 Figure 6의 층별 세부 관측을 정리하면 다음과 같다.</p>
+
+<ul>
+  <li><strong>baseline</strong>: 6번째 층 FFN 출력에서 massive activation이 발생 → residual stream에 더해져 이후 층에 지속. attention sink도 정확히 6번째 층부터 나타난다.</li>
+  <li><strong>SDPA gate</strong>: 앞쪽 층의 출력이 전체적으로 작게 유지되고, 깊이가 늘어남에 따라 활성값이 <em>점진적으로</em> 커진다. 어느 층에서도 유의한 attention sink가 없다.</li>
+  <li><strong>value gate만 적용</strong>: massive activation은 SDPA gate와 유사한 수준. 그런데 attention sink는 어느 정도 남는다. → <strong>massive activation은 attention sink의 필요조건이 아니다.</strong></li>
+  <li><strong>head-shared 또는 NS-sigmoid</strong>: sparsity가 줄어들면서 massive activation과 attention sink가 모두 baseline 수준으로 돌아간다.</li>
+</ul>
+
+<p>저자들의 결론과 유보: attention 안에 충분한 sparsity를 도입하면 massive activation 발생을 억제할 수 있어 보이지만, <em>sparsity·massive activation·attention sink 사이의 상호작용을 완전히 이해하려면 더 깊고 큰 모델에서의 추가 연구가 필요하다.</em></p>
+
+<h3>A.4 층별 gate 점수 분포 (Figure 7)</h3>
+
+<p>SDPA 출력 gate를 기준(elementwise/headwise)으로, 두 가지 제약을 걸었을 때의 층별 gate 점수 분포(평균·표준편차·최소·최대)를 비교한다.</p>
+
+<ul>
+  <li><strong>head 간 점수 공유를 강제</strong>: 대부분의 층에서 gate 점수가 <em>올라간다</em>.</li>
+  <li><strong>gate 점수의 최솟값을 제한</strong>(NS-sigmoid): 점수 분포가 위로 밀린다.</li>
+</ul>
+
+<p>저자들의 해석: ##head마다 필요한 sparsity 수준이 다르다.## 공유를 강제하면 각 head가 원하는 만큼 지울 수 없으므로 평균적으로 "덜 지우는" 타협점에 수렴한다. 이것이 head-specific gating이 중요한 이유의 미시적 설명이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 340" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 7 재구성 — 제약을 걸면 층별 gate 점수가 어떻게 밀려 올라가는가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">각 패널: 세로축 gate value 0~1, 가로축 layer. 굵은 선 = 평균, 밴드 = min~max 범위</text>
+
+  <g font-size="9">
+    <text x="200" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e40af">(a) 기본 — head-specific sigmoid</text>
+    <line x1="70" y1="180" x2="340" y2="180" stroke="#333"/>
+    <line x1="70" y1="66" x2="70" y2="180" stroke="#333"/>
+    <text x="64" y="69" text-anchor="end" fill="#999">1.0</text>
+    <text x="64" y="126" text-anchor="end" fill="#999">0.5</text>
+    <text x="64" y="180" text-anchor="end" fill="#999">0.0</text>
+    <text x="205" y="196" text-anchor="middle" fill="#555">layer 0 → 21</text>
+    <path d="M70,74 L100,80 L130,72 L160,86 L190,78 L220,90 L250,82 L280,94 L310,84 L340,90 L340,168 L310,164 L280,170 L250,162 L220,168 L190,160 L160,166 L130,158 L100,164 L70,160 Z" fill="#dbeafe" stroke="none" opacity="0.7"/>
+    <path d="M70,158 L100,160 L130,155 L160,162 L190,156 L220,163 L250,157 L280,164 L310,158 L340,162" stroke="#1d4ed8" stroke-width="2" fill="none"/>
+    <text x="250" y="150" fill="#1e40af">평균 0.116 — 0 근처에 붙어 있다</text>
+
+    <text x="580" y="56" text-anchor="middle" font-size="11" font-weight="bold" fill="#b45309">(b) head 간 공유 강제 / 최솟값 제한</text>
+    <line x1="450" y1="180" x2="720" y2="180" stroke="#333"/>
+    <line x1="450" y1="66" x2="450" y2="180" stroke="#333"/>
+    <text x="444" y="69" text-anchor="end" fill="#999">1.0</text>
+    <text x="444" y="126" text-anchor="end" fill="#999">0.5</text>
+    <text x="444" y="180" text-anchor="end" fill="#999">0.0</text>
+    <text x="585" y="196" text-anchor="middle" fill="#555">layer 0 → 21</text>
+    <path d="M450,72 L480,76 L510,70 L540,80 L570,74 L600,82 L630,76 L660,84 L690,78 L720,82 L720,140 L690,136 L660,142 L630,134 L600,140 L570,132 L540,138 L510,130 L480,136 L450,132 Z" fill="#fef3c7" stroke="none" opacity="0.8"/>
+    <path d="M450,128 L480,130 L510,124 L540,132 L570,126 L600,134 L630,128 L660,135 L690,129 L720,133" stroke="#b45309" stroke-width="2" fill="none"/>
+    <text x="620" y="118" fill="#b45309">평균 0.271 (공유) / 0.653 (NS-sigmoid)</text>
+    <path d="M450,126 L720,126" stroke="#dc2626" stroke-width="1.4" stroke-dasharray="4 3"/>
+    <text x="456" y="120" fill="#b91c1c">NS-sigmoid의 하한 0.5</text>
+  </g>
+
+  <rect x="60" y="214" width="340" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="230" y="232" text-anchor="middle" font-size="10.5" font-weight="bold">head-specific일 때</text>
+  <text x="72" y="250" font-size="9.5">각 head가 자기에게 필요한 sparsity 수준을 자유롭게 고른다</text>
+  <text x="72" y="265" font-size="9.5">→ min~max 밴드가 넓다 = head 간 편차가 크다</text>
+
+  <rect x="410" y="214" width="330" height="60" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="575" y="232" text-anchor="middle" font-size="10.5" font-weight="bold">공유를 강제하면</text>
+  <text x="422" y="250" font-size="9.5">모든 head가 하나의 타협점을 써야 한다</text>
+  <text x="422" y="265" font-size="9.5">→ 평균이 위로 밀린다 = "덜 지운다" = 이득 감소</text>
+
+  <rect x="60" y="282" width="680" height="46" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="300" text-anchor="middle" font-size="10.5" font-weight="bold">이 그림이 §3.1 관찰 (ii) "head-specific이 중요하다"의 미시적 설명이다</text>
+  <text x="400" y="317" text-anchor="middle" font-size="10">head마다 입력의 다른 측면을 포착하므로(Voita et al. 2019; Olsson et al. 2022) 필요한 sparsity도 다르다. 공유는 그 다양성을 죽인다.</text>
+</svg>
+<figcaption><strong>[Figure 7 재구성]</strong>: 두 패널의 차이는 <em>밴드의 위치와 폭</em>이다. (a)에서 평균선이 바닥에 붙어 있고 밴드가 위까지 넓게 퍼진 것은 "대부분의 head는 거의 다 지우지만, 일부 head는 통과시킨다"는 뜻이다. (b)에서는 평균선이 중간으로 밀려 올라가는데, 이것이 제약(공유 또는 하한)이 강제하는 타협이다. 원문 Figure 7은 네 패널(기본 / scaler / head-share / wo-sparsity)로 층별 mean·std·min·max를 그린 것이며, 여기서는 대비가 드러나는 두 경우로 압축했고 층별 세부 궤적은 개념 재구성이다. 평균값 0.116 / 0.271 / 0.653은 Table 4의 실제 값이다. 이 그림은 §3.1의 관찰 (ii)와 §4.2의 관찰 (ii)가 같은 현상의 거시·미시 서술임을 보여준다.</figcaption>
+</figure>
+
+<h3>A.5 학습 안정화를 위한 다른 시도 — 실패한 대조군</h3>
+
+<p><strong>이 실험의 의도</strong>: sandwich norm과 gate 모두 massive activation을 없애면서 안정성을 개선한다. 그렇다면 <em>더 단순한 방법으로 residual 안의 큰 값을 막으면 되는 것 아닌가?</em></p>
+
+<p><strong>시도</strong>: attention·FFN 출력이 residual connection에 들어가기 전에 <strong>clipping</strong>을 걸어 값을 $(-\text{clip}, \text{clip})$으로 제한했다.</p>
+
+<p><strong>결과</strong>: clip 값을 300으로 하든 100으로 하든 <strong>학습률 8e-3에서 여전히 수렴 실패</strong>.</p>
+
+<p><strong>저자들의 결론</strong>: pre-norm 모델의 학습 불안정이 <em>residual 안의 큰 값만으로 생기는 것이 아니다</em>. 큰 출력을 만드는 어떤 층이든 안정성 문제를 일으킬 수 있으며, 학습 불안정의 근본 원인에는 더 많은 연구가 필요하다.</p>
+
+<blockquote><strong>이 negative result가 중요한 이유</strong>: 만약 clipping이 통했다면 "gate의 안정성 이득은 값 크기 제한이라는 사소한 효과"로 환원될 수 있었다. 통하지 않았으므로, gate의 안정성 이득은 <em>어디를 어떻게 줄이는가</em>에 달려 있다는 해석이 남는다 — 무차별적 clipping이 아니라 <strong>query 의존적 선택적 소거</strong>가 필요하다는 것이다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="a5Arw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">부록 A.5 — 안정성을 얻는 세 가지 방법과 그 결과</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">모두 "residual의 큰 값을 없앤다"를 목표로 하지만 결과가 갈린다 (48층, LR 8e-3)</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="50" width="230" height="130" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="155" y="70" text-anchor="middle" font-size="11" font-weight="bold">① Clipping (실패)</text>
+    <text x="155" y="90" text-anchor="middle">attn·FFN 출력을 residual에</text>
+    <text x="155" y="104" text-anchor="middle">넣기 전 (−clip, clip)으로 제한</text>
+    <rect x="60" y="112" width="190" height="26" rx="4" fill="#fff" stroke="#ef4444"/>
+    <text x="155" y="129" text-anchor="middle">clip = 300 → 수렴 실패</text>
+    <rect x="60" y="142" width="190" height="26" rx="4" fill="#fff" stroke="#ef4444"/>
+    <text x="155" y="159" text-anchor="middle">clip = 100 → 수렴 실패</text>
+
+    <rect x="285" y="50" width="230" height="130" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="400" y="70" text-anchor="middle" font-size="11" font-weight="bold">② Sandwich Norm (절반 성공)</text>
+    <text x="400" y="90" text-anchor="middle">FFN·attn 출력에 LayerNorm을</text>
+    <text x="400" y="104" text-anchor="middle">걸어 residual 진입 전 정규화</text>
+    <rect x="305" y="112" width="190" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="400" y="129" text-anchor="middle">수렴 O — PPL 7.407</text>
+    <rect x="305" y="142" width="190" height="26" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="400" y="159" text-anchor="middle">4e-3 baseline(7.421)과 동급</text>
+
+    <rect x="530" y="50" width="230" height="130" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="645" y="70" text-anchor="middle" font-size="11" font-weight="bold">③ SDPA Gate (성공)</text>
+    <text x="645" y="90" text-anchor="middle">query 의존적으로 SDPA 출력의</text>
+    <text x="645" y="104" text-anchor="middle">일부를 <tspan font-style="italic">선택적으로</tspan> 지운다</text>
+    <rect x="550" y="112" width="190" height="26" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="645" y="129" text-anchor="middle">수렴 O — PPL 7.325</text>
+    <rect x="550" y="142" width="190" height="26" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="645" y="159" text-anchor="middle" font-weight="bold">4e-3(7.288)보다 LR 올려도 유지</text>
+  </g>
+
+  <path d="M155,182 L155,200" stroke="#64748b" marker-end="url(#a5Arw)"/>
+  <path d="M400,182 L400,200" stroke="#64748b" marker-end="url(#a5Arw)"/>
+  <path d="M645,182 L645,200" stroke="#64748b" marker-end="url(#a5Arw)"/>
+
+  <rect x="40" y="204" width="230" height="42" rx="6" fill="#fff" stroke="#ef4444"/>
+  <text x="155" y="221" text-anchor="middle" font-size="9.5">"큰 값을 자르는 것"만으로는</text>
+  <text x="155" y="236" text-anchor="middle" font-size="9.5">불안정이 해결되지 않는다</text>
+
+  <rect x="285" y="204" width="230" height="42" rx="6" fill="#fff" stroke="#a855f7"/>
+  <text x="400" y="221" text-anchor="middle" font-size="9.5">발산은 막지만 큰 LR의</text>
+  <text x="400" y="236" text-anchor="middle" font-size="9.5">이득은 얻지 못한다</text>
+
+  <rect x="530" y="204" width="230" height="42" rx="6" fill="#fff" stroke="#16a34a"/>
+  <text x="645" y="221" text-anchor="middle" font-size="9.5">안정성 + 성능 + 큰 LR 활용</text>
+  <text x="645" y="236" text-anchor="middle" font-size="9.5">세 가지를 동시에</text>
+
+  <rect x="40" y="256" width="720" height="38" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="273" text-anchor="middle" font-size="10.5" font-weight="bold">이 negative result가 gate의 해석을 좁혀준다</text>
+  <text x="400" y="288" text-anchor="middle" font-size="10">무차별적 크기 제한(①)도, 사후 정규화(②)도 gate를 대체하지 못한다 → 중요한 것은 <tspan font-weight="bold">"무엇을 지울지 입력에 따라 고르는 것"</tspan>이다</text>
+</svg>
+<figcaption><strong>[Figure: 부록 A.5의 세 가지 안정화 시도]</strong>: 세 열이 같은 목표(residual의 큰 값 제거)를 향한 서로 다른 개입이고, 색이 결과를 나타낸다 — 빨강은 실패, 보라는 절반 성공, 초록은 성공이다. 이 그림의 논증적 가치는 <strong>①과 ②가 실패했기 때문에 ③의 해석이 좁혀진다</strong>는 데 있다. clipping이 통했다면 gate의 안정성 이득은 "값을 작게 만드는 사소한 효과"로 환원될 수 있었고, sandwich norm이 성능까지 개선했다면 "정규화의 일종"으로 환원될 수 있었다. 둘 다 아니므로 남는 해석은 §4.2의 query 의존적 선택적 소거다. PPL 수치는 Table 2 row 6·7·10의 실제 값이며, clipping 실험은 논문이 수치 없이 "수렴 실패"만 보고한다.</figcaption>
+</figure>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>실험 설계 자체가 논증이다.</strong> 이 논문의 기여는 새 부품이 아니라 <em>기존 부품을 단독으로 측정하는 방법</em>이다. 세 종류의 대조군(파라미터 확장 baseline / 비선형성만 주는 변종 / sparsity만 죽인 변종)이 각각 예상되는 반론을 하나씩 차단하며, 이 구조 덕분에 "gate가 좋다"에서 "gate의 어느 성질이 얼마나 기여한다"로 결론의 해상도가 올라간다.</li>
+  <li><strong>예측과 검증이 짝을 이룬다.</strong> $W_V W_O$ 병합 프레임(§4.1)은 <em>왜 $G_5$가 효과 없어야 하는가</em>를 예측하고, Table 1 row 9가 그것을 확인한다(6.017 vs baseline 6.026). $G_3$·$G_4$의 무효도 같은 프레임으로 설명된다. 다섯 위치의 성패가 <strong>단일 기준</strong>으로 예측된다는 것은 이 프레임이 사후 설명이 아니라는 강한 증거다.</li>
+  <li><strong>NS-sigmoid는 훌륭하게 설계된 대조군이다.</strong> $0.5 + 0.5\,\sigma(x)$는 gate의 구조·파라미터 수·비선형성·매끄러움을 모두 유지하면서 <em>"0을 낼 수 있는 능력"만</em> 정확히 제거한다. 이렇게 <strong>하나의 성질만 외과적으로 제거하는 대조군</strong>은 다른 아키텍처 연구에서도 그대로 차용할 만한 방법론이다.</li>
+  <li><strong>통설에 대한 깔끔한 반례.</strong> $G_2$ gate가 massive activation을 없애면서 attention sink는 남긴다는 관측은, "massive activation과 attention sink는 같은 현상"이라는 널리 퍼진 견해(Sun et al., 2024)를 <em>단일 실험으로</em> 분리한다. 반례를 만들기 위해 특별한 장치를 설계한 것이 아니라 이미 격자에 있던 변종에서 나온 것이라는 점도 좋다.</li>
+  <li><strong>Negative result를 보고한다.</strong> (i) 부록 A.5의 clipping 실패 — "단순히 값을 자르면 되지 않나"라는 자연스러운 대안이 통하지 않음을 밝힌다. (ii) SiLU만 삽입하면 PPL은 줄지만 벤치마크는 거의 그대로(Table 3 row 6). (iii) Switch Heads에서 활성 expert를 늘려도 벤치마크 개선이 뚜렷하지 않음(Table 6). 이 세 결과는 논문의 주장을 <em>약화시킬 수도 있는</em> 정보인데도 보고되어 있다.</li>
+  <li><strong>실용성이 이례적으로 높다.</strong> ##headwise gate는 15A2B 모델에 1.6M 파라미터(전체의 0.01%)를 추가하고 wall-time 2% 미만을 쓰면서 PPL 개선의 88%를 가져온다.## 코드 변경량은 한 줄 수준이고, 학습 중인 아키텍처에 넣기도 쉽다. 이런 비용/효과 비를 가진 아키텍처 변경은 드물다.</li>
+  <li><strong>실전 규모에서 검증했다.</strong> 3.5T 토큰 학습, 32k 계속학습, YaRN 128k 확장까지 실제 LLM 개발 파이프라인 전체를 통과시켰다. 대부분의 아키텍처 ablation 논문이 수십~수백 B 토큰에서 멈추는 것과 대비된다.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>seed 반복과 표준편차가 전혀 없다. 이것이 가장 큰 약점이다.</strong> Table 1~6 어디에도 반복 횟수나 분산이 없다. 그런데 이 논문의 핵심 주장들은 <em>소수점 차이</em>에 기대고 있다. 예: elementwise(5.761) vs headwise(5.792) vs head-shared(5.801)의 순서, MMLU 60.82 vs 60.05 vs 60.06. 특히 C-eval 열은 baseline 60.26보다 파라미터 확장 baseline ‘+4 experts’가 63.19로 높고, 최고 성능 변종(row 5)이 62.20으로 그보다 낮다 — <strong>이 열의 변동이 노이즈인지 신호인지 판별할 근거가 없다.</strong> "30개 변종을 비교했다"는 강점이 통계적 뒷받침 없이는 <em>다중 비교 문제</em>가 되기도 한다.</li>
+  <li><strong>표 사이 수치가 어긋난다.</strong> 같은 설정인데 값이 다른 곳이 최소 세 군데다. (i) v Elementwise $G_2$의 GSM8k: Table 1 row 6과 Table 3 row 3은 53.97, <strong>Table 4 row 5는 51.33</strong>. (ii) NS-sigmoid의 F-Attn: Table 4 row 7은 0.451, <strong>Figure 6 ⑤행 범례는 0.481</strong>. (iii) ‘v Headwise Gate’ = ‘Switch v, 1top1’의 추가 파라미터: Table 1은 0.2M, <strong>Table 6은 3M</strong>. 여기에 Table 1 row 11의 점수 모양 표기 ‘$n \times q$’도 파라미터 수와 맞지 않아 ‘$n \times k$’의 오기로 보인다. 각각은 사소하지만, 통계 정보가 없는 상태에서 이런 불일치는 <em>표의 신뢰도 전체</em>에 영향을 준다.</li>
+  <li><strong>데이터를 늘리면 PPL 이득이 줄어든다.</strong> dense 1.7B에서 400B 토큰일 때 PPL 이득은 −0.095(7.499 → 7.404)인데, 3.5T 토큰에서는 <strong>−0.05</strong>(6.180 → 6.130)로 절반이다. MoE 400B의 −0.265와 비교하면 더 극적이다. 이것이 (a) 데이터가 많아지면 gate의 이득이 사라지는 신호인지, (b) PPL이 포화 구간에 들어간 것인지, (c) 모델 종류(MoE/dense) 차이인지 구분할 수 없다. 같은 설정에서 데이터 규모만 바꾼 스케일링 곡선이 없다. <em>이 논문의 결론을 프론티어 규모(수십 T 토큰)로 외삽하려면 이 곡선이 필요하다.</em></li>
+  <li><strong>모델 크기 스케일링이 없다.</strong> 1.7B와 15B(활성 2.54B) 두 점뿐이고, 두 점은 아키텍처 종류도 다르다(dense/MoE). "gate의 이득이 모델이 커져도 유지되는가"는 답이 없다. attention sink는 모델이 커질수록 강해진다고 알려져 있으므로, 이 질문은 특히 중요하다.</li>
+  <li><strong>파라미터 맞추기 방식이 새로운 혼재를 만든다.</strong> Table 2에서 gate를 쓸 때 FFN 폭을 줄여 총 파라미터를 맞췄다. 파라미터 수는 통제되지만 <em>FFN/attention 파라미터 비율</em>이라는 다른 변수가 함께 바뀐다. 이 비율 자체가 성능에 영향을 준다는 것은 알려져 있으므로, gate의 이득이 일부 "FFN을 줄인 효과"일 가능성이 배제되지 않는다. Table 1(MoE)에서는 이 보정을 하지 않았으므로 두 표의 비교 조건도 다르다.</li>
+  <li><strong>격자 탐색이 400B 토큰 단일 시점의 스냅샷이다.</strong> 승자 선택(SDPA elementwise sigmoid)은 400B MoE 결과에서 나왔다. 학습이 길어지면 변종 간 순위가 바뀔 수 있는데, 400B에서 3위였던 변종이 3.5T에서 1위가 되지 않는다는 보장이 없다. 실제로 Table 2 row 9(headwise)는 48층 설정에서 <strong>MMLU 53.83, C-eval 55.07로 elementwise(52.44 / 52.06)를 이긴다</strong> — 논문의 "elementwise가 최선"이라는 결론과 어긋나는데 이에 대한 논평이 없다.</li>
+  <li><strong>인과 사슬이 증명되지 않았다.</strong> sparsity → attention sink 소멸 → length extension 견고성이라는 사슬은 <em>상관관계와 그럴듯한 서사</em>로 이루어져 있다. Table 4에서 네 지표가 함께 움직이는 것은 인상적이지만, 예컨대 "sink는 유지하면서 sparsity만 도입한" 변종이나 "sink만 인위적으로 제거한" 변종이 없어 방향을 특정할 수 없다. 저자들도 Limitations에서 <em>"attention sink가 긴 시퀀스 일반화에 어떻게 영향을 주는지 엄밀한 이론적 설명을 제공하지 않는다"</em>고 명시한다.</li>
+  <li><strong>PPL이 핵심 주장을 판별하기에 부족하다.</strong> head-shared(5.801)와 headwise(5.792)는 PPL로 거의 구분되지 않는데, F-Attn은 0.301 vs 0.073으로 4배 차이 난다. 논문의 서사에서 이 둘은 <em>본질적으로 다른</em> 변종인데 주 지표가 그것을 반영하지 못한다. 반대로 말하면, PPL로 gate 변종을 고르면 attention sink 관점에서 잘못된 선택을 할 수 있다.</li>
+  <li><strong>가장 가까운 선행과의 직접 비교가 없다.</strong> Forgetting Transformer (Lin et al., 2025)는 softmax attention 출력에 gate를 붙인 바로 그 연구인데, 관련 연구 절에서만 언급되고 <em>같은 조건에서 성능 비교가 없다</em>. Quantizable Transformers의 gate/clip 변종도 마찬가지다. 저자들이 다른 연구에 요구하는 "동등한 gating baseline과의 비교"를 스스로에게는 적용하지 않았다.</li>
+  <li><strong>long-context 평가가 RULER 하나에 의존한다.</strong> YaRN 확장 후 격차가 크지만, YaRN 하이퍼파라미터를 두 모델에 각각 최적화했는지, 다른 확장 기법(NTK-aware, LongRoPE 등)에서도 같은 패턴이 나오는지가 불명이다. "RoPE 변경에 견고하다"는 주장의 일반성은 확장 기법 한 종류로 검증되었다.</li>
+  <li><strong>재현에 필요한 세부가 빠졌다.</strong> $d_{model}$, 층 수, MoE의 활성/총 파라미터 상세 구성, gate 가중치 초기화 방식(input-independent gate만 zero-init이 명시됨), GQA 그룹 구성, PPL 측정에 쓰인 held-out 셋의 도메인별 비중 등이 보고되지 않았다. 이 문서의 그림 8은 ‘Added Param’ 열에서 $d_{model}=2048$, $L=24$를 역산해 냈지만, 이는 재구성이지 원문 정보가 아니다.</li>
+  <li><strong>추론·서빙 측면의 논의가 없다.</strong> elementwise gate는 <em>토큰마다 $q \times d_k$ 크기의 점수를 계산</em>한다. 학습 시 지연 2% 미만이라는 수치는 있지만, 디코딩 시 메모리 대역폭 영향, KV cache와의 상호작용, 양자화 친화성(gate 자체를 양자화할 수 있는가) 등 배포 관점의 분석이 없다. attention sink 제거가 <em>양자화에 유리하다</em>는 것은 Bondarenko et al.의 원래 동기였는데, 이 논문은 그 방향을 측정하지 않는다.</li>
+  <li><strong>모델 공개가 약속 상태다.</strong> "attention-sink-free 모델을 공개할 것이다"라고 서술되어 있고 arXiv v1 시점에서는 링크가 제시되지 않는다. 이 논문의 부가가치 중 큰 부분(sink 없는 모델로 후속 연구를 하는 것)은 실제 공개 여부에 달려 있다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트 대조</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ 반복 횟수·분산이 전혀 없음. 핵심 주장이 소수점 차이에 의존하므로 가장 심각한 결함</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>○ 파라미터 확장 baseline 3종을 세운 것이 이 논문의 강점. △ 단 Table 2의 FFN 폭 축소 보정이 새 혼재를 만들고, Forgetting Transformer 등 직접 경쟁 방법과의 비교는 없음</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>○ 사실상 논문 전체가 ablation이며 설계가 촘촘하다. 특히 NS-sigmoid·input-independent gate는 단일 성질만 제거하는 모범적 대조군</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>○ 매우 우수. 1.6M 파라미터 / wall-time 2% 미만으로 PPL −0.234. △ 단 추론·서빙 측면 분석은 없음</td></tr>
+<tr><td>코드/데이터 공개</td><td>△ 코드와 attention-sink-free 모델 공개를 약속(abstract, §6). v1 시점 링크 미제시. 학습 데이터는 비공개(사내 3.5T 코퍼스)</td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>△ LR·batch size·step·optimizer는 명시. 그러나 $d_{model}$·층 수·gate 초기화·held-out 셋 구성은 미보고</td></tr>
+<tr><td>수치 일관성</td><td>✗ 표·그림 간 불일치 3건 이상 (GSM8k 51.33/53.97, F-Attn 0.451/0.481, 파라미터 0.2M/3M) + 점수 모양 표기 오기 1건</td></tr>
+<tr><td>스케일링 근거</td><td>✗ 모델 크기 2점(아키텍처도 다름), 데이터 규모 곡선 없음. 3.5T에서 PPL 이득이 절반으로 줄어드는 관측에 대한 논평도 없음</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">이 논문의 논증 사슬 — 어디까지 증명되었고 어디부터 가설인가</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="40" width="150" height="60" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="105" y="58" text-anchor="middle" font-size="10.5" font-weight="bold">① gate가 효과적</text>
+    <text x="105" y="75" text-anchor="middle">30+ 변종 · 파라미터</text>
+    <text x="105" y="89" text-anchor="middle">확장 baseline 대조</text>
+
+    <path d="M182,70 L204,70" stroke="#16a34a" stroke-width="2"/>
+    <rect x="206" y="40" width="150" height="60" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="281" y="58" text-anchor="middle" font-size="10.5" font-weight="bold">② 비선형성이 원인 일부</text>
+    <text x="281" y="75" text-anchor="middle">RMSNorm·SiLU·Identity</text>
+    <text x="281" y="89" text-anchor="middle">G₅ 무효 예측 검증</text>
+
+    <path d="M358,70 L380,70" stroke="#16a34a" stroke-width="2"/>
+    <rect x="382" y="40" width="150" height="60" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="457" y="58" text-anchor="middle" font-size="10.5" font-weight="bold">③ sparsity가 나머지 원인</text>
+    <text x="457" y="75" text-anchor="middle">NS-sigmoid · head-shared</text>
+    <text x="457" y="89" text-anchor="middle">input-independent 대조</text>
+
+    <path d="M534,70 L556,70" stroke="#16a34a" stroke-width="2"/>
+    <rect x="558" y="40" width="212" height="60" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="664" y="58" text-anchor="middle" font-size="10.5" font-weight="bold">④ sink·massive activation 소멸</text>
+    <text x="664" y="75" text-anchor="middle">F-Attn 0.467 → 0.048, M-Act 1053 → 94</text>
+    <text x="664" y="89" text-anchor="middle">+ 두 현상이 분리 가능하다는 반례</text>
+  </g>
+
+  <text x="400" y="118" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">↑ 여기까지는 대조 실험으로 뒷받침된다 (단, 통계적 유의성 검정은 없음)</text>
+
+  <line x1="30" y1="128" x2="770" y2="128" stroke="#e5e7eb"/>
+
+  <g font-size="9.5">
+    <rect x="60" y="142" width="200" height="66" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-dasharray="5 3"/>
+    <text x="160" y="160" text-anchor="middle" font-size="10.5" font-weight="bold">⑤ sink 소멸 → 학습 안정성</text>
+    <text x="160" y="177" text-anchor="middle">경로: 활성값 축소 → BF16</text>
+    <text x="160" y="191" text-anchor="middle">수치 오류 감소 (인용에 의존)</text>
+    <text x="160" y="204" text-anchor="middle" fill="#92400e">반례 없음, 직접 측정도 없음</text>
+
+    <rect x="300" y="142" width="200" height="66" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-dasharray="5 3"/>
+    <text x="400" y="160" text-anchor="middle" font-size="10.5" font-weight="bold">⑥ sink 소멸 → 확장 견고성</text>
+    <text x="400" y="177" text-anchor="middle">경로: sink는 위치 기반이라</text>
+    <text x="400" y="191" text-anchor="middle">RoPE 변경에 적응 못한다</text>
+    <text x="400" y="204" text-anchor="middle" fill="#92400e">저자가 Limitations에서 인정</text>
+
+    <rect x="540" y="142" width="200" height="66" rx="6" fill="#fee2e2" stroke="#ef4444" stroke-dasharray="5 3"/>
+    <text x="640" y="160" text-anchor="middle" font-size="10.5" font-weight="bold">⑦ 프론티어 규모로 외삽</text>
+    <text x="640" y="177" text-anchor="middle">3.5T에서 PPL 이득 절반으로</text>
+    <text x="640" y="191" text-anchor="middle">축소 · 모델 크기 곡선 없음</text>
+    <text x="640" y="204" text-anchor="middle" fill="#b91c1c">근거 부족</text>
+  </g>
+
+  <text x="400" y="228" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b45309">↑ 여기서부터는 관측 + 그럴듯한 서사이며, 반증 가능한 대조군이 없다</text>
+
+  <rect x="30" y="242" width="740" height="80" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="261" text-anchor="middle" font-size="11" font-weight="bold">이 사슬을 끊어 볼 실험 (후속 연구용)</text>
+  <text x="42" y="279" font-size="9.5">· ⑤ 검증: gate 모델을 FP32로 학습해 안정성 격차가 사라지는지 본다. 사라지면 BF16 수치 오류 경로가 확인된다</text>
+  <text x="42" y="294" font-size="9.5">· ⑥ 검증: baseline에 attention sink만 인위적으로 억제(예: sink 토큰 attention을 마스킹)한 뒤 YaRN 확장 성능을 측정한다</text>
+  <text x="42" y="309" font-size="9.5">· ⑦ 검증: 같은 아키텍처로 데이터 규모(100B~10T)와 모델 크기(0.5B~30B)를 격자로 훑어 이득 곡선을 그린다</text>
+</svg>
+<figcaption><strong>[Figure: 논증 사슬의 검증 상태]</strong>: 실선 초록 박스는 대조 실험으로 뒷받침된 단계, 점선 노란 박스는 관측과 서사로만 연결된 단계, 점선 빨간 박스는 근거가 부족한 외삽이다. 이 구분이 실무적으로 중요한 이유는 <strong>①~④를 근거로 gate를 채택하는 것은 안전하지만, ⑤~⑦을 근거로 "우리 프론티어 모델도 이득을 볼 것"이라 기대하는 것은 근거가 얇다</strong>는 것이다. 특히 ⑦은 3.5T 설정에서 PPL 이득이 절반으로 줄어든 관측(§3.2)과 직접 충돌한다. 아래 보라 박스는 각 가설을 반증 가능하게 만드는 구체적 실험 제안이며, 논문에는 없는 내용이다.</figcaption>
+</figure>
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>지금 학습 중인 모델에 넣을 수 있는 한 줄 변경이다.</strong> SDPA 출력에 head별 sigmoid gate를 곱한다. <em>가성비를 최우선하면 headwise</em>(15A2B에서 1.6M 파라미터, PPL 개선의 88%), <em>최고 성능을 원하면 elementwise</em>(201M, 개선의 100%). 활성함수는 sigmoid, 형태는 곱셈, head별 독립 — 이 세 가지는 타협하지 말 것. 특히 <strong>head 간 점수 공유는 절대 하지 말 것</strong>: PPL로는 손실이 안 보이지만 attention sink가 그대로 남는다(F-Attn 0.073 → 0.301).</li>
+  <li><strong>"두 선형층 사이에 비선형이 없으면 하나로 접힌다"는 렌즈는 다른 곳에도 쓸 수 있다.</strong> attention의 $W_V \cdot W_O$가 rank $d_k$짜리 사상 하나로 합쳐진다는 관찰은 <em>이 논문의 다섯 위치 성패를 전부 예측</em>했다. 자기 아키텍처에서 "학습 가능한 두 층 사이에 비선형이 없는 곳"을 찾아보면 같은 종류의 무료 개선이 남아 있을 수 있다. LoRA 계열, projection이 연속하는 어댑터, MoE의 down/up projection 등이 후보다.</li>
+  <li><strong>NS-sigmoid는 차용할 만한 실험 설계 기법이다.</strong> $0.5 + 0.5\,\sigma(x)$처럼 <em>구조·파라미터·매끄러움은 그대로 두고 하나의 능력만 제거</em>하는 대조군을 만들면, "이 부품의 어느 성질이 일하는가"에 답할 수 있다. 부품을 통째로 빼는 흔한 ablation은 이 질문에 답하지 못한다. input-independent gate(zero-init 파라미터 + sigmoid)도 같은 계열의 기법이다.</li>
+  <li><strong>attention sink는 아키텍처의 필연이 아니라 우회로다.</strong> 3.5T 토큰으로 학습한 dense·MoE 모델에서 sink 없이 <em>더 좋은</em> 성능이 나온다. 이것은 sink를 전제로 설계된 기법들(streaming attention의 sink token 유지, sink를 고려한 양자화 스킴, KV cache 압축 시 첫 토큰 보존 등)을 <strong>다시 검토해야 할 이유</strong>가 된다. sink가 없는 모델에서는 그 장치들이 불필요하거나 해로울 수 있다.</li>
+  <li><strong>long-context 이득은 "긴 문맥 이해"가 아니라 "확장 기법 내성"으로 읽어야 한다.</strong> 학습 길이(32k) 안에서는 baseline과 차이가 없고(79.50 vs 79.77), YaRN으로 128k로 밀었을 때만 격차가 폭발한다(31.65 vs 58.82). 즉 이 이득은 <em>학습 없이 컨텍스트를 늘리는 파이프라인을 쓸 때만</em> 나타난다. 32k 이하만 서비스한다면 gate를 넣는 이유는 성능·안정성이고, 길이 이득은 계산에 넣지 말 것.</li>
+  <li><strong>gate를 쓰는 새 방법을 제안할 때는 gate 있는 baseline과 비교하라 — 이 논문이 커뮤니티에 던지는 방법론적 요청이다.</strong> Switch Heads에서 expert를 1개로 줄여도 이득이 남는다는 부록 A.1의 결과는, sparse attention·routing 연구들이 자기 기여를 과대평가하고 있을 가능성을 보인다. 자기 방법에 sigmoid gate가 들어 있다면 <em>"표준 Transformer + 같은 gate"</em>를 baseline으로 반드시 세울 것.</li>
+  <li><strong>비판적으로: 이 논문의 순위표를 소수점까지 신뢰하지 말 것.</strong> ablation 설계는 훌륭하지만 <strong>seed 반복도 표준편차도 없고, 표 사이 수치 불일치가 3건 이상</strong>이다. 안전하게 가져갈 결론은 "SDPA 출력 gate 계열이 다른 위치보다 명확히 좋다"와 "head별 독립성과 sparsity가 중요하다"라는 <em>범주 수준</em>이다. elementwise vs headwise, sigmoid vs SiLU 같은 세부 선택은 자기 설정에서 직접 재측정할 것 — 특히 Table 2 row 9에서 headwise가 MMLU·C-eval에서 elementwise를 이기는 것이 그 필요성을 보여준다. 또한 데이터가 3.5T로 늘어나면 PPL 이득이 절반으로 줄어든다는 점을 감안해, <em>자기 학습 예산 규모에서의 이득</em>을 따로 확인할 것.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>

@@ -5,15 +5,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## 프로젝트 개요
 
 AI/ML 논문 PDF 또는 URL을 입력받아 연구자 수준의 섹션별 요약을 HTML로 생성하는 워크플로우.
-수식은 KaTeX로 렌더링, 그림/테이블은 상세 설명, 비판적 분석 포함.
+수식은 KaTeX로 렌더링, 논문의 그림은 인라인 SVG로 재현, 비판적 분석 포함.
 
 ## 프로젝트 구조
 
 - `CLAUDE.md` — 워크플로우 지침 및 템플릿
 - `index.html` — 요약 목록 및 네비게이션 (자동 생성/업데이트)
-- `*.html` — 개별 논문 요약 파일 (`{YYYYMMDD}_{첫저자성}_{키워드}.html` 형식, 전문가용)
-- `*_brief.html` — 개별 논문 개요 브리핑 파일 (`{YYYYMMDD}_{첫저자성}_{키워드}_brief.html` 형식, 비전문가용)
-- `examples/` — 브리핑 포맷 참고 예시
+- `*.html` — 개별 논문 요약 파일 (`{YYYYMMDD}_{첫저자성}_{키워드}.html` 형식). **그림 중심 통합 포맷** — 연구자 수준의 상세 요약 + 인라인 SVG 그림
+- `*_brief.html` — (레거시) 2026-08-20 이전에 생성된 별도 브리핑 파일. **신규 생성하지 않음.** 그림·시각화는 통합 포맷의 본 요약 파일 안에 들어간다
+- `examples/` — 포맷 참고 예시. **기준 예시(golden reference): `examples/20260728_kimiteam_kimik3.html`**
+- `.claude/skills/paper-figures/` — SVG 그림 작성 가이드 스킬 + HTML 템플릿 (`assets/summary_template.html`)
 
 빌드 시스템, 테스트, 린트 등의 도구는 없음. 정적 HTML 파일만 생성하는 프로젝트.
 
@@ -45,8 +46,10 @@ AI/ML 논문 PDF 또는 URL을 입력받아 연구자 수준의 섹션별 요약
 3. TL;DR 생성 (문제 → 해결 → 왜 작동하는가 → 직관적 비유)
 4. 핵심 기여(Key Contributions) 3~5개 bullet 정리
 
-### Phase 2 — 섹션별 정밀 요약 (Deep Dive)
+### Phase 2 — 섹션별 정밀 요약 + 그림 (Deep Dive)
 - 각 섹션을 순서대로 깊이 있게 순차 처리
+- **각 절을 쓸 때 그 절의 그림을 함께 그린다.** 본문을 다 쓴 뒤 그림을 몰아서 넣지 않는다
+- 그림 작성 시 `paper-figures` 스킬을 로드한다 (SVG 유형·캡션 규칙·색상 팔레트·좌표 규칙)
 
 ### Phase 3 — 검증 (Verification)
 요약 파일 작성 완료 후, Task agent(subagent_type: general-purpose)를 실행하여 원문 대비 요약을 검증한다.
@@ -66,6 +69,8 @@ AI/ML 논문 PDF 또는 URL을 입력받아 연구자 수준의 섹션별 요약
 | 5 | 환각 검출 | 원문에 없는 내용이 요약에 추가되지 않았는가? (비판적 분석 섹션 제외) |
 | 6 | 템플릿 준수 | 메타데이터, TL;DR, 핵심 기여, 비판적 분석 등 모든 필수 섹션이 채워졌는가? |
 | 7 | 용어 일관성 | 약어가 첫 등장 시 풀어쓰기 되었는가? 기술 용어가 영문으로 유지되었는가? |
+| 8 | 그림 커버리지 | 논문의 주요 Figure가 모두 SVG로 재현되었는가? 논문 분량 대비 그림 개수 기준(§그림 중심 통합 포맷)을 충족하는가? 누락된 Figure 목록 제시 |
+| 9 | 그림 정확성 | SVG 안의 수치·라벨이 원문과 일치하는가? 원문에 없는 축 값·수치를 그려 넣지 않았는가? 캡션이 3문장 이상이고 절 상호 참조(§)를 포함하는가? |
 
 **검증 에이전트 출력 형식:**
 ```
@@ -133,58 +138,25 @@ AI/ML 논문 PDF 또는 URL을 입력받아 연구자 수준의 섹션별 요약
 
 **하이라이트 기능**: 본문에서 `##텍스트##`로 감싼 부분은 노란색 하이라이트로 렌더링한다. 이를 위한 JS를 KaTeX 로드 이후에 배치.
 
-HTML 파일 상단에 아래 템플릿을 사용:
+HTML 골격은 **`.claude/skills/paper-figures/assets/summary_template.html`을 복사**해서 시작한다.
+이 템플릿의 `<head>`에는 다음이 이미 들어 있다:
+
+1. **KaTeX 로더** — `ignoredTags`에 `svg`를 포함시켜 SVG 안의 텍스트가 수식으로 오인되지 않게 한다 (필수)
+2. **`##...##` 하이라이트 스크립트**
+3. **목차 자동 생성 스크립트** — `h2`/`h3`를 수집해 2단 목차를 만들고, 각 절에 포함된 그림 번호 범위(`그림 3–7`)를 표시한다. 하이라이트 스크립트보다 **뒤에** 실행되어야 한다
+4. **그림 번호 자동 부여 스크립트** — 문서 순서대로 `figcaption`에 `그림 N.`을 삽입하고 `figure`에 `id="figN"`을 부여한다. 따라서 본문에 그림 번호를 직접 쓰지 않는다
+5. **CSS** — 기존 스타일 + `figure` / `figure svg { max-width:100%; height:auto; }` / `figcaption` / `.fignum` / `#toc` / `.tocfig` / `.small-table`
+
+목차 `<nav>`는 메타데이터 바로 뒤에 넣는다:
 ```html
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{논문 제목}</title>
-<!-- KaTeX (수식 렌더링) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
-<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
-  onload="renderMathInElement(document.body, {delimiters: [
-    {left: '$$', right: '$$', display: true},
-    {left: '$', right: '$', display: false}
-  ]});"></script>
-<!-- ##...## 하이라이트 -->
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  const el = document.getElementById('main-content');
-  if (el) {
-    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
-      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
-  }
-});
-</script>
-<style>
-  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
-  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
-  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
-  h3 { margin-top: 1.5rem; }
-  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
-  th { background: #f5f5f5; }
-  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
-  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
-  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
-  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
-  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
-  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
-  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
-  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
-  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
-</style>
-</head>
-<body>
-<div id="main-content">
-<!-- 본문 내용 -->
-</div>
-</body>
-</html>
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
 ```
+
+템플릿을 직접 손으로 작성해야 할 경우, `examples/20260728_kimiteam_kimik3.html`의 1~103행을 그대로 복사한다.
 
 ### HTML 구조 규칙 (일관성 필수)
 
@@ -230,6 +202,18 @@ document.addEventListener("DOMContentLoaded", function() {
        → [Stage 2] ...</div>
 ```
 
+**그림** — `<figure>` + 인라인 `<svg>` + `<figcaption>`. 그림 번호는 JS가 자동 부여하므로 직접 쓰지 않는다:
+```html
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  ...
+</svg>
+<figcaption><strong>[Figure 2 재구성]</strong>: 무엇이 그려졌는가 → 요점 → §다른절 연결 → 한계.</figcaption>
+</figure>
+```
+
+**목차** — 메타데이터 바로 뒤에 `<nav id="toc">` 배치 (내용은 JS가 채움).
+
 **`<strong>` 뒤 구분자** — `<strong>제목</strong>:` 형식 사용 (콜론 뒤 공백). `<strong>제목:</strong>`가 아님에 주의.
 
 ### index.html 자동 업데이트
@@ -259,62 +243,94 @@ document.addEventListener("DOMContentLoaded", function() {
 
 ---
 
-## Dual-Format 출력 (전문가용 + 브리핑용)
+## 그림 중심 통합 포맷 (Figure-Rich Unified Format)
 
-모든 새 논문 요약은 **두 가지 버전**을 생성한다:
+**2026-08-20 이후 모든 요약은 이 포맷 하나로 작성한다.** 별도 `_brief.html`을 만들지 않는다 —
+그림·시각화는 본 요약 파일 안에 통합된다.
 
-### 1. 전문가용 상세 요약 (기존 형식)
-- 파일명: `{YYYYMMDD}_{첫저자성}_{키워드}.html`
-- 대상: AI/ML 연구자, 엔지니어
-- 내용: 수식(KaTeX), 전체 섹션 deep dive, ablation, 하이퍼파라미터 등 완전한 기술 요약
-- 템플릿: 기존 HTML 템플릿 사용 (상단에 brief 버전 링크 포함)
+기준 예시: **`examples/20260728_kimiteam_kimik3.html`** (47페이지 논문 → 4,841줄 / SVG 그림 55개).
+새 요약을 쓰기 전에 이 파일의 구조와 그림 밀도를 확인할 것.
 
-### 2. 비전문가용 개요 브리핑 (Brief 형식)
-- 파일명: `{YYYYMMDD}_{첫저자성}_{키워드}_brief.html`
-- 대상: 비전문가, 경영진, 타 분야 연구자
-- 내용: 배경 지식 설명, SVG 다이어그램, 비유, 핵심 성과 숫자, 한계점
-- 참고 템플릿: `examples/turboquant_ceo_brief_white.html`
+### 이 포맷이 기존과 다른 점
 
-### Brief 형식 구조 규칙
+| | 이전 (전문가용 + brief 분리) | 통합 포맷 |
+|---|---|---|
+| 파일 수 | 2개 | **1개** |
+| 그림 | brief에만, 수식 없음 | **본 요약 안에 인라인 SVG. 수식과 그림이 같은 절에 붙는다** |
+| 캡션 | 짧은 설명 | **3~5문장 분석형 캡션 + 절 상호 참조(§)** |
+| 수식 | 전문가용에만 | 유지 + **수식마다 수치 예제 그림** |
+| 목차 | 없음 | **JS 자동 생성 목차 + 그림 번호 자동 부여** |
 
-| 요소 | 설명 |
-|------|------|
-| **Hero** | 그라디언트 배경, 뱃지(소속·연도), 제목, 한 줄 부제 |
-| **One-liner** | 그라디언트 카드, 캐치프레이즈(따옴표 형식) |
-| **배경 지식** | 논문 이해에 필요한 개념을 비전문가 수준으로 설명 + SVG 다이어그램 |
-| **핵심 아이디어** | Step flow (모듈/단계별), 각 모듈을 카드 + SVG로 설명 |
-| **비유 박스** | `.analogy` 노란 박스, 일상적 비유로 핵심 개념 설명 |
-| **핵심 성과** | `.stat-row` 숫자 카드 + `.comp-table` 비교 테이블 + SVG 차트 |
-| **기존 대비 장점** | 비교 테이블 |
-| **활용 분야** | SVG 마인드맵 |
-| **한 줄 결론** | 그라디언트 카드 |
-| **한계점** | `.card-orange` 카드들, 균형 잡힌 시각 |
-| **버전 전환 링크** | 상단/하단에 전문가용 버전 링크 |
-| **Footer** | 논문 정보 |
+### 필수 구성 요소
 
-### Brief 형식 CSS/디자인 규칙
-- **수식 사용 금지**: KaTeX 미포함, 모든 개념을 직관적 텍스트와 SVG로 설명
-- **`##...##` 하이라이트 미사용**
-- **SVG 다이어그램 적극 활용**: 인라인 SVG로 개념 설명, 비교, 흐름도 표현
-- **색상 테마**: 논문/분야에 맞게 Hero 그라디언트 색상 변경 (보라, 파랑, 초록 등)
-- **카드 스타일**: `.card-accent` (핵심), `.card-green` (성과), `.card-orange` (한계), `.card-red` (경고)
-- **반응형**: 600px 이하에서 stat-row/step-flow가 세로로 전환
-- **분량 주의**: Brief는 "짧은 요약"이 아님! 비전문가를 위한 **풍부한 설명 문서**이므로, 전문가용과 비슷하거나 더 긴 분량(최소 500줄 이상)이 되어야 함. `examples/turboquant_ceo_brief_white.html` (2,375줄)을 참고 기준으로 삼을 것
-- **배경 지식 충분히**: 각 개념을 비전문가가 이해할 수 있도록 단계별로 설명하고, 각 단계마다 SVG 다이어그램 포함
-- **비유 풍부히**: 최소 3~5개의 .analogy 박스로 일상적 비유 제공
+1. **메타데이터** — 저자·소속·학회/저널·연도·링크 + **분량**(페이지 수, 본문/부록 구성)
+2. **목차** (`<nav id="toc">`) — 자동 생성
+3. **TL;DR** — 문제 / 해결 / 왜 작동하는가 / 비유
+4. **핵심 기여** — `<ol>`
+5. **그림 1 = 논문 전체 지도** — 출발 문제 → 컴포넌트 → 결과를 한 장에. 각 박스에 절 번호 표기
+6. **배경 (Background)** — 이 논문이 기반한 선행 연구의 핵심 개념과 수식, 그 한계
+7. **본문 절들** — 논문 섹션 순서대로. 각 절마다 그림 1개 이상
+8. **비판적 분석** — 강점 / 한계와 의문점 / **AI 논문 체크리스트 대조 표**(`.small-table`)
+9. **Key Takeaways** — 3~7개, 마지막 1개는 비판적 관점
+10. **개인 메모** — 빈 `<div class="personal-notes">`로 생성
 
-### 상호 링크
-- **전문가용 파일**: 제목 아래에 `개요 브리핑 버전 보기 →` 링크 추가
-- **Brief 파일**: 상단/하단에 `전문가용 상세 요약 보기 →` 링크 추가
+### 그림 개수 기준
+
+| 논문 분량 | SVG 그림 최소 개수 | 문서 분량 목표 |
+|---|---|---|
+| ~10 페이지 | 12개 | 1,200줄+ |
+| 10~20 페이지 | 20개 | 2,000줄+ |
+| 20~35 페이지 | 30개 | 3,000줄+ |
+| 35 페이지+ | 45개 | 4,000줄+ |
+
+- **논문의 주요 Figure는 전부 재현한다.** 골라내지 않는다
+- 주요 `h3`마다 최소 1개. 그림 없는 절이 3개 연속되면 밀도 부족
+- **핵심 수식마다 수치 예제 그림 1개** — 이 포맷의 차별점
+
+### 그림 유형 (캡션 머리말로 구분)
+
+| 유형 | 머리말 | 내용 |
+|---|---|---|
+| A. 논문 Figure 재현 | `[Figure N 재구성]` / `[Figure N 설명]` | 논문에 실제로 있는 그림. 원문에 없는 축 값·수치는 그려 넣지 말고, 재구성한 부분은 캡션에 명시 |
+| B. 개념도 | `[Figure: 제목]` | 논문에 그림이 없는 메커니즘의 데이터 흐름·마스킹 패턴·파이프라인·before/after 대비 |
+| C. **수치 예제** | `[Figure: … 수치 예제]` | 핵심 수식을 2×2 행렬·4~8 토큰 같은 장난감 입력에 대입해 스텝별 중간값을 표로. 하이퍼파라미터 값의 역산, 통신량·메모리 계산도 포함 |
+| D. 전체 지도 | `[Figure: 논문 전체 지도]` | 문서 첫 그림. 논문 전체 논리를 한 장에 |
+
+### 캡션 규칙
+
+캡션은 그림 설명이 아니라 **짧은 분석 문단**이다 (2~5문장, 100~400자):
+1. 무엇이 그려졌는가 — 색·기호의 의미까지 ("주황은 직렬 전파, 파랑은 병렬 구간")
+2. 무엇이 요점인가
+3. **다른 절과의 연결** — `§4.1.1`처럼 절 번호로 상호 참조. 이 참조가 문서를 하나의 논증으로 묶는다
+4. 해당되면 한계·불확실성 (원문에 없는 정보, 판별 불가한 주장)
+
+### SVG 기술 규칙 (요약)
+
+- `viewBox`만 사용, `width`/`height` 속성 금지 (반응형)
+- 폭 `0 0 780~800 …`, `<svg>`에 `font-family="sans-serif"`
+- **`marker` id는 그림마다 유일하게** (한 문서에 수십 개 SVG가 들어가므로 충돌이 실제로 발생)
+- **SVG 안에서는 `$…$` 수식이 렌더링되지 않는다** → 유니코드로 (`Γ ⊙ Q[t]`, `e⁸⁰`, `α ∈ (0,1)`)
+- 텍스트 줄바꿈 없음 → `<text>`를 y 간격 15~18px로 쌓는다
+- 색상: 기존 방법 = 주황(`#fef3c7`/`#f59e0b`), 이 논문 = 파랑(`#dbeafe`/`#3b82f6`), 성과 = 초록, 문제 = 빨강
+
+**전체 규칙·도식 패턴·팔레트는 `paper-figures` 스킬을 로드해서 확인한다.**
+
+### 본문과 그림의 배치 순서
+
+한 하위 절(`h3`/`h4`)의 표준 순서:
+1. `<p><strong>왜 문제인가</strong>: …` — 기존 방법의 구체적 실패 모드
+2. `<p><strong>해법</strong>: …` + `$$수식 \tag{5}$$` (원문 수식 번호 유지)
+3. `<blockquote><strong>직관적으로 말하면</strong>: …</blockquote>`
+4. `<figure>` 개념도
+5. `<figure>` 같은 수식의 수치 예제
 
 ### 워크플로우 순서
-1. 전문가용 상세 요약 먼저 완성 (Phase 1~3 + 검증)
-2. Brief 버전 작성 (전문가용 내용을 기반으로 비전문가용으로 재구성)
-3. 양쪽 파일에 상호 링크 삽입
-4. index.html 업데이트 (전문가용 파일 기준, 기존과 동일)
-5. 브라우저 열기 + git commit & push
-
----
+1. Phase 1 — 메타데이터·구조·TL;DR·핵심 기여
+2. Phase 2 — 섹션별 정밀 요약. **각 절을 쓸 때 그 절의 그림을 함께 그린다**
+3. Phase 3 — 검증 에이전트 실행 (그림 커버리지·그림 정확성 항목 포함)
+4. 브라우저로 열어 **그림 겹침·목차 렌더링 육안 확인**
+5. index.html 업데이트
+6. git commit & push
 
 ## 입력 처리 가이드라인
 
@@ -336,7 +352,8 @@ document.addEventListener("DOMContentLoaded", function() {
 |------|------|
 | 수식 | 인라인 `$...$`, 블록 `$$...$$`. 원문 notation 유지. 수식 번호 `(1)` 등 원문과 일치 |
 | 수식 유도 | 핵심 유도 과정은 step-by-step으로 재현. 중간 생략 시 어떤 성질을 사용했는지 명시 |
-| 그림 | `> **[Figure N 설명]**: 그림의 내용과 의미를 상세히 기술` |
+| 그림 | **인라인 SVG로 재현**한다. `<figure><svg viewBox="0 0 800 …">…</svg><figcaption><strong>[Figure N 재구성]</strong>: …</figcaption></figure>`. 그림 번호는 JS가 자동 부여하므로 직접 쓰지 않는다. 상세 규칙은 `paper-figures` 스킬 |
+| 수치 예제 그림 | 핵심 수식마다 작은 장난감 입력(2×2 행렬, 4~8 토큰 등)에 대입한 계산 과정을 SVG 표로 그린다 |
 | 테이블 | Markdown 테이블로 재현. 큰 테이블은 핵심 행만 발췌 + 전체 트렌드 설명 |
 | 알고리즘 | 코드블록으로 pseudo-code 재현 |
 | 아키텍처 다이어그램 | 텍스트로 입력→처리→출력 흐름을 단계별로 기술 |
@@ -460,8 +477,8 @@ Q&A 블록과 개인 메모 스타일은 이미 상단 CSS 템플릿에 포함�
 
 ## 파일 저장 규칙
 
-- 요약 파일 (전문가용): `{YYYYMMDD}_{첫저자성}_{키워드}.html` (예: `20260223_vaswani_transformer.html`)
-- 브리핑 파일 (비전문가용): `{YYYYMMDD}_{첫저자성}_{키워드}_brief.html` (예: `20260223_vaswani_transformer_brief.html`)
+- 요약 파일: `{YYYYMMDD}_{첫저자성}_{키워드}.html` (예: `20260223_vaswani_transformer.html`) — 논문 1편당 이 파일 하나만 생성한다
+- `_brief.html`은 레거시이며 신규 생성하지 않는다. 사용자가 명시적으로 요청할 때만 별도 생성
 - 인덱스 파일: `index.html` (프로젝트 루트)
 - 날짜는 요약을 생성하는 **오늘 날짜** 기준
 - 저장 위치: 프로젝트 루트 디렉토리

@@ -42,7 +42,8 @@
   <li><code>CLAUDE.md</code> — 워크플로우 지침 및 템플릿 (Claude Code가 참조)</li>
   <li><code>index.html</code> — 요약 목록 및 네비게이션 (자동 생성/업데이트)</li>
   <li><code>guide.html</code> — 이 사용 가이드 (CLAUDE.md 기반 자동 생성)</li>
-  <li><code>*.html</code> — 개별 논문 요약 파일 (<code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code> 형식)</li>
+  <li><code>*.html</code> — 개별 논문 요약 파일 (<code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code> 형식). 상세 요약 + 인라인 SVG 그림이 한 파일에 통합</li>
+  <li><code>examples/</code> — 포맷 기준 예시 (<code>20260728_kimiteam_kimik3.html</code>)</li>
   <li><code>pdf_directory/</code> — 논문 PDF 저장 디렉토리 (git에서 제외)</li>
 </ul>
 </div>
@@ -89,7 +90,7 @@ https://arxiv.org/abs/2603.67890,RL 관련</pre>
 </div>
 
 <div class="step">
-<h3>Phase 2 — 섹션별 정밀 요약 (Deep Dive)</h3>
+<h3>Phase 2 — 섹션별 정밀 요약 + 그림 (Deep Dive)</h3>
 <p>각 섹션을 순서대로 깊이 있게 순차 처리합니다. 수식에는 직관적 설명을 병행하고, 실험 결과에는 패턴 분석을 추가합니다.</p>
 </div>
 
@@ -122,13 +123,53 @@ https://arxiv.org/abs/2603.67890,RL 관련</pre>
 
 <div class="section-box">
 <ol>
-  <li><strong>메타데이터</strong>: 저자, 소속, 학회/저널, 연도, 링크</li>
+  <li><strong>메타데이터</strong>: 저자, 소속, 학회/저널, 연도, 링크, 분량</li>
+  <li><strong>목차</strong>: 절 목록과 각 절에 포함된 그림 번호 범위 (자동 생성)</li>
   <li><strong>TL;DR</strong>: 문제, 해결, 왜 작동하는가, 비유</li>
   <li><strong>핵심 기여 (Key Contributions)</strong>: 3~5개 ordered list</li>
-  <li><strong>섹션별 정밀 요약</strong>: 원문 구조를 따라 깊이 있는 요약</li>
-  <li><strong>비판적 분석</strong>: 강점, 한계, 질문</li>
-  <li><strong>Key Takeaways</strong>: 이 논문에서 가져갈 것 3~5개</li>
+  <li><strong>논문 전체 지도 (그림 1)</strong>: 출발 문제 → 컴포넌트 → 결과를 한 장에 요약한 도식</li>
+  <li><strong>배경 (Background)</strong>: 선행 연구의 핵심 개념·수식과 그 한계</li>
+  <li><strong>섹션별 정밀 요약</strong>: 원문 구조를 따라 깊이 있는 요약. <strong>각 절마다 SVG 그림 1개 이상</strong></li>
+  <li><strong>비판적 분석</strong>: 강점, 한계, 질문 + AI 논문 체크리스트 대조 표</li>
+  <li><strong>Key Takeaways</strong>: 이 논문에서 가져갈 것 3~7개</li>
   <li><strong>개인 메모</strong>: Q&amp;A 및 추가 코멘트 누적 영역</li>
+</ol>
+</div>
+
+<h2>그림 중심 통합 포맷</h2>
+
+<p>요약 문서 안에 논문의 그림을 <strong>인라인 SVG로 직접 재현</strong>합니다. 별도의 브리핑 파일을 만들지 않고, 수식·상세 서술과 그림이 같은 절에 나란히 놓입니다.</p>
+
+<div class="section-box">
+<p><strong>그림 개수 기준</strong></p>
+<table>
+<tr><th>논문 분량</th><th>SVG 그림 최소 개수</th><th>문서 분량 목표</th></tr>
+<tr><td>~10 페이지</td><td>12개</td><td>1,200줄+</td></tr>
+<tr><td>10~20 페이지</td><td>20개</td><td>2,000줄+</td></tr>
+<tr><td>20~35 페이지</td><td>30개</td><td>3,000줄+</td></tr>
+<tr><td>35 페이지+</td><td>45개</td><td>4,000줄+</td></tr>
+</table>
+<p>논문의 주요 Figure는 골라내지 않고 전부 재현하며, 핵심 수식마다 수치 예제 그림을 1개 붙입니다.</p>
+</div>
+
+<div class="section-box">
+<p><strong>그림의 4가지 유형</strong></p>
+<table>
+<tr><th>유형</th><th>내용</th></tr>
+<tr><td><strong>논문 Figure 재현</strong></td><td>논문에 실제로 있는 그림을 SVG로 다시 그림. 원문에 없는 축 값·수치는 그려 넣지 않고, 재구성한 부분은 캡션에 명시</td></tr>
+<tr><td><strong>개념도</strong></td><td>논문에 그림이 없는 메커니즘의 데이터 흐름, 마스킹 패턴, 파이프라인, before/after 대비</td></tr>
+<tr><td><strong>수치 예제</strong></td><td>핵심 수식을 2×2 행렬·4~8 토큰 같은 작은 입력에 대입해 스텝별 중간값을 표로. 하이퍼파라미터 값의 역산, 통신량·메모리 계산 포함</td></tr>
+<tr><td><strong>전체 지도</strong></td><td>문서 첫 그림. 논문 전체의 논리 구조를 한 장에</td></tr>
+</table>
+</div>
+
+<div class="section-box">
+<p><strong>캡션은 그림 설명이 아니라 짧은 분석 문단입니다</strong> (2~5문장):</p>
+<ol>
+  <li>무엇이 그려졌는가 — 색·기호의 의미까지</li>
+  <li>무엇이 요점인가</li>
+  <li>다른 절과의 연결 — 절 번호(§)로 상호 참조하여 문서 전체를 하나의 논증으로 묶음</li>
+  <li>해당되면 한계·불확실성 (원문에 없는 정보, 판별 불가한 주장)</li>
 </ol>
 </div>
 
@@ -173,7 +214,8 @@ https://arxiv.org/abs/2603.67890,RL 관련</pre>
 <table>
 <tr><th>요소</th><th>처리 방식</th></tr>
 <tr><td>수식</td><td>KaTeX 렌더링. 인라인 <code>$...$</code>, 블록 <code>$$...$$</code>. 원문 notation 유지</td></tr>
-<tr><td>그림</td><td>blockquote로 내용과 의미를 상세히 기술</td></tr>
+<tr><td>그림</td><td>인라인 SVG로 재현 + 3~5문장 분석형 캡션. 그림 번호는 자동 부여</td></tr>
+<tr><td>수치 예제 그림</td><td>핵심 수식을 작은 장난감 입력에 대입한 계산 과정을 SVG 표로</td></tr>
 <tr><td>테이블</td><td>HTML 테이블로 재현. 큰 테이블은 핵심 행 발췌 + 트렌드 설명</td></tr>
 <tr><td>알고리즘</td><td>pseudo-code + 텍스트 흐름도</td></tr>
 <tr><td>하이라이트</td><td><code>##텍스트##</code>로 감싸면 노란 배경 강조 (핵심 기여, SOTA 수치, 핵심 인사이트 등)</td></tr>
@@ -208,14 +250,15 @@ https://arxiv.org/abs/2603.67890,RL 관련</pre>
 
 <h2>파일 저장 규칙</h2>
 <ul>
-  <li>요약 파일: <code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code></li>
+  <li>요약 파일: <code>{YYYYMMDD}_{첫저자성}_{키워드}.html</code> — 논문 1편당 이 파일 하나</li>
+  <li><code>*_brief.html</code>은 레거시(2026-08-20 이전 생성분)이며 더 이상 새로 만들지 않습니다</li>
   <li>날짜는 요약을 생성하는 당일 기준</li>
   <li>index.html에 자동 등록 (역시간순 정렬)</li>
   <li>git commit &amp; push로 GitHub Pages에 자동 배포</li>
 </ul>
 
 <hr>
-<p style="color: #888; font-size: 0.85rem; margin-top: 2rem;">이 페이지는 <a href="https://github.com/bubae/paper-summarize/blob/main/CLAUDE.md" style="color:#4a90d9;">CLAUDE.md</a> 기반으로 자동 생성되었습니다. 마지막 업데이트: 2026-03-03</p>
+<p style="color: #888; font-size: 0.85rem; margin-top: 2rem;">이 페이지는 <a href="https://github.com/bubae/paper-summarize/blob/main/CLAUDE.md" style="color:#4a90d9;">CLAUDE.md</a> 기반으로 자동 생성되었습니다. 마지막 업데이트: 2026-08-20</p>
 
 </body>
 </html>
