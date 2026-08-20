@@ -1,11 +1,11 @@
 ---
 name: paper-figures
-description: 논문 요약 HTML에 넣을 인라인 SVG 그림(논문 Figure 재현, 개념도, 수치 예제)과 상세 figcaption을 작성하는 방법. 논문 요약을 작성/수정할 때, 또는 기존 요약에 그림을 추가할 때 로드한다. 기준 예시는 examples/20260728_kimiteam_kimik3.html (SVG 55개).
+description: 논문 요약 HTML에 넣을 인라인 SVG 그림(논문 Figure 재현, 개념도, 수치 예제)과 상세 figcaption을 작성하는 방법. 논문 요약을 작성/수정할 때, 또는 기존 요약에 그림을 추가할 때 로드한다. 기준 예시는 20260728_kimiteam_kimik3.html (SVG 55개).
 ---
 
 # 논문 요약용 SVG 그림 작성 가이드
 
-기준 예시(golden reference): `examples/20260728_kimiteam_kimik3.html`
+기준 예시(golden reference): `20260728_kimiteam_kimik3.html`
 — 47페이지 논문 → 4,841줄 / SVG 그림 55개 / 모든 그림에 3~5문장 분석형 캡션.
 
 HTML 골격은 `assets/summary_template.html`을 복사해서 시작한다. head 안의

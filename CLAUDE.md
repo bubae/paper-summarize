@@ -13,7 +13,8 @@ AI/ML 논문 PDF 또는 URL을 입력받아 연구자 수준의 섹션별 요약
 - `index.html` — 요약 목록 및 네비게이션 (자동 생성/업데이트)
 - `*.html` — 개별 논문 요약 파일 (`{YYYYMMDD}_{첫저자성}_{키워드}.html` 형식). **그림 중심 통합 포맷** — 연구자 수준의 상세 요약 + 인라인 SVG 그림
 - `*_brief.html` — (레거시) 2026-08-20 이전에 생성된 별도 브리핑 파일. **신규 생성하지 않음.** 그림·시각화는 통합 포맷의 본 요약 파일 안에 들어간다
-- `examples/` — 포맷 참고 예시. **기준 예시(golden reference): `examples/20260728_kimiteam_kimik3.html`**
+- **기준 예시(golden reference): `20260728_kimiteam_kimik3.html`** (Kimi K3 요약 — 47페이지 논문 → 4,841줄 / SVG 55개). 새 요약을 쓰기 전에 이 파일의 구조와 그림 밀도를 확인한다
+- `examples/` — 과거 포맷 참고 예시 (레거시)
 - `.claude/skills/paper-figures/` — SVG 그림 작성 가이드 스킬 + HTML 템플릿 (`assets/summary_template.html`)
 
 빌드 시스템, 테스트, 린트 등의 도구는 없음. 정적 HTML 파일만 생성하는 프로젝트.
@@ -156,7 +157,7 @@ HTML 골격은 **`.claude/skills/paper-figures/assets/summary_template.html`을 
 </nav>
 ```
 
-템플릿을 직접 손으로 작성해야 할 경우, `examples/20260728_kimiteam_kimik3.html`의 1~103행을 그대로 복사한다.
+템플릿을 직접 손으로 작성해야 할 경우, `20260728_kimiteam_kimik3.html`의 1~103행을 그대로 복사한다.
 
 ### HTML 구조 규칙 (일관성 필수)
 
@@ -248,7 +249,7 @@ HTML 골격은 **`.claude/skills/paper-figures/assets/summary_template.html`을 
 **2026-08-20 이후 모든 요약은 이 포맷 하나로 작성한다.** 별도 `_brief.html`을 만들지 않는다 —
 그림·시각화는 본 요약 파일 안에 통합된다.
 
-기준 예시: **`examples/20260728_kimiteam_kimik3.html`** (47페이지 논문 → 4,841줄 / SVG 그림 55개).
+기준 예시: **`20260728_kimiteam_kimik3.html`** (47페이지 논문 → 4,841줄 / SVG 그림 55개).
 새 요약을 쓰기 전에 이 파일의 구조와 그림 밀도를 확인할 것.
 
 ### 이 포맷이 기존과 다른 점
