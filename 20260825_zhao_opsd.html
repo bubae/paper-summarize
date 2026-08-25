@@ -1,0 +1,2098 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Self-Distilled Reasoner: On-Policy Self-Distillation (OPSD)</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+
+<h1>Self-Distilled Reasoner: On-Policy Self-Distillation for Large Language Models (OPSD)</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Siyan Zhao†, Zhihui Xie, Mengchen Liu, Jing Huang, Guan Pang, Feiyu Chen*‡, Aditya Grover* (*동등 지도, †UCLA 및 Meta 파트타임 인턴십 중 수행, ‡Meta에서 수행)</li>
+  <li><strong>소속</strong>: UCLA / HKU / Meta Superintelligence Labs</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2601.18734v3, cs.LG)</li>
+  <li><strong>연도</strong>: 2026 (v3: 2026년 3월 20일)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2601.18734">https://arxiv.org/abs/2601.18734</a> · 코드 <a href="https://github.com/siyan-zhao/OPSD">github.com/siyan-zhao/OPSD</a></li>
+  <li><strong>분량</strong>: 15페이지 (본문 §1~§7 9페이지 + 부록 A 한계, B 실험 세부, C 토큰 분류 정의, D policy-gradient 해석)</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM 추론 능력을 올리는 세 갈래가 각각 결함을 갖는다. <strong>RLVR</strong>(GRPO 등)은 프롬프트당 여러 응답을 뽑아야 해 비싸고, 한 group의 응답이 전부 맞거나 전부 틀리면 <em>gradient가 사라진다</em>. <strong>SFT</strong>는 exposure bias와 약한 일반화를 겪는다. <strong>on-policy 증류</strong>는 촘촘한 토큰 수준 신호를 주지만 <em>별도의, 흔히 더 큰 teacher 모델</em>을 요구하고 데이터셋에 이미 있는 정답 풀이를 활용하지 않는다.</li>
+  <li><strong>해결</strong>: <strong>OPSD (On-Policy Self-Distillation)</strong> — 하나의 LLM이 서로 다른 context로 teacher와 student를 겸한다. teacher $p_T(\cdot|x,y^\star)$는 문제와 <em>검증된 정답 풀이</em>에 조건화되고, student $p_S(\cdot|x)$는 문제만 본다. student가 자기 응답을 샘플링하고, 그 rollout 위에서 두 분포의 <strong>토큰별 divergence</strong>를 최소화한다. gradient는 student logit으로만 흐른다.</li>
+  <li><strong>왜 작동하는가</strong>: ##"평가가 생성보다 쉽다"는 관찰의 확장 — <em>rationalization(주어진 정답을 설명하는 것)이 generation(처음부터 푸는 것)보다 쉽다</em>##는 가설이다. 충분히 유능한 모델은 정답을 보면 그 단계들을 합리화할 수 있고, 그 상태의 자기 자신이 <em>정답을 못 보는 약한 자기</em>를 가르칠 수 있다. 결과적으로 GRPO가 8개 rollout × 16k 토큰을 쓰는 자리에서 ##1개 rollout × 1024 토큰으로 100 스텝 안에 수렴##한다.</li>
+  <li><strong>비유</strong>: GRPO는 <em>객관식 시험을 8번 치고 총점만 통보받는</em> 공부다. 8번 다 맞거나 다 틀리면 아무것도 배우지 못한다. OPSD는 <em>한 번 풀고 나서 정답지를 펴 놓고 "여기서 내가 다른 선택을 했겠구나"를 토큰마다 대조하는</em> 공부다. 최종 답이 틀렸더라도 어느 지점에서 갈라졌는지가 남는다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>OPSD 프레임워크</strong>: 하나의 모델이 teacher와 student를 겸하면서 데이터셋의 정답을 활용해 <em>student rollout 위에</em> 촘촘한 토큰 수준 지도를 제공한다. 네 성질을 동시에 만족한다 — (i) on-policy 지도, (ii) 토큰별 촘촘한 피드백, (iii) 정답 풀이 $y^\star$ 활용, (iv) ##별도 teacher 모델 불필요##.</li>
+  <li><strong>per-token pointwise KL clipping</strong>: 토큰 수준 divergence가 어휘 항목에 걸쳐 극심하게 치우쳐 있다는 것을 발견했다 — <em>소수의 문체(stylistic) 토큰이 수학적으로 의미 있는 토큰보다 훨씬 큰 divergence를 보인다</em>. 어휘 수준 기여도에 pointwise clipping을 적용해 학습을 안정화하고 성능 붕괴를 막는다.</li>
+  <li><strong>세 개의 경쟁 수준 수학 벤치마크에서의 검증</strong>: AIME 2024 / AIME 2025 / HMMT 2025. Qwen3-1.7B/4B/8B 전 규모에서 SFT를 능가하고 GRPO와 같거나 낫다. ##Qwen3-1.7B에서 평균 37.1 → 43.4 (GRPO는 37.7)##.</li>
+  <li><strong>GRPO 대비 토큰 효율</strong>: 같은 학습 스텝 수에서 훨씬 적은 토큰을 쓰면서 모든 벤치마크에서 GRPO를 앞선다. 원인 규명 — ##GRPO는 100 스텝 안에 절반 이상의 배치가 reward 표준편차 0이 되어 gradient 신호를 잃는다(reward diversity collapse)##. OPSD는 최종 답의 정답 여부와 무관하게 촘촘한 증류 손실로 학습한다.</li>
+  <li><strong>설계 선택의 체계적 ablation</strong>: divergence 목적함수(forward KL / reverse KL / JSD), student·teacher의 thinking mode 조합, KL clipping 유무, student 생성 길이, full-vocabulary logit 증류 vs sampled-token policy gradient.</li>
+  <li><strong>STaR와의 형식적 대조</strong> (부록 D): OPSD의 sampled-token 목적함수가 <em>토큰 수준 dense reward를 가진 policy gradient</em>임을 유도하고, STaR가 <em>시퀀스 수준 이진 reward</em>임을 보여 credit assignment 해상도의 차이를 명확히 한다.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="opsdMap" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="15" font-weight="bold">이 논문 전체 지도 — 세 방법의 결함을 하나로 메우기</text>
+
+  <text x="400" y="42" text-anchor="middle" font-size="11.5" font-weight="bold">출발 문제 — 추론 능력을 올리는 세 갈래가 각각 다른 곳에서 막힌다 (§1)</text>
+  <g font-size="9.5">
+    <rect x="30" y="52" width="240" height="82" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+    <text x="150" y="70" text-anchor="middle" font-weight="bold" font-size="10.5">RLVR (GRPO)</text>
+    <text x="42" y="88">✗ 프롬프트당 group 샘플링이 비싸다</text>
+    <text x="42" y="103">✗ 전부 맞거나 전부 틀리면 gradient 소멸</text>
+    <text x="42" y="118">✗ reward가 희소 · 모든 토큰에 균일 적용</text>
+    <text x="42" y="130" fill="#b91c1c">→ 토큰 수준 credit assignment 없음</text>
+
+    <rect x="280" y="52" width="240" height="82" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+    <text x="400" y="70" text-anchor="middle" font-weight="bold" font-size="10.5">SFT (off-policy 증류)</text>
+    <text x="292" y="88">✓ 촘촘한 토큰 신호 · 값싸다</text>
+    <text x="292" y="103">✗ exposure bias (학습·추론 분포 불일치)</text>
+    <text x="292" y="118">✗ 약한 일반화 (암기 경향)</text>
+    <text x="292" y="130" fill="#b91c1c">→ off-policy 데이터에 의존</text>
+
+    <rect x="530" y="52" width="240" height="82" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="650" y="70" text-anchor="middle" font-weight="bold" font-size="10.5">on-policy 증류</text>
+    <text x="542" y="88">✓ on-policy + 촘촘한 신호</text>
+    <text x="542" y="103">✗ 별도의, 흔히 더 큰 teacher 필요</text>
+    <text x="542" y="118">✗ 데이터셋의 정답 풀이를 안 쓴다</text>
+    <text x="542" y="130" fill="#92400e">→ teacher 조달이 병목</text>
+  </g>
+
+  <path d="M400,138 L400,152" stroke="#666" marker-end="url(#opsdMap)"/>
+
+  <rect x="120" y="156" width="560" height="44" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="174" text-anchor="middle" font-size="11.5" font-weight="bold">연구 질문 — 현대 LLM은 이미 강한 추론 능력을 갖는다. 자기 자신의 teacher가 될 수 있는가?</text>
+  <text x="400" y="191" text-anchor="middle" font-size="10">착상: 사람은 틀린 뒤 정답 풀이를 보고 <tspan font-style="italic">합리화</tspan>하며 어디서 틀렸는지 찾는다. rationalization &lt; generation 난이도라는 가설</text>
+
+  <path d="M400,200 L400,214" stroke="#666" marker-end="url(#opsdMap)"/>
+
+  <rect x="60" y="218" width="680" height="58" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="237" text-anchor="middle" font-size="12" font-weight="bold">OPSD — 같은 모델, 다른 context (§2)</text>
+  <text x="400" y="255" text-anchor="middle" font-size="10.5">teacher p_T(·|x, y★): 문제 + 검증된 정답 풀이　|　student p_S(·|x): 문제만　|　ŷ ~ p_S 로 rollout</text>
+  <text x="400" y="270" text-anchor="middle" font-size="10.5">목적함수: student rollout의 매 위치에서 D(p_T ‖ p_S) 최소화 · gradient는 student logit으로만</text>
+
+  <path d="M400,276 L400,290" stroke="#666" marker-end="url(#opsdMap)"/>
+
+  <text x="400" y="306" text-anchor="middle" font-size="12" font-weight="bold">핵심 발견 — 무엇을 조심해야 하는가 (§2.3, §3.3)</text>
+  <rect x="120" y="314" width="560" height="46" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="332" text-anchor="middle" font-size="11" font-weight="bold">토큰 수준 divergence가 어휘에 걸쳐 극심하게 치우쳐 있다</text>
+  <text x="400" y="350" text-anchor="middle" font-size="10">문체 토큰(0.85)이 수학 토큰(0.14)보다 6배 큰 KL → 학습 신호를 문체가 지배한다 → <tspan font-weight="bold">per-token pointwise clipping</tspan>으로 억제</text>
+
+  <path d="M400,360 L400,374" stroke="#666" marker-end="url(#opsdMap)"/>
+
+  <text x="400" y="390" text-anchor="middle" font-size="12" font-weight="bold">결과 (§3)</text>
+  <g font-size="9.5">
+    <rect x="30" y="398" width="240" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="150" y="416" text-anchor="middle" font-weight="bold" font-size="10.5">성능</text>
+    <text x="42" y="434">Qwen3-1.7B 평균 37.1 → 43.4</text>
+    <text x="42" y="449">(GRPO 37.7 · SFT 35.8)</text>
+    <text x="42" y="464" fill="#15803d">3개 규모 모두 SFT 상회, GRPO 이상</text>
+
+    <rect x="280" y="398" width="240" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="400" y="416" text-anchor="middle" font-weight="bold" font-size="10.5">토큰 효율</text>
+    <text x="292" y="434">1 rollout × 1024 토큰 × 100스텝</text>
+    <text x="292" y="449">vs GRPO 8 rollout × 16k × 500스텝</text>
+    <text x="292" y="464" fill="#15803d">같은 스텝에서 훨씬 적은 토큰으로 앞선다</text>
+
+    <rect x="530" y="398" width="240" height="76" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="650" y="416" text-anchor="middle" font-weight="bold" font-size="10.5">GRPO가 정체하는 이유 규명</text>
+    <text x="542" y="434">100스텝 내 절반 이상의 배치에서</text>
+    <text x="542" y="449">reward 표준편차 = 0 → gradient 없음</text>
+    <text x="542" y="464" fill="#7e22ce">샘플링 예산만 낭비된다</text>
+  </g>
+
+  <rect x="30" y="482" width="740" height="34" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="500" text-anchor="middle" font-size="10.5">부록 D — OPSD의 sampled-token 목적함수는 <tspan font-weight="bold">토큰 수준 dense reward policy gradient</tspan>, STaR는 <tspan font-weight="bold">시퀀스 수준 이진 reward</tspan>.</text>
+  <text x="400" y="512" text-anchor="middle" font-size="10.5">STaR는 모든 샘플이 틀리면 신호가 소멸하지만 OPSD는 최종 답이 틀려도 매 위치에서 신호가 남는다</text>
+
+  <rect x="30" y="522" width="740" height="34" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="540" text-anchor="middle" font-size="10">남는 문제: <tspan font-weight="bold">seed 반복·표준편차가 없다</tspan> · 8B 이상 미검증 · 정답 검증 신호를 안 쓴다 · 문제 난이도가 모델 이해 한계를 넘으면 teacher가 무용지물</text>
+  <text x="400" y="552" text-anchor="middle" font-size="10">· clipping 임계값 τ는 튜닝조차 하지 않았다고 명시 (부록 B)</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 맨 위 세 박스가 이 논문의 출발점이며, 색이 문제의 성격을 나눈다 — 빨강은 근본적 결함, 노랑은 "잘 되지만 조달 비용이 문제"다. OPSD는 세 번째(on-policy 증류)의 골격을 취하고 <em>teacher 조달 문제만</em> 해결한 것으로 읽는 것이 정확하다. 중간 노란 박스가 이 논문에서 가장 실용적인 발견인데 — 토큰 divergence가 문체 토큰에 쏠려 있다는 관측과 그에 대한 clipping 처방은 다른 증류 연구에도 그대로 적용될 수 있다. 아래 세 결과 박스 중 오른쪽(보라)이 논증적으로 가장 강하다: "GRPO보다 좋다"가 아니라 <em>GRPO가 왜 정체하는지</em>를 reward 표준편차 0 배치 비율로 측정해 제시한다. 맨 아래 주황 박스는 채택 검토 시 먼저 봐야 할 제약이며, 특히 seed 반복 부재는 이 논문의 가장 큰 결함이다.</figcaption>
+</figure>
+
+<h2>배경 (Background, §2)</h2>
+
+<h3>자기회귀 LLM의 knowledge distillation</h3>
+
+<p>Knowledge distillation은 큰 teacher의 지식을 작은 student로 옮기는 기법이다 (Hinton et al., 2015; Kim &amp; Rush, 2016; Sanh et al., 2019). 핵심 통찰은 <strong>teacher의 soft 확률 분포가 hard label보다 풍부한 정보를 담는다</strong>는 것 — teacher가 학습한 클래스 간 유사성이 드러나기 때문이다.</p>
+
+<p>자기회귀 언어모델에서는 데이터셋 $S = \{(x, y^\star)\}$이 주어질 때 teacher $p_T$와 student $p_S$가 각각 어휘 $V$ 위의 토큰 수준 분포를 정의한다. 전통적 지도 증류는 고정 데이터셋에 대해 두 분포 사이의 divergence $D$를 평균한다.</p>
+$$\mathcal{L}_{\text{Supervised Distillation}}(\theta) = \mathbb{E}_{(x,y) \sim S}\big[D(p_T \| p_S)(y|x)\big] \tag{2}$$
+<p>여기서 $D(p_T\|p_S)(y|x) = \frac{1}{|y|}\sum_{n=1}^{|y|} D\big(p_T(\cdot|y_{<n},x) \| p_S(\cdot|y_{<n},x)\big)$가 토큰별 불일치를 잰다.</p>
+
+<p><strong>이 off-policy 접근의 문제</strong>: <em>분포 불일치(distribution mismatch)</em>다. student가 추론 시점에 자기회귀 생성으로 만나는 부분 시퀀스 $y_{<n}$은 고정 데이터셋에서 학습한 것과 다르고, 오차가 복합적으로 누적된다.</p>
+
+<p><strong>on-policy 증류</strong> (Agarwal et al., 2024 GKD; Lu &amp; Lab, 2025; Xu et al., 2024a)는 student가 자기 생성 시퀀스 $\hat y \sim p_S(\cdot|x)$ 위에서 학습하게 함으로써 이를 해결한다.</p>
+$$\mathcal{L}_{\text{On-Policy Distillation}}(\theta) = \mathbb{E}_{x \sim S}\big[\mathbb{E}_{\hat y \sim p_S(\cdot|x)}[D(p_T\|p_S)(\hat y|x)]\big] \tag{3}$$
+
+<p>이 접근은 증류를 imitation learning (Ross et al., 2011)과 연결한다 — student가 <em>자기 출력에 대한 teacher의 지도</em>로부터 반복적으로 개선되며, RL의 on-policy 관련성과 supervised learning의 촘촘한 reward 신호를 결합해 계산 효율을 유지하면서 exposure bias를 완화한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="bgOArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 1 재구성 — 네 방법이 갖는 네 성질</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">OPSD는 on-policy 학습의 이점과 촘촘한 피드백을 외부 teacher 없이 결합한다</text>
+
+  <g font-size="10">
+    <rect x="40" y="48" width="720" height="26" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="52" y="66" font-weight="bold">성질</text>
+    <text x="290" y="66" font-weight="bold" text-anchor="middle">SFT / off-policy 증류</text>
+    <text x="450" y="66" font-weight="bold" text-anchor="middle">GRPO</text>
+    <text x="570" y="66" font-weight="bold" text-anchor="middle">on-policy 증류</text>
+    <text x="700" y="66" font-weight="bold" text-anchor="middle">OPSD (이 논문)</text>
+
+    <rect x="40" y="74" width="720" height="26" fill="#fff" stroke="#e5e7eb"/>
+    <text x="52" y="92">On-Policy Data</text>
+    <text x="290" y="92" text-anchor="middle" font-size="14" fill="#dc2626">✗</text>
+    <text x="450" y="92" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="570" y="92" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="700" y="92" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="bold">✓</text>
+
+    <rect x="40" y="100" width="720" height="26" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="52" y="118">Dense Learning Signal</text>
+    <text x="290" y="118" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="450" y="118" text-anchor="middle" font-size="14" fill="#dc2626">✗</text>
+    <text x="570" y="118" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="700" y="118" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="bold">✓</text>
+
+    <rect x="40" y="126" width="720" height="26" fill="#fff" stroke="#e5e7eb"/>
+    <text x="52" y="144">Low Sampling Cost</text>
+    <text x="290" y="144" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="450" y="144" text-anchor="middle" font-size="14" fill="#dc2626">✗</text>
+    <text x="570" y="144" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="700" y="144" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="bold">✓</text>
+
+    <rect x="40" y="152" width="720" height="26" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="52" y="170">No External Teacher</text>
+    <text x="290" y="170" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="450" y="170" text-anchor="middle" font-size="14" fill="#16a34a">✓</text>
+    <text x="570" y="170" text-anchor="middle" font-size="14" fill="#dc2626">✗</text>
+    <text x="700" y="170" text-anchor="middle" font-size="14" fill="#16a34a" font-weight="bold">✓</text>
+  </g>
+
+  <rect x="640" y="74" width="120" height="104" fill="none" stroke="#3b82f6" stroke-width="2.5" rx="4"/>
+  <text x="700" y="192" text-anchor="middle" font-size="9.5" fill="#1e40af" font-weight="bold">유일하게 4개 모두</text>
+
+  <line x1="40" y1="208" x2="760" y2="208" stroke="#e5e7eb"/>
+
+  <text x="400" y="228" text-anchor="middle" font-size="11.5" font-weight="bold">off-policy와 on-policy 증류의 구조적 차이 (Eq. 2 vs Eq. 3)</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="240" width="330" height="120" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="215" y="258" text-anchor="middle" font-size="10.5" font-weight="bold">Eq. 2 — off-policy (고정 데이터셋)</text>
+    <rect x="66" y="266" width="60" height="22" rx="3" fill="#fff" stroke="#f59e0b"/>
+    <text x="96" y="281" text-anchor="middle" font-size="9">y★ 토큰</text>
+    <path d="M126,277 L146,277" stroke="#64748b" marker-end="url(#bgOArw)"/>
+    <rect x="150" y="266" width="100" height="22" rx="3" fill="#fff" stroke="#f59e0b"/>
+    <text x="200" y="281" text-anchor="middle" font-size="9">두 분포가 채점</text>
+    <path d="M250,277 L270,277" stroke="#64748b" marker-end="url(#bgOArw)"/>
+    <rect x="274" y="266" width="90" height="22" rx="3" fill="#fff" stroke="#f59e0b"/>
+    <text x="319" y="281" text-anchor="middle" font-size="9">D(p_T ‖ p_S)</text>
+    <text x="66" y="306">prefix y&lt;n 이 <tspan font-weight="bold">전문가가 쓴 것</tspan>이다</text>
+    <text x="66" y="322">추론 시점에는 student가 쓴 prefix를 만난다</text>
+    <text x="66" y="340" fill="#92400e">→ 분포 불일치 · 오차 누적 (exposure bias)</text>
+    <text x="66" y="354" fill="#92400e">그런데 샘플링 비용은 0이다</text>
+
+    <rect x="420" y="240" width="330" height="120" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="585" y="258" text-anchor="middle" font-size="10.5" font-weight="bold">Eq. 3 — on-policy (student rollout)</text>
+    <rect x="436" y="266" width="60" height="22" rx="3" fill="#fff" stroke="#3b82f6"/>
+    <text x="466" y="281" text-anchor="middle" font-size="9">ŷ ~ p_S</text>
+    <path d="M496,277 L516,277" stroke="#64748b" marker-end="url(#bgOArw)"/>
+    <rect x="520" y="266" width="100" height="22" rx="3" fill="#fff" stroke="#3b82f6"/>
+    <text x="570" y="281" text-anchor="middle" font-size="9">두 분포가 채점</text>
+    <path d="M620,277 L640,277" stroke="#64748b" marker-end="url(#bgOArw)"/>
+    <rect x="644" y="266" width="90" height="22" rx="3" fill="#fff" stroke="#3b82f6"/>
+    <text x="689" y="281" text-anchor="middle" font-size="9">D(p_T ‖ p_S)</text>
+    <text x="436" y="306">prefix ŷ&lt;n 이 <tspan font-weight="bold">student가 쓴 것</tspan>이다</text>
+    <text x="436" y="322">추론 시점과 같은 분포에서 학습한다</text>
+    <text x="436" y="340" fill="#1e40af">→ exposure bias 완화 (Ross et al. 2011)</text>
+    <text x="436" y="354" fill="#1e40af">대가: 학습 중 생성 비용이 발생한다</text>
+  </g>
+</svg>
+<figcaption><strong>[Figure: Table 1 재구성 + Eq. 2/3의 구조적 차이]</strong>: 위 표는 논문 Table 1을 그대로 옮긴 것이고, 파란 테두리가 OPSD가 네 성질을 모두 만족하는 유일한 열이라는 점을 표시한다. 이 표를 읽을 때 주의할 점은 <em>"No External Teacher"가 OPSD의 유일한 순수 신규 항목</em>이라는 것 — 나머지 세 성질은 on-policy 증류가 이미 갖고 있고, OPSD는 teacher 조달 문제만 제거한다. 아래 두 박스가 Eq. 2와 Eq. 3의 차이를 도식화한 것으로, 유일한 차이는 <strong>채점되는 prefix를 누가 썼는가</strong>다. 노란 박스의 마지막 줄과 파란 박스의 마지막 줄이 이 선택의 대가를 짚는다 — off-policy는 샘플링이 무료지만 분포가 어긋나고, on-policy는 분포가 맞지만 생성 비용이 든다. §3의 토큰 효율 논의가 이 대가를 정량화한다.</figcaption>
+</figure>
+
+<h3>RLVR과 GRPO — 그리고 gradient가 사라지는 지점</h3>
+
+<p><strong>RLVR</strong>(Reinforcement Learning with Verifiable Rewards)은 수학·코딩처럼 결과 검증이 쉬운 과제에서 LLM post-training의 주류 접근이 되었고, PPO (Schulman et al., 2017)나 <strong>GRPO</strong> (Shao et al., 2024) 같은 알고리즘을 쓴다.</p>
+
+<p>GRPO는 각 문제 $x$에 대해 현재 정책 $\pi_\theta$에서 $G$개 응답 $\{o_1,\dots,o_G\}$을 샘플링한다. 각 응답 $o_i$는 정답 여부를 나타내는 이진 reward $r_i \in \{0,1\}$을 받고, group 정규화 reward로 응답 내 모든 토큰 $k$에 advantage를 할당한다.</p>
+$$A_i = \frac{r_i - \mathrm{mean}(\{r_j\}_{j=1}^G)}{\mathrm{std}(\{r_j\}_{j=1}^G)} \tag{4}$$
+
+<p>이 형식화는 value function 관점으로 이해할 수 있다 — $\mathrm{mean}(\{r_j\})$가 value function $V(x)$의 $G$-샘플 Monte Carlo 추정이고, 희소 이진 reward $r_i$가 (할인 없는) state-action value $Q(x, o_i)$에 해당한다. <strong>결정적으로 응답 내 모든 토큰이 같은 advantage를 공유한다</strong> — reward가 시퀀스 수준에서만 주어지기 때문이다.</p>
+
+<p>GRPO 목적함수는 clipped surrogate loss와 참조 정책에 대한 reverse KL 페널티를 포함한다.</p>
+$$\mathcal{L}_{GRPO}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{n=1}^{|o_i|} \min\big(\rho_i^n A_i,\ \mathrm{clip}(\rho_i^n, 1-\varepsilon, 1+\varepsilon)A_i\big) - \beta D_{KL}[\pi_\theta \| \pi_{ref}]\right] \tag{5}$$
+<p>$\rho_i^n = \frac{\pi_\theta(o_i^n|x, o_i^{<n})}{\pi_{\theta_{old}}(o_i^n|x,o_i^{<n})}$는 importance ratio, $\varepsilon$은 clipping 범위다.</p>
+
+<p><strong>두 가지 한계</strong>가 이 논문의 출발점이다.</p>
+<ol>
+  <li><strong>reward 신호가 희소하다</strong>: 오류가 <em>어디서</em> 발생했는지에 대한 토큰 수준 지도 없이 시퀀스 수준 피드백만 제공한다.</li>
+  <li><strong>advantage가 0이 되는 경우</strong>: 샘플된 응답이 모두 같은 reward를 받으면(전부 정답 또는 전부 오답) 수식 (4)의 분자가 0이 되어 ##샘플링에 든 계산 비용에도 불구하고 정책 갱신이 전혀 일어나지 않는다##.</li>
+</ol>
+
+<blockquote><strong>직관적으로 말하면</strong>: GRPO는 <em>상대 평가</em>다. 8명이 시험을 봤는데 전원 만점이거나 전원 0점이면 등수를 매길 수 없고, 그래서 아무도 배우지 못한다. 문제가 너무 쉽거나 너무 어려우면 학습 신호가 사라진다는 뜻이며, 학습이 진행되어 모델이 좋아질수록 <em>쉬운 문제에서 이 현상이 늘어난다</em>. §3.2의 "100 스텝 내 절반 이상의 배치가 표준편차 0"이라는 측정이 정확히 이것이다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — GRPO의 advantage가 0이 되는 조건 (Eq. 4)</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">G = 8 rollout, 이진 reward. 정답 개수에 따른 advantage와 gradient 신호를 계산했다</text>
+
+  <g font-size="10">
+    <rect x="60" y="48" width="680" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="72" y="63" font-weight="bold">8개 중 정답 수</text>
+    <text x="200" y="63" font-weight="bold">mean(r)</text>
+    <text x="290" y="63" font-weight="bold">std(r)</text>
+    <text x="380" y="63" font-weight="bold">정답의 A</text>
+    <text x="480" y="63" font-weight="bold">오답의 A</text>
+    <text x="590" y="63" font-weight="bold">학습 신호</text>
+
+    <rect x="60" y="70" width="680" height="22" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="72" y="85">0 (전부 오답)</text>
+    <text x="200" y="85">0.000</text>
+    <text x="290" y="85">0.000</text>
+    <text x="380" y="85">—</text>
+    <text x="480" y="85">0/0 → 0</text>
+    <text x="590" y="85" font-weight="bold" fill="#b91c1c">없음 (8 rollout 낭비)</text>
+
+    <rect x="60" y="92" width="680" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="72" y="107">1</text>
+    <text x="200" y="107">0.125</text>
+    <text x="290" y="107">0.331</text>
+    <text x="380" y="107" fill="#15803d">+2.646</text>
+    <text x="480" y="107" fill="#b91c1c">−0.378</text>
+    <text x="590" y="107" fill="#15803d">강함 (희귀 성공에 큰 가중치)</text>
+
+    <rect x="60" y="114" width="680" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="72" y="129">4 (절반)</text>
+    <text x="200" y="129">0.500</text>
+    <text x="290" y="129">0.500</text>
+    <text x="380" y="129" fill="#15803d">+1.000</text>
+    <text x="480" y="129" fill="#b91c1c">−1.000</text>
+    <text x="590" y="129" fill="#15803d">가장 균형 잡힌 신호</text>
+
+    <rect x="60" y="136" width="680" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="72" y="151">7</text>
+    <text x="200" y="151">0.875</text>
+    <text x="290" y="151">0.331</text>
+    <text x="380" y="151" fill="#15803d">+0.378</text>
+    <text x="480" y="151" fill="#b91c1c">−2.646</text>
+    <text x="590" y="151" fill="#15803d">강함 (희귀 실패에 큰 가중치)</text>
+
+    <rect x="60" y="158" width="680" height="24" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="72" y="174">8 (전부 정답)</text>
+    <text x="200" y="174">1.000</text>
+    <text x="290" y="174">0.000</text>
+    <text x="380" y="174">0/0 → 0</text>
+    <text x="480" y="174">—</text>
+    <text x="590" y="174" font-weight="bold" fill="#b91c1c">없음 (8 rollout 낭비)</text>
+  </g>
+
+  <text x="400" y="198" text-anchor="middle" font-size="9.5" fill="#555">즉 학습 신호는 group 안에 <tspan font-weight="bold">정답과 오답이 섞여 있을 때만</tspan> 존재한다. 양 극단(0/8, 8/8)에서는 계산만 쓰고 갱신이 없다</text>
+
+  <line x1="40" y1="212" x2="760" y2="212" stroke="#e5e7eb"/>
+
+  <text x="400" y="232" text-anchor="middle" font-size="11.5" font-weight="bold">학습이 진행되면 왜 이 문제가 심해지는가</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="242" width="340" height="98" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="220" y="260" text-anchor="middle" font-size="10.5" font-weight="bold">학습 초기</text>
+    <text x="62" y="278">모델 실력이 문제 난이도와 어긋나 있어</text>
+    <text x="62" y="293">group 안에 정답·오답이 섞이기 쉽다</text>
+    <text x="62" y="311">→ std(r) &gt; 0인 배치가 많다</text>
+    <text x="62" y="329" fill="#92400e">GRPO가 잘 학습하는 구간</text>
+
+    <rect x="410" y="242" width="340" height="98" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="580" y="260" text-anchor="middle" font-size="10.5" font-weight="bold">학습 후반 (그리고 데이터셋이 쉬울 때)</text>
+    <text x="422" y="278">모델이 쉬운 문제를 8/8로 풀기 시작한다</text>
+    <text x="422" y="293">어려운 문제는 0/8로 남는다</text>
+    <text x="422" y="311">→ std(r) = 0인 배치가 급증</text>
+    <text x="422" y="329" fill="#b91c1c">§3.2 측정: 100스텝 내 <tspan font-weight="bold">절반 이상</tspan>의 배치</text>
+  </g>
+
+  <rect x="50" y="352" width="700" height="60" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="400" y="370" text-anchor="middle" font-size="11" font-weight="bold">OPSD가 이 구조적 문제를 우회하는 방식</text>
+  <text x="400" y="388" text-anchor="middle" font-size="10">OPSD의 학습 신호는 <tspan font-weight="bold">정답 여부와 무관하다</tspan> — teacher와 student 분포가 다르면 그것만으로 신호가 생긴다.</text>
+  <text x="400" y="403" text-anchor="middle" font-size="10">최종 답이 8번 다 틀렸어도 매 토큰 위치에서 "정답을 본 나는 여기서 다르게 선택했다"가 남는다 (부록 D의 STaR 대조와 같은 논리)</text>
+</svg>
+<figcaption><strong>[Figure: GRPO advantage 소멸의 수치 예제]</strong>: 위 표는 Eq. 4를 $G=8$의 모든 정답 개수에 대입한 것이다 — 빨간 두 행(0/8, 8/8)에서 표준편차가 0이 되어 advantage가 정의되지 않고, 8개 rollout을 생성한 계산이 전부 버려진다. 표에서 함께 읽을 만한 것은 <em>희귀한 결과에 큰 가중치가 실린다</em>는 점이다(1/8일 때 정답의 advantage가 +2.646). 아래 두 박스가 이 문제의 시간적 성격을 짚는데 — 학습이 진행되어 모델이 좋아질수록 쉬운 문제가 8/8이 되고 어려운 문제는 0/8로 남아 <strong>gradient 없는 배치가 늘어난다</strong>. §3.2의 "100스텝 내 절반 이상"이라는 측정이 이것이며, 저자들이 그것을 "reward diversity collapse"라 부른다. 맨 아래 파란 박스가 OPSD의 구조적 이점이다: 신호가 정답 여부와 독립이므로 이 함정 자체가 없다.</figcaption>
+</figure>
+
+<h2>1. 방법 — On-Policy Self-Distillation (§3)</h2>
+
+<h3>1.1 검증 가능한 추론 데이터셋에서 무엇을 뽑아낼 수 있는가</h3>
+
+<p>문제–풀이 쌍 데이터셋 $S = \{(x_i, y_i^\star)\}_{i=1}^{N}$을 생각한다. $x_i$는 문제, $y_i^\star$는 대응하는 참조 풀이이며 chain-of-thought 추론을 포함할 수 있다. 같은 데이터셋에서 학습 신호를 뽑는 방식은 여러 가지다.</p>
+
+<table class="small-table">
+<thead><tr><th>방식</th><th>무엇을 쓰는가</th><th>한계</th></tr></thead>
+<tbody>
+<tr><td><strong>SFT</strong></td><td>$y^\star$를 직접 최대우도 학습. 전문가 궤적을 쓴 off-policy 증류/imitation으로 볼 수 있다</td><td>학습·추론 사이 분포 불일치</td></tr>
+<tr><td><strong>RLVR (GRPO)</strong></td><td>on-policy 샘플을 최적화하고, 생성된 답을 $y^\star$와 비교해 이진 reward 부여</td><td>계산이 비싸고 reward가 희소 — 어디서 틀렸는지 무관하게 모든 토큰에 같은 피드백</td></tr>
+<tr><td><strong>PRM (process reward model)</strong></td><td>촘촘한 토큰 수준 피드백을 주는 별도 모델을 학습</td><td>##PRM 학습 라벨 획득이 지나치게 비싸고 확장이 어렵다## (Lightman et al., 2023; Zhang et al., 2025)</td></tr>
+<tr><td><strong>on-policy 증류</strong></td><td>student 자기 샘플로 학습해 분포 이동 해결</td><td>별도의, 흔히 더 큰 teacher 모델 필요</td></tr>
+<tr style="background:#dbeafe"><td><strong>OPSD (이 논문)</strong></td><td>같은 모델을 다른 context로 teacher/student로 나누고 $y^\star$를 <em>특권 정보</em>로 쓴다</td><td>모델의 rationalization 능력에 의존</td></tr>
+</tbody>
+</table>
+
+<p>저자들이 찾는 것은 <strong>촘촘하고(dense), on-policy이며, 외부 teacher나 reward 모델을 요구하지 않는</strong> 학습 신호다.</p>
+
+<h3>1.2 동기 — 풀이를 이해하는 학습</h3>
+
+<p>이 논문의 착상은 사람의 학습 방식에서 왔다. 문제에 막혔을 때, 학생은 무한한 시행착오를 반복하는 대신 <em>풀이를 보고, 추론을 이해하고, 접근법을 내면화</em>할 수 있다. 마찬가지로 모델이 정답 또는 추론 $y^\star$에 접근할 수 있고 충분히 유능하다면, 추론 단계를 합리화하고 스스로를 가르칠 수 있다 — 학생이 풀이를 보며 왜 그것이 성립하는지 되짚는 것과 같다.</p>
+
+<p>근거로 저자들이 드는 것은 <strong>LLM에서 평가가 생성보다 쉽다</strong>는 선행 관찰이다 (Sun et al., 2024; Naor, 1996). 그리고 그 확장으로 ##rationalization — 주어진 정답을 설명하는 것 — 이 generation보다 쉽다##는 가설을 세운다.</p>
+
+<blockquote><strong>이 가설의 성격에 주의</strong>: 이것은 검증되지 않은 가정이며, 논문은 이를 직접 측정하지 않는다. 다만 §3.3의 thinking-mode 분석(표 5)에서 <em>teacher가 수학 토큰에 대해 student와 크게 다른 분포를 갖는다</em>는 것을 보이는 것이 간접 증거에 해당한다. 같은 알고리즘을 continual learning에 적용한 <a href="20260825_shenfeld_sdft.html">SDFT 논문</a>은 이 가정을 "In-Context Assumption"으로 명명하고 두 조건(정확도·KL 거리)으로 분해해 측정하는데, OPSD는 그 단계를 밟지 않는다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="ratArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">이 논문의 핵심 가설 — 난이도의 세 계단</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">"평가 &lt; 생성"이라는 알려진 관찰(Sun et al. 2024; Naor 1996)을 rationalization으로 확장한 것</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="52" width="200" height="96" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="160" y="70" text-anchor="middle" font-size="11" font-weight="bold">① 평가 (evaluation)</text>
+    <text x="160" y="88" text-anchor="middle">"이 풀이가 맞는가?"</text>
+    <text x="160" y="106" text-anchor="middle" fill="#15803d">가장 쉽다 — 알려진 관찰</text>
+    <text x="160" y="124" text-anchor="middle" font-size="9">주어진 것: 문제 + 풀이 + 답</text>
+    <text x="160" y="139" text-anchor="middle" font-size="9">해야 할 것: 참/거짓 판정</text>
+
+    <rect x="300" y="52" width="200" height="96" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+    <text x="400" y="70" text-anchor="middle" font-size="11" font-weight="bold">② rationalization</text>
+    <text x="400" y="88" text-anchor="middle">"왜 이것이 답인가?"</text>
+    <text x="400" y="106" text-anchor="middle" fill="#1e40af">이 논문의 가설: ①보다 어렵고 ③보다 쉽다</text>
+    <text x="400" y="124" text-anchor="middle" font-size="9">주어진 것: 문제 + 정답 풀이 y★</text>
+    <text x="400" y="139" text-anchor="middle" font-size="9">해야 할 것: 그 경로를 재구성·소화</text>
+
+    <rect x="540" y="52" width="200" height="96" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="640" y="70" text-anchor="middle" font-size="11" font-weight="bold">③ 생성 (generation)</text>
+    <text x="640" y="88" text-anchor="middle">"이 문제를 풀어라"</text>
+    <text x="640" y="106" text-anchor="middle" fill="#b91c1c">가장 어렵다</text>
+    <text x="640" y="124" text-anchor="middle" font-size="9">주어진 것: 문제만</text>
+    <text x="640" y="139" text-anchor="middle" font-size="9">해야 할 것: 경로를 스스로 찾기</text>
+  </g>
+
+  <path d="M262,100 L296,100" stroke="#64748b" marker-end="url(#ratArw)"/>
+  <text x="279" y="94" text-anchor="middle" font-size="9" fill="#555">어려워짐</text>
+  <path d="M502,100 L536,100" stroke="#64748b" marker-end="url(#ratArw)"/>
+  <text x="519" y="94" text-anchor="middle" font-size="9" fill="#555">어려워짐</text>
+
+  <line x1="40" y1="166" x2="760" y2="166" stroke="#e5e7eb"/>
+
+  <text x="400" y="186" text-anchor="middle" font-size="11.5" font-weight="bold">이 계단이 OPSD를 성립시키는 방식</text>
+
+  <g font-size="9.5">
+    <rect x="120" y="198" width="240" height="66" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="240" y="216" text-anchor="middle" font-size="10.5" font-weight="bold">student = ③ 생성 중</text>
+    <text x="132" y="234">문제만 보고 풀어야 한다</text>
+    <text x="132" y="249">→ 자주 틀린다 (AIME25 36.7%)</text>
+    <text x="132" y="261" fill="#b91c1c">추론 시점과 같은 조건</text>
+
+    <rect x="440" y="198" width="240" height="66" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="560" y="216" text-anchor="middle" font-size="10.5" font-weight="bold">teacher = ② rationalization 중</text>
+    <text x="452" y="234">정답 풀이를 보고 소화한 상태</text>
+    <text x="452" y="249">→ 더 나은 토큰 분포를 갖는다</text>
+    <text x="452" y="261" fill="#1e40af">같은 파라미터, 다른 context</text>
+  </g>
+
+  <path d="M362,231 L436,231" stroke="#a855f7" stroke-width="2" marker-end="url(#ratArw)"/>
+  <text x="399" y="224" text-anchor="middle" font-size="8.5" fill="#7e22ce">채점</text>
+
+  <rect x="120" y="278" width="560" height="42" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="296" text-anchor="middle" font-size="10.5" font-weight="bold">"같은 모델의 두 능력 사이의 격차"가 곧 학습 신호가 된다</text>
+  <text x="400" y="313" text-anchor="middle" font-size="10">외부 teacher도, 보상 모델도, 정답 채점도 필요 없다 — 필요한 것은 <tspan font-weight="bold">②와 ③ 사이에 실제로 격차가 있다는 사실</tspan>뿐이다</text>
+
+  <rect x="40" y="332" width="720" height="60" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="350" text-anchor="middle" font-size="10.5" font-weight="bold">이 가설이 깨지는 두 경우 — 그리고 논문이 측정하지 않는 것</text>
+  <text x="52" y="368" font-size="10">① <tspan font-weight="bold">문제가 너무 쉽다</tspan>: ②와 ③이 모두 성공 → 격차 없음 → 신호 작다 (부록 A, 그림 15)</text>
+  <text x="52" y="384" font-size="10">② <tspan font-weight="bold">문제가 이해 한계를 넘는다</tspan>: 정답을 줘도 ②가 실패 → 신호가 잡음이 된다. <tspan font-style="italic">논문은 ②의 성공률을 직접 재지 않는다</tspan> (비판적 분석)</text>
+</svg>
+<figcaption><strong>[Figure: rationalization 가설의 난이도 계단]</strong>: 세 박스가 같은 문제에 대한 세 가지 과제이고, 오른쪽으로 갈수록 어렵다. ①(평가 &lt; 생성)은 선행 연구에서 알려진 관찰이고, <strong>②를 그 사이에 놓는 것이 이 논문의 가설</strong>이다. 아래 두 박스가 이 계단이 알고리즘으로 번역되는 방식 — student는 ③에 있고 teacher는 ②에 있으므로, <em>같은 모델의 두 능력 사이 격차</em>가 학습 신호가 된다. 그래서 외부 teacher도 보상 모델도 정답 채점도 필요 없다. 맨 아래 주황 박스가 이 가설이 깨지는 두 경우이며, 특히 <strong>②의 성공률(teacher가 실제로 합리화에 성공하는 비율)을 논문이 직접 측정하지 않는다</strong>는 점이 §비판적 분석의 항목이 된다 — 동시기 SDFT 논문은 같은 가정을 "teacher 정확도 42% → 100%"로 검증한다.</figcaption>
+</figure>
+
+<h3>1.3 teacher와 student 정책</h3>
+
+<p>같은 언어모델 $p_\theta$로부터 조건화 context만 바꿔 두 조건부 분포를 만든다.</p>
+<p><strong>teacher</strong>는 특권 정보에 조건화된다 — 문제 $x$와 참조 풀이 $y^\star$ 모두:</p>
+$$p_T(\cdot|x,y^\star) \triangleq p_\theta(\cdot|x,y^\star)$$
+<p><strong>student</strong>는 문제 진술만 관찰하며, 이는 추론 시점 조건과 일치한다:</p>
+$$p_S(\cdot|x) \triangleq p_\theta(\cdot|x)$$
+
+<p>두 정책은 같은 파라미터 $\theta$를 공유하고 context만 다르다. teacher가 student의 생성을 자연스럽게 평가하게 하기 위해, <strong>참조 풀이를 본 뒤 새 풀이를 생성하라는 지시를 prompt에 추가</strong>한다. 단 <em>teacher는 실제로 토큰을 생성하지 않는다</em> — rationalization은 prefill(forward pass) 과정에서 암묵적으로 이루어진다.</p>
+
+<div class="flow-diagram">Student Prompt
+  Problem: Find the derivative of f(x) = 3x² + 2x − 5 at x = 2
+  Answer:
+
+Teacher Prompt
+  Problem: Find the derivative of f(x) = 3x² + 2x − 5 at x = 2
+  Here is a reference solution:
+    First find f′(x) = 6x + 2, then evaluate at x = 2:  f′(2) = 6(2) + 2 = 14
+  After understanding the reference solution, please try to solve this problem
+  using your own approach below:
+  Answer:</div>
+
+<p><strong>student의 on-policy 샘플링</strong>: 문제 $x$가 주어지면 student가 응답을 생성한다.</p>
+$$\hat y = (\hat y_1, \dots, \hat y_{|\hat y|}) \sim p_S(\cdot|x)$$
+<p>그다음 두 정책이 이 student 생성 궤적을 평가한다. 각 위치 $n$에서 <strong>같은 student prefix</strong>에 조건화된 next-token 분포를 유도한다.</p>
+$$p_S(y_n|x, \hat y_{<n}), \qquad p_T(y_n|x, y^\star, \hat y_{<n})$$
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="opsdFlow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 1 재구성 — OPSD 한 스텝의 데이터 흐름</text>
+
+  <rect x="30" y="34" width="150" height="52" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="105" y="52" text-anchor="middle" font-size="10.5" font-weight="bold">데이터셋 S</text>
+  <text x="105" y="68" text-anchor="middle" font-size="9.5">x : 문제</text>
+  <text x="105" y="81" text-anchor="middle" font-size="9.5">y★ : CoT + 정답</text>
+
+  <path d="M180,60 L212,60" stroke="#64748b" marker-end="url(#opsdFlow)"/>
+  <rect x="216" y="34" width="150" height="52" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="291" y="52" text-anchor="middle" font-size="10.5" font-weight="bold">하나의 LLM  p_θ</text>
+  <text x="291" y="70" text-anchor="middle" font-size="9.5">같은 프롬프트에서</text>
+  <text x="291" y="82" text-anchor="middle" font-size="9.5">두 개의 context를 구성</text>
+
+  <path d="M291,86 L291,102 L180,102 L180,118" stroke="#64748b" fill="none" marker-end="url(#opsdFlow)"/>
+  <path d="M291,86 L291,102 L560,102 L560,118" stroke="#64748b" fill="none" marker-end="url(#opsdFlow)"/>
+
+  <rect x="60" y="122" width="240" height="96" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="180" y="140" text-anchor="middle" font-size="11" font-weight="bold">Student Prompt</text>
+  <rect x="74" y="148" width="212" height="24" rx="4" fill="#fff" stroke="#16a34a"/>
+  <text x="180" y="164" text-anchor="middle" font-size="9.5">x 만</text>
+  <text x="180" y="188" text-anchor="middle" font-size="10.5">Student Policy  p_S(·|x)</text>
+  <rect x="74" y="196" width="212" height="16" rx="3" fill="#bbf7d0" stroke="#16a34a"/>
+  <text x="180" y="208" text-anchor="middle" font-size="9" font-weight="bold">여기서 on-policy 샘플링</text>
+
+  <rect x="440" y="122" width="240" height="96" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="560" y="140" text-anchor="middle" font-size="11" font-weight="bold">Teacher Prompt</text>
+  <rect x="454" y="148" width="212" height="24" rx="4" fill="#fff" stroke="#3b82f6"/>
+  <text x="560" y="164" text-anchor="middle" font-size="9.5">x  <tspan font-weight="bold">그리고</tspan>  y★</text>
+  <text x="560" y="188" text-anchor="middle" font-size="10.5">Teacher Policy  p_T(·|x, y★)</text>
+  <rect x="454" y="196" width="212" height="16" rx="3" fill="#bfdbfe" stroke="#3b82f6"/>
+  <text x="560" y="208" text-anchor="middle" font-size="9" font-weight="bold">생성 안 함 — prefill 1회로 평가만</text>
+
+  <path d="M180,218 L180,244" stroke="#16a34a" stroke-width="2" marker-end="url(#opsdFlow)"/>
+  <rect x="100" y="248" width="160" height="30" rx="5" fill="#f0fdf4" stroke="#16a34a"/>
+  <text x="180" y="268" text-anchor="middle" font-size="10">rollout  ŷ ~ p_S(·|x)</text>
+
+  <path d="M260,263 L400,263" stroke="#64748b" stroke-dasharray="4 3" marker-end="url(#opsdFlow)"/>
+  <text x="330" y="256" text-anchor="middle" font-size="9" fill="#555">같은 prefix ŷ&lt;n 에 대해</text>
+  <text x="330" y="277" text-anchor="middle" font-size="9" fill="#555">두 분포를 각각 계산</text>
+
+  <path d="M560,218 L560,244 L440,244 L440,256" stroke="#3b82f6" stroke-width="2" fill="none" marker-end="url(#opsdFlow)"/>
+
+  <rect x="260" y="292" width="300" height="60" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="410" y="311" text-anchor="middle" font-size="11.5" font-weight="bold">학습 목표 — 토큰별 divergence (Eq. 1)</text>
+  <text x="410" y="329" text-anchor="middle" font-size="10.5">Σₙ D( p_T(·|x, y★, ŷ&lt;ₙ)  ‖  p_S(·|x, ŷ&lt;ₙ) )</text>
+  <text x="410" y="345" text-anchor="middle" font-size="9" fill="#92400e">D는 forward KL / reverse KL / JSD 중 선택 (§3.1에서 forward KL 채택)</text>
+
+  <path d="M260,322 L192,322 L192,290" stroke="#ef4444" stroke-width="2" fill="none" marker-end="url(#opsdFlow)"/>
+  <text x="196" y="340" font-size="9" fill="#b91c1c">gradient는 student logit으로만</text>
+
+  <rect x="600" y="292" width="180" height="60" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="690" y="310" text-anchor="middle" font-size="10" font-weight="bold">teacher는 고정 목표</text>
+  <text x="690" y="327" text-anchor="middle" font-size="9.5">§3.1: <tspan font-weight="bold">초기 정책으로 고정</tspan></text>
+  <text x="690" y="341" text-anchor="middle" font-size="9">(현재 정책 아님 — 안정화 + 암묵적 정규화)</text>
+
+  <rect x="40" y="366" width="720" height="86" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="384" text-anchor="middle" font-size="11" font-weight="bold">이 설계에서 읽어야 할 네 가지</text>
+  <text x="52" y="402" font-size="10">① <tspan font-weight="bold">생성은 student만</tspan> 한다 → 학습 데이터가 추론 시점 분포와 일치한다 (on-policy)</text>
+  <text x="52" y="418" font-size="10">② <tspan font-weight="bold">teacher는 생성하지 않는다</tspan> → prefill 1회. teacher 쪽 생성 비용이 0이므로 총 비용은 student rollout이 지배한다</text>
+  <text x="52" y="434" font-size="10">③ <tspan font-weight="bold">정답 여부를 채점하지 않는다</tspan> → GRPO의 advantage 소멸 문제(그림 3)가 구조적으로 없다</text>
+  <text x="52" y="448" font-size="10">④ <tspan font-weight="bold">teacher를 초기 정책에 고정</tspan> → SDFT는 EMA를 쓰는데 OPSD는 고정을 쓴다. 100스텝 수렴을 노리므로 정규화가 이득이다</text>
+</svg>
+<figcaption><strong>[Figure 1 재구성]</strong>: 초록이 student 경로, 파랑이 teacher 경로, 빨간 화살표가 gradient 방향이다. 아래 네 항목이 이 설계의 핵심이며, 그중 ②와 ③이 실용적으로 중요하다 — teacher가 토큰을 생성하지 않으므로 추가 생성 비용이 없고(총 비용은 student rollout 1회가 지배), 정답 채점이 없으므로 §배경에서 본 GRPO의 advantage 소멸 함정이 애초에 존재하지 않는다. ④는 <a href="20260825_shenfeld_sdft.html">SDFT 논문</a>과 갈라지는 지점으로, SDFT는 teacher를 student의 EMA로 두는 반면 OPSD는 초기 정책에 고정한다 — 저자들은 이것이 학습을 안정화하고 초기 정책에서의 과도한 이탈을 막는 암묵적 정규화로 작동한다고 밝힌다. 원 논문 Figure 1은 좌우 배치 도식이며 여기서는 gradient 방향과 비대칭이 드러나게 재배치했다.</figcaption>
+</figure>
+
+<h3>1.4 학습 목적함수 — full-vocabulary logit 증류</h3>
+
+<p>teacher와 student의 next-token 분포를 각 위치에서 맞추는 <strong>full-vocabulary divergence</strong> 목적함수를 세운다. student 생성 시퀀스 $\hat y$에 대해 궤적 평균 토큰별 divergence를 정의한다.</p>
+$$D\big(p_T \| p_S\big)(\hat y|x) \triangleq \frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} D\Big(p_T(\cdot|x,y^\star,\hat y_{<n}) \,\Big\|\, p_S(\cdot|x,\hat y_{<n})\Big) \tag{6}$$
+
+<p>$D$는 임의의 divergence가 될 수 있다. 예를 들어 가중치 $\beta \in [0,1]$에 대한 <strong>일반화 Jensen-Shannon divergence</strong>는 다음과 같다.</p>
+$$\mathrm{JSD}_\beta(p_T\|p_S) = \beta D_{KL}(p_T\|m) + (1-\beta)D_{KL}(p_S\|m) \tag{7}$$
+<p>여기서 $m = \beta p_T + (1-\beta)p_S$는 보간된 혼합 분포다.</p>
+
+<p>이 full-vocabulary 형식화가 주는 것은 <strong>촘촘한 토큰 수준 피드백</strong>이다 — $y^\star$를 아는 teacher가 student에게 <em>다음에 올 수 있는 그럴듯한 토큰 전체의 분포</em>를 노출하고, 정답으로 이어지는 추론 경로로 유도한다.</p>
+
+<p>최종적으로 on-policy student 샘플에 대한 기대 divergence를 최소화한다.</p>
+$$\mathcal{L}(\theta) = \mathbb{E}_{(x,y^\star)\sim S}\Big[\mathbb{E}_{\hat y \sim p_S(\cdot|x)}\big[D(p_T\|p_S)(\hat y|x)\big]\Big] \tag{8}$$
+<p>gradient는 student 정책 $p_S$로만 역전파되고, teacher $p_T$는 특권 정보 $(x, y^\star)$에 조건화된 <strong>고정된 전체 분포 목표</strong>로 작동한다.</p>
+
+<div class="flow-diagram">Algorithm 1 — On-Policy Self-Distillation (OPSD)
+
+입력: 추론 데이터셋 S = {(xᵢ, yᵢ★)}, 언어모델 p_θ, divergence D (예: JSD_β)
+1. p_S(·|x)와 p_T(·|x, y★)를 같은 모델 p_θ의 서로 다른 조건화로 정의
+2. while 수렴하지 않음:
+3.   미니배치 B ⊂ S 샘플
+4.   for all (x, y★) ∈ B:
+5.     on-policy 응답 ŷ ~ p_S(·|x) 샘플
+6.     student rollout에 걸쳐 토큰별 divergence 계산:
+         ℓ(x, y★) ← (1/|ŷ|) Σₙ D( p_T(·|ŷ<ₙ, x, y★) ‖ p_S(·|ŷ<ₙ, x) )
+7.   손실 L_OPSD(θ) ← (1/|B|) Σ ℓ(x, y★) 계산 후 θ 갱신</div>
+
+<h3>1.5 Per-Token Pointwise Divergence Clipping — 이 논문의 실무적 핵심</h3>
+
+<p><strong>왜 문제인가</strong>: 실험에서 저자들은 <strong>토큰 수준 divergence가 어휘 항목에 걸쳐 극심하게 치우쳐 있다</strong>는 것을 관측했다. 소수의 <em>문체(stylistic)</em> 토큰이 수학적으로 의미 있는 토큰보다 훨씬 높은 divergence를 보인다(표 5 참조). 이 불균형은 ##학습 신호를 문체 패턴이 지배하게 만든다##.</p>
+
+<p><strong>해법</strong>: 어휘 수준 divergence 기여도에 pointwise clipping을 적용한다. $D_f(p_T\|p_S)$를 $f$-divergence라 할 때, 각 토큰 위치 $n$과 어휘 항목 $v$에 대해 다음을 정의한다.</p>
+$$\ell_{n,v}^{(f)} = p_T(v|\cdot)\, f\!\left(\frac{p_S(v|\cdot)}{p_T(v|\cdot)}\right)$$
+<p>그리고 clipped divergence를 계산한다.</p>
+$$D_{clip}^{(f)}(p_T\|p_S) = \frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|}\sum_{v \in V} \min\big(\ell_{n,v}^{(f)},\ \tau\big)$$
+
+<blockquote><strong>직관적으로 말하면</strong>: "한 어휘 항목이 손실에 기여할 수 있는 양에 상한 $\tau$를 둔다." 문체 토큰이 아무리 크게 벌어져 있어도 그 기여가 $\tau$에서 잘리므로, 수학 토큰들의 작지만 많은 기여가 신호에서 밀려나지 않는다. <em>heavy-tailed 기여를 통제하는 장치</em>다.</blockquote>
+
+<h3>1.6 대안 목적함수 — sampled-token policy gradient</h3>
+
+<p>최근 on-policy 증류 방법(Lu &amp; Lab, 2025)을 따라, <strong>sampled-token reward 신호</strong>(샘플된 action에 대한 reverse-KL 신호)를 만들어 policy gradient로 최적화하는 변형도 정의한다. 샘플된 시퀀스 $\hat y$의 각 위치 $n$에서 advantage 항을 정의한다.</p>
+$$A_n(x,\hat y) = \log p_T(\hat y_n|x,y^\star,\hat y_{<n}) - \log p_S(\hat y_n|x,\hat y_{<n})$$
+<p>그리고 policy-gradient 형태의 목적함수를 최적화한다.</p>
+$$\mathcal{L}(\theta) = -\mathbb{E}_{(x,y^\star)\sim S}\mathbb{E}_{\hat y \sim p_S(\cdot|x)}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} A_n(x,\hat y) \times \log p_S(\hat y_n|x,\hat y_{<n})\right] \tag{9}$$
+<p>$A_n$은 $\theta$에 대해 상수로 취급하므로(advantage로 gradient가 흐르지 않는다) gradient가 통상의 policy-gradient 형태 $A_n \nabla_\theta \log p_S$를 취한다.</p>
+
+<p>full-vocabulary divergence 목적함수와 비교하면, 이 on-policy shaping 목적함수는 <em>샘플된 토큰에만</em> 작동하며 teacher의 로그확률을 궤적 수준 shaping 신호로 쓴다. 각 스텝에서 전체 분포를 맞추지 않는다. §3.5에서 두 변형을 직접 비교한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — pointwise clipping이 실제로 무엇을 잘라내는가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">한 토큰 위치에서 어휘 6개로 축소한 장난감 설정. forward KL 기여 ℓ = p_T·log(p_T/p_S), τ = 0.30</text>
+
+  <g font-size="10">
+    <rect x="50" y="48" width="700" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="62" y="63" font-weight="bold">어휘 항목 v</text>
+    <text x="215" y="63" font-weight="bold">유형</text>
+    <text x="290" y="63" font-weight="bold">p_T(v)</text>
+    <text x="365" y="63" font-weight="bold">p_S(v)</text>
+    <text x="440" y="63" font-weight="bold">기여 ℓ</text>
+    <text x="530" y="63" font-weight="bold">min(ℓ, 0.30)</text>
+    <text x="650" y="63" font-weight="bold">효과</text>
+
+    <rect x="50" y="70" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="85">"Wait"</text>
+    <text x="215" y="85">문체</text>
+    <text x="290" y="85">0.40</text>
+    <text x="365" y="85">0.02</text>
+    <text x="440" y="85" fill="#b91c1c">1.198</text>
+    <text x="530" y="85" font-weight="bold" fill="#15803d">0.300</text>
+    <text x="650" y="85" font-size="9" fill="#b91c1c">75% 잘린다</text>
+
+    <rect x="50" y="92" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="107">"So"</text>
+    <text x="215" y="107">문체</text>
+    <text x="290" y="107">0.25</text>
+    <text x="365" y="107">0.04</text>
+    <text x="440" y="107" fill="#b91c1c">0.458</text>
+    <text x="530" y="107" font-weight="bold" fill="#15803d">0.300</text>
+    <text x="650" y="107" font-size="9" fill="#b91c1c">35% 잘린다</text>
+
+    <rect x="50" y="114" width="700" height="22" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="62" y="129">"6"</text>
+    <text x="215" y="129">수학</text>
+    <text x="290" y="129">0.15</text>
+    <text x="365" y="129">0.08</text>
+    <text x="440" y="129" fill="#15803d">0.094</text>
+    <text x="530" y="129">0.094</text>
+    <text x="650" y="129" font-size="9" fill="#15803d">그대로 유지</text>
+
+    <rect x="50" y="136" width="700" height="22" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="62" y="151">"derivative"</text>
+    <text x="215" y="151">수학</text>
+    <text x="290" y="151">0.10</text>
+    <text x="365" y="151">0.06</text>
+    <text x="440" y="151" fill="#15803d">0.051</text>
+    <text x="530" y="151">0.051</text>
+    <text x="650" y="151" font-size="9" fill="#15803d">그대로 유지</text>
+
+    <rect x="50" y="158" width="700" height="22" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="62" y="173">"="</text>
+    <text x="215" y="173">수학</text>
+    <text x="290" y="173">0.08</text>
+    <text x="365" y="173">0.05</text>
+    <text x="440" y="173" fill="#15803d">0.038</text>
+    <text x="530" y="173">0.038</text>
+    <text x="650" y="173" font-size="9" fill="#15803d">그대로 유지</text>
+
+    <rect x="50" y="180" width="700" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="62" y="195">기타 (합)</text>
+    <text x="215" y="195">기타</text>
+    <text x="290" y="195">0.02</text>
+    <text x="365" y="195">0.75</text>
+    <text x="440" y="195">−0.072</text>
+    <text x="530" y="195">−0.072</text>
+    <text x="650" y="195" font-size="9">그대로 유지</text>
+  </g>
+
+  <g font-size="10">
+    <rect x="50" y="206" width="700" height="24" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="62" y="222" font-weight="bold">합계</text>
+    <text x="440" y="222" font-weight="bold">1.767</text>
+    <text x="530" y="222" font-weight="bold">0.711</text>
+    <text x="650" y="222" font-size="9" font-weight="bold">2.5배 축소</text>
+  </g>
+
+  <line x1="40" y1="244" x2="760" y2="244" stroke="#e5e7eb"/>
+
+  <text x="400" y="264" text-anchor="middle" font-size="11.5" font-weight="bold">clipping 전후의 신호 구성 비율 — 이것이 이 기법의 요점이다</text>
+
+  <g font-size="9.5">
+    <text x="200" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b45309">clipping 없음</text>
+    <rect x="80" y="294" width="240" height="26" fill="#fff" stroke="#94a3b8"/>
+    <rect x="80" y="294" width="225" height="26" fill="#fcd34d" stroke="#d97706"/>
+    <text x="192" y="311" text-anchor="middle" font-size="9">문체 93.7% (1.656 / 1.767)</text>
+    <rect x="305" y="294" width="25" height="26" fill="#93c5fd" stroke="#3b82f6"/>
+    <text x="200" y="336" text-anchor="middle" font-size="9" fill="#b45309">수학 토큰의 기여는 10.4%뿐 (0.183 / 1.767)</text>
+    <text x="200" y="350" text-anchor="middle" font-size="9" fill="#b45309">→ 학습 신호가 문체를 맞추는 데 쓰인다</text>
+
+    <text x="580" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">clipping 적용 (τ = 0.30)</text>
+    <rect x="460" y="294" width="240" height="26" fill="#fff" stroke="#94a3b8"/>
+    <rect x="460" y="294" width="203" height="26" fill="#fcd34d" stroke="#d97706"/>
+    <text x="561" y="311" text-anchor="middle" font-size="9">문체 84.4% (0.600 / 0.711)</text>
+    <rect x="663" y="294" width="62" height="26" fill="#93c5fd" stroke="#3b82f6"/>
+    <text x="694" y="311" text-anchor="middle" font-size="9">수학 25.7%</text>
+    <text x="580" y="336" text-anchor="middle" font-size="9" fill="#15803d">수학 토큰의 상대 기여가 10.4% → 25.7%로</text>
+    <text x="580" y="350" text-anchor="middle" font-size="9" fill="#15803d">약 2.5배 커진다 (0.183 / 0.711)</text>
+  </g>
+
+  <rect x="50" y="364" width="700" height="66" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="382" text-anchor="middle" font-size="10.5" font-weight="bold">주의 — 이 예제는 개념 설명이며 논문의 실측이 아니다</text>
+  <text x="400" y="400" text-anchor="middle" font-size="10">논문은 표 5에서 <tspan font-weight="bold">토큰 범주별 평균 KL</tspan>만 보고하고(문체 0.85 vs 수학 0.14, Qwen3-1.7B TM-off/TM-on),</text>
+  <text x="400" y="415" text-anchor="middle" font-size="10">clipping 전후의 기여 비율은 제시하지 않는다. 그리고 부록 B는 <tspan font-weight="bold">τ를 튜닝하지 않았다</tspan>고 명시하므로 τ 값 자체도 논문에 없다 —</text>
+  <text x="400" y="428" text-anchor="middle" font-size="10" fill="#7e22ce">여기서 쓴 0.30은 효과를 보이기 위해 임의로 고른 값이다</text>
+</svg>
+<figcaption><strong>[Figure: pointwise clipping 수치 예제]</strong>: 위 표는 한 토큰 위치에서 어휘 6개에 대한 forward KL 기여를 계산하고 $\tau = 0.30$으로 자른 것이다 — 노란 행(문체 토큰)이 상한에 걸려 크게 잘리고 파란 행(수학 토큰)은 그대로 유지된다. 아래 두 막대가 이 기법의 효과를 시각화한 것으로, <strong>수학 토큰의 상대 기여가 10.4%에서 25.7%로 약 2.5배 커진다</strong>(막대의 합이 100%를 넘는 것은 "기타" 항목의 기여가 음수여서다). 맨 아래 보라 박스의 유보가 중요한데 — 논문은 표 5에서 범주별 평균 KL(문체 0.85 vs 수학 0.14)만 보고하고 clipping 전후 기여 비율은 제시하지 않으며, 부록 B는 <em>$\tau$를 튜닝하지 않았다</em>고 명시한다. 즉 여기 쓴 0.30은 메커니즘을 보이기 위한 임의 값이고, 이 하이퍼파라미터가 최적화되지 않았다는 사실 자체가 §비판적 분석의 항목이 된다.</figcaption>
+</figure>
+
+<h3>1.7 OPSD as dense-reward policy gradient — STaR와의 대조 (부록 D)</h3>
+
+<p>수식 (9)의 목적함수는 <strong>촘촘한 토큰 수준 reward를 가진 policy gradient</strong>로 볼 수 있다. 부록 D가 이를 형식화하고, 같은 모델로 추론 궤적을 생성한 뒤 rejection sampling과 SFT를 수행하는 밀접한 관련 방법 <strong>STaR</strong> (Zelikman et al., 2022)와 대조한다.</p>
+
+<p><strong>STaR를 policy gradient로 보면</strong>: 언어모델 $p_\theta$가 rationale $r$과 답 $y$에 대한 결합 분포 $p_\theta(r,y|x) = p_\theta(r|x)p_\theta(y|x,r)$를 유도한다. 지시자 reward $R(y) = \mathbb{1}(y = y^\star)$에 대해 기대 수익은</p>
+$$J_{STaR}(\theta) = \sum_{i=1}^{N} \mathbb{E}_{(r,y)\sim p_\theta(\cdot|x_i)}\big[\mathbb{1}(y = y_i^\star)\big] \tag{10}$$
+<p>log-derivative trick을 적용하면 policy gradient가 나온다.</p>
+$$\nabla_\theta J_{STaR}(\theta) = \sum_{i=1}^{N}\mathbb{E}_{(r,y)\sim p_\theta(\cdot|x_i)}\big[\mathbb{1}(y=y_i^\star)\nabla_\theta \log p_\theta(r,y|x_i)\big] \tag{11}$$
+<p>지시자 함수가 정답으로 이어지지 않은 모든 rationale의 gradient를 버린다 — 이것이 STaR의 <strong>필터링 단계</strong>에 해당한다.</p>
+
+<p><strong>한계</strong>: STaR의 reward는 <em>시퀀스 수준</em>이다. 이진 지시자 $\mathbb{1}(y=y^\star)$가 궤적의 모든 토큰에 같은 신호를 주므로 중간 credit assignment가 없다. 그리고 샘플된 궤적이 모두 틀리면 학습 신호가 소멸한다.</p>
+
+<p><strong>OPSD를 dense-reward policy gradient로 보면</strong>: 학습 쌍 $(x,y^\star)$를 고정하고 student가 궤적 $\hat y \sim p_S(\cdot|x)$를 생성한다. 각 위치 $n$에서 토큰별 reward를 정의한다.</p>
+$$r_n(x,\hat y) \triangleq \log p_T(\hat y_n|x,y^\star,\hat y_{<n}) - \log p_S(\hat y_n|x,\hat y_{<n})$$
+<p>이 reward는 <em>특권 teacher가 샘플된 토큰을 student에 비해 얼마나 선호하는가</em>를 잰다. $r_n$(등가적으로 advantage $A_n$)을 $\theta$에 대해 상수로 취급하면(두 항 모두에 stop-gradient) 수식 (9)의 gradient는 표준 policy-gradient 형태가 된다.</p>
+$$\nabla_\theta \mathcal{L}(\theta) = -\mathbb{E}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} r_n(x,\hat y)\nabla_\theta \log p_S(\hat y_n|x,\hat y_{<n})\right]$$
+<p>이는 on-policy student rollout에 대한 기대 토큰별 reward를 최대화하는 것에 대응한다. ##이 reward는 촘촘하다 — 최종 답이 맞는지와 무관하게 모든 토큰 위치에서 학습 신호를 제공한다.##</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">부록 D 재구성 — 같은 8토큰 궤적에 세 방법이 주는 신호</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">"먼저 f′(x)를 구하면 6x+2 이고 x=2 에서 12 이다" — 마지막 답이 틀린 궤적(정답 14)을 가정</text>
+
+  <g font-size="9">
+    <text x="60" y="62" font-size="10" font-weight="bold">토큰</text>
+    <rect x="110" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="145" y="64" text-anchor="middle">먼저</text>
+    <rect x="182" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="217" y="64" text-anchor="middle">f′(x)를</text>
+    <rect x="254" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="289" y="64" text-anchor="middle">구하면</text>
+    <rect x="326" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="361" y="64" text-anchor="middle">6x+2</text>
+    <rect x="398" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="433" y="64" text-anchor="middle">이고</text>
+    <rect x="470" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="505" y="64" text-anchor="middle">x=2</text>
+    <rect x="542" y="50" width="70" height="20" fill="#f1f5f9" stroke="#94a3b8"/><text x="577" y="64" text-anchor="middle">에서</text>
+    <rect x="614" y="50" width="70" height="20" fill="#fecaca" stroke="#ef4444"/><text x="649" y="64" text-anchor="middle" font-weight="bold">12</text>
+    <text x="694" y="64" font-size="9" fill="#b91c1c">← 오답</text>
+  </g>
+
+  <text x="60" y="102" font-size="10" font-weight="bold" fill="#b91c1c">STaR</text>
+  <text x="60" y="115" font-size="8.5" fill="#b91c1c">(시퀀스 이진)</text>
+  <g>
+    <rect x="110" y="88" width="574" height="20" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="397" y="102" text-anchor="middle" font-size="9.5" fill="#b91c1c">1(y = y★) = 0  →  <tspan font-weight="bold">이 궤적 전체의 gradient가 버려진다</tspan></text>
+  </g>
+  <text x="700" y="102" font-size="9" fill="#b91c1c">신호 0</text>
+
+  <text x="60" y="142" font-size="10" font-weight="bold" fill="#b45309">GRPO</text>
+  <text x="60" y="155" font-size="8.5" fill="#b45309">(시퀀스 advantage)</text>
+  <g>
+    <rect x="110" y="128" width="574" height="20" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="397" y="142" text-anchor="middle" font-size="9.5" fill="#92400e">A = (0 − mean) / std  →  <tspan font-weight="bold">모든 토큰에 같은 값</tspan>. group이 전부 오답이면 0</text>
+  </g>
+  <text x="700" y="142" font-size="9" fill="#b45309">균일 or 0</text>
+
+  <text x="60" y="182" font-size="10" font-weight="bold" fill="#1e40af">OPSD</text>
+  <text x="60" y="195" font-size="8.5" fill="#1e40af">(토큰별 dense)</text>
+  <g font-size="8.5">
+    <rect x="110" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="145" y="182" text-anchor="middle">+0.05</text>
+    <rect x="182" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="217" y="182" text-anchor="middle">+0.12</text>
+    <rect x="254" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="289" y="182" text-anchor="middle">+0.03</text>
+    <rect x="326" y="168" width="70" height="20" fill="#bbf7d0" stroke="#16a34a"/><text x="361" y="182" text-anchor="middle">+0.41</text>
+    <rect x="398" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="433" y="182" text-anchor="middle">+0.02</text>
+    <rect x="470" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="505" y="182" text-anchor="middle">+0.18</text>
+    <rect x="542" y="168" width="70" height="20" fill="#dcfce7" stroke="#16a34a"/><text x="577" y="182" text-anchor="middle">+0.01</text>
+    <rect x="614" y="168" width="70" height="20" fill="#fecaca" stroke="#ef4444"/><text x="649" y="182" text-anchor="middle" font-weight="bold">−1.86</text>
+  </g>
+  <text x="700" y="182" font-size="9" fill="#1e40af">위치별 신호</text>
+
+  <path d="M649,190 L649,206" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="649" y="220" text-anchor="middle" font-size="9" fill="#b91c1c">여기서 갈라졌다는 것이 특정된다</text>
+  <path d="M361,190 L361,206" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="361" y="220" text-anchor="middle" font-size="9" fill="#15803d">이 단계는 잘했다는 것도 특정된다</text>
+
+  <text x="400" y="244" text-anchor="middle" font-size="9.5" fill="#666">reward 값은 rₙ = log p_T(ŷₙ) − log p_S(ŷₙ) 의 예시이며 실측이 아니다 (논문은 이 형태의 궤적 예시를 제시하지 않는다)</text>
+
+  <line x1="40" y1="258" x2="760" y2="258" stroke="#e5e7eb"/>
+
+  <g font-size="9.5">
+    <rect x="40" y="270" width="230" height="88" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="155" y="288" text-anchor="middle" font-size="10.5" font-weight="bold">STaR</text>
+    <text x="52" y="306">reward: 시퀀스 이진 1(y = y★)</text>
+    <text x="52" y="321">해상도: 궤적 1개당 1비트</text>
+    <text x="52" y="336">전부 오답이면: <tspan font-weight="bold">신호 소멸</tspan></text>
+    <text x="52" y="351" fill="#b91c1c">중간 credit assignment 없음</text>
+
+    <rect x="285" y="270" width="230" height="88" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="400" y="288" text-anchor="middle" font-size="10.5" font-weight="bold">GRPO</text>
+    <text x="297" y="306">reward: group 정규화 이진</text>
+    <text x="297" y="321">해상도: 궤적 1개당 1스칼라</text>
+    <text x="297" y="336">전부 같으면: <tspan font-weight="bold">신호 소멸</tspan></text>
+    <text x="297" y="351" fill="#92400e">토큰 간 구분 없음 (같은 A 공유)</text>
+
+    <rect x="530" y="270" width="230" height="88" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="645" y="288" text-anchor="middle" font-size="10.5" font-weight="bold">OPSD</text>
+    <text x="542" y="306">reward: rₙ = log(p_T/p_S) 토큰별</text>
+    <text x="542" y="321">해상도: <tspan font-weight="bold">토큰 1개당 1스칼라</tspan></text>
+    <text x="542" y="336">정답 여부와 <tspan font-weight="bold">무관하게</tspan> 신호 존재</text>
+    <text x="542" y="351" fill="#15803d">full-vocab 변형은 위치당 |V| 차원</text>
+  </g>
+
+  <rect x="40" y="370" width="720" height="44" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="388" text-anchor="middle" font-size="10.5" font-weight="bold">부록 D의 논증적 가치 — "왜 GRPO보다 샘플 효율이 좋은가"에 대한 구조적 답</text>
+  <text x="400" y="405" text-anchor="middle" font-size="10">세 방법을 모두 policy gradient로 환원하면 차이가 <tspan font-weight="bold">reward의 해상도</tspan> 하나로 정리된다 — 1비트 / 1스칼라 / 토큰당 1스칼라. 성능 차이가 아니라 <tspan font-style="italic">정보량 차이</tspan>다</text>
+</svg>
+<figcaption><strong>[Figure: 부록 D의 STaR·GRPO·OPSD 대조]</strong>: 같은 8토큰 궤적(마지막 답이 틀린)에 세 방법이 주는 신호를 나란히 그린 것이다. STaR는 궤적 전체를 버리고, GRPO는 모든 토큰에 같은 값을 주며, OPSD는 위치마다 다른 값을 준다 — 특히 오답 토큰에서 큰 음수(−1.86)가 나와 <strong>어디서 갈라졌는지가 특정</strong>되고, 잘한 단계(+0.41)도 함께 특정된다. reward 값들은 형태를 보이기 위한 예시이며 논문은 이런 궤적 예시를 제시하지 않는다. 아래 세 박스가 부록 D의 결론을 정리한 것으로, 세 방법을 모두 policy gradient로 환원하면 차이가 <em>reward 해상도</em> 하나로 수렴한다 — 1비트 / 1스칼라 / 토큰당 1스칼라(full-vocabulary 변형은 위치당 어휘 크기 차원). 이것이 §3의 토큰 효율 결과에 대한 구조적 설명이다.</figcaption>
+</figure>
+
+<h2>2. 실험 설정 (§4.1)</h2>
+
+<p>실험이 답하려는 네 질문을 먼저 정리하면 각 절의 대응이 보인다.</p>
+
+<div class="flow-diagram">Q1. OPSD는 SFT·GRPO와 비교해 추론 성능과 샘플 효율이 어떤가?        → §3.1~3.2 (그림 8~10)
+Q2. per-token pointwise KL clipping이 학습 안정화에 어떻게 기여하는가?  → §3.5 (그림 14)
+Q3. 생성 스타일과 생성 길이가 성능에 어떤 영향을 주는가?               → §3.4, §3.6 (그림 12~13, 15)
+Q4. full-vocabulary logit 증류가 sampled-token policy gradient보다 좋은가? → §3.7 (그림 16)</div>
+
+<p><strong>모델과 데이터</strong>: <strong>Qwen3</strong> (Team, 2025b) 계열의 세 규모 — Qwen3-1.7B / 4B / 8B, instruct-tuned 버전. 학습 데이터는 <strong>OpenThoughts</strong> (Guha et al., 2025)의 수학 추론 부분집합에서 chain-of-thought 추론이 포함된 문제–풀이 쌍 최대 <strong>30K개</strong>를 샘플링. 평가는 경쟁 수준 수학 벤치마크 — <strong>AIME 2024, AIME 2025, HMMT 2025</strong>.</p>
+
+<p><strong>Baseline</strong>: 같은 데이터셋으로 학습한 두 방법.</p>
+<ol>
+  <li><strong>SFT</strong>: 전문가 궤적에 대한 표준 supervised fine-tuning. <em>추론 궤적을 생성한 더 강한 LLM으로부터의 off-policy 증류</em>로 볼 수 있다.</li>
+  <li><strong>GRPO</strong> (Shao et al., 2024): 정답과 대조 검증한 이진 결과 reward를 쓰는 group relative policy optimization. 최대 생성 길이 <strong>16k</strong>.</li>
+</ol>
+
+<p><strong>구현 세부</strong>: teacher 정책을 <strong>현재 학습 중인 정책이 아니라 초기 정책으로 고정</strong>한다 — 학습을 안정화하고 초기 정책에서의 과도한 이탈을 막는 <em>암묵적 정규화</em>로 작동한다고 저자들은 밝힌다. 실험은 <strong>full-vocabulary logit 증류</strong>를 사용. A100 또는 H100 GPU 8장, <strong>LoRA</strong> (Hu et al., 2022), gradient checkpointing, Flash Attention 2, AdamW, bfloat16.</p>
+
+<table class="small-table">
+<thead><tr><th>파라미터</th><th>GRPO</th><th>OPSD</th><th>SFT</th></tr></thead>
+<tbody>
+<tr><td>Learning Rate</td><td>5e-6</td><td>5e-6</td><td>5e-6</td></tr>
+<tr><td>Effective Batch Size</td><td>32</td><td>32</td><td>32</td></tr>
+<tr><td>LoRA rank $r$ / alpha $\alpha$</td><td>64 / 128</td><td>64 / 128</td><td>64 / 128</td></tr>
+<tr><td>LoRA target modules</td><td colspan="3">q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj (전 모듈)</td></tr>
+<tr><td>Max Completion Length</td><td><strong>16,000</strong></td><td><strong>1,024</strong></td><td>16,000 (max seq len)</td></tr>
+<tr><td>Generations per Prompt</td><td><strong>8</strong></td><td><strong>1</strong></td><td>—</td></tr>
+<tr><td>Sampling Temperature</td><td>1.2</td><td>1.1</td><td>—</td></tr>
+<tr><td>KL Coefficient $\beta$</td><td>0.0</td><td>—</td><td>—</td></tr>
+<tr><td>Training Steps</td><td><strong>500</strong></td><td><strong>100</strong></td><td>100</td></tr>
+</tbody>
+</table>
+
+<p><strong>평가 설정</strong>: Qwen3 블로그 권장 구성 — max new tokens <strong>38,912</strong>, thinking mode <em>Enabled</em>, top-p 0.95, top-k −1, min-p 0.0, presence penalty 0.0, <strong>프롬프트당 12샘플</strong>, temperature 1.0. 지표는 <strong>Avg@12</strong>. OPSD는 20스텝마다 checkpoint를 평가해 100스텝까지 중 최고 점수를 보고하고, GRPO는 500스텝 내 최고 성능을 보고한다(후반 entropy collapse로 성능이 떨어지는 과제가 있다). SFT는 OPSD와 같은 샘플 수로 학습한다.</p>
+
+<p><strong>주목할 비대칭</strong>: ##OPSD는 프롬프트당 1개 rollout × 1024 토큰 × 100스텝, GRPO는 8개 rollout × 16k 토큰 × 500스텝##. 생성 토큰 예산으로 보면 GRPO가 OPSD의 수백 배를 쓴다. 이 비대칭이 §3.2 토큰 효율 논증의 토대다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — 생성 토큰 예산을 세 방법에 대해 계산하면</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Table 6의 설정값으로 "학습 전체에서 생성한 토큰 수"를 역산했다. 논문은 Figure 3에 곡선으로만 제시한다</text>
+
+  <g font-size="10">
+    <rect x="50" y="48" width="700" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="62" y="63" font-weight="bold">방법</text>
+    <text x="180" y="63" font-weight="bold">스텝</text>
+    <text x="250" y="63" font-weight="bold">배치</text>
+    <text x="320" y="63" font-weight="bold">rollout/프롬프트</text>
+    <text x="450" y="63" font-weight="bold">최대 길이</text>
+    <text x="550" y="63" font-weight="bold">생성 토큰 상한</text>
+    <text x="680" y="63" font-weight="bold">비율</text>
+
+    <rect x="50" y="70" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="85">GRPO</text>
+    <text x="180" y="85">500</text>
+    <text x="250" y="85">32</text>
+    <text x="320" y="85">8</text>
+    <text x="450" y="85">16,000</text>
+    <text x="550" y="85" font-weight="bold" fill="#b91c1c">2.05 × 10⁹</text>
+    <text x="680" y="85" font-weight="bold" fill="#b91c1c">1,000×</text>
+
+    <rect x="50" y="92" width="700" height="22" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="62" y="107">OPSD</text>
+    <text x="180" y="107">100</text>
+    <text x="250" y="107">32</text>
+    <text x="320" y="107">1</text>
+    <text x="450" y="107">1,024</text>
+    <text x="550" y="107" font-weight="bold" fill="#15803d">3.28 × 10⁶</text>
+    <text x="680" y="107" font-weight="bold" fill="#15803d">1× (기준)</text>
+
+    <rect x="50" y="114" width="700" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="62" y="129">SFT</text>
+    <text x="180" y="129">100</text>
+    <text x="250" y="129">32</text>
+    <text x="320" y="129">—</text>
+    <text x="450" y="129">—</text>
+    <text x="550" y="129">0 (생성 없음)</text>
+    <text x="680" y="129">0×</text>
+  </g>
+
+  <rect x="50" y="140" width="700" height="34" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="157" text-anchor="middle" font-size="10">상한 기준으로 GRPO는 OPSD의 약 <tspan font-weight="bold">625배</tspan> 토큰을 생성한다 (500·8·16000) ÷ (100·1·1024) = 625.</text>
+  <text x="400" y="170" text-anchor="middle" font-size="10">실제 응답은 상한보다 짧으므로 이 값은 상한 비율이며, 논문 Figure 3은 <tspan font-weight="bold">같은 스텝 수 기준</tspan>으로 비교해 격차를 더 보수적으로 제시한다</text>
+
+  <line x1="40" y1="188" x2="760" y2="188" stroke="#e5e7eb"/>
+
+  <text x="400" y="208" text-anchor="middle" font-size="11.5" font-weight="bold">같은 스텝 수(100)로 맞춰 비교하면 — 논문 Figure 3의 비교 기준</text>
+
+  <g font-size="10">
+    <rect x="50" y="218" width="700" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="62" y="233" font-weight="bold">방법 (100스텝)</text>
+    <text x="250" y="233" font-weight="bold">생성 토큰 상한</text>
+    <text x="420" y="233" font-weight="bold">비율</text>
+    <text x="540" y="233" font-weight="bold">얻은 학습 신호</text>
+
+    <rect x="50" y="240" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="255">GRPO</text>
+    <text x="250" y="255">4.10 × 10⁸</text>
+    <text x="420" y="255" font-weight="bold" fill="#b91c1c">125×</text>
+    <text x="540" y="255" font-size="9" fill="#b91c1c">궤적당 1스칼라 · 배치 절반 이상은 0</text>
+
+    <rect x="50" y="262" width="700" height="22" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="62" y="277">OPSD</text>
+    <text x="250" y="277">3.28 × 10⁶</text>
+    <text x="420" y="277" font-weight="bold" fill="#15803d">1×</text>
+    <text x="540" y="277" font-size="9" fill="#15803d">토큰당 어휘 전체 분포 (약 15만 차원)</text>
+  </g>
+
+  <rect x="50" y="292" width="700" height="46" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="310" text-anchor="middle" font-size="10.5" font-weight="bold">신호 밀도로 환산하면 격차가 뒤집힌다</text>
+  <text x="400" y="327" text-anchor="middle" font-size="10">GRPO: 궤적 하나(최대 16k 토큰)당 스칼라 1개 → 토큰당 정보 ≈ 1/16000. OPSD: 토큰 하나당 어휘 크기 벡터 1개.</text>
+
+  <rect x="50" y="348" width="700" height="66" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="366" text-anchor="middle" font-size="10.5" font-weight="bold">주의 — 이 계산은 상한이고, 비교의 공정성에는 논점이 있다</text>
+  <text x="400" y="384" text-anchor="middle" font-size="10">GRPO의 16k와 OPSD의 1024라는 <tspan font-weight="bold">최대 길이 차이가 방법 고유의 성질인지 실험 설계 선택인지</tspan> 구분되지 않는다.</text>
+  <text x="400" y="399" text-anchor="middle" font-size="10">GRPO를 1024로 제한한 조건, 또는 OPSD를 16k로 늘린 조건은 보고되지 않는다. §3.6의 길이 ablation은 1024 vs 4096만 비교한다.</text>
+  <text x="400" y="411" text-anchor="middle" font-size="9.5" fill="#7e22ce">즉 "토큰 효율" 주장의 일부는 생성 길이 설정의 차이에서 온다 — 비판적 분석에서 다시 다룬다</text>
+</svg>
+<figcaption><strong>[Figure: 생성 토큰 예산 수치 예제]</strong>: 위 표는 Table 6의 설정값(스텝·배치·rollout 수·최대 길이)을 곱해 생성 토큰 상한을 계산한 것이다 — 전체 학습 기준으로 GRPO가 OPSD의 625배, 같은 100스텝 기준으로도 125배를 생성한다. 아래 초록 박스가 이 격차의 반대 방향을 짚는데, <strong>신호 밀도로 환산하면 관계가 뒤집힌다</strong>: GRPO는 최대 16k 토큰의 궤적 하나에서 스칼라 하나를 얻고, OPSD는 토큰 하나마다 어휘 크기 벡터를 얻는다. 맨 아래 보라 박스가 이 비교의 약점인데 — 16k와 1024라는 최대 길이 차이가 <em>방법 고유의 성질인지 실험 설계 선택인지</em> 구분되지 않고, 통제된 조건(GRPO를 1024로, 또는 OPSD를 16k로)이 보고되지 않는다. 모든 값은 Table 6에서 역산한 것이며 논문은 이 표를 제시하지 않는다.</figcaption>
+</figure>
+
+<h2>3. 결과와 분석 (§4.2~§4.3)</h2>
+
+<h3>3.1 주요 결과 (§4.2)</h3>
+
+<p>경쟁 수준 수학 추론 벤치마크 결과다. OPSD는 SFT를 일관되게 능가하고 모든 규모에서 base 모델을 개선하며, 모든 설정에서 GRPO와 같거나 낫다.</p>
+
+<table class="small-table">
+<thead><tr><th>방법</th><th>AIME24</th><th>AIME25</th><th>HMMT25</th><th>평균</th></tr></thead>
+<tbody>
+<tr><td colspan="5" style="background:#f8fafc"><em>Qwen3-8B</em></td></tr>
+<tr><td>Base (Instruct)</td><td>75.8</td><td>65.6</td><td>43.9</td><td>61.8</td></tr>
+<tr><td>+ SFT</td><td>72.3</td><td>64.2</td><td>42.9</td><td>59.8</td></tr>
+<tr><td>+ GRPO</td><td>76.4</td><td>68.9</td><td><strong>46.7</strong></td><td>64.0</td></tr>
+<tr style="background:#dcfce7"><td>+ <strong>OPSD</strong></td><td><strong>77.8</strong></td><td><strong>70.8</strong></td><td>45.8</td><td><strong>64.8</strong></td></tr>
+<tr><td colspan="5" style="background:#f8fafc"><em>Qwen3-4B</em></td></tr>
+<tr><td>Base (Instruct)</td><td>74.9</td><td>66.4</td><td>42.2</td><td>61.2</td></tr>
+<tr><td>+ SFT</td><td>70.2</td><td>62.3</td><td>43.4</td><td>58.6</td></tr>
+<tr><td>+ GRPO</td><td>75.6</td><td>68.1</td><td>44.4</td><td>62.7</td></tr>
+<tr style="background:#dcfce7"><td>+ <strong>OPSD</strong></td><td><strong>76.4</strong></td><td><strong>68.3</strong></td><td><strong>46.1</strong></td><td><strong>63.6</strong></td></tr>
+<tr><td colspan="5" style="background:#f8fafc"><em>Qwen3-1.7B</em></td></tr>
+<tr><td>Base (Instruct)</td><td>51.5</td><td>36.7</td><td>23.1</td><td>37.1</td></tr>
+<tr><td>+ SFT</td><td>48.4</td><td>36.3</td><td>22.7</td><td>35.8</td></tr>
+<tr><td>+ GRPO</td><td>51.1</td><td>38.3</td><td>23.7</td><td>37.7</td></tr>
+<tr style="background:#dcfce7"><td>+ <strong>OPSD</strong></td><td><strong>57.2</strong></td><td><strong>43.9</strong></td><td><strong>29.2</strong></td><td><strong>43.4</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>패턴 분석 — 세 가지 관찰</strong>:</p>
+<ol>
+  <li><strong>SFT가 세 규모 모두에서 base 모델보다 나쁘다.</strong> 8B 61.8 → 59.8, 4B 61.2 → 58.6, 1.7B 37.1 → 35.8. 저자들의 설명 — <em>정답 풀이의 간결한 추론 스타일</em> 때문에 테스트 시점 추론 길이가 줄어든다. ##즉 이 데이터셋으로 SFT하는 것은 학습하지 않는 것보다 해롭다.## OPSD는 같은 데이터를 rationalization을 통해 촘촘한 학습 신호로 <em>변환</em>한다.</li>
+  <li><strong>작은 모델에서 이득이 가장 크다.</strong> 1.7B에서 +6.3(37.1 → 43.4)인데 4B는 +2.4, 8B는 +3.0이다. 그리고 GRPO 대비 격차도 1.7B에서 압도적이다(43.4 vs 37.7 = +5.7 vs 4B +0.9, 8B +0.8). <em>이는 SDFT 논문의 관찰(모델이 클수록 이득이 커진다)과 반대 방향이므로 주의해서 읽어야 한다</em> — 두 논문의 과제·데이터·baseline이 다르므로 직접 비교는 불가능하지만, "self-distillation이 규모와 함께 좋아지는가"는 미해결 질문으로 남는다.</li>
+  <li><strong>HMMT25에서만 GRPO가 8B에서 앞선다</strong> (46.7 vs 45.8). 나머지 8개 칸에서는 OPSD가 이긴다. 저자들은 이 예외를 논평하지 않는다.</li>
+</ol>
+
+<p><strong>효율 주장</strong>: OPSD는 이 성능을 <em>문제당 rollout 1개</em>로, <strong>100스텝 안에 수렴</strong>하며, 문제당 1024 샘플 토큰만으로 달성한다. GRPO는 16k 토큰 rollout 8개를 요구하고 후반 스텝에서 entropy collapse로 성능이 저하될 수 있다 — 이 OpenThoughts 데이터셋에서는 <strong>group 내 reward 표준편차가 대부분 0</strong>이 되어 학습 신호가 없고 샘플링 예산이 낭비된다.</p>
+
+<p>저자들은 OPSD의 토큰 효율을 <em>teacher 분포로부터의 촘촘한 토큰 수준 지도</em>에 귀속시키고, 한 가지 가설을 덧붙인다 — ##앞쪽 토큰이 효과적 증류에 더 크게 기여할 수 있으며, 추론 과정에서 더 중요한 분기점(branching point)을 나타내기 때문일 것##이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 2 시각화 — 세 규모 × 네 방법</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">막대는 세 벤치마크 평균 Avg@12. 회색 점선이 각 규모의 base 모델 수준이다</text>
+
+  <line x1="80" y1="270" x2="750" y2="270" stroke="#333"/>
+  <line x1="80" y1="56" x2="80" y2="270" stroke="#333"/>
+  <text x="74" y="60" text-anchor="end" font-size="9">70</text>
+  <line x1="80" y1="56" x2="750" y2="56" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="74" y="163" text-anchor="end" font-size="9">45</text>
+  <line x1="80" y1="159" x2="750" y2="159" stroke="#e5e7eb" stroke-dasharray="3 3"/>
+  <text x="74" y="274" text-anchor="end" font-size="9">18</text>
+  <text x="66" y="163" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 66 163)">3벤치 평균 Avg@12</text>
+
+  <g font-size="9">
+    <text x="200" y="292" text-anchor="middle" font-size="11" font-weight="bold">Qwen3-1.7B</text>
+    <line x1="110" y1="107" x2="300" y2="107" stroke="#94a3b8" stroke-dasharray="5 3"/>
+    <text x="306" y="110" font-size="8.5" fill="#64748b">base 37.1</text>
+    <rect x="120" y="107" width="34" height="163" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="137" y="101" text-anchor="middle">37.1</text>
+    <text x="137" y="284" text-anchor="middle" font-size="8.5">base</text>
+    <rect x="158" y="118" width="34" height="152" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="175" y="112" text-anchor="middle" fill="#b91c1c">35.8</text>
+    <text x="175" y="284" text-anchor="middle" font-size="8.5" fill="#b91c1c">SFT</text>
+    <rect x="196" y="102" width="34" height="168" fill="#fcd34d" stroke="#d97706"/>
+    <text x="213" y="96" text-anchor="middle" fill="#b45309">37.7</text>
+    <text x="213" y="284" text-anchor="middle" font-size="8.5" fill="#b45309">GRPO</text>
+    <rect x="234" y="53" width="34" height="217" fill="#22c55e" stroke="#15803d"/>
+    <text x="251" y="47" text-anchor="middle" font-weight="bold" fill="#15803d">43.4</text>
+    <text x="251" y="284" text-anchor="middle" font-size="8.5" fill="#15803d">OPSD</text>
+    <text x="251" y="296" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#15803d">+6.3</text>
+
+    <text x="440" y="292" text-anchor="middle" font-size="11" font-weight="bold">Qwen3-4B</text>
+    <line x1="350" y1="99" x2="540" y2="99" stroke="#94a3b8" stroke-dasharray="5 3"/>
+    <rect x="360" y="66" width="34" height="204" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="377" y="60" text-anchor="middle">61.2</text>
+    <text x="377" y="284" text-anchor="middle" font-size="8.5">base</text>
+    <rect x="398" y="88" width="34" height="182" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="415" y="82" text-anchor="middle" fill="#b91c1c">58.6</text>
+    <text x="415" y="284" text-anchor="middle" font-size="8.5" fill="#b91c1c">SFT</text>
+    <rect x="436" y="53" width="34" height="217" fill="#fcd34d" stroke="#d97706"/>
+    <text x="453" y="47" text-anchor="middle" fill="#b45309">62.7</text>
+    <text x="453" y="284" text-anchor="middle" font-size="8.5" fill="#b45309">GRPO</text>
+    <rect x="474" y="45" width="34" height="225" fill="#22c55e" stroke="#15803d"/>
+    <text x="491" y="39" text-anchor="middle" font-weight="bold" fill="#15803d">63.6</text>
+    <text x="491" y="284" text-anchor="middle" font-size="8.5" fill="#15803d">OPSD</text>
+    <text x="491" y="296" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#15803d">+2.4</text>
+
+    <text x="670" y="292" text-anchor="middle" font-size="11" font-weight="bold">Qwen3-8B</text>
+    <line x1="580" y1="94" x2="750" y2="94" stroke="#94a3b8" stroke-dasharray="5 3"/>
+    <rect x="590" y="61" width="34" height="209" fill="#e2e8f0" stroke="#94a3b8"/>
+    <text x="607" y="55" text-anchor="middle">61.8</text>
+    <text x="607" y="284" text-anchor="middle" font-size="8.5">base</text>
+    <rect x="628" y="79" width="34" height="191" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="645" y="73" text-anchor="middle" fill="#b91c1c">59.8</text>
+    <text x="645" y="284" text-anchor="middle" font-size="8.5" fill="#b91c1c">SFT</text>
+    <rect x="666" y="43" width="34" height="227" fill="#fcd34d" stroke="#d97706"/>
+    <text x="683" y="37" text-anchor="middle" fill="#b45309">64.0</text>
+    <text x="683" y="284" text-anchor="middle" font-size="8.5" fill="#b45309">GRPO</text>
+    <rect x="704" y="36" width="34" height="234" fill="#22c55e" stroke="#15803d"/>
+    <text x="721" y="30" text-anchor="middle" font-weight="bold" fill="#15803d">64.8</text>
+    <text x="721" y="284" text-anchor="middle" font-size="8.5" fill="#15803d">OPSD</text>
+    <text x="721" y="296" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#15803d">+3.0</text>
+  </g>
+
+  <rect x="40" y="310" width="350" height="70" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="215" y="328" text-anchor="middle" font-size="10.5" font-weight="bold">SFT는 세 규모 모두 base보다 나쁘다</text>
+  <text x="52" y="346" font-size="9.5">−1.3 / −2.6 / −2.0 (1.7B / 4B / 8B)</text>
+  <text x="52" y="361" font-size="9.5">저자 설명: 정답 풀이가 간결해서 테스트 시점</text>
+  <text x="52" y="374" font-size="9.5">추론 길이가 줄어든다 → 성능 저하</text>
+
+  <rect x="410" y="310" width="350" height="70" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="585" y="328" text-anchor="middle" font-size="10.5" font-weight="bold">OPSD 이득이 작은 모델에서 가장 크다</text>
+  <text x="422" y="346" font-size="9.5">base 대비: +6.3 / +2.4 / +3.0</text>
+  <text x="422" y="361" font-size="9.5">GRPO 대비: +5.7 / +0.9 / +0.8</text>
+  <text x="422" y="374" font-size="9.5" fill="#15803d">1.7B에서 격차가 압도적이고 4B·8B에서는 근소하다</text>
+
+  <rect x="40" y="390" width="720" height="62" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="408" text-anchor="middle" font-size="10.5" font-weight="bold">주의해서 읽어야 할 두 지점</text>
+  <text x="52" y="426" font-size="10">① 4B·8B에서 GRPO 대비 격차는 0.8~0.9점이다. <tspan font-weight="bold">seed 반복과 표준편차가 보고되지 않으므로</tspan> 이 차이가 유의한지 판단할 수 없다.</text>
+  <text x="52" y="443" font-size="10">② 규모가 커지면 이득이 줄어드는 추세인데, 논문은 이를 논평하지 않고 부록 A에서 "8B 이상은 미검증"이라고만 밝힌다.</text>
+</svg>
+<figcaption><strong>[Figure: Table 2 시각화]</strong>: 세 묶음이 세 모델 규모이고, 각 묶음에서 base(회색)·SFT(빨강)·GRPO(노랑)·OPSD(초록)를 비교한다. 회색 점선이 base 수준이며 <strong>빨간 막대가 세 규모 모두 점선 아래에 있다</strong>는 것이 이 그림의 첫 요점 — 이 데이터셋으로 SFT하는 것은 학습하지 않는 것보다 해롭고, OPSD는 같은 데이터를 유용한 신호로 바꾼다. 두 번째 요점은 오른쪽 아래 박스로, OPSD의 이득이 <em>작은 모델에서 가장 크다</em>(GRPO 대비 +5.7 vs +0.9 vs +0.8)는 점이다. 맨 아래 주황 박스가 이 표를 읽을 때의 유보인데 — 4B·8B에서 GRPO와의 격차가 1점 미만이고 <strong>seed 반복·표준편차가 보고되지 않으므로</strong> 유의성을 판단할 수 없다. 값은 모두 Table 2의 실제 수치다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 3 재현 — 토큰 효율과 GRPO의 reward diversity collapse</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Qwen3-1.7B, 동일 유효 배치 크기. 원문 축 범위를 따랐고 궤적 형태는 개념 재구성이다</text>
+
+  <g font-size="9">
+    <text x="140" y="56" font-size="10.5" font-weight="bold">AIME25 (스텝 기준)</text>
+    <line x1="60" y1="180" x2="250" y2="180" stroke="#333"/>
+    <line x1="60" y1="70" x2="60" y2="180" stroke="#333"/>
+    <text x="60" y="194" text-anchor="middle">0</text>
+    <text x="155" y="194" text-anchor="middle">50</text>
+    <text x="250" y="194" text-anchor="middle">100</text>
+    <text x="155" y="208" text-anchor="middle" fill="#555">gradient 스텝</text>
+    <text x="54" y="74" text-anchor="end">46</text>
+    <text x="54" y="180" text-anchor="end">34</text>
+    <path d="M60,155 L105,120 L155,79 L200,96 L250,105" stroke="#3b82f6" stroke-width="2.2" fill="none"/>
+    <text x="256" y="105" font-size="8.5" fill="#1e40af" text-anchor="end">OPSD</text>
+    <path d="M60,155 L105,150 L155,146 L200,144 L250,143" stroke="#e67e22" stroke-width="2.2" fill="none"/>
+    <text x="256" y="152" font-size="8.5" fill="#b45309" text-anchor="end">GRPO</text>
+    <text x="150" y="90" font-size="8.5" fill="#1e40af">43.9 (step 50)</text>
+
+    <text x="400" y="56" font-size="10.5" font-weight="bold">평균 (생성 토큰 기준)</text>
+    <line x1="320" y1="180" x2="510" y2="180" stroke="#333"/>
+    <line x1="320" y1="70" x2="320" y2="180" stroke="#333"/>
+    <text x="320" y="194" text-anchor="middle">0</text>
+    <text x="415" y="194" text-anchor="middle">10</text>
+    <text x="510" y="194" text-anchor="middle">20</text>
+    <text x="415" y="208" text-anchor="middle" fill="#555">생성 토큰 (×10⁶)</text>
+    <text x="314" y="74" text-anchor="end">42</text>
+    <text x="314" y="180" text-anchor="end">37</text>
+    <path d="M320,160 L340,110 L360,80 L380,74 L400,76" stroke="#3b82f6" stroke-width="2.2" fill="none"/>
+    <text x="406" y="72" font-size="8.5" fill="#1e40af">OPSD — 왼쪽 끝에서 끝난다</text>
+    <path d="M320,160 L370,156 L420,152 L470,150 L510,149" stroke="#e67e22" stroke-width="2.2" fill="none"/>
+    <text x="516" y="153" font-size="8.5" fill="#b45309" text-anchor="end">GRPO</text>
+    <path d="M400,76 L400,180" stroke="#a855f7" stroke-dasharray="3 2"/>
+    <text x="404" y="172" font-size="8.5" fill="#7e22ce">OPSD 종료</text>
+
+    <text x="655" y="56" font-size="10.5" font-weight="bold">GRPO의 zero-reward-std 배치 비율</text>
+    <line x1="575" y1="180" x2="765" y2="180" stroke="#333"/>
+    <line x1="575" y1="70" x2="575" y2="180" stroke="#333"/>
+    <text x="575" y="194" text-anchor="middle">10</text>
+    <text x="670" y="194" text-anchor="middle">50</text>
+    <text x="765" y="194" text-anchor="middle">90</text>
+    <text x="670" y="208" text-anchor="middle" fill="#555">gradient 스텝</text>
+    <text x="569" y="74" text-anchor="end">1.0</text>
+    <text x="569" y="125" text-anchor="end">0.5</text>
+    <text x="569" y="180" text-anchor="end">0.0</text>
+    <line x1="575" y1="125" x2="765" y2="125" stroke="#ef4444" stroke-dasharray="4 3"/>
+    <path d="M575,158 L620,140 L670,122 L715,112 L765,104" stroke="#dc2626" stroke-width="2.4" fill="none"/>
+    <text x="700" y="98" font-size="8.5" fill="#b91c1c" text-anchor="middle">절반 이상이 gradient 없음</text>
+    <circle cx="670" cy="122" r="4" fill="#dc2626"/>
+    <text x="676" y="140" font-size="8.5" fill="#b91c1c">100스텝 내 0.5 돌파</text>
+  </g>
+
+  <line x1="40" y1="222" x2="760" y2="222" stroke="#e5e7eb"/>
+
+  <text x="400" y="242" text-anchor="middle" font-size="11.5" font-weight="bold">세 패널이 하나의 논증을 만든다</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="252" width="230" height="86" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="155" y="270" text-anchor="middle" font-size="10.5" font-weight="bold">① 같은 스텝에서 앞선다</text>
+    <text x="52" y="288">AIME24 · AIME25 · HMMT25 모두</text>
+    <text x="52" y="303">100스텝 안에서 GRPO를 넘는다</text>
+    <text x="52" y="321">OPSD 생성 상한 1024, GRPO 16k</text>
+    <text x="52" y="333" fill="#1e40af">→ 훨씬 적은 토큰으로</text>
+
+    <rect x="285" y="252" width="230" height="86" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="400" y="270" text-anchor="middle" font-size="10.5" font-weight="bold">② 토큰 축에서 격차가 극단적</text>
+    <text x="297" y="288">가운데 패널의 가로축이 생성 토큰이다</text>
+    <text x="297" y="303">OPSD 곡선은 왼쪽 끝에서 이미 끝난다</text>
+    <text x="297" y="321">GRPO는 20×10⁶ 토큰을 써도</text>
+    <text x="297" y="333" fill="#15803d">OPSD의 시작점 근처에 머문다</text>
+
+    <rect x="530" y="252" width="230" height="86" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="645" y="270" text-anchor="middle" font-size="10.5" font-weight="bold">③ 왜 그런지까지 측정했다</text>
+    <text x="542" y="288">오른쪽 패널 = GRPO 배치 중</text>
+    <text x="542" y="303">reward 표준편차가 0인 비율</text>
+    <text x="542" y="321">100스텝 내 <tspan font-weight="bold">0.5를 넘는다</tspan></text>
+    <text x="542" y="333" fill="#b91c1c">= 절반 이상의 배치가 무효 (그림 3)</text>
+  </g>
+
+  <rect x="40" y="350" width="720" height="82" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="368" text-anchor="middle" font-size="11" font-weight="bold">이 그림이 이 논문에서 가장 강한 부분인 이유</text>
+  <text x="52" y="386" font-size="10">대부분의 "우리 방법이 더 효율적" 주장은 성능 곡선 비교에서 끝난다. 여기서는 <tspan font-weight="bold">경쟁 방법이 정체하는 메커니즘을 직접 측정</tspan>했다 —</text>
+  <text x="52" y="402" font-size="10">"GRPO가 8배 토큰을 쓰고도 못 따라온다"가 아니라 "<tspan font-weight="bold">쓴 토큰의 절반 이상이 gradient를 만들지 못한다</tspan>"는 진단이다.</text>
+  <text x="52" y="418" font-size="10">§배경 그림 3의 advantage 소멸 계산이 이 측정의 이론적 대응이며, 부록 D의 STaR 대조가 같은 논리를 credit assignment 해상도로 재서술한다.</text>
+  <text x="52" y="429" font-size="9.5" fill="#4338ca">단, 이 진단은 OpenThoughts 데이터셋 하나에 대한 것이다 — 더 어려운 데이터셋에서는 zero-std 배치가 적을 수 있다</text>
+</svg>
+<figcaption><strong>[Figure 3 재현]</strong>: 세 패널이 하나의 논증을 이룬다 — ① 같은 스텝에서 성능이 앞서고, ② 생성 토큰 축으로 보면 격차가 극단적이며, ③ <strong>GRPO가 왜 정체하는지</strong>를 zero-reward-std 배치 비율로 직접 측정한다. 세 번째 패널이 이 논문에서 논증적으로 가장 값진 부분인데, "우리가 더 효율적"이라는 흔한 주장을 <em>경쟁 방법의 실패 메커니즘 측정</em>으로 바꿔 놓는다. 원문 그림에는 AIME24·AIME25·HMMT25·평균·zero-std 다섯 패널이 있고 여기서는 세 개로 압축했으며, 축 범위는 원문을 따랐으나 궤적 형태는 개념 재구성이다(AIME25 step 50의 43.9만 Table 3의 실제 값). 맨 아래 마지막 줄의 유보가 중요한데 — 이 진단은 OpenThoughts 데이터셋 하나에 대한 것이고, 모델 실력에 맞게 난이도가 분포한 데이터셋에서는 zero-std 배치가 훨씬 적을 수 있다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="sftArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">왜 SFT는 base보다 나빠지는가 — 같은 데이터, 반대 결과</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">저자들의 설명("간결한 정답 풀이가 테스트 시점 추론 길이를 줄인다")을 도식화</text>
+
+  <rect x="300" y="48" width="200" height="34" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="62" text-anchor="middle" font-size="10.5" font-weight="bold">같은 데이터: OpenThoughts</text>
+  <text x="400" y="76" text-anchor="middle" font-size="9">문제 + <tspan font-style="italic">간결한</tspan> CoT 정답 풀이 y★</text>
+
+  <path d="M350,82 L200,106" stroke="#64748b" marker-end="url(#sftArw)"/>
+  <path d="M450,82 L600,106" stroke="#64748b" marker-end="url(#sftArw)"/>
+
+  <g font-size="9.5">
+    <rect x="50" y="110" width="300" height="150" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="200" y="128" text-anchor="middle" font-size="11" font-weight="bold">SFT — y★ 토큰의 우도를 직접 올린다</text>
+    <rect x="66" y="136" width="268" height="22" rx="4" fill="#fff" stroke="#ef4444"/>
+    <text x="200" y="151" text-anchor="middle" font-size="9">목표: y★를 그대로 재현하도록 학습</text>
+    <path d="M200,158 L200,172" stroke="#64748b" marker-end="url(#sftArw)"/>
+    <rect x="66" y="176" width="268" height="22" rx="4" fill="#fff" stroke="#ef4444"/>
+    <text x="200" y="191" text-anchor="middle" font-size="9">y★가 짧으므로 <tspan font-weight="bold">짧은 출력이 보상된다</tspan></text>
+    <path d="M200,198 L200,212" stroke="#64748b" marker-end="url(#sftArw)"/>
+    <rect x="66" y="216" width="268" height="22" rx="4" fill="#fca5a5" stroke="#b91c1c"/>
+    <text x="200" y="231" text-anchor="middle" font-size="9" font-weight="bold">테스트 시점 추론 길이가 줄어든다</text>
+    <text x="200" y="254" text-anchor="middle" font-size="9.5" fill="#b91c1c">→ 3규모 모두 base 아래로: −1.3 / −2.6 / −2.0</text>
+
+    <rect x="450" y="110" width="300" height="150" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="600" y="128" text-anchor="middle" font-size="11" font-weight="bold">OPSD — y★를 teacher의 context로만 쓴다</text>
+    <rect x="466" y="136" width="268" height="22" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="600" y="151" text-anchor="middle" font-size="9">목표: <tspan font-weight="bold">y★를 본 나 자신</tspan>의 분포에 맞추기</text>
+    <path d="M600,158 L600,172" stroke="#64748b" marker-end="url(#sftArw)"/>
+    <rect x="466" y="176" width="268" height="22" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="600" y="191" text-anchor="middle" font-size="9">출력의 <tspan font-weight="bold">문체·길이는 모델 자신의 것</tspan>으로 남는다</text>
+    <path d="M600,198 L600,212" stroke="#64748b" marker-end="url(#sftArw)"/>
+    <rect x="466" y="216" width="268" height="22" rx="4" fill="#86efac" stroke="#15803d"/>
+    <text x="600" y="231" text-anchor="middle" font-size="9" font-weight="bold">추론 스타일 유지 + 내용만 개선</text>
+    <text x="600" y="254" text-anchor="middle" font-size="9.5" fill="#15803d">→ 3규모 모두 base 위로: +6.3 / +2.4 / +3.0</text>
+  </g>
+
+  <rect x="50" y="274" width="700" height="52" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="292" text-anchor="middle" font-size="11" font-weight="bold">이 대비가 OPSD의 가치를 정확히 규정한다</text>
+  <text x="400" y="310" text-anchor="middle" font-size="10">문제는 데이터의 품질이 아니라 <tspan font-weight="bold">데이터를 쓰는 방식</tspan>이었다 — 같은 y★를 <tspan font-style="italic">모방 대상</tspan>으로 쓰면 해롭고,</text>
+  <text x="400" y="322" text-anchor="middle" font-size="10"><tspan font-style="italic">teacher의 조건화 정보</tspan>로 쓰면 이롭다. 저자들의 표현으로 OPSD는 y★를 "rationalization을 통해 촘촘한 학습 신호로 <tspan font-weight="bold">변환</tspan>"한다</text>
+
+  <rect x="50" y="336" width="700" height="58" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="354" text-anchor="middle" font-size="10.5" font-weight="bold">검증되지 않은 연결 고리</text>
+  <text x="62" y="372" font-size="10">저자들은 "SFT가 추론 길이를 줄인다"고 서술하지만 <tspan font-weight="bold">SFT 모델의 평균 생성 길이를 측정해 제시하지 않는다</tspan>.</text>
+  <text x="62" y="388" font-size="10">동시기 SDFT 논문은 같은 현상에 대해 길이 수치를 보고한다(4612 → 3273, −29%) — 이 논문에는 그 확인이 없다</text>
+</svg>
+<figcaption><strong>[Figure: SFT가 base보다 나빠지는 메커니즘]</strong>: 같은 데이터가 위에서 갈라져 반대 결과에 도달한다 — 왼쪽 빨간 경로는 $y^\star$를 <em>모방 대상</em>으로 쓰고, 오른쪽 초록 경로는 <em>teacher의 조건화 정보</em>로 쓴다. 보라 박스가 이 절의 결론인데, <strong>문제는 데이터 품질이 아니라 데이터를 쓰는 방식</strong>이었다는 것이 OPSD의 가치를 가장 정확히 규정한다. 맨 아래 주황 박스가 이 설명의 빈틈이다 — 저자들은 "추론 길이가 줄어든다"고 서술하지만 <em>SFT 모델의 평균 생성 길이를 측정해 제시하지 않는다</em>. 동시기 SDFT 논문이 같은 현상에 대해 4612 → 3273 토큰(−29%)이라는 수치를 보고하므로, 이 메커니즘은 그쪽에서 교차 확인된다고 볼 수 있다.</figcaption>
+</figure>
+
+<h3>3.2 divergence 목적함수의 효과 (§4.3.1)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: 특권 teacher와 student 사이의 토큰별 분포 정합에 어떤 divergence를 쓸 것인가. forward KL, reverse KL, JSD를 AIME25·Qwen3-1.7B에서 비교한다. <em>모든 목적함수는 동일한 pointwise clipping 하에서 평가한다</em>(안정성 확보를 위해).</p>
+
+<table>
+<thead><tr><th>방법</th><th>Base</th><th>Step 50</th><th>Step 100</th></tr></thead>
+<tbody>
+<tr style="background:#dcfce7"><td><strong>Forward KL</strong> $KL(p_T\|p_S)$</td><td>36.7</td><td><strong>43.9</strong></td><td>41.1</td></tr>
+<tr><td>Reverse KL $KL(p_S\|p_T)$</td><td>36.7</td><td>37.5</td><td>35.0</td></tr>
+<tr><td>JSD ($\beta = 0.5$)</td><td>36.7</td><td>36.9</td><td>39.0</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: forward KL이 일관되게 가장 큰 이득을 준다 — step 50에서 36.7 → 43.9로 올리고 step 100에서도 baseline 위에 머문다. reverse KL과 JSD는 제한적이거나 <em>부정적</em> 개선을 준다(reverse KL step 100에서 35.0으로 base보다 낮다). 따라서 남은 모든 실험에서 forward KL을 채택한다.</p>
+
+<blockquote><strong>왜 forward KL인가 — 이 논문이 설명하지 않는 부분</strong>: forward KL $KL(p_T\|p_S)$은 <em>teacher 확률로 가중</em>되므로 mass-covering이다 — teacher가 확률을 준 토큰을 student가 반드시 덮어야 한다. reverse KL은 <em>student 확률로 가중</em>되므로 mode-seeking이며 student가 이미 확률을 준 곳만 다듬는다. 정답 풀이를 본 teacher가 <em>student에게 없는 토큰</em>에 확률을 주는 상황이라면 mass-covering이 필요하다는 해석이 자연스럽지만, 논문은 이 이유를 제시하지 않는다. 흥미롭게도 <a href="20260825_shenfeld_sdft.html">SDFT 논문</a>도 독립적으로 같은 결론(이론은 reverse KL, 실무는 forward KL)에 도달했다.</blockquote>
+
+<p><strong>step 100에서 성능이 떨어지는 패턴</strong>도 눈에 띈다 — forward KL이 43.9(step 50) → 41.1(step 100)로 하락한다. 저자들은 이를 논평하지 않지만, §4.1의 "20스텝마다 평가해 최고 점수 보고" 절차와 결합하면 <em>OPSD도 과도하게 학습하면 성능이 저하된다</em>는 것을 시사한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 3 시각화 + 세 divergence의 성격</text>
+
+  <line x1="100" y1="200" x2="420" y2="200" stroke="#333"/>
+  <line x1="100" y1="56" x2="100" y2="200" stroke="#333"/>
+  <text x="100" y="216" text-anchor="middle" font-size="9.5">Base</text>
+  <text x="260" y="216" text-anchor="middle" font-size="9.5">Step 50</text>
+  <text x="420" y="216" text-anchor="middle" font-size="9.5">Step 100</text>
+  <text x="94" y="60" text-anchor="end" font-size="9">45</text>
+  <text x="94" y="132" text-anchor="end" font-size="9">40</text>
+  <text x="94" y="204" text-anchor="end" font-size="9">35</text>
+  <text x="86" y="128" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 86 128)">AIME25 Avg@12</text>
+  <line x1="100" y1="156" x2="420" y2="156" stroke="#94a3b8" stroke-dasharray="5 3"/>
+  <text x="426" y="159" font-size="8.5" fill="#64748b">base 36.7</text>
+
+  <path d="M100,156 L260,53 L420,93" stroke="#3b82f6" stroke-width="2.4" fill="none"/>
+  <circle cx="100" cy="156" r="4.5" fill="#3b82f6"/><circle cx="260" cy="53" r="5" fill="#3b82f6"/><circle cx="420" cy="93" r="4.5" fill="#3b82f6"/>
+  <text x="260" y="45" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#1e40af">43.9</text>
+  <text x="428" y="90" font-size="9.5" fill="#1e40af">41.1  Forward KL</text>
+
+  <path d="M100,156 L260,145 L420,181" stroke="#e67e22" stroke-width="2.2" fill="none"/>
+  <circle cx="260" cy="145" r="4.5" fill="#e67e22"/><circle cx="420" cy="181" r="4.5" fill="#e67e22"/>
+  <text x="260" y="138" text-anchor="middle" font-size="9" fill="#b45309">37.5</text>
+  <text x="428" y="184" font-size="9.5" fill="#b45309">35.0  Reverse KL</text>
+
+  <path d="M100,156 L260,150 L420,120" stroke="#a855f7" stroke-width="2.2" fill="none"/>
+  <circle cx="260" cy="150" r="4.5" fill="#a855f7"/><circle cx="420" cy="120" r="4.5" fill="#a855f7"/>
+  <text x="428" y="123" font-size="9.5" fill="#7e22ce">39.0  JSD (β=0.5)</text>
+
+  <rect x="470" y="56" width="300" height="146" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="620" y="74" text-anchor="middle" font-size="10.5" font-weight="bold">세 divergence가 가중하는 대상</text>
+  <g font-size="9.5">
+    <text x="482" y="96" font-weight="bold" fill="#1e40af">Forward KL: KL(p_T ‖ p_S)</text>
+    <text x="482" y="110">Σ p_T(v)·log(p_T/p_S) — <tspan font-weight="bold">teacher 확률로 가중</tspan></text>
+    <text x="482" y="123" fill="#1e40af">→ mass-covering. teacher가 준 곳을 반드시 덮는다</text>
+
+    <text x="482" y="145" font-weight="bold" fill="#b45309">Reverse KL: KL(p_S ‖ p_T)</text>
+    <text x="482" y="159">Σ p_S(v)·log(p_S/p_T) — <tspan font-weight="bold">student 확률로 가중</tspan></text>
+    <text x="482" y="172" fill="#b45309">→ mode-seeking. student가 이미 아는 곳만 다듬는다</text>
+
+    <text x="482" y="192" font-weight="bold" fill="#7e22ce">JSD(β=0.5): 두 방향의 대칭 혼합 → 중간 성격</text>
+  </g>
+
+  <line x1="40" y1="230" x2="760" y2="230" stroke="#e5e7eb"/>
+
+  <text x="400" y="250" text-anchor="middle" font-size="11.5" font-weight="bold">수치 예제 — 왜 이 상황에서 mass-covering이 필요한가</text>
+  <text x="400" y="266" text-anchor="middle" font-size="9.5" fill="#666">"정답 풀이를 본 teacher가 student에게 없는 토큰에 확률을 준다"는 전형적 상황. 논문에 없는 계산이다</text>
+
+  <g font-size="10">
+    <rect x="80" y="276" width="640" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="92" y="291" font-weight="bold">토큰</text>
+    <text x="230" y="291" font-weight="bold">p_T (teacher)</text>
+    <text x="350" y="291" font-weight="bold">p_S (student)</text>
+    <text x="470" y="291" font-weight="bold">forward 기여</text>
+    <text x="600" y="291" font-weight="bold">reverse 기여</text>
+
+    <rect x="80" y="298" width="640" height="22" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="92" y="313">"미분하면" (정답 경로)</text>
+    <text x="230" y="313">0.60</text>
+    <text x="350" y="313">0.05</text>
+    <text x="470" y="313" font-weight="bold" fill="#15803d">+1.491</text>
+    <text x="600" y="313" fill="#b91c1c">−0.124</text>
+
+    <rect x="80" y="320" width="640" height="22" fill="#fee2e2" stroke="#e5e7eb"/>
+    <text x="92" y="335">"대입하면" (student 습관)</text>
+    <text x="230" y="335">0.10</text>
+    <text x="350" y="335">0.70</text>
+    <text x="470" y="335">−0.195</text>
+    <text x="600" y="335" font-weight="bold">+1.363</text>
+
+    <rect x="80" y="342" width="640" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="92" y="357">기타 (합)</text>
+    <text x="230" y="357">0.30</text>
+    <text x="350" y="357">0.25</text>
+    <text x="470" y="357">+0.055</text>
+    <text x="600" y="357">−0.046</text>
+  </g>
+
+  <rect x="80" y="370" width="640" height="44" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="400" y="387" text-anchor="middle" font-size="10">forward KL은 정답 경로("미분하면", p_S = 0.05)에 <tspan font-weight="bold">+1.491</tspan>의 큰 기여를 실어 그 토큰을 끌어올린다.</text>
+  <text x="400" y="403" text-anchor="middle" font-size="10">reverse KL은 그 토큰에 −0.124밖에 주지 않고 대신 student 습관을 억제하는 데 힘을 쓴다 → <tspan font-weight="bold">새 추론 경로를 배우는 힘이 약하다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: Table 3 시각화 + divergence 수치 예제]</strong>: 왼쪽 곡선에서 파랑(forward KL)만 base 위로 크게 올라가고, 주황(reverse KL)은 step 100에서 base 아래로 떨어진다. 오른쪽 상자가 세 divergence의 구조적 차이 — <strong>가중치가 $p_T$인가 $p_S$인가</strong>가 mass-covering과 mode-seeking을 갈라놓는다. 아래 수치 예제가 이 차이의 실질적 의미를 보인다: teacher가 정답 경로 토큰에 0.60을 주고 student가 0.05만 줄 때, forward KL은 +1.491의 큰 기여로 끌어올리지만 reverse KL은 −0.124밖에 주지 않는다. 즉 <em>student가 아직 모르는 것을 배워야 하는 상황</em>에서는 mass-covering이 필요하다. 이 해석은 논문에 없으며, 논문은 forward KL이 좋았다는 사실만 보고한다 — 흥미롭게도 SDFT 논문이 독립적으로 같은 결론에 도달했다.</figcaption>
+</figure>
+
+<h3>3.3 생성 스타일의 효과 — thinking mode 조합 (§4.3.2)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: student와 teacher의 생성 스타일은 <em>student가 어떤 토큰에서 배우는지</em>와 <em>teacher가 제공하는 지도의 스타일</em>을 모두 결정한다. Qwen3는 두 생성 모드를 지원한다 — <strong>Thinking Mode on (TM-on)</strong>은 자기 반성적 chain-of-thought 토큰을 생성하고, <strong>Thinking Mode off (TM-off)</strong>는 직접 응답한다. 어떤 조합이 가장 효과적인 학습 신호를 주는가?</p>
+
+<p><strong>측정 방법</strong>: 네 가지 student/teacher 모드 쌍에 대해 forward KL $KL(p_T\|p_S)$을 분석하고, 토큰을 세 범주로 분류한다 — <strong>math</strong>(숫자, 연산자, 수학 키워드), <strong>style</strong>(추론 연결어), <strong>other</strong>. 부록 C에 키워드 목록이 공개되어 있다.</p>
+
+<p style="font-size:0.9em;color:#555"><strong>style 토큰 예</strong>: maybe, perhaps, probably, let, okay, hmm, wait, because, since, so, thus, hence, therefore, but, however, although, yet, alternatively, instead, actually, just, simply, basically, very, quite, now, then, next, first, second, finally, try, see, check, note, recall, think, idea, strategy, approach, method, way, would, could, should, might, can, huge, large, small, tiny, interesting, tricky, complex, simple …<br>
+<strong>math 토큰 예</strong>: exponential, exponent, power, base, logarithm, log, ln, compare, less, equal, larger, smaller, greater, factor, prime, divisible, equation, expression, formula, inequality, rational, irrational, real, integer, coefficient, variable, constant, sum, product, difference, quotient, fraction, denominator, numerator, root, square, cube, nth, maximum, minimum, optimize, bound …</p>
+
+<table class="small-table">
+<thead><tr><th rowspan="2">Student</th><th rowspan="2">Teacher</th><th colspan="3">Qwen3-1.7B</th><th colspan="3">Qwen3-4B</th><th colspan="3">Qwen3-8B</th></tr>
+<tr><th>Style</th><th>Math</th><th>Other</th><th>Style</th><th>Math</th><th>Other</th><th>Style</th><th>Math</th><th>Other</th></tr></thead>
+<tbody>
+<tr><td>TM-off</td><td>TM-off</td><td>0.68</td><td>0.12</td><td>0.11</td><td>0.61</td><td>0.06</td><td>0.10</td><td>0.56</td><td>0.05</td><td>0.11</td></tr>
+<tr><td>TM-on</td><td>TM-off</td><td>0.51</td><td>0.10</td><td>0.17</td><td>0.41</td><td>0.05</td><td>0.18</td><td>0.33</td><td>0.05</td><td>0.15</td></tr>
+<tr><td>TM-on</td><td>TM-on</td><td>0.51</td><td>0.09</td><td>0.08</td><td>0.50</td><td>0.04</td><td>0.09</td><td>0.42</td><td>0.04</td><td>0.08</td></tr>
+<tr style="background:#dcfce7"><td><strong>TM-off</strong></td><td><strong>TM-on</strong></td><td>0.85</td><td><strong>0.14</strong></td><td>0.25</td><td>0.92</td><td><strong>0.10</strong></td><td>0.29</td><td>0.79</td><td><strong>0.06</strong></td><td>0.25</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: 모든 모델 크기에서 <strong>TM-off student + TM-on teacher</strong> 조합이 <em>math 토큰에서 가장 큰 KL</em>을 낸다(0.14 / 0.10 / 0.06) — 수학적으로 관련된 토큰에 더 강한 지도가 실린다는 뜻이다. 그리고 이 구성이 경험적으로 최고의 downstream 성능을 낸다. 따라서 모든 주 실험에서 이 조합을 채택한다.</p>
+
+<p><strong>동시에 드러나는 문제</strong>: 보고된 KL 값은 각 위치에서 어휘에 대한 기대 divergence인데, 표가 보여주듯 이 기대값은 <strong>극심하게 치우쳐 있다</strong> — style 토큰이 불균형하게 큰 값을 기여한다(0.85 vs math 0.14 = 6.1배). ##이것이 §1.5의 pointwise clipping을 도입하는 동기다.##</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 5 시각화 — thinking mode 조합과 토큰 범주별 KL</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Qwen3-1.7B / 4B / 8B, 문제 10개 평균. 막대는 범주별 평균 per-token KL</text>
+
+  <g font-size="9">
+    <text x="140" y="56" font-size="10.5" font-weight="bold">Qwen3-1.7B</text>
+    <line x1="70" y1="200" x2="250" y2="200" stroke="#333"/>
+    <line x1="70" y1="66" x2="70" y2="200" stroke="#333"/>
+    <text x="64" y="70" text-anchor="end">1.0</text>
+    <text x="64" y="137" text-anchor="end">0.5</text>
+    <text x="64" y="204" text-anchor="end">0</text>
+    <g>
+      <rect x="82" y="109" width="14" height="91" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="98" y="184" width="14" height="16" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="114" y="185" width="14" height="15" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="105" y="216" text-anchor="middle" font-size="7.5">off/off</text>
+
+      <rect x="136" y="132" width="14" height="68" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="152" y="187" width="14" height="13" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="168" y="177" width="14" height="23" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="159" y="216" text-anchor="middle" font-size="7.5">on/off</text>
+
+      <rect x="190" y="132" width="14" height="68" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="206" y="188" width="14" height="12" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="222" y="189" width="14" height="11" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="213" y="216" text-anchor="middle" font-size="7.5">on/on</text>
+    </g>
+    <rect x="244" y="86" width="14" height="114" fill="#f59e0b" stroke="#b45309"/>
+    <rect x="260" y="181" width="14" height="19" fill="#3b82f6" stroke="#1e40af"/>
+    <rect x="276" y="167" width="14" height="33" fill="#94a3b8" stroke="#475569"/>
+    <text x="267" y="216" text-anchor="middle" font-size="7.5" font-weight="bold">off/on ★</text>
+    <text x="267" y="80" text-anchor="middle" font-size="8" font-weight="bold" fill="#b45309">0.85</text>
+    <text x="285" y="176" text-anchor="middle" font-size="8" font-weight="bold" fill="#1e40af">0.14</text>
+
+    <text x="450" y="56" font-size="10.5" font-weight="bold">Qwen3-4B</text>
+    <line x1="380" y1="200" x2="560" y2="200" stroke="#333"/>
+    <line x1="380" y1="66" x2="380" y2="200" stroke="#333"/>
+    <g>
+      <rect x="392" y="118" width="14" height="82" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="408" y="192" width="14" height="8" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="424" y="187" width="14" height="13" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="415" y="216" text-anchor="middle" font-size="7.5">off/off</text>
+
+      <rect x="446" y="145" width="14" height="55" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="462" y="193" width="14" height="7" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="478" y="176" width="14" height="24" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="469" y="216" text-anchor="middle" font-size="7.5">on/off</text>
+
+      <rect x="500" y="133" width="14" height="67" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="516" y="195" width="14" height="5" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="532" y="188" width="14" height="12" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="523" y="216" text-anchor="middle" font-size="7.5">on/on</text>
+    </g>
+    <rect x="554" y="77" width="14" height="123" fill="#f59e0b" stroke="#b45309"/>
+    <rect x="570" y="187" width="14" height="13" fill="#3b82f6" stroke="#1e40af"/>
+    <rect x="586" y="161" width="14" height="39" fill="#94a3b8" stroke="#475569"/>
+    <text x="577" y="216" text-anchor="middle" font-size="7.5" font-weight="bold">off/on ★</text>
+    <text x="577" y="71" text-anchor="middle" font-size="8" font-weight="bold" fill="#b45309">0.92</text>
+    <text x="595" y="182" text-anchor="middle" font-size="8" font-weight="bold" fill="#1e40af">0.10</text>
+
+    <text x="700" y="56" font-size="10.5" font-weight="bold">Qwen3-8B</text>
+    <line x1="640" y1="200" x2="770" y2="200" stroke="#333"/>
+    <line x1="640" y1="66" x2="640" y2="200" stroke="#333"/>
+    <g>
+      <rect x="650" y="125" width="12" height="75" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="664" y="193" width="12" height="7" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="678" y="185" width="12" height="15" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="670" y="216" text-anchor="middle" font-size="7.5">off/off</text>
+
+      <rect x="696" y="156" width="12" height="44" fill="#fcd34d" stroke="#d97706"/>
+      <rect x="710" y="193" width="12" height="7" fill="#93c5fd" stroke="#3b82f6"/>
+      <rect x="724" y="180" width="12" height="20" fill="#cbd5e1" stroke="#94a3b8"/>
+      <text x="716" y="216" text-anchor="middle" font-size="7.5">on/off</text>
+    </g>
+    <rect x="742" y="94" width="12" height="106" fill="#f59e0b" stroke="#b45309"/>
+    <rect x="756" y="192" width="12" height="8" fill="#3b82f6" stroke="#1e40af"/>
+    <text x="750" y="216" text-anchor="middle" font-size="7.5" font-weight="bold">off/on ★</text>
+    <text x="748" y="88" text-anchor="middle" font-size="8" font-weight="bold" fill="#b45309">0.79</text>
+  </g>
+
+  <g font-size="9">
+    <rect x="80" y="234" width="12" height="10" fill="#f59e0b" stroke="#b45309"/><text x="98" y="243">Style (추론 연결어)</text>
+    <rect x="230" y="234" width="12" height="10" fill="#3b82f6" stroke="#1e40af"/><text x="248" y="243">Math (숫자·연산자·수학 키워드)</text>
+    <rect x="440" y="234" width="12" height="10" fill="#94a3b8" stroke="#475569"/><text x="458" y="243">Other</text>
+  </g>
+
+  <rect x="40" y="256" width="350" height="80" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="215" y="274" text-anchor="middle" font-size="10.5" font-weight="bold">채택된 조합: TM-off student + TM-on teacher</text>
+  <text x="52" y="292" font-size="9.5">math 토큰 KL이 세 규모 모두에서 최대 (0.14 / 0.10 / 0.06)</text>
+  <text x="52" y="307" font-size="9.5">직관: student는 CoT 없이 짧게 쓰고(학습 토큰이 조밀해진다),</text>
+  <text x="52" y="322" font-size="9.5">teacher는 CoT를 켜서 정답 풀이를 충분히 소화한 상태로 채점한다</text>
+  <text x="52" y="333" font-size="9" fill="#15803d">→ 두 분포의 격차가 수학 토큰에서 최대가 된다</text>
+
+  <rect x="410" y="256" width="350" height="80" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="585" y="274" text-anchor="middle" font-size="10.5" font-weight="bold">동시에 드러난 문제 — 신호가 문체에 쏠린다</text>
+  <text x="422" y="292" font-size="9.5">같은 조합에서 Style KL이 0.85 — math의 <tspan font-weight="bold">6.1배</tspan></text>
+  <text x="422" y="307" font-size="9.5">4B는 0.92 vs 0.10으로 <tspan font-weight="bold">9.2배</tspan>, 8B는 0.79 vs 0.06으로 13배</text>
+  <text x="422" y="322" font-size="9.5">즉 모델이 커질수록 이 왜곡이 심해진다</text>
+  <text x="422" y="333" font-size="9" fill="#b91c1c">→ §1.5 pointwise clipping이 필요한 이유 (그림 7)</text>
+
+  <rect x="40" y="346" width="720" height="88" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="364" text-anchor="middle" font-size="11" font-weight="bold">이 표에서 읽을 수 있는 추가 패턴 (논문이 논평하지 않는 것)</text>
+  <text x="52" y="382" font-size="10">① <tspan font-weight="bold">math KL이 모델 크기와 함께 줄어든다</tspan>: 1.7B 0.14 → 4B 0.10 → 8B 0.06. 큰 모델은 이미 잘하므로 teacher와 덜 다르다.</text>
+  <text x="52" y="398" font-size="10">　 §3.1에서 OPSD의 이득이 8B보다 1.7B에서 컸던 것과 정합한다 — <tspan font-weight="bold">배울 것이 남아 있을 때만 신호가 크다</tspan>.</text>
+  <text x="52" y="416" font-size="10">② <tspan font-weight="bold">style/math 비율은 커질수록 나빠진다</tspan>: 6.1 → 9.2 → 13.2배. 즉 큰 모델에서 clipping이 더 중요해질 가능성이 있는데,</text>
+  <text x="52" y="429" font-size="10">　 clipping ablation(그림 12)은 1.7B에서만 수행되었다 — 이 추세의 확인은 미완이다</text>
+</svg>
+<figcaption><strong>[Figure: Table 5 시각화]</strong>: 세 패널이 모델 규모이고, 각 패널의 네 그룹이 student/teacher 모드 조합이며, 별표 표시된 마지막 그룹(TM-off/TM-on)이 채택된 설정이다. 색은 토큰 범주 — 노랑이 style, 파랑이 math, 회색이 other다. 채택 근거는 왼쪽 아래 초록 박스(math KL이 최대)이지만, 같은 조합이 오른쪽 빨간 박스의 문제도 최대화한다 — <strong>style KL이 math의 6~13배</strong>다. 즉 최선의 설정을 고르면 왜곡도 함께 최대가 되고, 그래서 clipping이 필수가 된다. 맨 아래 노란 박스가 이 문서에서 표를 직접 계산해 얻은 두 패턴이며 논문은 논평하지 않는다 — 특히 ②(style/math 비율이 6.1 → 9.2 → 13.2배로 커진다)는 큰 모델에서 clipping이 더 중요할 수 있다는 뜻인데, clipping ablation은 1.7B에서만 수행되었다.</figcaption>
+</figure>
+
+<h3>3.4 per-token pointwise clipping의 효과 (§4.3.3)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: §3.3에서 확인한 대로 문체 토큰이 수학 토큰보다 높은 KL을 보여 학습 신호를 지배할 수 있다. clipping이 실제로 이 문제를 해결하는가?</p>
+
+<p><strong>결과</strong> (Qwen3-1.7B, AIME24): clipping이 학습을 안정화하고 <strong>성능 붕괴를 방지</strong>한다. 저자들이 특히 강조하는 점 — OPSD는 100스텝 이내에 빠르게 수렴하므로 <em>학습 후반의 안정성이 특히 중요하다</em>. clipping 없이는 그 구간에서 성능이 무너진다.</p>
+
+<blockquote><strong>이 ablation의 위치</strong>: clipping은 §3.2의 divergence 비교에서 <em>모든 조건에 공통으로 적용</em>되었다. 즉 이 논문에서 clipping은 선택 사항이 아니라 <strong>알고리즘이 작동하기 위한 전제</strong>다. 그런데 부록 B는 <em>"clipping 파라미터 $\tau$에 대한 튜닝을 수행하지 않았고, 이 하이퍼파라미터를 최적화하면 같은 100스텝 예산 안에서 더 큰 모델에 추가 성능 향상이 있을 수 있다"</em>고 명시한다. 즉 <strong>필수 부품이 튜닝되지 않은 상태</strong>다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 4 재현 — clipping이 성능 붕괴를 막는다</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Qwen3-1.7B, AIME24. 원문 축 범위(48~58)를 따랐고 궤적 형태는 개념 재구성이다</text>
+
+  <line x1="90" y1="250" x2="480" y2="250" stroke="#333"/>
+  <line x1="90" y1="60" x2="90" y2="250" stroke="#333"/>
+  <text x="90" y="266" text-anchor="middle" font-size="9.5">0</text>
+  <text x="188" y="266" text-anchor="middle" font-size="9.5">25</text>
+  <text x="285" y="266" text-anchor="middle" font-size="9.5">50</text>
+  <text x="383" y="266" text-anchor="middle" font-size="9.5">75</text>
+  <text x="480" y="266" text-anchor="middle" font-size="9.5">100</text>
+  <text x="285" y="284" text-anchor="middle" font-size="10" fill="#555">gradient 업데이트 스텝</text>
+  <text x="84" y="64" text-anchor="end" font-size="9.5">58</text>
+  <text x="84" y="155" text-anchor="end" font-size="9.5">53</text>
+  <text x="84" y="253" text-anchor="end" font-size="9.5">48</text>
+  <text x="76" y="155" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 76 155)">Avg@12 AIME24</text>
+  <line x1="90" y1="185" x2="480" y2="185" stroke="#94a3b8" stroke-dasharray="5 3"/>
+  <text x="486" y="188" font-size="8.5" fill="#64748b">base 51.5</text>
+
+  <path d="M90,185 L188,120 L285,88 L383,76 L480,72" stroke="#3b82f6" stroke-width="2.4" fill="none"/>
+  <text x="486" y="72" font-size="9.5" font-weight="bold" fill="#1e40af" text-anchor="end">w/ clipping</text>
+  <text x="420" y="64" font-size="9" fill="#1e40af">안정적으로 유지</text>
+
+  <path d="M90,185 L188,140 L285,124 L340,160 L400,212 L480,242" stroke="#e67e22" stroke-width="2.4" fill="none"/>
+  <text x="486" y="242" font-size="9.5" fill="#b45309" text-anchor="end">w/o clipping</text>
+  <path d="M300,124 L300,110" stroke="#ef4444" stroke-width="1.4"/>
+  <text x="304" y="106" font-size="9" fill="#b91c1c">여기서 꺾인다</text>
+  <text x="420" y="230" font-size="9" fill="#b91c1c">붕괴</text>
+
+  <rect x="520" y="60" width="250" height="118" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="645" y="78" text-anchor="middle" font-size="10.5" font-weight="bold">왜 후반에 무너지는가 (해석)</text>
+  <g font-size="9">
+    <text x="532" y="98">학습 초기: student가 teacher와 크게 달라</text>
+    <text x="532" y="111">math·style 양쪽에서 신호가 크다</text>
+    <text x="532" y="130">학습 후반: math 격차가 먼저 좁혀지고</text>
+    <text x="532" y="143">style 격차는 남는다 (문체는 취향 문제)</text>
+    <text x="532" y="162" fill="#b91c1c">→ 신호가 점점 문체 모방으로 수렴</text>
+    <text x="532" y="174" fill="#b91c1c">→ 수학 능력이 희생된다</text>
+  </g>
+
+  <rect x="40" y="300" width="350" height="90" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="215" y="318" text-anchor="middle" font-size="10.5" font-weight="bold">clipping이 필수 부품이라는 점</text>
+  <text x="52" y="336" font-size="9.5">§3.2의 divergence 비교(Table 3)에서 세 목적함수 모두</text>
+  <text x="52" y="351" font-size="9.5">"동일한 pointwise clipping 하에서" 평가되었다.</text>
+  <text x="52" y="369" font-size="9.5">즉 clipping은 선택이 아니라 <tspan font-weight="bold">알고리즘 작동의 전제</tspan>다.</text>
+  <text x="52" y="384" font-size="9.5" fill="#b91c1c">없으면 100스텝 안에 붕괴한다</text>
+
+  <rect x="410" y="300" width="350" height="90" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="585" y="318" text-anchor="middle" font-size="10.5" font-weight="bold">그런데 τ는 튜닝되지 않았다 (부록 B)</text>
+  <text x="422" y="336" font-size="9.5">원문: "We didn't conduct tuning for the clipping</text>
+  <text x="422" y="351" font-size="9.5">parameter τ, optimizing this hyperparameter may</text>
+  <text x="422" y="366" font-size="9.5">yield further performance gains within the same</text>
+  <text x="422" y="381" font-size="9.5">100-step budget for larger models."</text>
+</svg>
+<figcaption><strong>[Figure 4 재현]</strong>: 파랑(clipping 적용)은 단조 개선 후 안정화되고, 주황(clipping 없음)은 중반까지 올라가다 <strong>후반에 base 아래로 붕괴</strong>한다. 오른쪽 상자는 이 붕괴 시점에 대한 이 문서의 해석 — 학습이 진행되면 math 격차가 먼저 좁혀지고 문체 격차만 남으므로, clipping이 없으면 신호가 점점 문체 모방으로 수렴하며 수학 능력을 희생한다(논문은 이 메커니즘을 설명하지 않는다). 아래 두 박스가 이 절의 이중적 사실이다: clipping은 <em>선택 사항이 아니라 알고리즘 작동의 전제</em>인데(§3.2의 모든 divergence 비교가 clipping 하에서 수행되었다), 부록 B는 그 임계값 $\tau$를 <strong>튜닝하지 않았다</strong>고 명시한다. 필수 부품이 최적화되지 않은 상태라는 점은 결과 해석에 영향을 준다. 원문 그림에 곡선의 절대 위치가 축 범위로만 제시되어 궤적은 개념 재구성이다.</figcaption>
+</figure>
+
+<h3>3.5 student 생성 길이의 효과 (§4.3.4)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: 목적함수가 토큰 수준에서 작동하므로(Eq. 6) 샘플당 생성 토큰 수가 student가 받는 지도량을 직접 결정한다. 긴 시퀀스는 teacher 피드백을 더 많이 노출하지만 계산 비용이 늘고 잡음이나 무정보 연속을 도입할 수 있다. Qwen3-1.7B에서 student 생성 길이를 <strong>1024 vs 4096</strong>으로 바꿔 비교한다(full-vocabulary logit 증류 사용).</p>
+
+<p><strong>결과</strong>: ##생성 길이를 늘리는 것이 AIME25·AIME24 어느 과제에서도 일관된 개선을 주지 않는다.##</p>
+
+<p><strong>저자들의 해석</strong>: 앞쪽 토큰이 학습에 더 중요하기 때문이다 — student 생성이 길어지면 <em>뒤쪽 토큰은 충분히 긴 student prefix에 조건화될 때 teacher에게 점점 예측 가능해지므로</em> 뒤쪽 토큰에 가해지는 벌점이 줄어든다. 이 현상은 Lu &amp; Lab (2025)에서도 관찰되었다.</p>
+
+<blockquote><strong>실무적 함의</strong>: 이것은 좋은 소식이다. <strong>생성 길이가 1024면 충분하다</strong>는 뜻이므로 §2에서 계산한 토큰 예산 이점이 유지된다. 그리고 §3.1의 "앞쪽 토큰이 더 중요한 분기점을 나타낸다"는 가설과 정합한다. 다만 <em>1024 미만(예: 256, 512)은 시험되지 않았으므로</em> 하한이 어디인지는 알 수 없다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 5 재현 + 왜 긴 생성이 도움이 되지 않는가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Qwen3-1.7B. 원문 축 범위를 따랐고 궤적은 개념 재구성이다</text>
+
+  <g font-size="9">
+    <text x="185" y="56" font-size="10.5" font-weight="bold">AIME25</text>
+    <line x1="80" y1="200" x2="300" y2="200" stroke="#333"/>
+    <line x1="80" y1="66" x2="80" y2="200" stroke="#333"/>
+    <text x="80" y="214" text-anchor="middle">0</text>
+    <text x="190" y="214" text-anchor="middle">50</text>
+    <text x="300" y="214" text-anchor="middle">100</text>
+    <text x="190" y="228" text-anchor="middle" fill="#555">스텝</text>
+    <text x="74" y="70" text-anchor="end">46</text>
+    <text x="74" y="200" text-anchor="end">34</text>
+    <line x1="80" y1="170" x2="300" y2="170" stroke="#94a3b8" stroke-dasharray="4 3"/>
+    <text x="306" y="173" font-size="8" fill="#64748b">36.7</text>
+    <path d="M80,170 L135,116 L190,72 L245,88 L300,102" stroke="#3b82f6" stroke-width="2.2" fill="none"/>
+    <text x="306" y="102" font-size="8.5" fill="#1e40af" text-anchor="end">1024</text>
+    <path d="M80,170 L135,124 L190,86 L245,80 L300,110" stroke="#a855f7" stroke-width="2.2" stroke-dasharray="5 3" fill="none"/>
+    <text x="306" y="118" font-size="8.5" fill="#7e22ce" text-anchor="end">4096</text>
+
+    <text x="530" y="56" font-size="10.5" font-weight="bold">AIME24</text>
+    <line x1="420" y1="200" x2="640" y2="200" stroke="#333"/>
+    <line x1="420" y1="66" x2="420" y2="200" stroke="#333"/>
+    <text x="420" y="214" text-anchor="middle">0</text>
+    <text x="530" y="214" text-anchor="middle">50</text>
+    <text x="640" y="214" text-anchor="middle">100</text>
+    <text x="530" y="228" text-anchor="middle" fill="#555">스텝</text>
+    <text x="414" y="70" text-anchor="end">60</text>
+    <text x="414" y="200" text-anchor="end">50</text>
+    <line x1="420" y1="180" x2="640" y2="180" stroke="#94a3b8" stroke-dasharray="4 3"/>
+    <text x="646" y="183" font-size="8" fill="#64748b">51.5</text>
+    <path d="M420,180 L475,120 L530,88 L585,78 L640,74" stroke="#3b82f6" stroke-width="2.2" fill="none"/>
+    <text x="646" y="74" font-size="8.5" fill="#1e40af" text-anchor="end">1024</text>
+    <path d="M420,180 L475,132 L530,96 L585,90 L640,86" stroke="#a855f7" stroke-width="2.2" stroke-dasharray="5 3" fill="none"/>
+    <text x="646" y="94" font-size="8.5" fill="#7e22ce" text-anchor="end">4096</text>
+  </g>
+
+  <text x="360" y="248" text-anchor="middle" font-size="10" fill="#555">두 곡선이 서로 엇갈리며 일관된 우열이 없다 — 4배 긴 생성이 이득을 주지 않는다</text>
+
+  <line x1="40" y1="262" x2="760" y2="262" stroke="#e5e7eb"/>
+
+  <text x="400" y="282" text-anchor="middle" font-size="11.5" font-weight="bold">왜 뒤쪽 토큰의 신호가 약해지는가 — 개념도</text>
+
+  <g font-size="9.5">
+    <text x="60" y="308">student</text>
+    <text x="60" y="322">rollout</text>
+    <rect x="120" y="298" width="80" height="26" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="160" y="315" text-anchor="middle" font-size="9">토큰 1~200</text>
+    <rect x="202" y="298" width="120" height="26" fill="#bfdbfe" stroke="#3b82f6"/>
+    <text x="262" y="315" text-anchor="middle" font-size="9">토큰 201~1024</text>
+    <rect x="324" y="298" width="330" height="26" fill="#eff6ff" stroke="#93c5fd"/>
+    <text x="489" y="315" text-anchor="middle" font-size="9">토큰 1025~4096 (길이 4096일 때 추가되는 구간)</text>
+
+    <text x="60" y="352">teacher가</text>
+    <text x="60" y="366">보는 것</text>
+    <rect x="120" y="342" width="80" height="26" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="160" y="359" text-anchor="middle" font-size="9">y★ 뿐</text>
+    <rect x="202" y="342" width="120" height="26" fill="#fde68a" stroke="#f59e0b"/>
+    <text x="262" y="359" text-anchor="middle" font-size="9">y★ + 짧은 prefix</text>
+    <rect x="324" y="342" width="330" height="26" fill="#fcd34d" stroke="#d97706"/>
+    <text x="489" y="359" text-anchor="middle" font-size="9">y★ + <tspan font-weight="bold">아주 긴 student prefix</tspan> → student를 거의 예측할 수 있다</text>
+
+    <text x="676" y="315" font-size="9" fill="#1e40af">신호 큼</text>
+    <text x="676" y="359" font-size="9" fill="#b45309">신호 작음</text>
+  </g>
+
+  <rect x="40" y="378" width="720" height="0" fill="none"/>
+</svg>
+<figcaption><strong>[Figure 5 재현 + 신호 감쇠 개념도]</strong>: 두 패널에서 실선(1024)과 점선(4096)이 엇갈리며 일관된 우열을 만들지 못한다 — 4배 긴 생성이 이득이 없다. 아래 개념도가 그 이유를 도식화한 것으로, teacher가 <em>충분히 긴 student prefix</em>에 조건화되면 student의 다음 토큰을 거의 예측할 수 있게 되어 두 분포가 수렴하고 벌점이 사라진다. 이것이 저자들의 설명이며 Lu &amp; Lab (2025)에서도 관측된 현상이다. 실무적으로는 반가운 결과인데, <strong>1024면 충분하다</strong>는 뜻이므로 §2에서 계산한 토큰 예산 이점이 유지된다. 다만 1024보다 짧은 설정(256, 512)은 시험되지 않아 하한은 알 수 없고, 원문 그림에 축 값이 부분적으로만 표시되어 궤적은 개념 재구성이다.</figcaption>
+</figure>
+
+<h3>3.6 full-vocabulary logit 증류 vs sampled-token 증류 (§4.3.5)</h3>
+
+<p><strong>이 실험이 답하려는 질문</strong>: Eq. 6의 목적함수를 실제로 구현하는 두 방식이 있다.</p>
+<ol>
+  <li><strong>Full-vocabulary logit 증류</strong> (GKD, Agarwal et al., 2024 방식): 각 토큰 위치에서 full softmax를 통해 어휘 전체에 대해 $D(p_T\|p_S)$를 계산 — 두 정책 사이의 <em>제대로 된 토큰 수준 $f$-divergence</em>가 된다.</li>
+  <li><strong>Sampled-token advantage policy-gradient 목적함수</strong> (Lu &amp; Lab, 2025의 on-policy 증류 방식): student가 실제로 샘플한 토큰 $\hat y_n$에서만 teacher·student 로그확률을 평가하고, reverse-KL 항을 policy-gradient 손실 안의 스칼라 advantage로 쓴다.</li>
+</ol>
+
+<p>즉 첫 변형은 전체 토큰 분포를 직접 맞추고, 두 번째는 teacher 로그확률로 shaping된 on-policy RL 목적함수를 최적화한다. Qwen3-4B, 증류 시 생성 예산 2048 토큰으로 비교한다.</p>
+
+<table>
+<thead><tr><th>변형</th><th>AIME25 (pass@8)</th><th>HMMT25 (pass@8)</th></tr></thead>
+<tbody>
+<tr style="background:#dcfce7"><td><strong>OPSD w/ Full-vocabulary logit 증류</strong> (Agarwal et al., 2024)</td><td><strong>84.1</strong></td><td><strong>60.0</strong></td></tr>
+<tr><td>OPSD w/ Sampled-token 증류 (Lu &amp; Lab, 2025)</td><td>82.1</td><td>57.3</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: full-distribution 목적함수가 sampled-token 목적함수보다 일관되게 이득을 준다(+2.0 / +2.7). ##student를 teacher의 전체 분포에 노출하는 것이 per-token on-policy shaping에만 의존하는 것보다 풍부한 지도를 제공한다.## 단 full-vocabulary 계산은 <em>모든 위치에서 어휘 크기 logit을 저장해야 하므로 peak 메모리 사용량이 더 크다</em> — 성능과 효율 사이의 trade-off다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 4 시각화 + 두 목적함수의 정보량 차이</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Qwen3-4B, 증류 시 생성 예산 2048, pass@8 정확도</text>
+
+  <line x1="120" y1="200" x2="440" y2="200" stroke="#333"/>
+  <line x1="120" y1="56" x2="120" y2="200" stroke="#333"/>
+  <text x="114" y="60" text-anchor="end" font-size="9">90</text>
+  <text x="114" y="130" text-anchor="end" font-size="9">70</text>
+  <text x="114" y="204" text-anchor="end" font-size="9">50</text>
+  <text x="106" y="128" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 106 128)">pass@8 (%)</text>
+
+  <g font-size="9">
+    <text x="215" y="220" text-anchor="middle" font-size="10" font-weight="bold">AIME25</text>
+    <rect x="160" y="79" width="42" height="121" fill="#22c55e" stroke="#15803d"/>
+    <text x="181" y="73" text-anchor="middle" font-weight="bold" fill="#15803d">84.1</text>
+    <text x="181" y="234" text-anchor="middle" font-size="8">full-vocab</text>
+    <rect x="212" y="86" width="42" height="114" fill="#fcd34d" stroke="#d97706"/>
+    <text x="233" y="80" text-anchor="middle" fill="#b45309">82.1</text>
+    <text x="233" y="234" text-anchor="middle" font-size="8">sampled</text>
+    <text x="207" y="248" text-anchor="middle" font-size="9" font-weight="bold" fill="#15803d">+2.0</text>
+
+    <text x="370" y="220" text-anchor="middle" font-size="10" font-weight="bold">HMMT25</text>
+    <rect x="315" y="164" width="42" height="36" fill="#22c55e" stroke="#15803d"/>
+    <text x="336" y="158" text-anchor="middle" font-weight="bold" fill="#15803d">60.0</text>
+    <text x="336" y="234" text-anchor="middle" font-size="8">full-vocab</text>
+    <rect x="367" y="174" width="42" height="26" fill="#fcd34d" stroke="#d97706"/>
+    <text x="388" y="168" text-anchor="middle" fill="#b45309">57.3</text>
+    <text x="388" y="234" text-anchor="middle" font-size="8">sampled</text>
+    <text x="362" y="248" text-anchor="middle" font-size="9" font-weight="bold" fill="#15803d">+2.7</text>
+  </g>
+
+  <rect x="480" y="56" width="290" height="144" rx="7" fill="#f8fafc" stroke="#cbd5e1"/>
+  <text x="625" y="74" text-anchor="middle" font-size="10.5" font-weight="bold">한 토큰 위치에서 얻는 정보량</text>
+  <g font-size="9">
+    <text x="492" y="96" font-weight="bold" fill="#15803d">full-vocabulary</text>
+    <text x="492" y="110">teacher 분포 전체를 본다 (약 15만 차원)</text>
+    <text x="492" y="123">"이 자리에 올 수 있는 모든 후보의 순위"</text>
+    <text x="492" y="137" fill="#15803d">→ 제대로 된 f-divergence</text>
+
+    <text x="492" y="159" font-weight="bold" fill="#b45309">sampled-token</text>
+    <text x="492" y="173">샘플된 토큰 1개의 로그확률 비만 본다</text>
+    <text x="492" y="186">"내가 고른 그 토큰을 teacher가 더 좋아했나"</text>
+    <text x="492" y="197" fill="#b45309">→ 스칼라 advantage (RL shaping)</text>
+  </g>
+
+  <line x1="40" y1="264" x2="760" y2="264" stroke="#e5e7eb"/>
+
+  <text x="400" y="284" text-anchor="middle" font-size="11.5" font-weight="bold">세 방법의 신호 해상도 계층 — 이 논문 전체를 정리하는 축</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="294" width="230" height="76" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="155" y="312" text-anchor="middle" font-size="10.5" font-weight="bold">GRPO / STaR</text>
+    <text x="52" y="330">궤적 1개 → 스칼라 1개</text>
+    <text x="52" y="345">(최대 16k 토큰당 1비트~1스칼라)</text>
+    <text x="52" y="362" fill="#92400e">group이 균일하면 0</text>
+
+    <rect x="285" y="294" width="230" height="76" rx="6" fill="#fde68a" stroke="#d97706"/>
+    <text x="400" y="312" text-anchor="middle" font-size="10.5" font-weight="bold">OPSD sampled-token</text>
+    <text x="297" y="330">토큰 1개 → 스칼라 1개</text>
+    <text x="297" y="345">rₙ = log p_T(ŷₙ) − log p_S(ŷₙ)</text>
+    <text x="297" y="362" fill="#92400e">AIME25 82.1 / HMMT25 57.3</text>
+
+    <rect x="530" y="294" width="230" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="645" y="312" text-anchor="middle" font-size="10.5" font-weight="bold">OPSD full-vocabulary</text>
+    <text x="542" y="330">토큰 1개 → <tspan font-weight="bold">어휘 크기 벡터</tspan></text>
+    <text x="542" y="345">D(p_T ‖ p_S) 전체 분포 정합</text>
+    <text x="542" y="362" fill="#15803d">AIME25 84.1 / HMMT25 60.0 ★</text>
+  </g>
+
+  <rect x="40" y="380" width="720" height="34" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="397" text-anchor="middle" font-size="10">대가: full-vocabulary는 모든 위치에서 어휘 크기 logit을 보관해야 해 <tspan font-weight="bold">peak 메모리가 크다</tspan>. 논문은 구체적 메모리 수치를 제시하지 않는다 —</text>
+  <text x="400" y="409" text-anchor="middle" font-size="10">따라서 이 선택은 "성능 +2~3점 vs 메모리"의 절충이며, 메모리가 병목인 환경에서는 sampled-token 변형이 실용적 대안이다</text>
+</svg>
+<figcaption><strong>[Figure: Table 4 시각화 + 신호 해상도 계층]</strong>: 왼쪽 막대에서 full-vocabulary가 두 벤치마크 모두에서 +2.0 / +2.7점 앞선다. 오른쪽 상자가 그 차이의 원천 — 한 토큰 위치에서 <strong>어휘 전체 분포를 보는가, 샘플된 토큰 하나의 로그확률 비를 보는가</strong>다. 아래 세 박스가 이 논문 전체를 하나의 축으로 정리한다: GRPO/STaR(궤적당 스칼라) → OPSD sampled-token(토큰당 스칼라) → OPSD full-vocabulary(토큰당 어휘 벡터). 성능 순서가 이 해상도 순서와 정확히 일치하며, 부록 D의 policy-gradient 대조(그림 6)와 같은 논리다. 맨 아래 주황 박스가 절충인데 — full-vocabulary는 peak 메모리가 크고 논문은 그 수치를 제시하지 않으므로, 메모리 제약 환경에서는 sampled-token 변형이 현실적 대안이 된다.</figcaption>
+</figure>
+
+<h2>4. 관련 연구 (§5)</h2>
+
+<h3>4.1 LLM self-training</h3>
+
+<p>이 논문은 LLM이 <em>자기 지도 신호를 생성하고 활용해 개선될 수 있다</em>는 연구 계열에 속한다 (Allen-Zhu &amp; Li, 2020; Xu et al., 2024b; Chen et al., 2024; Wang et al., 2023; Sun et al., 2023; Yuan et al., 2024; Yang et al., 2024). 정신적으로 가장 가까운 것들을 정리하면:</p>
+
+<table class="small-table">
+<thead><tr><th>선행 연구</th><th>무엇을 하는가</th><th>OPSD와의 차이</th></tr></thead>
+<tbody>
+<tr><td><strong>Context distillation</strong> (Snell et al., 2022)</td><td>같은 모델을 teacher/student로 쓰고, teacher에 특권 context를 준 뒤 context 없는 student를 teacher의 <em>생성 출력</em>에 SFT</td><td><strong>off-policy</strong>이고 학습 신호가 <em>이산 토큰 시퀀스</em>다. OPSD는 on-policy이고 분포를 정합한다</td></tr>
+<tr><td><strong>ReST</strong> (Gulcehre et al., 2023) / <strong>STaR</strong> (Zelikman et al., 2022)</td><td>힌트·정답에 조건화해 rationale 생성 → reward/정답으로 필터링 → 성공 궤적에 fine-tune (반복)</td><td><strong>hard distillation</strong>. 필터를 통과한 궤적만 쓰고 시퀀스 수준 이진 신호다 (부록 D의 대조)</td></tr>
+<tr><td>Mitra &amp; Ulukus (2025)</td><td>STaR를 soft distillation으로 확장</td><td>OPSD는 <em>student 자신의 rollout</em>에서 soft distillation을 수행</td></tr>
+<tr><td><strong>In-context editing</strong> (Qi et al., 2025)</td><td>student에서 on-policy 샘플링하고, context가 유도한 지식을 divergence 최소화로 내재화. 지식 편집 설정</td><td>설정이 지식 편집이며, OPSD는 추론 과제에 적용</td></tr>
+<tr style="background:#f3e8ff"><td><strong>SDPO</strong> (Hübotter et al., 2026)</td><td>동시기 연구. 유사 알고리즘을 <em>환경 피드백</em>을 특권 정보로 하여 탐구</td><td>특권 정보의 종류가 다르다</td></tr>
+<tr style="background:#f3e8ff"><td><strong>SDFT</strong> (Shenfeld et al., 2026)</td><td>동시기 연구. <em>continual learning</em> 과제에서 on-policy self-distillation을 탐구</td><td>목표가 망각 완화이며 IRL 형식화를 제공 → <a href="20260825_shenfeld_sdft.html">별도 요약</a></td></tr>
+</tbody>
+</table>
+
+<p>저자들이 정리하는 OPSD의 차별점: <strong>추론 과제에 대해 student 자신의 rollout 위에서 on-policy soft distillation을 수행</strong>하며, teacher의 지도가 rationale을 생성해 SFT하는 것이 아니라 <em>토큰별 분포 정합</em>이라는 점이다. OPSD는 추론 개선을 <strong>데이터셋의 정답 풀이와 모델 자신의 추론 능력이 함께 유도하는 조건부 분포를 학습하는 문제</strong>로 재구성한다.</p>
+
+<h3>4.2 On-Policy Distillation과 SFT/RL</h3>
+
+<p><strong>On-policy distillation</strong> 방법들(Agarwal et al., 2024; Xu et al., 2024a; Gu et al., 2024 MiniLLM; Lu &amp; Lab, 2025; Xiaomi, 2026; Yang et al., 2025)은 student 자기 정책에서 샘플한 궤적으로 학습하고 teacher가 KL 기반 정규화로 토큰별 지도를 제공한다. student의 방문 분포에서 직접 최적화해 분포 이동을 완화하지만 <em>별개의, 흔히 더 큰 teacher 모델에 의존</em>한다. 로보틱스·심층 RL의 <strong>DAgger</strong> (Ross et al., 2011)도 같은 계열이다 — 사람 teacher가 student 정책이 방문한 상태에 대해 교정 지도를 제공한다.</p>
+
+<p><strong>SFT와 RL</strong>: 고품질 추론 궤적에 대한 SFT는 강한 성능을 보이지만(Yu et al., 2023; LI et al., 2024; Muennighoff et al., 2025 s1; Ye et al., 2025 LIMO; Zhou et al., 2023 LIMA) <em>견고한 일반화가 아니라 암기에 의존</em>할 수 있다(Chu et al., 2025). RL은 결과 기반 목적을 직접 최적화해 더 나은 일반화를 보일 수 있고(Huan et al., 2025), GRPO 계열은 critic 없이 group 수준 reward로 advantage를 추정해 확장성을 얻었다(Guo et al., 2025; Shao et al., 2024).</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="cncO" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">동시기 세 연구 — 같은 알고리즘, 다른 특권 정보</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">세 논문이 서로를 인용하며 동시·독립 발견임을 명시한다 (§5.1)</text>
+
+  <rect x="270" y="48" width="260" height="46" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="66" text-anchor="middle" font-size="11" font-weight="bold">공통 골격</text>
+  <text x="400" y="83" text-anchor="middle" font-size="9.5">teacher = 특권 정보에 조건화된 자기 자신 · student rollout에서 KL 최소화</text>
+
+  <path d="M320,94 L180,120" stroke="#64748b" marker-end="url(#cncO)"/>
+  <path d="M400,94 L400,120" stroke="#64748b" marker-end="url(#cncO)"/>
+  <path d="M480,94 L620,120" stroke="#64748b" marker-end="url(#cncO)"/>
+
+  <g font-size="9">
+    <rect x="30" y="124" width="240" height="122" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="150" y="142" text-anchor="middle" font-size="10.5" font-weight="bold">OPSD (이 논문)</text>
+    <rect x="42" y="150" width="216" height="20" rx="4" fill="#fff" stroke="#f59e0b"/>
+    <text x="150" y="164" text-anchor="middle">특권 정보 = 정답 풀이 y★</text>
+    <text x="42" y="186">목표: 수학 추론 · 토큰 효율</text>
+    <text x="42" y="201">teacher: <tspan font-weight="bold">초기 정책 고정</tspan></text>
+    <text x="42" y="216">divergence: forward KL</text>
+    <text x="42" y="231">고유: pointwise KL clipping · TM 조합</text>
+    <text x="42" y="243" fill="#b91c1c">seed 반복 없음</text>
+
+    <rect x="280" y="124" width="240" height="122" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="400" y="142" text-anchor="middle" font-size="10.5" font-weight="bold">SDFT (Shenfeld et al.)</text>
+    <rect x="292" y="150" width="216" height="20" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="400" y="164" text-anchor="middle">특권 정보 = 전문가 시범 c</text>
+    <text x="292" y="186">목표: continual learning · 망각 완화</text>
+    <text x="292" y="201">teacher: <tspan font-weight="bold">EMA(student)</tspan></text>
+    <text x="292" y="216">divergence: forward KL (이론은 reverse)</text>
+    <text x="292" y="231">고유: IRL 형식화 · ICL 가정 2조건 검증</text>
+    <text x="292" y="243" fill="#15803d">3 seed + 95% CI</text>
+
+    <rect x="530" y="124" width="240" height="122" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="650" y="142" text-anchor="middle" font-size="10.5" font-weight="bold">SDPO (Hübotter et al.)</text>
+    <rect x="542" y="150" width="216" height="20" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="650" y="164" text-anchor="middle">특권 정보 = 환경 피드백</text>
+    <text x="542" y="186">목표: RL</text>
+    <text x="542" y="201" fill="#666">teacher: 이 논문에 서술 없음</text>
+    <text x="542" y="216" fill="#666">divergence: 서술 없음</text>
+    <text x="542" y="231" fill="#666">고유: 서술 없음</text>
+    <text x="542" y="243" fill="#7e22ce">arXiv:2601.20802 (인용만)</text>
+  </g>
+
+  <rect x="30" y="258" width="360" height="72" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="210" y="276" text-anchor="middle" font-size="10.5" font-weight="bold">독립적으로 수렴한 발견</text>
+  <text x="42" y="294" font-size="9.5">두 논문 모두 <tspan font-weight="bold">forward KL이 reverse KL보다 낫다</tspan>고 보고한다.</text>
+  <text x="42" y="309" font-size="9.5">SDFT는 "이론은 reverse KL을 가리키는데 실무는 forward"라고</text>
+  <text x="42" y="324" font-size="9.5" fill="#15803d">명시 — 서로 참조 없이 같은 결론 → 견고한 발견</text>
+
+  <rect x="410" y="258" width="360" height="72" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="590" y="276" text-anchor="middle" font-size="10.5" font-weight="bold">갈라지는 발견 — teacher 고정 방식</text>
+  <text x="422" y="294" font-size="9.5">OPSD: 초기 정책 고정이 안정화 + 암묵적 정규화 (ablation 없음)</text>
+  <text x="422" y="309" font-size="9.5">SDFT 부록 A.3: 고정 base teacher는 <tspan font-weight="bold">성능이 낮다</tspan> (ablation 있음)</text>
+  <text x="422" y="324" font-size="9.5" fill="#b45309">→ 100스텝 수렴 vs 여러 epoch 축적의 차이로 해소 가능</text>
+
+  <rect x="30" y="342" width="740" height="72" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="360" text-anchor="middle" font-size="11" font-weight="bold">두 논문을 함께 읽으면 서로의 빈칸이 채워진다</text>
+  <text x="42" y="378" font-size="10">· OPSD가 안 한 것을 SDFT가 한다: <tspan font-weight="bold">특권 teacher가 좋은 teacher인지 검증</tspan>(정확도 42%→100%, KL 0.68 vs 1.26 nats), seed 반복, IRL 형식화</text>
+  <text x="42" y="394" font-size="10">· SDFT가 안 한 것을 OPSD가 한다: <tspan font-weight="bold">토큰 divergence의 문체 편향 진단과 clipping 처방</tspan>, GRPO 대비 토큰 효율 직접 측정, STaR와의 형식적 대조</text>
+  <text x="42" y="409" font-size="10" fill="#4338ca">· 둘 다 안 한 것: 규모에 따른 이득 추세의 결론(두 논문이 반대 방향을 보고한다), forward KL 우세의 이론적 설명</text>
+</svg>
+<figcaption><strong>[Figure: 동시기 세 연구의 관계]</strong>: 맨 위 파란 박스가 공통 골격이고 아래 세 박스가 <strong>"특권 정보" 슬롯에 무엇을 넣었는가</strong>로 갈라진다 — 정답 풀이(OPSD), 전문가 시범(SDFT), 환경 피드백(SDPO). SDPO 칸이 비어 있는 것은 이 논문이 인용만 하기 때문이다. 아래 두 박스가 교차 검증의 두 방향인데, forward KL 우세는 <em>서로 참조 없이 같은 결론</em>에 도달했으므로 견고하고, teacher 고정 방식은 갈리므로 자기 설정에서 확인이 필요하다. 맨 아래 보라 박스가 두 논문을 함께 읽는 값을 정리한다 — OPSD는 teacher 품질을 검증하지 않고 SDFT는 문체 편향을 다루지 않으므로 <strong>서로의 빈칸을 채운다</strong>. 그리고 규모 추세에 대해 두 논문이 반대 방향을 보고한다는 것이 이 계열의 미해결 문제다. 이 문서의 <a href="20260825_shenfeld_sdft.html">SDFT 요약</a>과 교차 참조하면 좋다.</figcaption>
+</figure>
+
+<h2>5. 결론 (§6)</h2>
+
+<p>OPSD는 추론 과제에 대한 LLM post-training의 단순하지만 효과적인 프레임워크다. 직관은 <strong>충분히 유능한 추론 LLM은 문제의 정답에 대한 특권 정보를 가질 때 스스로를 가르칠 수 있다</strong>는 것 — 자기 rationalization 능력을 이용해 <em>정답에 접근하지 못하는 더 약한 자기</em>를 채점한다. 실험적으로 off-policy 증류/SFT보다 좋은 성능을, GRPO와 동등하거나 더 나은 성능을 보이면서 GRPO보다 훨씬 좋은 샘플 효율을 보였다.</p>
+
+<h2>부록 A — 저자들이 밝힌 한계와 향후 방향</h2>
+
+<ul>
+  <li><strong>계산 제약으로 8B 파라미터까지만 실험했다.</strong> 8B를 넘는 규모에서 이 추세가 계속될지는 미해결 질문이다.</li>
+  <li><strong>정답 검증 신호를 명시적으로 활용하지 않는다.</strong> 현재 프레임워크는 생성된 답의 정답 여부를 쓰지 않는다 — 이런 신호를 넣으면 분포 정합 외의 추가 학습 목표를 줄 수 있다. <em>(이는 강점이기도 하다 — §배경에서 본 GRPO의 advantage 소멸 문제를 회피하는 이유이기 때문이다.)</em></li>
+  <li><strong>문제 난이도가 결정적이다.</strong> ##추론 문제가 모델의 이해 한계를 넘으면, 정답 풀이에 접근할 수 있어도 teacher 정책이 의미 있는 지도를 제공할 수 없다.## 따라서 <strong>curriculum learning</strong> — 모델이 개선되면서 문제 난이도를 점진적으로 올리는 전략 — 이 학습 효과를 높일 수 있다. 모델 능력의 경계에 문제를 유지하는 <em>적응적 curriculum</em>이 OPSD를 더 어려운 추론 과제로 확장하는 중요한 방향이다.</li>
+  <li><strong>clipping 파라미터 $\tau$를 튜닝하지 않았다</strong>(부록 B). 최적화하면 같은 100스텝 예산 안에서 더 큰 모델에 추가 향상이 있을 수 있다.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="curArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">부록 A의 핵심 한계 — teacher가 무용지물이 되는 조건</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">"문제가 모델의 이해 한계를 넘으면 정답을 줘도 teacher가 지도를 못 한다"를 도식화</text>
+
+  <line x1="80" y1="220" x2="720" y2="220" stroke="#333"/>
+  <text x="400" y="240" text-anchor="middle" font-size="10" fill="#555">문제 난이도 (모델 능력 대비)</text>
+  <line x1="80" y1="70" x2="80" y2="220" stroke="#333"/>
+  <text x="70" y="145" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 70 145)">학습 신호의 유용성</text>
+  <text x="180" y="238" text-anchor="middle" font-size="9">너무 쉽다</text>
+  <text x="400" y="238" text-anchor="middle" font-size="9">적정 (모델 능력 경계)</text>
+  <text x="620" y="238" font-size="9" text-anchor="middle">이해 한계 초과</text>
+
+  <path d="M80,190 Q180,120 300,84 Q400,74 500,90 Q600,150 720,205" stroke="#3b82f6" stroke-width="2.6" fill="none"/>
+  <text x="400" y="66" text-anchor="middle" font-size="9.5" fill="#1e40af">OPSD 신호</text>
+
+  <path d="M80,214 L200,213 Q320,200 400,120 Q480,80 560,212 L720,215" stroke="#e67e22" stroke-width="2.2" stroke-dasharray="5 3" fill="none"/>
+  <text x="400" y="140" text-anchor="middle" font-size="9.5" fill="#b45309">GRPO 신호 (좁다)</text>
+
+  <line x1="180" y1="70" x2="180" y2="220" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+  <line x1="560" y1="70" x2="560" y2="220" stroke="#cbd5e1" stroke-dasharray="3 3"/>
+
+  <rect x="90" y="250" width="200" height="66" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="190" y="268" text-anchor="middle" font-size="10" font-weight="bold">너무 쉬운 문제</text>
+  <text x="102" y="286" font-size="9">OPSD: student도 이미 잘하므로 두 분포가</text>
+  <text x="102" y="299" font-size="9">비슷하다 → 신호 작다 (하지만 0은 아니다)</text>
+  <text x="102" y="312" font-size="9" fill="#b91c1c">GRPO: 8/8 정답 → advantage 정확히 0</text>
+
+  <rect x="300" y="250" width="200" height="66" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="268" text-anchor="middle" font-size="10" font-weight="bold">적정 난이도</text>
+  <text x="312" y="286" font-size="9">student는 틀리지만 teacher는 정답 풀이를</text>
+  <text x="312" y="299" font-size="9">보고 합리화할 수 있다 → 신호 최대</text>
+  <text x="312" y="312" font-size="9" fill="#15803d">두 방법 모두 잘 작동하는 구간</text>
+
+  <rect x="510" y="250" width="200" height="66" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="610" y="268" text-anchor="middle" font-size="10" font-weight="bold">이해 한계 초과</text>
+  <text x="522" y="286" font-size="9">OPSD: teacher도 정답 풀이를 이해 못 한다</text>
+  <text x="522" y="299" font-size="9">→ 잡음이거나 의미 없는 지도</text>
+  <text x="522" y="312" font-size="9" fill="#b91c1c">GRPO: 0/8 오답 → advantage 정확히 0</text>
+
+  <rect x="80" y="330" width="640" height="62" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="348" text-anchor="middle" font-size="10.5" font-weight="bold">이 그림이 두 방법의 관계를 정리한다</text>
+  <text x="400" y="366" text-anchor="middle" font-size="10">OPSD의 유효 구간이 GRPO보다 <tspan font-weight="bold">넓다</tspan> — 특히 쉬운 문제 쪽에서 신호가 완전히 사라지지 않는다(§배경 그림 3).</text>
+  <text x="400" y="381" text-anchor="middle" font-size="10">그런데 <tspan font-weight="bold">양쪽 극단에서 둘 다 약해진다</tspan>는 것이 부록 A의 curriculum learning 제안의 근거다. 곡선 형태는 서술을 도식화한 것이며 측정값이 아니다</text>
+</svg>
+<figcaption><strong>[Figure: 부록 A의 난이도 의존성]</strong>: 파란 곡선(OPSD)과 주황 점선(GRPO)의 유효 구간 폭이 이 그림의 요점이다 — OPSD의 신호는 문제가 쉬워도 완전히 0이 되지 않지만(분포가 비슷해질 뿐), GRPO는 8/8이나 0/8에서 <em>정확히 0</em>이 된다. 그래서 OPSD의 유효 구간이 더 넓다. 그러나 오른쪽 빨간 박스가 저자들이 지목한 한계인데, <strong>teacher도 정답 풀이를 이해하지 못하는 난이도</strong>에서는 특권 정보가 무용지물이 되므로 OPSD도 실패한다. 이것이 부록 A의 curriculum learning 제안(모델 능력 경계에 문제를 유지하는 적응적 난이도 조절)의 근거다. 곡선 형태는 논문의 정성적 서술을 도식화한 것이고 측정값이 아니다.</figcaption>
+</figure>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>경쟁 방법의 실패 메커니즘을 직접 측정한다.</strong> "우리 방법이 더 효율적"이라는 흔한 주장을 <em>GRPO 배치 중 reward 표준편차가 0인 비율</em>이라는 구체적 지표로 바꿔 놓았다(Figure 3 우측 패널). ##100스텝 내 절반 이상의 배치가 gradient를 만들지 못한다##는 진단은 "8배 토큰을 쓰고도 못 따라온다"보다 훨씬 강한 논증이며, §배경의 advantage 소멸 계산과 부록 D의 credit assignment 해상도 논의가 같은 사실의 세 표현이 된다.</li>
+  <li><strong>SFT가 base보다 나쁘다는 결과를 정면으로 보고하고 설명한다.</strong> 세 규모 모두에서 SFT가 base 아래로 떨어지는데(−1.3 / −2.6 / −2.0), 이것은 저자들의 데이터 선택을 의심하게 만들 수 있는 불편한 결과다. 그럼에도 보고하고 <em>정답 풀이의 간결한 스타일이 테스트 시점 추론 길이를 줄인다</em>는 메커니즘을 제시한다. 그리고 이것이 OPSD의 가치를 정확히 규정한다 — <strong>같은 데이터를 SFT는 망치고 OPSD는 활용한다</strong>.</li>
+  <li><strong>토큰 divergence의 문체 편향 발견은 재사용 가능한 관찰이다.</strong> style 토큰 KL이 math의 6~13배라는 측정(Table 5)과 그에 대한 pointwise clipping 처방은 <em>on-policy 증류를 쓰는 모든 연구에 적용될 수 있다</em>. 부품 하나에 대한 구체적 진단과 처방이라는 점에서 이 논문의 가장 이식성 높은 기여다.</li>
+  <li><strong>부록 D의 형식적 대조가 성능 차이를 정보량 차이로 환원한다.</strong> STaR·GRPO·OPSD를 모두 policy gradient로 환원하면 차이가 reward 해상도(1비트 / 1스칼라 / 토큰당 스칼라 또는 어휘 벡터) 하나로 정리된다. 이론이 실험 결과의 순서를 설명하고, §3.6의 full-vocab vs sampled-token 비교가 같은 축에서 한 칸 더 나아간다.</li>
+  <li><strong>ablation의 축이 잘 골라져 있다.</strong> divergence 종류 · 생성 스타일 · clipping 유무 · 생성 길이 · 목적함수 구현 방식 — 다섯 축이 각각 다른 설계 결정을 분리하고, 특히 <em>생성 길이 ablation이 음의 결과</em>(4096이 1024보다 낫지 않다)라는 점이 유용하다. 비용을 늘릴 필요가 없다는 실무 정보다.</li>
+  <li><strong>negative result와 미완 사항을 숨기지 않는다.</strong> (i) 생성 길이 증가가 도움이 안 됨, (ii) reverse KL·JSD가 base보다 나빠질 수 있음, (iii) $\tau$를 튜닝하지 않았음, (iv) 8B 이상 미검증, (v) 문제 난이도가 모델 한계를 넘으면 방법이 무용해짐.</li>
+  <li><strong>재현 가능성이 높다.</strong> 코드 공개(GitHub), 하이퍼파라미터 전체 표(Table 6~8), 토큰 범주 키워드 목록 전체(부록 C), 평가 설정(Qwen3 블로그 권장 구성 그대로) — 이 규모의 논문에서 드물게 상세하다.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>seed 반복과 표준편차가 전혀 없다. 이것이 가장 심각하다.</strong> Table 2의 핵심 비교에서 4B는 GRPO 62.7 vs OPSD 63.6(+0.9), 8B는 64.0 vs 64.8(+0.8)이다. Avg@12는 12샘플 평균이라 표본 자체의 분산은 줄지만, <em>학습 seed에 따른 분산</em>은 전혀 통제되지 않았다. AIME24/25는 각 30문항이므로 1문항이 3.3점에 해당한다 — ##0.8~0.9점 차이는 문항 4분의 1 수준이며, seed 분산 없이는 유의성을 판단할 수 없다.## 동시기 SDFT 논문이 3 seed·95% CI를 보고하는 것과 대비된다.</li>
+  <li><strong>"토큰 효율" 주장의 일부가 실험 설계 선택에서 온다.</strong> GRPO는 최대 생성 16k, OPSD는 1024로 설정되어 있다. 이 차이가 <em>방법 고유의 성질인지 하이퍼파라미터 선택인지</em> 구분되지 않는다. GRPO를 1024로 제한한 조건, 또는 OPSD를 16k로 늘린 조건이 보고되지 않았다(§3.5의 길이 ablation은 OPSD 내부에서 1024 vs 4096만 비교). 또한 GRPO는 500스텝, OPSD는 100스텝을 돌렸는데 <strong>"각자의 최고 성능"을 비교하는 방식</strong>은 두 방법의 <em>수렴 속도</em>를 비교하기에는 적절하지만 <em>같은 예산에서의 성능</em>을 비교하기에는 비대칭적이다.</li>
+  <li><strong>OPSD도 과학습하면 성능이 떨어지는데 이를 논평하지 않는다.</strong> Table 3에서 forward KL이 step 50에 43.9, step 100에 41.1로 하락한다. 그리고 §4.1의 평가 절차는 "20스텝마다 평가해 최고 점수 보고"다. 즉 <strong>보고된 수치는 early-stopping된 최고점</strong>이며, 언제 멈춰야 하는지에 대한 지침(validation 기준 등)은 제시되지 않는다. 실무에서 이 최고점을 재현하려면 벤치마크 자체를 보며 checkpoint를 골라야 하는데, 그것은 test set 정보 누출에 가깝다.</li>
+  <li><strong>필수 부품인 clipping의 임계값이 튜닝되지 않았다.</strong> §3.4에서 확인한 대로 clipping 없이는 100스텝 안에 성능이 붕괴하므로 이것은 선택 사항이 아니다. 그런데 $\tau$ 값이 <em>보고되지도, 튜닝되지도 않았다</em>. 재현하려는 사람에게는 가장 필요한 숫자이고, 저자들 스스로 "최적화하면 더 큰 모델에 추가 향상이 있을 수 있다"고 인정한다 — 즉 <strong>보고된 4B·8B 결과가 이 방법의 상한이 아닐 가능성</strong>이 열려 있다.</li>
+  <li><strong>모델 규모와 이득의 관계가 SDFT와 반대 방향인데 논의가 없다.</strong> OPSD는 1.7B에서 GRPO 대비 +5.7, 4B에서 +0.9, 8B에서 +0.8로 <em>규모가 커지면 이득이 줄어든다</em>. 반면 동시기 SDFT 논문은 3B → 7B → 14B에서 이득이 <em>커진다</em>고 보고한다. 두 논문의 과제·데이터·baseline이 다르므로 직접 비교는 불가능하지만, "self-distillation이 규모와 함께 어떻게 변하는가"는 두 논문 어느 쪽도 결론짓지 못한 상태로 남는다. 그리고 Table 5의 math KL이 규모와 함께 줄어든다는 관측(0.14 → 0.10 → 0.06)은 OPSD 쪽 추세와 정합하지만 논문은 이 연결을 짚지 않는다.</li>
+  <li><strong>rationalization 가설이 측정되지 않는다.</strong> 논문 전체가 "rationalization이 generation보다 쉽다"는 가정 위에 서 있는데, 이것을 직접 재지 않는다. 동시기 SDFT 논문은 같은 가정을 "In-Context Assumption"으로 명명하고 <em>teacher 정확도(42% → 100%)와 base 대비 KL(0.68 vs 1.26 nats)</em>이라는 두 지표로 검증한다. OPSD가 같은 측정을 하지 않으므로, <strong>teacher가 실제로 좋은 teacher인지 확인되지 않은 상태</strong>다 — Table 5의 KL 값은 "다르다"는 것만 보이고 "옳은 방향으로 다르다"는 것을 보이지 않는다.</li>
+  <li><strong>LoRA로만 학습했다.</strong> rank 64 / alpha 128로 전 모듈에 적용했지만 <em>전체 파라미터 fine-tuning은 시도되지 않았다</em>. LoRA는 그 자체로 base 정책에서의 이탈을 제한하는 암묵적 정규화이므로, OPSD의 안정성(그리고 clipping의 필요성)이 LoRA 설정에 얼마나 의존하는지 알 수 없다. 참고로 SDFT는 전체 fine-tuning을 쓴다.</li>
+  <li><strong>단일 도메인·단일 모델 계열이다.</strong> 수학 추론(AIME/HMMT)만, Qwen3 계열만이다. 코딩·과학·일반 추론에서 통하는지, 다른 계열(Llama·Mistral·Gemma)에서 재현되는지는 미확인이다. 특히 <em>Qwen3의 thinking mode 토글</em>에 §3.3의 핵심 설계(TM-off student / TM-on teacher)가 의존하므로, 그 기능이 없는 모델에서 어떻게 대응할지가 불명이다.</li>
+  <li><strong>teacher를 초기 정책에 고정하는 선택이 ablation되지 않았다.</strong> §4.1에서 "현재 학습 중인 정책이 아니라 초기 정책으로 고정하는 것이 안정화에 도움이 되고 암묵적 정규화로 작동한다"고 서술하지만 <em>비교 실험이 없다</em>. SDFT는 같은 결정을 부록 A.3에서 세 후보(고정 base / 현재 student / EMA)로 비교하고 <strong>고정 base는 성능이 낮다</strong>고 보고한다 — 두 논문의 결론이 갈리는 지점인데 OPSD 쪽에 근거가 없다.</li>
+  <li><strong>Table 4가 다른 지표를 쓴다.</strong> 주 결과(Table 2)는 Avg@12인데 full-vocab vs sampled-token 비교(Table 4)는 <strong>pass@8</strong>이고 생성 예산도 2048(주 실험은 1024)이다. 지표와 설정이 바뀌면 다른 표와 대조할 수 없다 — 예컨대 Table 4의 AIME25 84.1은 Table 2의 4B OPSD 68.3과 직접 비교되지 않는다.</li>
+  <li><strong>SFT baseline이 불리하게 설정되었을 여지가 있다.</strong> SFT는 max sequence length 16000, 100스텝, OPSD와 같은 샘플 수로 학습한다. 그런데 이 데이터의 간결한 스타일이 SFT를 해친다는 것이 저자들의 진단이므로, <em>SFT 쪽에서 그 문제를 완화하는 흔한 처방</em>(학습률 축소, 부분 epoch, loss masking, 데이터 필터링)이 시도되었는지 알 수 없다. "SFT가 base보다 나쁘다"는 강한 주장에는 더 촘촘한 SFT 튜닝이 필요하다.</li>
+  <li><strong>계산 비용이 FLOPs·시간으로 보고되지 않는다.</strong> "토큰 효율"은 생성 토큰 수로 논증되지만, full-vocabulary logit 증류의 <em>메모리와 학습 시간</em> 비용은 정량화되지 않는다(§3.6에서 "peak 메모리가 크다"는 정성적 언급만). GRPO 대비 실제 wall-clock 이득이 얼마인지가 채택 판단의 핵심인데 빠져 있다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트 대조</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ seed 반복·표준편차 전무. Avg@12는 샘플 평균일 뿐 학습 분산을 통제하지 않는다. 4B·8B의 GRPO 대비 격차가 1점 미만이라 특히 문제가 된다</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>△ 파라미터 확장이 아니라 <em>다른 학습 패러다임</em>(SFT·GRPO)과 비교한 것은 적절. 그러나 최대 생성 길이(16k vs 1024)와 스텝 수(500 vs 100)가 크게 달라 통제가 부족하고, SFT 쪽 완화 처방이 시도되지 않았다</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>○ 다섯 축(divergence · 생성 스타일 · clipping · 길이 · 목적함수 구현)이 잘 분리됨. ✗ 단 teacher 고정 방식은 ablation 없이 서술만 되어 있고, clipping 임계값 $\tau$는 튜닝되지 않았다</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>△ 생성 토큰 기준 효율은 설득력 있다(같은 스텝에서 100배 이상 적은 토큰). ✗ 그런데 FLOPs·wall-clock·메모리가 보고되지 않아 실제 비용 이득은 미확인</td></tr>
+<tr><td>코드/데이터 공개</td><td>○ 코드 공개(GitHub), 하이퍼파라미터 전체 표, 토큰 범주 키워드 목록 전체 공개. 데이터도 공개 데이터셋(OpenThoughts)</td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>○ Table 6~8에 LR·배치·LoRA·온도·스텝까지 상세. ✗ 단 <strong>clipping 임계값 $\tau$가 보고되지 않는다</strong> — 필수 부품인데도</td></tr>
+<tr><td>핵심 가정의 검증</td><td>✗ "rationalization &lt; generation" 가설을 직접 측정하지 않는다. Table 5의 KL은 "다르다"만 보이고 "옳게 다르다"는 보이지 않는다</td></tr>
+<tr><td>일반성 근거</td><td>△ 모델 3개 규모 × 벤치마크 3종은 최소 요건 충족. ✗ 단일 도메인(수학), 단일 계열(Qwen3), LoRA만, 8B 이하. thinking-mode 토글 의존성이 이식성을 제한한다</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">주장별 근거 강도 — 무엇을 근거로 삼을 수 있는가</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="34" width="360" height="112" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="210" y="52" text-anchor="middle" font-size="11" font-weight="bold">잘 뒷받침된 주장</text>
+    <text x="42" y="72">· 이 데이터셋에서 SFT는 base보다 나쁘다 (3규모 일관)</text>
+    <text x="42" y="88">· OPSD는 SFT보다 확실히 낫다 (모든 칸에서, 격차 5~8점)</text>
+    <text x="42" y="104">· GRPO는 이 데이터셋에서 zero-std 배치로 정체한다 (직접 측정)</text>
+    <text x="42" y="120">· 토큰 divergence가 문체에 쏠린다 (3규모 × 4조합 측정)</text>
+    <text x="42" y="136">· clipping 없이는 붕괴한다 · 생성 길이 4096은 무익하다</text>
+
+    <rect x="410" y="34" width="360" height="112" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="590" y="52" text-anchor="middle" font-size="11" font-weight="bold">근거가 얇은 주장</text>
+    <text x="422" y="72">· <tspan font-weight="bold">4B·8B에서 GRPO보다 낫다</tspan> (격차 0.8~0.9점, seed 없음)</text>
+    <text x="422" y="88">· forward KL이 최선이다 (1규모 1벤치, seed 없음)</text>
+    <text x="422" y="104">· full-vocab &gt; sampled-token (다른 지표·다른 예산에서 측정)</text>
+    <text x="422" y="120">· TM-off/TM-on이 최선이다 (KL 크기가 근거, 성능은 "경험적"만)</text>
+    <text x="422" y="136">· teacher를 초기 정책에 고정해야 한다 (ablation 없음)</text>
+
+    <rect x="30" y="156" width="360" height="96" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="210" y="174" text-anchor="middle" font-size="11" font-weight="bold">검증되지 않은 전제</text>
+    <text x="42" y="194">· "rationalization이 generation보다 쉽다"</text>
+    <text x="42" y="210">　→ 논문 전체가 이 가정 위에 서 있으나 측정되지 않는다</text>
+    <text x="42" y="228">· teacher가 <tspan font-style="italic">옳은 방향으로</tspan> student와 다르다</text>
+    <text x="42" y="244">　→ Table 5는 KL 크기만 보인다 (SDFT는 정확도·거리로 검증)</text>
+
+    <rect x="410" y="156" width="360" height="96" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="590" y="174" text-anchor="middle" font-size="11" font-weight="bold">저자들이 인정한 한계</text>
+    <text x="422" y="194">· 8B 이상 미검증 (계산 제약)</text>
+    <text x="422" y="210">· 정답 검증 신호 미활용 (강점이기도 하다)</text>
+    <text x="422" y="226">· 난이도가 이해 한계를 넘으면 무용 → curriculum 필요</text>
+    <text x="422" y="244">· clipping τ 튜닝 안 함 (필수 부품인데도)</text>
+  </g>
+
+  <rect x="30" y="264" width="740" height="52" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="282" text-anchor="middle" font-size="11" font-weight="bold">실무적 결론 — 이 논문에서 안전하게 가져갈 것</text>
+  <text x="400" y="300" text-anchor="middle" font-size="10">"<tspan font-weight="bold">SFT를 쓰던 자리에 OPSD를 넣으면 확실히 낫다</tspan>"는 근거는 충분하다(초록 박스). "<tspan font-weight="bold">GRPO를 대체할 수 있다</tspan>"는 4B 이상에서 근거가 얇다(노란 박스) —</text>
+  <text x="400" y="313" text-anchor="middle" font-size="10">특히 GRPO의 정체가 데이터셋 난이도 분포에 의존하므로, 자기 데이터에서 zero-std 배치 비율을 먼저 측정해 보는 것이 순서다</text>
+
+  <rect x="30" y="326" width="740" height="46" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="344" text-anchor="middle" font-size="10.5" font-weight="bold">동시기 SDFT 논문과 교차 검증하면 좋은 두 지점</text>
+  <text x="400" y="361" text-anchor="middle" font-size="10">① forward KL 우세 — 두 논문이 독립적으로 같은 결론 → 견고한 발견으로 볼 수 있다　② teacher 고정 방식 — 두 논문이 <tspan font-weight="bold">갈린다</tspan>(고정 vs EMA) → 자기 설정에서 직접 비교할 것</text>
+</svg>
+<figcaption><strong>[Figure: 주장별 근거 강도]</strong>: 네 색이 주장의 근거 수준을 나눈다 — 초록은 여러 규모에서 일관되게 관측되어 채택 판단에 쓸 수 있는 것, 노랑은 격차가 작거나 단일 조건에서만 측정되어 근거가 얇은 것, 빨강은 논문 전체가 의존하지만 측정되지 않은 전제, 보라는 저자들이 스스로 밝힌 한계다. 실무적으로는 보라 박스 위쪽의 결론이 요점이다: <strong>"SFT 대신 OPSD"는 근거가 충분하고, "GRPO 대신 OPSD"는 4B 이상에서 근거가 얇다</strong> — 특히 GRPO의 정체가 데이터셋 난이도 분포에 의존하므로 자기 데이터에서 zero-std 배치 비율을 먼저 재 보는 것이 순서다. 맨 아래 주황 박스는 동시기 SDFT 논문과의 교차 검증 지점으로, forward KL 우세는 두 논문이 독립적으로 같은 결론에 도달했으므로 견고하고, teacher 고정 방식은 두 논문이 갈리므로 직접 비교가 필요하다.</figcaption>
+</figure>
+</div>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="gdArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">적용 판단 가이드 — 내 파이프라인에 OPSD를 넣을 것인가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">논문의 결과와 명시된 한계를 판단 흐름으로 정리했다. 논문에는 없는 이 문서의 구성이다</text>
+
+  <rect x="270" y="48" width="260" height="30" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="68" text-anchor="middle" font-size="10.5" font-weight="bold">시작: 추론 능력을 올리려 한다</text>
+
+  <path d="M400,78 L400,94" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <rect x="260" y="98" width="280" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="118" text-anchor="middle" font-size="10">Q1. 문제별 CoT 정답 풀이(y★)가 있는가?</text>
+
+  <path d="M540,113 L620,113" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="580" y="107" text-anchor="middle" font-size="9" fill="#555">없다</text>
+  <rect x="624" y="98" width="150" height="30" rx="5" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="699" y="112" text-anchor="middle" font-size="9.5" fill="#b91c1c">OPSD 부적용</text>
+  <text x="699" y="123" text-anchor="middle" font-size="8.5" fill="#b91c1c">정답만 있으면 y★ 자리에 넣어 시도 가능</text>
+
+  <path d="M400,128 L400,144" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <rect x="260" y="148" width="280" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="168" text-anchor="middle" font-size="10">Q2. 지금 쓰는 것이 SFT인가 GRPO인가?</text>
+
+  <path d="M260,163 L180,163" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="220" y="157" text-anchor="middle" font-size="9" fill="#555">SFT</text>
+  <rect x="30" y="148" width="146" height="30" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="103" y="162" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#15803d">바로 시도할 가치 있다</text>
+  <text x="103" y="173" text-anchor="middle" font-size="8.5" fill="#15803d">근거가 가장 강한 구간</text>
+
+  <path d="M400,178 L400,194" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="412" y="190" font-size="9" fill="#555">GRPO</text>
+  <rect x="240" y="198" width="320" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="218" text-anchor="middle" font-size="10">Q3. 계측: 내 데이터에서 zero-reward-std 배치 비율은?</text>
+
+  <path d="M560,213 L640,213" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="600" y="207" text-anchor="middle" font-size="9" fill="#555">낮다</text>
+  <rect x="644" y="198" width="130" height="30" rx="5" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="709" y="212" text-anchor="middle" font-size="9.5" fill="#7e22ce">GRPO가 잘 작동 중</text>
+  <text x="709" y="223" text-anchor="middle" font-size="8.5" fill="#7e22ce">전환 근거가 약하다</text>
+
+  <path d="M400,228 L400,244" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="412" y="240" font-size="9" fill="#555">높다 (논문: 100스텝 내 &gt;50%)</text>
+  <rect x="240" y="248" width="320" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="268" text-anchor="middle" font-size="10">Q4. 모델 규모가 4B 이상인가?</text>
+
+  <path d="M560,263 L640,263" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="600" y="257" text-anchor="middle" font-size="9" fill="#555">예</text>
+  <rect x="644" y="248" width="130" height="34" rx="5" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="709" y="262" text-anchor="middle" font-size="9.5" fill="#b45309">seed 반복 필수</text>
+  <text x="709" y="275" text-anchor="middle" font-size="8.5" fill="#b45309">논문 격차 0.8~0.9점 (통계 없음)</text>
+
+  <path d="M400,278 L400,294" stroke="#64748b" marker-end="url(#gdArw)"/>
+  <text x="412" y="290" font-size="9" fill="#555">아니오 (~2B)</text>
+  <rect x="250" y="298" width="300" height="34" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="400" y="313" text-anchor="middle" font-size="10.5" font-weight="bold">가장 큰 이득이 기대되는 구간</text>
+  <text x="400" y="327" text-anchor="middle" font-size="9">1.7B에서 GRPO 대비 +5.7점 · base 대비 +6.3점</text>
+
+  <rect x="60" y="346" width="680" height="88" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="364" text-anchor="middle" font-size="10.5" font-weight="bold">시작 레시피 (Table 6 기준) + 논문이 남긴 튜닝 지점</text>
+  <text x="72" y="382" font-size="9.5">· teacher prompt: 문제 + "Here is a reference solution: {y★}" + "After understanding …, please try to solve … your own approach"</text>
+  <text x="72" y="397" font-size="9.5">· divergence <tspan font-weight="bold">forward KL</tspan> · <tspan font-weight="bold">full-vocabulary logit 증류</tspan>(메모리 여유 있으면) · teacher는 <tspan font-weight="bold">초기 정책 고정</tspan> · student TM-off / teacher TM-on</text>
+  <text x="72" y="412" font-size="9.5">· rollout 1개 · 최대 생성 <tspan font-weight="bold">1024</tspan> · LR 5e-6 · 배치 32 · LoRA r64/α128 · 100스텝 · 온도 1.1</text>
+  <text x="72" y="428" font-size="9.5" fill="#4338ca">· <tspan font-weight="bold">직접 튜닝해야 하는 것: clipping 임계값 τ</tspan> (논문이 값도 보고하지 않고 튜닝도 하지 않았다) + early-stopping 시점(step 50~100에서 성능이 꺾인다)</text>
+</svg>
+<figcaption><strong>[Figure: 적용 판단 가이드]</strong>: 논문의 결과와 한계를 도입 판단 흐름으로 재구성한 것이다. 네 관문 중 <strong>Q3이 가장 실용적</strong>인데 — 자기 GRPO 파이프라인에서 zero-reward-std 배치 비율을 계측하는 것은 값싸고, 그 값이 낮다면 이 논문의 효율 논증이 자기 데이터에 적용되지 않는다는 뜻이다(논문의 진단은 OpenThoughts 하나에 대한 것이다). Q4가 결과의 방향을 정하는데, ~2B 구간이 근거가 가장 강하고 4B 이상은 격차가 0.8~0.9점이라 seed 반복 없이는 판단할 수 없다. 맨 아래 레시피는 Table 6의 설정을 옮긴 것이며, 마지막 줄의 두 항목(clipping $\tau$와 early-stopping 시점)은 <strong>논문이 값을 제공하지 않으므로 직접 찾아야 하는 것</strong>이다.</figcaption>
+</figure>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>추론 데이터셋에 CoT 정답 풀이가 있다면 SFT는 최선이 아니고, 때로는 해롭다.</strong> 세 규모 모두에서 SFT가 base보다 나빴다(−1.3 / −2.6 / −2.0). 원인은 정답 풀이의 <em>간결한 스타일</em>이 테스트 시점 추론 길이를 줄이는 것이다. 같은 데이터를 OPSD로 쓰면 +2.4~+6.3점이 된다. ##즉 문제는 데이터가 아니라 데이터를 쓰는 방식이었다.## 도메인 추론 데이터로 fine-tuning하는 팀이라면 이것만으로도 시도할 가치가 있다.</li>
+  <li><strong>on-policy 증류의 신호가 문체 토큰에 쏠린다는 관측은 이 논문의 가장 이식성 높은 기여다.</strong> style 토큰 KL이 math의 6~13배이고(Table 5), 이를 방치하면 100스텝 안에 성능이 붕괴한다(그림 12). 처방은 단순하다 — <strong>어휘 항목별 손실 기여에 상한 $\tau$를 두는 pointwise clipping</strong>. on-policy 증류나 logit 증류를 쓰는 어떤 파이프라인에도 적용할 수 있고, 자기 데이터에서 <em>범주별 평균 KL을 먼저 재 보는 것</em>이 진단의 첫 걸음이다.</li>
+  <li><strong>divergence는 forward KL을 쓸 것.</strong> reverse KL과 JSD는 이득이 제한적이거나 <em>base보다 나빠진다</em>(reverse KL step 100에서 35.0 vs base 36.7). 이유는 논문이 설명하지 않지만 mass-covering vs mode-seeking으로 해석할 수 있다 — student가 아직 확률을 주지 않는 정답 경로를 배워야 하므로 teacher 확률로 가중하는 forward KL이 맞다. <strong>동시기 SDFT 논문이 독립적으로 같은 결론에 도달했으므로 견고한 발견으로 볼 수 있다.</strong></li>
+  <li><strong>생성 길이를 늘릴 필요가 없다 — 1024로 충분하다.</strong> 4096은 일관된 개선을 주지 않았고, 이유는 긴 prefix에 조건화된 teacher가 student를 거의 예측할 수 있게 되어 뒤쪽 토큰의 신호가 사라지기 때문이다. 실무적으로 이것은 <em>비용 상한을 정해 준다</em>. 다만 1024보다 짧은 설정은 시험되지 않았으므로 하한은 직접 찾아야 한다.</li>
+  <li><strong>GRPO를 쓰고 있다면 zero-reward-std 배치 비율을 계측할 것.</strong> 이 논문의 가장 실용적인 진단 도구다. OpenThoughts에서 100스텝 내 절반 이상의 배치가 표준편차 0이 되어 <em>샘플링 예산이 그대로 버려졌다</em>. 자기 파이프라인에서 이 비율이 높다면 group 샘플링 비용의 상당 부분이 낭비되고 있다는 뜻이고, OPSD 같은 dense-signal 방법이나 난이도 curriculum이 답이 될 수 있다.</li>
+  <li><strong>"특권 정보 + 같은 모델의 두 역할"은 재사용 가능한 프레임이다.</strong> 여기서는 정답 풀이가 특권 정보였고, 동시기 연구들은 전문가 시범(SDFT)과 환경 피드백(Hübotter et al.)을 넣었다. 원리적으로는 <em>학습 시점에는 있지만 추론 시점에는 없는 어떤 정보</em>든 들어갈 수 있다 — 단위 테스트 결과, 실행 로그, 검색 결과, 사람의 정정. 자기 문제에 그런 정보가 있다면 이 프레임을 적용할 수 있다.</li>
+  <li><strong>신호 해상도라는 축으로 방법들을 정렬해 볼 것.</strong> STaR(궤적당 1비트) → GRPO(궤적당 1스칼라) → OPSD sampled-token(토큰당 1스칼라) → OPSD full-vocabulary(토큰당 어휘 벡터). 성능 순서가 이 해상도 순서와 일치한다(부록 D, §3.6). 새 post-training 방법을 평가할 때 <em>"이 방법은 궤적 하나에서 몇 비트를 뽑는가"</em>를 먼저 묻는 것은 유용한 렌즈다. 대가는 메모리이므로 제약 환경에서는 sampled-token 변형이 현실적 절충이다.</li>
+  <li><strong>비판적으로: 4B 이상에서 "GRPO를 대체한다"는 결론은 이 논문만으로 내리지 말 것.</strong> 4B·8B에서 GRPO 대비 격차가 0.8~0.9점인데 <strong>seed 반복도 표준편차도 없다</strong>. AIME는 30문항이므로 1문항이 3.3점이다 — 이 격차는 문항 4분의 1 수준이다. 게다가 규모가 커질수록 이득이 줄어드는 추세이고(+5.7 → +0.9 → +0.8), Table 5의 math KL도 함께 줄어든다(0.14 → 0.10 → 0.06). 안전하게 가져갈 결론은 <em>"SFT를 쓰던 자리에 넣으면 확실히 낫고, 작은 모델에서 특히 크게 낫다"</em>이며, GRPO 대체는 자기 설정에서 seed를 반복해 직접 확인해야 한다. 그리고 clipping $\tau$가 튜닝되지 않았으므로 <strong>보고된 수치가 이 방법의 상한이 아닐 수 있다</strong>는 점은 반대 방향의 유보다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
