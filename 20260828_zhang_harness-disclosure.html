@@ -1,0 +1,2149 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stop Comparing LLM Agents Without Disclosing the Harness</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+
+<h1>Stop Comparing LLM Agents Without Disclosing the Harness</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yunbei Zhang, Janet Wang, Yingqiang Ge, Weijie Xu, Jihun Hamm, Chandan K. Reddy</li>
+  <li><strong>소속</strong>: Tulane University / Rutgers University / Independent Researcher / Virginia Tech</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2605.23950v1, cs.AI) — <strong>position paper</strong></li>
+  <li><strong>연도</strong>: 2026 (2026년 5월 7일 제출)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.23950">https://arxiv.org/abs/2605.23950</a></li>
+  <li><strong>분량</strong>: 17페이지 (본문 §1~§7 9페이지 + 부록 A~E: Harness Card 필드, 실험 세부, perturbation stress-test, 메커니즘 분석)</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM 에이전트 평가의 표준 관행은 {모델, 벤치마크} 쌍마다 숫자 하나를 보고하고 <em>그것을 모델에 귀속</em>시킨다. 그런데 모든 벤치마크 점수는 <strong>모델과 harness가 공동 생산</strong>한 것이고, harness는 거의 공개되지 않으며 비교 시 고정되지도 않는다. ##결과적으로 현재의 평가 프로토콜은 harness 수준의 이득을 <em>체계적으로 모델 개선으로 오귀속</em>한다.##</li>
+  <li><strong>해결</strong>: <strong>Binding Constraint Thesis</strong>를 형식화하고 방어한다 — long-horizon 과제에서 능력이 비슷한 프론티어 모델들을 비교할 때, 성능 분산은 모델 선택보다 <strong>harness 구성</strong>에 더 크게 지배된다. 그리고 처방으로 <em>harness 공개 표준(Harness Card)</em>과 <em>분산 분해 프로토콜</em>을 제안한다.</li>
+  <li><strong>왜 작동하는가</strong>: 세 갈래 논증이다. ⑴ <strong>제어이론적 형식화</strong> — harness를 폐루프 동역학계의 <em>제어기</em>로, LLM을 그것이 지배하는 <em>확률적 정책</em>으로 본다. ##LLM은 open-loop다 — 상태 $s_t$에 직접 접근하지 못하고 harness가 노출하기로 한 투영 $c(s_t)$만 본다.## 따라서 안정성·컨텍스트 드리프트·제어 지연이 모두 <em>제어기의 성질</em>이지 정책의 성질이 아니다. ⑵ <strong>경험적 증거</strong> — 공개 리더보드에서 harness 유발 분산이 모델 유발 분산을 크게 넘고 <em>모델 순위 역전</em>까지 발생한다. ⑶ <strong>통제된 factorial</strong> — 3모델 × 3harness 격자에서 ##HV/MV 비율 7.80배, 9개 모델쌍/harness쌍 비교 중 6개에서 순위 역전##.</li>
+  <li><strong>비유</strong>: 자동차 경주에서 <em>랩타임을 엔진 성능으로만 보고</em>하는 관행과 같다. 그런데 같은 엔진을 다른 섀시에 얹으면 랩타임이 9.5초 달라지고, 엔진 세대 교체는 2~4초를 만든다. 지금 리더보드는 <strong>섀시를 밝히지 않은 채 엔진 순위를 발표</strong>하고 있다. 이 논문의 요구는 "섀시를 통일하라"가 아니라 <strong>"섀시가 무엇인지 적어라"</strong>다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>Binding Constraint Thesis의 형식화</strong>: $HV(M) = \mathrm{Var}_{H}[B(M,H)]$, $MV(H) = \mathrm{Var}_{M}[B(M,H)]$를 정의하고, long-horizon·비슷한 프론티어 능력 레짐에서 <em>HV가 MV와 비슷하거나 더 크며 많은 경우 지배한다</em>고 주장한다. 현재 프로토콜은 미공개 $H^*$ 하나에 대한 $B(M,H^*)$만 보고하므로 ##HV를 측정 불가능하게 만든다##.</li>
+  <li><strong>제어이론적 근거</strong>: 에이전트 실행을 이산시간 폐루프 동역학계로 놓고, 장기 신뢰성을 결정하는 세 양을 <strong>제어기의 성질</strong>로 정의한다 — <em>Stability</em>(Lyapunov 유사 측도의 비증가), <em>Context Drift</em>($\delta_t = D_{KL}(p_t \| p_0)$), <em>Control Lag</em>($\tau = t_c - t_d$). ##더 유능한 모델은 이상(anomaly) 발생률을 낮출 수 있지만, 이상이 <em>발생한 뒤의 대응</em>은 모델을 업그레이드해도 개선되지 않는 제어기 성질이다.##</li>
+  <li><strong>분산 분해 항등식</strong>: $\mathrm{Var}[B(M,H)] = MV + HV + \text{interaction}$. 모델 순위를 <em>모델의 성질</em>로 취급하려면 interaction 항이 MV에 비해 작아야 하는데, 이 논문은 그 조건을 부정한다.</li>
+  <li><strong>통제된 3×3 factorial 실험</strong>: 코딩 리더보드에서 밀집한 세 모델(GPT-5.4, Kimi K2.6, GLM-5.1) × 세 harness 구성(Minimal / Improved / Full)을 SWE-bench Verified 난이도 층화 100문항에서 각 셀 2회 실행. ##평균 HV 18.48 pp² vs 평균 MV 2.37 pp² → 7.80배##. harness 변경이 GLM-5.1을 13.0%p 움직이는 반면, 고정 harness에서 모델 변경은 2.5~5.0%p만 움직인다.</li>
+  <li><strong>공개 리더보드 증거의 체계적 수집</strong>: SWE-bench Pro에서 표준 SEAL scaffold 하 상위 6개 프론티어 모델의 폭이 <strong>4.9%p</strong>인데, Claude Opus 4.5를 고정하고 harness만 바꾸면 <strong>9.5%p</strong>로 벌어진다 — ##모델 내 harness 범위가 harness 내 모델 범위의 약 2배##. HAL은 SWE-bench Verified Mini에서 동일 모델의 scaffold 간 격차를 34%p(Claude Sonnet 4.5, GPT-5 Medium), <strong>o4-mini는 거의 48%p</strong>로 보고한다.</li>
+  <li><strong>네 가지 표준 대응이 왜 부족한지</strong>: harness 표준화 / 모델 스케일링 / 벤치마크 추가 / harness 최적화 — 각각 문제의 일부를 다루지만 <em>귀속(attribution) 질문을 해결하지 못한다</em>. 특히 "벤치마크를 늘리면 잡음이 상쇄된다"는 기대는 <strong>harness 기여의 평균이 0이 아니므로 실패한다</strong>.</li>
+  <li><strong>harness-aware 평가 프레임워크</strong>: ⑴ <strong>Harness Card</strong> — ETCSOVG 7층(Execution, Tool, Context, Scheduling, Observability, Verification, Governance) 구조화 공개. ⑵ <strong>분산 분해 프로토콜</strong> — 최소 2×2 격자, HV/MV·비율·순위 역전 수·부분 에타제곱 $\eta_p^2$ 보고. ⑶ <strong>궤적 수준 지표</strong> — Recovery Rate $RR(k)$, Context Retention, Control Lag $\tau$.</li>
+  <li><strong>반증 가능성을 명시</strong>: 이 주장은 경험적이며, <em>H를 변화시키고 M을 고정한 factorial과 그 반대를 수행해 비슷한 모델 능력 하 long-horizon 과제 분포에서 MV &gt; HV를 발견하면 반증된다</em>고 밝힌다. ##position paper가 자기 반증 조건을 구체적으로 제시하는 것은 드물다.##</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 580" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="bcMap" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="15" font-weight="bold">이 논문 전체 지도 — "리더보드가 재는 것은 모델이 아니다"</text>
+
+  <rect x="30" y="30" width="740" height="56" rx="7" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="400" y="48" text-anchor="middle" font-size="11.5" font-weight="bold">출발 문제 — 모든 벤치마크 점수는 {모델, harness} 쌍이 만든 합성수인데, 절반만 보고된다</text>
+  <text x="400" y="65" text-anchor="middle" font-size="10">같은 합성수가 서로 양립 불가능한 세 방식으로 읽힌다: <tspan font-style="italic">모델 성질</tspan>(논문 간 비교) · <tspan font-style="italic">벤치마크 성질</tspan>(분야 진보 추적) · <tspan font-style="italic">에이전트 성질</tspan>(배포 결정)</text>
+  <text x="400" y="80" text-anchor="middle" font-size="10" fill="#b91c1c">→ <tspan font-weight="bold">세 번째만이 well-defined하다.</tspan> 앞의 둘은 현재 보고가 제공하지 않는 분리를 요구한다</text>
+
+  <path d="M400,88 L400,102" stroke="#666" marker-end="url(#bcMap)"/>
+
+  <text x="400" y="118" text-anchor="middle" font-size="12" font-weight="bold">논거 1 — 구조적 이유: 에이전트는 폐루프 시스템이다 (§2.2)</text>
+  <g font-size="9.5">
+    <rect x="60" y="126" width="320" height="76" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="220" y="144" text-anchor="middle" font-weight="bold" font-size="10.5">추론(inference) 프레이밍 — 현재의 암묵적 가정</text>
+    <text x="72" y="162">에이전트 = while 루프 안의 모델</text>
+    <text x="72" y="177">관측을 프롬프트에 계속 덧붙인다</text>
+    <text x="72" y="195" fill="#92400e">→ 신뢰성 부담을 <tspan font-weight="bold">모델이 혼자</tspan> 진다</text>
+
+    <rect x="420" y="126" width="320" height="76" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+    <text x="580" y="144" text-anchor="middle" font-weight="bold" font-size="10.5">폐루프(closed-loop) 프레이밍 — 이 논문</text>
+    <text x="432" y="162">harness가 <tspan font-weight="bold">제어기 C_H</tspan>, 모델은 <tspan font-weight="bold">open-loop 정책 π_θ</tspan></text>
+    <text x="432" y="177">모델은 s_t가 아니라 c(s_t)만 본다 — harness의 투영</text>
+    <text x="432" y="195" fill="#1e40af">→ 안정성·드리프트·제어 지연이 <tspan font-weight="bold">제어기 성질</tspan></text>
+  </g>
+
+  <path d="M400,206 L400,220" stroke="#666" marker-end="url(#bcMap)"/>
+
+  <rect x="90" y="224" width="620" height="46" rx="7" fill="#e0e7ff" stroke="#6366f1" stroke-width="2"/>
+  <text x="400" y="243" text-anchor="middle" font-size="12" font-weight="bold">Binding Constraint Thesis — HV(M) = Var_H[B(M,H)] ≳ MV(H) = Var_M[B(M,H)]</text>
+  <text x="400" y="261" text-anchor="middle" font-size="10">Var[B] = MV + HV + interaction. 현재 프로토콜은 미공개 H* 하나만 보고 → <tspan font-weight="bold">HV를 측정 불가능하게 만든다</tspan></text>
+
+  <path d="M400,272 L400,286" stroke="#666" marker-end="url(#bcMap)"/>
+
+  <text x="400" y="302" text-anchor="middle" font-size="12" font-weight="bold">논거 2·3 — 증거 (§4)</text>
+  <g font-size="9.5">
+    <rect x="30" y="310" width="360" height="92" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="210" y="328" text-anchor="middle" font-weight="bold" font-size="10.5">공개 리더보드 (관찰적)</text>
+    <text x="42" y="346">SWE-bench Pro: 표준 SEAL 하 상위 6모델 폭 <tspan font-weight="bold">4.9%p</tspan></text>
+    <text x="42" y="361">　vs Opus 4.5 고정 harness 변경 <tspan font-weight="bold">9.5%p</tspan> → <tspan font-weight="bold">약 2배</tspan></text>
+    <text x="42" y="378">HAL(SWE-bench Verified Mini): 동일 모델 scaffold 간</text>
+    <text x="42" y="393" fill="#15803d">34%p (Sonnet 4.5, GPT-5 Medium) · <tspan font-weight="bold">o4-mini 거의 48%p</tspan></text>
+
+    <rect x="410" y="310" width="360" height="92" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="590" y="328" text-anchor="middle" font-weight="bold" font-size="10.5">통제된 3×3 factorial (인과적)</text>
+    <text x="422" y="346">GPT-5.4 · Kimi K2.6 · GLM-5.1 × H1/H2/H3</text>
+    <text x="422" y="361">SWE-bench Verified 100문항, 셀당 2회, 조건 전부 고정</text>
+    <text x="422" y="378">평균 HV <tspan font-weight="bold">18.48</tspan> pp² vs 평균 MV <tspan font-weight="bold">2.37</tspan> pp² → <tspan font-weight="bold">7.80배</tspan></text>
+    <text x="422" y="393" fill="#15803d">9개 모델쌍/harness쌍 비교 중 <tspan font-weight="bold">6개에서 순위 역전</tspan></text>
+  </g>
+
+  <path d="M400,404 L400,418" stroke="#666" marker-end="url(#bcMap)"/>
+
+  <text x="400" y="434" text-anchor="middle" font-size="12" font-weight="bold">처방 — harness-aware 평가 프레임워크 (§5)</text>
+  <g font-size="9.5">
+    <rect x="30" y="442" width="240" height="76" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="150" y="460" text-anchor="middle" font-weight="bold" font-size="10.5">① Harness Card</text>
+    <text x="42" y="478">ETCSOVG 7층 구조화 공개</text>
+    <text x="42" y="493">Execution·Tool·Context·Scheduling·</text>
+    <text x="42" y="506">Observability·Verification·Governance</text>
+    <text x="42" y="516" fill="#7e22ce" font-size="9">설계 제약이 아니라 <tspan font-weight="bold">주의 체크리스트</tspan></text>
+
+    <rect x="280" y="442" width="240" height="76" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="400" y="460" text-anchor="middle" font-weight="bold" font-size="10.5">② 분산 분해 프로토콜</text>
+    <text x="292" y="478">최소 <tspan font-weight="bold">2×2</tspan> 모델×harness 격자</text>
+    <text x="292" y="493">HV·MV·비율·순위 역전 수</text>
+    <text x="292" y="506">+ 부분 에타제곱 η²_p</text>
+    <text x="292" y="516" fill="#7e22ce" font-size="9">"의미 있는 harness 차이"의 기준도 정의</text>
+
+    <rect x="530" y="442" width="240" height="76" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="650" y="460" text-anchor="middle" font-weight="bold" font-size="10.5">③ 궤적 수준 지표</text>
+    <text x="542" y="478">RR(k) — 이상에서 k스텝 내 복귀 확률</text>
+    <text x="542" y="493">Context Retention — 관련 정보 잔존율</text>
+    <text x="542" y="506">Control Lag τ — 이상 감지→교정 도달</text>
+    <text x="542" y="516" fill="#7e22ce" font-size="9">각각 특정 ETCSOVG 층을 지목한다</text>
+  </g>
+
+  <rect x="30" y="526" width="740" height="46" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="544" text-anchor="middle" font-size="10.5" font-weight="bold">이 논문이 요구하지 <tspan font-style="italic">않는</tspan> 것 — "harness를 통일하라"가 아니다</text>
+  <text x="400" y="562" text-anchor="middle" font-size="10">유효한 비교는 둘 중 하나다: <tspan font-weight="bold">locked-harness</tspan>(하나의 명시된 harness를 모든 모델에) 또는 <tspan font-weight="bold">factorial</tspan>(harness를 통제 인자로 변화시키고 분산 성분 보고). 어느 쪽이든 <tspan font-weight="bold">공개</tspan>가 전제다</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 이 position paper의 논증은 세 층으로 쌓인다 — <em>구조적 이유</em>(폐루프 형식화) → <em>주장의 형식화</em>(Binding Constraint Thesis) → <em>증거</em>(관찰적 + 통제된) → <em>처방</em>(공개 표준). 파란 박스의 전환이 논문의 개념적 핵심인데, <strong>LLM을 open-loop 정책으로, harness를 제어기로 보는 순간</strong> 장기 신뢰성이 왜 모델 성질이 아닌지가 따라 나온다. 맨 아래 주황 박스가 자주 오해되는 지점을 미리 차단한다 — 이 논문은 harness 통일을 요구하지 않는다. 요구하는 것은 <em>공개</em>이며, locked-harness와 factorial 둘 다 유효한 프로토콜로 인정한다. 오른쪽 아래 초록 박스의 3×3 factorial이 이 논문을 단순한 의견 표명이 아니라 <strong>검증 가능한 주장</strong>으로 만드는 부분이다.</figcaption>
+</figure>
+
+<h2>배경 (Background)</h2>
+
+<h3>harness는 모든 벤치마크 점수에 어떻게 들어가는가 (§2.1)</h3>
+
+<p>표준 에이전트 평가는 다음 파이프라인으로 작동한다 — 과제 서술, 시스템 프롬프트, 도구 카탈로그, 이전 궤적 상태로 조립한 프롬프트로 모델에 질의하고, 토큰 수준 출력을 최종 답·도구 호출·잘못된 문자열로 파싱하고, 도구 호출을 라우팅하고, 오류를 처리하고, 궤적이 길어지면 컨텍스트를 압축하고, 일정 스텝 후 정지한다.</p>
+
+<p>##이 파이프라인의 <em>모든 단계</em>가 harness 결정이다.## 컨텍스트 구성, 도구 호출, 파싱, 재시도, 요약, 정지 — 하나의 벤치마크 점수는 이 선택들과 그에 맞서 출력을 생성하는 모델의 <strong>결합된 결과</strong>인데, 발표된 숫자는 모델만 기록하고 나머지를 생략한다.</p>
+
+<p><strong>이 혼동은 가설이 아니다</strong>. 저자들이 드는 사례들:</p>
+
+<ul>
+  <li><strong>SWE-bench Pro</strong>: 표준화된 SEAL scaffold 하에서 Claude Opus 4.5가 <strong>45.9%</strong>인데, Claude Code 하에서 같은 모델이 <strong>55.4%</strong>에 도달한다.</li>
+  <li><strong>WarpGrep 검색 subagent 하나</strong>를 다른 조건이 동일한 인프라에 추가하면 <em>MiniMax 2.5와 Claude Opus 4.6의 SWE-bench Pro 순서가 뒤집힌다</em> — Claude Opus가 대부분의 다른 벤치마크에서 더 높은데도.</li>
+  <li><strong>HAL</strong>(Holistic Agent Leaderboard)은 SWE-bench Verified Mini에서 같은 모델의 scaffold 간 두 자릿수 격차를 보고하며, <em>프론티어 모델 단일 모델 스윙이 거의 48%p</em>에 이른다.</li>
+  <li><strong>독립 제3자 벤치마크 모니터링</strong>은 SWE-bench Verified에서 GPT-5에 11%p, Kimi K2 Thinking에 15%p의 <em>scaffold만의 변동</em>을 보고한다.</li>
+</ul>
+
+<p>저자들의 결정적 문장: ##이 중 어느 것도 모델 업그레이드가 아니다. 전부 harness 교체이며, 논문들이 유의미한 모델 진보로 보고하는 <strong>2~4%p 변화를 일상적으로 압도한다</strong>.##</p>
+
+<blockquote><strong>귀속 격차가 왜 중요한가</strong>: 같은 합성수가 <em>양립 불가능한 세 방식</em>으로 읽히고 있다 — (i) 논문 간 모델 비교에서는 <em>모델 성질</em>로, (ii) 분야 진보 추적에서는 <em>벤치마크 성질</em>로, (iii) 배포 결정에서는 <em>에이전트 성질</em>로. <strong>세 번째만이 well-defined하다.</strong> 앞의 둘은 현재 보고가 제공하지 않는 분리를 요구한다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="pipeArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">벤치마크 점수 파이프라인 — 어느 단계가 harness 결정인가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">파란 박스만 모델이 하는 일이다. 나머지 전부가 harness 결정이며, 점수는 이 모두의 합성이다</text>
+
+  <g font-size="9">
+    <rect x="30" y="50" width="105" height="46" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="82" y="68" text-anchor="middle" font-weight="bold">① 컨텍스트 구성</text>
+    <text x="82" y="82" text-anchor="middle" font-size="8.5">과제·시스템 프롬프트</text>
+    <text x="82" y="92" text-anchor="middle" font-size="8.5">·도구 카탈로그·궤적</text>
+
+    <path d="M137,73 L151,73" stroke="#64748b" marker-end="url(#pipeArw)"/>
+    <rect x="155" y="50" width="105" height="46" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+    <text x="207" y="68" text-anchor="middle" font-weight="bold">② 모델 생성</text>
+    <text x="207" y="82" text-anchor="middle" font-size="8.5">π_θ(· | c(s_t))</text>
+    <text x="207" y="92" text-anchor="middle" font-size="8.5" fill="#1e40af">여기만 모델이다</text>
+
+    <path d="M262,73 L276,73" stroke="#64748b" marker-end="url(#pipeArw)"/>
+    <rect x="280" y="50" width="105" height="46" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="332" y="68" text-anchor="middle" font-weight="bold">③ 출력 파싱</text>
+    <text x="332" y="82" text-anchor="middle" font-size="8.5">최종 답 / 도구 호출 /</text>
+    <text x="332" y="92" text-anchor="middle" font-size="8.5">malformed 판별</text>
+
+    <path d="M387,73 L401,73" stroke="#64748b" marker-end="url(#pipeArw)"/>
+    <rect x="405" y="50" width="105" height="46" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="457" y="68" text-anchor="middle" font-weight="bold">④ 도구 라우팅</text>
+    <text x="457" y="82" text-anchor="middle" font-size="8.5">호출 전달 · 결과 수집</text>
+
+    <path d="M512,73 L526,73" stroke="#64748b" marker-end="url(#pipeArw)"/>
+    <rect x="530" y="50" width="105" height="46" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="582" y="68" text-anchor="middle" font-weight="bold">⑤ 오류 처리</text>
+    <text x="582" y="82" text-anchor="middle" font-size="8.5">재시도 · 에스컬레이션</text>
+
+    <path d="M637,73 L651,73" stroke="#64748b" marker-end="url(#pipeArw)"/>
+    <rect x="655" y="50" width="115" height="46" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="712" y="68" text-anchor="middle" font-weight="bold">⑥ 압축 · 정지</text>
+    <text x="712" y="82" text-anchor="middle" font-size="8.5">컨텍스트 요약</text>
+    <text x="712" y="92" text-anchor="middle" font-size="8.5">스텝 예산 소진</text>
+  </g>
+
+  <path d="M712,98 L712,112 L82,112 L82,98" stroke="#f59e0b" stroke-width="1.6" fill="none" stroke-dasharray="4 3"/>
+  <text x="400" y="126" text-anchor="middle" font-size="9.5" fill="#b45309">다음 스텝으로 — 이 루프 전체가 harness가 정의한다</text>
+
+  <rect x="200" y="136" width="400" height="34" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="155" text-anchor="middle" font-size="10.5" font-weight="bold">벤치마크 점수 = 6개 단계의 합성 결과</text>
+  <text x="400" y="167" text-anchor="middle" font-size="9.5">그런데 발표된 숫자는 ②만 기록하고 ①③④⑤⑥을 생략한다</text>
+
+  <line x1="40" y1="186" x2="760" y2="186" stroke="#e5e7eb"/>
+
+  <text x="400" y="206" text-anchor="middle" font-size="11.5" font-weight="bold">공개 증거 — harness 교체가 만드는 폭 vs 논문이 보고하는 모델 진보</text>
+
+  <line x1="120" y1="380" x2="740" y2="380" stroke="#333"/>
+  <text x="120" y="396" text-anchor="middle" font-size="9">0</text>
+  <text x="243" y="396" text-anchor="middle" font-size="9">10</text>
+  <text x="367" y="396" text-anchor="middle" font-size="9">20</text>
+  <text x="490" y="396" text-anchor="middle" font-size="9">30</text>
+  <text x="614" y="396" text-anchor="middle" font-size="9">40</text>
+  <text x="737" y="396" text-anchor="middle" font-size="9">50</text>
+  <text x="430" y="412" text-anchor="middle" font-size="10" fill="#555">성능 변화 (%p)</text>
+
+  <g font-size="9">
+    <text x="114" y="228" text-anchor="end" fill="#b91c1c">논문이 보고하는 "유의미한 모델 진보"</text>
+    <rect x="120" y="218" width="49" height="14" fill="#fca5a5" stroke="#ef4444"/>
+    <text x="176" y="229" fill="#b91c1c">2~4%p</text>
+
+    <text x="114" y="252" text-anchor="end">WarpGrep subagent 추가</text>
+    <rect x="120" y="242" width="27" height="14" fill="#fcd34d" stroke="#d97706"/>
+    <text x="154" y="253" fill="#b45309">2.1~2.2%p — 그런데 <tspan font-weight="bold">순위를 뒤집는다</tspan></text>
+
+    <text x="114" y="276" text-anchor="end">AHE harness 진화 (GPT-5.4 high)</text>
+    <rect x="120" y="266" width="90" height="14" fill="#86efac" stroke="#16a34a"/>
+    <text x="217" y="277" fill="#15803d">7.3%p (69.7 → 77.0)</text>
+
+    <text x="114" y="300" text-anchor="end">SEAL → Claude Code (Opus 4.5)</text>
+    <rect x="120" y="290" width="117" height="14" fill="#86efac" stroke="#16a34a"/>
+    <text x="244" y="301" fill="#15803d">9.5%p (45.9 → 55.4)</text>
+
+    <text x="114" y="324" text-anchor="end">프롬프트+미들웨어+검증 (TB 2.0)</text>
+    <rect x="120" y="314" width="169" height="14" fill="#86efac" stroke="#16a34a"/>
+    <text x="296" y="325" fill="#15803d">13.7%p (52.8 → 66.5)</text>
+
+    <text x="114" y="348" text-anchor="end">SWE-agent → xAI scaffold (Grok 4)</text>
+    <rect x="120" y="338" width="185" height="14" fill="#22c55e" stroke="#15803d"/>
+    <text x="312" y="349" fill="#15803d" font-weight="bold">14~16%p (58.6 → 72~75)</text>
+
+    <text x="114" y="372" text-anchor="end">HAL scaffold 간 (o4-mini)</text>
+    <rect x="120" y="362" width="592" height="14" fill="#3b82f6" stroke="#1e40af"/>
+    <text x="700" y="373" fill="#fff" font-weight="bold" text-anchor="end">거의 48%p</text>
+  </g>
+
+  <rect x="60" y="422" width="680" height="32" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="400" y="440" text-anchor="middle" font-size="10.5" font-weight="bold">저자들의 결정적 문장: "이 중 어느 것도 모델 업그레이드가 아니다. 전부 harness 교체다."</text>
+  <text x="400" y="451" text-anchor="middle" font-size="9.5">그리고 이들은 논문이 유의미한 모델 진보로 보고하는 2~4%p를 <tspan font-weight="bold">일상적으로 압도한다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: 벤치마크 점수 파이프라인과 harness 효과의 크기]</strong>: 위쪽 파이프라인에서 <strong>파란 박스 하나(②)만 모델이 하는 일</strong>이고 나머지 다섯 단계와 루프 전체가 harness 결정이다 — 그런데 발표되는 숫자는 ②만 기록한다. 아래 막대가 이 논문의 수사적 핵심인데, 맨 위 빨간 막대(논문이 "유의미한 모델 진보"로 보고하는 2~4%p)와 나머지 harness 효과들의 크기 대비가 논지를 한눈에 만든다. 특히 <strong>WarpGrep 사례</strong>가 주목할 만한데 — 2.1~2.2%p라는 작은 변화인데도 <em>모델 순위를 뒤집는다</em>. 이는 절대 크기보다 <em>모델 간 격차 대비 크기</em>가 문제임을 보인다(SEAL 하 상위 6모델의 폭이 4.9%p에 불과하므로). 맨 아래 o4-mini의 48%p는 HAL 보고값이며 이 논문이 인용하는 최대 사례다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 1 — harness 변경이 어느 층을 건드렸고 얼마를 바꿨는가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">층 표기가 있는 항목만 정리. 같은 크기의 이득도 <tspan font-style="italic">어느 층을 건드렸는가</tspan>가 다르다</text>
+
+  <g font-size="9">
+    <text x="70" y="58" font-size="9.5" font-weight="bold">건드린 층 →</text>
+    <text x="250" y="58" text-anchor="middle" font-weight="bold">E</text>
+    <text x="290" y="58" text-anchor="middle" font-weight="bold">T</text>
+    <text x="330" y="58" text-anchor="middle" font-weight="bold">C</text>
+    <text x="370" y="58" text-anchor="middle" font-weight="bold">S</text>
+    <text x="410" y="58" text-anchor="middle" font-weight="bold">O</text>
+    <text x="450" y="58" text-anchor="middle" font-weight="bold">V</text>
+    <text x="530" y="58" text-anchor="middle" font-weight="bold">Δ</text>
+
+    <rect x="40" y="64" width="700" height="26" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="52" y="81">SWE-agent → xAI scaffold (Grok 4)</text>
+    <rect x="242" y="68" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="282" y="68" width="16" height="18" fill="#16a34a"/>
+    <rect x="322" y="68" width="16" height="18" fill="#16a34a"/>
+    <rect x="362" y="68" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="402" y="68" width="16" height="18" fill="#16a34a"/>
+    <rect x="442" y="68" width="16" height="18" fill="#e2e8f0"/>
+    <text x="530" y="81" font-weight="bold" fill="#15803d">+14~16%p</text>
+    <text x="600" y="81" font-size="8.5" fill="#666">58.6% → 72~75%</text>
+
+    <rect x="40" y="90" width="700" height="26" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="52" y="107">프롬프트 + 미들웨어 + 검증 (TB 2.0)</text>
+    <rect x="242" y="94" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="282" y="94" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="322" y="94" width="16" height="18" fill="#16a34a"/>
+    <rect x="362" y="94" width="16" height="18" fill="#16a34a"/>
+    <rect x="402" y="94" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="442" y="94" width="16" height="18" fill="#16a34a"/>
+    <text x="530" y="107" font-weight="bold" fill="#15803d">+13.7%p</text>
+    <text x="600" y="107" font-size="8.5" fill="#666">52.8% → 66.5%</text>
+
+    <rect x="40" y="116" width="700" height="26" fill="#dbeafe" stroke="#e5e7eb"/>
+    <text x="52" y="133">SEAL → Claude Code (Opus 4.5)</text>
+    <rect x="242" y="120" width="16" height="18" fill="#3b82f6"/>
+    <rect x="282" y="120" width="16" height="18" fill="#3b82f6"/>
+    <rect x="322" y="120" width="16" height="18" fill="#3b82f6"/>
+    <rect x="362" y="120" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="402" y="120" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="442" y="120" width="16" height="18" fill="#e2e8f0"/>
+    <text x="530" y="133" font-weight="bold" fill="#1e40af">+9.5%p</text>
+    <text x="600" y="133" font-size="8.5" fill="#666">45.9% → 55.4%</text>
+
+    <rect x="40" y="142" width="700" height="26" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="52" y="159">AHE harness 진화 (GPT-5.4 high)</text>
+    <rect x="242" y="146" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="282" y="146" width="16" height="18" fill="#f59e0b"/>
+    <rect x="322" y="146" width="16" height="18" fill="#f59e0b"/>
+    <rect x="362" y="146" width="16" height="18" fill="#f59e0b"/>
+    <rect x="402" y="146" width="16" height="18" fill="#f59e0b"/>
+    <rect x="442" y="146" width="16" height="18" fill="#e2e8f0"/>
+    <text x="530" y="159" font-weight="bold" fill="#b45309">+7.3%p</text>
+    <text x="600" y="159" font-size="8.5" fill="#666">69.7% → 77.0%</text>
+
+    <rect x="40" y="168" width="700" height="26" fill="#f3e8ff" stroke="#e5e7eb"/>
+    <text x="52" y="185">+ WarpGrep 검색 subagent</text>
+    <rect x="242" y="172" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="282" y="172" width="16" height="18" fill="#a855f7"/>
+    <rect x="322" y="172" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="362" y="172" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="402" y="172" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="442" y="172" width="16" height="18" fill="#e2e8f0"/>
+    <text x="530" y="185" font-weight="bold" fill="#7e22ce">+2.1~2.2%p</text>
+    <text x="600" y="185" font-size="8.5" fill="#7e22ce">그런데 순위를 뒤집는다</text>
+
+    <rect x="40" y="194" width="700" height="26" fill="#ccfbf1" stroke="#e5e7eb"/>
+    <text x="52" y="211">도구 15개 → 2개 (Vercel)</text>
+    <rect x="242" y="198" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="282" y="198" width="16" height="18" fill="#14b8a6"/>
+    <rect x="322" y="198" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="362" y="198" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="402" y="198" width="16" height="18" fill="#e2e8f0"/>
+    <rect x="442" y="198" width="16" height="18" fill="#e2e8f0"/>
+    <text x="530" y="211" font-weight="bold" fill="#0f766e">80% → 100%</text>
+    <text x="600" y="211" font-size="8.5" fill="#666">도구를 <tspan font-weight="bold">줄여서</tspan> 개선</text>
+  </g>
+
+  <line x1="40" y1="238" x2="760" y2="238" stroke="#e5e7eb"/>
+
+  <text x="400" y="258" text-anchor="middle" font-size="11.5" font-weight="bold">이 표에서 읽을 세 가지 패턴</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="268" width="230" height="86" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="155" y="286" text-anchor="middle" font-size="10.5" font-weight="bold">① 여러 층을 건드릴수록 크다</text>
+    <text x="52" y="304">3개 층 변경 → 9.5~16%p</text>
+    <text x="52" y="319">1개 층 변경 → 2.1~2.2%p</text>
+    <text x="52" y="337" fill="#15803d">직관적이지만 예외가 있다</text>
+    <text x="52" y="350" fill="#15803d">(Vercel: T 하나로 80→100%)</text>
+
+    <rect x="285" y="268" width="230" height="86" rx="6" fill="#ccfbf1" stroke="#14b8a6"/>
+    <text x="400" y="286" text-anchor="middle" font-size="10.5" font-weight="bold">② 더하는 것만이 아니다</text>
+    <text x="297" y="304">Vercel 사례: 도구를 <tspan font-weight="bold">15개에서 2개로</tspan></text>
+    <text x="297" y="319"><tspan font-weight="bold">줄여서</tspan> 80% → 100%</text>
+    <text x="297" y="337" fill="#0f766e">harness 개선 = 기능 추가가 아니다</text>
+    <text x="297" y="350" fill="#0f766e">§5.4의 "유연성 vs 통제가능성"</text>
+
+    <rect x="530" y="268" width="230" height="86" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="645" y="286" text-anchor="middle" font-size="10.5" font-weight="bold">③ 작아도 순위를 뒤집는다</text>
+    <text x="542" y="304">WarpGrep: T 층 하나, +2.1%p</text>
+    <text x="542" y="319">그런데 MiniMax 2.5 vs Opus 4.6 역전</text>
+    <text x="542" y="337" fill="#7e22ce">모델 간 폭이 4.9%p이므로</text>
+    <text x="542" y="350" fill="#7e22ce">2.1%p는 그 <tspan font-weight="bold">43%</tspan>다</text>
+  </g>
+
+  <rect x="40" y="366" width="720" height="46" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="384" text-anchor="middle" font-size="10.5" font-weight="bold">이 표의 증거로서의 한계 — 저자들도 인정하는 지점</text>
+  <text x="400" y="402" text-anchor="middle" font-size="10">출처가 블로그·벤더 리포트·리더보드로 섞여 있고 측정 조건(과제 수, 반복, 온도)이 함께 실리지 않는다. <tspan font-weight="bold">이 논문이 요구하는 공개 표준과 긴장한다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: Table 1의 층별 분석]</strong>: 원문 Table 1의 "Layer" 열을 격자로 펼쳐 <em>어느 ETCSOVG 층을 건드렸는지</em>와 <em>얼마를 바꿨는지</em>를 나란히 놓은 것이다. 패턴 ①(여러 층을 건드릴수록 크다)은 직관적이지만, 패턴 ②의 <strong>Vercel 사례가 그것을 깬다</strong> — 도구를 15개에서 2개로 <em>줄여서</em> 80%에서 100%가 되었다. 이는 harness 개선이 기능 추가가 아니라는 것을 보여주는 가장 선명한 사례다. 패턴 ③이 이 논문의 핵심 논거를 다시 확인한다. 맨 아래 주황 박스가 이 표의 증거로서의 한계인데 — 출처가 블로그·벤더 리포트·리더보드로 섞여 있고 측정 조건이 함께 실리지 않으므로, <em>이 논문이 요구하는 공개 표준과 긴장한다</em>. 이 지적은 이 문서의 것이며 논문은 "공개 증거는 관찰적"이라고만 밝힌다.</figcaption>
+</figure>
+
+<h3>구조적 이유 — 에이전트는 폐루프 시스템이다 (§2.2)</h3>
+
+<p>이 혼동은 <em>에이전트가 작동하는 방식에 대한 구조적 사실</em>을 반영한다. 에이전트 실행은 <strong>이산시간 폐루프 동역학 과정</strong>이다.</p>
+
+<p>스텝 $t$에서의 에이전트 상태를 $s_t$라 하자 — 전체 컨텍스트 창과 지속 메모리를 포함한다. 모델은 확률적 정책으로 작동한다.</p>
+$$a_t \sim \pi_\theta(\cdot \mid c(s_t))$$
+<p>여기서 $c$는 <strong>harness가 구현하는 컨텍스트 구성 함수</strong>다. harness는 제어기 $C$를 구현해 $(s_t, a_t, o_t)$로부터 $s_{t+1}$로 상태를 갱신하며, $o_t$는 환경 관측으로서 <em>상태에 통합되기 전에 필터링·검증된다</em>. 서로 다른 harness 구성 $H$는 <strong>같은 모델 $\pi_\theta$ 위에 서로 다른 제어기 $C_H$를 유도</strong>한다.</p>
+
+<p><strong>이 모형에서 LLM은 open-loop다.</strong> 저자들이 나열하는 세 가지 결여:</p>
+<ol>
+  <li>$s_t$에 <em>직접 접근하지 못한다</em> — harness가 노출하기로 선택한 상태의 투영 $c(s_t)$만 본다.</li>
+  <li>스텝 간 <em>메모리를 유지하지 못한다</em> — $C_H$가 $c(s_{t+1})$에 주입하는 것 외에는.</li>
+  <li>$C_H$가 $o_t$로부터 구성하는 피드백 경로 외에는 <em>자기 교정 메커니즘이 없다</em>.</li>
+</ol>
+
+<p>##따라서 적응, 오류 복구, long-horizon 일관성은 $C_H$의 성질이지 $\pi_\theta$의 성질이 아니다.##</p>
+
+<blockquote><strong>이 논문에서 가장 인용할 만한 문장</strong>: "교훈은 에이전트보다 넓다. <em>Open-loop 시스템은 더 큰 액추에이터로 신뢰성을 얻지 않는다. 피드백 제어로 신뢰성을 얻는다.</em>" — 이것이 "모델을 키우면 harness 문제가 해소된다"는 반론에 대한 구조적 답이다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="clArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Figure 1 재구성 — 추론 프레이밍에서 폐루프 프레이밍으로</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">같은 시스템을 다르게 그리면 <tspan font-style="italic">누가 신뢰성을 책임지는가</tspan>가 달라진다</text>
+
+  <text x="190" y="58" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b45309">(a) 추론 프레이밍 — 현재의 암묵적 가정</text>
+
+  <rect x="120" y="72" width="140" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="190" y="97" text-anchor="middle" font-size="11" font-weight="bold">LLM  π_θ</text>
+
+  <path d="M190,114 L190,140" stroke="#64748b" marker-end="url(#clArw)"/>
+  <text x="200" y="132" font-size="9">action a_t</text>
+
+  <rect x="120" y="144" width="140" height="40" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="190" y="169" text-anchor="middle" font-size="10.5">Tool / Output</text>
+
+  <path d="M118,164 L80,164 L80,92 L118,92" stroke="#64748b" fill="none" marker-end="url(#clArw)"/>
+  <text x="60" y="128" font-size="9" text-anchor="middle" transform="rotate(-90 60 128)">observation o_t</text>
+
+  <rect x="60" y="196" width="260" height="46" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="190" y="214" text-anchor="middle" font-size="10" font-weight="bold">while 루프가 관측을 프롬프트에 덧붙인다</text>
+  <text x="190" y="231" text-anchor="middle" font-size="9.5" fill="#92400e">→ 성능이 π_θ에 귀속된다. <tspan font-weight="bold">신뢰성 부담을 모델이 혼자 진다</tspan></text>
+
+  <line x1="350" y1="46" x2="350" y2="300" stroke="#e5e7eb"/>
+
+  <text x="570" y="58" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">(b) 폐루프 프레이밍 — 이 논문</text>
+
+  <rect x="400" y="70" width="340" height="176" rx="8" fill="#eff6ff" stroke="#3b82f6" stroke-width="2" stroke-dasharray="6 3"/>
+  <text x="418" y="88" font-size="10.5" font-weight="bold" fill="#1e40af">Harness  C_H  (제어기)</text>
+
+  <rect x="416" y="96" width="120" height="34" rx="5" fill="#fff" stroke="#3b82f6"/>
+  <text x="476" y="112" text-anchor="middle" font-size="9.5" font-weight="bold">Context  c(s_t)</text>
+  <text x="476" y="124" text-anchor="middle" font-size="8.5">상태의 <tspan font-style="italic">투영</tspan></text>
+
+  <rect x="560" y="96" width="80" height="34" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="600" y="112" text-anchor="middle" font-size="9" font-weight="bold">drift δ_t</text>
+  <text x="600" y="124" text-anchor="middle" font-size="8">D_KL(p_t ‖ p_0)</text>
+
+  <rect x="650" y="96" width="80" height="34" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="690" y="112" text-anchor="middle" font-size="9" font-weight="bold">stability</text>
+  <text x="690" y="124" text-anchor="middle" font-size="8">V(s_t)</text>
+
+  <rect x="416" y="146" width="120" height="40" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="476" y="164" text-anchor="middle" font-size="10.5" font-weight="bold">LLM  π_θ</text>
+  <text x="476" y="178" text-anchor="middle" font-size="8.5" fill="#b91c1c">open-loop</text>
+
+  <path d="M538,166 L562,166" stroke="#64748b" marker-end="url(#clArw)"/>
+  <text x="550" y="159" text-anchor="middle" font-size="8.5">a_t</text>
+  <rect x="566" y="146" width="80" height="40" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="606" y="170" text-anchor="middle" font-size="10">Tools</text>
+
+  <path d="M606,188 L606,208 L476,208 L476,190" stroke="#64748b" fill="none" marker-end="url(#clArw)"/>
+  <text x="546" y="204" text-anchor="middle" font-size="8.5">observation o_t</text>
+
+  <rect x="656" y="146" width="76" height="40" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="694" y="164" text-anchor="middle" font-size="9" font-weight="bold">feedback</text>
+  <text x="694" y="177" text-anchor="middle" font-size="9">lag τ</text>
+
+  <path d="M476,130 L476,144" stroke="#3b82f6" stroke-width="1.6" marker-end="url(#clArw)"/>
+
+  <rect x="400" y="254" width="340" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="570" y="272" text-anchor="middle" font-size="10" font-weight="bold">harness가 루프를 닫는다. 모델은 c(s_t)만 본다</text>
+  <text x="570" y="289" text-anchor="middle" font-size="9.5" fill="#1e40af">→ 안정성·드리프트·제어 지연은 <tspan font-weight="bold">전부 제어기 성질</tspan></text>
+
+  <line x1="40" y1="316" x2="760" y2="316" stroke="#e5e7eb"/>
+
+  <text x="400" y="336" text-anchor="middle" font-size="11.5" font-weight="bold">LLM이 open-loop인 세 가지 이유 (§2.2)</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="346" width="230" height="72" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="155" y="364" text-anchor="middle" font-size="10" font-weight="bold">① 상태에 직접 접근 못 한다</text>
+    <text x="52" y="382">s_t가 아니라 c(s_t)만 본다</text>
+    <text x="52" y="397">— harness가 <tspan font-weight="bold">노출하기로 선택한</tspan> 투영</text>
+    <text x="52" y="412" fill="#b91c1c">무엇이 보이는지를 모델이 못 정한다</text>
+
+    <rect x="285" y="346" width="230" height="72" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="400" y="364" text-anchor="middle" font-size="10" font-weight="bold">② 스텝 간 메모리가 없다</text>
+    <text x="297" y="382">C_H가 c(s_{t+1})에 주입하는 것</text>
+    <text x="297" y="397">외에는 아무것도 남지 않는다</text>
+    <text x="297" y="412" fill="#b91c1c">기억은 harness가 만든다</text>
+
+    <rect x="530" y="346" width="230" height="72" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="645" y="364" text-anchor="middle" font-size="10" font-weight="bold">③ 자기 교정 경로가 없다</text>
+    <text x="542" y="382">C_H가 o_t로부터 구성하는</text>
+    <text x="542" y="397">피드백 경로가 유일하다</text>
+    <text x="542" y="412" fill="#b91c1c">교정은 harness가 배달한다</text>
+  </g>
+
+  <rect x="40" y="428" width="720" height="28" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="446" text-anchor="middle" font-size="10">"Open-loop 시스템은 <tspan font-weight="bold">더 큰 액추에이터</tspan>로 신뢰성을 얻지 않는다. <tspan font-weight="bold">피드백 제어</tspan>로 얻는다" — 모델 스케일링 반론에 대한 구조적 답</text>
+</svg>
+<figcaption><strong>[Figure 1 재구성]</strong>: 같은 시스템을 두 방식으로 그린 것인데, <strong>무엇이 그림의 바깥 테두리를 차지하는가</strong>가 다르다. (a)에서는 모델이 중심이고 harness는 "while 루프"로 축소되어 보이지 않는다. (b)에서는 harness가 점선 테두리로 전체를 감싸고 모델이 그 <em>안의 한 부품</em>이 된다. 이 재배치가 논문의 개념적 전환 전부다 — 그림을 다시 그리면 안정성·드리프트·제어 지연이 자연스럽게 제어기 쪽에 놓인다. 아래 세 빨간 박스가 "LLM은 open-loop"라는 주장의 구체적 내용이며, 셋 모두 <em>모델이 스스로 할 수 없고 harness가 해 줘야 하는 것</em>을 가리킨다. 맨 아래 인용문이 이 논문에서 가장 자주 인용될 문장이며, "모델을 키우면 해소된다"는 반론에 대한 구조적 답이다.</figcaption>
+</figure>
+
+<h3>네 가지 표준 대응이 왜 부족한가 (§2.3)</h3>
+
+<p>혼동이 구조적이라면 무엇을 할 것인가. 분야는 네 부류의 대응으로 수렴했는데, <strong>각각 문제의 일부를 다루지만 어느 것도 귀속 질문을 해결하지 못한다</strong>.</p>
+
+<table class="small-table">
+<thead><tr><th>대응</th><th>구현 사례</th><th>왜 부족한가</th></tr></thead>
+<tbody>
+<tr><td><strong>① 단일 harness로 표준화</strong></td><td>HAL(9개 벤치마크), SWE-bench Pro 통합 scaffold, Epoch AI의 mini-SWE-agent 권고</td><td>저자들이 <em>부분적으로 지지</em>한다(두 유효 레짐 중 하나). 그러나 어떤 표준 harness든 <strong>모델 성질과 상호작용하는 설계 선택을 내장</strong>하고, 현재 증거가 크다고 보이는 <em>harness 쪽 이득을 봉쇄</em>한다. 요구는 <strong>통일이 아니라 공개</strong>다</td></tr>
+<tr><td><strong>② 모델 스케일링</strong></td><td>"충분히 유능한 모델이 자기 제어기를 관리할 것"</td><td>##경험적 추세가 반대다## — Claude Code는 능력이 커지면서 harness 컴포넌트를 <em>제거한 게 아니라 재설계</em>했고, managed-agents 아키텍처는 <em>harness 가정이 모델 개선보다 빨리 낡기 때문에</em> 모델과 harness를 명시적으로 분리하며, AHE는 프론티어 base model 위에서 두 자릿수 이득을 낸다</td></tr>
+<tr><td><strong>③ 벤치마크 추가</strong></td><td>freelance 소프트웨어, ML 엔지니어링, 오염 내성 코딩, 코드 합성, 시각 프론트엔드, 전문 서비스</td><td>##이 내기는 실패한다## — 각 벤치마크가 <em>자기만의 미공개 harness</em>를 쓰고, <strong>harness 기여의 평균이 0이 아니므로</strong> 벤치마크를 늘리는 것은 독립적인 {모델, harness} 추출을 더할 뿐 어느 하나 안의 귀속도 해결하지 못한다. APEX-Agents는 정반대를 발견한다 — 에이전트 실패가 지식 실패가 아니라 <em>실행·조율 문제</em>가 지배적이다</td></tr>
+<tr><td><strong>④ harness 최적화</strong></td><td>ADAS, Meta-Harness, AutoHarness, AHE, Agentic Context Engineering</td><td>이 논문이 분석하는 <em>현상을 문서화</em>하지만 <strong>다른 질문에 답한다</strong> — harness를 <em>어떻게 더 좋게 만들까</em>이지 관측된 이득을 <em>어떻게 귀속시킬까</em>가 아니다. 일부는 자기 harness 하에서 결과를 보고해 <em>귀속 문제를 해결하는 게 아니라 가중</em>시킨다</td></tr>
+</tbody>
+</table>
+
+<p><strong>저자들의 결론</strong>: 구조적 문제는 구조적 해법을 요구한다 — <strong>공개(disclosure)</strong>. 점수를 만든 harness는 <em>실험 조건의 일부</em>여야 하고, 모델 간 비교는 harness를 고정하거나(locked-harness) 통제 인자로 변화시켜야 한다(factorial).</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="respArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">네 가지 표준 대응 — 각각 무엇을 풀고 무엇을 남기는가</text>
+
+  <rect x="290" y="34" width="220" height="30" rx="5" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="400" y="54" text-anchor="middle" font-size="10.5" font-weight="bold">구조적 문제: 모델과 harness의 혼동</text>
+
+  <path d="M340,66 L180,90" stroke="#64748b" marker-end="url(#respArw)"/>
+  <path d="M375,66 L330,90" stroke="#64748b" marker-end="url(#respArw)"/>
+  <path d="M425,66 L470,90" stroke="#64748b" marker-end="url(#respArw)"/>
+  <path d="M460,66 L620,90" stroke="#64748b" marker-end="url(#respArw)"/>
+
+  <g font-size="9">
+    <rect x="30" y="94" width="180" height="96" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="120" y="112" text-anchor="middle" font-size="10" font-weight="bold">① 표준화</text>
+    <text x="42" y="130">HAL · SWE-bench Pro 통합</text>
+    <text x="42" y="144">scaffold · mini-SWE-agent</text>
+    <text x="42" y="162" fill="#15803d">✓ 저자들이 <tspan font-weight="bold">부분 지지</tspan></text>
+    <text x="42" y="176" fill="#b45309">✗ 설계 선택 내장 · harness 이득 봉쇄</text>
+
+    <rect x="220" y="94" width="180" height="96" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="310" y="112" text-anchor="middle" font-size="10" font-weight="bold">② 모델 스케일링</text>
+    <text x="232" y="130">"유능한 모델이 자기</text>
+    <text x="232" y="144">제어기를 관리할 것"</text>
+    <text x="232" y="162" fill="#b91c1c">✗ <tspan font-weight="bold">경험적 추세가 반대</tspan></text>
+    <text x="232" y="176" fill="#b91c1c">Claude Code는 제거가 아니라 재설계했다</text>
+
+    <rect x="410" y="94" width="180" height="96" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="500" y="112" text-anchor="middle" font-size="10" font-weight="bold">③ 벤치마크 추가</text>
+    <text x="422" y="130">"충분히 많으면 harness</text>
+    <text x="422" y="144">잡음이 상쇄된다"</text>
+    <text x="422" y="162" fill="#b91c1c">✗ <tspan font-weight="bold">harness 기여의 평균이 0이 아니다</tspan></text>
+    <text x="422" y="176" fill="#b91c1c">독립 {M,H} 추출을 더할 뿐</text>
+
+    <rect x="600" y="94" width="170" height="96" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="685" y="112" text-anchor="middle" font-size="10" font-weight="bold">④ harness 최적화</text>
+    <text x="612" y="130">ADAS · Meta-Harness ·</text>
+    <text x="612" y="144">AutoHarness · AHE · ACE</text>
+    <text x="612" y="162" fill="#b45309">✗ <tspan font-weight="bold">다른 질문에 답한다</tspan></text>
+    <text x="612" y="176" fill="#b45309">"어떻게 좋게"이지 "어떻게 귀속"이 아니다</text>
+  </g>
+
+  <path d="M120,192 L120,210" stroke="#64748b" stroke-dasharray="3 2"/>
+  <path d="M310,192 L310,210" stroke="#64748b" stroke-dasharray="3 2"/>
+  <path d="M500,192 L500,210" stroke="#64748b" stroke-dasharray="3 2"/>
+  <path d="M685,192 L685,210" stroke="#64748b" stroke-dasharray="3 2"/>
+
+  <rect x="60" y="214" width="680" height="34" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="400" y="232" text-anchor="middle" font-size="10.5" font-weight="bold">공통 잔여 문제 — 어느 것도 <tspan font-style="italic">귀속(attribution)</tspan> 질문에 답하지 않는다</text>
+  <text x="400" y="244" text-anchor="middle" font-size="9.5">"관측된 벤치마크 이득을 모델·harness·상호작용 중 어디에 credit해야 하는가"</text>
+
+  <path d="M400,250 L400,266" stroke="#64748b" marker-end="url(#respArw)"/>
+
+  <rect x="150" y="270" width="500" height="46" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="289" text-anchor="middle" font-size="11.5" font-weight="bold">구조적 해법: 공개(disclosure)</text>
+  <text x="400" y="307" text-anchor="middle" font-size="10">점수를 만든 harness는 <tspan font-weight="bold">실험 조건의 일부</tspan>여야 한다</text>
+
+  <path d="M300,318 L230,340" stroke="#64748b" marker-end="url(#respArw)"/>
+  <path d="M500,318 L570,340" stroke="#64748b" marker-end="url(#respArw)"/>
+
+  <rect x="80" y="344" width="300" height="66" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="230" y="362" text-anchor="middle" font-size="10.5" font-weight="bold">유효 레짐 A — locked-harness</text>
+  <text x="92" y="380" font-size="9.5">하나의 <tspan font-weight="bold">명시된</tspan> harness를 모든 모델에 적용</text>
+  <text x="92" y="396" font-size="9.5">→ {B(Mᵢ, H*)}의 깨끗한 순위를 회복한다</text>
+  <text x="92" y="406" font-size="9" fill="#15803d">단, <tspan font-style="italic">그 특정 H* 하에서만</tspan> 유효하다</text>
+
+  <rect x="420" y="344" width="300" height="66" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="570" y="362" text-anchor="middle" font-size="10.5" font-weight="bold">유효 레짐 B — factorial</text>
+  <text x="432" y="380" font-size="9.5">M과 H를 <tspan font-weight="bold">둘 다 변화</tspan>시키는 격자를 설계</text>
+  <text x="432" y="396" font-size="9.5">→ HV·MV·상호작용·순위 역전 수를 보고</text>
+  <text x="432" y="406" font-size="9" fill="#15803d">상호작용 분석을 직접 지원한다</text>
+</svg>
+<figcaption><strong>[Figure: 네 가지 표준 대응과 그 잔여]</strong>: 네 대응이 색으로 평가되는데 — ①만 초록(부분 지지)이고 ②③은 빨강(경험적으로 반박됨), ④는 노랑(유효하지만 다른 질문)이다. ③의 반박이 특히 깔끔한데, "벤치마크를 늘리면 잡음이 상쇄된다"는 기대는 <strong>harness 기여의 평균이 0이라는 가정</strong>에 의존하고 그 가정이 성립하지 않는다 — 각 벤치마크가 자기 미공개 harness를 쓰므로 독립 {M,H} 추출을 더할 뿐이다. 빨간 띠가 네 대응의 공통 잔여인 <em>귀속 질문</em>이고, 그 아래가 저자들의 구조적 해법이다. 마지막 두 초록 박스가 이 논문이 인정하는 <strong>두 유효 레짐</strong>이며, 자주 오해되는 지점을 명확히 한다 — locked-harness도 유효하지만 <em>그 특정 harness 하에서만</em> 유효하다는 단서가 붙는다.</figcaption>
+</figure>
+
+<h2>1. Binding Constraint Thesis (§3)</h2>
+
+<div class="tldr">
+<p><strong>The Binding Constraint Thesis</strong> — long-horizon 과제에서 능력이 비슷한 프론티어 모델들로 평가할 때, $B(M,H)$를 모델 $M \in \mathcal{M}$이 harness $H \in \mathcal{H}$ 하에서 얻은 벤치마크 점수라 하고 다음을 정의한다.</p>
+$$HV(M) = \mathrm{Var}_{H \sim P(H)}\big[B(M,H)\big], \qquad MV(H) = \mathrm{Var}_{M \sim P(M)}\big[B(M,H)\big]$$
+<p>이 레짐에서 <strong>HV는 흔히 MV와 비슷하거나 더 크며, 현재의 많은 long-horizon 에이전트 평가에서 MV를 지배할 수 있다</strong>. 현재 벤치마크 프로토콜은 <em>단일 미공개 $H^*$</em>에 대한 $B(M, H^*)$만 보고하므로 ##HV를 측정 불가능하게 만들고 모델 비교를 불완전하고 잠재적으로 오도하게 만든다##.</p>
+</div>
+
+<h3>1.1 분산 분해 — 방법론적 핵심</h3>
+
+<p>$\{M, H\}$ 추출 모집단에 대한 전체 성능 분산은 <strong>정확히</strong> 다음과 같이 분해된다.</p>
+$$\mathrm{Var}\big[B(M,H)\big] = \underbrace{\mathrm{Var}_M \mathbb{E}_H\big[B(M,H)\big]}_{MV} + \underbrace{\mathrm{Var}_H \mathbb{E}_M\big[B(M,H)\big]}_{HV} + \underbrace{\mathrm{Var}\big[\text{model} \times \text{harness}\big]}_{\text{interaction}} \tag{1}$$
+
+<p>주장은 <em>두 번째와 세 번째 항이 합쳐서 첫 번째를 지배한다</em>는 것이다.</p>
+
+<p><strong>interaction 항이 왜 무시할 수 없는가</strong>: 폐루프 설명에 따르면, <em>자기 검증을 강조하는 harness는 false-confidence 비율이 높은 모델에게 보수적 출력 분포를 가진 모델보다 더 많이 도움이 된다</em>. 따라서 같은 harness 변화가 모델마다 다른 이득을 낸다.</p>
+
+<p>##모델 순위를 <em>모델의 성질</em>로 취급하려면 interaction 항이 MV에 비해 작아야 하는데, 이 주장은 그 조건을 부정한다.##</p>
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — Eq. 1의 세 항을 2×2 격자에서 직접 계산</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">최소 유효 설계인 2×2에서 세 항이 어떻게 갈리는지. 논문에 없는 예시 계산이다</text>
+
+  <text x="200" y="58" text-anchor="middle" font-size="11" font-weight="bold" fill="#b45309">시나리오 A — interaction이 작다 (순위 유지)</text>
+
+  <g font-size="10">
+    <rect x="50" y="68" width="300" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="62" y="83" font-weight="bold">B(M,H)</text>
+    <text x="180" y="83" font-weight="bold">H₁</text>
+    <text x="250" y="83" font-weight="bold">H₂</text>
+    <text x="310" y="83" font-weight="bold">행 평균</text>
+
+    <rect x="50" y="90" width="300" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="62" y="105">M₁</text>
+    <text x="180" y="105">50</text>
+    <text x="250" y="105">60</text>
+    <text x="310" y="105">55</text>
+
+    <rect x="50" y="112" width="300" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="62" y="127">M₂</text>
+    <text x="180" y="127">54</text>
+    <text x="250" y="127">64</text>
+    <text x="310" y="127">59</text>
+
+    <rect x="50" y="134" width="300" height="22" fill="#e0e7ff" stroke="#cbd5e1"/>
+    <text x="62" y="149" font-weight="bold">열 평균</text>
+    <text x="180" y="149">52</text>
+    <text x="250" y="149">62</text>
+  </g>
+
+  <text x="62" y="174" font-size="9.5">MV = Var([55, 59]) = <tspan font-weight="bold">4.0</tspan></text>
+  <text x="62" y="190" font-size="9.5">HV = Var([52, 62]) = <tspan font-weight="bold">25.0</tspan></text>
+  <text x="62" y="206" font-size="9.5">interaction ≈ <tspan font-weight="bold">0</tspan> (두 행이 평행하다)</text>
+  <text x="62" y="224" font-size="9.5" fill="#b45309">→ 순위는 <tspan font-weight="bold">유지된다</tspan>: 두 harness 모두 M₂ &gt; M₁</text>
+  <text x="62" y="238" font-size="9" fill="#666">HV/MV = 6.25배지만 순위 자체는 안전하다</text>
+
+  <line x1="380" y1="46" x2="380" y2="260" stroke="#e5e7eb"/>
+
+  <text x="580" y="58" text-anchor="middle" font-size="11" font-weight="bold" fill="#b91c1c">시나리오 B — interaction이 크다 (순위 역전)</text>
+
+  <g font-size="10">
+    <rect x="430" y="68" width="300" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="442" y="83" font-weight="bold">B(M,H)</text>
+    <text x="560" y="83" font-weight="bold">H₁</text>
+    <text x="630" y="83" font-weight="bold">H₂</text>
+    <text x="690" y="83" font-weight="bold">행 평균</text>
+
+    <rect x="430" y="90" width="300" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="442" y="105">M₁</text>
+    <text x="560" y="105">50</text>
+    <text x="630" y="105" font-weight="bold" fill="#15803d">66</text>
+    <text x="690" y="105">58</text>
+
+    <rect x="430" y="112" width="300" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="442" y="127">M₂</text>
+    <text x="560" y="127" font-weight="bold" fill="#15803d">54</text>
+    <text x="630" y="127">58</text>
+    <text x="690" y="127">56</text>
+
+    <rect x="430" y="134" width="300" height="22" fill="#e0e7ff" stroke="#cbd5e1"/>
+    <text x="442" y="149" font-weight="bold">열 평균</text>
+    <text x="560" y="149">52</text>
+    <text x="630" y="149">62</text>
+  </g>
+
+  <text x="442" y="174" font-size="9.5">MV = Var([58, 56]) = <tspan font-weight="bold">1.0</tspan></text>
+  <text x="442" y="190" font-size="9.5">HV = Var([52, 62]) = <tspan font-weight="bold">25.0</tspan></text>
+  <text x="442" y="206" font-size="9.5">interaction = <tspan font-weight="bold">9.0</tspan> (행이 교차한다 — MV의 9배)</text>
+  <text x="442" y="224" font-size="9.5" fill="#b91c1c">→ <tspan font-weight="bold">순위가 역전된다</tspan>: H₁에서 M₂&gt;M₁, H₂에서 M₁&gt;M₂</text>
+  <text x="442" y="238" font-size="9" fill="#666">어느 harness를 골랐느냐가 "어느 모델이 낫다"를 정한다</text>
+
+  <line x1="40" y1="272" x2="760" y2="272" stroke="#e5e7eb"/>
+
+  <text x="400" y="292" text-anchor="middle" font-size="11.5" font-weight="bold">두 시나리오의 차이가 이 논문의 요점이다</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="302" width="330" height="90" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="215" y="320" text-anchor="middle" font-size="10.5" font-weight="bold">A: HV가 커도 순위는 살아남을 수 있다</text>
+    <text x="62" y="338">harness가 모든 모델을 <tspan font-style="italic">같은 방향으로</tspan> 밀면</text>
+    <text x="62" y="353">순위는 보존된다. 이 경우 미공개 harness는</text>
+    <text x="62" y="368">"절대 점수는 못 믿지만 순위는 믿을 수 있다"</text>
+    <text x="62" y="385" fill="#b45309">→ 그래도 <tspan font-weight="bold">논문 간 점수 비교는 여전히 무효</tspan>다</text>
+
+    <rect x="410" y="302" width="340" height="90" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="580" y="320" text-anchor="middle" font-size="10.5" font-weight="bold">B: interaction이 크면 순위 자체가 무너진다</text>
+    <text x="422" y="338">harness가 모델마다 <tspan font-style="italic">다른 방향으로</tspan> 밀면</text>
+    <text x="422" y="353">"어느 모델이 낫다"가 harness 선택의 함수가 된다</text>
+    <text x="422" y="370" fill="#b91c1c">§4의 실측: 9개 비교 중 <tspan font-weight="bold">6개에서 역전</tspan></text>
+    <text x="422" y="385" fill="#b91c1c">→ 순위조차 harness 없이는 무의미하다</text>
+  </g>
+
+  <rect x="50" y="404" width="700" height="46" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="422" text-anchor="middle" font-size="10.5" font-weight="bold">그래서 저자들이 <tspan font-style="italic">순위 역전 수</tspan>를 별도 보고 항목으로 요구한다</text>
+  <text x="400" y="440" text-anchor="middle" font-size="10">분산 비율(HV/MV)만으로는 A와 B를 구분할 수 없다 — <tspan font-weight="bold">두 시나리오의 HV/MV가 각각 6.25배와 25배로 둘 다 크지만 함의가 전혀 다르다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: Eq. 1 분산 분해 수치 예제]</strong>: 같은 2×2 격자를 두 방식으로 채워 <strong>interaction 항이 있고 없고의 차이</strong>를 보인 것이다. 시나리오 A에서는 harness가 두 모델을 평행하게 밀어 올려 순위가 보존되고, B에서는 교차시켜 순위가 뒤집힌다(B의 분해는 MV 1.0 + HV 25.0 + interaction 9.0 = 전체 분산 35.0으로 Eq. 1과 맞는다). 이 구분이 중요한 이유는 아래 두 박스에 있다 — A에서도 <em>절대 점수 비교는 무효</em>지만 순위는 살아남는 반면, B에서는 <strong>"어느 모델이 낫다"가 harness 선택의 함수</strong>가 되어 순위조차 의미를 잃는다. 그리고 §4의 실측은 B에 가깝다(9개 비교 중 6개 역전). 맨 아래 박스가 방법론적 함의인데 — 두 시나리오 모두 HV/MV가 크므로 <em>분산 비율만으로는 둘을 구분할 수 없고</em>, 그래서 저자들이 순위 역전 수를 별도 보고 항목으로 요구한다. 이 계산은 논문에 없다.</figcaption>
+</figure>
+
+<h3>1.2 harness 제어기의 세 가지 신뢰성 양 (§3.2)</h3>
+
+<p>안정성, 컨텍스트 드리프트, 제어 지연이 <strong>harness 구성이 분산을 만드는 세 구조적 통로</strong>다. 각각은 $C_H$의 성질이지 $\pi_\theta$의 성질이 아니고, 각각은 현재 평가가 단일 합성 점수로만 포착하는 경험적 실패 모드에 대응한다.</p>
+
+<p><strong>정의 1 (Stability)</strong>. 에이전트 실행이 <em>안정적</em>이라 함은 Lyapunov 유사 측도 $V(s_t) = d(s_t, \Omega^*)$가 제어기 $C$ 하에서 기대값으로 비증가한다는 것이다. $\Omega^*$는 목표 일관 상태 집합, $d$는 과제 특정 거리 측도다.</p>
+$$\mathbb{E}\big[V(s_{t+1}) \mid s_t\big] \leq V(s_t) \quad \forall t$$
+<p><strong>불안정성의 경험적 발현</strong>: hallucination spiral, 컨텍스트 오버플로, 실행 runaway — ##전부 정책 실패가 아니라 제어기 실패다##.</p>
+
+<p><strong>정의 2 (Context Drift)</strong>. $p_t$를 스텝 $t$에서 컨텍스트 창 임베딩의 분포라 하자(고정 임베딩 모델로 전체 컨텍스트 창을 인코딩해 얻는다). 컨텍스트 드리프트는 현재 컨텍스트 분포가 초기 과제 관련 상태 $p_0$로부터 벌어진 정도다.</p>
+$$\delta_t = D_{KL}(p_t \| p_0), \qquad \dot\delta = \delta_t - \delta_{t-1}$$
+<p>높은 드리프트율 $\dot\delta$는 제어기가 컨텍스트 창에 과제 관련 정보를 유지하지 못하고 있음을 뜻하며, 경험적으로 <em>과제 포기와 긴 지평에서의 의미적 비일관성</em>과 상관한다. ##드리프트는 컨텍스트 구성 정책 $c$를 통해 harness 구성 $H$의 성질이다 — 제어기가 관리에 실패하면 <em>모델의 어떤 성질도 드리프트를 막을 수 없다</em>.##</p>
+
+<p><strong>정의 3 (Control Lag)</strong>. harness 특정 신뢰성 측도로 <em>제어 지연</em> $\tau$를 제안한다 — harness가 이상을 감지한 시점(도구 실패, 잘못된 출력, 빈 결과)과 교정 행동이 피드백 경로를 통해 정책에 도달하는 시점 사이의 스텝 수다. 이상이 스텝 $t_d$에서 감지되고 교정 관측 $o_{t_c}$가 스텝 $t_c$에서 정책에 도달하면</p>
+$$\tau = t_c - t_d$$
+<p>##높은 $\tau$는 <em>실패 캐스케이드</em>를 가능하게 한다 — 정책이 harness가 오류를 처리하는 동안 $\tau$ 스텝에 걸쳐 <strong>손상된 상태 위에서 계속 행동</strong>하며 교정이 도달하기 전에 피해를 복합시킨다.##</p>
+
+<blockquote><strong>세 양이 왜 함께 제시되는가</strong>: 자기 검증(안정성에 영향), 컨텍스트 압축(드리프트에 영향), 이상 복구(제어 지연에 영향)에서 다른 두 구성 $H_1, H_2$는 <em>고정된 $M$에 대해</em> 각각 $B(M,H)$를 이동시키며 <strong>HV에 독립적으로 기여한다</strong>. 즉 이 세 양이 "HV는 무엇의 분산인가"에 답한다.</blockquote>
+
+<p><strong>구조적 비대칭의 핵심</strong>: 더 유능한 모델은 이상이 발생하는 <em>기저율(base rate)</em>을 낮출 수 있고 그만큼 $C_H$에 대한 요구를 줄인다. ##그러나 이상이 <em>일단 발생한 뒤의 대응</em>은 $C_H$의 성질이며, 모델을 업그레이드해도 개선되지 않는다.## 이것이 이 주장이 그럴듯한 구조적 이유다.</p>
+
+<figure>
+<svg viewBox="0 0 800 500" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="relArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">세 가지 신뢰성 양 — 각각이 어떤 실패 모드로 나타나는가</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="34" width="240" height="120" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="150" y="52" text-anchor="middle" font-size="11" font-weight="bold">① Stability (정의 1)</text>
+    <rect x="44" y="60" width="212" height="24" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="150" y="76" text-anchor="middle" font-size="10">E[V(s_{t+1}) | s_t] ≤ V(s_t)</text>
+    <text x="42" y="100">V(s_t) = d(s_t, Ω*) — 목표 상태까지의 거리</text>
+    <text x="42" y="116" font-weight="bold">경험적 발현:</text>
+    <text x="42" y="130">hallucination spiral · 컨텍스트 오버플로</text>
+    <text x="42" y="144">· 실행 runaway</text>
+
+    <rect x="280" y="34" width="240" height="120" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="400" y="52" text-anchor="middle" font-size="11" font-weight="bold">② Context Drift (정의 2)</text>
+    <rect x="294" y="60" width="212" height="24" rx="4" fill="#fff" stroke="#f59e0b"/>
+    <text x="400" y="76" text-anchor="middle" font-size="10">δ_t = D_KL(p_t ‖ p_0)</text>
+    <text x="292" y="100">p_t = 컨텍스트 창 임베딩 분포</text>
+    <text x="292" y="116" font-weight="bold">경험적 발현:</text>
+    <text x="292" y="130">과제 포기 · 긴 지평에서의</text>
+    <text x="292" y="144">의미적 비일관성</text>
+
+    <rect x="530" y="34" width="240" height="120" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="650" y="52" text-anchor="middle" font-size="11" font-weight="bold">③ Control Lag (정의 3)</text>
+    <rect x="544" y="60" width="212" height="24" rx="4" fill="#fff" stroke="#ef4444"/>
+    <text x="650" y="76" text-anchor="middle" font-size="10">τ = t_c − t_d</text>
+    <text x="542" y="100">이상 감지 → 교정 도달까지의 스텝 수</text>
+    <text x="542" y="116" font-weight="bold">경험적 발현:</text>
+    <text x="542" y="130">실패 캐스케이드 — 손상된 상태 위에서</text>
+    <text x="542" y="144">τ 스텝 동안 계속 행동한다</text>
+  </g>
+
+  <line x1="40" y1="168" x2="760" y2="168" stroke="#e5e7eb"/>
+
+  <text x="400" y="188" text-anchor="middle" font-size="11.5" font-weight="bold">수치 예제 — control lag τ가 실패 캐스케이드를 만드는 방식</text>
+  <text x="400" y="204" text-anchor="middle" font-size="9.5" fill="#666">스텝 12에서 도구 실패 발생. τ=1인 harness와 τ=5인 harness의 궤적 비교 (예시 계산)</text>
+
+  <text x="60" y="228" font-size="9.5" font-weight="bold" fill="#15803d">τ = 1 (즉시 교정)</text>
+  <g font-size="8">
+    <rect x="150" y="216" width="40" height="18" fill="#dcfce7" stroke="#16a34a"/><text x="170" y="229" text-anchor="middle">t11 ✓</text>
+    <rect x="192" y="216" width="40" height="18" fill="#fecaca" stroke="#ef4444"/><text x="212" y="229" text-anchor="middle">t12 ✗</text>
+    <rect x="234" y="216" width="40" height="18" fill="#fde68a" stroke="#f59e0b"/><text x="254" y="229" text-anchor="middle">t13 교정</text>
+    <rect x="276" y="216" width="40" height="18" fill="#dcfce7" stroke="#16a34a"/><text x="296" y="229" text-anchor="middle">t14 ✓</text>
+    <rect x="318" y="216" width="40" height="18" fill="#dcfce7" stroke="#16a34a"/><text x="338" y="229" text-anchor="middle">t15 ✓</text>
+    <rect x="360" y="216" width="40" height="18" fill="#dcfce7" stroke="#16a34a"/><text x="380" y="229" text-anchor="middle">t16 ✓</text>
+  </g>
+  <text x="416" y="229" font-size="9.5" fill="#15803d">오염 스텝 <tspan font-weight="bold">1개</tspan> → 궤적이 회복된다</text>
+
+  <text x="60" y="258" font-size="9.5" font-weight="bold" fill="#b91c1c">τ = 5 (지연된 교정)</text>
+  <g font-size="8">
+    <rect x="150" y="246" width="40" height="18" fill="#dcfce7" stroke="#16a34a"/><text x="170" y="259" text-anchor="middle">t11 ✓</text>
+    <rect x="192" y="246" width="40" height="18" fill="#fecaca" stroke="#ef4444"/><text x="212" y="259" text-anchor="middle">t12 ✗</text>
+    <rect x="234" y="246" width="40" height="18" fill="#fca5a5" stroke="#dc2626"/><text x="254" y="259" text-anchor="middle">t13 ✗</text>
+    <rect x="276" y="246" width="40" height="18" fill="#fca5a5" stroke="#dc2626"/><text x="296" y="259" text-anchor="middle">t14 ✗</text>
+    <rect x="318" y="246" width="40" height="18" fill="#fca5a5" stroke="#dc2626"/><text x="338" y="259" text-anchor="middle">t15 ✗</text>
+    <rect x="360" y="246" width="40" height="18" fill="#fca5a5" stroke="#dc2626"/><text x="380" y="259" text-anchor="middle">t16 ✗</text>
+    <rect x="402" y="246" width="40" height="18" fill="#fde68a" stroke="#f59e0b"/><text x="422" y="259" text-anchor="middle">t17 교정</text>
+  </g>
+  <text x="450" y="259" font-size="9.5" fill="#b91c1c">오염 스텝 <tspan font-weight="bold">5개</tspan> → 그동안의 행동이 전부 손상된 상태 위에 쌓인다</text>
+
+  <rect x="60" y="276" width="680" height="42" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="400" y="294" text-anchor="middle" font-size="10">여기서 결정적인 점: <tspan font-weight="bold">τ는 모델을 바꿔도 변하지 않는다</tspan>. 더 좋은 모델은 t12에서 실패할 확률을 낮출 수 있지만,</text>
+  <text x="400" y="310" text-anchor="middle" font-size="10">일단 실패한 뒤 <tspan font-weight="bold">교정 신호가 몇 스텝 만에 도착하는가</tspan>는 harness의 관측성·도구 층이 정한다</text>
+
+  <line x1="40" y1="332" x2="760" y2="332" stroke="#e5e7eb"/>
+
+  <text x="400" y="352" text-anchor="middle" font-size="11.5" font-weight="bold">구조적 비대칭 — 모델이 낮출 수 있는 것과 없는 것</text>
+
+  <g font-size="9.5">
+    <rect x="80" y="362" width="290" height="76" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="225" y="380" text-anchor="middle" font-size="10.5" font-weight="bold">모델이 개선할 수 있는 것</text>
+    <text x="92" y="398">이상이 <tspan font-weight="bold">발생하는 기저율</tspan></text>
+    <text x="92" y="414">→ C_H에 대한 요구를 줄인다</text>
+    <text x="92" y="430" fill="#1e40af">더 좋은 모델 = 도구를 덜 잘못 호출한다</text>
+
+    <rect x="430" y="362" width="290" height="76" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="575" y="380" text-anchor="middle" font-size="10.5" font-weight="bold">모델이 개선할 수 <tspan font-style="italic">없는</tspan> 것</text>
+    <text x="442" y="398">이상이 <tspan font-weight="bold">발생한 뒤의 대응</tspan></text>
+    <text x="442" y="414">→ 감지·전달·복구는 전부 C_H의 성질</text>
+    <text x="442" y="430" fill="#b91c1c">모델을 업그레이드해도 τ는 그대로다</text>
+  </g>
+
+  <rect x="80" y="450" width="640" height="42" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="468" text-anchor="middle" font-size="10.5" font-weight="bold">이것이 Binding Constraint Thesis가 그럴듯한 구조적 이유다</text>
+  <text x="400" y="486" text-anchor="middle" font-size="10">long-horizon 과제일수록 "이상이 한 번도 안 생길 확률"이 낮아지므로, <tspan font-weight="bold">대응 품질(제어기)의 비중이 커진다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: 세 신뢰성 양과 control lag 수치 예제]</strong>: 위 세 박스가 각 양의 정의와 <em>경험적 발현</em>을 짝지은 것인데, 이 짝짓기가 이 절의 실용적 가치다 — hallucination spiral을 "모델이 환각을 본다"가 아니라 <strong>제어기의 안정성 실패</strong>로 재분류하면 처방이 달라진다. 가운데 궤적 비교가 control lag를 체감시키는데, $\tau=1$이면 오염 스텝이 1개지만 $\tau=5$면 5개이며 <em>그동안의 모든 행동이 손상된 상태 위에 쌓인다</em>. 결정적인 점은 노란 박스에 있다 — <strong>$\tau$는 모델을 바꿔도 변하지 않는다</strong>. 아래 두 박스가 이 논문의 구조적 논거를 요약하는데, 모델은 이상의 <em>기저율</em>만 낮출 수 있고 <em>대응</em>은 제어기의 몫이다. 그리고 궤적이 길수록 "이상이 한 번도 안 생길 확률"이 낮아지므로 대응 품질의 비중이 커진다 — 이것이 thesis가 long-horizon으로 범위를 한정한 이유다. 궤적 예시는 논문에 없는 계산이다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — Stability와 Context Drift를 한 궤적에서 함께 보기</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">정의 1의 V(s_t)와 정의 2의 δ_t를 20스텝 궤적에 그린 것. 논문에 없는 예시 계산이다</text>
+
+  <text x="200" y="58" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">안정적 궤적 (H₃ 유형)</text>
+  <line x1="60" y1="200" x2="350" y2="200" stroke="#333"/>
+  <line x1="60" y1="70" x2="60" y2="200" stroke="#333"/>
+  <text x="60" y="216" text-anchor="middle" font-size="9">0</text>
+  <text x="205" y="216" text-anchor="middle" font-size="9">10</text>
+  <text x="350" y="216" text-anchor="middle" font-size="9">20</text>
+  <text x="205" y="232" text-anchor="middle" font-size="9.5" fill="#555">스텝 t</text>
+
+  <path d="M60,80 L89,92 L118,104 L147,113 L176,124 L205,133 L234,145 L263,155 L292,168 L321,180 L350,190" stroke="#16a34a" stroke-width="2.4" fill="none"/>
+  <text x="356" y="190" font-size="9" fill="#15803d">V(s_t) ↓</text>
+  <text x="150" y="98" font-size="9" fill="#15803d">목표까지 거리가 단조 감소</text>
+
+  <path d="M60,192 L89,190 L118,188 L147,187 L176,185 L205,186 L234,184 L263,183 L292,182 L321,181 L350,180" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="5 3" fill="none"/>
+  <text x="356" y="176" font-size="9" fill="#b45309">δ_t 낮게 유지</text>
+
+  <rect x="70" y="242" width="270" height="46" rx="5" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="205" y="260" text-anchor="middle" font-size="9.5">E[V(s_{t+1}) | s_t] ≤ V(s_t) 만족 → <tspan font-weight="bold">안정</tspan></text>
+  <text x="205" y="277" text-anchor="middle" font-size="9.5">드리프트가 낮아 관련 정보가 컨텍스트에 남아 있다</text>
+
+  <line x1="380" y1="46" x2="380" y2="300" stroke="#e5e7eb"/>
+
+  <text x="580" y="58" text-anchor="middle" font-size="11" font-weight="bold" fill="#b91c1c">불안정 궤적 (H₁ 유형)</text>
+  <line x1="440" y1="200" x2="730" y2="200" stroke="#333"/>
+  <line x1="440" y1="70" x2="440" y2="200" stroke="#333"/>
+  <text x="440" y="216" text-anchor="middle" font-size="9">0</text>
+  <text x="585" y="216" text-anchor="middle" font-size="9">10</text>
+  <text x="730" y="216" text-anchor="middle" font-size="9">20</text>
+  <text x="585" y="232" text-anchor="middle" font-size="9.5" fill="#555">스텝 t</text>
+
+  <path d="M440,80 L469,94 L498,106 L527,118 L556,110 L585,126 L614,116 L643,132 L672,120 L701,138 L730,128" stroke="#ef4444" stroke-width="2.4" fill="none"/>
+  <text x="736" y="128" font-size="9" fill="#b91c1c" text-anchor="end">V(s_t)</text>
+  <path d="M556,110 L556,96" stroke="#dc2626" stroke-width="1.4"/>
+  <text x="560" y="94" font-size="8.5" fill="#b91c1c">증가 구간 — 안정성 위반</text>
+
+  <path d="M440,192 L469,186 L498,176 L527,162 L556,146 L585,128 L614,110 L643,96 L672,86 L701,78 L730,72" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="5 3" fill="none"/>
+  <text x="736" y="72" font-size="9" fill="#b45309" text-anchor="end">δ_t ↑↑</text>
+  <text x="620" y="160" font-size="9" fill="#b45309">드리프트가 계속 커진다</text>
+
+  <rect x="450" y="242" width="280" height="46" rx="5" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="590" y="260" text-anchor="middle" font-size="9.5">V가 오르내린다 → <tspan font-weight="bold">안정성 위반</tspan> (hallucination spiral)</text>
+  <text x="590" y="277" text-anchor="middle" font-size="9.5">δ_t 상승 = 초기 과제 정보가 컨텍스트에서 밀려난다</text>
+
+  <line x1="40" y1="308" x2="760" y2="308" stroke="#e5e7eb"/>
+
+  <text x="400" y="328" text-anchor="middle" font-size="11.5" font-weight="bold">두 양이 왜 <tspan font-style="italic">독립적으로</tspan> HV에 기여하는가</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="338" width="330" height="60" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="225" y="356" text-anchor="middle" font-size="10.5" font-weight="bold">서로 다른 harness 층이 담당한다</text>
+    <text x="72" y="374">Stability ← Verification 층 (자기 점검·이상 감지)</text>
+    <text x="72" y="390">Context Drift ← Context 층 (압축·retrieval 정책)</text>
+
+    <rect x="410" y="338" width="330" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="575" y="356" text-anchor="middle" font-size="10.5" font-weight="bold">따로 개선할 수 있다</text>
+    <text x="422" y="374">H₂는 드리프트만 줄인다 (압축 + retrieval)</text>
+    <text x="422" y="390">H₃가 안정성을 추가한다 (자기 점검 + rollback)</text>
+  </g>
+
+  <rect x="60" y="406" width="680" height="28" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="425" text-anchor="middle" font-size="10">궤적 로그 분석이 확인한 것과 정합한다 — <tspan font-weight="bold">H₁→H₂는 제어 잡음(드리프트) 감소, H₂→H₃는 검증·복구 루프(안정성) 완결</tspan></text>
+</svg>
+<figcaption><strong>[Figure: Stability와 Context Drift 궤적 예제]</strong>: 왼쪽이 안정적 궤적, 오른쪽이 불안정 궤적이다. 초록/빨강 실선이 $V(s_t)$(목표까지의 거리)이고 주황 점선이 $\delta_t$(컨텍스트 드리프트)다. <strong>안정성 위반은 $V$가 <em>오르내리는</em> 것으로 나타나고</strong>, 이것이 정의 1의 $\mathbb{E}[V(s_{t+1})|s_t] \leq V(s_t)$가 깨지는 지점이다 — 저자들이 hallucination spiral·실행 runaway로 부르는 현상의 형식적 표현이다. 아래 두 박스가 두 양이 <em>독립적으로</em> HV에 기여하는 이유인데, <strong>서로 다른 harness 층이 담당하므로 따로 개선할 수 있다</strong>. 그리고 이것이 실험의 $H_1 \to H_2 \to H_3$ 설계와 정확히 대응한다 — $H_2$가 드리프트를, $H_3$가 안정성을 추가한다. 궤적은 논문에 없는 예시이며 정의를 체감하기 위한 것이다.</figcaption>
+</figure>
+
+<h3>1.3 범위, 반증 가능성, 함의 (§3.3)</h3>
+
+<p><strong>범위</strong>: 이 주장은 <em>long-horizon 과제</em>와 <em>비슷한 프론티어 모델</em>로 제한된다.</p>
+<ul>
+  <li><strong>Long-horizon</strong>이란 최종 결과에 도달하기 위해 <em>다단계 도구 사용, 오류 복구, 컨텍스트 관리</em>가 필요한 과제를 뜻한다. 폐루프 신뢰성 양들은 그런 지평에서만 작용할 기회를 갖는다.</li>
+  <li><strong>비슷한 프론티어 모델</strong>이란 모델 능력 격차가 <em>harness 구성과 무관하게 MV가 기계적으로 지배할 만큼</em> 크지 않은 레짐을 뜻한다.</li>
+</ul>
+
+<p>저자들이 정확히 말할 수 있다고 하는 것은 <strong>무엇이 레짐 밖에 있는가</strong>다 — 단기 지평 과제, 그리고 한 모델이 관련 기술에서 다른 모델들보다 <em>극적으로</em> 유능한 구성. ##남는 레짐이 바로 <em>벤치마크 리더보드가 연구와 제품 결정을 주도하는 레짐</em>이다.##</p>
+
+<p><strong>반증 가능성</strong>: 이 주장은 경험적이다. <em>$H$를 변화시키고 $M$을 고정하는 factorial 실험과 그 반대를 수행해, 비슷한 모델 능력 하의 long-horizon 과제 분포에서 $MV > HV$를 발견하면 반증된다</em>. 저자들은 이 주장이 공허하지 않음을 강조한다 — 그런 결과는 원리적으로 상상 가능하고, 자기들의 통제된 격자가 분산 순서를 경험적 질문으로 만든다.</p>
+
+<blockquote><strong>position paper로서 이례적인 점</strong>: 대부분의 입장 논문은 반증 조건을 제시하지 않는다. 이 논문은 <em>구체적 실험 설계</em>로 반증 조건을 명시하고, 나아가 동시기 심리측정 연구(에이전트 능력을 독립적인 LLM 성분과 scaffold 성분으로 분해하는)를 <strong>외부 프로브</strong>로 지목하며 — <em>scaffold 능력 분산이 벤치마크 전반에서 체계적으로 LLM 능력 분산보다 작다면 이 주장은 그 연구와 긴장 관계에 놓인다</em>고 밝힌다.</blockquote>
+
+<h2>2. 증거 (§4)</h2>
+
+<p>두 종류의 증거를 제시한다 — 공개 리더보드의 <em>관찰적 데이터</em>와 조건을 맞춘 <em>통제된 factorial 실험</em>.</p>
+
+<h3>2.1 공개 리더보드 증거 (§4.1)</h3>
+
+<p><strong>Table 1 — harness 유발 성능 변화 (모델 고정, 인프라만 변경)</strong></p>
+
+<table class="small-table">
+<thead><tr><th>벤치마크</th><th>모델 (고정)</th><th>harness 변경</th><th>영향 층</th><th>Δ</th></tr></thead>
+<tbody>
+<tr><td>SWE-bench Pro</td><td>Claude Opus 4.5</td><td>SEAL → Claude Code (45.9% → 55.4%)</td><td>E, T, C</td><td><strong>+9.5%p</strong></td></tr>
+<tr style="background:#dcfce7"><td>SWE-bench Verified</td><td>Grok 4</td><td>SWE-agent → xAI scaffold (58.6% → 72~75%)</td><td>T, C, O</td><td><strong>+14~16%p</strong></td></tr>
+<tr><td>TerminalBench 2.0</td><td>고정 모델</td><td>프롬프트 + 미들웨어 + 검증 (52.8% → 66.5%)</td><td>C, S, V</td><td><strong>+13.7%p</strong></td></tr>
+<tr><td>TerminalBench-2</td><td>고정 모델</td><td>자동 harness 최적화</td><td>All</td><td>76.4%</td></tr>
+<tr><td>TerminalBench 2</td><td>GPT-5.4 (high)</td><td>AHE harness 진화 (69.7% → 77.0%)</td><td>C, T, S, O</td><td>+7.3%p</td></tr>
+<tr><td>코딩 벤치마크</td><td>고정 모델</td><td>컨텍스트 형식 + 도구 정의</td><td>T, C</td><td><strong>~10배</strong></td></tr>
+<tr><td>에이전트 과제 (Vercel)</td><td>고정 모델</td><td>도구 15개 → 2개</td><td>T</td><td>80% → 100%</td></tr>
+<tr><td>SWE-bench Pro</td><td>다양</td><td>+ WarpGrep 검색 subagent</td><td>T</td><td>+2.1~2.2%p</td></tr>
+</tbody>
+</table>
+<p style="font-size:0.85em;color:#666">층: E = Execution, T = Tool, C = Context, S = Scheduling, O = Observability, V = Verification</p>
+
+<p><strong>가장 강한 슬라이스 — SWE-bench Pro의 이중 비교</strong>: Morph 리더보드에서 표준화된 SEAL scaffold 하의 상위 6개 프론티어 모델이 <strong>4.9%p</strong>만 벌어진다(41.0% ~ 45.9%). Claude Opus 4.5를 고정하고 harness만 바꾸면 이것이 <strong>9.5%p</strong>로 넓어진다(SEAL vs Claude Code). ##즉 모델 내 harness 범위가 harness 내 모델 범위를 약 2배 초과하며, 이것이 이 슬라이스에 대한 HV/MV 비의 하한이다.##</p>
+
+<p><strong>interaction을 가시화하는 사례</strong>: 동일 인프라 위에 WarpGrep 검색 subagent를 추가하면 모델들 전반에 2.1~2.2%p가 더해지는데 — <em>이는 일상적 모델 업그레이드와 비슷한 크기이면서 MiniMax 2.5 vs Claude Opus 4.6 순서를 뒤집기에 충분하다</em>. ##도구 하나 추가가 interaction 항을 눈에 보이게 만든다.##</p>
+
+<p><strong>HAL의 cross-scaffold 격차</strong>: SWE-bench Verified Mini에서 SWE-Agent vs HAL Generalist 하 두 자릿수 격차 — Claude Sonnet 4.5 <strong>34%p</strong>(68% → 34%), GPT-5 Medium <strong>34%p</strong>(46% → 12%), o4-mini <strong>거의 48%p</strong>. 이는 <em>어느 scaffold 하에서든 개별적으로 나타나는 모델 간 폭보다 훨씬 크다</em>.</p>
+
+<p><strong>제3자 모니터링</strong>: SWE-bench Verified에서 최대 11~15%p의 scaffold만의 변동, 그리고 <em>"scaffold 선택이 전체 성능에 단일 최대 영향을 준다"</em>는 명시적 관찰. mini-SWE-agent를 모델 간 비교에 쓰라는 권고는 locked-harness 프로토콜의 한 실현이다.</p>
+
+<p><strong>저자들의 유보</strong>: 패턴은 일관되고 크다. ##그러나 공개 증거는 관찰적이다.## 공개 harness들은 여러 차원에서 다르고 서로 다른 팀이 서로 다른 엔지니어링 예산으로 만들었으므로, <em>공개 데이터만으로는 어느 harness 컴포넌트가 분산을 만드는지 분리할 수 없다</em>.</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">SWE-bench Pro의 이중 비교 — HV/MV 비의 하한을 만드는 방식</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">같은 벤치마크에서 두 종류의 폭을 재면 비율의 하한이 나온다</text>
+
+  <line x1="110" y1="200" x2="740" y2="200" stroke="#333"/>
+  <text x="110" y="216" text-anchor="middle" font-size="9">40</text>
+  <text x="236" y="216" text-anchor="middle" font-size="9">44</text>
+  <text x="362" y="216" text-anchor="middle" font-size="9">48</text>
+  <text x="488" y="216" text-anchor="middle" font-size="9">52</text>
+  <text x="614" y="216" text-anchor="middle" font-size="9">56</text>
+  <text x="425" y="232" text-anchor="middle" font-size="10" fill="#555">SWE-bench Pro resolved (%)</text>
+
+  <text x="104" y="86" text-anchor="end" font-size="10" font-weight="bold">(a) harness 고정</text>
+  <text x="104" y="100" text-anchor="end" font-size="9">SEAL scaffold</text>
+  <text x="104" y="113" text-anchor="end" font-size="9">상위 6개 프론티어 모델</text>
+
+  <rect x="141" y="72" width="154" height="26" fill="#dbeafe" stroke="#3b82f6"/>
+  <circle cx="141" cy="85" r="4.5" fill="#3b82f6"/>
+  <circle cx="180" cy="85" r="4.5" fill="#3b82f6"/>
+  <circle cx="215" cy="85" r="4.5" fill="#3b82f6"/>
+  <circle cx="245" cy="85" r="4.5" fill="#3b82f6"/>
+  <circle cx="272" cy="85" r="4.5" fill="#3b82f6"/>
+  <circle cx="295" cy="85" r="5.5" fill="#1e40af"/>
+  <text x="141" y="64" text-anchor="middle" font-size="9" fill="#1e40af">41.0</text>
+  <text x="295" y="64" text-anchor="middle" font-size="9" fill="#1e40af">45.9</text>
+  <text x="380" y="90" font-size="10.5" font-weight="bold" fill="#1e40af">MV 폭 = 4.9%p</text>
+  <text x="380" y="105" font-size="9" fill="#666">6개 프론티어 모델이 이 안에 다 들어간다</text>
+
+  <text x="104" y="146" text-anchor="end" font-size="10" font-weight="bold">(b) 모델 고정</text>
+  <text x="104" y="160" text-anchor="end" font-size="9">Claude Opus 4.5</text>
+  <text x="104" y="173" text-anchor="end" font-size="9">harness만 변경</text>
+
+  <rect x="295" y="132" width="299" height="26" fill="#dcfce7" stroke="#16a34a"/>
+  <circle cx="295" cy="145" r="5.5" fill="#16a34a"/>
+  <circle cx="594" cy="145" r="5.5" fill="#15803d"/>
+  <text x="295" y="124" text-anchor="middle" font-size="9" fill="#15803d">45.9 (SEAL)</text>
+  <text x="594" y="124" text-anchor="middle" font-size="9" fill="#15803d">55.4 (Claude Code)</text>
+  <text x="620" y="150" font-size="10.5" font-weight="bold" fill="#15803d">HV 폭 = 9.5%p</text>
+
+  <path d="M295,100 L295,130" stroke="#a855f7" stroke-width="1.6" stroke-dasharray="4 3"/>
+  <text x="302" y="118" font-size="8.5" fill="#7e22ce">같은 모델·같은 벤치마크</text>
+
+  <rect x="380" y="160" width="330" height="30" rx="5" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="545" y="179" text-anchor="middle" font-size="10.5" font-weight="bold">HV / MV ≥ 9.5 / 4.9 ≈ 1.94배 (하한)</text>
+
+  <line x1="40" y1="248" x2="760" y2="248" stroke="#e5e7eb"/>
+
+  <text x="400" y="268" text-anchor="middle" font-size="11.5" font-weight="bold">WarpGrep 사례 — 왜 2.1%p가 순위를 뒤집는가</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="278" width="330" height="84" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="225" y="296" text-anchor="middle" font-size="10.5" font-weight="bold">절대 크기로는 작다</text>
+    <text x="72" y="314">WarpGrep 검색 subagent 추가 → +2.1~2.2%p</text>
+    <text x="72" y="330">논문들이 "유의미한 모델 진보"로 보고하는</text>
+    <text x="72" y="344">2~4%p와 같은 대역이다</text>
+    <text x="72" y="358" fill="#b45309">단독으로 보면 사소해 보인다</text>
+
+    <rect x="410" y="278" width="330" height="84" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="575" y="296" text-anchor="middle" font-size="10.5" font-weight="bold">그러나 모델 간 격차 대비로는 크다</text>
+    <text x="422" y="314">SEAL 하 상위 6모델의 <tspan font-weight="bold">전체 폭이 4.9%p</tspan></text>
+    <text x="422" y="330">→ 2.1%p는 그 폭의 <tspan font-weight="bold">43%</tspan>다</text>
+    <text x="422" y="348" fill="#b91c1c">실제로 MiniMax 2.5 vs Claude Opus 4.6</text>
+    <text x="422" y="360" fill="#b91c1c">순서를 뒤집는다 — <tspan font-weight="bold">도구 하나 추가로</tspan></text>
+  </g>
+
+  <rect x="60" y="374" width="680" height="58" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="392" text-anchor="middle" font-size="10.5" font-weight="bold">이 사례가 보여주는 것 — harness 효과의 크기는 <tspan font-style="italic">절대값</tspan>이 아니라 <tspan font-style="italic">모델 간 격차 대비</tspan>로 읽어야 한다</text>
+  <text x="400" y="410" text-anchor="middle" font-size="10">프론티어 모델들이 수렴할수록(SEAL 하 4.9%p) 작은 harness 변화도 순위를 결정한다.</text>
+  <text x="400" y="425" text-anchor="middle" font-size="10" fill="#4338ca">이것이 thesis가 "<tspan font-weight="bold">비슷한 프론티어 능력</tspan>" 레짐으로 범위를 한정한 이유다 — 모델이 수렴할수록 주장이 강해진다</text>
+</svg>
+<figcaption><strong>[Figure: SWE-bench Pro 이중 비교]</strong>: (a)와 (b)가 <em>같은 벤치마크에서 잰 두 종류의 폭</em>이다 — 파란 띠는 harness를 고정했을 때 6개 프론티어 모델이 차지하는 범위(4.9%p), 초록 띠는 모델을 고정했을 때 harness가 만드는 범위(9.5%p). 보라 점선이 두 비교의 접점(SEAL 하 Opus 4.5)이며, 비율 1.94배가 이 슬라이스의 HV/MV 하한이 된다. 아래 WarpGrep 사례가 이 논문에서 가장 통찰적인 부분인데 — <strong>2.1%p는 절대값으로는 작지만 모델 간 전체 폭(4.9%p)의 43%</strong>이므로 순위를 뒤집기에 충분하다. 이것이 harness 효과를 읽는 올바른 척도를 알려준다: 절대 크기가 아니라 <em>모델 간 격차 대비 크기</em>다. 그리고 프론티어 모델들이 수렴할수록 이 비율이 커지므로, thesis가 "비슷한 프론티어 능력" 레짐으로 범위를 한정한 것이 <em>주장을 약화시키는 것이 아니라 강화</em>한다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">HAL의 cross-scaffold 격차 — 이 논문이 인용하는 가장 큰 사례</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">SWE-bench Verified Mini에서 SWE-Agent vs HAL Generalist. 같은 모델, 다른 scaffold</text>
+
+  <line x1="150" y1="250" x2="720" y2="250" stroke="#333"/>
+  <text x="150" y="266" text-anchor="middle" font-size="9">0</text>
+  <text x="264" y="266" text-anchor="middle" font-size="9">20</text>
+  <text x="378" y="266" text-anchor="middle" font-size="9">40</text>
+  <text x="492" y="266" text-anchor="middle" font-size="9">60</text>
+  <text x="606" y="266" text-anchor="middle" font-size="9">80</text>
+  <text x="435" y="282" text-anchor="middle" font-size="10" fill="#555">SWE-bench Verified Mini 성공률 (%)</text>
+
+  <g font-size="9">
+    <text x="144" y="80" text-anchor="end" font-weight="bold">Claude Sonnet 4.5</text>
+    <line x1="344" y1="76" x2="538" y2="76" stroke="#94a3b8" stroke-width="8" opacity="0.4"/>
+    <circle cx="344" cy="76" r="5.5" fill="#ef4444"/><text x="344" y="66" text-anchor="middle" fill="#b91c1c">34</text>
+    <circle cx="538" cy="76" r="5.5" fill="#16a34a"/><text x="538" y="66" text-anchor="middle" fill="#15803d">68</text>
+    <text x="560" y="80" fill="#7e22ce" font-weight="bold">34%p</text>
+
+    <text x="144" y="128" text-anchor="end" font-weight="bold">GPT-5 Medium</text>
+    <line x1="218" y1="124" x2="412" y2="124" stroke="#94a3b8" stroke-width="8" opacity="0.4"/>
+    <circle cx="218" cy="124" r="5.5" fill="#ef4444"/><text x="218" y="114" text-anchor="middle" fill="#b91c1c">12</text>
+    <circle cx="412" cy="124" r="5.5" fill="#16a34a"/><text x="412" y="114" text-anchor="middle" fill="#15803d">46</text>
+    <text x="434" y="128" fill="#7e22ce" font-weight="bold">34%p</text>
+
+    <text x="144" y="176" text-anchor="end" font-weight="bold">o4-mini</text>
+    <line x1="180" y1="172" x2="453" y2="172" stroke="#94a3b8" stroke-width="8" opacity="0.4"/>
+    <circle cx="180" cy="172" r="5.5" fill="#ef4444"/>
+    <circle cx="453" cy="172" r="5.5" fill="#16a34a"/>
+    <text x="475" y="176" fill="#7e22ce" font-weight="bold">거의 48%p</text>
+    <text x="316" y="164" text-anchor="middle" font-size="8.5" fill="#666">(구체적 양 끝값은 원문에 명시되지 않음)</text>
+  </g>
+
+  <g font-size="9">
+    <circle cx="180" cy="212" r="5" fill="#ef4444"/><text x="192" y="216">SWE-Agent scaffold</text>
+    <circle cx="340" cy="212" r="5" fill="#16a34a"/><text x="352" y="216">HAL Generalist scaffold</text>
+  </g>
+
+  <rect x="150" y="228" width="570" height="0" fill="none"/>
+
+  <line x1="40" y1="298" x2="760" y2="298" stroke="#e5e7eb"/>
+
+  <text x="400" y="318" text-anchor="middle" font-size="11.5" font-weight="bold">이 수치가 왜 결정적인가</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="328" width="330" height="80" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="225" y="346" text-anchor="middle" font-size="10.5" font-weight="bold">저자들의 관찰</text>
+    <text x="72" y="364">이 격차는 <tspan font-weight="bold">어느 scaffold 하에서든 개별적으로</tspan></text>
+    <text x="72" y="379"><tspan font-weight="bold">나타나는 모델 간 폭보다 훨씬 크다</tspan></text>
+    <text x="72" y="398" fill="#b91c1c">→ 같은 모델이 scaffold에 따라 12%에서 46%가 된다면</text>
+    <text x="72" y="403" fill="#b91c1c"></text>
+
+    <rect x="410" y="328" width="330" height="80" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+    <text x="575" y="346" text-anchor="middle" font-size="10.5" font-weight="bold">이 문서의 유보</text>
+    <text x="422" y="364">HAL Generalist와 SWE-Agent는 <tspan font-style="italic">전혀 다른 설계</tspan>다 —</text>
+    <text x="422" y="379">이 격차는 "harness를 조금 바꾼 효과"가 아니라</text>
+    <text x="422" y="394">"완전히 다른 두 시스템의 차이"에 가깝다.</text>
+    <text x="422" y="404" fill="#b45309">통제된 3×3 격자가 더 신뢰할 만한 근거다</text>
+  </g>
+</svg>
+<figcaption><strong>[Figure: HAL cross-scaffold 격차]</strong>: 이 논문이 인용하는 가장 큰 공개 사례다 — 같은 모델이 scaffold에 따라 <strong>34~48%p</strong> 차이가 난다. GPT-5 Medium이 12%에서 46%가 되는 것이 특히 극적인데, <em>어느 scaffold 하에서든 개별적으로 나타나는 모델 간 폭보다 훨씬 크다</em>는 것이 저자들의 논점이다. 다만 오른쪽 주황 박스의 유보를 함께 읽어야 한다 — HAL Generalist와 SWE-Agent는 전혀 다른 설계이므로 이 격차는 "harness를 조금 바꾼 효과"가 아니라 <em>완전히 다른 두 시스템의 차이</em>에 가깝고, 그런 의미에서 §2.2의 통제된 3×3 격자가 더 신뢰할 만한 근거다. o4-mini의 양 끝값은 원문이 "거의 48%p"라고만 밝히므로 막대 위치는 도식적이다.</figcaption>
+</figure>
+
+<h3>2.2 통제된 factorial 실험 (§4.2) — 이 논문의 결정적 증거</h3>
+
+<p><strong>설정</strong>: harness가 통제하는 분산을 분리하기 위해 <em>세 신뢰성 양을 따라 구성을 변화시키고 다른 모든 요인을 고정</em>한다.</p>
+
+<ul>
+  <li><strong>모델 3개</strong>: GPT-5.4, Kimi K2.6, GLM-5.1 — <em>LLM Stats 코딩 리더보드에서 밀집해 있었기 때문에</em> 선택(비슷한 프론티어 능력 레짐을 확보하기 위해).</li>
+  <li><strong>harness 3개</strong>: $H_1$(Minimal), $H_2$(Improved), $H_3$(Full).</li>
+  <li><strong>과제</strong>: SWE-bench Verified의 <em>난이도 층화 100문항 부분집합</em>.</li>
+  <li><strong>통제</strong>: 각 $(M_i, H_j)$ 셀당 <strong>독립 2회 실행</strong>, 공유 과제 순서, Docker 실행 환경, SWE-bench 평가 파이프라인, <strong>50스텝 예산</strong>, <strong>스텝당 120초 타임아웃</strong>.</li>
+</ul>
+
+<table class="small-table">
+<thead><tr><th>구성</th><th>컨텍스트</th><th>도구</th><th>복구</th><th>검증</th><th>세 양의 상태</th></tr></thead>
+<tbody>
+<tr><td><strong>$H_1$ (Minimal)</strong></td><td>압축 없음</td><td>verbose 스키마</td><td>재시도 없음</td><td>검증 훅 없음, 이상 복구 없음</td><td>##높은 드리프트, 높은 제어 지연, 안정성 보장 없음## — <em>baseline open-loop harness</em></td></tr>
+<tr><td><strong>$H_2$ (Improved)</strong></td><td>과제 관련성 retrieval로 압축</td><td>최소 스키마</td><td>도구 실패 시 지수 백오프 구조화 재시도</td><td>—</td><td>드리프트 감소, 중간 제어 지연, 기본 폐루프 피드백</td></tr>
+<tr><td><strong>$H_3$ (Full)</strong></td><td>$H_2$ + 5스텝마다 KL 유사 드리프트 점검</td><td>$H_2$와 동일</td><td>반복 행동 루프·컨텍스트 모순 이상 감지 미들웨어, <strong>최근 10개 상태 유지 checkpoint rollback</strong></td><td>스텝별 자기 점검, 전체 출력 검증</td><td>낮은 드리프트, 낮은 제어 지연, 명시적 안정성 강제</td></tr>
+</tbody>
+</table>
+
+<p><strong>Table 2 — SWE-bench Verified subset100에서의 $B(M,H)$</strong> (2회 실행 평균 pass@1 %, HV·MV는 pp² 단위 분산)</p>
+
+<table>
+<thead><tr><th></th><th>$H_1$ (Minimal)</th><th>$H_2$ (Improved)</th><th>$H_3$ (Full)</th><th><strong>HV(M)</strong></th></tr></thead>
+<tbody>
+<tr><td><strong>GLM-5.1</strong></td><td>52.5</td><td>56.5</td><td><strong>65.5</strong></td><td><strong>29.56</strong></td></tr>
+<tr><td><strong>GPT-5.4</strong></td><td>55.0</td><td>58.5</td><td>63.5</td><td>12.17</td></tr>
+<tr><td><strong>Kimi K2.6</strong></td><td>52.0</td><td>59.0</td><td>60.5</td><td>13.72</td></tr>
+<tr style="background:#e0e7ff"><td><strong>MV(H)</strong></td><td><strong>1.72</strong></td><td><strong>1.17</strong></td><td><strong>4.22</strong></td><td></td></tr>
+</tbody>
+</table>
+<p style="font-size:0.9em"><strong>집계 HV/MV 비율: 7.80배. 순위 역전: 9개 모델쌍/harness쌍 비교 중 6개.</strong></p>
+
+<p><strong>결과 해석</strong>:</p>
+<ul>
+  <li>평균 HV <strong>18.48 pp²</strong> vs 평균 MV <strong>2.37 pp²</strong> → <strong>7.80배</strong></li>
+  <li>harness 변경이 GLM-5.1을 <strong>13.0%p</strong>, GPT-5.4와 Kimi K2.6을 각각 <strong>8.5%p</strong> 움직인다</li>
+  <li>고정 harness 안에서 모델 변경은 $H_1$·$H_2$·$H_3$에서 각각 <strong>3.0 / 2.5 / 5.0%p</strong>만 움직인다</li>
+  <li>interaction 항이 <strong>9개 가능한 모델쌍/harness쌍 비교 중 6개의 순위 역전</strong>으로 가시화된다</li>
+</ul>
+
+<p><strong>저자들의 절제</strong>: ##"7.80배 비율이 보편적이라고 주장하지 않는다."## 이 격자가 보이는 것은 (i) 통제된 조건에서 harness 분산이 모델 분산을 지배할 <em>수 있다</em>는 것과 (ii) 분해 프로토콜이 현실적 과제 분포에서 <em>해석 가능한 추정치를 낸다</em>는 것이다.</p>
+
+<p><strong>궤적 로그 분석</strong>: $H_1 \to H_2$ 전환은 <em>모델 지식을 늘리는 것이 아니라 제어 잡음을 줄이고</em>, $H_2 \to H_3$ 이득은 주로 <em>검증·복구 루프를 닫는 데서</em> 온다.</p>
+
+<figure>
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">Table 2 시각화 — 통제된 3×3 격자에서 두 방향의 분산</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">SWE-bench Verified 100문항, 셀당 2회, 50스텝 예산·120초 타임아웃·Docker 환경 전부 고정</text>
+
+  <line x1="150" y1="240" x2="700" y2="240" stroke="#333"/>
+  <text x="230" y="258" text-anchor="middle" font-size="10" font-weight="bold">H₁ (Minimal)</text>
+  <text x="230" y="271" text-anchor="middle" font-size="8.5" fill="#666">압축 없음 · 재시도 없음 · 검증 없음</text>
+  <text x="425" y="258" text-anchor="middle" font-size="10" font-weight="bold">H₂ (Improved)</text>
+  <text x="425" y="271" text-anchor="middle" font-size="8.5" fill="#666">retrieval 압축 · 구조화 재시도</text>
+  <text x="620" y="258" text-anchor="middle" font-size="10" font-weight="bold">H₃ (Full)</text>
+  <text x="620" y="271" text-anchor="middle" font-size="8.5" fill="#666">+ 자기점검 · 드리프트 점검 · rollback</text>
+
+  <line x1="150" y1="60" x2="150" y2="240" stroke="#333"/>
+  <text x="144" y="64" text-anchor="end" font-size="9">67</text>
+  <text x="144" y="152" text-anchor="end" font-size="9">59</text>
+  <text x="144" y="243" text-anchor="end" font-size="9">51</text>
+  <text x="136" y="150" text-anchor="middle" font-size="10" fill="#555" transform="rotate(-90 136 150)">pass@1 (%)</text>
+  <line x1="150" y1="152" x2="700" y2="152" stroke="#f1f5f9"/>
+
+  <path d="M230,223 L425,178 L620,77" stroke="#16a34a" stroke-width="2.6" fill="none"/>
+  <circle cx="230" cy="223" r="5" fill="#16a34a"/><text x="230" y="215" text-anchor="middle" font-size="9" fill="#15803d">52.5</text>
+  <circle cx="425" cy="178" r="5" fill="#16a34a"/><text x="425" y="170" text-anchor="middle" font-size="9" fill="#15803d">56.5</text>
+  <circle cx="620" cy="77" r="6" fill="#15803d"/><text x="620" y="69" text-anchor="middle" font-size="9" font-weight="bold" fill="#15803d">65.5</text>
+  <text x="640" y="90" font-size="9.5" fill="#15803d">GLM-5.1</text>
+
+  <path d="M230,195 L425,155 L620,99" stroke="#3b82f6" stroke-width="2.6" fill="none"/>
+  <circle cx="230" cy="195" r="5" fill="#3b82f6"/><text x="230" y="187" text-anchor="middle" font-size="9" fill="#1e40af">55.0</text>
+  <circle cx="425" cy="155" r="5" fill="#3b82f6"/><text x="450" y="150" text-anchor="middle" font-size="9" fill="#1e40af">58.5</text>
+  <circle cx="620" cy="99" r="5" fill="#3b82f6"/><text x="620" y="115" text-anchor="middle" font-size="9" fill="#1e40af">63.5</text>
+  <text x="640" y="105" font-size="9.5" fill="#1e40af">GPT-5.4</text>
+
+  <path d="M230,229 L425,149 L620,132" stroke="#e67e22" stroke-width="2.6" fill="none"/>
+  <circle cx="230" cy="229" r="5" fill="#e67e22"/><text x="205" y="240" text-anchor="middle" font-size="9" fill="#b45309">52.0</text>
+  <circle cx="425" cy="149" r="5" fill="#e67e22"/><text x="425" y="140" text-anchor="middle" font-size="9" fill="#b45309">59.0</text>
+  <circle cx="620" cy="132" r="5" fill="#e67e22"/><text x="620" y="147" text-anchor="middle" font-size="9" fill="#b45309">60.5</text>
+  <text x="640" y="136" font-size="9.5" fill="#b45309">Kimi K2.6</text>
+
+  <path d="M230,195 L230,229" stroke="#a855f7" stroke-width="6" opacity="0.3"/>
+  <text x="196" y="256" text-anchor="middle" font-size="8.5" fill="#7e22ce">MV 3.0%p</text>
+  <path d="M425,149 L425,178" stroke="#a855f7" stroke-width="6" opacity="0.3"/>
+  <text x="391" y="256" text-anchor="middle" font-size="8.5" fill="#7e22ce">MV 2.5%p</text>
+  <path d="M620,77 L620,132" stroke="#a855f7" stroke-width="6" opacity="0.3"/>
+  <text x="586" y="256" text-anchor="middle" font-size="8.5" fill="#7e22ce">MV 5.0%p</text>
+
+  <rect x="150" y="286" width="270" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="285" y="304" text-anchor="middle" font-size="10.5" font-weight="bold">가로 방향 — harness 효과 (HV)</text>
+  <text x="162" y="322" font-size="9.5">GLM-5.1: 52.5 → 65.5 = <tspan font-weight="bold">13.0%p</tspan></text>
+  <text x="162" y="337" font-size="9.5">GPT-5.4: 55.0 → 63.5 = <tspan font-weight="bold">8.5%p</tspan></text>
+  <text x="162" y="352" font-size="9.5">Kimi K2.6: 52.0 → 60.5 = <tspan font-weight="bold">8.5%p</tspan></text>
+
+  <rect x="435" y="286" width="265" height="76" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="567" y="304" text-anchor="middle" font-size="10.5" font-weight="bold">세로 방향 — 모델 효과 (MV)</text>
+  <text x="447" y="322" font-size="9.5">H₁ 안에서: <tspan font-weight="bold">3.0%p</tspan></text>
+  <text x="447" y="337" font-size="9.5">H₂ 안에서: <tspan font-weight="bold">2.5%p</tspan></text>
+  <text x="447" y="352" font-size="9.5">H₃ 안에서: <tspan font-weight="bold">5.0%p</tspan></text>
+
+  <line x1="40" y1="376" x2="760" y2="376" stroke="#e5e7eb"/>
+
+  <text x="400" y="396" text-anchor="middle" font-size="11.5" font-weight="bold">분산으로 환산하면</text>
+
+  <g font-size="10">
+    <rect x="120" y="406" width="560" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="132" y="421" font-weight="bold">지표</text>
+    <text x="330" y="421" font-weight="bold">값 (pp²)</text>
+    <text x="470" y="421" font-weight="bold">의미</text>
+
+    <rect x="120" y="428" width="560" height="22" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="132" y="443">평균 HV (harness 유발 분산)</text>
+    <text x="330" y="443" font-weight="bold" fill="#15803d">18.48</text>
+    <text x="470" y="443" font-size="9">(29.56 + 12.17 + 13.72) / 3</text>
+
+    <rect x="120" y="450" width="560" height="22" fill="#f3e8ff" stroke="#e5e7eb"/>
+    <text x="132" y="465">평균 MV (모델 유발 분산)</text>
+    <text x="330" y="465" font-weight="bold" fill="#7e22ce">2.37</text>
+    <text x="470" y="465" font-size="9">(1.72 + 1.17 + 4.22) / 3</text>
+
+    <rect x="120" y="472" width="560" height="24" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="132" y="488" font-weight="bold">HV / MV</text>
+    <text x="330" y="488" font-weight="bold" fill="#4338ca">7.80배</text>
+    <text x="470" y="488" font-size="9" font-weight="bold">순위 역전 6 / 9 — interaction이 크다</text>
+  </g>
+
+  <text x="400" y="512" text-anchor="middle" font-size="9.5" fill="#666">저자들의 절제: "7.80배가 보편적이라고 주장하지 않는다" — 이 격자가 보이는 것은 <tspan font-weight="bold">가능성과 프로토콜의 작동</tspan>이다</text>
+</svg>
+<figcaption><strong>[Figure: Table 2 통제 factorial 시각화]</strong>: 세 곡선이 세 모델이고 가로가 harness 구성이다. <strong>세 곡선이 모두 우상향하면서 서로 교차한다</strong>는 것이 이 그림의 두 요점을 동시에 보여준다 — 우상향은 HV(harness 효과), 교차는 interaction(순위 역전)이다. 보라색 세로 띠가 각 harness 안에서의 모델 간 폭(MV)인데, 가로 이동폭(8.5~13.0%p)에 비해 눈에 띄게 짧다(2.5~5.0%p). 주목할 패턴은 <strong>GLM-5.1이 harness 개선에서 가장 큰 이득</strong>(13.0%p)을 얻어 $H_1$ 최하위에서 $H_3$ 최상위로 올라간다는 것이며, 이것이 interaction의 구체적 모습이다 — harness가 모델마다 다른 크기로 작용한다. 맨 아래 저자들의 절제가 이 실험의 성격을 정확히 규정하는데, 7.80배는 <em>보편 상수가 아니라 존재 증명</em>이다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">수치 예제 — 순위 역전 6/9를 직접 세어보기</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">3개 모델쌍 × 3개 harness쌍 = 9개 비교. 각 비교에서 순서가 뒤집히는지 확인한다 (Table 2에서 계산)</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="48" width="720" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="52" y="63" font-weight="bold">모델쌍</text>
+    <text x="200" y="63" font-weight="bold">H₁에서</text>
+    <text x="340" y="63" font-weight="bold">H₂에서</text>
+    <text x="480" y="63" font-weight="bold">H₃에서</text>
+    <text x="620" y="63" font-weight="bold">역전 쌍</text>
+
+    <rect x="40" y="70" width="720" height="24" fill="#fff" stroke="#e5e7eb"/>
+    <text x="52" y="86">GPT-5.4 vs GLM-5.1</text>
+    <text x="200" y="86">55.0 &gt; 52.5 → <tspan font-weight="bold">GPT</tspan></text>
+    <text x="340" y="86">58.5 &gt; 56.5 → <tspan font-weight="bold">GPT</tspan></text>
+    <text x="480" y="86">63.5 &lt; 65.5 → <tspan font-weight="bold" fill="#b91c1c">GLM</tspan></text>
+    <text x="620" y="86" fill="#b91c1c">H₁–H₃ ✓ · H₂–H₃ ✓</text>
+
+    <rect x="40" y="94" width="720" height="24" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="52" y="110">GPT-5.4 vs Kimi K2.6</text>
+    <text x="200" y="110">55.0 &gt; 52.0 → <tspan font-weight="bold">GPT</tspan></text>
+    <text x="340" y="110">58.5 &lt; 59.0 → <tspan font-weight="bold" fill="#b91c1c">Kimi</tspan></text>
+    <text x="480" y="110">63.5 &gt; 60.5 → <tspan font-weight="bold">GPT</tspan></text>
+    <text x="620" y="110" fill="#b91c1c">H₁–H₂ ✓ · H₂–H₃ ✓</text>
+
+    <rect x="40" y="118" width="720" height="24" fill="#fff" stroke="#e5e7eb"/>
+    <text x="52" y="134">GLM-5.1 vs Kimi K2.6</text>
+    <text x="200" y="134">52.5 &gt; 52.0 → <tspan font-weight="bold">GLM</tspan></text>
+    <text x="340" y="134">56.5 &lt; 59.0 → <tspan font-weight="bold" fill="#b91c1c">Kimi</tspan></text>
+    <text x="480" y="134">65.5 &gt; 60.5 → <tspan font-weight="bold">GLM</tspan></text>
+    <text x="620" y="134" fill="#b91c1c">H₁–H₂ ✓ · H₂–H₃ ✓</text>
+
+    <rect x="40" y="142" width="720" height="24" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="52" y="158" font-weight="bold">합계</text>
+    <text x="620" y="158" font-weight="bold" fill="#4338ca">6 / 9 비교에서 역전</text>
+  </g>
+
+  <text x="400" y="184" text-anchor="middle" font-size="9.5" fill="#555">즉 <tspan font-weight="bold">어느 harness를 골랐느냐가 세 모델 중 어느 것이 "최고"인지를 정한다</tspan> — 세 모델 모두 어떤 harness에서는 1위가 된다</text>
+
+  <line x1="40" y1="200" x2="760" y2="200" stroke="#e5e7eb"/>
+
+  <text x="400" y="220" text-anchor="middle" font-size="11.5" font-weight="bold">harness별 "우승자"가 바뀐다</text>
+
+  <g font-size="10">
+    <rect x="100" y="232" width="180" height="70" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="190" y="250" text-anchor="middle" font-size="10.5" font-weight="bold">H₁ (Minimal)에서</text>
+    <text x="190" y="270" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e40af">GPT-5.4 (55.0)</text>
+    <text x="190" y="288" text-anchor="middle" font-size="9">GLM 52.5 · Kimi 52.0</text>
+
+    <rect x="310" y="232" width="180" height="70" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="400" y="250" text-anchor="middle" font-size="10.5" font-weight="bold">H₂ (Improved)에서</text>
+    <text x="400" y="270" text-anchor="middle" font-size="11" font-weight="bold" fill="#b45309">Kimi K2.6 (59.0)</text>
+    <text x="400" y="288" text-anchor="middle" font-size="9">GPT 58.5 · GLM 56.5</text>
+
+    <rect x="520" y="232" width="180" height="70" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="610" y="250" text-anchor="middle" font-size="10.5" font-weight="bold">H₃ (Full)에서</text>
+    <text x="610" y="270" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">GLM-5.1 (65.5)</text>
+    <text x="610" y="288" text-anchor="middle" font-size="9">GPT 63.5 · Kimi 60.5</text>
+  </g>
+
+  <rect x="100" y="314" width="600" height="34" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="400" y="332" text-anchor="middle" font-size="10.5" font-weight="bold">세 모델이 각각 다른 harness에서 1위다 — <tspan font-style="italic">"어느 모델이 최고인가"라는 질문에 harness 없이는 답이 없다</tspan></text>
+  <text x="400" y="344" text-anchor="middle" font-size="9.5">그리고 현재 리더보드는 harness를 밝히지 않은 채 이 질문에 답하고 있다</text>
+
+  <rect x="60" y="362" width="680" height="70" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="380" text-anchor="middle" font-size="10.5" font-weight="bold">궤적 로그가 밝힌 메커니즘 — 이득이 어디서 오는가</text>
+  <text x="72" y="398" font-size="10">· <tspan font-weight="bold">H₁ → H₂</tspan>: 모델 지식을 늘리는 것이 아니라 <tspan font-weight="bold">제어 잡음을 줄인다</tspan> (컨텍스트 압축 + 구조화 재시도)</text>
+  <text x="72" y="414" font-size="10">· <tspan font-weight="bold">H₂ → H₃</tspan>: 이득이 주로 <tspan font-weight="bold">검증·복구 루프를 닫는 데서</tspan> 온다 (자기 점검 + 이상 감지 + rollback)</text>
+  <text x="72" y="428" font-size="9.5" fill="#4338ca">→ 세 신뢰성 양(§1.2)이 실제로 서로 다른 개입 지점임을 확인한다</text>
+</svg>
+<figcaption><strong>[Figure: 순위 역전 6/9 계산]</strong>: Table 2의 값으로 9개 비교를 직접 세어 본 것이다(이 문서의 계산). 위 표에서 각 모델쌍이 harness에 따라 순서를 바꾸는 것이 보이고, 합계가 논문이 보고한 6/9와 일치한다. 아래 세 박스가 이 사실의 가장 극적인 표현인데 — <strong>세 모델이 각각 다른 harness에서 1위</strong>다. GPT-5.4는 $H_1$에서, Kimi K2.6은 $H_2$에서, GLM-5.1은 $H_3$에서 최고다. 따라서 "어느 모델이 최고인가"는 harness를 지정하지 않으면 <em>답이 없는 질문</em>이고, 현재 리더보드는 그 질문에 harness를 밝히지 않은 채 답하고 있다. 맨 아래 보라 박스의 메커니즘 분석이 중요한데, $H_1 \to H_2$와 $H_2 \to H_3$의 이득 출처가 다르다는 것은 §1.2의 세 신뢰성 양이 <em>실제로 구별되는 개입 지점</em>임을 뒷받침한다.</figcaption>
+</figure>
+
+<h2>3. harness-aware 평가 프레임워크 (§5)</h2>
+
+<p>long-horizon 에이전트 평가는 세 구성요소를 갖춘 harness-aware 프레임워크를 채택해야 한다 — <strong>구조화된 공개 카드, 분산 분해 프로토콜, 짧은 궤적 수준 지표 집합</strong>. 이 셋이 함께 harness 분산을 <em>보고 가능하고, 해석 가능하고, 귀속 가능하게</em> 만든다.</p>
+
+<h3>3.1 Harness Card — ETCSOVG 7층 공개</h3>
+
+<p>모든 에이전트 벤치마크 제출은 <strong>Harness Card</strong>를 포함해야 한다 — <em>ETCSOVG 7층 taxonomy로 조직된 harness 구성의 구조화된 공개</em>다. 저자들이 강조하는 성격: ##설계 제약이 아니라 <em>주의 체크리스트</em>로 의도되었다.##</p>
+
+<table class="small-table">
+<thead><tr><th>층</th><th>공개해야 하는 것</th><th>어느 신뢰성 양에 영향</th></tr></thead>
+<tbody>
+<tr><td><strong>E</strong> — Execution</td><td>런타임 substrate, 샌드박싱, 스텝·과제 예산</td><td>Stability (예산 소진이 곧 불안정)</td></tr>
+<tr><td><strong>T</strong> — Tool</td><td>도구 목록, 스키마, 오류 계약(error contract)</td><td>Control Lag (오류 계약이 감지 속도를 정한다)</td></tr>
+<tr><td><strong>C</strong> — Context</td><td>창 상한, 압축·retrieval 정책, 지속 메모리</td><td>Context Drift</td></tr>
+<tr><td><strong>S</strong> — Scheduling</td><td>에이전트 루프, 재시도·에스컬레이션 규칙</td><td>Stability, Control Lag</td></tr>
+<tr><td><strong>O</strong> — Observability</td><td>로깅되는 산출물과 trace</td><td>Control Lag (관측 없으면 감지도 없다)</td></tr>
+<tr><td><strong>V</strong> — Verification</td><td>검증, 자기 점검, 이상 감지</td><td>Stability</td></tr>
+<tr><td><strong>G</strong> — Governance</td><td>권한 모델, 부작용 경계, 사람 승인 지점</td><td>—</td></tr>
+</tbody>
+</table>
+
+<p><strong>목표</strong>: 구성을 <em>표준화</em>하는 것이 아니라 <em>가시화</em>하는 것 — 두 카드를 비교하는 독자가 점수 차이가 모델·harness·상호작용 중 무엇에 귀속되는지 <strong>위치를 특정할 수 있도록</strong>.</p>
+
+<h3>3.2 분산 분해 프로토콜</h3>
+
+<p>분산 분해는 다음 조건에서 <em>프로토콜</em>이 된다 — 평가가 <strong>같은 모델을 최소 두 개의 의미 있게 다른 harness로</strong>, 그리고 <strong>같은 harness를 최소 두 모델로</strong> 고정 과제 집합에서 실행할 때.</p>
+
+<p><strong>최소 유효 설계</strong>: <strong>2×2 모델×harness 격자</strong>. 과제 순서, 실행 환경, 평가 스크립트, API 파라미터, 정지 규칙을 고정한 채로.</p>
+
+<p><strong>"의미 있는 harness 차이"의 기준</strong>: ##ETCSOVG 층 중 최소 하나를 <em>안정성·드리프트·제어 지연에 영향을 줄 것으로 예상되는 방식으로</em> 바꾸어야만 의미 있는 차이로 친다.## 예: retrieval 기반 컨텍스트 압축, 도구 스키마와 오류 형식 변경, 검증·복구 훅 추가.</p>
+
+<p><strong>보고할 네 통계</strong> (헤드라인 점수와 함께):</p>
+<ol>
+  <li>모델별 HV와 harness별 MV</li>
+  <li>집계 비율 HV/MV</li>
+  <li>harness 간 <strong>모델쌍 순위 역전 수</strong></li>
+  <li>부분 에타제곱 계수 — $\eta_p^2 = \dfrac{SS_{interaction}}{SS_{interaction} + SS_{error}}$ (고정효과 이원 ANOVA의 제곱합)</li>
+</ol>
+
+<p><strong>$\eta_p^2$에 대한 세 가지 유보</strong>(저자들이 스스로 명시):</p>
+<ul>
+  <li>선택된 격자에 대한 <em>고정효과 양</em>이다 — harness가 더 큰 모집단에서 표집된다면 적절한 양은 혼합효과 모형의 분산 성분 $\sigma_{MH}^2$다</li>
+  <li><em>작은 격자에서 양의 편향</em>을 가지므로 $\omega^2$나 부트스트랩 구간과 함께 보고해야 한다</li>
+  <li>큰 $\eta_p^2$는 순위 뒤집힘의 <em>필요조건도 충분조건도 아니므로</em> 명시적 역전 수와 짝지어야 한다</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="protoArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">2×2 최소 격자 — 자기 평가에 바로 도입하는 방법</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">§5.2의 최소 유효 설계를 실행 절차로 풀었다. 실행 4회면 HV·MV·역전을 계산할 수 있다</text>
+
+  <g font-size="9.5">
+    <rect x="180" y="52" width="180" height="26" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="270" y="69" text-anchor="middle" font-weight="bold">harness A (기존)</text>
+    <rect x="380" y="52" width="180" height="26" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="470" y="69" text-anchor="middle" font-weight="bold">harness B (변경)</text>
+
+    <rect x="40" y="80" width="138" height="52" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="109" y="102" text-anchor="middle" font-weight="bold">모델 1 (주력)</text>
+    <text x="109" y="118" text-anchor="middle" font-size="8.5" fill="#666">지금 쓰는 모델</text>
+    <rect x="180" y="80" width="180" height="52" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="270" y="104" text-anchor="middle" font-size="10">B(M₁, H_A)</text>
+    <text x="270" y="120" text-anchor="middle" font-size="8.5" fill="#1e40af">현재 상태 — 이미 갖고 있는 숫자</text>
+    <rect x="380" y="80" width="180" height="52" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="470" y="104" text-anchor="middle" font-size="10">B(M₁, H_B)</text>
+    <text x="470" y="120" text-anchor="middle" font-size="8.5" fill="#15803d">추가 실행 1</text>
+
+    <rect x="40" y="134" width="138" height="52" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="109" y="156" text-anchor="middle" font-weight="bold">모델 2 (대안)</text>
+    <text x="109" y="172" text-anchor="middle" font-size="8.5" fill="#666">교체 검토 중인 모델</text>
+    <rect x="180" y="134" width="180" height="52" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="270" y="158" text-anchor="middle" font-size="10">B(M₂, H_A)</text>
+    <text x="270" y="174" text-anchor="middle" font-size="8.5" fill="#15803d">추가 실행 2</text>
+    <rect x="380" y="134" width="180" height="52" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="470" y="158" text-anchor="middle" font-size="10">B(M₂, H_B)</text>
+    <text x="470" y="174" text-anchor="middle" font-size="8.5" fill="#15803d">추가 실행 3</text>
+  </g>
+
+  <rect x="576" y="80" width="190" height="106" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="671" y="98" text-anchor="middle" font-size="10" font-weight="bold">고정해야 하는 것</text>
+  <text x="588" y="116" font-size="9">과제 순서</text>
+  <text x="588" y="131" font-size="9">실행 환경 (Docker 등)</text>
+  <text x="588" y="146" font-size="9">평가 스크립트</text>
+  <text x="588" y="161" font-size="9">API 파라미터</text>
+  <text x="588" y="176" font-size="9">정지 규칙 (스텝 예산·타임아웃)</text>
+
+  <path d="M400,192 L400,208" stroke="#64748b" marker-end="url(#protoArw)"/>
+
+  <rect x="60" y="212" width="680" height="30" rx="5" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="400" y="231" text-anchor="middle" font-size="10">전제 조건: H_A와 H_B의 차이가 <tspan font-weight="bold">"의미 있는" 차이</tspan>여야 한다 — ETCSOVG 층 중 최소 하나를 <tspan font-weight="bold">안정성·드리프트·제어 지연에 영향을 줄 방식으로</tspan> 변경</text>
+
+  <line x1="40" y1="256" x2="760" y2="256" stroke="#e5e7eb"/>
+
+  <text x="400" y="276" text-anchor="middle" font-size="11.5" font-weight="bold">수치 예제 — 4회 실행에서 무엇을 계산하는가</text>
+
+  <g font-size="10">
+    <rect x="80" y="286" width="640" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="92" y="301" font-weight="bold">가상 결과</text>
+    <text x="300" y="301" font-weight="bold">H_A</text>
+    <text x="420" y="301" font-weight="bold">H_B</text>
+    <text x="560" y="301" font-weight="bold">HV(M) = Var</text>
+
+    <rect x="80" y="308" width="640" height="22" fill="#fff" stroke="#e5e7eb"/>
+    <text x="92" y="323">모델 1</text>
+    <text x="300" y="323">61.0</text>
+    <text x="420" y="323">68.0</text>
+    <text x="560" y="323">12.25</text>
+
+    <rect x="80" y="330" width="640" height="22" fill="#f8fafc" stroke="#e5e7eb"/>
+    <text x="92" y="345">모델 2</text>
+    <text x="300" y="345">63.0</text>
+    <text x="420" y="345">66.0</text>
+    <text x="560" y="345">2.25</text>
+
+    <rect x="80" y="352" width="640" height="22" fill="#e0e7ff" stroke="#6366f1"/>
+    <text x="92" y="367" font-weight="bold">MV(H) = Var</text>
+    <text x="300" y="367" font-weight="bold">1.00</text>
+    <text x="420" y="367" font-weight="bold">1.00</text>
+    <text x="560" y="367" font-weight="bold">HV/MV = 7.25배</text>
+  </g>
+
+  <rect x="80" y="382" width="640" height="52" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="400" text-anchor="middle" font-size="10.5" font-weight="bold">이 4개 숫자에서 읽는 것</text>
+  <text x="92" y="418" font-size="9.5">· HV/MV = 7.25배 → harness가 더 큰 레버다　· <tspan font-weight="bold">순위 역전 1건</tspan>(H_A에서 M₂&gt;M₁, H_B에서 M₁&gt;M₂) → 모델 선택이 harness에 의존한다</text>
+  <text x="92" y="430" font-size="9.5" fill="#15803d">· 실무 결정: 모델 교체(+2.0%p)보다 harness 개선(+7.0%p)에 먼저 투자하고, 모델은 <tspan font-weight="bold">최종 harness에서 다시 비교</tspan>한다</text>
+</svg>
+<figcaption><strong>[Figure: 2×2 최소 격자 실행 가이드]</strong>: §5.2의 "최소 유효 설계"를 자기 평가에 도입하는 절차로 푼 것이다. 파란 셀은 <em>이미 갖고 있는 숫자</em>(현재 모델 × 현재 harness)이므로 추가 실행은 3회면 된다. 오른쪽 노란 박스의 고정 항목이 중요한데, 이것들이 고정되지 않으면 분산 분해가 무의미해진다. 빨간 띠의 전제 조건이 자주 간과되는 지점인데 — <strong>아무 프롬프트 변경이나 세면 안 되고</strong> ETCSOVG 층 중 최소 하나를 세 신뢰성 양에 영향을 줄 방식으로 바꿔야 한다. 아래 가상 수치 예제가 4개 숫자에서 무엇을 읽는지 보여주며, 마지막 줄의 실무 결정이 요점이다 — <em>harness를 먼저 개선하고 모델은 최종 harness에서 다시 비교한다</em>. 순서가 반대면 잘못된 모델을 고를 수 있다. 이 예제는 논문에 없는 가상 계산이다.</figcaption>
+</figure>
+
+<h3>3.3 궤적 수준 지표</h3>
+
+<p>집계 pass rate는 <em>HV가 클 때 어느 제어기 측 메커니즘이 그것을 만들고 있는지</em>를 열어 둔다. 저자들은 세 신뢰성 양을 조작화하는 세 지표를 제안한다. ##단, 이 지표들을 3×3 격자에서 추정하지는 않았다 — <em>향후 harness-aware 평가의 보고 요건</em>으로 명세한 것이다.##</p>
+
+<table class="small-table">
+<thead><tr><th>지표</th><th>조작화하는 양</th><th>정의</th><th>지목하는 층</th></tr></thead>
+<tbody>
+<tr><td><strong>Recovery Rate $RR(k)$</strong></td><td>Stability</td><td>궤적이 감지된 이상 상태(도구 오류, 잘못된 출력, 실패한 검증, 거부된 패치)에서 <strong>$k$ 스텝 안에</strong> 과제 전진 상태로 전이할 확률. ##$k \in \{1,3,5,10\}$에 대한 <em>곡선</em>으로 보고하는 것이 단일 숫자보다 낫다## — $k$ 선택이 즉각성과 최종 복구를 맞바꾸므로</td><td>Verification, 복구</td></tr>
+<tr><td><strong>Context Retention</strong></td><td>Context Drift</td><td>각 스텝에서 구성된 컨텍스트 안에 존재하는 <em>과제 관련 파일·테스트·제약의 비율</em>. $\delta_t$에 대해 단조인 감사 가능한 대리 지표</td><td>Context 구성 정책</td></tr>
+<tr><td><strong>Control Lag $\tau$</strong></td><td>Control Lag</td><td>직접 측정 — harness가 감지한 이상과 교정 신호가 정책에 도달하는 사이의 스텝 수</td><td>Observability, Tool</td></tr>
+</tbody>
+</table>
+
+<p><strong>왜 이것이 측정이 아니라 <em>귀속</em>을 지원하는가</strong>: $RR$의 이동은 <em>검증·복구 층</em>을, $\tau$의 이동은 <em>관측성·도구 층</em>을, Context Retention의 이동은 <em>컨텍스트 구성 정책</em>을 지목한다.</p>
+
+<blockquote><strong>저자들의 정직한 단서</strong>: ##"결과적 귀속은 <em>서술적 동시 이동(descriptive co-movement)</em>이지 인과가 아니다."## 한 번에 하나의 ETCSOVG 층만 토글하는 <em>layer-ablation 설계</em>가 이 지표들이 일상적으로 수집된 뒤의 자연스러운 확장이다.</blockquote>
+
+<p><strong>보완 진단 두 가지</strong>(커뮤니티가 발전시킬 향후 과제로 제시): <em>Schema Compliance Rate</em>(harness 개입 없이 파싱되는 모델 출력의 비율 — 인터페이스 정합성)와 <em>Action Efficiency</em>(전체 행동 대비 과제 전진 행동의 비율 — 궤적 생산성).</p>
+
+<figure>
+<svg viewBox="0 0 800 520" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="fwArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">harness-aware 평가 프레임워크 — 세 구성요소와 그 연결</text>
+
+  <rect x="30" y="34" width="740" height="122" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="400" y="52" text-anchor="middle" font-size="11.5" font-weight="bold">① Harness Card — ETCSOVG 7층 구조화 공개</text>
+  <g font-size="8.5">
+    <rect x="44" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="94" y="76" text-anchor="middle" font-weight="bold">E — Execution</text>
+    <text x="94" y="90" text-anchor="middle">런타임·샌드박스</text>
+    <text x="94" y="101" text-anchor="middle">스텝·과제 예산</text>
+
+    <rect x="148" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="198" y="76" text-anchor="middle" font-weight="bold">T — Tool</text>
+    <text x="198" y="90" text-anchor="middle">도구 목록·스키마</text>
+    <text x="198" y="101" text-anchor="middle">오류 계약</text>
+
+    <rect x="252" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="302" y="76" text-anchor="middle" font-weight="bold">C — Context</text>
+    <text x="302" y="90" text-anchor="middle">창 상한·압축</text>
+    <text x="302" y="101" text-anchor="middle">retrieval·지속 메모리</text>
+
+    <rect x="356" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="406" y="76" text-anchor="middle" font-weight="bold">S — Scheduling</text>
+    <text x="406" y="90" text-anchor="middle">에이전트 루프</text>
+    <text x="406" y="101" text-anchor="middle">재시도·에스컬레이션</text>
+
+    <rect x="460" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="510" y="76" text-anchor="middle" font-weight="bold">O — Observability</text>
+    <text x="510" y="90" text-anchor="middle">로깅 산출물</text>
+    <text x="510" y="101" text-anchor="middle">trace</text>
+
+    <rect x="564" y="60" width="100" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="614" y="76" text-anchor="middle" font-weight="bold">V — Verification</text>
+    <text x="614" y="90" text-anchor="middle">검증·자기 점검</text>
+    <text x="614" y="101" text-anchor="middle">이상 감지</text>
+
+    <rect x="668" y="60" width="90" height="46" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="713" y="76" text-anchor="middle" font-weight="bold">G — Governance</text>
+    <text x="713" y="90" text-anchor="middle">권한·부작용 경계</text>
+    <text x="713" y="101" text-anchor="middle">사람 승인 지점</text>
+  </g>
+  <rect x="44" y="114" width="714" height="34" rx="5" fill="#fff" stroke="#a855f7"/>
+  <text x="400" y="131" text-anchor="middle" font-size="9.5" font-weight="bold">목표는 표준화가 아니라 가시화 — 두 카드를 비교하는 독자가 점수 차이의 출처를 <tspan font-style="italic">위치 특정</tspan>할 수 있도록</text>
+  <text x="400" y="144" text-anchor="middle" font-size="9">"설계 제약이 아니라 주의 체크리스트로 의도되었다"</text>
+
+  <path d="M400,158 L400,172" stroke="#64748b" marker-end="url(#fwArw)"/>
+
+  <rect x="30" y="176" width="740" height="112" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="400" y="194" text-anchor="middle" font-size="11.5" font-weight="bold">② 분산 분해 프로토콜</text>
+
+  <g font-size="9.5">
+    <rect x="44" y="202" width="230" height="76" rx="5" fill="#fff" stroke="#3b82f6"/>
+    <text x="159" y="220" text-anchor="middle" font-size="10" font-weight="bold">최소 유효 설계: 2×2</text>
+    <text x="56" y="238">같은 모델 × 최소 2개 harness</text>
+    <text x="56" y="253">같은 harness × 최소 2개 모델</text>
+    <text x="56" y="270" fill="#1e40af">과제 순서·환경·스크립트·API·정지 고정</text>
+
+    <rect x="282" y="202" width="230" height="76" rx="5" fill="#fff" stroke="#3b82f6"/>
+    <text x="397" y="220" text-anchor="middle" font-size="10" font-weight="bold">"의미 있는 차이"의 기준</text>
+    <text x="294" y="238">ETCSOVG 층 중 <tspan font-weight="bold">최소 하나</tspan>를</text>
+    <text x="294" y="253">안정성·드리프트·제어 지연에</text>
+    <text x="294" y="270">영향을 줄 방식으로 변경해야 한다</text>
+
+    <rect x="520" y="202" width="238" height="76" rx="5" fill="#fff" stroke="#3b82f6"/>
+    <text x="639" y="220" text-anchor="middle" font-size="10" font-weight="bold">보고할 네 통계</text>
+    <text x="532" y="236">HV(모델별) · MV(harness별)</text>
+    <text x="532" y="250">집계 비율 HV/MV</text>
+    <text x="532" y="264"><tspan font-weight="bold">순위 역전 수</tspan></text>
+    <text x="532" y="276">η²_p = SS_int / (SS_int + SS_err)</text>
+  </g>
+
+  <path d="M400,290 L400,304" stroke="#64748b" marker-end="url(#fwArw)"/>
+
+  <rect x="30" y="308" width="740" height="108" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="400" y="326" text-anchor="middle" font-size="11.5" font-weight="bold">③ 궤적 수준 지표 — "HV가 클 때 <tspan font-style="italic">무엇이</tspan> 만들고 있는가"</text>
+
+  <g font-size="9.5">
+    <rect x="44" y="334" width="230" height="72" rx="5" fill="#fff" stroke="#16a34a"/>
+    <text x="159" y="352" text-anchor="middle" font-size="10" font-weight="bold">Recovery Rate RR(k)</text>
+    <text x="56" y="370">이상 상태 → k스텝 내 전진 상태</text>
+    <text x="56" y="385">k ∈ {1,3,5,10} <tspan font-weight="bold">곡선</tspan>으로 보고</text>
+    <text x="56" y="400" fill="#15803d">→ 검증·복구 층을 지목</text>
+
+    <rect x="282" y="334" width="230" height="72" rx="5" fill="#fff" stroke="#16a34a"/>
+    <text x="397" y="352" text-anchor="middle" font-size="10" font-weight="bold">Context Retention</text>
+    <text x="294" y="370">관련 파일·테스트·제약이</text>
+    <text x="294" y="385">컨텍스트에 남아 있는 비율</text>
+    <text x="294" y="400" fill="#15803d">→ 컨텍스트 구성 정책을 지목</text>
+
+    <rect x="520" y="334" width="238" height="72" rx="5" fill="#fff" stroke="#16a34a"/>
+    <text x="639" y="352" text-anchor="middle" font-size="10" font-weight="bold">Control Lag τ</text>
+    <text x="532" y="370">이상 감지 → 교정 도달 스텝 수</text>
+    <text x="532" y="385">직접 측정 가능</text>
+    <text x="532" y="400" fill="#15803d">→ 관측성·도구 층을 지목</text>
+  </g>
+
+  <rect x="30" y="424" width="740" height="42" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="442" text-anchor="middle" font-size="10.5" font-weight="bold">저자들의 정직한 단서 — 이 귀속은 <tspan font-style="italic">서술적 동시 이동</tspan>이지 인과가 아니다</text>
+  <text x="400" y="459" text-anchor="middle" font-size="10">한 번에 하나의 ETCSOVG 층만 토글하는 <tspan font-weight="bold">layer-ablation 설계</tspan>가 이 지표들이 일상 수집된 뒤의 자연스러운 확장이다</text>
+
+  <rect x="30" y="474" width="740" height="42" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="400" y="492" text-anchor="middle" font-size="10.5" font-weight="bold">주의 — 이 세 지표는 논문의 3×3 격자에서 <tspan font-style="italic">측정되지 않았다</tspan></text>
+  <text x="400" y="509" text-anchor="middle" font-size="10">저자들이 명시하듯 <tspan font-weight="bold">향후 평가의 보고 요건으로 명세</tspan>한 것이다 — 즉 프레임워크의 이 부분은 제안이지 검증된 도구가 아니다</text>
+</svg>
+<figcaption><strong>[Figure: harness-aware 평가 프레임워크]</strong>: 세 구성요소가 위에서 아래로 <em>공개 → 분해 → 귀속</em>의 순서를 이룬다. ①의 ETCSOVG 7층은 <strong>표준화가 아니라 가시화</strong>가 목표라는 점이 반복 강조되며, 이것이 이 논문을 "harness를 통일하자"는 주장과 구분한다. ②에서 눈여겨볼 것은 <em>"의미 있는 harness 차이"의 기준</em>인데 — 아무 변경이나 세면 안 되고 <strong>세 신뢰성 양에 영향을 줄 것으로 예상되는 층 변경</strong>이어야 한다. ③의 세 지표가 각각 다른 ETCSOVG 층을 지목하도록 설계된 것이 프레임워크의 정교함이다. 맨 아래 두 박스가 저자들의 유보인데, 특히 빨간 박스가 중요하다 — <strong>이 세 지표는 논문의 실험에서 측정되지 않았고 향후 보고 요건으로 제안된 것</strong>이다. 즉 프레임워크의 3분의 1은 검증되지 않은 제안이다.</figcaption>
+</figure>
+
+<h2>4. 대안적 견해와 반론 (§6)</h2>
+
+<p>저자들은 네 가지 반론에 직접 답한다. <em>position paper의 품질은 반론을 다루는 방식에서 드러나므로</em> 이 절이 중요하다.</p>
+
+<table class="small-table">
+<thead><tr><th>반론</th><th>저자들의 답</th><th>근거</th></tr></thead>
+<tbody>
+<tr><td><strong>① "모델 능력이 harness 문제를 해소할 것이다"</strong><br><span style="font-size:0.9em;color:#666">충분히 유능한 모델은 자기 컨텍스트와 복구를 관리해 외부 인프라를 불필요하게 만든다</span></td><td>##경험적 추세가 반대 방향이다## — <em>모델이 개선되면서 harness 생태계가 더 복잡해졌다</em></td><td>Claude Code는 harness 컴포넌트를 제거가 아니라 <em>재설계</em>했고, managed-agents 아키텍처는 <em>harness 가정이 모델 개선보다 빨리 낡기 때문에</em> 둘을 명시적으로 분리하며, AHE는 프론티어 base model 위에서 두 자릿수 이득을 낸다. 폐루프 설명이 이유를 준다 — <strong>장기 신뢰성은 제어기 성질이며, 어떤 모델 업그레이드도 제어기의 피드백 구조 부재를 보상하지 못한다</strong></td></tr>
+<tr><td><strong>② "표준화로 충분하다"</strong><br><span style="font-size:0.9em;color:#666">harness 분산이 크다는 것은 인정하되, 보고 방식을 재고할 게 아니라 분야 전체가 harness를 표준화하면 된다</span></td><td><em>부분적으로 지지</em>한다 — locked-harness는 두 유효 레짐 중 하나다. 그러나 세 가지 문제가 있다</td><td>(i) 어떤 표준 harness든 <em>모델 성질과 상호작용하는 설계 선택을 내장</em>한다(Epoch AI가 mini-SWE-agent를 권고하면서 스스로 밝히는 점). (ii) harness를 잠그면 현재 증거가 크다고 보이는 <em>harness 쪽 이득을 봉쇄</em>한다. (iii) ##실무에서 균일해질 가능성이 낮다 — 에이전트 harness는 여러 층에 걸친 상태 실행을 관리하고, <strong>벤더는 런타임 층에서 차별화할 강한 경쟁 유인</strong>을 갖는다##</td></tr>
+<tr><td><strong>③ "interaction 효과는 무시할 만큼 작다"</strong><br><span style="font-size:0.9em;color:#666">HV가 크다는 것은 인정하되 interaction이 작으면 어느 harness든 안정적 순위를 회복한다</span></td><td><strong>SWE-bench Pro 데이터가 이를 반박한다</strong></td><td>SEAL 하에서 상위 6개 프론티어 모델이 <em>4.9%p만</em> 벌어지는데, WarpGrep subagent 추가가 MiniMax 2.5 vs Claude Opus 4.6을 뒤집는다. LangChain Terminal-Bench 결과도 같은 결합을 보인다 — <em>한 모델 중심으로 튜닝된 harness가 다른 모델과 짝지어지면 더 낮은 점수를 낸다</em>. 통제된 격자가 이를 확인 — <strong>9개 비교 중 6개 역전</strong></td></tr>
+<tr><td><strong>④ "harness는 배포된 에이전트의 일부이므로 분리가 인위적이다"</strong><br><span style="font-size:0.9em;color:#666">배포 에이전트는 (모델, harness) 합성이므로 성능을 한 요인에 귀속시키는 것은 범주 오류다</span></td><td>##<em>배포에 대한 서술로는 옳다</em>. 그러나 <strong>배포는 에이전트 전체를 최적화하고, 모델을 비교하는 평가는 모델 기여를 분리해야 한다</strong>##</td><td>harness 개선은 실제 이득이고 배포가 그것을 챙기는 것이 옳다. 요점은 <em>모델 순위로 읽히는 벤치마크 점수는 harness를 공개해야 한다</em>는 것 — 그렇지 않으면 순위가 <strong>독자가 재려는 양에 대해 정보를 주지 못한다</strong>. 공개 표준과 분산 분해 프로토콜이 배포형 귀속과 모델비교형 귀속이 뒤섞이지 않게 한다</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">반론 ④가 가장 중요하다 — 두 종류의 귀속을 분리하기</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">"harness는 에이전트의 일부다"라는 반론은 <tspan font-style="italic">옳지만 다른 맥락에 대해</tspan> 옳다</text>
+
+  <rect x="60" y="50" width="320" height="150" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="220" y="70" text-anchor="middle" font-size="11.5" font-weight="bold">배포형 귀속 (deployment)</text>
+  <text x="72" y="90" font-size="9.5">질문: <tspan font-weight="bold">"이 에이전트가 내 과제를 얼마나 잘 하는가"</tspan></text>
+  <rect x="76" y="98" width="288" height="34" rx="4" fill="#fff" stroke="#16a34a"/>
+  <text x="220" y="114" text-anchor="middle" font-size="9.5">측정 대상 = (모델, harness) <tspan font-weight="bold">합성 전체</tspan></text>
+  <text x="220" y="127" text-anchor="middle" font-size="9">분리할 이유가 없다</text>
+  <text x="72" y="150" font-size="9.5" fill="#15803d">✓ 이 읽기는 <tspan font-weight="bold">well-defined</tspan>하다</text>
+  <text x="72" y="166" font-size="9.5">✓ harness 개선은 실제 이득이고</text>
+  <text x="72" y="181" font-size="9.5">　 배포가 그것을 챙기는 것이 옳다</text>
+  <text x="72" y="196" font-size="9" fill="#666">→ 반론 ④가 서술하는 것이 바로 이것이다</text>
+
+  <rect x="420" y="50" width="320" height="150" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="580" y="70" text-anchor="middle" font-size="11.5" font-weight="bold">모델비교형 귀속 (model comparison)</text>
+  <text x="432" y="90" font-size="9.5">질문: <tspan font-weight="bold">"어느 모델이 더 유능한가"</tspan></text>
+  <rect x="436" y="98" width="288" height="34" rx="4" fill="#fff" stroke="#ef4444"/>
+  <text x="580" y="114" text-anchor="middle" font-size="9.5">측정 대상 = <tspan font-weight="bold">모델 기여만</tspan></text>
+  <text x="580" y="127" text-anchor="middle" font-size="9">harness를 고정하거나 통제해야 한다</text>
+  <text x="432" y="150" font-size="9.5" fill="#b91c1c">✗ 현재 관행은 이 분리를 제공하지 않는다</text>
+  <text x="432" y="166" font-size="9.5">✗ 그런데 리더보드는 이 질문에 답하는 것처럼</text>
+  <text x="432" y="181" font-size="9.5">　 읽히고, 연구 방향과 자금을 결정한다</text>
+  <text x="432" y="196" font-size="9" fill="#666">→ 여기서 misattribution이 발생한다</text>
+
+  <path d="M220,206 L220,226" stroke="#64748b" stroke-dasharray="3 2"/>
+  <path d="M580,206 L580,226" stroke="#64748b" stroke-dasharray="3 2"/>
+
+  <rect x="60" y="230" width="680" height="46" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="248" text-anchor="middle" font-size="11" font-weight="bold">저자들의 답 — 두 읽기가 <tspan font-style="italic">뒤섞이지 않게</tspan> 하는 것이 목표다</text>
+  <text x="400" y="266" text-anchor="middle" font-size="10">"배포는 에이전트 전체를 최적화하고, 모델을 비교하는 평가는 모델 기여를 분리해야 한다" — 같은 숫자가 두 역할을 겸할 수 없다</text>
+
+  <line x1="40" y1="292" x2="760" y2="292" stroke="#e5e7eb"/>
+
+  <text x="400" y="312" text-anchor="middle" font-size="11.5" font-weight="bold">이 구분이 실무에 주는 처방</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="322" width="330" height="86" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="225" y="340" text-anchor="middle" font-size="10.5" font-weight="bold">배포 결정을 내릴 때</text>
+    <text x="72" y="358">리더보드 점수를 그대로 써도 <tspan font-weight="bold">된다</tspan> —</text>
+    <text x="72" y="373">단, 자기가 쓸 harness와 <tspan font-style="italic">같은</tspan> harness의 점수여야 한다</text>
+    <text x="72" y="391" fill="#15803d">"Claude Code로 배포할 거면 Claude Code 점수를 보라"</text>
+    <text x="72" y="404" fill="#15803d">SEAL scaffold 점수는 다른 시스템의 점수다</text>
+
+    <rect x="410" y="322" width="330" height="86" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="575" y="340" text-anchor="middle" font-size="10.5" font-weight="bold">모델을 고를 때</text>
+    <text x="422" y="358">harness가 명시되지 않은 점수는 <tspan font-weight="bold">쓸 수 없다</tspan></text>
+    <text x="422" y="373">두 논문의 점수 비교는 대개 다른 harness의 비교다</text>
+    <text x="422" y="391" fill="#b91c1c">최소한 같은 harness 하의 점수를 찾거나</text>
+    <text x="422" y="404" fill="#b91c1c">자기 harness에서 직접 재야 한다</text>
+  </g>
+</svg>
+<figcaption><strong>[Figure: 두 종류의 귀속]</strong>: 반론 ④("harness는 에이전트의 일부이므로 분리가 인위적")에 대한 저자들의 답을 도식화한 것이다. 왼쪽 초록이 <em>배포형 귀속</em>으로, 여기서는 (모델, harness) 합성 전체를 재는 것이 옳고 분리할 이유가 없다 — <strong>반론 ④가 서술하는 것이 정확히 이것이며 그 서술은 옳다</strong>. 오른쪽 빨강이 <em>모델비교형 귀속</em>으로, 여기서는 모델 기여를 분리해야 하는데 현재 관행이 그것을 제공하지 않는다. 저자들의 요점은 두 읽기가 <strong>같은 숫자를 공유하면서 뒤섞인다</strong>는 것이다. 아래 두 박스가 이 구분에서 나오는 실무 처방인데, 특히 왼쪽이 실용적이다 — <em>배포 결정에는 리더보드 점수를 써도 되지만, 자기가 쓸 harness와 같은 harness의 점수여야 한다</em>. "Claude Code로 배포할 거면 Claude Code 점수를 보라"는 것이 이 논문의 가장 즉시 적용 가능한 조언이다.</figcaption>
+</figure>
+
+<h2>5. 결론과 논의 (§7)</h2>
+
+<p>저자들은 <strong>세 청중</strong>에게 각각 다른 처방을 준다.</p>
+
+<table class="small-table">
+<thead><tr><th>청중</th><th>처방</th></tr></thead>
+<tbody>
+<tr><td><strong>연구자·리뷰어</strong></td><td>##"어떤 harness를 썼는가?"를 <em>하이퍼파라미터와 디코딩 설정을 묻는 것만큼 일상적으로</em> 물어야 한다## — harness 명세 없는 모델 점수는 <strong>실험 조건의 일부가 누락된 것</strong>이다</td></tr>
+<tr><td><strong>벤치마크 설계자</strong></td><td>harness 변동을 <em>일급 평가 차원</em>으로 노출해야 한다 — 깨끗한 모델 비교를 위한 <em>locked-harness 트랙</em>이나 분산 분해를 보고하는 <em>factorial 트랙</em>. HAL, SWE-bench Pro 통합 scaffold, Epoch AI 표준화 권고가 이미 진행 중인 프로그램이다</td></tr>
+<tr><td><strong>실무자</strong></td><td>##모델 선택만으로는 <em>불완전한 최적화 루프</em>다## — 통제된 격자에서 $H_1 \to H_3$ 이동이 고정 모델에서 pass@1을 <strong>8.5~13.0%p</strong> 옮기는 반면, 고정 harness에서 모델 변경은 <strong>2.5~5.0%p</strong>만 옮긴다. 공학 대상은 모델 엔드포인트만이 아니라 <em>모델이 작동하는 컨텍스트·도구·복구·검증·거버넌스 표면</em>이다</td></tr>
+</tbody>
+</table>
+
+<h3>남은 네 가지 열린 질문</h3>
+
+<ol>
+  <li><strong>"비슷한 프론티어 모델"의 조작적 정의</strong>가 현재 비형식적이고, <em>리더보드 근접성에 닻을 내리고 있는데 그 리더보드 자체가 harness에 교란되어 있다</em>. ##논문 간 HV/MV 비율 메타분석을 하려면 <em>교란되지 않은 비교가능성 검정</em>이 선결 조건이다.##</li>
+  <li><strong>harness 다양성에 원리적 거리 개념이 필요하다</strong> — 그것 없이는 $\mathrm{Var}_H[B(M,H)]$가 <em>표집 분포 $P(H)$에 의존</em>하며 그 방식이 아직 표준화되지 않았다.</li>
+  <li><strong>공개와 locked-harness 평가 사이의 올바른 균형은 순수 기술적 문제가 아니라 커뮤니티 결정</strong>이다 — 공개만으로는 <em>적대적 harness 선택</em>을 다루지 못할 수 있고, harness를 잠그면 인프라 혁신이 느려진다.</li>
+  <li><strong>궤적 수준 진단의 자연스러운 확장</strong>: Schema Compliance Rate와 Action Efficiency가 인터페이스 정합성·생산성 프로브로 세 신뢰성 양을 보완할 수 있고, 부록 C의 perturbation stress-test가 <em>제어기 측 메커니즘이 매칭된 교란 하에서 출력 불안정성을 줄이는지</em>를 시험할 수 있다.</li>
+</ol>
+
+<blockquote><strong>논문의 마지막 문장</strong>: "execution harness는 벤치마크 리더보드가 연구와 제품 결정을 주도하는 레짐에서 long-horizon LLM 에이전트 성능의 <em>binding constraint</em>다. 모델은 open-loop 정책이고 harness는 루프를 닫는 제어기이므로, 지평에 걸친 신뢰성은 제어기 성질이다. ##그런 관행이 일상화되기 전까지 long-horizon 에이전트의 리더보드 비교는 <em>불완전하고 잠재적으로 오도하는 것</em>으로 취급되어야 한다.##"</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="audArw" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">세 청중, 세 처방 — 그리고 실무자 처방의 정량적 근거</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="34" width="240" height="118" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="150" y="52" text-anchor="middle" font-size="10.5" font-weight="bold">연구자 · 리뷰어</text>
+    <rect x="44" y="60" width="212" height="40" rx="4" fill="#fff" stroke="#3b82f6"/>
+    <text x="150" y="76" text-anchor="middle" font-size="9.5" font-weight="bold">"어떤 harness를 썼는가?"를</text>
+    <text x="150" y="90" text-anchor="middle" font-size="9.5" font-weight="bold">하이퍼파라미터만큼 일상적으로</text>
+    <text x="42" y="118">harness 명세 없는 모델 점수는</text>
+    <text x="42" y="133"><tspan font-weight="bold">실험 조건의 일부가 누락된 것</tspan>이다</text>
+    <text x="42" y="148" fill="#1e40af">리뷰 체크리스트에 한 줄 추가하는 문제</text>
+
+    <rect x="280" y="34" width="240" height="118" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="400" y="52" text-anchor="middle" font-size="10.5" font-weight="bold">벤치마크 설계자</text>
+    <rect x="294" y="60" width="212" height="40" rx="4" fill="#fff" stroke="#a855f7"/>
+    <text x="400" y="76" text-anchor="middle" font-size="9.5" font-weight="bold">harness 변동을</text>
+    <text x="400" y="90" text-anchor="middle" font-size="9.5" font-weight="bold">일급 평가 차원으로</text>
+    <text x="292" y="118">locked-harness 트랙(깨끗한 모델 비교)</text>
+    <text x="292" y="133">+ factorial 트랙(분산 분해 보고)</text>
+    <text x="292" y="148" fill="#7e22ce">HAL · SWE-bench Pro · Epoch AI가 이미 진행 중</text>
+
+    <rect x="530" y="34" width="240" height="118" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+    <text x="650" y="52" text-anchor="middle" font-size="10.5" font-weight="bold">실무자</text>
+    <rect x="544" y="60" width="212" height="40" rx="4" fill="#fff" stroke="#16a34a"/>
+    <text x="650" y="76" text-anchor="middle" font-size="9.5" font-weight="bold">모델 선택만으로는</text>
+    <text x="650" y="90" text-anchor="middle" font-size="9.5" font-weight="bold">불완전한 최적화 루프다</text>
+    <text x="542" y="118">공학 대상은 모델 엔드포인트가 아니라</text>
+    <text x="542" y="133">컨텍스트·도구·복구·검증·거버넌스 <tspan font-weight="bold">표면</tspan></text>
+    <text x="542" y="148" fill="#15803d">아래 수치가 이 처방의 근거다</text>
+  </g>
+
+  <path d="M650,156 L650,176" stroke="#64748b" marker-end="url(#audArw)"/>
+
+  <line x1="40" y1="184" x2="760" y2="184" stroke="#e5e7eb"/>
+
+  <text x="400" y="204" text-anchor="middle" font-size="11.5" font-weight="bold">실무자 처방의 근거 — 두 레버의 크기 비교 (통제된 격자)</text>
+
+  <line x1="180" y1="330" x2="700" y2="330" stroke="#333"/>
+  <text x="180" y="346" text-anchor="middle" font-size="9">0</text>
+  <text x="310" y="346" text-anchor="middle" font-size="9">4</text>
+  <text x="440" y="346" text-anchor="middle" font-size="9">8</text>
+  <text x="570" y="346" text-anchor="middle" font-size="9">12</text>
+  <text x="695" y="346" text-anchor="middle" font-size="9">16</text>
+  <text x="440" y="362" text-anchor="middle" font-size="10" fill="#555">pass@1 변화 (%p)</text>
+
+  <g font-size="9">
+    <text x="174" y="228" text-anchor="end" font-weight="bold">harness 변경 (H₁ → H₃)</text>
+    <text x="174" y="240" text-anchor="end" font-size="8.5" fill="#666">모델 고정</text>
+    <rect x="180" y="216" width="422" height="16" fill="#22c55e" stroke="#15803d"/>
+    <text x="612" y="228" fill="#15803d" font-weight="bold">GLM-5.1: 13.0%p</text>
+    <rect x="180" y="236" width="276" height="16" fill="#86efac" stroke="#16a34a"/>
+    <text x="466" y="248" fill="#15803d">GPT-5.4 · Kimi K2.6: 각 8.5%p</text>
+
+    <text x="174" y="278" text-anchor="end" font-weight="bold">모델 변경</text>
+    <text x="174" y="290" text-anchor="end" font-size="8.5" fill="#666">harness 고정</text>
+    <rect x="180" y="266" width="162" height="16" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="352" y="278" fill="#6d28d9">H₃ 안에서: 5.0%p</text>
+    <rect x="180" y="286" width="97" height="16" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="287" y="298" fill="#6d28d9">H₁ 안에서: 3.0%p</text>
+    <rect x="180" y="306" width="81" height="16" fill="#c4b5fd" stroke="#8b5cf6"/>
+    <text x="271" y="318" fill="#6d28d9">H₂ 안에서: 2.5%p</text>
+  </g>
+
+  <rect x="60" y="376" width="680" height="58" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="394" text-anchor="middle" font-size="10.5" font-weight="bold">두 레버의 크기 차이가 실무 우선순위를 뒤집는다</text>
+  <text x="400" y="412" text-anchor="middle" font-size="10">모델 교체는 API 한 줄이지만 2.5~5.0%p를 준다. harness 개선은 엔지니어링이지만 8.5~13.0%p를 준다.</text>
+  <text x="400" y="428" text-anchor="middle" font-size="10" fill="#4338ca">단, 이것은 <tspan font-weight="bold">이 격자의 이 과제 분포</tspan>에서다 — 저자들도 7.80배가 보편적이라고 주장하지 않는다</text>
+</svg>
+<figcaption><strong>[Figure: 세 청중과 실무자 처방의 근거]</strong>: 위 세 박스가 청중별 처방이고, 아래 막대가 실무자 처방의 정량적 근거다. <strong>초록 막대(harness 변경)가 보라 막대(모델 변경)보다 2~5배 길다</strong>는 것이 이 논문이 실무자에게 전하는 전부다. 이 대비가 우선순위를 뒤집는 이유는 <em>비용 구조가 반대</em>이기 때문이다 — 모델 교체는 API 한 줄이지만 이득이 작고, harness 개선은 엔지니어링이지만 이득이 크다. 연구자 처방("어떤 harness를 썼는가?"를 묻기)이 가장 실행 비용이 낮으면서 분야 전체에 영향이 큰 개입이라는 점도 눈에 띈다 — 리뷰 체크리스트에 한 줄 추가하는 문제다. 맨 아래 보라 박스의 유보를 함께 읽어야 하는데, 이 수치는 특정 격자·특정 과제 분포의 것이며 저자들도 보편성을 주장하지 않는다.</figcaption>
+</figure>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>position paper인데 통제된 실험을 한다.</strong> 대부분의 입장 논문은 주장과 인용으로 끝난다. 이 논문은 3모델 × 3harness × 100문항 × 2회 실행 격자를 돌려 <strong>HV/MV = 7.80배, 순위 역전 6/9</strong>를 직접 측정한다. 조건 통제도 촘촘하다 — 과제 순서, Docker 환경, 평가 파이프라인, 50스텝 예산, 120초 타임아웃을 전부 고정했다. ##"입장"을 "검증 가능한 주장"으로 바꾼 것이 이 논문의 가장 큰 미덕이다.##</li>
+  <li><strong>반증 조건을 구체적으로 명시한다.</strong> "$H$를 변화시키고 $M$을 고정하는 factorial과 그 반대를 수행해 비슷한 능력 하 long-horizon 과제에서 $MV > HV$를 발견하면 반증된다"고 쓴다. 나아가 동시기 심리측정 연구를 <em>외부 프로브</em>로 지목하며 자기 주장이 그 연구와 긴장 관계에 놓일 조건까지 밝힌다. position paper에서 드문 수준의 지적 정직성이다.</li>
+  <li><strong>제어이론 형식화가 장식이 아니라 예측을 낳는다.</strong> "LLM은 open-loop"라는 프레이밍에서 세 가지 검증 가능한 귀결이 따라 나온다 — 안정성·드리프트·제어 지연이 모델을 바꿔도 개선되지 않는다는 것. 그리고 이 셋이 §5의 세 궤적 지표(RR, Context Retention, $\tau$)로 직접 조작화된다. ##형식화 → 정의 → 지표 → 귀속의 사슬이 끊기지 않는다.##</li>
+  <li><strong>"$\tau$는 모델을 바꿔도 변하지 않는다"는 논거가 특히 강하다.</strong> 더 좋은 모델은 이상의 <em>기저율</em>을 낮출 뿐, 이상이 발생한 뒤 <em>교정 신호가 몇 스텝 만에 도착하는가</em>는 harness의 관측성·도구 층이 정한다. 이것이 "모델을 키우면 해소된다"는 반론에 대한 <strong>구조적(경험적이 아니라) 답</strong>이다.</li>
+  <li><strong>네 반론을 정면으로, 그리고 공정하게 다룬다.</strong> 특히 반론 ④("harness는 에이전트의 일부")에 대해 <em>"배포에 대한 서술로는 옳다"</em>고 먼저 인정한 뒤 배포형 귀속과 모델비교형 귀속을 분리한다. 반론 ②(표준화)에 대해서도 <em>부분적으로 지지한다</em>고 명시하고 locked-harness를 두 유효 레짐 중 하나로 인정한다. ##"우리 입장만 옳다"가 아니라 "이 구분이 필요하다"는 논조가 설득력을 높인다.##</li>
+  <li><strong>"harness를 통일하라"가 아니라 "공개하라"는 요구가 현실적이다.</strong> 표준화가 실무에서 균일해지지 않을 이유를 명확히 든다 — <em>벤더는 런타임 층에서 차별화할 강한 경쟁 유인을 갖는다</em>. 이 관찰이 처방을 실행 가능하게 만든다.</li>
+  <li><strong>공개 증거의 관찰적 성격을 스스로 표시한다.</strong> "공개 harness들은 여러 차원에서 다르고 서로 다른 팀이 서로 다른 엔지니어링 예산으로 만들었으므로, 공개 데이터만으로는 어느 컴포넌트가 분산을 만드는지 분리할 수 없다"고 쓴 뒤 <em>그래서 통제 실험을 했다</em>고 이어간다. 증거의 층위를 정확히 구분한다.</li>
+  <li><strong>$\eta_p^2$의 세 가지 통계적 유보를 스스로 단다.</strong> 고정효과 양이라는 점, 작은 격자에서 양의 편향이 있다는 점, 순위 뒤집힘의 필요·충분조건이 아니라는 점. 자기가 제안하는 지표의 한계를 제안과 동시에 밝히는 것은 흔하지 않다.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>격자가 작고 반복이 2회뿐이다 — 이것이 가장 큰 약점이다.</strong> 3×3 = 9개 셀, 셀당 2회 실행, 100문항. ##pass@1이 100문항 기준이므로 1문항이 1%p이고, 2회 실행의 표준오차가 <em>보고되지 않는다</em>.## 예컨대 $H_2$에서 GPT-5.4 58.5 vs Kimi K2.6 59.0의 0.5%p 차이는 <em>1문항의 절반</em>이며, 이것이 순위 역전 6건 중 하나를 만든다. 역전 수가 이 논문의 핵심 통계인데 <strong>그중 몇 개가 통계적으로 유의한지 알 수 없다</strong>.</li>
+  <li><strong>제안한 세 궤적 지표를 자기 실험에서 측정하지 않는다.</strong> 저자들이 명시하듯 RR($k$), Context Retention, $\tau$는 "향후 평가의 보고 요건으로 명세"된 것이다. 그런데 §3.2의 세 정의가 이 논문의 <em>이론적 중심</em>이므로, <strong>자기 격자에서 이 셋을 재서 $H_1 \to H_2 \to H_3$의 변화를 보였다면 형식화와 실험이 연결되었을 것</strong>이다. 지금은 궤적 로그 분석이 "제어 잡음 감소"·"검증 복구 루프" 같은 <em>정성적 서술</em>로만 제시된다.</li>
+  <li><strong>$H_1$이 "지나치게 약한 baseline"일 수 있다.</strong> $H_1$은 압축 없음, verbose 스키마, 재시도 없음, 검증 훅 없음, 이상 복구 없음이다 — ##현실에서 아무도 이렇게 배포하지 않는다.## $H_1 \to H_3$의 8.5~13.0%p 중 상당 부분이 "아무것도 없음 → 기본적인 것"의 이득일 수 있고, 실무적으로 중요한 질문인 <em>"괜찮은 harness 두 개 사이의 차이"</em>는 $H_2 \to H_3$(4.0~9.0%p)만이 답한다. 그리고 그 구간에서도 GLM-5.1은 9.0%p인데 Kimi K2.6은 1.5%p로 <strong>편차가 매우 크다</strong>.</li>
+  <li><strong>"비슷한 프론티어 모델"의 선정이 순환적이다.</strong> 세 모델을 "LLM Stats 코딩 리더보드에서 밀집해 있었다"는 이유로 골랐는데, ##저자들 자신이 §7에서 <em>"리더보드 근접성이 그 자체로 harness에 교란되어 있다"</em>고 인정한다.## 즉 <em>교란된 지표로 비교가능성을 판정한 뒤 그 교란을 보이는</em> 구조다. 저자들이 이 문제를 열린 질문 ①로 명시하는 것은 정직하지만, 그것이 자기 실험 설계의 타당성에도 적용된다는 점은 짚지 않는다.</li>
+  <li><strong>HV/MV 비율이 $P(H)$ 표집 분포에 전적으로 의존한다.</strong> 저자들도 열린 질문 ②로 인정하듯, harness 세 개를 <em>의도적으로 세 신뢰성 양을 따라 벌려서</em> 만들었으므로 HV가 크게 나오는 것은 설계의 결과이기도 하다. 만약 $H_1, H_2, H_3$를 모두 "합리적인 프로덕션 harness" 중에서 골랐다면 비율이 훨씬 작았을 것이다. ##7.80배는 <em>harness 공간을 어떻게 표집하느냐</em>의 함수이지 자연 상수가 아니다.##</li>
+  <li><strong>공개 증거 중 일부의 출처 추적이 어렵다.</strong> Grok 4의 "SWE-agent → xAI scaffold, 58.6% → 72~75%"는 범위로 제시되고, "코딩 벤치마크에서 ~10배"는 무엇의 10배인지 본문에서 명확하지 않다(Table 1의 Δ 열에만 등장). Vercel의 "80% → 100%"도 과제 수와 조건이 불명이다. 블로그·리포트 출처의 수치를 표에 넣으면서 <em>측정 조건을 함께 싣지 않은 것</em>은 이 논문이 요구하는 공개 표준과 긴장한다.</li>
+  <li><strong>Harness Card가 부록에만 있고 실제 사례가 없다.</strong> ETCSOVG 층별 공개 요건이 부록 A Table 3에 있다고 하지만, <em>본문에 채워진 예시 카드가 하나도 없다</em>. 자기 실험의 $H_1/H_2/H_3$를 Harness Card 형식으로 제시했다면 제안의 실행 가능성을 직접 보였을 것이다.</li>
+  <li><strong>비용 축이 완전히 빠져 있다.</strong> $H_3$는 스텝별 자기 점검, 5스텝마다 드리프트 점검, 이상 감지 미들웨어, 최근 10상태 checkpoint를 돌린다 — <strong>$H_1$보다 훨씬 비싸다</strong>. 그런데 토큰·시간·비용 비교가 없다. "harness가 13%p를 준다"는 주장은 <em>그 13%p가 얼마짜리인지</em>를 알 때만 실무 결정에 쓸 수 있다. 논문이 배포 결정을 명시적 청중으로 삼으면서 이 축을 빼놓은 것은 일관성 문제다.</li>
+  <li><strong>단일 벤치마크·단일 도메인이다.</strong> 통제 실험이 SWE-bench Verified(코딩) 하나에서만 이루어졌다. §3.3에서 범위를 "long-horizon 과제"로 잡았지만 웹·GUI·연구·업무 도메인에서 같은 비율이 나오는지는 알 수 없다. 특히 <em>강한 자동 oracle이 있는 코딩</em>은 검증·복구 루프($H_3$의 핵심)가 가장 잘 작동하는 도메인이므로 <strong>HV가 과대평가될 수 있는 조건</strong>이다.</li>
+  <li><strong>"harness 공개"의 실행 가능성이 낙관적이다.</strong> 저자들이 지적하듯 벤더는 런타임 층에서 차별화할 경쟁 유인을 갖는다 — 그렇다면 <em>왜 벤더가 Harness Card를 공개하겠는가</em>? 논문은 열린 질문 ③에서 "공개만으로는 적대적 harness 선택을 다루지 못할 수 있다"고 인정하지만, <strong>공개 유인 자체의 부재</strong>는 다루지 않는다. 학계 논문에는 적용 가능한 규범이지만 리더보드를 지배하는 벤더 제출에는 강제력이 없다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트 대조 (position paper 판)</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>주장의 명확성과 반증 가능성</td><td>○ <strong>우수</strong>. thesis를 형식으로 진술하고 반증 조건을 구체적 실험 설계로 명시</td></tr>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ 셀당 2회 실행, <strong>표준오차 미보고</strong>. 100문항에서 1문항=1%p인데 0.5%p 차이가 순위 역전을 만든다</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>△ 조건 통제(과제 순서·환경·예산·타임아웃)는 촘촘하다. ✗ 단 $H_1$이 비현실적으로 약한 baseline이며, 모델 선정이 harness에 교란된 리더보드에 의존</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>△ 3×3 격자 자체가 ablation이지만, <strong>제안한 세 궤적 지표를 자기 실험에서 재지 않았다</strong> — 형식화와 실험 사이가 정성적 서술로만 연결된다</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>✗ <strong>비용 축이 전혀 없다</strong>. $H_3$가 $H_1$보다 훨씬 비싼데 토큰·시간 비교가 없다</td></tr>
+<tr><td>코드/데이터 공개</td><td>△ 부록에 harness 명세·부분집합 구성·모델 선정 근거가 있다고 명시. 코드 저장소 링크는 본문에 없다</td></tr>
+<tr><td>일반성 근거</td><td>✗ 통제 실험이 <strong>단일 벤치마크(SWE-bench Verified)·단일 도메인(코딩)</strong>. 공개 증거는 넓지만 관찰적이다</td></tr>
+<tr><td>자기 한계의 명시</td><td>○ <strong>우수</strong>. "7.80배가 보편적이라 주장하지 않는다", $\eta_p^2$의 세 유보, 열린 질문 4개, 공개 증거의 관찰적 성격을 모두 스스로 밝힌다</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">가장 큰 약점 — 순위 역전 6건 중 몇 개가 유의한가</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">Table 2의 값으로 역전을 만든 격차 크기를 계산했다. 100문항이므로 1문항 = 1%p (이 문서의 계산)</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="48" width="700" height="22" fill="#f1f5f9" stroke="#cbd5e1"/>
+    <text x="62" y="63" font-weight="bold">역전 쌍</text>
+    <text x="250" y="63" font-weight="bold">한쪽 harness에서</text>
+    <text x="430" y="63" font-weight="bold">다른 harness에서</text>
+    <text x="600" y="63" font-weight="bold">역전을 만든 최소 격차</text>
+
+    <rect x="50" y="70" width="700" height="22" fill="#fee2e2" stroke="#e5e7eb"/>
+    <text x="62" y="85">GPT vs Kimi (H₁ ↔ H₂)</text>
+    <text x="250" y="85">H₁: 55.0 vs 52.0 (3.0%p)</text>
+    <text x="430" y="85">H₂: 58.5 vs 59.0 (<tspan font-weight="bold" fill="#b91c1c">0.5%p</tspan>)</text>
+    <text x="600" y="85" font-weight="bold" fill="#b91c1c">0.5%p = 문항 0.5개</text>
+
+    <rect x="50" y="92" width="700" height="22" fill="#fee2e2" stroke="#e5e7eb"/>
+    <text x="62" y="107">GPT vs Kimi (H₂ ↔ H₃)</text>
+    <text x="250" y="107">H₂: 58.5 vs 59.0 (0.5%p)</text>
+    <text x="430" y="107">H₃: 63.5 vs 60.5 (3.0%p)</text>
+    <text x="600" y="107" font-weight="bold" fill="#b91c1c">0.5%p = 문항 0.5개</text>
+
+    <rect x="50" y="114" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="129">GLM vs Kimi (H₁ ↔ H₂)</text>
+    <text x="250" y="129">H₁: 52.5 vs 52.0 (<tspan font-weight="bold" fill="#b45309">0.5%p</tspan>)</text>
+    <text x="430" y="129">H₂: 56.5 vs 59.0 (2.5%p)</text>
+    <text x="600" y="129" font-weight="bold" fill="#b45309">0.5%p = 문항 0.5개</text>
+
+    <rect x="50" y="136" width="700" height="22" fill="#fef3c7" stroke="#e5e7eb"/>
+    <text x="62" y="151">GLM vs Kimi (H₂ ↔ H₃)</text>
+    <text x="250" y="151">H₂: 56.5 vs 59.0 (2.5%p)</text>
+    <text x="430" y="151">H₃: 65.5 vs 60.5 (5.0%p)</text>
+    <text x="600" y="151" font-weight="bold" fill="#15803d">2.5%p — 비교적 견고</text>
+
+    <rect x="50" y="158" width="700" height="22" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="62" y="173">GPT vs GLM (H₁ ↔ H₃)</text>
+    <text x="250" y="173">H₁: 55.0 vs 52.5 (2.5%p)</text>
+    <text x="430" y="173">H₃: 63.5 vs 65.5 (2.0%p)</text>
+    <text x="600" y="173" font-weight="bold" fill="#15803d">2.0%p — 비교적 견고</text>
+
+    <rect x="50" y="180" width="700" height="22" fill="#dcfce7" stroke="#e5e7eb"/>
+    <text x="62" y="195">GPT vs GLM (H₂ ↔ H₃)</text>
+    <text x="250" y="195">H₂: 58.5 vs 56.5 (2.0%p)</text>
+    <text x="430" y="195">H₃: 63.5 vs 65.5 (2.0%p)</text>
+    <text x="600" y="195" font-weight="bold" fill="#15803d">2.0%p — 비교적 견고</text>
+  </g>
+
+  <rect x="50" y="212" width="700" height="40" rx="5" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="230" text-anchor="middle" font-size="10.5" font-weight="bold">6건 중 3건이 <tspan font-style="italic">0.5%p 격차</tspan>에 의존한다 — 100문항에서 <tspan font-weight="bold">문항 절반</tspan>이다</text>
+  <text x="400" y="246" text-anchor="middle" font-size="10">2회 실행의 표준오차가 보고되지 않으므로, 이 세 건이 <tspan font-weight="bold">잡음인지 신호인지 판별할 수 없다</tspan></text>
+
+  <line x1="40" y1="268" x2="760" y2="268" stroke="#e5e7eb"/>
+
+  <text x="400" y="288" text-anchor="middle" font-size="11.5" font-weight="bold">그렇다고 결론이 무너지는가 — 아니다. 그러나 강도가 달라진다</text>
+
+  <g font-size="9.5">
+    <rect x="50" y="298" width="330" height="94" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="215" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">약해지는 주장</text>
+    <text x="62" y="334">"9개 중 6개에서 역전" → 견고한 것은 <tspan font-weight="bold">3건</tspan>일 수 있다</text>
+    <text x="62" y="350">그리고 견고한 3건은 모두 <tspan font-weight="bold">GPT vs GLM 또는</tspan></text>
+    <text x="62" y="364"><tspan font-weight="bold">GLM vs Kimi</tspan>이며 H₃가 관련된다 —</text>
+    <text x="62" y="381" fill="#b91c1c">즉 GLM-5.1이 H₃에서 크게 오르는 <tspan font-weight="bold">하나의 현상</tspan>이</text>
+    <text x="62" y="386" fill="#b91c1c"></text>
+
+    <rect x="410" y="298" width="340" height="94" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="580" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">유지되는 주장</text>
+    <text x="422" y="334">HV/MV = 7.80배는 <tspan font-weight="bold">역전 수와 무관하게</tspan> 성립한다</text>
+    <text x="422" y="350">(분산 계산은 평균값만 쓰므로)</text>
+    <text x="422" y="367">harness 이동폭 8.5~13.0%p vs 모델 2.5~5.0%p</text>
+    <text x="422" y="383" fill="#15803d">→ <tspan font-weight="bold">주 주장(HV ≳ MV)은 견고하다</tspan></text>
+  </g>
+
+  <rect x="50" y="402" width="700" height="52" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="420" text-anchor="middle" font-size="10.5" font-weight="bold">인용할 때의 권고</text>
+  <text x="400" y="438" text-anchor="middle" font-size="10">"<tspan font-weight="bold">harness가 모델보다 큰 분산원</tspan>"은 안전하게 인용할 수 있다. "<tspan font-weight="bold">9개 중 6개 역전</tspan>"은 표준오차 없이 인용하지 말 것 —</text>
+  <text x="400" y="450" text-anchor="middle" font-size="10">그중 3건이 문항 0.5개 차이에 의존한다. 대신 <tspan font-weight="bold">"세 모델이 각각 다른 harness에서 1위"</tspan>라는 정성적 진술이 더 견고하다</text>
+</svg>
+<figcaption><strong>[Figure: 순위 역전의 통계적 견고성 분석]</strong>: Table 2의 값으로 <em>각 역전을 만든 최소 격차</em>를 계산한 것이다(논문에 없는 이 문서의 분석). <strong>6건 중 3건이 0.5%p 격차에 의존</strong>하는데, 100문항 기준으로 이는 <em>문항 절반</em>이고 2회 실행의 표준오차가 보고되지 않으므로 잡음과 구분할 수 없다. 다만 오른쪽 초록 박스가 중요한데 — <strong>주 주장(HV ≳ MV)은 역전 수와 무관하게 성립한다</strong>. 분산 계산은 평균값만 쓰고, harness 이동폭(8.5~13.0%p)과 모델 이동폭(2.5~5.0%p)의 차이는 표본 오차를 감안해도 유지된다. 맨 아래 권고가 실용적이다: <em>"harness가 모델보다 큰 분산원"은 인용해도 되지만 "9개 중 6개 역전"은 조심하고, 대신 "세 모델이 각각 다른 harness에서 1위"라는 정성적 진술을 쓰라</em>.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">주장별 근거 강도 — 무엇을 인용해도 되는가</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="34" width="360" height="112" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="210" y="52" text-anchor="middle" font-size="11" font-weight="bold">잘 뒷받침된 주장</text>
+    <text x="42" y="72">· 통제 조건에서 HV가 MV를 지배할 <tspan font-weight="bold">수 있다</tspan> (7.80배)</text>
+    <text x="42" y="88">· harness 이동폭이 모델 이동폭의 2~5배 (같은 격자)</text>
+    <text x="42" y="104">· 공개 리더보드에서 두 자릿수 scaffold 격차가 흔하다</text>
+    <text x="42" y="120">· SWE-bench Pro: 모델 폭 4.9%p vs harness 폭 9.5%p</text>
+    <text x="42" y="136" fill="#15803d">→ "harness를 공개하라"는 처방의 근거로 충분하다</text>
+
+    <rect x="410" y="34" width="360" height="112" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="590" y="52" text-anchor="middle" font-size="11" font-weight="bold">방향성으로만 받아들일 주장</text>
+    <text x="422" y="72">· <tspan font-weight="bold">7.80배라는 구체적 수치</tspan> (P(H) 표집에 의존)</text>
+    <text x="422" y="88">· 9개 중 6개 역전 (3건이 0.5%p 격차)</text>
+    <text x="422" y="104">· H₁→H₃ 8.5~13.0%p (H₁이 비현실적으로 약하다)</text>
+    <text x="422" y="120">· 코딩 외 도메인으로의 일반화 (미검증)</text>
+    <text x="422" y="136" fill="#92400e">→ 자기 설정에서 재측정 필요</text>
+
+    <rect x="30" y="156" width="360" height="96" rx="7" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="210" y="174" text-anchor="middle" font-size="11" font-weight="bold">이 논문으로 답할 수 없는 것</text>
+    <text x="42" y="194">· harness 개선의 <tspan font-weight="bold">비용</tspan> (토큰·시간·달러 전혀 없음)</text>
+    <text x="42" y="211">· 어느 ETCSOVG 층이 얼마나 기여하는가 (layer-ablation 없음)</text>
+    <text x="42" y="228">· 세 궤적 지표의 실제 값 (제안만, 측정 안 함)</text>
+    <text x="42" y="245">· 벤더가 <tspan font-weight="bold">왜 Harness Card를 공개하겠는가</tspan></text>
+
+    <rect x="410" y="156" width="360" height="96" rx="7" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="590" y="174" text-anchor="middle" font-size="11" font-weight="bold">저자들이 스스로 밝힌 한계</text>
+    <text x="422" y="194">· "7.80배가 보편적이라고 주장하지 않는다"</text>
+    <text x="422" y="211">· 공개 증거는 관찰적이며 컴포넌트 분리 불가</text>
+    <text x="422" y="228">· "비슷한 프론티어 모델" 정의가 harness에 교란됨</text>
+    <text x="422" y="245">· HV가 표집 분포 P(H)에 의존한다</text>
+  </g>
+
+  <rect x="30" y="264" width="740" height="56" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="282" text-anchor="middle" font-size="11" font-weight="bold">이 논문의 진짜 기여는 수치가 아니라 <tspan font-style="italic">개념적 도구</tspan>다</text>
+  <text x="400" y="300" text-anchor="middle" font-size="10">HV/MV 분해, 순위 역전 수, 세 신뢰성 양, Harness Card — 이 넷이 <tspan font-weight="bold">앞으로의 논의에서 쓸 어휘</tspan>다.</text>
+  <text x="400" y="315" text-anchor="middle" font-size="10">7.80배는 존재 증명이고, 진짜로 남는 것은 "이 질문을 어떻게 물어야 하는가"에 대한 답이다</text>
+
+  <rect x="30" y="330" width="740" height="80" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="348" text-anchor="middle" font-size="10.5" font-weight="bold">survey(2606.20683)와 교차 검증하면</text>
+  <text x="42" y="366" font-size="10">· <tspan font-weight="bold">일치</tspan>: 두 논문 모두 동일 모델의 harness 간 두 자릿수 격차를 보고한다 — survey는 Terminal-Bench 중앙값 13.6%p, 이 논문은 통제 격자 8.5~13.0%p</text>
+  <text x="42" y="382" font-size="10">· <tspan font-weight="bold">보완</tspan>: survey는 <tspan font-style="italic">관찰적 범위</tspan>가 넓고(3개 벤치마크), 이 논문은 <tspan font-style="italic">인과적 통제</tspan>가 있다(factorial). 둘을 함께 읽어야 한다</text>
+  <text x="42" y="398" font-size="10" fill="#b45309">· <tspan font-weight="bold">긴장</tspan>: survey의 Table 7을 계산하면 <tspan font-style="italic">모델이 강해질수록 harness span이 줄어든다</tspan>(20.0→4.4%p). 이 논문의 thesis는 "비슷한 프론티어" 레짐에 한정되므로 모순은 아니지만, 두 관측을 함께 보면 <tspan font-weight="bold">harness 중요성의 시간적 추세</tspan>가 열린 질문으로 남는다</text>
+</svg>
+<figcaption><strong>[Figure: 주장별 근거 강도와 survey와의 교차 검증]</strong>: 네 색이 근거 수준을 나눈다. 초록(인용 가능)의 핵심은 <em>"harness를 공개하라"는 처방을 뒷받침하기에는 충분하다</em>는 것 — 정확한 배수가 틀려도 처방은 유효하다. 노랑에서 가장 주의할 것은 <strong>7.80배가 $P(H)$ 표집의 함수</strong>라는 점인데, harness 세 개를 의도적으로 벌려서 만들었으므로 "합리적 프로덕션 harness들" 중에서 골랐다면 훨씬 작았을 것이다. 보라 박스가 논문의 진짜 기여를 짚는데 — <strong>수치가 아니라 개념적 도구</strong>(HV/MV 분해, 역전 수, 세 신뢰성 양, Harness Card)가 남는다. 맨 아래 주황 박스가 <a href="20260826_guo_harness-survey.html">survey 요약</a>과의 교차 검증인데, 두 논문이 서로를 보완하면서(관찰 범위 vs 인과 통제) 한 지점에서 긴장한다 — survey 데이터에서 계산되는 "모델이 강해질수록 harness span 감소" 추세와 이 논문의 thesis를 함께 놓으면 <em>harness 중요성의 시간적 추세</em>가 열린 질문이 된다.</figcaption>
+</figure>
+</div>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="gdA2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">적용 가이드 — 이 논문을 자기 상황에 쓰는 법</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">역할별로 다른 처방이 나온다. 논문에 없는 이 문서의 구성이다</text>
+
+  <rect x="290" y="48" width="220" height="28" rx="5" fill="#f1f5f9" stroke="#64748b"/>
+  <text x="400" y="67" text-anchor="middle" font-size="10.5" font-weight="bold">벤치마크 점수를 마주쳤다</text>
+
+  <path d="M340,78 L200,102" stroke="#64748b" marker-end="url(#gdA2)"/>
+  <path d="M460,78 L600,102" stroke="#64748b" marker-end="url(#gdA2)"/>
+
+  <rect x="40" y="106" width="320" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="200" y="126" text-anchor="middle" font-size="10">Q. 이 점수로 <tspan font-weight="bold">무엇을 결정</tspan>하려 하는가?</text>
+
+  <rect x="440" y="106" width="320" height="30" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="600" y="126" text-anchor="middle" font-size="10">Q. 내가 <tspan font-weight="bold">점수를 만드는</tspan> 쪽인가?</text>
+
+  <path d="M120,138 L120,160" stroke="#64748b" marker-end="url(#gdA2)"/>
+  <text x="128" y="154" font-size="9" fill="#555">배포</text>
+  <path d="M280,138 L280,160" stroke="#64748b" marker-end="url(#gdA2)"/>
+  <text x="288" y="154" font-size="9" fill="#555">모델 선택</text>
+
+  <rect x="30" y="164" width="180" height="88" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="120" y="182" text-anchor="middle" font-size="10" font-weight="bold">배포 결정</text>
+  <text x="42" y="200" font-size="9">리더보드 점수를 써도 된다 —</text>
+  <text x="42" y="215" font-size="9">단 <tspan font-weight="bold">자기가 쓸 harness와</tspan></text>
+  <text x="42" y="230" font-size="9"><tspan font-weight="bold">같은 harness</tspan>의 점수여야 한다</text>
+  <text x="42" y="246" font-size="8.5" fill="#15803d">"Claude Code로 배포 → Claude Code 점수"</text>
+
+  <rect x="220" y="164" width="180" height="88" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+  <text x="310" y="182" text-anchor="middle" font-size="10" font-weight="bold">모델 선택</text>
+  <text x="232" y="200" font-size="9">harness 미공개 점수는 <tspan font-weight="bold">쓸 수 없다</tspan></text>
+  <text x="232" y="215" font-size="9">→ 같은 harness 하 점수를 찾거나</text>
+  <text x="232" y="230" font-size="9">→ <tspan font-weight="bold">자기 harness에서 직접 재라</tspan></text>
+  <text x="232" y="246" font-size="8.5" fill="#b91c1c">2×2 격자면 실행 4회로 충분하다</text>
+
+  <path d="M520,138 L520,160" stroke="#64748b" marker-end="url(#gdA2)"/>
+  <text x="528" y="154" font-size="9" fill="#555">논문·리포트</text>
+  <path d="M680,138 L680,160" stroke="#64748b" marker-end="url(#gdA2)"/>
+  <text x="688" y="154" font-size="9" fill="#555">벤치마크 운영</text>
+
+  <rect x="430" y="164" width="180" height="88" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="520" y="182" text-anchor="middle" font-size="10" font-weight="bold">논문·리포트를 쓴다</text>
+  <text x="442" y="200" font-size="9">Harness Card 7층을 <tspan font-weight="bold">부록에</tspan></text>
+  <text x="442" y="215" font-size="9">E·T·C·S·O·V·G 각각 한 줄씩</text>
+  <text x="442" y="232" font-size="9">가능하면 2×2 격자로 HV·MV·역전 수</text>
+  <text x="442" y="247" font-size="8.5" fill="#1e40af">"실험 조건의 일부"로 취급</text>
+
+  <rect x="620" y="164" width="150" height="88" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+  <text x="695" y="182" text-anchor="middle" font-size="10" font-weight="bold">벤치마크를 운영한다</text>
+  <text x="632" y="200" font-size="9">locked-harness 트랙</text>
+  <text x="632" y="215" font-size="9">+ factorial 트랙</text>
+  <text x="632" y="232" font-size="9">둘을 <tspan font-weight="bold">분리해</tspan> 제공</text>
+  <text x="632" y="247" font-size="8.5" fill="#7e22ce">HAL·SWE-bench Pro가 선례</text>
+
+  <line x1="40" y1="268" x2="760" y2="268" stroke="#e5e7eb"/>
+
+  <text x="400" y="288" text-anchor="middle" font-size="11.5" font-weight="bold">즉시 계측 가능한 것부터 — 비용 순</text>
+
+  <g font-size="9.5">
+    <rect x="40" y="298" width="230" height="76" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="155" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">비용 0 — 지금 당장</text>
+    <text x="52" y="334">리뷰·독해 시 "harness가 뭔가?"를 묻는다</text>
+    <text x="52" y="350">자기 시스템의 ETCSOVG 7층을 적어 본다</text>
+    <text x="52" y="367" fill="#15803d">→ 빈칸이 보이면 그것이 개선 후보다</text>
+
+    <rect x="285" y="298" width="230" height="76" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="400" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">비용 낮음 — 로그만 있으면</text>
+    <text x="297" y="334">Control Lag τ 계측:</text>
+    <text x="297" y="350">이상 감지 시각 − 교정 도달 시각</text>
+    <text x="297" y="367" fill="#1e40af">→ 모델과 무관한 harness 품질 지표</text>
+
+    <rect x="530" y="298" width="230" height="76" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="645" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">비용 중간 — 실행 4회</text>
+    <text x="542" y="334">2×2 격자로 HV·MV·역전 계산</text>
+    <text x="542" y="350">조건 고정이 관건 (환경·순서·예산)</text>
+    <text x="542" y="367" fill="#b45309">→ 어느 레버가 큰지 자기 설정에서 확인</text>
+  </g>
+
+  <rect x="40" y="386" width="720" height="46" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="404" text-anchor="middle" font-size="10.5" font-weight="bold">순서가 중요하다 — harness를 먼저 고치고 모델은 <tspan font-style="italic">최종 harness에서</tspan> 비교하라</text>
+  <text x="400" y="422" text-anchor="middle" font-size="10">Table 2에서 세 모델이 각각 다른 harness에서 1위였다. 약한 harness에서 모델을 고르면 <tspan font-weight="bold">잘못된 모델을 고를 수 있다</tspan></text>
+</svg>
+<figcaption><strong>[Figure: 적용 가이드]</strong>: 이 논문의 처방을 역할별로 나눈 것이다. 왼쪽 두 갈래(배포 vs 모델 선택)가 §6의 반론 ④ 논의에서 직접 나오는데 — <strong>배포에는 리더보드 점수를 써도 되지만 자기가 쓸 harness와 같은 harness의 점수여야 하고</strong>, 모델 선택에는 harness 미공개 점수를 쓸 수 없다. 오른쪽 두 갈래는 점수를 <em>만드는</em> 쪽의 처방이다. 아래 세 박스가 비용 순으로 정렬한 실행 항목인데, <strong>비용 0인 첫 칸부터 시작하는 것</strong>이 현실적이다 — 자기 시스템의 ETCSOVG 7층을 적어 보는 것만으로 빈칸(개선 후보)이 드러난다. 맨 아래 보라 박스의 순서 경고가 가장 실용적인 조언인데, Table 2에서 세 모델이 각각 다른 harness에서 1위였으므로 <em>약한 harness에서 모델을 고르면 잘못된 모델을 고를 수 있다</em>.</figcaption>
+</figure>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>리더보드를 읽는 방식을 바꾸는 한 문장.</strong> ##"모든 벤치마크 점수는 {모델, harness} 쌍이 만든 합성수인데 절반만 보고된다."## 이제부터 남의 비교표를 볼 때 <em>harness가 명시되어 있는가</em>를 먼저 확인하게 된다. 명시되어 있지 않으면 그 표는 model–harness 시스템 비교이지 모델 비교가 아니다 — 그리고 대부분의 표가 그렇다.</li>
+  <li><strong>제어이론 프레이밍이 실무 진단을 바꾼다.</strong> hallucination spiral, 컨텍스트 오버플로, 실행 runaway를 "모델이 이상하다"로 분류하면 처방이 <em>모델 교체</em>가 된다. <strong>제어기 실패로 분류하면</strong> 처방이 <em>안정성 강제·드리프트 관리·제어 지연 단축</em>이 된다. 특히 $\tau$(이상 감지 → 교정 도달 스텝 수)는 자기 시스템에서 <strong>즉시 계측 가능</strong>하고, 모델을 바꿔도 변하지 않는 양이다.</li>
+  <li><strong>2×2 최소 격자를 자기 평가에 도입하라 — 비용이 작다.</strong> 같은 모델 × 2개 harness, 같은 harness × 2개 모델이면 HV·MV·순위 역전을 계산할 수 있다. 실행 4회면 된다. ##그리고 harness 차이는 "의미 있어야" 한다 — ETCSOVG 층 중 최소 하나를 <em>안정성·드리프트·제어 지연에 영향을 줄 방식으로</em> 바꿔야 한다.## 아무 프롬프트 변경이나 세면 무의미하다.</li>
+  <li><strong>harness 효과의 크기는 <em>모델 간 격차 대비</em>로 읽어라.</strong> WarpGrep 사례가 이 논문에서 가장 통찰적이다 — 2.1%p는 절대값으로 작지만 SEAL 하 상위 6모델 전체 폭(4.9%p)의 43%이므로 순위를 뒤집는다. 프론티어 모델들이 수렴할수록 이 비율이 커지고, 따라서 <strong>harness 공개의 필요성은 시간이 갈수록 커진다</strong>(모델 격차가 좁아지므로).</li>
+  <li><strong>배포 결정과 모델 선택을 다른 질문으로 다뤄라.</strong> 배포에는 리더보드 점수를 써도 되지만 <em>자기가 쓸 harness와 같은 harness의 점수</em>여야 한다 — "Claude Code로 배포할 거면 Claude Code 점수를 보라". 모델을 고를 때는 harness가 명시된 점수를 찾거나 자기 harness에서 직접 재야 한다. ##같은 숫자가 두 역할을 겸할 수 없다.##</li>
+  <li><strong>실무 우선순위: 모델 교체보다 harness 개선의 기대 이득이 크다 — 단, 비용을 모른다.</strong> 통제 격자에서 harness 8.5~13.0%p vs 모델 2.5~5.0%p다. 그러나 이 논문은 <em>$H_3$가 얼마나 비싼지 보고하지 않는다</em>(스텝별 자기 점검 + 5스텝마다 드리프트 점검 + 이상 감지 + checkpoint 10개). 자기 시스템에 도입할 때 <strong>토큰·지연을 함께 재라</strong> — survey 논문(2606.20683)이 보고하듯 큰 컨텍스트가 타임아웃을 줄이는 반직관적 경우도 있다.</li>
+  <li><strong>"모델을 키우면 해소된다"에 대한 구조적 반박을 기억하라.</strong> 더 좋은 모델은 이상의 <em>기저율</em>을 낮출 뿐, 이상이 발생한 뒤의 <em>감지·전달·복구</em>는 harness의 몫이다. 그리고 궤적이 길수록 "이상이 한 번도 안 생길 확률"이 낮아지므로 <strong>long-horizon일수록 제어기의 비중이 커진다</strong>. 저자들의 표현 — "Open-loop 시스템은 더 큰 액추에이터로 신뢰성을 얻지 않는다. 피드백 제어로 얻는다."</li>
+  <li><strong>비판적으로: 수치보다 어휘를 가져가라.</strong> 7.80배는 <em>harness 공간을 어떻게 표집했느냐</em>의 함수이고($H_1$은 현실에서 아무도 배포하지 않는 구성이다), 순위 역전 6건 중 3건은 문항 0.5개 격차에 의존하며 표준오차가 없다. 그리고 통제 실험은 <strong>코딩 벤치마크 하나</strong>에서만 이루어졌다 — 강한 자동 oracle이 있어 검증·복구 루프가 가장 잘 작동하는, 즉 <em>HV가 과대평가되기 쉬운</em> 도메인이다. 안전하게 남는 것은 개념적 도구다: <strong>HV/MV 분해 · 순위 역전 수 · 세 신뢰성 양 · Harness Card 7층</strong>. 이 넷이 앞으로 이 논의에서 쓸 어휘다.</li>
+</ol>
+</div>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="rdA2" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14" font-weight="bold">harness 읽기 지도에서 이 논문의 위치</text>
+  <text x="400" y="35" text-anchor="middle" font-size="10" fill="#666">survey가 지형도를 주고, 이 논문이 <tspan font-style="italic">왜 중요한지</tspan>를 논증한다</text>
+
+  <g font-size="9.5">
+    <rect x="30" y="52" width="175" height="90" rx="7" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="117" y="70" text-anchor="middle" font-size="10.5" font-weight="bold">① Survey (2606.20683)</text>
+    <text x="42" y="88">어휘: H = ⟨I_obs,C,L,I_act,S,V⟩</text>
+    <text x="42" y="103">4개 패러다임 · 압력 프로파일</text>
+    <text x="42" y="118">3개 벤치마크 정량 종합</text>
+    <text x="42" y="134" fill="#475569">→ <tspan font-style="italic">지형도와 관찰적 증거</tspan></text>
+
+    <path d="M207,97 L225,97" stroke="#64748b" marker-end="url(#rdA2)"/>
+
+    <rect x="229" y="52" width="175" height="90" rx="7" fill="#fee2e2" stroke="#ef4444" stroke-width="2"/>
+    <text x="316" y="70" text-anchor="middle" font-size="10.5" font-weight="bold">② 이 논문 (2605.23950)</text>
+    <text x="241" y="88">Binding Constraint Thesis</text>
+    <text x="241" y="103">제어이론 형식화 · HV/MV 분해</text>
+    <text x="241" y="118"><tspan font-weight="bold">통제된 3×3 factorial</tspan></text>
+    <text x="241" y="134" fill="#b91c1c">→ <tspan font-style="italic">인과적 증거와 방법론 처방</tspan></text>
+
+    <path d="M406,97 L424,97" stroke="#64748b" marker-end="url(#rdA2)"/>
+
+    <rect x="428" y="52" width="175" height="90" rx="7" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="515" y="70" text-anchor="middle" font-size="10.5" font-weight="bold">③ Life-Harness (2605.22166)</text>
+    <text x="440" y="88">모델 고정 · harness만 진화</text>
+    <text x="440" y="103">126개 중 116개 개선</text>
+    <text x="440" y="118">18개 backbone 간 전이</text>
+    <text x="440" y="134" fill="#15803d">→ <tspan font-style="italic">"그래서 어떻게 개선하나"</tspan></text>
+
+    <path d="M605,97 L623,97" stroke="#64748b" marker-end="url(#rdA2)"/>
+
+    <rect x="627" y="52" width="143" height="90" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="698" y="70" text-anchor="middle" font-size="10.5" font-weight="bold">④ EnvHarness</text>
+    <text x="639" y="88">(2608.19880, Google)</text>
+    <text x="639" y="103">harness로 <tspan font-weight="bold">환경을</tspan></text>
+    <text x="639" y="118">개조한다</text>
+    <text x="639" y="134" fill="#1e40af">→ <tspan font-style="italic">최전선</tspan></text>
+  </g>
+
+  <line x1="40" y1="160" x2="760" y2="160" stroke="#e5e7eb"/>
+
+  <text x="400" y="180" text-anchor="middle" font-size="11.5" font-weight="bold">①과 ②를 함께 읽어야 하는 이유 — 서로의 약점을 메운다</text>
+
+  <g font-size="9.5">
+    <rect x="60" y="190" width="330" height="96" rx="6" fill="#f1f5f9" stroke="#64748b"/>
+    <text x="225" y="208" text-anchor="middle" font-size="10.5" font-weight="bold">Survey의 강점과 약점</text>
+    <text x="72" y="226">✓ 3개 벤치마크 · 수십 개 model–harness 쌍</text>
+    <text x="72" y="241">✓ 6-컴포넌트 어휘와 설계 매뉴얼</text>
+    <text x="72" y="259">✗ <tspan font-weight="bold">전부 관찰적</tspan> — 통제된 ablation 없음</text>
+    <text x="72" y="275">✗ "병목이 이동한다"가 정성적 독해</text>
+
+    <rect x="410" y="190" width="330" height="96" rx="6" fill="#fee2e2" stroke="#ef4444"/>
+    <text x="575" y="208" text-anchor="middle" font-size="10.5" font-weight="bold">이 논문의 강점과 약점</text>
+    <text x="422" y="226">✓ <tspan font-weight="bold">통제된 factorial</tspan> — 조건 전부 고정</text>
+    <text x="422" y="241">✓ 형식화 → 정의 → 지표 → 귀속 사슬</text>
+    <text x="422" y="259">✗ 단일 벤치마크 · 3×3 · 셀당 2회</text>
+    <text x="422" y="275">✗ 표준오차 미보고 · 비용 축 없음</text>
+  </g>
+
+  <rect x="60" y="298" width="680" height="46" rx="7" fill="#e0e7ff" stroke="#6366f1"/>
+  <text x="400" y="316" text-anchor="middle" font-size="10.5" font-weight="bold">두 논문의 수치가 서로를 뒷받침한다</text>
+  <text x="400" y="334" text-anchor="middle" font-size="10">survey: Terminal-Bench 모델 내 중앙값 <tspan font-weight="bold">13.6%p</tspan> (관찰적, 20개 모델)　|　이 논문: 통제 격자 <tspan font-weight="bold">8.5~13.0%p</tspan> (인과적, 3개 모델)</text>
+
+  <rect x="60" y="352" width="680" height="42" rx="7" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="370" text-anchor="middle" font-size="10.5" font-weight="bold">그런데 한 지점에서 긴장한다</text>
+  <text x="400" y="388" text-anchor="middle" font-size="10">survey의 Table 7을 계산하면 <tspan font-weight="bold">모델이 강해질수록 harness span이 줄어든다</tspan>(20.0→4.4%p). 이 논문은 "비슷한 프론티어" 레짐에 한정하므로 모순은 아니지만, <tspan font-style="italic">추세는 열린 질문</tspan>이다</text>
+</svg>
+<figcaption><strong>[Figure: harness 읽기 지도에서의 위치]</strong>: 네 논문의 순서가 논리를 이룬다 — <em>지형도(①) → 왜 중요한가(②) → 어떻게 개선하나(③) → 최전선(④)</em>. 아래 두 박스가 ①과 ②를 함께 읽어야 하는 이유인데, <strong>서로의 약점이 상보적</strong>이다: survey는 범위가 넓지만 전부 관찰적이고, 이 논문은 통제되어 있지만 단일 벤치마크·3×3이다. 보라 박스가 두 논문의 수치가 서로를 뒷받침하는 지점을 보인다 — 관찰적 13.6%p와 인과적 8.5~13.0%p가 같은 대역이다. 맨 아래 주황 박스가 긴장 지점인데, survey 데이터에서 계산되는 "모델이 강해질수록 harness span 감소" 추세를 이 논문의 thesis와 함께 놓으면 <em>harness 중요성의 시간적 추세</em>가 미해결로 남는다. <a href="20260826_guo_harness-survey.html">survey 요약</a>과 교차 참조하면 좋다.</figcaption>
+</figure>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
