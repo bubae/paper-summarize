@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EnvHarness: Awakening Static Worlds for Agent Learning</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+
+<h1>EnvHarness: Awakening Static Worlds for Agent Learning</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Chengsong Huang¹*, Zifeng Wang², Rujun Han², Jun Yan², Yanfei Chen², Zoey CuiZhu², Ke Jiang², Peng Xia⁴, Han Yu², Yufan Zhuang², Yifei Ming², Jiaqi Pan³, Bhavana Dalvi Mishra², Jiaxin Huang¹, Burak Gokturk², Tomas Pfister², Chen-Yu Lee² (*Google Cloud AI Research 인턴 기간 중 수행)</li>
+  <li><strong>소속</strong>: ¹Washington University in St. Louis · ²Google Cloud AI Research · ³Google Cloud · ⁴University of North Carolina at Chapel Hill</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2608.19880v1, cs.AI)</li>
+  <li><strong>연도</strong>: 2026 (2026년 8월 20일)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2608.19880">https://arxiv.org/abs/2608.19880</a> · <a href="https://github.com/google-research/envharness">github.com/google-research/envharness</a> · <a href="https://www.envharness.com">envharness.com</a></li>
+  <li><strong>분량</strong>: 41페이지 (본문 §1~§7 13페이지 + 부록 A 설계자 prompt, B 관련 프레임워크와의 차이, C 인터페이스 프로토콜, D Chain 구현 예시, E 실험 설정, F 분석 상세·skill 예시, G 추가 분석, H Limitations, I Future Directions)</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: LLM 에이전트는 환경과 상호작용하며 배우는데, ##그 환경들은 <strong>손으로 만들어졌고 정적</strong>이다## — 에이전트의 약점에 눈이 멀어 있고, 에이전트가 개선되면 금세 뒤처진다. 이 경직성이 학습을 두 가지로 제한한다: ⑴ 특정 에이전트의 약점을 겨냥한 신호를 주지 못하고, ⑵ 에이전트가 기존 과제를 다 풀고 나면 <em>더 가르칠 것이 없다</em>. 최근의 환경 <em>생성</em> 연구는 이를 해결하려 하지만 도메인 특정 파이프라인을 요구하고, 비싸거나 신뢰할 수 없는 verifier에 의존하며, 여전히 <strong>정적인</strong> 환경을 만들어 낸다.</li>
+  <li><strong>해결</strong>: <strong>EnvHarness</strong> — 정적 환경을 감싸서 <em>내부 로직을 전혀 건드리지 않고</em> 그 동작을 재구성하는 <strong>플러그인 컴포넌트의 프로그래밍 가능한 층</strong>. 표준 <code>reset</code>/<code>step</code> 인터페이스를 통해서만 작동하므로 도메인 무관하고, ##재구성된 모든 환경이 <strong>원래의 verifier를 그대로 물려받는다</strong>##. 세 컴포넌트: <em>Stage</em>(에피소드 시작 상태), <em>Contract</em>(허용 행동·관측·전이), <em>Chain</em>(여러 환경을 이어 확장 에피소드 구성). 자동화를 위해 <strong>EnvRigger</strong>를 도입한다 — 정책을 <em>블랙박스로</em> 취급하고, 실행 궤적을 관찰해 진단된 결함을 겨냥한 컴포넌트를 합성하고, <strong>새 rollout으로 검증</strong>한다.</li>
+  <li><strong>왜 작동하는가</strong>: 두 개의 분리가 핵심이다. ⑴ <strong>인터페이스 경계에서만 개입하므로 verifier가 보존된다</strong> — LLM이 전이와 성공 판정을 시뮬레이션하는 생성 방식(GenEnv)의 환각·평가 드리프트를 원천 차단한다. ⑵ <strong>정책을 조건으로 환경을 재구성하므로 학습 신호가 항상 능력 경계에 놓인다</strong> — 무조건적 환경 확장은 이미 할 줄 아는 것을 반복시키지만, 진단 기반 재구성은 <em>지금 못 하는 것</em>을 겨냥한다.</li>
+  <li><strong>결과</strong>: 4개 도메인 5개 벤치마크(ALFWorld, WebArena, SWE-bench Verified, OfficeQA, SpreadsheetBench)에서 원본 환경과 도메인 특화 생성 파이프라인 모두를 능가한다 — ##held-out 인스턴스에서 최대 <strong>9.0점</strong> 개선, 실행 스텝은 <strong>9.8% 감소</strong>##. RL에서도 최대 6.5점 개선. 그리고 ##환경 수를 300개까지 늘릴 때 <strong>실제 환경과 생성 환경은 평평해지는데 EnvHarness만 계속 오른다</strong>## (47.67 → 54.79).</li>
+  <li><strong>비유</strong>: 같은 교과서로 모든 학생을 가르치는 대신, <strong>교과서는 그대로 두고 문제 출제 방식만 바꾸는 것</strong>이다 — 이 학생이 늘 건너뛰는 단계를 못 건너뛰게 막고, 이미 완료된 앞부분은 미리 채워 주고, 두 단원을 이어 붙여 끈기를 시험한다. 채점 기준은 교과서의 것을 그대로 쓰므로 ##<strong>난이도를 바꿔도 채점의 신뢰도는 떨어지지 않는다</strong>##.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>EnvHarness — 환경 쪽 harness 패러다임의 제안</strong>: agent harness가 frozen LLM을 자율 에이전트로 만드는 것과 <em>정확히 대칭적으로</em>, 정적 환경을 제어 가능한 환경으로 만드는 프로그래밍 가능한 층. 형식적으로 환경 $E = (\mathcal{S}, \mathcal{A}, \mathcal{O}, T, R, s_0)$에 대한 환경 무관 변환 $w$로 정의되며 $E' = w(E)$. ##변환은 <strong>인터페이스 수준에서만</strong> 일어나므로 시뮬레이터 백엔드와 구현 세부를 건드리지 않고, 따라서 ground-truth 평가 로직이 보존된다##.</li>
+  <li><strong>세 가지 구체적 컴포넌트</strong>: ⑴ <em>Stage</em> $w_{stage,\delta}$ — 상태 조작 행동열 $\delta$를 <code>reset()</code>이 만든 $s_0$에 적용해 시작점을 바꾼다. ⑵ <em>Contract</em> $w_{contract,r}$ — 변환 맵 삼중항 $r = (f_A, f_T, f_O)$로 행동 공간·전이 역학·관측 공간을 다시 쓴다. ⑶ <em>Chain</em> $w_{chain,\ell}$ — 추가 환경 $E_{ext}$와 합성 로직 $g$로 확장 에피소드를 만든다. ##세 컴포넌트가 같은 인터페이스를 공유하므로 <strong>자유롭게 합성</strong>되지만, <strong>비가환적</strong>이다($w_1 \circ w_2 \neq w_2 \circ w_1$)##.</li>
+  <li><strong>EnvRigger — task-policy-conditioned 자동 커스터마이징</strong>: 과제-정책 조건부 사상 $\mathcal{H}$를 실현하는 4단계 자율 루프 — <em>Observe</em>(베이스라인 rollout $K{=}5$ 수집) → <em>Diagnose</em>(근본 원인 식별 + <strong>방향 결정</strong>) → <em>Write</em>(컴포넌트 합성) → <em>Validate</em>(새 rollout $K{=}5$로 accept/reject/refine). ##결정적으로 <strong>정책이 완벽하게 성공하면 "환경이 너무 관대하다"고 진단하고 <em>더 어렵게</em> 만든다</strong>## — 난이도 조절이 양방향이다.</li>
+  <li><strong>verifier 보존이라는 구조적 안전장치</strong>: 보상 축 $R$은 설계자에게 <em>노출되지 않는다</em>. 설계자 prompt가 명시한다 — "R 축은 노출되지 않는다. 성공은 벤치마크 자신의 판정이므로, 보상을 재구성해서 평가 지표를 움직일 수 없다." Chain의 합성 판정도 $R' = R_A \wedge R_B$로, 각 항이 해당 하위 환경의 <em>자체 verifier</em>가 내린 것이다.</li>
+  <li><strong>도메인 무관성의 실증</strong>: 7개 Bridge가 4가지 이질적 런타임 클래스(순수 인메모리 게임, 텍스트 어드벤처 엔진, 인스턴스별 Docker 컨테이너, Playwright 브라우저)를 하나의 <code>ActionableEnv</code> 계약으로 흡수하며, ##Bridge 위의 <strong>모든 것(정책 루프·오케스트레이터·컴포넌트 코드)이 7개 환경에서 문자 그대로 공유된다</strong>##.</li>
+  <li><strong>skill 학습과 RL 양쪽에서의 검증</strong>: skill-based learning에서 held-out 최대 +9.0점(ALFWorld OOD), SWE-bench Verified에서 스텝 5.40 감소. RL(GRPO, Qwen3-8B-base)에서 4개 지표 중 3개 개선. 그리고 도메인 특화 생성 베이스라인(GenEnv, VeriEnv, SWE-smith)을 <em>그들이 적용 가능한 모든 곳에서</em> 능가한다.</li>
+  <li><strong>환경 스케일링에서의 co-evolution</strong>: 동일 예산에서 환경 수를 300개까지 늘리면 ##EnvHarness는 47.67 → <strong>54.79</strong>(+7.12점)로 계속 오르는 반면 원본 환경은 52.13, 생성 환경은 50.37에서 평평해진다##. EnvHarness만이 <em>이미 축적된 skill을 장착한 정책</em>을 겨냥해 다음 배치를 합성하기 때문이다.</li>
+  <li><strong>목표 지정 가능성</strong>: 자율 진단 외에 명시적 사용자 제약도 받는다. 정량 목표(성공률을 $[0.4, 0.6]$ 밴드로) 지정 시 밴드 내 과제 비율이 ##6.0% → 80.0%##로 오르고, 자연어로 서술한 능력 약점("테스트를 돌리지 않고 패치를 제출한다")을 주면 그것을 <em>치명적으로 만드는</em> Contract를 작성해 낸다.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 640" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="ehMap" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#666"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="15" font-weight="bold">이 논문 전체 지도 — 에이전트가 아니라 세계를 바꾼다</text>
+
+  <rect x="20" y="28" width="760" height="62" rx="7" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="400" y="46" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b91c1c">출발 문제 — 환경은 손으로 만들어졌고 정적이다 (§1)</text>
+  <text x="212" y="65" text-anchor="middle" font-size="10">① 어떤 에이전트가 상호작용하든 <tspan font-weight="bold">동일하게 반응</tspan>한다</text>
+  <text x="212" y="80" text-anchor="middle" font-size="9.5" fill="#b91c1c">→ 이 에이전트의 약점을 겨냥한 신호를 줄 수 없다</text>
+  <line x1="400" y1="54" x2="400" y2="84" stroke="#fca5a5"/>
+  <text x="592" y="65" text-anchor="middle" font-size="10">② 에이전트가 기존 과제를 다 풀면 <tspan font-weight="bold">가르칠 것이 없다</tspan></text>
+  <text x="592" y="80" text-anchor="middle" font-size="9.5" fill="#b91c1c">→ 능력이 오를수록 환경이 뒤처진다</text>
+
+  <path d="M400,92 L400,106" stroke="#666" marker-end="url(#ehMap)"/>
+
+  <rect x="20" y="110" width="370" height="80" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="205" y="128" text-anchor="middle" font-size="11" font-weight="bold" fill="#92400e">기존 대안 — 환경을 새로 <tspan font-style="italic">생성</tspan>한다</text>
+  <text x="30" y="146" font-size="9.5">GenEnv · EnvGen · Agent-World · VeriEnv · SWE-smith</text>
+  <text x="30" y="162" font-size="9.5" fill="#92400e">한계 ① <tspan font-weight="bold">파이프라인이 도메인 특정적</tspan> — 웹용은 코딩에 못 쓴다</text>
+  <text x="30" y="177" font-size="9.5" fill="#92400e">한계 ② <tspan font-weight="bold">정확성 보장이 비싸고 불신뢰</tspan> — LLM이 verifier를 만드니</text>
+  <text x="42" y="188" font-size="9.5" fill="#92400e">과잉 생성 후 대량 필터링해도 완전 보장 불가. 그리고 여전히 정적</text>
+
+  <rect x="410" y="110" width="370" height="80" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="595" y="128" text-anchor="middle" font-size="11" font-weight="bold" fill="#1e40af">이 논문 — 환경을 <tspan font-style="italic">감싼다</tspan> (wrapping ≠ authoring)</text>
+  <text x="420" y="146" font-size="9.5">기존 환경을 그대로 두고 표준 <tspan font-family="monospace">reset</tspan>/<tspan font-family="monospace">step</tspan> 인터페이스만 매개</text>
+  <text x="420" y="162" font-size="9.5" fill="#1e40af">→ ① <tspan font-weight="bold">도메인 무관</tspan> — 인터페이스 수준에서만 작동하므로</text>
+  <text x="420" y="177" font-size="9.5" fill="#1e40af">→ ② <tspan font-weight="bold">verifier가 보존된다</tspan> — 원본의 사람이 만든 채점기를 물려받는다</text>
+  <text x="420" y="188" font-size="9.5" fill="#1e40af">   그리고 정책에 따라 <tspan font-weight="bold">동적으로</tspan> 달라진다</text>
+
+  <path d="M595,192 L595,206" stroke="#666" marker-end="url(#ehMap)"/>
+
+  <rect x="20" y="210" width="760" height="26" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+  <text x="400" y="228" text-anchor="middle" font-size="12" font-weight="bold" fill="#4338ca">핵심 대칭 — Agent = Model + Agent Harness  ⟷  Customized Env = Static Env + EnvHarness</text>
+
+  <path d="M400,238 L400,252" stroke="#666" marker-end="url(#ehMap)"/>
+
+  <text x="400" y="268" text-anchor="middle" font-size="12" font-weight="bold">세 개의 플러그인 컴포넌트 — E′ = w(E), 인터페이스 수준에서만 (§2.2)</text>
+  <g font-size="9.5">
+    <rect x="20" y="276" width="246" height="82" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+    <text x="143" y="294" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">Stage — 시작 상태</text>
+    <text x="32" y="311">w_stage,δ · δ = (a₁ … a_k)를 s₀에 리플레이</text>
+    <text x="32" y="326">override: <tspan font-family="monospace">reset()</tspan></text>
+    <text x="32" y="342" fill="#15803d">예: 머그컵을 서랍에 숨긴다 → 탐색을 강제</text>
+    <text x="32" y="354" fill="#15803d">또는 청소를 미리 끝내 둔다 → 지평 단축</text>
+
+    <rect x="277" y="276" width="246" height="82" rx="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.8"/>
+    <text x="400" y="294" text-anchor="middle" font-size="11" font-weight="bold" fill="#7e22ce">Contract — 상호작용 규칙</text>
+    <text x="289" y="311">w_contract,r · r = (f_A, f_T, f_O)</text>
+    <text x="289" y="326">override: <tspan font-family="monospace">step()</tspan> 의 세 훅</text>
+    <text x="289" y="342" fill="#7e22ce">예: 관측을 두 문장으로 절단 / 손에 없으면</text>
+    <text x="289" y="354" fill="#7e22ce">clean 차단 / 순간이동 명령 제거</text>
+
+    <rect x="534" y="276" width="246" height="82" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+    <text x="657" y="294" text-anchor="middle" font-size="11" font-weight="bold" fill="#92400e">Chain — 에피소드 확장</text>
+    <text x="546" y="311">w_chain,ℓ · ℓ = (E_ext, g)</text>
+    <text x="546" y="326">R′ = R_A ∧ R_B — <tspan font-weight="bold">두 verifier의 논리곱</tspan></text>
+    <text x="546" y="342" fill="#92400e">예: "감자를 데워 조리대에 놓기"를 이어 붙여</text>
+    <text x="546" y="354" fill="#92400e">목표 지속성을 시험</text>
+  </g>
+  <text x="400" y="374" text-anchor="middle" font-size="10">세 컴포넌트는 자유롭게 <tspan font-weight="bold">합성</tspan>된다: E′ = w_chain(w_contract(w_stage(E))) — 단, <tspan font-weight="bold" fill="#b91c1c">비가환적</tspan>이다</text>
+
+  <path d="M400,380 L400,394" stroke="#666" marker-end="url(#ehMap)"/>
+
+  <rect x="60" y="398" width="680" height="76" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="416" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">EnvRigger — 위 컴포넌트를 자동으로 써 주는 4단계 루프 (§3.2)</text>
+  <g font-size="9.5">
+    <rect x="74" y="424" width="152" height="42" rx="5" fill="#fff" stroke="#93c5fd"/>
+    <text x="150" y="440" text-anchor="middle" font-weight="bold">① Observe</text>
+    <text x="150" y="455" text-anchor="middle">K=5 베이스라인 rollout</text>
+    <rect x="238" y="424" width="152" height="42" rx="5" fill="#fff" stroke="#93c5fd"/>
+    <text x="314" y="440" text-anchor="middle" font-weight="bold">② Diagnose</text>
+    <text x="314" y="455" text-anchor="middle">근본 원인 + <tspan font-weight="bold">방향</tspan> 결정</text>
+    <rect x="402" y="424" width="152" height="42" rx="5" fill="#fff" stroke="#93c5fd"/>
+    <text x="478" y="440" text-anchor="middle" font-weight="bold">③ Write</text>
+    <text x="478" y="455" text-anchor="middle">컴포넌트 후보 합성</text>
+    <rect x="566" y="424" width="160" height="42" rx="5" fill="#fff" stroke="#93c5fd"/>
+    <text x="646" y="440" text-anchor="middle" font-weight="bold">④ Validate</text>
+    <text x="646" y="455" text-anchor="middle">K=5 새 rollout → 3갈래</text>
+  </g>
+  <path d="M726,445 L740,445 L740,478 L470,478" stroke="#3b82f6" stroke-dasharray="4 3" fill="none" marker-end="url(#ehMap)"/>
+  <text x="600" y="474" text-anchor="middle" font-size="9" fill="#1e40af">REFINE — 최대 5회</text>
+
+  <path d="M400,480 L400,494" stroke="#666" marker-end="url(#ehMap)"/>
+
+  <text x="400" y="510" text-anchor="middle" font-size="12" font-weight="bold">결과 (§4~§5)</text>
+  <g font-size="9.5">
+    <rect x="20" y="518" width="184" height="72" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+    <text x="112" y="536" text-anchor="middle" font-weight="bold" font-size="10.5">효과</text>
+    <text x="30" y="553">held-out 최대 <tspan font-weight="bold">+9.0점</tspan></text>
+    <text x="30" y="568">(ALFWorld OOD 61.4 → 70.4)</text>
+    <text x="30" y="583" fill="#15803d">5개 벤치마크 <tspan font-weight="bold">전부</tspan> 원본 환경 상회</text>
+
+    <rect x="212" y="518" width="184" height="72" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+    <text x="304" y="536" text-anchor="middle" font-weight="bold" font-size="10.5">효율</text>
+    <text x="222" y="553">SWE 평균 스텝 53.58 → <tspan font-weight="bold">49.61</tspan></text>
+    <text x="222" y="568">원본 환경은 오히려 <tspan font-weight="bold" fill="#b91c1c">55.01로 증가</tspan></text>
+    <text x="222" y="583" fill="#1e40af">Chain만 쓰면 <tspan font-weight="bold">41.96</tspan>까지 내려간다</text>
+
+    <rect x="404" y="518" width="184" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7"/>
+    <text x="496" y="536" text-anchor="middle" font-weight="bold" font-size="10.5">도메인 무관성</text>
+    <text x="414" y="553">4개 도메인 · 5개 벤치마크</text>
+    <text x="414" y="568">7개 Bridge · 4가지 런타임 클래스</text>
+    <text x="414" y="583" fill="#7e22ce">생성 베이스라인은 <tspan font-weight="bold">각자 1개 도메인만</tspan></text>
+
+    <rect x="596" y="518" width="184" height="72" rx="6" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="688" y="536" text-anchor="middle" font-weight="bold" font-size="10.5">스케일링 (핵심)</text>
+    <text x="606" y="553">환경 300개까지: <tspan font-weight="bold">47.67 → 54.79</tspan></text>
+    <text x="606" y="568">원본 52.13 · 생성 50.37에서 <tspan font-weight="bold">평평</tspan></text>
+    <text x="606" y="583" fill="#92400e">EnvHarness만 <tspan font-weight="bold">계속 오른다</tspan></text>
+  </g>
+
+  <rect x="20" y="596" width="760" height="38" rx="6" fill="#fff8f0" stroke="#e67e22"/>
+  <text x="400" y="613" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#92400e">같은 학회 시즌의 Life-Harness(arXiv:2605.22166)와 정확히 <tspan font-style="italic">반대편</tspan>을 잡는다</text>
+  <text x="400" y="628" text-anchor="middle" font-size="10">Life-Harness는 모델을 고정하고 <tspan font-weight="bold">에이전트 쪽 인터페이스</tspan>를 고쳐 <tspan font-weight="bold">추론 성능</tspan>을 올린다. EnvHarness는 환경을 고정하고 <tspan font-weight="bold">환경 쪽 인터페이스</tspan>를 고쳐 <tspan font-weight="bold">학습 신호</tspan>를 만든다 → §비판적 분석</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 위에서 아래로 <em>문제 → 기존 대안의 한계 → 핵심 대칭 → 세 컴포넌트 → 자동화 루프 → 결과</em>로 흐른다. 보라 띠의 대칭식이 논문의 한 줄 요약이며, 그 아래 세 컴포넌트 박스의 색(초록 Stage / 보라 Contract / 주황 Chain)은 이 문서 전체에서 일관되게 유지된다. 주황 박스(기존 생성 접근)와 파랑 박스(이 논문)의 대비에서 결정적인 것은 <strong>verifier 보존</strong>으로, 생성 방식은 LLM이 채점기를 만들어야 하지만 감싸기 방식은 원본 채점기를 그대로 물려받는다 — §<em>§2.1 형식화</em>에서 이것이 왜 구조적으로 보장되는지 다룬다. 맨 아래 주황 띠는 이 문서가 덧붙인 맥락으로, 같은 "harness"라는 단어가 에이전트 쪽과 환경 쪽에서 각각 무엇을 뜻하는지는 §<em>비판적 분석</em>에서 두 논문을 나란히 놓고 비교한다.</figcaption>
+</figure>
+
+<h2>배경 — 왜 "환경 쪽" harness인가</h2>
+
+<h3>1. 학습의 원천이 텍스트에서 환경으로 이동했다</h3>
+
+<p><strong>출발 관측</strong>: LLM이 자율 에이전트로 배치되면서 학습의 원천이 <em>큐레이션된 텍스트 데이터</em>에서 <em>상호작용 환경</em>으로 옮겨 갔다. 웹 페이지를 탐색하든, 코드베이스의 이슈를 해결하든, 임바디드 플랫폼을 제어하든, 에이전트는 각자의 환경에서 학습 신호를 얻는다. 환경은 <strong>상호작용 상대</strong>로서 네 가지 일을 한다 — 특정 과제를 제시하고, 변하는 상태를 관리하고, 행동에 반응하고, <strong>성공을 평가한다</strong>.</p>
+
+<p><strong>왜 문제인가</strong>: 그런데 이런 환경을 만들려면 상호작용 로직과 verifier를 하드코딩하는 상당한 인간 노력이 든다. 그 결과 환경은 <strong>경직되게 정적</strong>이 되고, ##<em>어떤</em> 에이전트가 상호작용하든, 그 에이전트가 <em>얼마나</em> 개선되었든 동일하게 행동한다##. 이 경직성이 학습을 두 가지 근본적 방식으로 제한한다:</p>
+
+<ol>
+<li><strong>특정 에이전트의 약점을 겨냥한 신호를 주지 못한다</strong> (Dennis+ 2020, Jiang+ 2021의 unsupervised environment design 문제의식)</li>
+<li><strong>에이전트가 기존 과제를 풀 줄 알게 되면 더 가르칠 것이 없다</strong> (Beukman+ 2024, Wang+ 2019의 open-ended learning 문제의식)</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14.5" font-weight="bold">정적 환경의 두 가지 실패 — 같은 시험지를 계속 주는 것과 같다</text>
+
+  <text x="200" y="42" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b91c1c">실패 ① 겨냥하지 못한다</text>
+  <rect x="30" y="52" width="340" height="120" rx="7" fill="#fef2f2" stroke="#ef4444"/>
+
+  <circle cx="90" cy="86" r="16" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="90" y="90" text-anchor="middle" font-size="9" font-weight="bold">A</text>
+  <circle cx="90" cy="126" r="16" fill="#dcfce7" stroke="#16a34a"/>
+  <text x="90" y="130" text-anchor="middle" font-size="9" font-weight="bold">B</text>
+  <circle cx="90" cy="156" r="16" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="90" y="160" text-anchor="middle" font-size="9" font-weight="bold">C</text>
+  <text x="90" y="72" text-anchor="middle" font-size="8.5" fill="#666">서로 다른 약점</text>
+
+  <path d="M110,86 L188,110" stroke="#94a3b8" stroke-width="1.3"/>
+  <path d="M110,126 L188,116" stroke="#94a3b8" stroke-width="1.3"/>
+  <path d="M110,156 L188,124" stroke="#94a3b8" stroke-width="1.3"/>
+
+  <rect x="192" y="94" width="72" height="40" rx="5" fill="#e2e8f0" stroke="#64748b" stroke-width="1.6"/>
+  <text x="228" y="110" text-anchor="middle" font-size="9.5" font-weight="bold">정적 환경</text>
+  <text x="228" y="124" text-anchor="middle" font-size="8.5">❄️ 동일 반응</text>
+
+  <path d="M266,114 L316,114" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="330" y="106" text-anchor="middle" font-size="9" fill="#b91c1c">동일한</text>
+  <text x="330" y="118" text-anchor="middle" font-size="9" fill="#b91c1c">학습 신호</text>
+  <text x="330" y="130" text-anchor="middle" font-size="9" fill="#b91c1c">3개</text>
+
+  <text x="200" y="162" text-anchor="middle" font-size="9.5" fill="#b91c1c">A의 파싱 약점, B의 루프 습관, C의 도구 오용을</text>
+  <text x="200" y="168" text-anchor="middle" font-size="9.5" fill="#b91c1c"> </text>
+
+  <line x1="400" y1="34" x2="400" y2="300" stroke="#cbd5e1" stroke-dasharray="5 4"/>
+
+  <text x="596" y="42" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b91c1c">실패 ② 곧 뒤처진다</text>
+  <rect x="424" y="52" width="352" height="120" rx="7" fill="#fef2f2" stroke="#ef4444"/>
+
+  <line x1="450" y1="152" x2="750" y2="152" stroke="#333"/>
+  <line x1="450" y1="66" x2="450" y2="152" stroke="#333"/>
+  <text x="600" y="166" text-anchor="middle" font-size="9" fill="#666">학습 시간</text>
+  <text x="440" y="110" font-size="9" fill="#666" transform="rotate(-90 440 110)" text-anchor="middle">능력</text>
+
+  <polyline points="450,148 500,128 550,106 600,92 650,86 700,84 745,83" fill="none" stroke="#3b82f6" stroke-width="2.4"/>
+  <text x="700" y="76" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">에이전트 능력</text>
+
+  <line x1="450" y1="100" x2="750" y2="100" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="6 3"/>
+  <text x="502" y="94" font-size="9" font-weight="bold" fill="#92400e">환경 난이도 (고정)</text>
+
+  <circle cx="574" cy="100" r="5" fill="#ef4444"/>
+  <text x="574" y="128" text-anchor="middle" font-size="9" fill="#b91c1c">여기서 교차</text>
+  <text x="574" y="140" text-anchor="middle" font-size="9" fill="#b91c1c">이후 신호 = 0</text>
+  <rect x="576" y="66" width="172" height="34" fill="#ef4444" fill-opacity="0.09"/>
+  <text x="662" y="80" text-anchor="middle" font-size="9" fill="#b91c1c">환경이 더 가르칠 것이 없는 구간</text>
+
+  <rect x="30" y="182" width="746" height="60" rx="6" fill="#fffbea" stroke="#eab308"/>
+  <text x="40" y="199" font-size="10.5" font-weight="bold" fill="#92400e">이 두 실패가 서로 다른 해법을 요구한다는 것이 이 논문의 출발점</text>
+  <text x="40" y="216" font-size="10">① 은 <tspan font-weight="bold">정책 조건부(policy-conditioned)</tspan> 재구성을 요구한다 — 같은 과제라도 에이전트마다 다른 형태로 제시되어야 한다</text>
+  <text x="40" y="233" font-size="10">② 는 <tspan font-weight="bold">지속적 재구성</tspan>을 요구한다 — 에이전트가 개선되면 환경도 따라 올라야 한다. 이것이 §<tspan font-style="italic">환경 스케일링</tspan>의 co-evolution 실험이 검증하는 것</text>
+
+  <rect x="30" y="250" width="746" height="62" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+  <text x="40" y="267" font-size="10.5" font-weight="bold" fill="#1e40af">환경 <tspan font-style="italic">생성</tspan>은 ②는 부분적으로 풀지만 ①은 풀지 못한다 — 이것이 §5 스케일링 실험에서 실측된다</text>
+  <text x="40" y="284" font-size="10">생성 파이프라인은 <tspan font-weight="bold">학습자와 무관하게</tspan> 환경 배치를 뽑는다. 그래서 환경 수를 300개로 늘려도 50.37에서 평평해진다</text>
+  <text x="40" y="301" font-size="10">EnvHarness는 <tspan font-weight="bold">이미 축적된 skill을 장착한 정책</tspan>을 겨냥해 다음 배치를 합성한다. 그래서 54.79까지 계속 오른다</text>
+</svg>
+<figcaption><strong>[Figure: 정적 환경의 두 가지 실패]</strong>: 왼쪽은 서로 다른 약점을 가진 에이전트 A·B·C가 같은 환경에서 <em>동일한 학습 신호</em>를 받는 구조를, 오른쪽은 에이전트 능력(파랑)이 고정된 환경 난이도(주황 점선)를 넘어서는 순간 이후 신호가 사라지는 구조를 그렸다. <strong>이 도식은 논문에 없고 §1의 서술에서 이 문서가 구성했다</strong> — 오른쪽 곡선의 구체적 궤적은 개념 재구성이며 실측값이 아니다. 요점은 아래 두 박스로, <strong>①과 ②는 서로 다른 해법을 요구한다</strong>는 것이다 — ①은 정책 조건부 재구성을, ②는 지속적 재구성을 요구하며, 환경 <em>생성</em> 접근은 ②만 부분적으로 다룬다. 이 구별이 §<em>환경 스케일링</em>에서 EnvHarness(54.79)와 생성 환경(50.37)의 격차로 실측된다.</figcaption>
+</figure>
+
+<h3>2. 핵심 유추 — agent harness의 거울상</h3>
+
+<p><strong>agent harness란</strong>: LLM을 감싸 자율 에이전트를 만드는 소프트웨어 층이다 — 실행 루프, 도구 레지스트리, 컨텍스트 관리. ##<strong>Agent = Model + Harness</strong>##이며, 결정적으로 <em>모델 가중치를 바꾸지 않고</em> 새 능력을 더한다. Anthropic의 "Effective harnesses for long-running agents"(2025), "Harness design for long-running application development"(2026), OpenAI의 Codex 관련 문헌, 그리고 Meng+ 2026의 서베이가 이 개념을 정착시켰다.</p>
+
+<p><strong>이 논문의 착상</strong>: 같은 아이디어를 ##에이전트–환경 루프의 <strong>반대편</strong>##에 적용한다. EnvHarness는 기존 정적 환경을 감싸 커스터마이징 가능한 환경으로 만드는 프로그래밍 가능한 층이다 — ##<strong>Customized Env = Static Env + EnvHarness</strong>##. 커스터마이징은 <em>표준 인터페이스를 통과하는 정보 흐름을 수정함으로써</em> 이뤄지며, 기저 환경은 <strong>완전히 손대지 않는다</strong>.</p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs>
+    <marker id="mir1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker>
+    <marker id="mir2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#a855f7"/></marker>
+  </defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 2 · Table 1 재구성] 같은 원리를 상호작용 루프의 양쪽에 적용한다</text>
+
+  <rect x="20" y="30" width="370" height="24" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+  <text x="205" y="47" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">Agent Harness (기존 개념)</text>
+  <rect x="410" y="30" width="370" height="24" rx="5" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.6"/>
+  <text x="595" y="47" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#7e22ce">EnvHarness (이 논문)</text>
+
+  <rect x="80" y="66" width="250" height="34" rx="6" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <text x="205" y="80" text-anchor="middle" font-size="10.5" font-weight="bold">❄️ Frozen LLM</text>
+  <text x="205" y="94" text-anchor="middle" font-size="9" fill="#666">가중치 불변</text>
+
+  <rect x="460" y="66" width="250" height="34" rx="6" fill="#e2e8f0" stroke="#64748b" stroke-width="2"/>
+  <text x="585" y="80" text-anchor="middle" font-size="10.5" font-weight="bold">❄️ Static Environment</text>
+  <text x="585" y="94" text-anchor="middle" font-size="9" fill="#666">시뮬레이터·전이함수·verifier 불변</text>
+
+  <path d="M205,102 L205,116" stroke="#3b82f6" marker-end="url(#mir1)"/>
+  <path d="M585,102 L585,116" stroke="#a855f7" marker-end="url(#mir2)"/>
+
+  <rect x="50" y="118" width="310" height="70" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+  <text x="205" y="136" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#1e40af">+ 플러그인 컴포넌트</text>
+  <g font-size="9">
+    <rect x="62" y="144" width="88" height="18" rx="3" fill="#fff" stroke="#93c5fd"/><text x="106" y="157" text-anchor="middle">tools</text>
+    <rect x="158" y="144" width="88" height="18" rx="3" fill="#fff" stroke="#93c5fd"/><text x="202" y="157" text-anchor="middle">memory</text>
+    <rect x="254" y="144" width="94" height="18" rx="3" fill="#fff" stroke="#93c5fd"/><text x="301" y="157" text-anchor="middle">skills</text>
+    <rect x="62" y="166" width="140" height="18" rx="3" fill="#fff" stroke="#93c5fd"/><text x="132" y="179" text-anchor="middle">execution loops</text>
+    <rect x="210" y="166" width="138" height="18" rx="3" fill="#fff" stroke="#93c5fd"/><text x="279" y="179" text-anchor="middle">context management</text>
+  </g>
+
+  <rect x="430" y="118" width="310" height="70" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.8"/>
+  <text x="585" y="136" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#7e22ce">+ 플러그인 컴포넌트</text>
+  <g font-size="9">
+    <rect x="442" y="144" width="94" height="18" rx="3" fill="#dcfce7" stroke="#16a34a"/><text x="489" y="157" text-anchor="middle" font-weight="bold">Stage (s₀′)</text>
+    <rect x="544" y="144" width="94" height="18" rx="3" fill="#f3e8ff" stroke="#a855f7"/><text x="591" y="157" text-anchor="middle" font-weight="bold">Contract</text>
+    <rect x="646" y="144" width="82" height="18" rx="3" fill="#fef3c7" stroke="#f59e0b"/><text x="687" y="157" text-anchor="middle" font-weight="bold">Chain</text>
+    <rect x="442" y="166" width="286" height="18" rx="3" fill="#fff" stroke="#d8b4fe"/><text x="585" y="179" text-anchor="middle">모두 표준 reset / step 인터페이스만 override 한다</text>
+  </g>
+
+  <path d="M205,190 L205,204" stroke="#3b82f6" marker-end="url(#mir1)"/>
+  <path d="M585,190 L585,204" stroke="#a855f7" marker-end="url(#mir2)"/>
+
+  <rect x="80" y="206" width="250" height="30" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="205" y="226" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">= 자율 에이전트 (Autonomous Agent)</text>
+  <rect x="460" y="206" width="250" height="30" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+  <text x="585" y="226" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">= 커스터마이징된 환경 (Customized Env)</text>
+
+  <text x="400" y="262" text-anchor="middle" font-size="11.5" font-weight="bold">[Table 1] 네 항목이 나란히 대응한다</text>
+  <g font-size="9.5">
+    <rect x="60" y="270" width="164" height="22" fill="#e2e8f0" stroke="#94a3b8"/><text x="142" y="285" text-anchor="middle" font-weight="bold">항목</text>
+    <rect x="224" y="270" width="258" height="22" fill="#dbeafe" stroke="#3b82f6"/><text x="353" y="285" text-anchor="middle" font-weight="bold">Agent Harness</text>
+    <rect x="482" y="270" width="258" height="22" fill="#f3e8ff" stroke="#a855f7"/><text x="611" y="285" text-anchor="middle" font-weight="bold">EnvHarness (Ours)</text>
+
+    <rect x="60" y="292" width="164" height="22" fill="#f8fafc" stroke="#e2e8f0"/><text x="70" y="307">Base System</text>
+    <rect x="224" y="292" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="234" y="307">Frozen LLM</text>
+    <rect x="482" y="292" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="492" y="307">Static environment</text>
+
+    <rect x="60" y="314" width="164" height="22" fill="#f8fafc" stroke="#e2e8f0"/><text x="70" y="329">Designed to Solve</text>
+    <rect x="224" y="314" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="234" y="329">Lack of action, memory, or loops</text>
+    <rect x="482" y="314" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="492" y="329">Hardcoded interaction logic</text>
+
+    <rect x="60" y="336" width="164" height="22" fill="#f8fafc" stroke="#e2e8f0"/><text x="70" y="351">Harness Layer</text>
+    <rect x="224" y="336" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="234" y="351">Capabilities (tools, memory)</text>
+    <rect x="482" y="336" width="258" height="22" fill="#fff" stroke="#e2e8f0"/><text x="492" y="351">Customization (states, rules, observations)</text>
+
+    <rect x="60" y="358" width="164" height="22" fill="#f8fafc" stroke="#e2e8f0"/><text x="70" y="373">Unified Output</text>
+    <rect x="224" y="358" width="258" height="22" fill="#dcfce7" stroke="#86efac"/><text x="234" y="373" font-weight="bold">Autonomous agent</text>
+    <rect x="482" y="358" width="258" height="22" fill="#dcfce7" stroke="#86efac"/><text x="492" y="373" font-weight="bold">Customized environment</text>
+  </g>
+  <text x="400" y="394" text-anchor="middle" font-size="10">공통 원리: <tspan font-weight="bold">핵심 시스템을 바꾸지 않고 외부 층으로 능력을 확장한다</tspan></text>
+</svg>
+<figcaption><strong>[Figure 2 · Table 1 재구성]</strong>: 좌우 미러 구조로 두 harness를 나란히 놓았다 — 위에서 아래로 <em>frozen 기반 시스템 → 플러그인 층 → 통합 산출물</em>이 정확히 대응하며, 눈송이 표시가 "손대지 않는 부분"이다. 오른쪽 컴포넌트 박스의 색(초록 Stage / 보라 Contract / 주황 Chain)은 이 문서 전체의 규약이다. 아래 표가 원문 Table 1으로, 네 항목이 일대일 대응한다는 것이 이 논문의 수사적 축이다. 다만 대칭이 완전하지는 않은데, <strong>agent harness는 능력을 <em>더하고</em> EnvHarness는 능력을 <em>빼기도 한다</em></strong> — Contract의 $f_A$는 순간이동 명령을 <em>제거</em>하고 $f_O$는 관측을 <em>절단</em>한다. 이 비대칭이 §<em>Contract</em>에서 왜 중요한지 다룬다.</figcaption>
+</figure>
+
+<h3>3. 기존 대안 — 환경 생성(environment generation)의 두 한계</h3>
+
+<p>환경을 손으로 만드는 것이 비싸기 때문에, 상당수 연구가 <strong>자동 환경 생성</strong>으로 향했다. 논문은 이 계열의 한계를 두 가지로 정리한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <text x="400" y="18" text-anchor="middle" font-size="14.5" font-weight="bold">환경 생성 계열 5편 — 각자 자기 도메인에만 산다</text>
+
+  <g font-size="9.5">
+    <rect x="20" y="30" width="246" height="92" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="34" y="48" font-weight="bold" font-size="10.5">GenEnv (Guo+ 2025)</text>
+    <text x="34" y="65">도메인: 범용 (생성 시뮬레이터)</text>
+    <text x="34" y="80">LLM을 <tspan font-weight="bold">생성 시뮬레이터</tspan>로 써서 전이·관측·</text>
+    <text x="34" y="92">성공 신호를 <tspan font-weight="bold">즉석에서 생성</tspan>한다</text>
+    <text x="34" y="110" fill="#b91c1c">치명적 문제: LLM이 물리 전이와 채점을 흉내내므로</text>
+    <text x="34" y="119" fill="#b91c1c">환각과 평가 드리프트가 벤치마크 타당성을 훼손</text>
+
+    <rect x="277" y="30" width="246" height="92" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="291" y="48" font-weight="bold" font-size="10.5">EnvGen (Zala+ 2024)</text>
+    <text x="291" y="65">도메인: 시뮬레이터 내부 설정</text>
+    <text x="291" y="80">환경 <tspan font-weight="bold">설정</tspan>(맵, 지형 파일 등)을</text>
+    <text x="291" y="92">시뮬레이터 <tspan font-weight="bold">코어 안에서</tspan> 생성·적응시킨다</text>
+    <text x="291" y="110" fill="#b91c1c">치명적 문제: 시뮬레이터 내부 코드/에셋 수정은</text>
+    <text x="291" y="119" fill="#b91c1c">벤치마크마다 깊은 수작업 + 상태 로직 손상 위험</text>
+
+    <rect x="534" y="30" width="246" height="92" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="548" y="48" font-weight="bold" font-size="10.5">Agent-World (Dong+ 2026)</text>
+    <text x="548" y="65">도메인: 도구·DB·과제 통합 합성</text>
+    <text x="548" y="80">실행 가능한 툴셋·데이터베이스·과제를</text>
+    <text x="548" y="92"><tspan font-weight="bold">밑바닥부터</tspan> 프로그램적으로 합성</text>
+    <text x="548" y="110" fill="#b91c1c">치명적 문제: 막대한 엔지니어링 오버헤드 +</text>
+    <text x="548" y="119" fill="#b91c1c">생성된 도구에 로직 오류가 있으면 학습이 멈춘다</text>
+
+    <rect x="20" y="132" width="370" height="70" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="34" y="150" font-weight="bold" font-size="10.5">VeriEnv (Chae+ 2026) — 실험의 WebArena 베이스라인</text>
+    <text x="34" y="167">웹사이트를 <tspan font-weight="bold">복제</tspan>해 실행 가능한 합성 환경으로 만들고,</text>
+    <text x="34" y="181">보상은 프로그램적으로 검사한다</text>
+    <text x="34" y="196" fill="#92400e">→ 채점은 견고하지만 <tspan font-weight="bold">웹 도메인 전용</tspan>. 코딩·임바디드에 못 쓴다</text>
+
+    <rect x="410" y="132" width="370" height="70" rx="7" fill="#fef3c7" stroke="#f59e0b"/>
+    <text x="424" y="150" font-weight="bold" font-size="10.5">SWE-smith (Yang+ 2026a) — 실험의 SWE-bench 베이스라인</text>
+    <text x="424" y="167">기존 벤치마크 <tspan font-weight="bold">안에서</tspan> 저장소 수준 과제 인스턴스를 새로 합성</text>
+    <text x="424" y="181">(Pan+ 2024와 같은 계열)</text>
+    <text x="424" y="196" fill="#92400e">→ 스케일은 되지만 <tspan font-weight="bold">양을 늘릴 뿐</tspan>, 학습자의 약점을 겨냥하지 않는다</text>
+  </g>
+
+  <rect x="20" y="212" width="760" height="60" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="400" y="230" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#b91c1c">논문이 정리하는 두 가지 공통 한계</text>
+  <text x="34" y="249" font-size="10">① <tspan font-weight="bold">파이프라인이 본질적으로 도메인 특정적이다</tspan> — 웹 내비게이션용, 프로그래밍용, 도구 사용용 시스템은 서로 <tspan font-weight="bold">이전되지 않는다</tspan></text>
+  <text x="34" y="266" font-size="10">② <tspan font-weight="bold">정확성 보장이 비싸고 불신뢰하다</tspan> — 환경과 verifier를 LLM이 만들므로 <tspan font-weight="bold">과잉 생성 후 대량 필터링</tspan>해야 하고, 그래도 완전 보장은 불가능하다</text>
+
+  <rect x="20" y="282" width="760" height="62" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+  <text x="400" y="300" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">EnvHarness가 두 한계를 동시에 우회하는 방식 — 새로 만들지 않고 <tspan font-style="italic">감싼다</tspan></text>
+  <text x="34" y="319" font-size="10">① 에 대해: <tspan font-weight="bold">인터페이스 수준에서만</tspan> 작동하므로 도메인 무관. 새 벤치마크 추가는 일회성 경량 Bridge 구현뿐이고, 그 위 코어 루프와 설계자는 <tspan font-weight="bold">수정 불필요</tspan></text>
+  <text x="34" y="336" font-size="10">② 에 대해: 원본 과제와 verifier를 <tspan font-weight="bold">건드리지 않으므로</tspan> 재구성된 환경이 사람이 만든 채점기를 <tspan font-weight="bold">그대로 물려받는다</tspan>. 필터링 자체가 필요 없다</text>
+</svg>
+<figcaption><strong>[Figure: 환경 생성 계열의 지형]</strong>: 카드 갤러리로 5편을 나열했고, 각 카드의 마지막 빨간 줄이 <strong>부록 B가 명시적으로 비판하는 지점</strong>이다 — GenEnv는 LLM이 전이와 채점을 시뮬레이션해 환각·평가 드리프트를 낳고, EnvGen은 시뮬레이터 코어를 건드려 도메인마다 수작업을 요구하며, Agent-World는 밑바닥부터 합성해 오버헤드와 로직 오류를 떠안는다. VeriEnv와 SWE-smith는 §4의 실제 베이스라인이기도 하다. 아래 두 박스가 대비의 핵심으로, <strong>①(도메인 특정성)과 ②(정확성 보장)를 "생성" 대신 "감싸기"로 동시에 우회한다</strong>는 것이 이 논문의 논증 구조다. 다만 카드에 성능 수치가 없는 이유는 이 표가 <em>설계 철학</em>의 비교이기 때문이고, 실제 성능 비교는 §<em>주요 결과</em>의 Table 2·3에 있다.</figcaption>
+</figure>
+
+<h3>4. verifier 신뢰 사슬 — 이 논문의 가장 구조적인 주장</h3>
+
+<p><strong>왜 중요한가</strong>: 환경을 바꾸면 <em>채점도 바꿔야 하는가</em>가 이 분야의 핵심 난제다. 새 과제를 만들면 그 과제의 정답도 만들어야 하고, 정답을 LLM이 만들면 그 정답이 틀릴 수 있다. EnvHarness의 설계는 이 문제를 <em>해결</em>하는 것이 아니라 <strong>발생하지 않게 한다</strong>.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: 시험 문제를 새로 출제하면 채점 기준도 새로 만들어야 하지만, ##<strong>기존 문제를 그대로 두고 "풀이 조건"만 바꾸면 채점 기준은 손댈 필요가 없다</strong>##. 머그컵을 서랍에 숨겨도 "깨끗한 머그컵이 책상 위에 있는가"라는 채점 기준은 그대로다. 어렵게 만들었지만 채점의 신뢰도는 1도 떨어지지 않았다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="vt1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#555"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14.5" font-weight="bold">채점 신뢰의 출처 — 생성 방식과 감싸기 방식의 구조적 차이</text>
+
+  <rect x="20" y="30" width="370" height="24" rx="5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+  <text x="205" y="47" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#92400e">생성(generation) — 신뢰가 매 단계 희석된다</text>
+  <rect x="410" y="30" width="370" height="24" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+  <text x="595" y="47" text-anchor="middle" font-size="11.5" font-weight="bold" fill="#1e40af">감싸기(wrapping) — 신뢰가 그대로 통과한다</text>
+
+  <rect x="80" y="64" width="230" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="195" y="84" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">사람이 만든 원본 verifier · 신뢰도 100%</text>
+  <rect x="470" y="64" width="230" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="585" y="84" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">사람이 만든 원본 verifier · 신뢰도 100%</text>
+
+  <path d="M195,96 L195,110" stroke="#f59e0b" marker-end="url(#vt1)"/>
+  <rect x="50" y="112" width="290" height="34" rx="5" fill="#fef3c7" stroke="#f59e0b"/>
+  <text x="195" y="127" text-anchor="middle" font-size="10">LLM이 <tspan font-weight="bold">새 과제 인스턴스</tspan>를 생성한다</text>
+  <text x="195" y="141" text-anchor="middle" font-size="9" fill="#92400e">원본 verifier는 이 과제를 채점할 수 없다</text>
+
+  <path d="M195,148 L195,162" stroke="#ef4444" marker-end="url(#vt1)"/>
+  <rect x="50" y="164" width="290" height="34" rx="5" fill="#fef2f2" stroke="#ef4444"/>
+  <text x="195" y="179" text-anchor="middle" font-size="10">LLM이 <tspan font-weight="bold">그 과제의 verifier도</tspan> 생성한다</text>
+  <text x="195" y="193" text-anchor="middle" font-size="9" fill="#b91c1c">여기서 신뢰가 처음 깨진다</text>
+
+  <path d="M195,200 L195,214" stroke="#ef4444" marker-end="url(#vt1)"/>
+  <rect x="50" y="216" width="290" height="48" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+  <text x="195" y="232" text-anchor="middle" font-size="10" font-weight="bold" fill="#b91c1c">대응: 과잉 생성 + 대량 필터링</text>
+  <text x="195" y="247" text-anchor="middle" font-size="9">필요한 것의 몇 배를 만들고 걸러 낸다</text>
+  <text x="195" y="259" text-anchor="middle" font-size="9" fill="#b91c1c">비용이 크고, 그래도 <tspan font-weight="bold">완전 보장은 불가능</tspan>하다</text>
+
+  <path d="M195,266 L195,280" stroke="#ef4444" marker-end="url(#vt1)"/>
+  <rect x="50" y="282" width="290" height="40" rx="5" fill="#fff1f2" stroke="#fb7185"/>
+  <text x="195" y="298" text-anchor="middle" font-size="10" font-weight="bold" fill="#9f1239">최종 채점 신뢰도 = ?</text>
+  <text x="195" y="313" text-anchor="middle" font-size="9">GenEnv의 경우 전이 자체도 LLM 시뮬레이션이라</text>
+
+  <path d="M585,96 L585,110" stroke="#3b82f6" marker-end="url(#vt1)"/>
+  <rect x="440" y="112" width="290" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="585" y="127" text-anchor="middle" font-size="10"><tspan font-weight="bold">과제는 그대로</tspan>. 시작 상태·규칙·연결만 바꾼다</text>
+  <text x="585" y="141" text-anchor="middle" font-size="9" fill="#1e40af">"깨끗한 머그컵을 책상에" 라는 목표는 불변</text>
+
+  <path d="M585,148 L585,162" stroke="#3b82f6" marker-end="url(#vt1)"/>
+  <rect x="440" y="164" width="290" height="34" rx="5" fill="#dbeafe" stroke="#3b82f6"/>
+  <text x="585" y="179" text-anchor="middle" font-size="10">변환 w 는 <tspan font-weight="bold">인터페이스 경계 밖에서만</tspan> 작동</text>
+  <text x="585" y="193" text-anchor="middle" font-size="9" fill="#1e40af">시뮬레이터 백엔드·구현 세부를 건드리지 않는다</text>
+
+  <path d="M585,200 L585,214" stroke="#3b82f6" marker-end="url(#vt1)"/>
+  <rect x="440" y="216" width="290" height="48" rx="5" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+  <text x="585" y="232" text-anchor="middle" font-size="10" font-weight="bold" fill="#4338ca">설계자에게 R 축은 <tspan font-style="italic">노출되지 않는다</tspan></text>
+  <text x="450" y="247" font-size="8.5" font-family="monospace">"The R axis is not exposed: success is the</text>
+  <text x="450" y="259" font-size="8.5" font-family="monospace">benchmark's own verdict…"  — 부록 A 설계자 prompt</text>
+
+  <path d="M585,266 L585,280" stroke="#16a34a" marker-end="url(#vt1)"/>
+  <rect x="440" y="282" width="290" height="40" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+  <text x="585" y="298" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">최종 채점 신뢰도 = 100% (원본과 동일)</text>
+  <text x="585" y="313" text-anchor="middle" font-size="9">100% 결정론적 전이 로직도 그대로 유지된다</text>
+
+  <rect x="20" y="332" width="760" height="42" rx="6" fill="#fffbea" stroke="#eab308"/>
+  <text x="30" y="349" font-size="10.5" font-weight="bold" fill="#92400e">이 구조가 낳는 두 가지 부수 효과 — 이 문서의 관찰</text>
+  <text x="30" y="366" font-size="10">① <tspan font-weight="bold">난이도와 신뢰도가 분리된다</tspan> — 아무리 어렵게 만들어도 채점 품질은 떨어지지 않는다. ② <tspan font-weight="bold">R을 못 건드리므로 지표 해킹이 구조적으로 봉쇄된다</tspan> — 설계자가 보상을 조작해 성능 수치를 올릴 수 없다</text>
+</svg>
+<figcaption><strong>[Figure: verifier 신뢰 사슬]</strong>: 왼쪽 주황이 생성 방식, 오른쪽 파랑이 감싸기 방식의 신뢰 전파 경로다. 왼쪽에서 신뢰가 깨지는 지점은 <strong>두 번째 단계</strong>로, 새 과제를 만드는 순간 원본 verifier가 그것을 채점할 수 없게 되고 LLM이 채점기까지 만들어야 한다 — 이후의 과잉 생성·필터링은 그 손실을 보상하려는 <em>사후 대응</em>이지 근본 해결이 아니다. 오른쪽에서 결정적인 것은 보라 박스로, <strong>설계자 prompt가 $R$ 축 자체를 노출하지 않는다</strong>(부록 A 원문 인용). 이는 정책적 금지가 아니라 <em>기계적 봉쇄</em>여서, §<em>Life-Harness 비교</em>에서 논할 "정답 유출" 문제를 이 논문은 애초에 갖지 않는다. 아래 노란 박스가 그 귀결로, <strong>난이도 조절과 채점 신뢰도가 완전히 분리된다</strong>는 것이 §<em>목표 밴드</em> 실험(성공률을 $[0.4,0.6]$으로 강제)이 성립하는 이유다.</figcaption>
+</figure>
+
+<h2>§2.1 형식화 — EnvHarness 패러다임</h2>
+
+<p><strong>환경의 정의</strong>: 논문은 환경을 6-튜플로 모델링한다.</p>
+
+$$E = (\mathcal{S},\ \mathcal{A},\ \mathcal{O},\ T,\ R,\ s_0)$$
+
+<p>여기서 $\mathcal{S}$는 상태 공간, $\mathcal{A}$는 행동 공간, $\mathcal{O}$는 관측 공간, $T: \mathcal{S} \times \mathcal{A} \to \mathcal{S}$는 상태와 행동을 다음 상태로 보내는 전이 함수, <strong>$R$은 verifier가 유도하는 보상</strong>, $s_0$는 초기 상태다.</p>
+
+<p><strong>EnvHarness 컴포넌트의 정의</strong>: <em>환경 무관 변환(environment-agnostic transformation)</em> $w$이다.</p>
+
+$$E' = w(E), \qquad E' = (\mathcal{S}',\ \mathcal{A}',\ \mathcal{O}',\ T',\ R',\ s_0') \tag{1}$$
+
+<p>$w$는 ##환경을 <strong>엄격히 인터페이스 수준에서만</strong> 재구성하며, 기저 시뮬레이터 백엔드나 구현 세부를 수정하지 않는다##. 구체적으로 초기 상태($s_0'$)를 커스터마이징하고, 노출되는 공간($\mathcal{A}'$, $\mathcal{O}'$)을 필터링하고, 전이 역학($T'$)을 갱신한다. <strong>모든 개입이 외부에 머물기 때문에 ground-truth 평가 로직이 보존되고, 원본 verifier가 여전히 에피소드를 채점할 수 있다.</strong></p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+  <defs><marker id="tup1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#6366f1"/></marker></defs>
+  <text x="400" y="18" text-anchor="middle" font-size="14.5" font-weight="bold">6-튜플의 어느 성분을 누가 건드리는가 — 수식 (1)~(4) 한눈에</text>
+
+  <g font-size="9.5">
+    <rect x="20" y="32" width="120" height="24" fill="#e2e8f0" stroke="#94a3b8"/><text x="80" y="48" text-anchor="middle" font-weight="bold">E 의 성분</text>
+    <rect x="140" y="32" width="150" height="24" fill="#dcfce7" stroke="#16a34a"/><text x="215" y="48" text-anchor="middle" font-weight="bold">Stage w_stage,δ</text>
+    <rect x="290" y="32" width="150" height="24" fill="#f3e8ff" stroke="#a855f7"/><text x="365" y="48" text-anchor="middle" font-weight="bold">Contract w_contract,r</text>
+    <rect x="440" y="32" width="150" height="24" fill="#fef3c7" stroke="#f59e0b"/><text x="515" y="48" text-anchor="middle" font-weight="bold">Chain w_chain,ℓ</text>
+    <rect x="590" y="32" width="190" height="24" fill="#e2e8f0" stroke="#94a3b8"/><text x="685" y="48" text-anchor="middle" font-weight="bold">의미</text>
+  </g>
+
+  <g font-size="10">
+    <rect x="20" y="56" width="120" height="28" fill="#f8fafc" stroke="#e2e8f0"/><text x="30" y="75"><tspan font-weight="bold">𝒮</tspan> 상태 공간</text>
+    <rect x="140" y="56" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="215" y="75" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="290" y="56" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="365" y="75" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="440" y="56" width="150" height="28" fill="#fef3c7" stroke="#fcd34d"/><text x="515" y="75" text-anchor="middle" font-weight="bold">𝒮′ (합집합)</text>
+    <rect x="590" y="56" width="190" height="28" fill="#fff" stroke="#e2e8f0"/><text x="600" y="75" font-size="9">Chain만이 상태 공간을 넓힌다</text>
+
+    <rect x="20" y="84" width="120" height="28" fill="#f8fafc" stroke="#e2e8f0"/><text x="30" y="103"><tspan font-weight="bold">𝒜</tspan> 행동 공간</text>
+    <rect x="140" y="84" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="215" y="103" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="290" y="84" width="150" height="28" fill="#f3e8ff" stroke="#d8b4fe"/><text x="365" y="103" text-anchor="middle" font-weight="bold">𝒜′ = f_A(𝒜)</text>
+    <rect x="440" y="84" width="150" height="28" fill="#fef3c7" stroke="#fcd34d"/><text x="515" y="103" text-anchor="middle" font-weight="bold">𝒜′ = 𝒜 ∪ 𝒜_ext</text>
+    <rect x="590" y="84" width="190" height="28" fill="#fff" stroke="#e2e8f0"/><text x="600" y="103" font-size="9">Contract는 <tspan font-weight="bold">줄이고</tspan>, Chain은 <tspan font-weight="bold">늘린다</tspan></text>
+
+    <rect x="20" y="112" width="120" height="28" fill="#f8fafc" stroke="#e2e8f0"/><text x="30" y="131"><tspan font-weight="bold">𝒪</tspan> 관측 공간</text>
+    <rect x="140" y="112" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="215" y="131" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="290" y="112" width="150" height="28" fill="#f3e8ff" stroke="#d8b4fe"/><text x="365" y="131" text-anchor="middle" font-weight="bold">𝒪′ = f_O(𝒪)</text>
+    <rect x="440" y="112" width="150" height="28" fill="#fef3c7" stroke="#fcd34d"/><text x="515" y="131" text-anchor="middle" font-weight="bold">𝒪′ (합집합)</text>
+    <rect x="590" y="112" width="190" height="28" fill="#fff" stroke="#e2e8f0"/><text x="600" y="131" font-size="9">부분 관측성 주입이 여기서 일어난다</text>
+
+    <rect x="20" y="140" width="120" height="28" fill="#f8fafc" stroke="#e2e8f0"/><text x="30" y="159"><tspan font-weight="bold">T</tspan> 전이 함수</text>
+    <rect x="140" y="140" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="215" y="159" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="290" y="140" width="150" height="28" fill="#f3e8ff" stroke="#d8b4fe"/><text x="365" y="159" text-anchor="middle" font-weight="bold">T′ = f_T(T)</text>
+    <rect x="440" y="140" width="150" height="28" fill="#fef3c7" stroke="#fcd34d"/><text x="515" y="159" text-anchor="middle" font-weight="bold">T′ (핸드오프 포함)</text>
+    <rect x="590" y="140" width="190" height="28" fill="#fff" stroke="#e2e8f0"/><text x="600" y="159" font-size="9">단, <tspan font-weight="bold">시뮬레이터 자체는 손대지 않는다</tspan></text>
+
+    <rect x="20" y="168" width="120" height="28" fill="#fef2f2" stroke="#fca5a5"/><text x="30" y="187" fill="#b91c1c"><tspan font-weight="bold">R</tspan> 보상 (verifier)</text>
+    <rect x="140" y="168" width="150" height="28" fill="#dcfce7" stroke="#86efac"/><text x="215" y="187" text-anchor="middle" font-weight="bold" fill="#15803d">— 불변 ✓</text>
+    <rect x="290" y="168" width="150" height="28" fill="#dcfce7" stroke="#86efac"/><text x="365" y="187" text-anchor="middle" font-weight="bold" fill="#15803d">— 불변 ✓</text>
+    <rect x="440" y="168" width="150" height="28" fill="#dcfce7" stroke="#86efac"/><text x="515" y="187" text-anchor="middle" font-weight="bold" fill="#15803d">R′ = R_A ∧ R_B</text>
+    <rect x="590" y="168" width="190" height="28" fill="#dcfce7" stroke="#86efac"/><text x="600" y="187" font-size="9" fill="#15803d"><tspan font-weight="bold">어떤 컴포넌트도 R을 새로 쓰지 않는다</tspan></text>
+
+    <rect x="20" y="196" width="120" height="28" fill="#f8fafc" stroke="#e2e8f0"/><text x="30" y="215"><tspan font-weight="bold">s₀</tspan> 초기 상태</text>
+    <rect x="140" y="196" width="150" height="28" fill="#dcfce7" stroke="#86efac"/><text x="215" y="215" text-anchor="middle" font-weight="bold">s₀′ = T(…T(s₀,a₁)…,a_k)</text>
+    <rect x="290" y="196" width="150" height="28" fill="#f1f5f9" stroke="#e2e8f0"/><text x="365" y="215" text-anchor="middle" fill="#94a3b8">— 불변</text>
+    <rect x="440" y="196" width="150" height="28" fill="#fef3c7" stroke="#fcd34d"/><text x="515" y="215" text-anchor="middle" font-weight="bold">s₀′</text>
+    <rect x="590" y="196" width="190" height="28" fill="#fff" stroke="#e2e8f0"/><text x="600" y="215" font-size="9">Stage의 전용 축. <tspan font-weight="bold">T를 써서</tspan> 도달한다</text>
+  </g>
+
+  <rect x="20" y="234" width="370" height="72" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+  <text x="205" y="252" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">R 열이 전부 초록이라는 것이 이 표의 요점</text>
+  <text x="30" y="270" font-size="9.5">세 컴포넌트 중 <tspan font-weight="bold">어느 것도 R을 새로 정의하지 않는다</tspan>.</text>
+  <text x="30" y="284" font-size="9.5">Chain조차 R′ = R_A ∧ R_B로, 두 항이 각각 <tspan font-weight="bold">해당 하위 환경의</tspan></text>
+  <text x="30" y="298" font-size="9.5"><tspan font-weight="bold">자체 verifier</tspan>가 내린 판정이다 — 새 채점 로직이 아니다</text>
+
+  <rect x="410" y="234" width="370" height="72" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.6"/>
+  <text x="595" y="252" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#7e22ce">Stage가 s₀′를 만드는 방식이 영리하다</text>
+  <text x="420" y="270" font-size="9.5">임의의 상태를 <tspan font-weight="bold">주입</tspan>하는 것이 아니라, 환경 자신의 전이 함수 T를</text>
+  <text x="420" y="284" font-size="9.5">써서 <tspan font-weight="bold">도달</tspan>한다. 따라서 s₀′는 항상 <tspan font-weight="bold">reachable state</tspan>다 —</text>
+  <text x="420" y="298" font-size="9.5">물리적으로 불가능한 상태를 만들 수 없다. §<tspan font-style="italic">Stage</tspan>에서 상술</text>
+
+  <rect x="20" y="316" width="760" height="76" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+  <text x="400" y="334" text-anchor="middle" font-size="11" font-weight="bold" fill="#4338ca">세 컴포넌트가 서로 다른 축을 담당한다는 것이 "세 개로 충분한가"에 대한 논문의 답</text>
+  <text x="30" y="352" font-size="10">Stage → <tspan font-weight="bold">s₀ 축</tspan> (에피소드가 시작되는 지점) · Contract → <tspan font-weight="bold">(𝒜, 𝒪, T) 축</tspan> (매 스텝의 입출력) · Chain → <tspan font-weight="bold">에피소드 경계 축</tspan> (언제 끝나는가)</text>
+  <text x="30" y="369" font-size="10">논문의 표현: "환경 커스터마이징의 <tspan font-weight="bold">세 가지 근본 모드</tspan>를 커버하도록 선택했으며, <tspan font-weight="bold">더 많은 것이 뒤따를 것으로 기대한다</tspan>"</text>
+  <text x="30" y="386" font-size="10" fill="#4338ca">부록 I가 후보를 제시한다 — 확률성 주입, 부분 관측성, 보조 피드백 채널, <tspan font-weight="bold">공유 환경에 여러 에이전트 배치</tspan></text>
+</svg>
+<figcaption><strong>[Figure: 6-튜플 성분별 담당 컴포넌트]</strong>: 행이 환경 튜플의 여섯 성분, 열이 세 컴포넌트이며 각 칸은 그 컴포넌트가 해당 성분을 어떻게 바꾸는지다. <strong>$R$ 행이 전부 초록</strong>이라는 것이 이 표의 핵심 — 어떤 컴포넌트도 보상을 새로 정의하지 않고, Chain조차 두 원본 verifier의 논리곱일 뿐이다. 오른쪽 보라 박스가 Stage의 영리한 점을 짚는데, 임의 상태를 <em>주입</em>하지 않고 환경 자신의 $T$로 <em>도달</em>하므로 $s_0'$가 항상 reachable state이고 물리적으로 불가능한 상태가 나올 수 없다 — §<em>Stage</em>에서 상술한다. 아래 보라 띠는 "왜 하필 세 개인가"에 대한 논문의 답으로, 세 컴포넌트가 <strong>시작점 / 매 스텝 / 에피소드 경계</strong>라는 서로 겹치지 않는 축을 담당하며 논문 자신이 이것을 닫힌 집합이 아니라고 명시한다.</figcaption>
+</figure>
