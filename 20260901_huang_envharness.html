@@ -128,7 +128,7 @@ document.addEventListener("DOMContentLoaded", function() {
   <li><strong>문제</strong>: LLM 에이전트는 환경과 상호작용하며 배우는데, ##그 환경들은 <strong>손으로 만들어졌고 정적</strong>이다## — 에이전트의 약점에 눈이 멀어 있고, 에이전트가 개선되면 금세 뒤처진다. 이 경직성이 학습을 두 가지로 제한한다: ⑴ 특정 에이전트의 약점을 겨냥한 신호를 주지 못하고, ⑵ 에이전트가 기존 과제를 다 풀고 나면 <em>더 가르칠 것이 없다</em>. 최근의 환경 <em>생성</em> 연구는 이를 해결하려 하지만 도메인 특정 파이프라인을 요구하고, 비싸거나 신뢰할 수 없는 verifier에 의존하며, 여전히 <strong>정적인</strong> 환경을 만들어 낸다.</li>
   <li><strong>해결</strong>: <strong>EnvHarness</strong> — 정적 환경을 감싸서 <em>내부 로직을 전혀 건드리지 않고</em> 그 동작을 재구성하는 <strong>플러그인 컴포넌트의 프로그래밍 가능한 층</strong>. 표준 <code>reset</code>/<code>step</code> 인터페이스를 통해서만 작동하므로 도메인 무관하고, ##재구성된 모든 환경이 <strong>원래의 verifier를 그대로 물려받는다</strong>##. 세 컴포넌트: <em>Stage</em>(에피소드 시작 상태), <em>Contract</em>(허용 행동·관측·전이), <em>Chain</em>(여러 환경을 이어 확장 에피소드 구성). 자동화를 위해 <strong>EnvRigger</strong>를 도입한다 — 정책을 <em>블랙박스로</em> 취급하고, 실행 궤적을 관찰해 진단된 결함을 겨냥한 컴포넌트를 합성하고, <strong>새 rollout으로 검증</strong>한다.</li>
   <li><strong>왜 작동하는가</strong>: 두 개의 분리가 핵심이다. ⑴ <strong>인터페이스 경계에서만 개입하므로 verifier가 보존된다</strong> — LLM이 전이와 성공 판정을 시뮬레이션하는 생성 방식(GenEnv)의 환각·평가 드리프트를 원천 차단한다. ⑵ <strong>정책을 조건으로 환경을 재구성하므로 학습 신호가 항상 능력 경계에 놓인다</strong> — 무조건적 환경 확장은 이미 할 줄 아는 것을 반복시키지만, 진단 기반 재구성은 <em>지금 못 하는 것</em>을 겨냥한다.</li>
-  <li><strong>결과</strong>: 4개 도메인 5개 벤치마크(ALFWorld, WebArena, SWE-bench Verified, OfficeQA, SpreadsheetBench)에서 원본 환경과 도메인 특화 생성 파이프라인 모두를 능가한다 — ##held-out 인스턴스에서 최대 <strong>9.0점</strong> 개선, 실행 스텝은 <strong>9.8% 감소</strong>##. RL에서도 최대 6.5점 개선. 그리고 ##환경 수를 300개까지 늘릴 때 <strong>실제 환경과 생성 환경은 평평해지는데 EnvHarness만 계속 오른다</strong>## (47.67 → 54.79).</li>
+  <li><strong>결과</strong>: 4개 도메인 5개 벤치마크(ALFWorld, WebArena, SWE-bench Verified, OfficeQA, SpreadsheetBench)에서 원본 환경과 도메인 특화 생성 파이프라인 모두를 능가한다 — ##held-out(학습에 쓰이지 않은 보류) 인스턴스에서 최대 <strong>9.0점</strong> 개선, 실행 스텝은 <strong>9.8% 감소</strong>##. RL(reinforcement learning)에서도 최대 6.5점 개선. 그리고 ##환경 수를 300개까지 늘릴 때 <strong>실제 환경과 생성 환경은 평평해지는데 EnvHarness만 계속 오른다</strong>## (47.67 → 54.79).</li>
   <li><strong>비유</strong>: 같은 교과서로 모든 학생을 가르치는 대신, <strong>교과서는 그대로 두고 문제 출제 방식만 바꾸는 것</strong>이다 — 이 학생이 늘 건너뛰는 단계를 못 건너뛰게 막고, 이미 완료된 앞부분은 미리 채워 주고, 두 단원을 이어 붙여 끈기를 시험한다. 채점 기준은 교과서의 것을 그대로 쓰므로 ##<strong>난이도를 바꿔도 채점의 신뢰도는 떨어지지 않는다</strong>##.</li>
 </ul>
 </div>
@@ -140,7 +140,7 @@ document.addEventListener("DOMContentLoaded", function() {
   <li><strong>EnvRigger — task-policy-conditioned 자동 커스터마이징</strong>: 과제-정책 조건부 사상 $\mathcal{H}$를 실현하는 4단계 자율 루프 — <em>Observe</em>(베이스라인 rollout $K{=}5$ 수집) → <em>Diagnose</em>(근본 원인 식별 + <strong>방향 결정</strong>) → <em>Write</em>(컴포넌트 합성) → <em>Validate</em>(새 rollout $K{=}5$로 accept/reject/refine). 결정적으로 <strong>정책이 완벽하게 성공하면 "환경이 너무 관대하다"고 진단하고 <em>더 어렵게</em> 만든다</strong> — 난이도 조절이 양방향이다.</li>
   <li><strong>verifier 보존이라는 구조적 안전장치</strong>: 보상 축 $R$은 설계자에게 <em>노출되지 않는다</em>. 설계자 prompt가 명시한다 — "R 축은 노출되지 않는다. 성공은 벤치마크 자신의 판정이므로, 보상을 재구성해서 평가 지표를 움직일 수 없다." Chain의 합성 판정도 $R' = R_A \wedge R_B$로, 각 항이 해당 하위 환경의 <em>자체 verifier</em>가 내린 것이다.</li>
   <li><strong>도메인 무관성의 실증</strong>: 7개 Bridge가 4가지 이질적 런타임 클래스(순수 인메모리 게임, 텍스트 어드벤처 엔진, 인스턴스별 Docker 컨테이너, Playwright 브라우저)를 하나의 <code>ActionableEnv</code> 계약으로 흡수하며, Bridge 위의 <strong>모든 것(정책 루프·오케스트레이터·컴포넌트 코드)이 7개 환경에서 문자 그대로 공유된다</strong>.</li>
-  <li><strong>skill 학습과 RL 양쪽에서의 검증</strong>: skill-based learning에서 held-out 최대 +9.0점(ALFWorld OOD), SWE-bench Verified에서 스텝 5.40 감소. RL(GRPO, Qwen3-8B-base)에서 4개 지표 중 3개 개선. 그리고 도메인 특화 생성 베이스라인(GenEnv, VeriEnv, SWE-smith)을 <em>그들이 적용 가능한 모든 곳에서</em> 능가한다.</li>
+  <li><strong>skill 학습과 RL 양쪽에서의 검증</strong>: skill-based learning에서 held-out 최대 +9.0점(ALFWorld <strong>OOD, out-of-distribution</strong> — 학습 시 보지 못한 객체–수납처 구성), SWE-bench Verified에서 스텝 5.40 감소. RL(GRPO, Qwen3-8B-base)에서 4개 지표 중 3개 개선. 그리고 도메인 특화 생성 베이스라인(GenEnv, VeriEnv, SWE-smith)을 <em>그들이 적용 가능한 모든 곳에서</em> 능가한다.</li>
   <li><strong>환경 스케일링에서의 co-evolution</strong>: 동일 예산에서 환경 수를 300개까지 늘리면 EnvHarness는 47.67 → <strong>54.79</strong>(+7.12점)로 계속 오르는 반면 원본 환경은 52.13, 생성 환경은 50.37에서 평평해진다. EnvHarness만이 <em>이미 축적된 skill을 장착한 정책</em>을 겨냥해 다음 배치를 합성하기 때문이다.</li>
   <li><strong>목표 지정 가능성</strong>: 자율 진단 외에 명시적 사용자 제약도 받는다. 정량 목표(성공률을 $[0.4, 0.6]$ 밴드로) 지정 시 밴드 내 과제 비율이 6.0% → 80.0%로 오르고, 자연어로 서술한 능력 약점("테스트를 돌리지 않고 패치를 제출한다")을 주면 그것을 <em>치명적으로 만드는</em> Contract를 작성해 낸다.</li>
 </ol>
@@ -1480,14 +1480,14 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
     <rect x="510" y="370" width="230" height="20" fill="#fffbea" stroke="#eab308"/><text x="625" y="384" text-anchor="middle">5회 후에도 미수용이면 그 인스턴스는 <tspan font-weight="bold">컴포넌트를 내지 않는다</tspan></text>
   </g>
 </svg>
-<figcaption><strong>[Figure: Validate의 3갈래 결정과 예산]</strong>: 마름모 분기로 ACCEPT/REFINE/REJECT를 나누고 각 갈래의 판정 근거를 붙였다. 결정적 규칙은 마름모 안의 빨간 줄 — <strong>K개 rollout의 집계로만 판단하고 단일 trace로는 절대 판단하지 않는다</strong>(부록 A 원문). 아래 두 박스가 REFINE의 세밀한 규칙으로, "변형 <em>유형</em>이 옳으면 훅을 그대로 두고 크기만 조정하고, 틀렸으면 처음부터 다시"라는 이분법이 탐색을 국소적으로 유지해 5회 예산 안에 수렴시키는 장치다. 맨 아래 Table 8에서 눈에 띄는 것은 붉게 표시한 <strong>후보당 컴포넌트 수에 상한이 없다</strong>는 항목으로, §<em>합성의 비가환성</em>에서 제기한 순서 문제와 맞물려 탐색 공간을 키운다. 5회 후에도 수용되지 않으면 그 인스턴스가 <em>아무 컴포넌트도 내지 않는다</em>는 점도 중요한데, 이는 환경 수율(yield)이 100%가 아님을 뜻하지만 논문은 실제 수율을 보고하지 않는다.</figcaption>
+<figcaption><strong>[Figure: Validate의 3갈래 결정과 예산]</strong>: 마름모 분기로 ACCEPT/REFINE/REJECT를 나누고 각 갈래의 판정 근거를 붙였다. 결정적 규칙은 마름모 안의 빨간 줄 — <strong>K개 rollout의 집계로만 판단하고 단일 trace로는 절대 판단하지 않는다</strong>(부록 A 원문). 아래 두 박스가 REFINE의 세밀한 규칙으로, "변형 <em>유형</em>이 옳으면 훅을 그대로 두고 크기만 조정하고, 틀렸으면 처음부터 다시"라는 이분법이 탐색을 국소적으로 유지해 5회 예산 안에 수렴시키는 장치다. 맨 아래 Table 8에서 눈에 띄는 것은 붉게 표시한 <strong>후보당 컴포넌트 수에 상한이 없다</strong>는 항목으로, §<em>합성의 비가환성</em>에서 제기한 순서 문제와 맞물려 탐색 공간을 키운다. 5회 후에도 수용되지 않으면 그 인스턴스가 <em>아무 컴포넌트도 내지 않는다</em>는 점도 중요한데, 이는 환경 수율(yield)이 100%가 아님을 뜻한다 — 부록 F.2가 SWE 라운드 3에 대해 <strong>"학습 과제의 약 1/3이 아무 컴포넌트도 내지 못했다"</strong>고 한 번 언급하지만, 벤치마크·라운드 전반의 수율은 보고되지 않는다.</figcaption>
 </figure>
 
 <h2>§4 실험</h2>
 
 <h3>4.1 실험 설정</h3>
 
-<p><strong>초점</strong>: 본문은 주로 <strong>skill-based learning (SL)</strong> 패러다임에 집중한다 — 환경에서 skill을 추출해 에이전트 능력을 개선하는 방식이다. <strong>online RL</strong> 패러다임에서의 호환성과 성능은 §5 분석의 일부로 제시된다.</p>
+<p><strong>초점</strong>: 본문은 주로 <strong>skill-based learning (SL)</strong> 패러다임에 집중한다 — 환경에서 skill을 추출해 에이전트 능력을 개선하는 방식이다. <strong>online RL (online reinforcement learning, 온라인 강화학습)</strong> 패러다임에서의 호환성과 성능은 §5 분석의 일부로 제시된다.</p>
 
 <figure>
 <svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
@@ -1498,7 +1498,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
     <text x="111" y="49" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">텍스트 임바디드</text>
     <text x="111" y="66" text-anchor="middle" font-size="11" font-weight="bold">ALFWorld</text>
     <text x="30" y="84">런타임: TextWorld 엔진</text>
-    <text x="30" y="99">지표: In-Dist / OOD 성공률</text>
+    <text x="30" y="99">지표: In-Dist / OOD 성공률 (SR)</text>
     <text x="30" y="114">분할: 학습 100 / 나머지 전부 held-out</text>
     <text x="30" y="132" fill="#15803d">베이스라인: GenEnv</text>
 
@@ -1514,7 +1514,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
     <text x="495" y="49" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#7e22ce">소프트웨어 엔지니어링</text>
     <text x="495" y="66" text-anchor="middle" font-size="11" font-weight="bold">SWE-bench Verified</text>
     <text x="414" y="84">런타임: 인스턴스별 Docker</text>
-    <text x="414" y="99">지표: SR + <tspan font-weight="bold">Average Step</tspan></text>
+    <text x="414" y="99">SR(성공률) + <tspan font-weight="bold">AS(평균 스텝)</tspan></text>
     <text x="414" y="114">분할: Lite 100 / Lite에 없는 Verified 407</text>
     <text x="414" y="132" fill="#7e22ce">베이스라인: SWE-smith</text>
 
@@ -1522,7 +1522,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
     <text x="688" y="49" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#92400e">오피스 자동화</text>
     <text x="688" y="66" text-anchor="middle" font-size="11" font-weight="bold">OfficeQA · SpreadsheetBench</text>
     <text x="606" y="84">런타임: Docker (stateless exec)</text>
-    <text x="606" y="99">지표: EM/F1 · Pass@1/Mean Score</text>
+    <text x="606" y="99">지표: EM(exact match)/F1 · Pass@1/Mean Score</text>
     <text x="606" y="114">분할: 50/172 · 100/299(897 인스턴스)</text>
     <text x="606" y="132" fill="#b91c1c" font-weight="bold">베이스라인: 존재하지 않음</text>
   </g>
@@ -2205,7 +2205,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 
 <h2>§5 분석</h2>
 
-<p>논문은 EnvHarness를 다섯 축으로 분석한다 — ⑴ RL 학습 신호로서의 호환성, ⑵ 표준 데이터셋 확장 대비 스케일링 효율, ⑶ 정책 모델 계열·강도에 걸친 전이성, ⑷ 장기 지평 환경에서 Chain의 고유 가치, ⑸ EnvRigger가 명시적 사용자 지정 목표를 받아들이는 능력.</p>
+<p>논문은 EnvHarness를 다섯 축으로 분석한다 — ⑴ RL 학습 신호로서의 호환성, ⑵ 표준 데이터셋 확장 대비 스케일링 효율, ⑶ 정책 모델 계열·강도에 걸친 전이성(OOD, out-of-distribution 전이 포함), ⑷ 장기 지평 환경에서 Chain의 고유 가치, ⑸ EnvRigger가 명시적 사용자 지정 목표를 받아들이는 능력.</p>
 
 <h3>⑴ EnvHarness가 더 나은 RL을 가능하게 한다</h3>
 
@@ -2289,9 +2289,9 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
     <rect x="20" y="30" width="182" height="98" rx="7" fill="#f1f5f9" stroke="#64748b"/>
     <text x="111" y="48" text-anchor="middle" font-size="10.5" font-weight="bold">하드웨어 · 시스템</text>
     <text x="30" y="66">단일 노드 <tspan font-weight="bold">8× NVIDIA H100</tspan></text>
-    <text x="30" y="81">rollout: <tspan font-weight="bold">vLLM</tspan> (TP=1)</text>
+    <text x="30" y="81">rollout: <tspan font-weight="bold">vLLM</tspan> · TP(Tensor Parallelism)=1</text>
     <text x="30" y="96">GPU 메모리 사용률 0.5 · eager 실행</text>
-    <text x="30" y="111">학습: <tspan font-weight="bold">FSDP</tspan> + 파라미터·옵티마이저</text>
+    <text x="30" y="111">학습: <tspan font-weight="bold">FSDP</tspan>(Fully Sharded Data Parallel) + 파라미터·옵티마이저</text>
     <text x="30" y="123">오프로딩 + gradient checkpointing</text>
 
     <rect x="212" y="30" width="182" height="98" rx="7" fill="#dbeafe" stroke="#3b82f6"/>
@@ -2403,8 +2403,17 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 <text x="30" y="394" font-size="10">그래서 두 skill 집합을 합치면 <tspan font-weight="bold">SR 54.30 · AS 43.12</tspan>로 양쪽 최고에 근접한다 — 논문의 표현으로 "highly complementary behaviors".</text>
 <text x="30" y="406" font-size="9.5" fill="#15803d">주의: Chain 실험은 <tspan font-weight="bold">EnvRigger 자동 루프 밖에서</tspan> 수행되었다 — 두 base 환경을 무작위로 짝지었을 뿐이다 (§4.1이 Chain을 자동 파이프라인에서 제외한다고 밝힌다)</text>
 </svg>
-<figcaption><strong>[Table 5 재구성 — 2차원 산점도]</strong>: 표를 산점도로 바꾸면 <strong>세 컴포넌트가 서로 <em>직교하는 방향</em>으로 민다</strong>는 것이 즉시 보인다 — Stage/Contract는 오른쪽(성공률 +4.91), Chain은 위쪽(스텝 −11.62)이다. 주황 점선이 Original Envs 기준선이고 초록 음영이 "둘 다 개선되는 영역"이며, 두 skill 집합을 합친 초록 점(SR 54.30 · AS 43.12)만이 양쪽 최고에 근접한다. 오른쪽 보라 박스가 Chain 단독의 성격을 설명하는데, <strong>SR은 오히려 근소하게 낮다</strong>(49.63 vs 49.88) — "둘 다 풀어야 성공"이라는 엄격한 학습 조건이 단기 성공 극대화보다 장기 목표 보존을 우선시킨 결과라는 것이 논문의 해석이며 §<em>Chain</em>의 설계 의도와 정확히 일치한다. 아래 초록 박스 마지막 줄의 단서가 중요한데, <strong>Chain 실험은 EnvRigger 자동 루프 밖에서 두 환경을 무작위로 짝지어 수행</strong>되었으므로 §<em>4.2</em>의 자동 파이프라인 결과와 같은 층위로 읽어서는 안 된다.</figcaption>
+<figcaption><strong>[Table 5 재구성 — 2차원 산점도]</strong>: 표를 산점도로 바꾸면 <strong>세 컴포넌트가 서로 <em>직교하는 방향</em>으로 민다</strong>는 것이 즉시 보인다 — Stage/Contract는 오른쪽(성공률 +4.91), Chain은 위쪽(스텝 −11.62)이다. 주황 점선이 Original Envs 기준선이고 초록 음영이 "둘 다 개선되는 영역"이며, 두 skill 집합을 합친 초록 점(SR 54.30 · AS 43.12)만이 양쪽 최고에 근접한다. 오른쪽 보라 박스가 Chain 단독의 성격을 설명하는데, <strong>SR은 오히려 근소하게 낮다</strong>(49.63 vs 49.88) — "둘 다 풀어야 성공"이라는 엄격한 학습 조건이 단기 성공 극대화보다 장기 목표 보존을 우선시킨 결과라는 것이 논문의 해석이며 §<em>Chain</em>의 설계 의도와 정확히 일치한다. 아래 초록 박스 마지막 줄의 단서가 중요한데, <strong>Chain 실험은 EnvRigger 자동 루프 밖에서 두 환경을 무작위로 짝지어 수행</strong>되었으므로 §<em>4.2</em>의 자동 파이프라인 결과와 같은 층위로 읽어서는 안 된다. (원문 §5는 이 표의 벤치마크를 명시하지 않지만, 베이스라인 값 47.67·53.58이 Table 3의 SWE-bench Verified와 동일하고 부록 F.3의 skill 예시가 pytest·scikit-learn 사례라는 점에서 SWE-bench로 보인다.)</figcaption>
 </figure>
+
+<p><strong>Chain 환경에서만 나오는 skill (부록 F.3)</strong>: 부록은 Chain 궤적에서 증류된 대표 skill 두 개를 싣는데, 둘 다 <em>과제가 이어붙었을 때만 나타나는 행동</em>이라는 점이 Table 5의 결과(성공률은 소폭 낮고 평균 스텝은 크게 개선)를 직접 설명한다.</p>
+
+<ul>
+<li><strong>"Manage shared step budgets across joined tasks"</strong> — 이어붙은 과제 구조를 <em>하나의 유한한 예산</em>으로 취급하고, 두 번째 과제에 충분한 자원을 남기기 위해 첫 과제에서는 <strong>"충분히 좋은" 해법을 우선한다</strong>. 부록이 든 실제 궤적: 에이전트가 첫 과제(pytest의 <code>_makepath</code> 이슈)를 효율적으로 해결해 두 번째 과제(scikit-learn의 <code>RidgeClassifierCV</code>)에서 마주친 상당한 환경 설정 난관(의존성 문제, 순환 import, 누락 속성)을 감당할 스텝을 보존했다. 부록의 표현 — "<strong>두 번째 과제를 희생하면서 첫 과제를 과최적화하지 않는 것</strong>의 중요성을 보여 준다."</li>
+<li><strong>"Re-orient environment after task handoff"</strong> — 새 과제를 받으면 <em>즉시</em> 환경 정찰(<code>conda env list</code>, <code>which python</code>)을 수행해 올바른 테스트 러너와 환경 설정을 확인한다. 저장소마다 다르기 때문이다. 실제 궤적: matplotlib에서 django로 전환할 때 이전 환경의 <code>pytest</code>·<code>python</code> 경로가 유효하다고 가정할 수 없음을 인식하고, django 저장소가 별도의 <code>runtests.py</code>와 다른 conda 환경 경로를 요구함을 알아내 "command not found" 에러를 피했다.</li>
+</ul>
+
+<p><strong>이 두 skill이 Table 5를 설명한다</strong>: 둘 다 <em>성공률을 직접 올리는 요령이 아니라 <strong>낭비를 줄이는 요령</strong></em>이다 — 첫 과제 과최적화 방지와 핸드오프 직후 정찰은 모두 "쓸데없이 오래 걸리는 것"을 막는다. 그래서 Chain 단독 skill이 성공률은 49.63으로 원본(49.88)과 사실상 같은데 평균 스텝은 53.58에서 <strong>41.96</strong>으로 급감한다. 그리고 이 skill들은 <strong>단일 환경 테스트 인스턴스에서 평가되었을 때도 유효하다</strong> — 이어붙은 과제에서 배운 예산 관리 습관이 단일 과제에도 옮겨 간다는 뜻이다.</p>
 
 <h3>⑶ 효율적인 환경 스케일링 — co-evolution</h3>
 
@@ -2484,7 +2493,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 <p><strong>부수적 관찰 (부록 F.2)</strong>: 각 라운드의 skill이 <em>초점을 옮긴다</em> — 기본 테스트 호출과 파일 편집 → 러너 자체가 망가졌을 때 테스트 루프를 살려 두기 → 인터프리터 해석과 편집 전 탐색. 그리고 <strong>라운드마다 이득이 줄어드는데</strong>, 남은 결함이 점점 더 국소적이 되기 때문이다.</p>
 
 <figure>
-<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<svg viewBox="0 0 800 386" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
 <defs><marker id="skr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#6366f1"/></marker></defs>
 <text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[부록 F.2] 라운드마다 skill의 초점이 옮겨 간다 — 그리고 이득은 줄어든다</text>
 <text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">부록 F.2가 서술하는 초점 이동을 타임라인으로 옮긴 것. 각 skill은 <tspan font-weight="bold">특정 수용 컴포넌트로 추적된다</tspan></text>
@@ -2519,12 +2528,18 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 <text x="590" y="202" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#92400e">단, 모든 skill이 컴포넌트에서 오는 것은 아니다</text>
 <text x="410" y="219" font-size="9.5">"뱅크에는 <tspan font-weight="bold">어떤 컴포넌트도 겨냥하지 않은 rollout에서 증류된</tspan></text>
 <text x="410" y="232" font-size="9.5">skill도 담겨 있다" — 즉 <tspan font-weight="bold">기여 분해가 완전하지 않다</tspan></text>
-<rect x="20" y="246" width="760" height="48" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
-<text x="30" y="264" font-size="10.5" font-weight="bold" fill="#4338ca">이 서술이 §환경 스케일링 곡선의 모양을 설명한다 — 이 문서의 관찰</text>
-<text x="30" y="282" font-size="10">파랑 곡선이 <tspan font-weight="bold">계속 오르지만 기울기가 완만해지는</tspan> 것이 우연이 아니다. 쉬운 결함부터 소진되므로 <tspan font-weight="bold">한계 수익 감소가 구조적</tspan>이다 —</text>
-<text x="30" y="291" font-size="10">300개 지점에서 "여전히 상승 궤적"이라는 것은 사실이지만, <tspan font-weight="bold">언제 평평해지는지는 이 실험이 답하지 않는다</tspan></text>
+<rect x="20" y="246" width="760" height="70" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="30" y="264" font-size="10.5" font-weight="bold" fill="#b91c1c">라운드 3에서 루프가 실제로 실패한다 — 부록 F.2가 스스로 기록한 유일한 수율 수치</text>
+<text x="30" y="282" font-size="10">"<tspan font-weight="bold">학습 과제의 약 1/3</tspan>에서 라운드 2 정책이 이제 모든 베이스라인 rollout에 성공한다. EnvRigger는 이를 환경을 더 어렵게 만들라는 신호로 받아들이지만,</text>
+<text x="30" y="298" font-size="10">그 후보들이 <tspan font-weight="bold">validation에서 기각되어</tspan> 성공률이 그대로거나 0으로 떨어지고, write-and-validate 루프가 수정 예산을 소진한다.</text>
+<text x="30" y="312" font-size="10" fill="#b91c1c"><tspan font-weight="bold">따라서 이 과제들은 라운드 3 뱅크에 아무 기여도 하지 못한다</tspan>" — 정책이 강해질수록 루프가 막히는 실패 모드다</text>
+
+<rect x="20" y="324" width="760" height="54" rx="6" fill="#e0e7ff" stroke="#6366f1"/>
+<text x="30" y="342" font-size="10.5" font-weight="bold" fill="#4338ca">이 두 서술이 §환경 스케일링 곡선의 모양을 설명한다 — 이 문서의 관찰</text>
+<text x="30" y="360" font-size="10">파랑 곡선이 <tspan font-weight="bold">계속 오르지만 기울기가 완만해지는</tspan> 것이 우연이 아니다. 쉬운 결함부터 소진되고, 남은 과제에서는 <tspan font-weight="bold">루프 자체가 후보를 못 만든다</tspan> —</text>
+<text x="30" y="374" font-size="10">300개 지점에서 "여전히 상승 궤적"이라는 것은 사실이지만, <tspan font-weight="bold">언제 평평해지는지는 이 실험이 답하지 않으며</tspan> 위 실패 모드가 그 상한을 시사한다</text>
 </svg>
-<figcaption><strong>[Figure: 라운드별 skill 초점 이동]</strong>: 부록 F.2가 서술하는 초점 이동(기본 테스트 호출·파일 편집 → 러너가 망가졌을 때 테스트 루프 유지 → 인터프리터 해석·편집 전 탐색)을 타임라인으로 옮겼다 — <strong>단계 구분과 내용은 원문 서술 그대로이고, 세 구간으로 나눈 것은 이 문서의 정리</strong>다. 초록 박스가 이 부록의 좋은 점으로, 각 skill이 <em>특정 수용 컴포넌트로 추적된다</em>는 인과 사슬을 코드까지 붙여 공개한다. 그러나 노란 박스의 단서도 중요한데, <strong>뱅크에는 어떤 컴포넌트도 겨냥하지 않은 rollout에서 증류된 skill도 섞여 있으므로 기여 분해가 완전하지 않다</strong>. 아래 보라 박스가 이 문서의 관찰로, 쉬운 결함부터 소진되므로 <strong>§<em>환경 스케일링</em>의 한계 수익 감소는 구조적</strong>이며 — 300개에서 "여전히 상승 중"은 사실이지만 언제 평평해지는지는 그 실험이 답하지 않는다.</figcaption>
+<figcaption><strong>[Figure: 라운드별 skill 초점 이동]</strong>: 부록 F.2가 서술하는 초점 이동(기본 테스트 호출·파일 편집 → 러너가 망가졌을 때 테스트 루프 유지 → 인터프리터 해석·편집 전 탐색)을 타임라인으로 옮겼다 — <strong>단계 구분과 내용은 원문 서술 그대로이고, 세 구간으로 나눈 것은 이 문서의 정리</strong>다. 초록 박스가 이 부록의 좋은 점으로, 각 skill이 <em>특정 수용 컴포넌트로 추적된다</em>는 인과 사슬을 코드까지 붙여 공개한다. 그러나 노란 박스의 단서도 중요한데, <strong>뱅크에는 어떤 컴포넌트도 겨냥하지 않은 rollout에서 증류된 skill도 섞여 있으므로 기여 분해가 완전하지 않다</strong>. 빨간 박스가 이 부록의 가장 중요한 문장으로, <strong>라운드 3에서 학습 과제의 약 1/3이 아무 컴포넌트도 내지 못했다</strong> — 정책이 그 과제들을 이미 다 풀게 되자 EnvRigger가 "더 어렵게"를 시도했지만 후보가 전부 validation에서 기각되어 수정 예산을 소진했기 때문이다. 이것이 <strong>논문 전체에서 유일하게 보고된 환경 수율 수치이자, 정책이 강해질수록 루프가 막히는 실패 모드의 자기 기록</strong>이다. 아래 보라 박스가 이 문서의 관찰로, 쉬운 결함 소진과 이 실패 모드가 함께 <strong>§<em>환경 스케일링</em>의 한계 수익 감소를 구조적으로 만든다</strong> — 300개에서 "여전히 상승 중"은 사실이지만 언제 평평해지는지는 그 실험이 답하지 않으며, 이 실패 모드가 그 상한을 시사한다.</figcaption>
 </figure>
 
 <h3>⑷ 서로 다른 LLM 백본에 걸친 일반화</h3>
@@ -2820,7 +2835,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 <text x="190" y="126" text-anchor="end" font-size="10">EnvHarness</text>
 <rect x="200" y="110" width="3.16" height="24" fill="#a855f7" stroke="#7e22ce" rx="1"/>
 <rect x="203.16" y="110" width="490.97" height="24" fill="#3b82f6" opacity="0.7" rx="1"/>
-<text x="702.1" y="126" font-size="9.5" font-weight="bold" fill="#334155">총 228.1M</text>
+<text x="702.1" y="126" font-size="9.5" font-weight="bold" fill="#334155">총 228.0M</text>
 <text x="207.2" y="106" font-size="8.5" fill="#7e22ce">설계 1.46M</text>
 <text x="448.6" y="150" text-anchor="middle" font-size="8.5" fill="#555">rollout 226.6M</text>
 <text x="30" y="188" font-size="10.5" font-weight="bold">WebArena</text>
@@ -3320,11 +3335,11 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 <h3>한계와 의문점</h3>
 
 <ol>
-<li><strong>$n=3$에서 14개 비교 중 6개만 신뢰구간이 0을 넘지 않는다.</strong> §<em>신뢰구간 재분석</em>에서 계산했듯 SWE-verified SR($+2.70 \pm 6.02$), OfficeQA EM·F1, WebArena Reddit·GitLab·Avg가 구간에 0을 포함한다. <strong>부호가 14/14 양수라는 점이 강한 방증이므로 "효과가 없다"는 결론은 부당하지만</strong>, 개별 수치를 인용할 때는 주의해야 한다 — 특히 §<em>환경 스케일링</em>과 §<em>크로스 모델</em>이 전부 SWE SR로 논증한다는 점이 마음에 걸린다.</li>
+<li><strong>$n=3$에서 14개 비교 중 6개만 신뢰구간이 0을 넘지 않는다.</strong> §<em>신뢰구간 재분석</em>에서 계산했듯 SWE-verified SR($+2.70 \pm 6.02$), OfficeQA EM·F1, WebArena Reddit·GitLab·Avg, 그리고 ALFWorld In-Dist($+2.90 \pm 4.51$)와 SpreadsheetBench Mean Score($+1.01 \pm 1.04$)까지 <strong>8개</strong>가 구간에 0을 포함한다. <strong>부호가 14/14 양수라는 점이 강한 방증이므로 "효과가 없다"는 결론은 부당하지만</strong>, 개별 수치를 인용할 때는 주의해야 한다 — 특히 §<em>환경 스케일링</em>과 §<em>크로스 모델</em>이 전부 SWE SR로 논증한다는 점이 마음에 걸린다.</li>
 <li><strong>"적용 가능한 모든 곳에서 특화 베이스라인을 능가한다"는 하위 도메인 수준에서는 성립하지 않는다.</strong> WebArena GitLab에서 EnvHarness(37.7)가 VeriEnv(38.9)보다 낮다. 평균(41.6 vs 39.6)에서는 이기지만, 논문의 서술("consistently outperforms")은 이 셀을 덮지 못한다.</li>
 <li><strong>합성 순서 문제가 정의되지 않았다.</strong> §2.2가 비가환성($w_1 \circ w_2 \neq w_2 \circ w_1$)을 명시하고 부록 E.3이 후보당 컴포넌트 수에 <em>상한을 두지 않는데</em>, <strong>설계자가 순서를 어떻게 정하는지 서술이 없고 순서 ablation도 없다</strong>. $k$개 컴포넌트면 원리상 $k!$가지 환경이 가능하다. 부록 C.3이 체크포인트에 "innermost first" 순서를 기록한다고 밝히므로 순서는 분명히 상태의 일부다.</li>
 <li><strong>"환경당 1회 비용"이 실제로는 "정책×환경당 1회"에 가깝다.</strong> §3.1이 스스로 밝히듯 컴포넌트 <em>선택</em>은 정책에 조건화된다. 부록 H의 완화 논거("학습 에피소드마다가 아니라 환경마다 한 번")는 <strong>같은 정책을 계속 학습시킬 때만</strong> 성립한다. 모델을 교체하면 루프를 다시 돌려야 하고, 이는 §<em>Life-Harness 비교</em>에서 본 "한 번 진화한 harness가 17개 백본에 전이" 같은 성질과 대비된다.</li>
-<li><strong>환경 수율(yield)이 보고되지 않는다.</strong> 부록 E.3에 따르면 write–validate 루프가 5회 안에 수용되지 못하면 <em>그 인스턴스는 아무 컴포넌트도 내지 않는다</em>. 그런데 <strong>학습 과제 중 몇 %가 실제로 컴포넌트를 산출했는지가 어디에도 없다</strong>. 수율이 낮다면 §<em>Table 11</em>의 토큰 비용은 <em>성공한 환경당</em> 비용으로 다시 나눠야 한다.</li>
+<li><strong>환경 수율(yield)이 한 번밖에 보고되지 않고, 그 한 번이 우려스럽다.</strong> 부록 E.3에 따르면 write–validate 루프가 5회 안에 수용되지 못하면 그 인스턴스는 아무 컴포넌트도 내지 않는다. 유일한 수치가 부록 F.2 라운드 3에 있는데 — ##<strong>학습 과제의 약 1/3에서 라운드 2 정책이 모든 베이스라인 rollout에 성공하자 EnvRigger가 "더 어렵게" 방향을 잡았지만, 그 후보들이 전부 validation에서 기각되어(성공률이 그대로거나 0으로 떨어져) 수정 예산을 소진했고 그 과제들은 라운드 3 뱅크에 아무 기여도 하지 못했다</strong>##. 즉 <strong>정책이 강해질수록 루프가 실패하는 실패 모드</strong>가 자기 부록에 기록되어 있다. 벤치마크·라운드 전반의 수율은 여전히 보고되지 않으므로 §<em>Table 11</em>의 토큰 비용을 <em>성공한 환경당</em> 비용으로 환산할 수 없다.</li>
 <li><strong>Chain 실험이 자동 파이프라인 밖에 있다.</strong> §4.1이 밝히듯 EnvRigger가 결합 환경의 내부 상태를 관찰하기 어려워 Chain을 제외했고, §5의 Chain 실험은 <strong>두 base 환경을 무작위로 짝지은 것</strong>이다. 따라서 Table 5의 인상적인 결과(AS 41.96, 조합 시 SR 54.30)는 <em>자동화된 방법의 성과가 아니라 사람이 설정한 조건의 성과</em>다. 부록 H·I가 인정하는 "의미적 관련성을 알 방법이 없다"는 한계와도 이어진다.</li>
 <li><strong>목표가 겹치는 UED 계열과 실험적으로 비교하지 않았다.</strong> §6.1이 Dennis+ 2020(unsupervised environment design), Jiang+ 2021(prioritized level replay), Wang+ 2019(POET)를 인용하며 "손 설계 curriculum과 다르다"고 구별하지만, <strong>§4의 베이스라인은 전부 생성 계열(①③④)</strong>이다. "난이도를 학습자 경계에 맞춘다"는 목표는 UED 계열의 핵심 목표이기도 하므로, 같은 벤치마크에서의 비교가 있었다면 기여가 훨씬 선명했을 것이다.</li>
 <li><strong>RL 실험이 단일 seed다.</strong> Table 2·3은 3회 반복 표준편차를 보고하는데 부록 F.1은 <code>random seed = 0</code> 고정 단일 실행이다. RL은 seed 분산이 크기로 악명 높으므로, Table 4의 WebShop SR +1.4 같은 차이는 근거로 삼기 어렵다. 환경 2개·모델 1개라는 규모도 §4의 5개 벤치마크와 층위가 다르다.</li>
@@ -3371,7 +3386,7 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
   <text x="30" y="318" font-size="10">Table 11이 보고하는 것은 <tspan font-weight="bold">총 토큰</tspan>이다. 만약 학습 과제의 절반만 컴포넌트를 산출했다면 <tspan font-weight="bold">성공한 환경당 비용은 두 배</tspan>다.</text>
   <text x="30" y="334" font-size="10">그리고 §<tspan font-style="italic">환경 스케일링</tspan>이 "50개 배치"라고 말할 때 그것이 <tspan font-weight="bold">시도한 50개인지 수용된 50개인지</tspan>도 명시되지 않는다 — 후자라면 실제 예산은 더 크다</text>
 </svg>
-<figcaption><strong>[Figure: 환경 수율의 공백]</strong>: 학습 과제에서 수용된 환경까지의 깔때기를 그리고, <strong>논문이 밝히는 단계(파랑·보라)와 밝히지 않는 단계(주황·빨강)를 색으로 구분</strong>했다. 부록 E.3은 write–validate 루프가 5회 안에 수용되지 못하면 그 인스턴스가 아무 컴포넌트도 내지 않는다고 명시하는데, <strong>실제로 몇 %가 산출했는지는 어디에도 없다</strong>. 이 공백이 두 곳에 영향을 준다 — §<em>Table 11</em>의 토큰 비용은 총량이므로 수율로 나눠야 "성공한 환경당 비용"이 되고, §<em>환경 스케일링</em>의 "50개 배치"가 시도 기준인지 수용 기준인지에 따라 실제 예산이 달라진다. 부록 H가 인정하는 "설계 루프의 비용"을 정량화하려면 반드시 필요한 숫자다.</figcaption>
+<figcaption><strong>[Figure: 환경 수율의 공백]</strong>: 학습 과제에서 수용된 환경까지의 깔때기를 그리고, <strong>논문이 밝히는 단계(파랑·보라)와 밝히지 않는 단계(주황·빨강)를 색으로 구분</strong>했다. 부록 E.3은 write–validate 루프가 5회 안에 수용되지 못하면 그 인스턴스가 아무 컴포넌트도 내지 않는다고 명시하고, 부록 F.2가 SWE 라운드 3에 대해 <strong>"약 1/3이 아무 기여도 하지 못했다"</strong>고 한 번 언급한다 — 그러나 <strong>벤치마크·라운드 전반의 수율은 보고되지 않는다</strong>. 이 공백이 두 곳에 영향을 준다 — §<em>Table 11</em>의 토큰 비용은 총량이므로 수율로 나눠야 "성공한 환경당 비용"이 되고, §<em>환경 스케일링</em>의 "50개 배치"가 시도 기준인지 수용 기준인지에 따라 실제 예산이 달라진다. 부록 H가 인정하는 "설계 루프의 비용"을 정량화하려면 반드시 필요한 숫자다.</figcaption>
 </figure>
 
 <h3>AI 논문 체크리스트 대조</h3>
@@ -3760,13 +3775,13 @@ $$E' = \mathcal{H}(E, t;\ \pi) = (w_k \circ w_{k-1} \circ \cdots \circ w_1)(E) \
 
 <ol>
 <li><strong>"환경 구축은 저작 문제가 아니라 감싸기 문제"라는 재프레이밍이 이 논문의 진짜 기여다.</strong> 새 환경을 만들면 새 verifier가 필요하고, verifier를 LLM이 만들면 신뢰가 깨지고, 그래서 과잉 생성·필터링이 필요해진다. 기존 환경을 <em>감싸면</em> 이 사슬이 통째로 사라진다. 성능 수치보다 이 구조적 통찰이 오래 남을 부분이다.</li>
-<li><strong>보상 축을 설계자에게 <em>노출하지 않는 것</em>이 정책이 아니라 아키텍처다.</strong> "테스트 라벨을 쓰지 마라"는 지시는 지켜질 수도 안 지켜질 수도 있지만, $R$을 조작할 수 있는 인터페이스가 <em>존재하지 않으면</em> 지표 해킹은 구조적으로 불가능하다. ##자기 개선 시스템을 설계할 때 <strong>"금지"를 "불가능"으로 바꿀 수 있는 지점을 찾는 것</strong>이 일반적으로 적용 가능한 교훈이다.##</li>
+<li><strong>보상 축을 설계자에게 <em>노출하지 않는 것</em>이 정책이 아니라 아키텍처다.</strong> "테스트 라벨을 쓰지 마라"는 지시는 지켜질 수도 안 지켜질 수도 있지만, $R$을 조작할 수 있는 인터페이스가 <em>존재하지 않으면</em> 지표 해킹은 구조적으로 불가능하다. 자기 개선 시스템을 설계할 때 <strong>"금지"를 "불가능"으로 바꿀 수 있는 지점을 찾는 것</strong>이 일반적으로 적용 가능한 교훈이다.</li>
 <li><strong>난이도 조절이 양방향이어야 한다.</strong> 대부분의 curriculum은 "어려우면 쉽게"만 한다. EnvRigger는 <em>정책이 완벽하게 성공하면 환경이 너무 관대하다고 진단하고 더 어렵게 만든다</em>. 설계자 prompt의 문구가 이 원칙을 압축한다 — "<strong>불가능해서 나온 SR=0은 사소해서 나온 SR=1만큼이나 쓸모없다</strong>". 성공률 in-band 비율 6.0% → 80.0%가 이것이 작동함을 보인다.</li>
 <li><strong>환경 스케일링의 한계를 실측으로 보였다.</strong> 동일 예산에서 <strong>원본 환경 52.13, 생성 환경 50.37은 150개 부근에서 평평해지는데 EnvHarness만 54.79까지 계속 오른다</strong>. "데이터를 늘리면 좋아진다"의 에이전트 판본이 <em>무조건 참은 아니며</em>, 학습자의 현재 능력 경계를 겨냥해야 한다는 것 — 이것은 EnvHarness를 쓰지 않더라도 환경·과제 curation에 적용되는 교훈이다.</li>
 <li><strong>도메인 무관성이 실제로 성립하려면 무엇이 필요한지가 명확히 서술된다.</strong> 핵심은 <code>get_env_state()</code>가 <strong>런타임 핸들 없는 순수 데이터만</strong> 노출하고 컴포넌트 훅이 그것만 읽을 수 있다는 제약이다. 자체 에이전트 인프라를 설계 중이라면 이 한 줄이 이식성의 분기점이며, 인메모리 게임과 Docker 컨테이너에서 같은 코드가 도는 이유다.</li>
 <li><strong>이 논문은 harness 계열에서 방법론적 기준선을 올렸다.</strong> 3회 실행의 표준편차 전면 보고, 토큰 비용 분해, 부정적 결과 게재, 자기 지표에 대한 비판(부록 F.4 "평균 스텝만으로는 품질을 알 수 없다"), 코드–논문 명명 대응표까지. ##<strong>표준편차를 보고했기 때문에 독자가 직접 재분석할 수 있었다</strong>## — §<em>신뢰구간 재분석</em>이 가능했던 것 자체가 이 실천의 가치를 증명한다.</li>
 <li><strong>같은 계절의 Life-Harness와 정확히 반대편을 잡는다.</strong> Life-Harness는 <em>환경을 고정하고 정책 쪽 인터페이스</em>를 고쳐 추론 성능을 올리고, EnvHarness는 <em>정책을 고정하고 환경 쪽 인터페이스</em>를 고쳐 학습 신호를 만든다. ##두 방법은 원리상 <strong>조합 가능한데 어느 논문도 시도하지 않았다</strong>## — EnvHarness로 만든 환경에서 학습한 정책에 Life-Harness를 씌우는 것이 자연스러운 다음 실험이다. 단, "Contract"라는 같은 단어가 두 논문에서 거의 반대 방향을 가리키므로 문헌을 읽을 때 주의해야 한다.</li>
-<li><strong>비판적으로 — 헤드라인 수치의 절반은 $n=3$에서 확정되지 않는다.</strong> 보고된 표준편차로 계산하면 14개 비교 중 6개만 95% 구간이 0을 넘지 않으며, 특히 <strong>SWE-bench Verified 성공률($+2.70 \pm 6.02$)이 그중에 없는데 스케일링·크로스 모델 실험이 전부 이 지표로 논증한다</strong>. 14개가 모두 양의 방향이라는 점(부호 검정 $p \approx 0.00006$)이 강한 방증이므로 "효과가 없다"는 결론은 부당하지만, 이 논문을 인용해 의사결정을 할 때는 <em>개별 수치가 아니라 방향과 기울기</em>를 근거로 삼는 편이 안전하다. 그리고 <strong>환경 수율이 보고되지 않아 실제 단위 비용을 계산할 수 없다</strong>는 점은 실무 도입 시 직접 측정해야 할 항목이다.</li>
+<li><strong>비판적으로 — 헤드라인 수치의 절반은 $n=3$에서 확정되지 않는다.</strong> 보고된 표준편차로 계산하면 14개 비교 중 6개만 95% 구간이 0을 넘지 않으며, 특히 <strong>SWE-bench Verified 성공률($+2.70 \pm 6.02$)이 그중에 없는데 스케일링·크로스 모델 실험이 전부 이 지표로 논증한다</strong>. 14개가 모두 양의 방향이라는 점(부호 검정 $p \approx 0.00006$)이 강한 방증이므로 "효과가 없다"는 결론은 부당하지만, 이 논문을 인용해 의사결정을 할 때는 <em>개별 수치가 아니라 방향과 기울기</em>를 근거로 삼는 편이 안전하다. 그리고 <strong>환경 수율이 한 라운드에 대해서만 보고되고(부록 F.2: 약 1/3이 무기여) 전반적으로는 알 수 없어 실제 단위 비용을 계산할 수 없다</strong>는 점은 실무 도입 시 직접 측정해야 할 항목이다. 같은 부록이 <strong>정책이 강해지면 "더 어렵게" 후보가 전부 기각되는 실패 모드</strong>도 기록하고 있어, 도입 후 라운드를 거듭할수록 이 지점을 감시해야 한다.</li>
 </ol>
 
 <h2>개인 메모</h2>
