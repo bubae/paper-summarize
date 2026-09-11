@@ -138,8 +138,8 @@ document.addEventListener("DOMContentLoaded", function() {
   <li><strong>correct-set turnover의 형식화 — 망각을 <em>흐름의 한쪽</em>으로 재정의한다</strong>: 기존 "망각(forgetting)" 관점은 이를 최소화할 부작용으로 다룬다. 이 논문은 정확도를 <em>획득</em>($p \notin M_t,\ p \in M_{t+\Delta}$)과 <em>회귀</em>($p \in M_t,\ p \notin M_{t+\Delta}$)의 순합으로 분해해, ##retention을 <strong>두 결합 흐름에 대한 최적화 문제</strong>로 세운다 — "획득을 보존하면서 회귀를 최소화하되, <em>어떤</em> 숙달 프롬프트가 위험하고 <em>언제</em> 개입해야 하는지를 식별함으로써"##.</li>
   <li><strong>등급화된(graded)·무비용(free) 숙달 지표</strong>: 숙달 판정에 $\hat q_t(p) = \frac{1}{K}\sum_i \mathbb{1}[r_i{=}1]$를 쓴다. 이 지표의 두 성질이 결정적이다 — ⑴ <em>등급화</em>: $\hat q_t = 12/16$인 샘플은 이미 숙달에서 이탈 중인데도 <strong>단일 평가에서는 0.75 확률로 "정답"으로 보인다</strong>. 선행 example-forgetting 연구의 이진 신호(1→0)는 이 구간을 붕괴시킨다. ⑵ <em>무비용</em>: GRPO가 advantage 추정에 쓰는 바로 그 값이므로 <strong>보조 평가 없이</strong> 운영 상태로 추적된다.</li>
   <li><strong>repair-window 원리의 해석적·실험적 확립</strong>: 1차 테일러 전개 $q_{t+1}(p) \approx q_t(p) - \alpha \nabla_\theta q_t(p)^\top g_t$로 <strong>gradient interference</strong>를 형식화하고, 여기서 복원 비용이 지연에 따라 급증함을 유도한다. 통제 실험(step-60 체크포인트에서 16/16 숙달 샘플 선별)으로 검증 — early review는 retention을 <strong>85~91%</strong>로 유지하는데 delayed(20스텝 방치)는 <strong>78~84%</strong>로 떨어지고, <strong>지연 리뷰를 시작한 뒤에도 격차가 완전히 닫히지 않는다</strong>(최대 차이에서 14개 샘플 차).</li>
-  <li><strong>ReMind — 세 컴포넌트의 self-correcting 리뷰 루프</strong>: ⑴ <em>리뷰 큐</em>(FIFO, 숙달 시 확률 $p_{add}$로 등록, <strong>식별자만 저장</strong>하고 리뷰 때마다 현재 정책으로 새 rollout 생성). ⑵ <em>배치 구성</em>($f$ 스텝마다 배치의 비율 $r$을 큐에서 뽑아 <strong>교체</strong>). ⑶ <em>큐 업데이트</em> 3케이스 — 새로 숙달 → 등록, 유지 확인 → 큐에서 <strong>졸업</strong>, 회귀 → 꼬리에 <strong>재삽입</strong>. 이 셋이 큐를 <strong>불안정한 프롬프트에 동적으로 집중</strong>시킨다.</li>
-  <li><strong>리플레이 계열과의 결정적 차이</strong>: ExGRPO·RLEP·RePO 등 리플레이 기법은 <em>고정된 과거 rollout을 저장</em>하므로 <strong>숙달했던 샘플이 회귀했는지 탐지할 수 없다</strong>. 이 한계가 ZeroBench(분포의 가장 어려운 꼬리)에서 드러나는데 — ##<strong>세 리플레이 방법 전부 GRPO보다 낮은 점수</strong>를 받는다##. 반면 ReMind는 리플레이가 아니라 <em>재평가</em>다.</li>
+  <li><strong>ReMind — 세 컴포넌트의 self-correcting 리뷰 루프</strong>: ⑴ <em>리뷰 큐</em>(FIFO, first-in-first-out, 숙달 시 확률 $p_{add}$로 등록, <strong>식별자만 저장</strong>하고 리뷰 때마다 현재 정책으로 새 rollout 생성). ⑵ <em>배치 구성</em>($f$ 스텝마다 배치의 비율 $r$을 큐에서 뽑아 <strong>교체</strong>). ⑶ <em>큐 업데이트</em> 3케이스 — 새로 숙달 → 등록, 유지 확인 → 큐에서 <strong>졸업</strong>, 회귀 → 꼬리에 <strong>재삽입</strong>. 이 셋이 큐를 <strong>불안정한 프롬프트에 동적으로 집중</strong>시킨다.</li>
+  <li><strong>리플레이 계열과의 결정적 차이</strong>: ExGRPO·RLEP·RePO 등 리플레이 기법은 <em>고정된 과거 rollout을 저장</em>하므로 <strong>숙달했던 샘플이 회귀했는지 탐지할 수 없다</strong>. 이 한계가 ZeroBench(분포의 가장 어려운 꼬리)에서 드러나는데 — <strong>ExGRPO(19.01)와 RLEP(19.61)이 GRPO(22.60)보다 낮다</strong> — 다만 <em>원문은 "세 방법 전부"라고 쓰는데 Table 1에서 RePO는 23.50으로 GRPO를 상회하므로 자기 표와 어긋난다</em>. 반면 ReMind는 리플레이가 아니라 <em>재평가</em>다.</li>
   <li><strong>기존 필터링·curriculum 연구와의 관계를 뒤집어 읽는다</strong>: DAPO류의 온라인 필터링은 "전부 정답인 프롬프트"를 다음 업데이트에 무가치하다고 보고 배제한다. correct-set turnover 관점에서 <strong>바로 그 프롬프트들이 retention을 확인해야 하는 대상</strong>이다 — 프롬프트는 <em>풀렸기 때문에</em> 배치를 떠나고, 나중에 <em>회귀했기 때문에</em> 정답집합을 떠난다. ReMind는 같은 선택 결정의 간과된 반대편을 겨냥한다.</li>
   <li><strong>3개 모달리티 20개 벤치마크 검증</strong>: 이미지-텍스트 8개(Qwen3-VL-8B-Instruct), 비디오 6개, 텍스트 수학 6개(Qwen2.5-7B-Math). GRPO·DAPO 두 백본 모두에서 개선되어 <em>retention-aware 리뷰와 온라인 필터링이 상보적</em>임을 확인한다.</li>
   <li><strong>"더 오래 학습하기"로 대체되지 않음을 보인다</strong>: GRPO를 <strong>2 epoch</strong> 돌린 것과 비교하면, 두 번째 epoch는 학습 예산을 두 배로 쓰고도 정확도가 0.50 부근에서 진동하다 0.497로 끝난다. ReMind는 <strong>step 296에서 2-epoch 최고점에 도달</strong>(step 740 대비 2.5배 빠름)하고 최종 0.539(2-epoch 종점 대비 <strong>+4.1pp</strong>)에 이른다.</li>
@@ -648,7 +648,7 @@ $$q_{t+1}(p) \approx q_t(p) - \alpha\, \nabla_\theta q_t(p)^\top g_t \tag{2}$$
 
 <h2>§3.3 ReMind — 표준 GRPO에 기제 하나를 더한다</h2>
 
-<p><strong>전체 설계</strong>: ReMind는 표준 GRPO 학습에 <strong>단 하나의 기제</strong>를 추가한다 — <em>이전에 숙달된 샘플을 rollout 생성 <strong>이전에</strong> 학습 배치로 주기적으로 재도입하는 리뷰 큐</em>. 리뷰된 샘플은 일반 학습 샘플과 <strong>동일한 rollout·보상·정책 업데이트 파이프라인</strong>을 통과하므로, ReMind는 baseline과 <em>같은 스텝당 rollout 예산</em> 안에서 작동한다.</p>
+<p><strong>전체 설계</strong>: ReMind는 표준 GRPO (Group Relative Policy Optimization) 학습에 <strong>단 하나의 기제</strong>를 추가한다 — <em>이전에 숙달된 샘플을 rollout 생성 <strong>이전에</strong> 학습 배치로 주기적으로 재도입하는 리뷰 큐</em>. 리뷰된 샘플은 일반 학습 샘플과 <strong>동일한 rollout·보상·정책 업데이트 파이프라인</strong>을 통과하므로, ReMind는 baseline과 <em>같은 스텝당 rollout 예산</em> 안에서 작동한다.</p>
 
 <p><strong>결정적으로 새 측정이 없다</strong>: 숙달 기준 $\hat q_t(p) = 1$과 회귀 기준 $\hat q_t(p) < 1$이 <em>GRPO가 이미 생성하는 그룹 rollout에서 직접 읽힌다</em>. 즉 GRPO의 gradient 신호를 만드는 바로 그 다중 rollout 구조가, <strong>저비용 repair window 안에서 행동하기 위해 필요한 등급 해상도를 동시에 공급한다</strong>.</p>
 
@@ -1146,7 +1146,7 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 <figcaption><strong>[Table 1 재구성 — 히트맵]</strong>: 8개 벤치마크 × 8개 방법을 색 농도로 그리고 열별 최고값을 굵게 표시했다 — 전부 원문 수치다. 왼쪽 라벨 색이 계열을 구분한다(파랑=ReMind, 주황=리플레이, 회색=on-policy). 아래 빨간 박스가 이 표에서 가장 중요한 열을 짚는데, <strong>ZeroBench에서 ExGRPO(19.01)와 RLEP(19.61)가 GRPO(22.60)보다 낮다</strong> — 논문의 진단은 리플레이 기법이 <em>고정된 과거 rollout을 저장하므로 회귀를 탐지할 수 없다</em>는 것이고, 이 한계가 분포의 가장 어려운 꼬리에서 표면화된다. 파란 박스의 이득 비대칭(Math +5.67 vs General +1.94)에 대해 논문은 <em>더 긴 추론 사슬이 정책 표류에 더 취약하다</em>는 설명을 제시하며, MMBench가 +0.12로 거의 안 움직이는 것은 §<em>난이도별 분석</em>에서 보듯 <strong>이미 포화된 곳에는 회귀할 것이 없기</strong> 때문으로 읽힌다.</figcaption>
 </figure>
 
-<p><strong>결과 ⑴ — 리플레이는 sample efficiency를 개선하지만 retention을 다루지 않는다</strong>: 세 리플레이 baseline(ExGRPO, RLEP, RePO)은 성공 궤적을 재사용해 GRPO를 개선하며 RePO가 최고 평균(62.02)을 낸다. 그러나 <strong>고정된 과거 rollout을 저장하므로 <em>이전에 숙달된 샘플이 회귀했는지 탐지할 수 없다</em></strong>. 이 한계가 <strong>ZeroBench</strong>에서 표면화되는데 — 세 리플레이 방법 <em>전부 GRPO보다 낮은 점수</em>를 받는다. 논문의 해석: "<strong>낡은 궤적(stale trajectories)은 분포의 가장 어려운 꼬리에서 망각을 막지 못한다</strong>."</p>
+<p><strong>결과 ⑴ — 리플레이는 sample efficiency를 개선하지만 retention을 다루지 않는다</strong>: 세 리플레이 baseline(ExGRPO, RLEP, RePO)은 성공 궤적을 재사용해 GRPO를 개선하며 RePO가 최고 평균(62.02)을 낸다. 그러나 <strong>고정된 과거 rollout을 저장하므로 <em>이전에 숙달된 샘플이 회귀했는지 탐지할 수 없다</em></strong>. 이 한계가 <strong>ZeroBench</strong>에서 표면화된다 — <strong>ExGRPO 19.01, RLEP 19.61로 GRPO(22.60)보다 낮다</strong>. 논문의 해석: "<strong>낡은 궤적(stale trajectories)은 분포의 가장 어려운 꼬리에서 망각을 막지 못한다</strong>." <em>단, 원문은 "세 방법 <strong>전부</strong> GRPO보다 낮다"고 쓰는데 Table 1에서 <strong>RePO는 23.50으로 GRPO를 상회</strong>하므로 자기 표와 어긋난다 — 이 문서가 확인한 세 번째 내부 불일치이며 §<em>비판적 분석</em>에서 다시 짚는다.</em></p>
 
 <figure>
 <svg viewBox="0 0 800 390" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
@@ -1226,6 +1226,24 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 
 <p><strong>결과 ⑶ — 온라인 필터링과 상보적이다</strong>: 이득이 GRPO(+3.81)와 DAPO(+3.44) 양쪽에서 일관되게 나타나므로, <em>retention-aware 리뷰와 온라인 필터링이 효과적으로 결합</em>한다. 이는 §2에서 제기한 관점을 뒷받침한다 — DAPO는 "전부 정답인 프롬프트"를 무가치하다고 배제하는데, correct-set turnover 관점에서 그것들이 <strong>바로 retention을 확인해야 하는 대상</strong>이므로 두 결정이 충돌하지 않고 서로를 보완한다.</p>
 
+<p><strong>Table 1의 집계 두 열</strong> — 위 히트맵은 벤치마크별 값만 그렸으므로, 논문이 실제로 인용하는 Math Avg / General Avg를 따로 옮긴다.</p>
+
+<table class="small-table">
+<thead><tr><th>Method</th><th>Math Avg</th><th>General Avg</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Base Model</td><td>57.47</td><td>58.28</td><td>57.88</td></tr>
+<tr><td>ExGRPO</td><td>63.08</td><td>59.24</td><td>61.16</td></tr>
+<tr><td>RLEP</td><td>63.53</td><td>59.43</td><td>61.48</td></tr>
+<tr><td>RePO</td><td>63.67</td><td>60.38</td><td>62.02</td></tr>
+<tr><td>GRPO</td><td>60.28</td><td>60.22</td><td>60.25</td></tr>
+<tr><td><strong>GRPO + ReMind</strong></td><td><strong>65.95</strong> (+5.67)</td><td><strong>62.16</strong> (+1.94)</td><td><strong>64.06</strong> (+3.81)</td></tr>
+<tr><td>DAPO</td><td>61.84</td><td>60.20</td><td>61.02</td></tr>
+<tr><td><strong>DAPO + ReMind</strong></td><td><strong>66.46</strong> (+4.62)</td><td><strong>62.47</strong> (+2.27)</td><td><strong>64.46</strong> (+3.44)</td></tr>
+</tbody>
+</table>
+
+<p>여기서 <strong>GRPO의 Math Avg(60.28)와 General Avg(60.22)가 거의 같다</strong>는 점이 눈에 띈다 — 리플레이 baseline들은 Math에서 앞서고(63.1~63.7) General에서는 뒤처지는(59.2~60.4) 반면, ReMind는 <em>양쪽 모두</em>에서 최고다.</p>
+
 <h3>4.3 모달리티 교차 일반화</h3>
 
 <figure>
@@ -1290,9 +1308,9 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 <text x="279" y="231" font-size="8" font-weight="bold" fill="#15803d">+3.21</text>
 <g font-size="8.5"><circle cx="40" cy="256" r="4.5" fill="#f59e0b"/><text x="50" y="259">GRPO</text><circle cx="110" cy="256" r="4.5" fill="#3b82f6"/><text x="120" y="259">ReMind</text><line x1="190" y1="250" x2="190" y2="262" stroke="#64748b" stroke-width="1.8"/><text x="197" y="259">Base Model</text></g>
 <rect x="20" y="268" width="370" height="56" rx="6" fill="#fef2f2" stroke="#ef4444"/>
-<text x="205" y="286" text-anchor="middle" font-size="10" font-weight="bold" fill="#b91c1c">GRPO가 base보다 <tspan font-style="italic">떨어지는</tspan> 두 곳</text>
-<text x="30" y="303" font-size="9.5">MLVU 78.40 → <tspan font-weight="bold">75.80</tspan> (−2.60) · Video-Holmes 45.30 → <tspan font-weight="bold">44.80</tspan> (−0.50)</text>
-<text x="30" y="318" font-size="9.5" fill="#b91c1c">논문: "<tspan font-weight="bold">correct-set 회귀의 명확한 사례</tspan>이며 ReMind가 부분적으로 수리한다"</text>
+<text x="205" y="286" text-anchor="middle" font-size="10" font-weight="bold" fill="#b91c1c">GRPO가 base보다 떨어지는 곳 — 논문은 MLVU만 언급</text>
+<text x="30" y="303" font-size="9.5">MLVU 78.40 → <tspan font-weight="bold">75.80</tspan> (−2.60) · Video-Holmes 45.30 → 44.80 (−0.50, <tspan font-style="italic">이 문서가 표에서 추가 확인</tspan>)</text>
+<text x="30" y="318" font-size="9.5" fill="#b91c1c">논문이 지목한 것은 <tspan font-weight="bold">MLVU 한 곳</tspan>: "correct-set 회귀의 명확한 사례이며 ReMind가 부분적으로 수리한다"</text>
 <line x1="400" y1="44" x2="400" y2="330" stroke="#cbd5e1" stroke-dasharray="5 4"/>
 <text x="595" y="54" text-anchor="middle" font-size="11" font-weight="bold">(b) 텍스트 수학 추론 — 누적 파이프라인</text>
 <line x1="440" y1="250" x2="770" y2="250" stroke="#333"/>
@@ -1340,6 +1358,35 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 </svg>
 <figcaption><strong>[Table 2 재구성]</strong>: (a) 비디오는 덤벨로, 주황 점이 GRPO·파랑 점이 ReMind·세로 막대가 base 모델이며 띠 색이 개선(초록)/악화(빨강)를 나타낸다. 가장 중요한 것은 아래 빨간 박스로, <strong>GRPO가 base보다 <em>떨어지는</em> 두 곳(MLVU −2.60, Video-Holmes −0.50)</strong>이 존재하고 논문 자신이 이를 "correct-set 회귀의 명확한 사례"로 지목한다 — §<em>correct-set turnover</em>의 물통 비유에서 유출이 유입을 넘어선 경우다. (b) 텍스트 수학은 누적 파이프라인 막대로, 파란 박스가 짚듯 <strong>한계 이득이 +6.52 → +4.08 → +3.23 → +1.23으로 급감</strong>하므로 ReMind의 +1.23은 <em>이미 SFT·RL·리플레이를 쌓은 위에서</em> 얻은 값이다. 아래 보라 띠가 두 패널의 종합인데, 세 모달리티에서 <strong>긴 추론 사슬 과제에 이득이 집중된다는 패턴이 일관</strong>되며 이것이 modality-agnostic 실패 모드라는 주장의 근거다 — 다만 (b)는 다른 모델·다른 파이프라인이므로 (a)와 직접 비교할 수 없다.</figcaption>
 </figure>
+
+<p><strong>Table 2의 원 수치</strong> — 위 그림은 비디오 6개와 텍스트 수학의 Avg만 그렸으므로 벤치마크별 값을 옮긴다.</p>
+
+<table class="small-table">
+<thead><tr><th>(b) 텍스트 수학 — Qwen2.5-7B-Math</th><th>AIME24</th><th>AIME25</th><th>AMC</th><th>MATH-500</th><th>Minerva</th><th>Olympiad</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>Qwen2.5-7B-Math</td><td>12.50</td><td>10.20</td><td>48.50</td><td>80.40</td><td>32.70</td><td>41.00</td><td>37.55</td></tr>
+<tr><td>+ SFT</td><td>22.20</td><td>22.30</td><td>52.80</td><td>82.60</td><td><strong>40.80</strong></td><td>43.70</td><td>44.07</td></tr>
+<tr><td>+ SFT + RL</td><td>25.80</td><td>23.10</td><td>62.70</td><td>87.20</td><td>39.70</td><td>50.40</td><td>48.15</td></tr>
+<tr><td>+ ExGRPO</td><td>32.30</td><td>25.70</td><td>65.60</td><td>87.60</td><td>40.10</td><td>57.00</td><td>51.38</td></tr>
+<tr><td><strong>+ ReMind</strong></td><td><strong>33.85</strong></td><td><strong>26.25</strong></td><td><strong>67.85</strong></td><td><strong>90.80</strong></td><td>38.97</td><td><strong>57.93</strong></td><td><strong>52.61</strong></td></tr>
+</tbody>
+</table>
+
+<p><strong>Minerva가 유일한 예외다</strong> — ReMind 38.97로 ExGRPO(40.10) 대비 <strong>−1.13</strong>이고, 이 벤치마크의 최고값은 오히려 <em>SFT 단계</em>의 40.80이다. 나머지 5개는 전부 최고값이다. 논문은 이 예외를 논평하지 않는다.</p>
+
+<table class="small-table">
+<thead><tr><th>(a) 비디오 벤치마크 구성 (부록 C, Table 7)</th><th>범주</th><th>샘플 수</th><th>지표</th></tr></thead>
+<tbody>
+<tr><td>MVBench</td><td>일반 비디오 이해</td><td>3,586</td><td>Accuracy</td></tr>
+<tr><td>MotionBench</td><td>일반 비디오 이해</td><td>3,715</td><td>Accuracy</td></tr>
+<tr><td>MLVU</td><td>장편 비디오 이해</td><td><strong>502</strong></td><td>Accuracy</td></tr>
+<tr><td>Video-Holmes</td><td>비디오 추론</td><td>1,837</td><td>Accuracy</td></tr>
+<tr><td>LongVideo-Reason</td><td>비디오 추론</td><td>851</td><td>Accuracy</td></tr>
+<tr><td>VideoMathQA</td><td>STEM 지식</td><td>2,100</td><td>Accuracy</td></tr>
+</tbody>
+</table>
+
+<p>샘플 수가 중요한 이유: 논문이 "correct-set 회귀의 명확한 사례"로 지목한 <strong>MLVU가 502개로 가장 작다</strong>. GRPO의 −2.60점 하락은 약 13개 샘플에 해당하며, 표준편차가 보고되지 않으므로 이 관측의 견고성은 판정할 수 없다 → §<em>비판적 분석</em>.</p>
 
 <h3>4.4 리뷰 예산 민감도</h3>
 
@@ -1418,6 +1465,23 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 </svg>
 <figcaption><strong>[Table 3 · Figure 4 재구성 — 산점도]</strong>: 가로축이 리뷰 예산($r/f$, 로그), 세로축이 최종 평균 정확도이며 큰 점이 기본 설정이다 — 전부 원문 수치다. 빨간 점선이 GRPO baseline(60.25)으로, <strong>1% 예산조차 그것을 2.7점 넘어선다</strong>(오른쪽 초록 박스). 그런데 곡선이 <strong>단조가 아니다</strong> — 2%에서 최고이고 4%·10%로 갈수록 떨어지며, 논문의 설명은 <em>over-reviewing이 fresh 학습 신호를 밀어낸다</em>는 것이다(오른쪽 노란 박스). 보라 띠가 같은 예산에서의 스케줄 비교로, <strong>burst가 smooth를 +0.36 앞선다</strong>. 맨 아래 빨간 박스는 이 문서가 발견한 서술 오류인데, <strong>부록 A 본문이 "smooth가 약간 더 높은 General Avg(61.95 vs 62.16)"라고 쓰지만 61.95 &lt; 62.16</strong>이므로 문장의 방향이 뒤바뀐 것으로 보인다 — Table 5의 수치가 기준이며, 이 유형의 내부 불일치는 §<em>난이도별 분석</em>의 Regressed% "All" 행에서 한 번 더 나타난다. 예산이 커질수록 나빠지는 비단조성은 §<em>비판적 분석</em>에서 retention–획득 trade-off로 다시 다룬다.</figcaption>
 </figure>
+
+<p><strong>부록 A Table 5의 벤치마크별 전체 수치</strong> — 위 산점도는 최종 Avg만 그렸으므로 per-benchmark 값을 옮긴다.</p>
+
+<table class="small-table">
+<thead><tr><th>Setting</th><th>r</th><th>f</th><th>Vista</th><th>Vision</th><th>WeMath</th><th>Verse</th><th>Math Avg</th><th>MMMU-P</th><th>MMB</th><th>MM-S</th><th>ZeroB</th><th>Gen Avg</th><th>Avg</th></tr></thead>
+<tbody>
+<tr><td>~1%</td><td>0.05</td><td>5</td><td>78.45</td><td>55.20</td><td>63.33</td><td>60.15</td><td>64.28</td><td>57.76</td><td>90.68</td><td>73.10</td><td>25.15</td><td>61.67</td><td>62.98</td></tr>
+<tr><td><strong>~2% (기본)</strong></td><td>0.10</td><td>5</td><td><strong>79.10</strong></td><td>56.81</td><td><strong>66.38</strong></td><td><strong>61.52</strong></td><td><strong>65.95</strong></td><td><strong>58.78</strong></td><td>90.41</td><td>73.40</td><td><strong>26.05</strong></td><td><strong>62.16</strong></td><td><strong>64.06</strong></td></tr>
+<tr><td>~4%</td><td>0.20</td><td>5</td><td>76.50</td><td>55.46</td><td>66.00</td><td>60.05</td><td>64.50</td><td>57.58</td><td><strong>90.84</strong></td><td>73.20</td><td>25.90</td><td>61.88</td><td>63.19</td></tr>
+<tr><td>~10%</td><td>0.10</td><td>1</td><td>76.25</td><td>55.46</td><td>65.24</td><td>60.37</td><td>64.33</td><td>57.43</td><td>90.78</td><td>72.27</td><td>24.85</td><td>61.33</td><td>62.83</td></tr>
+<tr><td>Smooth</td><td>0.02</td><td>1</td><td>78.45</td><td><strong>57.27</strong></td><td>64.86</td><td>61.17</td><td>65.44</td><td>57.58</td><td>90.75</td><td><strong>74.03</strong></td><td>25.45</td><td>61.95</td><td>63.70</td></tr>
+</tbody>
+</table>
+
+<p>부록 A의 해석 두 가지: ⑴ <strong>math 성능이 general보다 더 크게 변한다</strong>(Math Avg 64.28~65.95 vs General Avg 61.33~62.16) — "리뷰 기제가 주로 correct-set turnover가 잦은 <em>추론 집약 과제</em>에 이득을 준다"는 확인이다. ⑵ 10% 예산이 4%보다 못한 이유 — "<strong>매 스텝 배치의 10%가 이미 숙달된 샘플이 되어 fresh 학습 신호의 다양성이 줄어든다</strong>."</p>
+
+<p>그리고 부록 B가 난이도별 이득을 이렇게 요약한다 — "<strong>(30, 70%] 범위의 샘플이 가장 큰 이득을 본다</strong> (GRPO 대비 정확도 +6.4~6.7pp)."</p>
 
 <h3>4.5 학습 역학 — 이득의 출처를 분리한다</h3>
 
@@ -1516,7 +1580,7 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 <text x="615" y="414" text-anchor="middle" font-size="8.5" fill="#666">Global Step</text>
 <polyline points="462.0,302.6 496.0,319.1 530.0,343.9 564.0,357.7 598.0,364.6 632.0,368.7 666.0,371.5 700.0,372.8 734.0,374.2 768.0,374.2" fill="none" stroke="#94a3b8" stroke-width="2.2"/>
 <polyline points="462.0,302.6 496.0,297.1 530.0,286.0 564.0,280.5 598.0,279.2 632.0,281.9 666.0,283.3 700.0,284.7 734.0,286.0 768.0,287.4" fill="none" stroke="#3b82f6" stroke-width="2.2"/>
-<text x="772" y="377.2" font-size="8" font-weight="bold" fill="#64748b">~0.10</text>
+<text x="772" y="377.2" font-size="8" font-weight="bold" fill="#64748b">계속 하락</text>
 <text x="772" y="290.4" font-size="8" font-weight="bold" fill="#1e40af">0.7~0.8</text>
 <rect x="496" y="264" width="68" height="124" fill="#fbbf24" opacity="0.13"/>
 <text x="530" y="278" text-anchor="middle" font-size="8" fill="#92400e">엔트로피 급락 구간</text>
@@ -2253,7 +2317,7 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
     <rect x="20" y="206" width="760" height="66" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
     <text x="34" y="225" font-size="10.5" font-weight="bold" fill="#1e40af">④ 리뷰 스케줄이 <tspan font-style="italic">고정</tspan>이다 — 저자들이 향후 방향으로 지목</text>
     <text x="34" y="244">"현재 설계는 <tspan font-weight="bold">고정 리뷰 스케줄</tspan>을 쓴다" — 즉 f 와 r 이 학습 내내 상수다.</text>
-    <text x="34" y="262">그런데 §<tspan font-style="italic">큐 역학</tspan>은 회귀율이 <tspan font-weight="bold">학습 단계에 따라 변한다</tspan>(72% → 82%)는 것을 보인다. 적응적 스케줄이 자연스러운 개선 방향이다</text>
+    <text x="34" y="262">그런데 §<tspan font-style="italic">큐 역학</tspan>은 <tspan font-weight="bold">retention rate가 학습 단계에 따라 변한다</tspan>(72% → 82%, 즉 회귀율 28% → 18%)는 것을 보인다. 적응적 스케줄이 자연스러운 개선 방향이다</text>
 
     <rect x="20" y="280" width="760" height="112" rx="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.8"/>
     <text x="400" y="299" text-anchor="middle" font-size="11" font-weight="bold" fill="#7e22ce">이 문서가 덧붙이는 한계 — 논문이 언급하지 않는 것</text>
@@ -2364,16 +2428,16 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 <h3>한계와 의문점</h3>
 
 <ol>
-<li><strong>표준편차가 어디에도 없다.</strong> Table 1~6 전체에 분산 추정치가 없고 seed 반복 여부도 명시되지 않는다. 그런데 MMBench +0.12, MathVerse +0.82(DAPO), Minerva −0.73(텍스트 수학에서 ExGRPO 대비 유일한 하락) 같은 작은 차이가 표에 있다. <strong>주 결과인 +3.81·+3.44는 크기가 충분해 보이지만, 벤치마크별 편차의 유의성은 판정할 수 없다</strong>.</li>
+<li><strong>표준편차가 어디에도 없다.</strong> Table 1~6 전체에 분산 추정치가 없고 seed 반복 여부도 명시되지 않는다. 그런데 MMBench +0.12, MathVerse +0.82(DAPO), Minerva −1.13(텍스트 수학에서 ExGRPO 대비 유일한 하락) 같은 작은 차이가 표에 있다. <strong>주 결과인 +3.81·+3.44는 크기가 충분해 보이지만, 벤치마크별 편차의 유의성은 판정할 수 없다</strong>.</li>
 <li><strong>KL penalty와 entropy 정규화를 둘 다 제거한 조건에서만 측정되었다.</strong> 부록 D가 명시한다 — "we omit both the KL penalty and entropy regularization from the objective." 두 장치는 <em>정책 표류를 억제하는 표준 수단</em>이므로, 관측된 망각의 크기가 이 선택으로 확대되었을 수 있다. 더 중요하게는 <strong>"ReMind가 KL 정규화를 <em>대체</em>하는가 <em>보완</em>하는가"에 답할 수 없다</strong> — 실무에서는 이것이 첫 질문이다. §<em>학습 역학</em>의 엔트로피 발견(리뷰가 entropy collapse를 완화)을 감안하면 특히 아쉬운데, entropy 정규화와 직접 경쟁하는 효과이기 때문이다.</li>
 <li><strong>Table 6의 Regressed% "All" 행이 구간 가중평균과 맞지 않는다.</strong> Mean Acc. 열은 세 방법 모두 소수 셋째 자리까지 정확히 재현되는데(0.2696/0.4857/0.5103 vs 표기 0.269/0.486/0.510), Regressed%는 가중평균이 GRPO 13.0% / ReMind 10.0%인데 표기가 <strong>7.7% / 5.4%</strong>다. 표 판독 오류는 아니고(다른 열이 완벽히 맞으므로) <em>"All" 행이 다른 정의로 계산된 것</em>으로 보이지만, 논문은 이를 설명하지 않는다. Δ(Regr.) = −2.3이라는 요약 수치가 여기서 나오므로 영향이 작지 않다.</li>
-<li><strong>부록 A의 서술과 표가 어긋난다.</strong> "smooth 스케줄이 <em>약간 더 높은</em> General Avg(61.95 vs 62.16)를 달성"이라고 쓰지만 61.95 &lt; 62.16이다. Table 5를 보면 burst가 높으므로 문장의 방향이 뒤바뀐 것으로 보인다. 결론(burst가 기본 설정)에는 영향이 없으나 <em>해석 문단이 검토되지 않았다</em>는 신호다.</li>
+<li><strong>본문·부록의 서술이 자기 표와 어긋나는 곳이 둘 더 있다.</strong> ⑴ §4.2가 "ZeroBench에서 세 리플레이 방법 <em>전부</em> GRPO보다 낮다"고 쓰는데 <strong>RePO는 23.50으로 GRPO(22.60)를 상회</strong>한다. ⑵  "smooth 스케줄이 <em>약간 더 높은</em> General Avg(61.95 vs 62.16)를 달성"이라고 쓰지만 61.95 &lt; 62.16이다. Table 5를 보면 burst가 높으므로 문장의 방향이 뒤바뀐 것으로 보인다. 두 경우 모두 결론에는 영향이 없으나, Table 6의 "All" 행 불일치와 함께 <strong>해석 문단과 집계 행이 표 수치에 대해 재검토되지 않았다</strong>는 신호다.</li>
 <li><strong>학습셋이 난이도 상단에 강하게 편향되어 있다.</strong> MMFineReason-123K는 "Qwen3-VL-4B-Thinking이 4회 rollout 모두 실패한 샘플만" 보존한 것이다. 즉 이 학습 분포에서 관측된 turnover 크기가 <em>일반적인 RLVR 학습셋</em>으로 전이되는지 알 수 없다. §<em>난이도별 분석</em>이 이득을 fragile 계층에 귀속시키므로, <strong>fragile 비율이 다른 데이터셋에서는 이득이 달라질 것</strong>이라고 예상하는 것이 자연스럽다 — 그런데 이 예상을 검증하는 실험이 없다.</li>
 <li><strong>졸업 후 재회귀가 감시되지 않는다.</strong> §3.3.3의 B 케이스는 "retention이 확인되었으므로" 샘플을 큐에서 제거한다. 그런데 §3.2의 표류는 <em>계속되는 과정</em>이므로 졸업한 샘플도 다시 회귀할 수 있고, 그때는 <strong>배치에 우연히 다시 뽑혀 숙달 판정을 받기 전까지 탐지되지 않는다</strong>. 잔여 망각 ~155개 중 얼마가 "한 번도 큐에 못 들어간 샘플"이고 얼마가 "졸업 후 재회귀"인지 분해되지 않았다 — 이 분해가 있었다면 다음 개선 방향이 명확해진다.</li>
 <li><strong>$\delta(p)$가 측정되지 않아 이론이 예측을 주지 못한다.</strong> repair-window 유도의 핵심 변수인 스텝당 간섭 크기 $\delta(p)$는 "미지이나 양수인 스칼라"로만 정의된다. 따라서 <em>"얼마나 일찍 리뷰해야 하는가"가 이론에서 나오지 않고</em> §<em>예산 민감도</em>에서 경험적으로 튜닝된다. 그리고 튜닝 결과가 데이터셋·모델에 전이되는지는 저자들도 한계로 인정한다.</li>
 <li><strong>$p_{add} = 0.25$의 근거가 없다.</strong> 숙달 샘플을 전부 등록하지 않고 1/4만 등록하는 이유가 서술되지 않으며 ablation도 없다. 큐 크기와 리뷰 밀도를 제어하기 위한 것으로 읽히지만, $p_{add}$가 <em>어떤 샘플이 감시되는지</em>를 무작위로 결정하므로 <strong>회귀 위험이 높은 샘플이 등록에서 빠질 수 있다</strong>. 위험 기반 우선순위(예: $\hat q$가 막 1에 도달한 샘플 우선)가 자연스러운 대안인데 검토되지 않았다.</li>
 <li><strong>DAPO와의 결합에서 무엇이 일어나는지 분해되지 않았다.</strong> DAPO는 "전부 정답" 프롬프트를 배제하고 ReMind는 그것들을 다시 넣는다 — 두 기제가 <em>같은 샘플에 반대 방향으로 작용</em>한다. 결합 시 +3.44가 나오지만, 리뷰 샘플이 DAPO의 필터를 어떻게 통과하는지(면제되는지, 필터 후 남은 것만 쓰는지)가 명시되지 않는다.</li>
-<li><strong>비교 대상이 리플레이 계열에 한정된다.</strong> retention을 다루는 다른 계열 — EWC류 정규화, LoRA 기반 파라미터 격리, 그리고 <em>이 논문이 인용하는</em> cross-task 방법(RECAP) — 과의 비교가 없다. 특히 KL 정규화가 이미 표준 도구인데 그것과의 비교가 없다는 점은 2번과 겹쳐 두 배로 아쉽다.</li>
+<li><strong>비교 대상이 리플레이 계열에 한정된다.</strong> retention을 다루는 다른 계열 — EWC (Elastic Weight Consolidation) 류 정규화, LoRA 기반 파라미터 격리, 그리고 <em>이 논문이 인용하는</em> cross-task 방법(RECAP) — 과의 비교가 없다. 특히 KL 정규화가 이미 표준 도구인데 그것과의 비교가 없다는 점은 2번과 겹쳐 두 배로 아쉽다.</li>
 </ol>
 
 <h3>AI 논문 체크리스트 대조</h3>
@@ -2388,7 +2452,7 @@ $$\tilde B_t = B_t^{fresh} \cup B_t^{review}, \qquad |B_t^{review}| = \min\big(\
 <tr><td>코드/데이터 공개</td><td>✓</td><td>GitHub 공개(<code>cyuQ1n/Correct-Set-Turnover-in-RLVR</code>). 하이퍼파라미터·벤치마크 목록·데이터 필터링 기준·하드웨어까지 부록 C·D에 명시</td></tr>
 <tr><td>하이퍼파라미터 명시</td><td>✓</td><td>$r{=}0.10$, $f{=}5$, $p_{add}{=}0.25$, 배치 256, $K{=}8$, lr $1{\times}10^{-6}$, temperature 1.0, $\epsilon_{low}{=}0.2$/$\epsilon_{high}{=}0.28$, 컨텍스트 8192(4096+4096), 4노드 × 8× H200</td></tr>
 <tr><td>데이터 누출 방지</td><td>✓</td><td>학습은 MMFineReason-123K, 평가는 20개 <em>외부</em> 벤치마크로 완전히 분리. §<em>난이도별 분석</em>의 700개는 별도 검증 서브셋</td></tr>
-<tr><td>결과의 일관성·재현 검산</td><td>△</td><td>Figure 8의 모든 값이 Table 6의 가중평균과 정확히 일치함을 이 문서가 확인. 그러나 <strong>Table 6의 Regressed% "All" 행이 구간 가중평균과 불일치</strong>(13.0/10.0 vs 7.7/5.4)하고, <strong>부록 A의 스케줄 해석 문장이 자기 표와 모순</strong></td></tr>
+<tr><td>결과의 일관성·재현 검산</td><td>△</td><td>Figure 8의 모든 값이 Table 6의 가중평균과 정확히 일치함을 이 문서가 확인. 그러나 <strong>내부 불일치가 셋 확인된다</strong> — ⑴ Table 6의 Regressed% "All" 행이 구간 가중평균과 불일치(13.0/10.0 vs 7.7/5.4), ⑵ 부록 A의 스케줄 해석 문장이 자기 표와 모순(61.95 &lt; 62.16인데 "higher"), ⑶ §4.2가 "세 리플레이 방법 전부 GRPO보다 낮다"고 쓰는데 <strong>RePO 23.50 &gt; GRPO 22.60</strong></td></tr>
 <tr><td>부정적/약한 결과 보고</td><td>✓</td><td>예산 증가 시 성능 하락(4%·10%), 잔여 망각 ~155개, (90,100%] 구간 회귀율 상승(+1.1), 비디오에서 GRPO가 base 미달(MLVU −2.60), Minerva에서 ExGRPO 대비 하락(−1.13) — 모두 표에 있고 일부는 본문에서 직접 논평된다</td></tr>
 <tr><td>이론과 실험의 대응</td><td>△</td><td>repair-window 유도가 통제 실험(Figure 2)으로 검증된다는 점은 좋다. 그러나 <strong>$\delta(p)$가 측정되지 않아 이론이 리뷰 주기 $f$를 예측하지 못하고</strong>, $O(1/\alpha)$는 저자들 표현대로 "standard estimate"이며 전체 비율은 heuristic이다</td></tr>
 <tr><td>헤드라인 수치의 정직성</td><td>✓</td><td>+3.81/+3.44는 8개 벤치마크 평균이고 전 셀이 표에 있어 확인 가능. "최대 +9.81(WeMath)"을 헤드라인으로 쓰지 않고 <em>평균</em>을 쓴 것은 정직한 선택이다. Figure 1(b)의 Prev. Best도 리플레이 최고값(RePO 62.02)으로 정확히 표기</td></tr>
