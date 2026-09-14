@@ -136,15 +136,15 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <h2>핵심 기여 (Key Contributions)</h2>
 <ol>
-  <li><strong>오픈소스 추론 모델의 일반 능력 퇴화를 체계적으로 재평가한다</strong>: 6개 비추론 벤치마크(A-OKVQA 지식 기반 VQA, AesBench 이미지 미학, VStar 시공간 추론, VisOnlyQA 시각 전용 인식, OCRBench 텍스트 인식, R-Bench-Dis 분포 이동 강건성)에서 base VLM과 그 추론 튜닝 변형을 비교한다. ##결과: <strong>두 Qwen2.5-VL 계열 모두에서 추론 finetuning된 모델이 perception·강건성 과제에서 base 모델보다 일반적으로 못한다</strong>##. 예외는 MiMo-VL-7B-RL로, 저자들은 그것이 "수학·추론 너머 여러 축에서 능력을 개선하는 <em>혼합 on-policy RL</em>"을 쓴다는 기술 보고서 서술에 근거해 설명하지만 "상세 프레임워크와 샘플링·재가중 전략은 <strong>공개되지 않았다</strong>"고 지적한다.</li>
-  <li><strong>목적함수마다 수렴 거동이 <em>다르다</em>는 것을 측정으로 보인다</strong>: §4의 핵심 관찰 — ##일부 보상은 다른 것보다 <strong>최대 3배 빠르게 수렴</strong>한다##. 이것이 "널리 쓰이는 <em>손으로 튜닝한 재가중 스킴</em>을 이런 시나리오에서 차선(suboptimal)으로 만든다"는 근거다. 부록 A.6이 이를 더 밀고 나가 <strong>모든 보상이 $[0,1]$ 범위에서 크게 요동치고 총 보상 표준편차가 스텝 ~20 부근에서 0.9에 이른다</strong>고 보고하여, <em>스텝별 통계가 과제 진척의 신뢰할 만한 지표가 아님</em>을 확립한다.</li>
-  <li><strong>RECAP — plug-in 스케줄러</strong>: 두 부분으로 구성된다. ⑴ RLVR 중 일반 능력 데이터를 <em>replay</em>하고, ⑵ 일반 목적과 주 과제 목적을 <strong>모두</strong> 동적 재가중한다. ##<strong>포화된 format 신호를 자연스럽게 down-weight하고 더 어렵고 분산이 큰 목적으로 capacity를 재배치한다</strong>##. 그리고 네 가지 실용적 성질을 명시한다 — <strong>end-to-end · magnitude-agnostic(크기 무관) · 보조 모델 불필요 · 무시할 만한 오버헤드</strong>.</li>
-  <li><strong>Theorem 1 — softmax가 heuristic이 아님을 증명한다</strong>: 재가중 규칙이 <em>엔트로피 정규화된 우선순위 배분 문제</em> $\max_{p \in \Delta^K} \big[\langle p, s^{(t)}\rangle + T\,H(p)\big]$의 <strong>유일한 최대해</strong>임을 보인다. 선형항이 우선순위가 높은 목적에 질량을 더 주고, 엔트로피항이 <em>단일 목적으로의 퇴화적 배분을 막는다</em>. ##"RECAP에 쓰인 softmax 형태는 <strong>단순한 heuristic 정규화가 아니라</strong> 목적함수들에 대한 엔트로피 정규화된 배분 문제다"##. 증명은 부록 A.1에 Lemma 1(최적해 존재)·Lemma 2(내부 최적성)로 전개된다.</li>
+  <li><strong>오픈소스 추론 모델의 일반 능력 퇴화를 체계적으로 재평가한다</strong>: 6개 비추론 벤치마크(A-OKVQA 지식 기반 VQA, AesBench 이미지 미학, VStar 시공간 추론, VisOnlyQA 시각 전용 인식, OCRBench 텍스트 인식, R-Bench-Dis 분포 이동 강건성)에서 base VLM과 그 추론 튜닝 변형을 비교한다. 결과: <strong>두 Qwen2.5-VL 계열 모두에서 추론 finetuning된 모델이 perception·강건성 과제에서 base 모델보다 일반적으로 못한다</strong>. 예외는 MiMo-VL-7B-RL로, 저자들은 그것이 "수학·추론 너머 여러 축에서 능력을 개선하는 <em>혼합 on-policy RL</em>"을 쓴다는 기술 보고서 서술에 근거해 설명하지만 "상세 프레임워크와 샘플링·재가중 전략은 <strong>공개되지 않았다</strong>"고 지적한다.</li>
+  <li><strong>목적함수마다 수렴 거동이 <em>다르다</em>는 것을 측정으로 보인다</strong>: §4의 핵심 관찰 — 일부 보상은 다른 것보다 <strong>최대 3배 빠르게 수렴</strong>한다. 이것이 "널리 쓰이는 <em>손으로 튜닝한 재가중 스킴</em>을 이런 시나리오에서 차선(suboptimal)으로 만든다"는 근거다. 부록 A.6이 이를 더 밀고 나가 <strong>모든 보상이 $[0,1]$ 범위에서 크게 요동치고 총 보상 표준편차가 스텝 ~20 부근에서 0.9에 이른다</strong>고 보고하여, <em>스텝별 통계가 과제 진척의 신뢰할 만한 지표가 아님</em>을 확립한다.</li>
+  <li><strong>RECAP — plug-in 스케줄러</strong>: 두 부분으로 구성된다. ⑴ RLVR 중 일반 능력 데이터를 <em>replay</em>하고, ⑵ 일반 목적과 주 과제 목적을 <strong>모두</strong> 동적 재가중한다. <strong>포화된 format 신호를 자연스럽게 down-weight하고 더 어렵고 분산이 큰 목적으로 capacity를 재배치한다</strong>. 그리고 네 가지 실용적 성질을 명시한다 — <strong>end-to-end · magnitude-agnostic(크기 무관) · 보조 모델 불필요 · 무시할 만한 오버헤드</strong>.</li>
+  <li><strong>Theorem 1 — softmax가 heuristic이 아님을 증명한다</strong>: 재가중 규칙이 <em>엔트로피 정규화된 우선순위 배분 문제</em> $\max_{p \in \Delta^K} \big[\langle p, s^{(t)}\rangle + T\,H(p)\big]$의 <strong>유일한 최대해</strong>임을 보인다. 선형항이 우선순위가 높은 목적에 질량을 더 주고, 엔트로피항이 <em>단일 목적으로의 퇴화적 배분을 막는다</em>. "RECAP에 쓰인 softmax 형태는 <strong>단순한 heuristic 정규화가 아니라</strong> 목적함수들에 대한 엔트로피 정규화된 배분 문제다". 증명은 부록 A.1에 Lemma 1(최적해 존재)·Lemma 2(내부 최적성)로 전개된다.</li>
   <li><strong>두 설정·두 규모에서의 검증</strong>: <em>RLVR-only</em>(Qwen2.5-VL-3B, MoDoMoDo 설정을 따르며 그것을 정적 데이터 혼합 접근의 <strong>상한 baseline</strong>으로 취급)와 <em>Hybrid</em>(Qwen2.5-VL-7B, RLVR + SFT 혼합 목적). 후자는 MoDoMoDo가 <em>이진 0–1 보상을 강제해 비-RL 과제를 직접 다룰 수 없기 때문에</em> 추가된 설정이다.</li>
-  <li><strong>continual learning baseline 5종과의 비교</strong>: Reasoning-only, PropMix(데이터 크기 비례 샘플링), Uniform, Coreset(추론 데이터 절반 크기의 제한된 부분집합 replay), <strong>LwF</strong>(균등 샘플링 + KL 정규화 $\beta{=}0.01$). ##결정적으로 <strong>기본적으로 reference-KL penalty를 끈다</strong> — "정규화 접근의 효과와 우리 replay 기제의 효과를 분리하기 위해"##. 그리고 LwF 비교로 KL 정규화가 <em>추론 벤치마크에서 더 낮은 점수</em>를 낸다는 것을 보인다(MMMU-PRO 29.59 vs Uniform 31.91).</li>
-  <li><strong>도메인마다 같은 format 보상을 쓰는 것이 차선임을 실증한다</strong>: MoDoMoDo가 <em>모든 도메인에 같은 thinking 보상</em>을 쓰는데, segmentation 과제의 응답 길이를 추적하면 ##모델이 <strong>chain-of-thought를 급격히 잘라내고 곧바로 답한다</strong>(수백 문자 → 수십, 종종 0에 가깝게)##. 즉 그런 perception 과제에는 명시적 추론이 불필요하고 <em>긴 rationale을 장려하는 것이 오히려 해롭다</em>. 이에 따라 <strong>perception 도메인은 answer-format 보상만, thinking 보상은 단계적 추론이 실제로 도움되는 과제에만</strong> 준다.</li>
-  <li><strong>부수 발견 — 짧고 간결한 rationale</strong>: 일반 데이터 replay가 ##<strong>추론 능력을 해치지 않으면서 더 짧고 간결한 rationale을 낳는다</strong>## (67.3 → 27.3 단어, 60% 감소). 저자들은 이것이 "<em>생성 토큰이 줄어 지연과 계산 비용이 감소</em>하므로 추론 효율을 직접 개선한다"고 짚는다.</li>
-  <li><strong>MTL 문헌과의 폭넓은 비교</strong>: 합성 2-task 예제(Navon+ 2022 변형, 첫 목적에 노이즈 주입)에서 loss-magnitude 기반 5종(UW, DWA, GradNorm, RGW, FAMO)과 gradient 기반 10종(PCGrad, CAGrad, GradDrop, MGDA, IMTL, MT-SGD, Nash-MTL, FS-MTL, Aligned-MTL, SAM-GS)과 겨루고, 실제 NYUv2 scene understanding에서도 평가한다. ##<strong>loss-reweighting 방법 중 전 지표 최고</strong>이고 일부 gradient 기반 방법도 능가하면서 <strong>약 3배 빠르다</strong>##.</li>
+  <li><strong>continual learning baseline 5종과의 비교</strong>: Reasoning-only, PropMix(데이터 크기 비례 샘플링), Uniform, Coreset(추론 데이터 절반 크기의 제한된 부분집합 replay), <strong>LwF</strong>(균등 샘플링 + KL 정규화 $\beta{=}0.01$). 결정적으로 <strong>기본적으로 reference-KL penalty를 끈다</strong> — "정규화 접근의 효과와 우리 replay 기제의 효과를 분리하기 위해". 그리고 LwF 비교로 KL 정규화가 <em>추론 벤치마크에서 더 낮은 점수</em>를 낸다는 것을 보인다(MMMU-PRO 29.59 vs Uniform 31.91).</li>
+  <li><strong>도메인마다 같은 format 보상을 쓰는 것이 차선임을 실증한다</strong>: MoDoMoDo가 <em>모든 도메인에 같은 thinking 보상</em>을 쓰는데, segmentation 과제의 응답 길이를 추적하면 모델이 <strong>chain-of-thought를 급격히 잘라내고 곧바로 답한다</strong>(수백 문자 → 수십, 종종 0에 가깝게). 즉 그런 perception 과제에는 명시적 추론이 불필요하고 <em>긴 rationale을 장려하는 것이 오히려 해롭다</em>. 이에 따라 <strong>perception 도메인은 answer-format 보상만, thinking 보상은 단계적 추론이 실제로 도움되는 과제에만</strong> 준다.</li>
+  <li><strong>부수 발견 — 짧고 간결한 rationale</strong>: 일반 데이터 replay가 <strong>추론 능력을 해치지 않으면서 더 짧고 간결한 rationale을 낳는다</strong> (67.3 → 27.3 단어, 60% 감소). 저자들은 이것이 "<em>생성 토큰이 줄어 지연과 계산 비용이 감소</em>하므로 추론 효율을 직접 개선한다"고 짚는다.</li>
+  <li><strong>MTL 문헌과의 폭넓은 비교</strong>: 합성 2-task 예제(Navon+ 2022 변형, 첫 목적에 노이즈 주입)에서 loss-magnitude 기반 5종(UW, DWA, GradNorm, RGW, FAMO)과 gradient 기반 10종(PCGrad, CAGrad, GradDrop, MGDA, IMTL, MT-SGD, Nash-MTL, FS-MTL, Aligned-MTL, SAM-GS)과 겨루고, 실제 NYUv2 scene understanding에서도 평가한다. <strong>loss-reweighting 방법 중 전 지표 최고</strong>이고 일부 gradient 기반 방법도 능가하면서 <strong>약 3배 빠르다</strong>.</li>
 </ol>
 
 <figure>
@@ -461,11 +461,11 @@ document.addEventListener("DOMContentLoaded", function() {
 <path d="M634,85 L634,226" stroke="#6366f1" stroke-width="1.6"/>
 <text x="640" y="155" font-size="10" font-weight="bold" fill="#4338ca">9.6점 격차</text>
 <rect x="20" y="268" width="370" height="62" rx="6" fill="#dcfce7" stroke="#16a34a"/>
-<text x="205" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">RECAP은 보존을 넘어 <tspan font-style="italic">개선</tspan>한다</tspan></text>
+<text x="205" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">RECAP은 보존을 넘어 <tspan font-style="italic">개선</tspan>한다</text>
 <text x="30" y="304" font-size="9.5">65.1 → 67.2, base 대비 <tspan font-weight="bold">+2.11 (↑2%)</tspan></text>
 <text x="30" y="320" font-size="9.5">학습하지 않은 도메인에서 <tspan font-weight="bold">올라간다</tspan>는 점이 replay만으로는 설명되지 않는다</text>
 <rect x="400" y="268" width="380" height="62" rx="6" fill="#fef2f2" stroke="#ef4444"/>
-<text x="590" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b91c1c">reasoning-only는 단조 감소한다</tspan></text>
+<text x="590" y="286" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b91c1c">reasoning-only는 단조 감소한다</text>
 <text x="410" y="304" font-size="9.5">65.1 → 57.6, <tspan font-weight="bold">−7.55 (−7%)</tspan>. <tspan font-weight="bold">100 iteration에 이미 base 아래</tspan>다</text>
 <text x="410" y="320" font-size="9.5" fill="#b91c1c">즉 이 퇴화는 학습 말미의 문제가 아니라 <tspan font-weight="bold">초기부터 시작된다</tspan></text>
 </svg>
@@ -492,13 +492,13 @@ $$\hat A_i = \frac{R_i - \mathrm{mean}(R)}{\mathrm{std}(R)}, \qquad r_{i,t}(\the
 
 $$J_{GRPO}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{t=1}^{|o_i|}\Big\{\min\big(r_{i,t}(\theta)\hat A_i,\ \mathrm{clip}(r_{i,t}(\theta), 1-\epsilon, 1+\epsilon)\hat A_i\big)\Big\} - \beta\, D_{KL}\big(\pi_\theta \| \pi_{ref}\big)\right]$$
 
-<blockquote><strong>왜 GRPO를 쓰는가</strong>: 프롬프트별 응답 그룹에 걸쳐 정규화함으로써 <strong>critic 없이 업데이트를 안정화</strong>하며, 이는 ##긴 chain-of-thought 보상이 <em>희소하고 verifier 기반일 때 선호되는</em> 성질##이다. 그리고 저자들이 밝히는 실용적 이유 — "표준 PPO 대비 <strong>메모리와 계산 오버헤드를 효과적으로 줄인다</strong>."</blockquote>
+<blockquote><strong>왜 GRPO를 쓰는가</strong>: 프롬프트별 응답 그룹에 걸쳐 정규화함으로써 <strong>critic 없이 업데이트를 안정화</strong>하며, 이는 긴 chain-of-thought 보상이 <em>희소하고 verifier 기반일 때 선호되는</em> 성질이다. 그리고 저자들이 밝히는 실용적 이유 — "표준 PPO 대비 <strong>메모리와 계산 오버헤드를 효과적으로 줄인다</strong>."</blockquote>
 
-<p><strong>문제 설정의 형식화</strong>: 논문은 여기서 전통적 continual learning과의 차이를 명시한다 — ##현대 post-training 파이프라인은 <strong>추론에서의 이득과 사전학습에서 획득한 일반 능력의 유지를 <em>동시에</em> 고려해야 한다</strong>##. 일반 능력 과제 스위트 $\mathcal{G} = \{G_1, \ldots, G_M\}$과 추론 데이터셋 스위트 $\mathcal{R} = \{R_1, \ldots, R_L\}$을 함께 놓는 것이 이 논문의 설정이다.</p>
+<p><strong>문제 설정의 형식화</strong>: 논문은 여기서 전통적 continual learning과의 차이를 명시한다 — 현대 post-training 파이프라인은 <strong>추론에서의 이득과 사전학습에서 획득한 일반 능력의 유지를 <em>동시에</em> 고려해야 한다</strong>. 일반 능력 과제 스위트 $\mathcal{G} = \{G_1, \ldots, G_M\}$과 추론 데이터셋 스위트 $\mathcal{R} = \{R_1, \ldots, R_L\}$을 함께 놓는 것이 이 논문의 설정이다.</p>
 
 <h2>§4 방법 — RECAP</h2>
 
-<p><strong>두 축의 개입</strong>: RECAP은 RLVR의 망각을 두 가지로 다룬다 — ⑴ <em>추론 데이터와 나란히 일반 능력 데이터를 replay</em>하고, ⑵ <em>개별 목적의 진척과 불안정성에 대한 국소 추정치를 써서 목적함수를 온라인 동적 재가중</em>한다. 결정적으로 ##<strong>기저 RL 알고리즘을 바꾸지 않는다</strong>##.</p>
+<p><strong>두 축의 개입</strong>: RECAP은 RLVR의 망각을 두 가지로 다룬다 — ⑴ <em>추론 데이터와 나란히 일반 능력 데이터를 replay</em>하고, ⑵ <em>개별 목적의 진척과 불안정성에 대한 국소 추정치를 써서 목적함수를 온라인 동적 재가중</em>한다. 결정적으로 <strong>기저 RL 알고리즘을 바꾸지 않는다</strong>.</p>
 
 <figure>
 <svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
@@ -571,11 +571,11 @@ $$J_{GRPO}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\su
 
 <h3>4.1 목적별 수렴률과 안정성</h3>
 
-<p><strong>설정</strong>: $\mathcal{D} = \{\mathcal{D}_n\}_{n=1}^{N}$을 $N$개 도메인, $\ell_{n,k}^{(t)}(\theta)$를 iteration $t$에서 도메인 $n$의 목적 $k \in \{1,\ldots,K\}$에 대한 미니배치 손실이라 하자. ##<strong>$K \geq N$</strong>인데, 일부 과제가 둘 이상의 보상 또는 목적을 쓰기 때문이다##. 모델 파라미터는 목적별 평균 손실을 최소화해 최적화된다:</p>
+<p><strong>설정</strong>: $\mathcal{D} = \{\mathcal{D}_n\}_{n=1}^{N}$을 $N$개 도메인, $\ell_{n,k}^{(t)}(\theta)$를 iteration $t$에서 도메인 $n$의 목적 $k \in \{1,\ldots,K\}$에 대한 미니배치 손실이라 하자. <strong>$K \geq N$</strong>인데, 일부 과제가 둘 이상의 보상 또는 목적을 쓰기 때문이다. 모델 파라미터는 목적별 평균 손실을 최소화해 최적화된다:</p>
 
 $$L_k^{(t)} = \frac{1}{N}\sum_{n=1}^{N} \ell_{n,k}^{(t)}(\theta)$$
 
-<p><strong>왜 스텝별 값을 쓸 수 없는가</strong>: 논문의 진술이 명확하다 — ##"<strong>RL 학습의 불안정한 성질 때문에, 재가중 계수를 계산하는 데 스텝별 목적값이나 보상값에만 의존할 수 없다</strong>"##. 그래서 각 목적 $k$에 대해 길이 $2W$의 슬라이딩 윈도우에서 <em>현재 윈도우 평균</em>과 <em>이전 윈도우 평균</em>을 계산한다:</p>
+<p><strong>왜 스텝별 값을 쓸 수 없는가</strong>: 논문의 진술이 명확하다 — "<strong>RL 학습의 불안정한 성질 때문에, 재가중 계수를 계산하는 데 스텝별 목적값이나 보상값에만 의존할 수 없다</strong>". 그래서 각 목적 $k$에 대해 길이 $2W$의 슬라이딩 윈도우에서 <em>현재 윈도우 평균</em>과 <em>이전 윈도우 평균</em>을 계산한다:</p>
 
 $$\mu_k^{(t)} = \frac{1}{W}\sum_{s=t-W+1}^{t} L_k^{(s)}, \qquad \tilde\mu_k^{(t)} = \frac{1}{W}\sum_{s=t-2W+1}^{t-W} L_k^{(s)}$$
 
@@ -587,7 +587,7 @@ $$\sigma_k^{(t)} = \sqrt{\frac{1}{2W-1}\sum_{s=t-2W+1}^{t}\Big(L_k^{(s)} - \mu_k
 
 $$c_k^{(t)} = \frac{\tilde\mu_k^{(t)}}{\mu_k^{(t)}} \quad \text{(수렴률)}, \qquad i_k^{(t)} = \frac{\sigma_k^{(t)}}{\mu_k^{(t)} + \tilde\mu_k^{(t)}} \quad \text{(역 신호대잡음비)}$$
 
-<blockquote><strong>직관적으로 말하면</strong>: ##$c_k > 1$이면 <strong>최근 개선 중</strong>(이전 윈도우 대비 손실이 떨어지고 있다), $c_k \approx 1$이면 <strong>포화</strong>##다. $i_k$는 목적이 noisy하거나 불안정할 때 커진다. 두 신호가 <em>서로 다른 이유로</em> 우선순위를 올린다는 점이 핵심이다 — 하나는 "아직 배울 게 남았다", 다른 하나는 "여기가 흔들린다".</blockquote>
+<blockquote><strong>직관적으로 말하면</strong>: $c_k > 1$이면 <strong>최근 개선 중</strong>(이전 윈도우 대비 손실이 떨어지고 있다), $c_k \approx 1$이면 <strong>포화</strong>다. $i_k$는 목적이 noisy하거나 불안정할 때 커진다. 두 신호가 <em>서로 다른 이유로</em> 우선순위를 올린다는 점이 핵심이다 — 하나는 "아직 배울 게 남았다", 다른 하나는 "여기가 흔들린다".</blockquote>
 
 <figure>
 <svg viewBox="0 0 800 560" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
@@ -793,11 +793,11 @@ $$c_k^{(t)} = \frac{\tilde\mu_k^{(t)}}{\mu_k^{(t)}} \quad \text{(수렴률)}, \q
 
 $$s_k^{(t)} = c_k^{(t)} + i_k^{(t)}, \qquad \lambda_k^{(t)} = \frac{K \exp\big(s_k^{(t)}/T\big)}{\sum_{i=1}^{K} \exp\big(s_i^{(t)}/T\big)} \tag{1}$$
 
-<p><strong>세 가지 설계 세부</strong>: ⑴ ##prefactor $K$가 <strong>평균 스케일을 보존</strong>한다 — $\frac{1}{K}\sum_k \lambda_k^{(t)} = 1$##. ⑵ 낮은 $T$는 우선순위를 <em>날카롭게</em> 하고 높은 $T$는 <em>균등 혼합에 접근</em>한다. ⑶ 실험 기본값은 <strong>$T = 5$</strong>. 최종 목적은:</p>
+<p><strong>세 가지 설계 세부</strong>: ⑴ prefactor $K$가 <strong>평균 스케일을 보존</strong>한다 — $\frac{1}{K}\sum_k \lambda_k^{(t)} = 1$. ⑵ 낮은 $T$는 우선순위를 <em>날카롭게</em> 하고 높은 $T$는 <em>균등 혼합에 접근</em>한다. ⑶ 실험 기본값은 <strong>$T = 5$</strong>. 최종 목적은:</p>
 
 $$L^{(t)}(\theta) = \frac{1}{K}\sum_{k=1}^{K} \lambda_k^{(t)} L_k^{(t)}$$
 
-<p>$\nabla_\theta L^{(t)}$로 $\theta$를 최적화하면 ##<strong>수렴이 느리고($c_k$ 큼) 변동이 큰($i_k$ 큼) 목적으로 학습이 유도되고, 잘 학습되어 안정된 목적은 더 낮은 가중을 받는다</strong>##. 그리고 이 스킴은 $T \to \infty$에서 <em>표준 균등 가중으로 환원된다</em> — 즉 모든 도메인에서 균등 샘플링하고 손실 재가중을 하지 않는 것과 같아진다.</p>
+<p>$\nabla_\theta L^{(t)}$로 $\theta$를 최적화하면 <strong>수렴이 느리고($c_k$ 큼) 변동이 큰($i_k$ 큼) 목적으로 학습이 유도되고, 잘 학습되어 안정된 목적은 더 낮은 가중을 받는다</strong>. 그리고 이 스킴은 $T \to \infty$에서 <em>표준 균등 가중으로 환원된다</em> — 즉 모든 도메인에서 균등 샘플링하고 손실 재가중을 하지 않는 것과 같아진다.</p>
 
 <p><strong>두 신호를 어떻게 결합하는가</strong>: 논문은 §4에서 "미세한 제어를 위해 두 항 사이의 trade-off를 튜닝할 수 있고 성능을 개선할 수 있지만, <em>단순화를 위해 가중 없는 합 $s = c + i$를 취하며 이것이 실험에서 일관되게 잘 작동한다</em>"고 밝힌다. 부록에서는 일반화된 형태 $s_k^{(t)} = \alpha c_k^{(t)} + (1-\alpha) i_k^{(t)}$를 두고 $\alpha$를 ablation한다.</p>
 
@@ -900,9 +900,1283 @@ $$p \in \Delta^K := \Big\{p \in \mathbb{R}_{\geq 0}^K : \sum_{k=1}^{K} p_k = 1\B
 
 $$\Phi_t(p) = \langle p,\, s^{(t)}\rangle + T\,H(p), \qquad H(p) = -\sum_{k=1}^{K} p_k \log p_k$$
 
-<p>##선형항은 RECAP 우선순위 점수가 큰 목적에 더 많은 질량을 배정하고, <strong>엔트로피항은 단일 목적으로의 퇴화적 배분을 막으며 더 매끄러운 혼합을 장려한다</strong>##. 온도 $T$가 이 trade-off를 제어한다.</p>
+<p>선형항은 RECAP 우선순위 점수가 큰 목적에 더 많은 질량을 배정하고, <strong>엔트로피항은 단일 목적으로의 퇴화적 배분을 막으며 더 매끄러운 혼합을 장려한다</strong>. 온도 $T$가 이 trade-off를 제어한다.</p>
 
 <blockquote><strong>Theorem 1 (엔트로피 정규화 우선순위 배분)</strong>: 임의의 $T > 0$와 임의의 점수 벡터 $s^{(t)} \in \mathbb{R}^K$에 대해, 최적화 문제 $\max_{p \in \Delta^K} \Phi_t(p)$는 <strong>유일한</strong> 최대해 $p^{(t),\star} \in \Delta^K$를 가지며 다음으로 주어진다:
 $$p_k^{(t),\star} = \frac{\exp\big(s_k^{(t)}/T\big)}{\sum_{j=1}^{K}\exp\big(s_j^{(t)}/T\big)}, \qquad k = 1,\ldots,K$$</blockquote>
 
 <p>논문의 결론: "이 정리는 ##RECAP에 쓰인 softmax 형태가 <strong>단순한 heuristic 정규화가 아니라 목적함수들에 대한 엔트로피 정규화된 배분 문제임</strong>##을 보인다."</p>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="aral0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="aral1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="aral2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="aral3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Algorithm 1 · Table 3] 루프 구조와 학습 코퍼스</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">의사코드 흐름과 데이터 출처. 전부 원문 수치</text>
+<rect x="20" y="44" width="134" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="87" y="64" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">① 초기화</text>
+<text x="87" y="82" text-anchor="middle" font-size="9" fill="#334155">λ_k ← 1 · 버퍼 B_k (길이 2W)</text>
+<path d="M156,74 L173,74" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#aral0)"/>
+<rect x="176" y="44" width="134" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="244" y="64" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">② 손실 계산</text>
+<text x="244" y="82" text-anchor="middle" font-size="9" fill="#334155">도메인×목적별 ℓ_n,k → L_k</text>
+<path d="M313,74 L330,74" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#aral1)"/>
+<rect x="333" y="44" width="134" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="64" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">③ 버퍼 push</text>
+<text x="400" y="82" text-anchor="middle" font-size="9" fill="#334155">FIFO로 L_k 적재</text>
+<path d="M469,74 L486,74" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#aral2)"/>
+<rect x="489" y="44" width="134" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="556" y="64" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">④ t ≥ 2W?</text>
+<text x="556" y="82" text-anchor="middle" font-size="9" fill="#334155">아니면 λ_k ← 1 유지</text>
+<path d="M626,74 L643,74" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#aral3)"/>
+<rect x="646" y="44" width="134" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="713" y="64" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">⑤ 가중·갱신</text>
+<text x="713" y="82" text-anchor="middle" font-size="9" fill="#334155">c,i,s → softmax λ → θ 업데이트</text>
+<rect x="20" y="114" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="132" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">타이밍이 중요한 이유</text>
+<text x="30" y="150" text-anchor="start" font-size="10" fill="#334155"><tspan font-weight='bold'>t &lt; 2W 인 동안은 균등 가중</tspan>이다 (line 18). W=10이므로 <tspan font-weight='bold'>첫 20스텝은 RECAP이 작동하지 않는다</tspan> — 부록 A.6이 W=25를 쓰면</text>
+<text x="30" y="167" text-anchor="start" font-size="10" fill="#334155">"재가중 시작이 50 iteration 늦춰지고, 그때는 이미 일부 보상이 near-converged 영역에 들어가 수렴률 항의 유용성이 줄어든다"고 밝히는 근거다</text>
+<rect x="20" y="192" width="150" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="95" y="206" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Dataset</text>
+<rect x="170" y="192" width="250" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="295" y="206" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Domain</text>
+<rect x="420" y="192" width="230" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="535" y="206" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Rewards / Objectives</text>
+<rect x="650" y="192" width="130" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="715" y="206" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold"># samples</text>
+<rect x="20" y="213" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="227" text-anchor="start" font-size="8.4" fill="#334155">RefCOCO</text>
+<rect x="170" y="213" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="227" text-anchor="middle" font-size="8.4" fill="#334155">Referring Expression Comprehension</text>
+<rect x="420" y="213" width="230" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="535" y="227" text-anchor="middle" font-size="8.4" fill="#334155">IoU, Answer Format</text>
+<rect x="650" y="213" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="227" text-anchor="middle" font-size="8.4" fill="#334155">321,327</text>
+<rect x="20" y="234" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="248" text-anchor="start" font-size="8.4" fill="#334155">LLaVA-OneVision-OCR</text>
+<rect x="170" y="234" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="248" text-anchor="middle" font-size="8.4" fill="#334155">Scene Text-Centric VQA</text>
+<rect x="420" y="234" width="230" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="535" y="248" text-anchor="middle" font-size="8.4" fill="#334155">Next Token Prediction</text>
+<rect x="650" y="234" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="248" text-anchor="middle" font-size="8.4" fill="#334155">66,468</text>
+<rect x="20" y="255" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="269" text-anchor="start" font-size="8.4" fill="#334155">ThinkLite-VL-70k</text>
+<rect x="170" y="255" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="269" text-anchor="middle" font-size="8.4" fill="#334155">Math Reasoning &amp; Chart 이해</text>
+<rect x="420" y="255" width="230" height="21" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="535" y="269" text-anchor="middle" font-size="8.4" fill="#334155">Acc, Thinking Format</text>
+<rect x="650" y="255" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="269" text-anchor="middle" font-size="8.4" fill="#334155">69,997</text>
+<rect x="20" y="276" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="290" text-anchor="start" font-size="8.4" fill="#334155">LISA-train</text>
+<rect x="170" y="276" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="290" text-anchor="middle" font-size="8.4" fill="#334155">Referring Expression</text>
+<rect x="420" y="276" width="230" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="535" y="290" text-anchor="middle" font-size="8.4" fill="#334155">IoU, Thinking Format</text>
+<rect x="650" y="276" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="290" text-anchor="middle" font-size="8.4" fill="#334155">1,326</text>
+<rect x="20" y="297" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="311" text-anchor="start" font-size="8.4" fill="#334155">GeoQAV</text>
+<rect x="170" y="297" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="311" text-anchor="middle" font-size="8.4" fill="#334155">Math Visual QA</text>
+<rect x="420" y="297" width="230" height="21" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="535" y="311" text-anchor="middle" font-size="8.4" fill="#334155">Acc, Thinking Format</text>
+<rect x="650" y="297" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="311" text-anchor="middle" font-size="8.4" fill="#334155">1,969</text>
+<rect x="20" y="318" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="332" text-anchor="start" font-size="8.4" fill="#334155">SAT-train</text>
+<rect x="170" y="318" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="332" text-anchor="middle" font-size="8.4" fill="#334155">Spatial Visual QA</text>
+<rect x="420" y="318" width="230" height="21" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="535" y="332" text-anchor="middle" font-size="8.4" fill="#334155">Acc, Thinking Format</text>
+<rect x="650" y="318" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="332" text-anchor="middle" font-size="8.4" fill="#334155">15,000</text>
+<rect x="20" y="339" width="150" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="353" text-anchor="start" font-size="8.4" fill="#334155">ScienceQA-train</text>
+<rect x="170" y="339" width="250" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="295" y="353" text-anchor="middle" font-size="8.4" fill="#334155">Science Visual QA</text>
+<rect x="420" y="339" width="230" height="21" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="535" y="353" text-anchor="middle" font-size="8.4" fill="#334155">Acc, Thinking Format</text>
+<rect x="650" y="339" width="130" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="715" y="353" text-anchor="middle" font-size="8.4" fill="#334155">6,218</text>
+<rect x="20" y="370" width="760" height="89" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="30" y="388" text-anchor="start" font-size="10.5" fill="#4338ca" font-weight="bold">데이터 규모 불균형과 그 처리</text>
+<text x="30" y="406" text-anchor="start" font-size="10" fill="#334155">규모가 <tspan font-weight='bold'>240배 차이</tspan>난다 — RefCOCO 321,327개 vs LISA-train 1,326개. 그래서 <tspan font-weight='bold'>"기본적으로 데이터 출처에 걸쳐 균등 샘플링하고 관심 목적만 재가중"</tspan>한다고 §5.1이 밝힌다.</text>
+<text x="30" y="423" text-anchor="start" font-size="10" fill="#334155">즉 RECAP은 <tspan font-weight='bold'>데이터 혼합 비율이 아니라 손실 계수만</tspan> 건드린다 — PropMix(데이터 크기 비례 샘플링) baseline이 이 선택을 검증하는 대조군이다.</text>
+<text x="30" y="440" text-anchor="start" font-size="10" fill="#334155">그리고 목적이 도메인보다 많다(K ≥ N): 7개 출처가 <tspan font-weight='bold'>IoU · Answer Format · Thinking Format · Accuracy · Next-Token Prediction</tspan> 5종 목적을 공유한다</text>
+</svg>
+<figcaption><strong>[Algorithm 1 · Table 3 재구성]</strong>: 위 5단계가 부록 Algorithm 1의 루프 구조, 아래 표가 Table 3의 학습 코퍼스다 — 전부 원문이다. 노란 박스가 타이밍 제약을 짚는데, <strong>$t < 2W$ 동안은 균등 가중이므로 $W{=}10$에서 첫 20스텝은 RECAP이 작동하지 않는다</strong> — 이것이 §<em>윈도우 크기 ablation</em>에서 $W{=}25$가 나쁜 이유(재가중 시작이 50 iteration 늦춰져 일부 보상이 이미 수렴 영역에 든다)의 직접 근거다. 아래 보라 박스가 데이터 설계의 핵심인데, 출처별 규모가 <strong>240배 차이</strong>(RefCOCO 321,327 vs LISA-train 1,326)나는데도 균등 샘플링을 쓰고 <strong>손실 계수만 재가중</strong>한다 — PropMix(크기 비례 샘플링) baseline이 바로 이 선택을 검증하는 대조군이며 §<em>Table 2</em>에서 Uniform보다 낮다. 목적이 도메인보다 많다는 $K \geq N$도 이 표에서 확인된다(7개 출처가 5종 목적을 공유).</figcaption>
+</figure>
+
+<h2>§5 실험</h2>
+
+<h3>5.1 실험 설정 — 두 규모, 두 패러다임</h3>
+
+<p><strong>두 설정</strong>: Qwen2.5-VL-3B와 Qwen2.5-VL-7B 두 base 모델에서 서로 다른 규모의 상보적 설정을 쓴다.</p>
+
+<ul>
+<li><strong>RLVR-only 설정</strong> (Qwen2.5-VL-3B): MoDoMoDo (Liang+ 2025)의 실험 구성을 따르며 도메인 특정 RLVR에 집중한다. 이것이 <em>정적 데이터 혼합 접근의 <strong>상한 baseline</strong>이자 가장 가까운 비교 대상</em>이다. 모델은 특정 도메인의 데이터가 소진될 때까지 학습된다.</li>
+<li><strong>Hybrid 설정</strong> (Qwen2.5-VL-7B): MoDoMoDo가 <strong>모든 도메인에 이진(0–1) 보상을 강제해 비-RL 과제를 직접 다룰 수 없기 때문에</strong> 추가된 설정이다. RLVR과 SFT 스타일 학습을 결합한 더 큰 혼합 목적 체제로, <strong>ThinkLite-VL-70k</strong>를 쓰면서 <strong>RefCOCO</strong>와 <strong>LLaVA-OneVision OCR</strong> 같은 perception 지향 데이터셋을 함께 replay한다.</li>
+</ul>
+
+<p><strong>결정적 통제 두 가지</strong>: ⑴ replay와 동적 재가중의 효과를 분리하고 구현을 단순화하기 위해 <strong>기본적으로 데이터 출처에 걸쳐 균등 샘플링하고 관심 목적만 재가중한다</strong>. 즉 <em>데이터 혼합 비율은 건드리지 않는다</em>. ⑵ "정규화 접근의 효과와 우리 replay 기제의 효과를 <strong>분리하기 위해</strong>, 별도 언급이 없으면 <strong>reference-KL penalty를 끈다</strong>".</p>
+
+<p><strong>비교 baseline 5종</strong>:</p>
+
+<table class="small-table">
+<thead><tr><th>Baseline</th><th>무엇을 하는가</th><th>무엇을 통제하는가</th></tr></thead>
+<tbody>
+<tr><td><strong>Reasoning-only</strong></td><td>타깃 추론 과제만, 고정 보상 가중, replay 없음</td><td>일반 능력 보존 기제가 <em>전혀 없는</em> 표준 RLVR</td></tr>
+<tr><td><strong>PropMix</strong></td><td>일반 데이터를 포함하되 <em>출처 데이터셋 크기에 비례</em>해 도메인 샘플링. 목적 손실은 재가중 없음</td><td>"데이터 혼합 비율"이 답인가</td></tr>
+<tr><td><strong>Uniform</strong></td><td>도메인 균등 샘플링, 모든 목적 가중 고정</td><td><strong>RECAP의 직접 대조군</strong> — 오직 재가중만 다르다</td></tr>
+<tr><td><strong>Coreset</strong></td><td>크기 제한된 일반 데이터 부분집합만 replay (추론 데이터의 <em>절반</em> 규모)</td><td>표준 coreset 스타일 replay (Rebuffi+ 2017, Chaudhry+ 2019)</td></tr>
+<tr><td><strong>LwF</strong></td><td>도메인 균등 샘플링 + <strong>KL 정규화 $\beta = 0.01$</strong></td><td><em>정규화 기반</em> 접근 — Learning without Forgetting의 원리</td></tr>
+</tbody>
+</table>
+
+<p>그리고 참고용으로 각 실험의 base 모델에서 파생된 대표 오픈소스 추론 VLM들을 함께 싣되, "그것들은 종종 여러 복잡한 학습 파이프라인을 거치므로 <em>능가하는 것을 목표로 하지 않는다</em>"고 명시한다. 평가는 <strong>LMMS-Eval</strong>과 VLMEvalKit 프로토콜을 따른다.</p>
+
+<h3>5.2 주요 결과</h3>
+
+<figure>
+<svg viewBox="0 0 800 436" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Table 1] RLVR-only 설정 — Qwen2.5-VL-3B 기반 6개 벤치마크</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">이 표에서만 MathVista는 gpt-3.5-turbo 대신 rule-based 평가기를 쓴다(MoDoMoDo와 정렬하기 위해). MoDoMoDo는 타깃 성능을 최대화하도록 학습된 <tspan font-weight="bold">상한 baseline</tspan></text>
+<rect x="20" y="50" width="176" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="108" y="66" text-anchor="middle" font-size="9" font-weight="bold">Model</text>
+<rect x="196" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="240" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">SAT</text>
+<rect x="284" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="328" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">ScienceQA</text>
+<rect x="372" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="416" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">MathVista(mini)</text>
+<rect x="460" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="504" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">ChartQA</text>
+<rect x="548" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="592" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">InfoVQA</text>
+<rect x="636" y="50" width="88" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="680" y="65" text-anchor="middle" font-size="7.8" font-weight="bold">MMMU</text>
+<rect x="20" y="74" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="90" font-size="8.3">VLAA-Thinker-3B</text>
+<rect x="196" y="74" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="90" text-anchor="middle" font-size="8.5" fill="#334155">49.38</text>
+<rect x="284" y="74" width="88" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="90" text-anchor="middle" font-size="8.5" fill="#334155">14.63</text>
+<rect x="372" y="74" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="90" text-anchor="middle" font-size="8.5" fill="#334155">30.4</text>
+<rect x="460" y="74" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="90" text-anchor="middle" font-size="8.5" fill="#334155">45.84</text>
+<rect x="548" y="74" width="88" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="90" text-anchor="middle" font-size="8.5" fill="#334155">30.81</text>
+<rect x="636" y="74" width="88" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="90" text-anchor="middle" font-size="8.5" fill="#334155">32.22</text>
+<rect x="20" y="99" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="115" font-size="8.3">MM-R1-MGT-PerceReason</text>
+<rect x="196" y="99" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="115" text-anchor="middle" font-size="8.5" fill="#334155">50.83</text>
+<rect x="284" y="99" width="88" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="115" text-anchor="middle" font-size="8.5" fill="#334155">34.21</text>
+<rect x="372" y="99" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="115" text-anchor="middle" font-size="8.5" fill="#334155">33.4</text>
+<rect x="460" y="99" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="115" text-anchor="middle" font-size="8.5" fill="#334155">44.88</text>
+<rect x="548" y="99" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="115" text-anchor="middle" font-size="8.5" fill="#334155">61.42</text>
+<rect x="636" y="99" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="115" text-anchor="middle" font-size="8.5" fill="#334155">40.22</text>
+<rect x="20" y="124" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="140" font-size="8.3">Ocean_R1_3B_Instruct</text>
+<rect x="196" y="124" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="140" text-anchor="middle" font-size="8.5" fill="#334155">59.49</text>
+<rect x="284" y="124" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="140" text-anchor="middle" font-size="8.5" fill="#334155">68.72</text>
+<rect x="372" y="124" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="140" text-anchor="middle" font-size="8.5" fill="#334155">38.7</text>
+<rect x="460" y="124" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="140" text-anchor="middle" font-size="8.5" fill="#334155">54.0</text>
+<rect x="548" y="124" width="88" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="140" text-anchor="middle" font-size="8.5" fill="#334155">38.02</text>
+<rect x="636" y="124" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="140" text-anchor="middle" font-size="8.5" fill="#334155">40.89</text>
+<rect x="20" y="149" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="165" font-size="8.3">Qwen2.5VL-3b-RLCS</text>
+<rect x="196" y="149" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="165" text-anchor="middle" font-size="8.5" fill="#334155">24.12</text>
+<rect x="284" y="149" width="88" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="165" text-anchor="middle" font-size="8.5" fill="#334155">21.32</text>
+<rect x="372" y="149" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="165" text-anchor="middle" font-size="8.5" fill="#334155">17.2</text>
+<rect x="460" y="149" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="165" text-anchor="middle" font-size="8.5" fill="#334155">3.32</text>
+<rect x="548" y="149" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="165" text-anchor="middle" font-size="8.5" fill="#334155">10.86</text>
+<rect x="636" y="149" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="165" text-anchor="middle" font-size="8.5" fill="#334155">27.11</text>
+<rect x="20" y="174" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="190" font-size="8.3">vision-grpo-qwen-2.5-vl-3b</text>
+<rect x="196" y="174" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="190" text-anchor="middle" font-size="8.5" fill="#334155">50.57</text>
+<rect x="284" y="174" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="190" text-anchor="middle" font-size="8.5" fill="#334155">4.17</text>
+<rect x="372" y="174" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="190" text-anchor="middle" font-size="8.5" fill="#334155">32.4</text>
+<rect x="460" y="174" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="190" text-anchor="middle" font-size="8.5" fill="#334155">67.8</text>
+<rect x="548" y="174" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="190" text-anchor="middle" font-size="8.5" fill="#334155">58.29</text>
+<rect x="636" y="174" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="190" text-anchor="middle" font-size="8.5" fill="#334155">37.22</text>
+<rect x="20" y="199" width="176" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="215" font-size="8.3">Qwen2.5-VL-3B-GRPO-deepmath</text>
+<rect x="196" y="199" width="88" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="215" text-anchor="middle" font-size="8.5" fill="#334155">34.7</text>
+<rect x="284" y="199" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="215" text-anchor="middle" font-size="8.5" fill="#334155">45.27</text>
+<rect x="372" y="199" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="215" text-anchor="middle" font-size="8.5" fill="#334155">32.3</text>
+<rect x="460" y="199" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="215" text-anchor="middle" font-size="8.5" fill="#334155">70.24</text>
+<rect x="548" y="199" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="215" text-anchor="middle" font-size="8.5" fill="#334155">49.75</text>
+<rect x="636" y="199" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="215" text-anchor="middle" font-size="8.5" fill="#334155">39.11</text>
+<line x1="20" y1="224" x2="724" y2="224" stroke="#334155" stroke-width="1.8"/>
+<rect x="20" y="224" width="176" height="25" fill="#cbd5e1" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="240" font-size="8.3">Base model</text>
+<rect x="196" y="224" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="240" text-anchor="middle" font-size="8.5" fill="#334155">43.98</text>
+<rect x="284" y="224" width="88" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="240" text-anchor="middle" font-size="8.5" fill="#334155">6.2</text>
+<rect x="372" y="224" width="88" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="240" text-anchor="middle" font-size="8.5" fill="#334155">23.6</text>
+<rect x="460" y="224" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="240" text-anchor="middle" font-size="8.5" fill="#334155">43.88</text>
+<rect x="548" y="224" width="88" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="240" text-anchor="middle" font-size="8.5" fill="#334155">32.02</text>
+<rect x="636" y="224" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="240" text-anchor="middle" font-size="8.5" fill="#334155">38.67</text>
+<rect x="20" y="249" width="176" height="25" fill="#cbd5e1" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="265" font-size="8.3">Uniform</text>
+<rect x="196" y="249" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="265" text-anchor="middle" font-size="8.5" fill="#334155">44.55</text>
+<rect x="284" y="249" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="265" text-anchor="middle" font-size="8.5" fill="#334155">64.85</text>
+<rect x="372" y="249" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="265" text-anchor="middle" font-size="8.5" fill="#334155">32.4</text>
+<rect x="460" y="249" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="265" text-anchor="middle" font-size="8.5" fill="#334155">69.68</text>
+<rect x="548" y="249" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="265" text-anchor="middle" font-size="8.5" fill="#334155">58.3</text>
+<rect x="636" y="249" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="265" text-anchor="middle" font-size="8.5" fill="#334155">39.44</text>
+<rect x="20" y="274" width="176" height="25" fill="#cbd5e1" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="290" font-size="8.3">MoDoMoDo (상한 baseline)</text>
+<rect x="196" y="274" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="290" text-anchor="middle" font-size="8.5" fill="#334155">49.95</text>
+<rect x="284" y="274" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="290" text-anchor="middle" font-size="8.5" fill="#334155">65.74</text>
+<rect x="372" y="274" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="290" text-anchor="middle" font-size="8.5" fill="#334155">32.2</text>
+<rect x="460" y="274" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="290" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">70.4</text>
+<rect x="548" y="274" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="290" text-anchor="middle" font-size="8.5" fill="#334155">59.88</text>
+<rect x="636" y="274" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="290" text-anchor="middle" font-size="8.5" fill="#334155">39.11</text>
+<rect x="20" y="299" width="176" height="25" fill="#93c5fd" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="315" font-size="8.3" font-weight="bold">RECAP</text>
+<rect x="196" y="299" width="88" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="240" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">55.19</text>
+<rect x="284" y="299" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="328" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">71.59</text>
+<rect x="372" y="299" width="88" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="416" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">33.2</text>
+<rect x="460" y="299" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="504" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">70.4</text>
+<rect x="548" y="299" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="592" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">60.78</text>
+<rect x="636" y="299" width="88" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="680" y="315" text-anchor="middle" font-size="8.5" font-weight="bold" fill="#14532d">42.44</text>
+<rect x="20" y="334" width="370" height="46" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+<text x="205" y="352" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">ScienceQA에서 6.20 → 71.59</text>
+<text x="30" y="369" font-size="9.5">"이 벤치마크에서 우리 방법이 <tspan font-weight="bold">비교 오픈소스 추론 모델들도 능가</tspan>한다" (최고 68.72)</text>
+<rect x="400" y="334" width="380" height="46" rx="6" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="590" y="352" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#1e40af">상한 baseline을 6개 중 5개에서 앞선다</text>
+<text x="410" y="369" font-size="9.5">MoDoMoDo 대비 SAT <tspan font-weight="bold">+5.24</tspan> · ScienceQA +5.85 · MathVista +1.0 · InfoVQA +0.90 · MMMU +3.33 · ChartQA 동일</text>
+<rect x="20" y="388" width="760" height="52" rx="6" fill="#fffbea" stroke="#eab308"/>
+<text x="30" y="406" font-size="10.5" font-weight="bold" fill="#92400e">MoDoMoDo를 "상한"으로 부르는 두 이유 (§5.2) — 그리고 그것이 왜 공정한 비교인가</text>
+<text x="30" y="424" font-size="10">① <tspan font-weight="bold">finetuning 중 타깃 과제 성능에 접근할 수 있다</tspan>(새 타깃이 추가되면 실험을 다시 돌려야 한다) ② <tspan font-weight="bold">혼합 비율의 함수로 테스트 성능을 학습하기 위해 baseline과 같은 크기의 proxy 모델 여러 개를 학습</tspan>한다</text>
+<text x="30" y="436" font-size="10">→ 즉 RECAP은 <tspan font-weight="bold">훨씬 적은 정보와 계산으로 그것을 앞선다</tspan>. 게다가 "최적" 혼합을 고른 뒤에도 MoDoMoDo는 <tspan font-weight="bold">손으로 튜닝한 보상 가중(정확도·IoU를 format의 2배)</tspan>에 여전히 의존한다</text>
+</svg>
+<figcaption><strong>[Table 1 재구성 — 히트맵]</strong>: RLVR-only 설정의 6개 벤치마크로, 굵은 선 위는 참고용 오픈소스 추론 모델, 아래가 같은 base에서 학습한 변형들이다 — 전부 원문 수치다. 가장 극적인 값은 <strong>ScienceQA에서 base 6.20 → RECAP 71.59</strong>이고, 논문은 이 벤치마크에서 "비교 오픈소스 추론 모델들도 능가한다"고 밝힌다(최고가 68.72). 파란 박스가 핵심 비교로, <strong>MoDoMoDo를 6개 중 5개에서 앞서고 1개는 동일</strong>하다. 노란 박스가 이 비교의 의미를 결정하는데 — MoDoMoDo는 <em>finetuning 중 타깃 성능에 접근할 수 있고</em> <em>혼합 비율을 학습하기 위해 같은 크기의 proxy 모델을 여럿 학습</em>하므로 정적 데이터 혼합 접근의 <strong>상한</strong>이다. 즉 RECAP은 훨씬 적은 정보와 계산으로 그것을 넘어서며, 게다가 MoDoMoDo는 최적 혼합을 고른 뒤에도 <strong>손으로 튜닝한 보상 가중에 여전히 의존</strong>한다는 점이 §<em>동적 재가중</em>의 동기다.</figcaption>
+</figure>
+
+<p><strong>RLVR-only 설정의 결과</strong>: 추론 도메인 RL 학습이 base 모델 성능을 추론과 perception 벤치마크 <em>모두에서</em> 일관되게 개선한다. 특히 <strong>ScienceQA</strong>에서 Qwen2.5-VL-3B 점수를 <strong>6에서 60으로</strong> 끌어올리며, 이 벤치마크에서는 RECAP이 <em>비교 오픈소스 추론 모델들도 능가</em>한다.</p>
+
+<p><strong>MoDoMoDo를 상한으로 보는 이유</strong>: ⑴ <strong>finetuning 중 타깃 과제 성능에 접근할 수 있어</strong>, 새 타깃 과제가 도입되면 실험을 다시 돌려야 한다. ⑵ <strong>혼합 비율의 함수로 테스트 성능을 학습하기 위해 baseline과 같은 크기의 proxy 모델을 여러 개 학습</strong>하므로 계산 비용이 크다 — 특히 강화학습 맥락에서 그렇다. 그리고 "최적" 혼합을 고른 뒤에도 <em>손으로 튜닝한 보상 가중</em>(예: 정확도와 IoU를 formatting 보상의 2배)에 여전히 의존하며, 이 trade-off 계수는 <strong>선행 연구마다 설명 없이 다르게 설정되어 일반성을 제한한다</strong>.</p>
+
+<figure>
+<svg viewBox="0 0 800 458" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Table 2] Hybrid 설정 — Qwen2.5-VL-7B 기반 9개 벤치마크</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">위 3행은 다른 backbone의 오픈소스 추론 모델(참고용). 아래 블록이 같은 base에서 finetune한 변형들. 굵게=Qwen2.5-VL-7B 계열 최고, 밑줄=차상위</text>
+<text x="284" y="50" text-anchor="middle" font-size="9" font-weight="bold" fill="#7e22ce">perception · 일반</text>
+<text x="515.0" y="50" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">추론</text>
+<rect x="20" y="56" width="132" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="86" y="72" text-anchor="middle" font-size="9" font-weight="bold">Model</text>
+<rect x="152" y="56" width="66" height="24" fill="#f3e8ff" stroke="#94a3b8"/>
+<text x="185" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">LISA</text>
+<rect x="218" y="56" width="66" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="251" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">MMMU-PRO</text>
+<rect x="284" y="56" width="66" height="24" fill="#f3e8ff" stroke="#94a3b8"/>
+<text x="317" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">AI2D</text>
+<rect x="350" y="56" width="66" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="383" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">MathVista</text>
+<rect x="416" y="56" width="66" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="449" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">MathVision</text>
+<rect x="482" y="56" width="66" height="24" fill="#dbeafe" stroke="#94a3b8"/>
+<text x="515" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">MathVerse</text>
+<rect x="548" y="56" width="66" height="24" fill="#f3e8ff" stroke="#94a3b8"/>
+<text x="581" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">MMBench</text>
+<rect x="614" y="56" width="66" height="24" fill="#f3e8ff" stroke="#94a3b8"/>
+<text x="647" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">VizWiz</text>
+<rect x="680" y="56" width="66" height="24" fill="#f3e8ff" stroke="#94a3b8"/>
+<text x="713" y="71" text-anchor="middle" font-size="7.4" font-weight="bold">OCRBenchv2</text>
+<rect x="20" y="80" width="132" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="96" font-size="8.4">VLAA-Thinker-7B</text>
+<rect x="152" y="80" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="96" text-anchor="middle" font-size="8.3" fill="#334155">63.14</text>
+<rect x="218" y="80" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="96" text-anchor="middle" font-size="8.3" fill="#334155">26.3</text>
+<rect x="284" y="80" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="96" text-anchor="middle" font-size="8.3" fill="#334155">75.45</text>
+<rect x="350" y="80" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="96" text-anchor="middle" font-size="8.3" fill="#334155">63.9</text>
+<rect x="416" y="80" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="96" text-anchor="middle" font-size="8.3" fill="#334155">11.18</text>
+<rect x="482" y="80" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="96" text-anchor="middle" font-size="8.3" fill="#334155">29.87</text>
+<rect x="548" y="80" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="96" text-anchor="middle" font-size="8.3" fill="#334155">75.95</text>
+<rect x="614" y="80" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="96" text-anchor="middle" font-size="8.3" fill="#334155">47.57</text>
+<rect x="680" y="80" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="96" text-anchor="middle" font-size="8.3" fill="#334155">40.23</text>
+<rect x="20" y="105" width="132" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="121" font-size="8.4">Vision-R1-7B</text>
+<rect x="152" y="105" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="121" text-anchor="middle" font-size="8.3" fill="#334155">47.3</text>
+<rect x="218" y="105" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="121" text-anchor="middle" font-size="8.3" fill="#334155">26.76</text>
+<rect x="284" y="105" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="121" text-anchor="middle" font-size="8.3" fill="#334155">0.0</text>
+<rect x="350" y="105" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="121" text-anchor="middle" font-size="8.3" fill="#334155">61.8</text>
+<rect x="416" y="105" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="121" text-anchor="middle" font-size="8.3" fill="#334155">18.75</text>
+<rect x="482" y="105" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="121" text-anchor="middle" font-size="8.3" fill="#334155">23.32</text>
+<rect x="548" y="105" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="121" text-anchor="middle" font-size="8.3" fill="#334155">69.46</text>
+<rect x="614" y="105" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="121" text-anchor="middle" font-size="8.3" fill="#334155">53.12</text>
+<rect x="680" y="105" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="121" text-anchor="middle" font-size="8.3" fill="#334155">24.63</text>
+<rect x="20" y="130" width="132" height="25" fill="#e2e8f0" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="146" font-size="8.4">OpenVLThinker-7B</text>
+<rect x="152" y="130" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="146" text-anchor="middle" font-size="8.3" fill="#334155">42.73</text>
+<rect x="218" y="130" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="146" text-anchor="middle" font-size="8.3" fill="#334155">21.79</text>
+<rect x="284" y="130" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="146" text-anchor="middle" font-size="8.3" fill="#334155">59.94</text>
+<rect x="350" y="130" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="146" text-anchor="middle" font-size="8.3" fill="#334155">59.1</text>
+<rect x="416" y="130" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="146" text-anchor="middle" font-size="8.3" fill="#334155">5.59</text>
+<rect x="482" y="130" width="66" height="25" fill="#fee2e2" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="146" text-anchor="middle" font-size="8.3" fill="#334155">19.26</text>
+<rect x="548" y="130" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="146" text-anchor="middle" font-size="8.3" fill="#334155">71.53</text>
+<rect x="614" y="130" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="146" text-anchor="middle" font-size="8.3" fill="#334155">52.89</text>
+<rect x="680" y="130" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="146" text-anchor="middle" font-size="8.3" fill="#334155">28.3</text>
+<line x1="20" y1="155" x2="746" y2="155" stroke="#334155" stroke-width="1.8"/>
+<rect x="20" y="155" width="132" height="25" fill="#cbd5e1" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="171" font-size="8.4">Base model</text>
+<rect x="152" y="155" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="171" text-anchor="middle" font-size="8.3" fill="#334155">65.13</text>
+<rect x="218" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="171" text-anchor="middle" font-size="8.3" fill="#334155">25.55</text>
+<rect x="284" y="155" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="171" text-anchor="middle" font-size="8.3" fill="#334155">67.62</text>
+<rect x="350" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="171" text-anchor="middle" font-size="8.3" fill="#334155">61.7</text>
+<rect x="416" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="171" text-anchor="middle" font-size="8.3" fill="#334155">9.54</text>
+<rect x="482" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="171" text-anchor="middle" font-size="8.3" fill="#334155">26.29</text>
+<rect x="548" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="171" text-anchor="middle" font-size="8.3" fill="#334155">71.82</text>
+<rect x="614" y="155" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="171" text-anchor="middle" font-size="8.3" fill="#334155">50.82</text>
+<rect x="680" y="155" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="171" text-anchor="middle" font-size="8.3" fill="#334155">39.49</text>
+<rect x="20" y="180" width="132" height="25" fill="#fde68a" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="196" font-size="8.4">LwF (KL β=0.01)</text>
+<rect x="152" y="180" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="196" text-anchor="middle" font-size="8.3" fill="#334155">65.08</text>
+<rect x="218" y="180" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="196" text-anchor="middle" font-size="8.3" fill="#334155">29.59</text>
+<rect x="284" y="180" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="196" text-anchor="middle" font-size="8.3" fill="#334155">73.93</text>
+<rect x="350" y="180" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="196" text-anchor="middle" font-size="8.3" fill="#334155">63.9</text>
+<rect x="416" y="180" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="196" text-anchor="middle" font-size="8.3" fill="#334155">18.42</text>
+<rect x="482" y="180" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="196" text-anchor="middle" font-size="8.3" fill="#334155">33.98</text>
+<rect x="548" y="180" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="196" text-anchor="middle" font-size="8.3" fill="#334155">73.11</text>
+<rect x="614" y="180" width="66" height="25" fill="#fff7ed" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="196" text-anchor="middle" font-size="8.3" fill="#334155">53.12</text>
+<rect x="680" y="180" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="196" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">39.56</text>
+<rect x="20" y="205" width="132" height="25" fill="#fed7aa" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="221" font-size="8.4">PropMix</text>
+<rect x="152" y="205" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="221" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">66.8</text>
+<rect x="218" y="205" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="221" text-anchor="middle" font-size="8.3" fill="#334155">31.39</text>
+<rect x="284" y="205" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="221" text-anchor="middle" font-size="8.3" fill="#334155">75.32</text>
+<rect x="350" y="205" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="221" text-anchor="middle" font-size="8.3" fill="#334155">63.4</text>
+<rect x="416" y="205" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="221" text-anchor="middle" font-size="8.3" fill="#334155">21.05</text>
+<rect x="482" y="205" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="221" text-anchor="middle" font-size="8.3" fill="#334155">34.75</text>
+<rect x="548" y="205" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="221" text-anchor="middle" font-size="8.3" fill="#334155">73.54</text>
+<rect x="614" y="205" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="221" text-anchor="middle" font-size="8.3" fill="#334155">57.05</text>
+<rect x="680" y="205" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="221" text-anchor="middle" font-size="8.3" fill="#334155">37.6</text>
+<rect x="20" y="230" width="132" height="25" fill="#fed7aa" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="246" font-size="8.4">Uniform</text>
+<rect x="152" y="230" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="246" text-anchor="middle" font-size="8.3" fill="#334155">65.18</text>
+<rect x="218" y="230" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="246" text-anchor="middle" font-size="8.3" fill="#334155">31.91</text>
+<rect x="284" y="230" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="246" text-anchor="middle" font-size="8.3" fill="#334155">76.43</text>
+<rect x="350" y="230" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="246" text-anchor="middle" font-size="8.3" fill="#334155">65.6</text>
+<rect x="416" y="230" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="246" text-anchor="middle" font-size="8.3" fill="#334155">22.13</text>
+<rect x="482" y="230" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="246" text-anchor="middle" font-size="8.3" fill="#334155">36.07</text>
+<rect x="548" y="230" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="246" text-anchor="middle" font-size="8.3" fill="#334155">75.34</text>
+<rect x="614" y="230" width="66" height="25" fill="#fefce8" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="246" text-anchor="middle" font-size="8.3" fill="#334155">54.05</text>
+<rect x="680" y="230" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="246" text-anchor="middle" font-size="8.3" fill="#334155">38.06</text>
+<rect x="20" y="255" width="132" height="25" fill="#fed7aa" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="271" font-size="8.4">Coreset</text>
+<rect x="152" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="271" text-anchor="middle" font-size="8.3" fill="#334155">64.82</text>
+<rect x="218" y="255" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="271" text-anchor="middle" font-size="8.3" fill="#334155">31.91</text>
+<rect x="284" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="271" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">79.92</text>
+<rect x="350" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="271" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">66.9</text>
+<rect x="416" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="271" text-anchor="middle" font-size="8.3" fill="#334155">23.36</text>
+<rect x="482" y="255" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="271" text-anchor="middle" font-size="8.3" fill="#334155">37.58</text>
+<rect x="548" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="271" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">78.09</text>
+<rect x="614" y="255" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="271" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">63.76</text>
+<rect x="680" y="255" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="271" text-anchor="middle" font-size="8.3" fill="#334155">35.49</text>
+<rect x="20" y="280" width="132" height="25" fill="#fecaca" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="296" font-size="8.4">Reasoning-only</text>
+<rect x="152" y="280" width="66" height="25" fill="#f0fdf4" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="296" text-anchor="middle" font-size="8.3" fill="#334155">57.58</text>
+<rect x="218" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="296" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">33.87</text>
+<rect x="284" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="296" text-anchor="middle" font-size="8.3" fill="#334155">74.97</text>
+<rect x="350" y="280" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="296" text-anchor="middle" font-size="8.3" fill="#334155">65.5</text>
+<rect x="416" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="296" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">24.87</text>
+<rect x="482" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="296" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">40.74</text>
+<rect x="548" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="296" text-anchor="middle" font-size="8.3" fill="#334155">77.84</text>
+<rect x="614" y="280" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="296" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">62.45</text>
+<rect x="680" y="280" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="296" text-anchor="middle" font-size="8.3" fill="#334155">38.55</text>
+<rect x="20" y="305" width="132" height="25" fill="#93c5fd" stroke="#fff" stroke-width="1.3"/>
+<text x="28" y="321" font-size="8.4" font-weight="bold">RECAP</text>
+<rect x="152" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="185" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">67.24</text>
+<rect x="218" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="251" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">34.15</text>
+<rect x="284" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="317" y="321" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">78.21</text>
+<rect x="350" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="383" y="321" text-anchor="middle" font-size="8.3" fill="#1e40af" text-decoration="underline">66.7</text>
+<rect x="416" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="449" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">25.11</text>
+<rect x="482" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="515" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">40.83</text>
+<rect x="548" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="581" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">78.52</text>
+<rect x="614" y="305" width="66" height="25" fill="#dcfce7" stroke="#fff" stroke-width="1.3"/>
+<text x="647" y="321" text-anchor="middle" font-size="8.3" fill="#334155">61.97</text>
+<rect x="680" y="305" width="66" height="25" fill="#86efac" stroke="#fff" stroke-width="1.3"/>
+<text x="713" y="321" text-anchor="middle" font-size="8.3" font-weight="bold" fill="#14532d">39.72</text>
+<rect x="20" y="340" width="370" height="54" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+<text x="205" y="358" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b91c1c">Reasoning-only 행이 망각을 그대로 보여 준다</text>
+<text x="30" y="375" font-size="9.5">LISA 65.13 → <tspan font-weight="bold">57.58</tspan> (−7.55) · OCRBenchv2 39.49 → 38.55</text>
+<text x="30" y="389" font-size="9.5" fill="#b91c1c">추론 축(MathVerse 40.74)은 최고 수준인데 <tspan font-weight="bold">perception이 무너진다</tspan></text>
+<rect x="400" y="340" width="380" height="54" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+<text x="590" y="358" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">RECAP은 양쪽을 동시에 잡는다</text>
+<text x="410" y="375" font-size="9.5">LISA <tspan font-weight="bold">67.24</tspan> (base보다 +2.11) · MathVerse <tspan font-weight="bold">40.83</tspan> (reasoning-only보다 높다)</text>
+<text x="410" y="389" font-size="9.5" fill="#15803d">9개 중 <tspan font-weight="bold">6개 최고 · 2개 차상위</tspan>. 유일한 예외가 VizWiz(61.97, Coreset 63.76)</text>
+<rect x="20" y="402" width="760" height="58" rx="6" fill="#fffbea" stroke="#eab308"/>
+<text x="30" y="420" font-size="10.5" font-weight="bold" fill="#92400e">이 문서의 관찰 — Coreset이 의외로 강하다</text>
+<text x="30" y="438" font-size="10">Coreset(추론 데이터 절반 크기의 부분집합 replay)이 <tspan font-weight="bold">AI2D 79.92 · VizWiz 63.76</tspan>으로 두 항목에서 RECAP을 앞선다. 논문은 이를 논평하지 않는다.</text>
+<text x="30" y="454" font-size="10">즉 <tspan font-weight="bold">단순한 replay만으로도 상당 부분이 달성되고</tspan>, RECAP의 재가중이 더하는 몫은 <tspan font-weight="bold">주로 LISA(+2.42)와 추론 축</tspan>에 있다 → §비판적 분석</text>
+</svg>
+<figcaption><strong>[Table 2 재구성 — 히트맵]</strong>: 9개 벤치마크를 perception 계열(보라 헤더)과 추론 계열(파랑 헤더)로 나누고, 위 3행은 다른 backbone의 참고 모델, 굵은 선 아래가 같은 Qwen2.5-VL-7B에서 finetune한 변형들이다 — 전부 원문 수치다. 왼쪽 빨간 박스가 이 논문의 출발 문제로, <strong>Reasoning-only는 추론 축(MathVerse 40.74)에서 최고 수준인데 LISA가 65.13 → 57.58로 무너진다</strong>. 오른쪽 초록 박스가 RECAP의 결과로, LISA에서 base를 <em>넘어서고</em>(67.24) 추론에서도 reasoning-only를 앞선다. 노란 박스는 이 문서의 관찰인데, <strong>Coreset이 AI2D(79.92)와 VizWiz(63.76) 두 항목에서 RECAP을 앞선다</strong> — 논문이 논평하지 않는 부분이며, 단순 replay만으로도 상당 부분이 달성되고 동적 재가중이 더하는 몫은 주로 LISA와 추론 축에 있음을 시사한다. §<em>비판적 분석</em>에서 다시 다룬다.</figcaption>
+</figure>
+
+<p><strong>Hybrid 설정의 결과</strong>: RECAP이 데이터셋 전반에서 최고 또는 차상위를 달성하며, 예외는 VizWiz뿐인데 그조차 base 모델을 10% 넘게 개선한다.</p>
+
+<p><strong>세 가지 구체적 관찰</strong>:</p>
+<ol>
+<li><strong>추론 도메인만 순진하게 finetuning하면 심각한 망각이 일어난다</strong> — 특히 광범위한 사고를 요구하지 않는 과제에서. ThinkLite-VL-70k로 finetuning하면 ##LISA의 segmentation 능력이 <strong>65.13에서 57.58로</strong> 떨어진다##.</li>
+<li><strong>일반 데이터 replay는 모든 baseline에서 이 데이터셋의 성능을 보존한다</strong> (≈ 64). 즉 <em>replay 자체가 이미 상당 부분을 한다</em>.</li>
+<li><strong>LwF는 scene-understanding은 비슷하게 유지하지만 추론 벤치마크에서 낮은 점수를 얻는다</strong> (MMMU-PRO 29.59 vs Uniform 31.91). 논문의 단서: "유사한 거동이 선행 연구들에서도 관측되며, 그 항이 <strong>더 큰 plasticity를 위해 제거된다</strong>" — 즉 KL 정규화가 망각을 줄이는 대가로 학습 능력을 깎는다.</li>
+</ol>
+
+<p>그리고 RECAP은 <strong>모든 baseline 중 최고 segmentation 점수</strong>를 얻어 base 모델을 2% 넘게 개선하는데, 논문은 이를 "<strong>uniform baseline 대비 손실 재가중의 영향을 부각한다</strong>"고 해석한다 — Uniform과의 유일한 차이가 재가중이기 때문이다.</p>
+
+<h3>5.3 Ablation — 재가중만 분리한다</h3>
+
+<p><strong>실험 설계</strong>: uniform baseline은 데이터 샘플링과 모델 학습 파이프라인을 포함해 <strong>모든 하이퍼파라미터가 동일</strong>하고, 오직 손실 재가중 기제($\lambda_k = 1/K$)만 다르다. 따라서 두 곡선의 차이는 전적으로 재가중에서 온다.</p>
+
+<figure>
+<svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 5 재구성] format 보상은 초기에 지고 나중에 이긴다 — accuracy는 계속 벌린다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">축 범위(format 0~0.8 / zoom 0~0.12 / accuracy 0~0.4, x 0~500·0~60)와 본문의 crossover 시점(step 40)이 원문. 곡선은 개념 재구성</text>
+<text x="149" y="54" text-anchor="middle" font-size="10.5" font-weight="bold">Format Reward (전체)</text>
+<line x1="60" y1="210" x2="238" y2="210" stroke="#333"/>
+<line x1="60" y1="62" x2="60" y2="210" stroke="#333"/>
+<line x1="60" y1="210.0" x2="238" y2="210.0" stroke="#f6f8fb"/>
+<text x="56" y="213.0" text-anchor="end" font-size="7.5" fill="#666">0</text>
+<line x1="60" y1="175.2" x2="238" y2="175.2" stroke="#f6f8fb"/>
+<text x="56" y="178.2" text-anchor="end" font-size="7.5" fill="#666">0.2</text>
+<line x1="60" y1="140.4" x2="238" y2="140.4" stroke="#f6f8fb"/>
+<text x="56" y="143.4" text-anchor="end" font-size="7.5" fill="#666">0.4</text>
+<line x1="60" y1="105.5" x2="238" y2="105.5" stroke="#f6f8fb"/>
+<text x="56" y="108.5" text-anchor="end" font-size="7.5" fill="#666">0.6</text>
+<line x1="60" y1="70.7" x2="238" y2="70.7" stroke="#f6f8fb"/>
+<text x="56" y="73.7" text-anchor="end" font-size="7.5" fill="#666">0.8</text>
+<text x="60" y="221" text-anchor="middle" font-size="7.5" fill="#666">0</text>
+<text x="96" y="221" text-anchor="middle" font-size="7.5" fill="#666">100</text>
+<text x="131" y="221" text-anchor="middle" font-size="7.5" fill="#666">200</text>
+<text x="167" y="221" text-anchor="middle" font-size="7.5" fill="#666">300</text>
+<text x="202" y="221" text-anchor="middle" font-size="7.5" fill="#666">400</text>
+<text x="238" y="221" text-anchor="middle" font-size="7.5" fill="#666">500</text>
+<text x="149" y="234" text-anchor="middle" font-size="8.5" fill="#666">step</text>
+<polyline points="60.0,206.5 77.8,157.8 95.6,129.9 131.2,105.5 166.8,95.1 202.4,88.1 238.0,84.6" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-dasharray="5 3"/>
+<polyline points="60.0,206.5 77.8,152.5 95.6,119.5 131.2,95.1 166.8,84.6 202.4,79.4 238.0,75.9" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-dasharray=""/>
+<text x="66" y="76" font-size="8" fill="#475569">후반에는 ours가 앞선다</text>
+<text x="405" y="54" text-anchor="middle" font-size="10.5" font-weight="bold">Format Reward (초기 확대)</text>
+<line x1="316" y1="210" x2="494" y2="210" stroke="#333"/>
+<line x1="316" y1="62" x2="316" y2="210" stroke="#333"/>
+<line x1="316" y1="210.0" x2="494" y2="210.0" stroke="#f6f8fb"/>
+<text x="312" y="213.0" text-anchor="end" font-size="7.5" fill="#666">0</text>
+<line x1="316" y1="186.3" x2="494" y2="186.3" stroke="#f6f8fb"/>
+<text x="312" y="189.3" text-anchor="end" font-size="7.5" fill="#666">0.02</text>
+<line x1="316" y1="162.6" x2="494" y2="162.6" stroke="#f6f8fb"/>
+<text x="312" y="165.6" text-anchor="end" font-size="7.5" fill="#666">0.04</text>
+<line x1="316" y1="139.0" x2="494" y2="139.0" stroke="#f6f8fb"/>
+<text x="312" y="142.0" text-anchor="end" font-size="7.5" fill="#666">0.06</text>
+<line x1="316" y1="115.3" x2="494" y2="115.3" stroke="#f6f8fb"/>
+<text x="312" y="118.3" text-anchor="end" font-size="7.5" fill="#666">0.08</text>
+<line x1="316" y1="91.6" x2="494" y2="91.6" stroke="#f6f8fb"/>
+<text x="312" y="94.6" text-anchor="end" font-size="7.5" fill="#666">0.1</text>
+<line x1="316" y1="67.9" x2="494" y2="67.9" stroke="#f6f8fb"/>
+<text x="312" y="70.9" text-anchor="end" font-size="7.5" fill="#666">0.12</text>
+<text x="316" y="221" text-anchor="middle" font-size="7.5" fill="#666">0</text>
+<text x="375" y="221" text-anchor="middle" font-size="7.5" fill="#666">20</text>
+<text x="435" y="221" text-anchor="middle" font-size="7.5" fill="#666">40</text>
+<text x="494" y="221" text-anchor="middle" font-size="7.5" fill="#666">60</text>
+<text x="405" y="234" text-anchor="middle" font-size="8.5" fill="#666">step</text>
+<polyline points="316.0,204.1 345.7,184.0 375.3,156.7 405.0,129.5 434.7,112.9 464.3,97.5 494.0,86.9" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-dasharray="5 3"/>
+<polyline points="316.0,205.3 345.7,191.1 375.3,167.4 405.0,136.6 434.7,111.7 464.3,89.2 494.0,72.7" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-dasharray=""/>
+<line x1="434.7" y1="62" x2="434.7" y2="210" stroke="#16a34a" stroke-width="1.4" stroke-dasharray="3 3"/>
+<text x="439" y="74" font-size="8" font-weight="bold" fill="#15803d">crossover ≈ step 40</text>
+<text x="661" y="54" text-anchor="middle" font-size="10.5" font-weight="bold">Accuracy Reward</text>
+<line x1="572" y1="210" x2="750" y2="210" stroke="#333"/>
+<line x1="572" y1="62" x2="572" y2="210" stroke="#333"/>
+<line x1="572" y1="210.0" x2="750" y2="210.0" stroke="#f6f8fb"/>
+<text x="568" y="213.0" text-anchor="end" font-size="7.5" fill="#666">0</text>
+<line x1="572" y1="174.8" x2="750" y2="174.8" stroke="#f6f8fb"/>
+<text x="568" y="177.8" text-anchor="end" font-size="7.5" fill="#666">0.1</text>
+<line x1="572" y1="139.5" x2="750" y2="139.5" stroke="#f6f8fb"/>
+<text x="568" y="142.5" text-anchor="end" font-size="7.5" fill="#666">0.2</text>
+<line x1="572" y1="104.3" x2="750" y2="104.3" stroke="#f6f8fb"/>
+<text x="568" y="107.3" text-anchor="end" font-size="7.5" fill="#666">0.3</text>
+<line x1="572" y1="69.0" x2="750" y2="69.0" stroke="#f6f8fb"/>
+<text x="568" y="72.0" text-anchor="end" font-size="7.5" fill="#666">0.4</text>
+<text x="572" y="221" text-anchor="middle" font-size="7.5" fill="#666">0</text>
+<text x="608" y="221" text-anchor="middle" font-size="7.5" fill="#666">100</text>
+<text x="643" y="221" text-anchor="middle" font-size="7.5" fill="#666">200</text>
+<text x="679" y="221" text-anchor="middle" font-size="7.5" fill="#666">300</text>
+<text x="714" y="221" text-anchor="middle" font-size="7.5" fill="#666">400</text>
+<text x="750" y="221" text-anchor="middle" font-size="7.5" fill="#666">500</text>
+<text x="661" y="234" text-anchor="middle" font-size="8.5" fill="#666">step</text>
+<polyline points="572.0,203.0 589.8,178.3 607.6,160.7 643.2,139.5 678.8,125.4 714.4,118.4 750.0,111.3" fill="none" stroke="#f59e0b" stroke-width="2.2" stroke-dasharray="5 3"/>
+<polyline points="572.0,203.0 589.8,174.8 607.6,153.6 643.2,125.4 678.8,104.3 714.4,90.2 750.0,79.6" fill="none" stroke="#3b82f6" stroke-width="2.2" stroke-dasharray=""/>
+<text x="578" y="76" font-size="8" fill="#475569">격차가 계속 벌어진다</text>
+<g font-size="9"><line x1="290" y1="248" x2="316" y2="248" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="5 3"/><text x="322" y="251">Uniform baseline</text><line x1="440" y1="248" x2="466" y2="248" stroke="#3b82f6" stroke-width="2.4"/><text x="472" y="251">RECAP</text></g>
+<rect x="20" y="262" width="760" height="62" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="400" y="280" text-anchor="middle" font-size="11" font-weight="bold" fill="#15803d">스케줄러의 예측과 정확히 맞는 두 곡선</text>
+<text x="30" y="298" font-size="10">초기에는 <tspan font-weight="bold">baseline의 format 보상이 더 빨리 오른다</tspan> — format이 저분산·최적화 쉬운 신호라는 것과 일관된다. 그런데 <tspan font-weight="bold">step 40 부근에서 crossover</tspan>가 나타난다.</text>
+<text x="30" y="315" font-size="10">accuracy에서는 <tspan font-weight="bold">격차가 시간이 갈수록 벌어진다</tspan>. "format 목적이 빠른 수렴과 낮은 불안정성을 보이면 그 가중이 하향 조정되고 capacity가 더 어렵고 분산 큰 목적으로 재배치된다"</text>
+</svg>
+<figcaption><strong>[Figure 5 재구성]</strong>: 왼쪽이 format 보상 전체, 가운데가 초기 확대, 오른쪽이 accuracy 보상이며 주황이 uniform baseline, 파랑이 RECAP이다 — <strong>축 범위와 본문이 명시한 crossover 시점(step 40)은 원문이고 곡선 궤적은 개념 재구성</strong>이다. 이 ablation의 설계가 엄격한데, uniform baseline은 <em>데이터 샘플링과 모델 학습 파이프라인을 포함한 모든 하이퍼파라미터가 동일</em>하고 오직 손실 재가중($\lambda_k = 1/K$)만 다르다. 초록 박스가 결과 해석으로, <strong>초기에는 baseline의 format 보상이 더 빨리 오르지만 step 40에서 crossover가 일어나고 accuracy에서는 격차가 계속 벌어진다</strong> — §<em>Figure 4</em>에서 본 "format은 저분산·최적화 쉬운 신호"라는 진단과 정확히 대응하며, 스케줄러가 format을 down-weight하고 capacity를 재배치한 결과다. 즉 format을 <em>덜</em> 강조했는데도 결국 format 보상까지 더 높아진다는 점이 이 그림의 비직관적 부분이다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 12] 최종 지표 — format은 동률, 정확도 계열만 오른다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">uniform baseline 대비 RECAP. 전부 원문 수치이며 본문의 +2.01/+1.11/+1.40과 일치함을 이 문서가 검산했다</text>
+<line x1="80" y1="250" x2="760" y2="250" stroke="#333"/>
+<line x1="80" y1="58" x2="80" y2="250" stroke="#333"/>
+<line x1="80" y1="250.0" x2="760" y2="250.0" stroke="#f6f8fb"/>
+<text x="75" y="253.0" text-anchor="end" font-size="8.5" fill="#666">60</text>
+<line x1="80" y1="202.0" x2="760" y2="202.0" stroke="#f6f8fb"/>
+<text x="75" y="205.0" text-anchor="end" font-size="8.5" fill="#666">70</text>
+<line x1="80" y1="154.0" x2="760" y2="154.0" stroke="#f6f8fb"/>
+<text x="75" y="157.0" text-anchor="end" font-size="8.5" fill="#666">80</text>
+<line x1="80" y1="106.0" x2="760" y2="106.0" stroke="#f6f8fb"/>
+<text x="75" y="109.0" text-anchor="end" font-size="8.5" fill="#666">90</text>
+<line x1="80" y1="58.0" x2="760" y2="58.0" stroke="#f6f8fb"/>
+<text x="75" y="61.0" text-anchor="end" font-size="8.5" fill="#666">100</text>
+<rect x="104" y="78.7" width="46" height="171.3" fill="#cbd5e1" stroke="#94a3b8" rx="2"/>
+<text x="127" y="73.7" text-anchor="middle" font-size="9" font-weight="bold" fill="#475569">95.69</text>
+<rect x="154" y="80.3" width="46" height="169.7" fill="#93c5fd" stroke="#3b82f6" rx="2"/>
+<text x="177" y="75.3" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">95.36</text>
+<text x="152" y="264" text-anchor="middle" font-size="9">Think Format</text>
+<text x="152" y="278" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#b91c1c">-0.33</text>
+<rect x="236" y="78.4" width="46" height="171.6" fill="#cbd5e1" stroke="#94a3b8" rx="2"/>
+<text x="259" y="73.4" text-anchor="middle" font-size="9" font-weight="bold" fill="#475569">95.76</text>
+<rect x="286" y="78.2" width="46" height="171.8" fill="#93c5fd" stroke="#3b82f6" rx="2"/>
+<text x="309" y="73.2" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">95.79</text>
+<text x="284" y="264" text-anchor="middle" font-size="9">Answer Format</text>
+<text x="284" y="278" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#64748b">+0.03</text>
+<rect x="368" y="231.0" width="46" height="19.0" fill="#cbd5e1" stroke="#94a3b8" rx="2"/>
+<text x="391" y="226.0" text-anchor="middle" font-size="9" font-weight="bold" fill="#475569">63.96</text>
+<rect x="418" y="221.3" width="46" height="28.7" fill="#93c5fd" stroke="#3b82f6" rx="2"/>
+<text x="441" y="216.3" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">65.97</text>
+<text x="416" y="264" text-anchor="middle" font-size="9">Reasoning Acc.</text>
+<text x="416" y="278" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#15803d">+2.01</text>
+<rect x="500" y="182.6" width="46" height="67.4" fill="#cbd5e1" stroke="#94a3b8" rx="2"/>
+<text x="523" y="177.6" text-anchor="middle" font-size="9" font-weight="bold" fill="#475569">74.04</text>
+<rect x="550" y="177.3" width="46" height="72.7" fill="#93c5fd" stroke="#3b82f6" rx="2"/>
+<text x="573" y="172.3" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">75.15</text>
+<text x="548" y="264" text-anchor="middle" font-size="9">IoU</text>
+<text x="548" y="278" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#15803d">+1.11</text>
+<rect x="632" y="137.5" width="46" height="112.5" fill="#cbd5e1" stroke="#94a3b8" rx="2"/>
+<text x="655" y="132.5" text-anchor="middle" font-size="9" font-weight="bold" fill="#475569">83.44</text>
+<rect x="682" y="130.8" width="46" height="119.2" fill="#93c5fd" stroke="#3b82f6" rx="2"/>
+<text x="705" y="125.8" text-anchor="middle" font-size="9" font-weight="bold" fill="#1e40af">84.84</text>
+<text x="680" y="264" text-anchor="middle" font-size="9">Mean Token Acc.</text>
+<text x="680" y="278" text-anchor="middle" font-size="9.5" font-weight="bold" fill="#15803d">+1.40</text>
+<g font-size="9"><rect x="300" y="292" width="12" height="12" fill="#cbd5e1" stroke="#94a3b8"/><text x="317" y="302">Uniform baseline</text><rect x="430" y="292" width="12" height="12" fill="#93c5fd" stroke="#3b82f6"/><text x="447" y="302">RECAP (dynamic reweighting)</text></g>
+<rect x="20" y="312" width="760" height="42" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="30" y="330" font-size="10">설계 목표와 정확히 맞는 패턴이다 — <tspan font-weight="bold">format 두 지표는 near-parity</tspan>(−0.33, +0.03)인데 <tspan font-weight="bold">정확도 계열 셋만 오른다</tspan>(+2.01, +1.11, +1.40).</text>
+<text x="30" y="347" font-size="10">"format 신호가 포화되면 down-weight하고 더 어렵고 분산이 큰 목적으로 capacity를 옮긴다 — <tspan font-weight="bold">템플릿 준수를 희생하지 않으면서</tspan> 더 나은 해를 얻는다"</text>
+</svg>
+<figcaption><strong>[Figure 12 재구성]</strong>: uniform baseline(회색)과 RECAP(파랑)의 최종 지표 5개다 — 전부 원문 수치이고, 본문이 명시한 +2.01/+1.11/+1.40이 막대값의 차이와 정확히 일치함을 이 문서가 검산했다. 이 그림의 요점은 <strong>패턴이 설계 목표와 정확히 맞는다</strong>는 것으로, format 두 지표는 near-parity(−0.33, +0.03)인데 정확도 계열 셋만 오른다. 즉 §<em>수치 예제</em>에서 본 "포화된 목적의 λ를 낮추고 불안정한 목적으로 옮긴다"는 기제가 <em>의도한 방향으로만</em> 작동했다는 뜻이다 — format을 희생해서 정확도를 얻은 것이 아니라 <strong>템플릿 준수를 유지하면서</strong> 얻었다. 다만 이 그림은 학습 <em>보상</em> 지표이고 §<em>Table 2</em>의 벤치마크 성능과는 다른 층위임에 유의해야 한다.</figcaption>
+</figure>
+
+<h3>도메인마다 같은 format 보상을 쓰면 안 된다</h3>
+
+<p><strong>발견의 경로</strong>: 저자들은 MoDoMoDo의 접근 — <em>scene-understanding 과제를 포함한 모든 도메인에 같은 thinking 보상</em> — 을 검토하다 이상한 것을 발견한다. segmentation 과제의 응답 길이를 학습 중에 추적하니, Qwen2.5-VL 모델이 <strong>학습 후반으로 갈수록 chain-of-thought를 급격히 잘라내고 질문에 곧바로 답한다</strong>.</p>
+
+<figure>
+<svg viewBox="0 0 800 350" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 6·7 재구성] thinking 길이 — 두 가지 서로 다른 교훈</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">축 범위(0~1200 문자, 샘플 인덱스 0~5000)와 Figure 7의 두 평균값(67.3 vs 27.3 단어)이 원문. 곡선 형태는 개념 재구성</text>
+<text x="226" y="46" text-anchor="middle" font-size="10" font-weight="bold">(a) segmentation 과제 — 모든 도메인에 같은 thinking 보상을 줄 때</text>
+<text x="226" y="59" text-anchor="middle" font-size="8.5" fill="#666">모델이 스스로 chain-of-thought를 잘라낸다</text>
+<line x1="72" y1="220" x2="380" y2="220" stroke="#333"/>
+<line x1="72" y1="72" x2="72" y2="220" stroke="#333"/>
+<line x1="72" y1="220.0" x2="380" y2="220.0" stroke="#f6f8fb"/>
+<text x="68" y="223.0" text-anchor="end" font-size="7.5" fill="#666">0</text>
+<line x1="72" y1="195.3" x2="380" y2="195.3" stroke="#f6f8fb"/>
+<text x="68" y="198.3" text-anchor="end" font-size="7.5" fill="#666">200</text>
+<line x1="72" y1="170.7" x2="380" y2="170.7" stroke="#f6f8fb"/>
+<text x="68" y="173.7" text-anchor="end" font-size="7.5" fill="#666">400</text>
+<line x1="72" y1="146.0" x2="380" y2="146.0" stroke="#f6f8fb"/>
+<text x="68" y="149.0" text-anchor="end" font-size="7.5" fill="#666">600</text>
+<line x1="72" y1="121.3" x2="380" y2="121.3" stroke="#f6f8fb"/>
+<text x="68" y="124.3" text-anchor="end" font-size="7.5" fill="#666">800</text>
+<line x1="72" y1="96.7" x2="380" y2="96.7" stroke="#f6f8fb"/>
+<text x="68" y="99.7" text-anchor="end" font-size="7.5" fill="#666">1000</text>
+<line x1="72" y1="72.0" x2="380" y2="72.0" stroke="#f6f8fb"/>
+<text x="68" y="75.0" text-anchor="end" font-size="7.5" fill="#666">1200</text>
+<text x="72" y="231" text-anchor="middle" font-size="7.5" fill="#666">0</text>
+<text x="134" y="231" text-anchor="middle" font-size="7.5" fill="#666">1000</text>
+<text x="195" y="231" text-anchor="middle" font-size="7.5" fill="#666">2000</text>
+<text x="257" y="231" text-anchor="middle" font-size="7.5" fill="#666">3000</text>
+<text x="318" y="231" text-anchor="middle" font-size="7.5" fill="#666">4000</text>
+<text x="380" y="231" text-anchor="middle" font-size="7.5" fill="#666">5000</text>
+<text x="226" y="244" text-anchor="middle" font-size="8.5" fill="#666">Sample index</text>
+<text x="38" y="146" font-size="8.5" fill="#666" transform="rotate(-90 38 146)" text-anchor="middle">Thinking length (characters)</text>
+<polyline points="72.0,99.1 102.8,131.2 133.6,160.8 164.4,183.0 195.2,196.6 226.0,205.2 256.8,210.1 287.6,213.2 318.4,215.1 349.2,216.3 380.0,216.9" fill="none" stroke="#ef4444" stroke-width="2.4" stroke-dasharray=""/>
+<text x="80" y="86" font-size="8.5" font-weight="bold" fill="#b91c1c">수백 문자 → 수십, 종종 0에 가깝게</text>
+<text x="616" y="46" text-anchor="middle" font-size="10" font-weight="bold">(b) reasoning 과제 — reasoning-only vs RECAP</text>
+<text x="616" y="59" text-anchor="middle" font-size="8.5" fill="#666">RECAP이 더 짧고 안정적인 rationale로 수렴한다</text>
+<line x1="462" y1="220" x2="770" y2="220" stroke="#333"/>
+<line x1="462" y1="72" x2="462" y2="220" stroke="#333"/>
+<line x1="462" y1="220.0" x2="770" y2="220.0" stroke="#f6f8fb"/>
+<text x="458" y="223.0" text-anchor="end" font-size="7.5" fill="#666">0</text>
+<line x1="462" y1="195.3" x2="770" y2="195.3" stroke="#f6f8fb"/>
+<text x="458" y="198.3" text-anchor="end" font-size="7.5" fill="#666">200</text>
+<line x1="462" y1="170.7" x2="770" y2="170.7" stroke="#f6f8fb"/>
+<text x="458" y="173.7" text-anchor="end" font-size="7.5" fill="#666">400</text>
+<line x1="462" y1="146.0" x2="770" y2="146.0" stroke="#f6f8fb"/>
+<text x="458" y="149.0" text-anchor="end" font-size="7.5" fill="#666">600</text>
+<line x1="462" y1="121.3" x2="770" y2="121.3" stroke="#f6f8fb"/>
+<text x="458" y="124.3" text-anchor="end" font-size="7.5" fill="#666">800</text>
+<line x1="462" y1="96.7" x2="770" y2="96.7" stroke="#f6f8fb"/>
+<text x="458" y="99.7" text-anchor="end" font-size="7.5" fill="#666">1000</text>
+<line x1="462" y1="72.0" x2="770" y2="72.0" stroke="#f6f8fb"/>
+<text x="458" y="75.0" text-anchor="end" font-size="7.5" fill="#666">1200</text>
+<text x="462" y="231" text-anchor="middle" font-size="7.5" fill="#666">0</text>
+<text x="524" y="231" text-anchor="middle" font-size="7.5" fill="#666">1000</text>
+<text x="585" y="231" text-anchor="middle" font-size="7.5" fill="#666">2000</text>
+<text x="647" y="231" text-anchor="middle" font-size="7.5" fill="#666">3000</text>
+<text x="708" y="231" text-anchor="middle" font-size="7.5" fill="#666">4000</text>
+<text x="770" y="231" text-anchor="middle" font-size="7.5" fill="#666">5000</text>
+<text x="616" y="244" text-anchor="middle" font-size="8.5" fill="#666">Sample index</text>
+<text x="428" y="146" font-size="8.5" fill="#666" transform="rotate(-90 428 146)" text-anchor="middle">Thinking length (characters)</text>
+<polyline points="462.0,109.0 492.8,111.5 523.6,106.5 554.4,113.9 585.2,109.0 616.0,112.7 646.8,107.8 677.6,111.5 708.4,110.2 739.2,109.0 770.0,111.5" fill="none" stroke="#3b82f6" stroke-width="2.4" stroke-dasharray=""/>
+<polyline points="462.0,111.5 492.8,133.7 523.6,150.9 554.4,162.0 585.2,168.2 616.0,171.9 646.8,173.8 677.6,175.0 708.4,175.6 739.2,175.8 770.0,176.2" fill="none" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray=""/>
+<text x="470" y="86" font-size="8.5" font-weight="bold" fill="#b91c1c">67.3 단어 → 27.3 단어 (60% 감소)</text>
+<text x="766" y="105" text-anchor="end" font-size="8.5" font-weight="bold" fill="#1e40af">reasoning-only (67.3 단어)</text>
+<text x="766" y="190" text-anchor="end" font-size="8.5" font-weight="bold" fill="#92400e">RECAP (27.3 단어)</text>
+<rect x="20" y="240" width="370" height="100" rx="6" fill="#fef2f2" stroke="#ef4444"/>
+<text x="205" y="258" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#b91c1c">(a)의 교훈 — 같은 format 보상을 모든 도메인에 쓰면 안 된다</text>
+<text x="30" y="276" font-size="9.5">MoDoMoDo는 scene-understanding을 포함한 <tspan font-weight="bold">모든 도메인에 같은</tspan></text>
+<text x="30" y="290" font-size="9.5"><tspan font-weight="bold">thinking 보상</tspan>을 쓴다. 그러자 모델이 스스로 CoT를 버린다.</text>
+<text x="30" y="308" font-size="9.5" fill="#b91c1c">"그런 perception 과제에는 <tspan font-weight="bold">명시적 추론이 불필요하고</tspan></text>
+<text x="30" y="322" font-size="9.5" fill="#b91c1c"><tspan font-weight="bold">긴 rationale을 장려하는 것이 오히려 해로울 수 있다</tspan>"</text>
+<text x="30" y="336" font-size="9" fill="#666">→ 설계 변경: perception은 answer-format만, thinking은 필요한 과제만</text>
+<rect x="400" y="240" width="380" height="100" rx="6" fill="#dcfce7" stroke="#16a34a"/>
+<text x="590" y="258" text-anchor="middle" font-size="10.5" font-weight="bold" fill="#15803d">(b)의 교훈 — RECAP은 짧고 <tspan font-style="italic">안정적인</tspan> rationale로 수렴한다</text>
+<text x="410" y="276" font-size="9.5">reasoning-only는 <tspan font-weight="bold">길고 변동이 큰</tspan> CoT를 유지한다.</text>
+<text x="410" y="290" font-size="9.5">RECAP은 길이를 점진적으로 줄이고 <tspan font-weight="bold">분산까지 안정화</tspan>한다.</text>
+<text x="410" y="308" font-size="9.5" fill="#15803d"><tspan font-weight="bold">67 → 27 단어 (60% 감소)</tspan>, 정확도는 유지</text>
+<text x="410" y="326" font-size="9.5">"더 짧은 추론이 <tspan font-weight="bold">추론 효율을 직접 개선</tspan>한다 — 생성 토큰이 줄어</text>
+<text x="410" y="336" font-size="9.5">지연과 계산 비용이 감소하며, 문제 해결 품질을 희생하지 않는다"</text>
+</svg>
+<figcaption><strong>[Figure 6·7 재구성]</strong>: (a)는 segmentation 과제에서 <em>모든 도메인에 같은 thinking 보상을 줄 때</em> 모델이 스스로 chain-of-thought를 잘라내는 현상, (b)는 reasoning 과제에서 reasoning-only와 RECAP의 thinking 길이 비교다 — <strong>축 범위와 (b)의 두 평균값(67.3 vs 27.3 단어)은 원문이고 곡선 형태는 개념 재구성</strong>이다. 두 패널이 서로 다른 교훈을 준다. (a)는 <strong>설계 오류의 발견</strong>으로, perception 과제에 긴 rationale을 장려하는 것이 오히려 해로우며 이 관찰이 "perception은 answer-format 보상만, thinking 보상은 필요한 과제만"이라는 §<em>Figure 3</em>의 설계 결정으로 이어진다. (b)는 <strong>부수 효과</strong>로, 60% 짧아진 rationale이 정확도를 해치지 않으므로 추론 지연·비용이 직접 줄어든다 — 논문이 명시적으로 주장하는 실용적 이득이다. 다만 (b)에서 "정확도 유지"의 근거는 §<em>Table 2</em>의 벤치마크 성능이며 길이-정확도 trade-off 곡선 자체는 제시되지 않는다.</figcaption>
+</figure>
+
+<p><strong>설계 변경</strong>: 이 관찰에 따라 "더 넓은 설정에서 <strong>perception 도메인에는 answer-format 보상을 유지하고, thinking 보상은 단계적 추론이 실제로 도움되는 과제에만 남긴다</strong>."</p>
+
+<h2>부록에서 가져온 것들</h2>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Table 5] α · T · W ablation — RLVR-only 설정</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">기본 설정은 α=0.50, T=5.0, W=10. 전부 원문 수치</text>
+<rect x="20" y="46" width="190" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="115" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">Setting</text>
+<rect x="210" y="46" width="96" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="258" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">SAT</text>
+<rect x="306" y="46" width="96" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="354" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">ScienceQA</text>
+<rect x="402" y="46" width="96" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="450" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">MathVista</text>
+<rect x="498" y="46" width="96" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="546" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">ChartQA</text>
+<rect x="594" y="46" width="96" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="642" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">InfoVQA</text>
+<rect x="690" y="46" width="90" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="735" y="62" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">MMMU</text>
+<rect x="20" y="70" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="86" text-anchor="start" font-size="9" fill="#334155">MoDoMoDo (참고)</text>
+<rect x="210" y="70" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="258" y="86" text-anchor="middle" font-size="9" fill="#334155">50.0</text>
+<rect x="306" y="70" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="354" y="86" text-anchor="middle" font-size="9" fill="#334155">65.7</text>
+<rect x="402" y="70" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="450" y="86" text-anchor="middle" font-size="9" fill="#334155">32.2</text>
+<rect x="498" y="70" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="546" y="86" text-anchor="middle" font-size="9" fill="#334155">70.4</text>
+<rect x="594" y="70" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="642" y="86" text-anchor="middle" font-size="9" fill="#334155">59.9</text>
+<rect x="690" y="70" width="90" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="735" y="86" text-anchor="middle" font-size="9" fill="#334155">39.1</text>
+<rect x="20" y="94" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="110" text-anchor="start" font-size="9" fill="#334155" font-weight="bold">RECAP (기본)</text>
+<rect x="210" y="94" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="258" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">55.2</text>
+<rect x="306" y="94" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="354" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">71.6</text>
+<rect x="402" y="94" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="450" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">33.2</text>
+<rect x="498" y="94" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="546" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">70.4</text>
+<rect x="594" y="94" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="642" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">60.8</text>
+<rect x="690" y="94" width="90" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="735" y="110" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">42.4</text>
+<rect x="20" y="118" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="134" text-anchor="start" font-size="9" fill="#334155">α=0.50, T=1.0, W=10</text>
+<rect x="210" y="118" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="258" y="134" text-anchor="middle" font-size="9" fill="#334155">52.0</text>
+<rect x="306" y="118" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="354" y="134" text-anchor="middle" font-size="9" fill="#334155">71.6</text>
+<rect x="402" y="118" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="450" y="134" text-anchor="middle" font-size="9" fill="#334155">33.4</text>
+<rect x="498" y="118" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="546" y="134" text-anchor="middle" font-size="9" fill="#334155">68.1</text>
+<rect x="594" y="118" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="642" y="134" text-anchor="middle" font-size="9" fill="#334155">58.5</text>
+<rect x="690" y="118" width="90" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="735" y="134" text-anchor="middle" font-size="9" fill="#334155">40.4</text>
+<rect x="20" y="142" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="158" text-anchor="start" font-size="9" fill="#334155">α=0.75, T=5.0, W=10</text>
+<rect x="210" y="142" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="258" y="158" text-anchor="middle" font-size="9" fill="#334155">54.4</text>
+<rect x="306" y="142" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="354" y="158" text-anchor="middle" font-size="9" fill="#334155">71.2</text>
+<rect x="402" y="142" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="450" y="158" text-anchor="middle" font-size="9" fill="#334155">32.9</text>
+<rect x="498" y="142" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="546" y="158" text-anchor="middle" font-size="9" fill="#334155">70.0</text>
+<rect x="594" y="142" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="642" y="158" text-anchor="middle" font-size="9" fill="#334155">60.7</text>
+<rect x="690" y="142" width="90" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="735" y="158" text-anchor="middle" font-size="9" fill="#334155">41.0</text>
+<rect x="20" y="166" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="182" text-anchor="start" font-size="9" fill="#334155">α=0.25, T=5.0, W=10</text>
+<rect x="210" y="166" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="258" y="182" text-anchor="middle" font-size="9" fill="#334155">55.3</text>
+<rect x="306" y="166" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="354" y="182" text-anchor="middle" font-size="9" fill="#334155">72.2</text>
+<rect x="402" y="166" width="96" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="450" y="182" text-anchor="middle" font-size="9" fill="#334155">33.7</text>
+<rect x="498" y="166" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="546" y="182" text-anchor="middle" font-size="9" fill="#334155">66.1</text>
+<rect x="594" y="166" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="642" y="182" text-anchor="middle" font-size="9" fill="#334155">56.8</text>
+<rect x="690" y="166" width="90" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="735" y="182" text-anchor="middle" font-size="9" fill="#334155">39.3</text>
+<rect x="20" y="190" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="206" text-anchor="start" font-size="9" fill="#334155">α=0.50, T=5.0, W=50</text>
+<rect x="210" y="190" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="258" y="206" text-anchor="middle" font-size="9" fill="#334155">51.9</text>
+<rect x="306" y="190" width="96" height="24" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="354" y="206" text-anchor="middle" font-size="9" fill="#334155">70.5</text>
+<rect x="402" y="190" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="450" y="206" text-anchor="middle" font-size="9" fill="#334155">32.9</text>
+<rect x="498" y="190" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="546" y="206" text-anchor="middle" font-size="9" fill="#334155">69.9</text>
+<rect x="594" y="190" width="96" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="642" y="206" text-anchor="middle" font-size="9" fill="#334155">59.7</text>
+<rect x="690" y="190" width="90" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="735" y="206" text-anchor="middle" font-size="9" fill="#334155">40.8</text>
+<rect x="20" y="212" width="380" height="89" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="30" y="230" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">α = 0.25 — 추론과 perception의 명확한 trade-off</text>
+<text x="30" y="248" text-anchor="start" font-size="10" fill="#334155">α를 낮춰 <tspan font-weight='bold'>불안정 항에 무게를 주면</tspan> 추론 쪽이 오른다 — SAT +0.1, ScienceQA +0.6, MathVista +0.5.</text>
+<text x="30" y="265" text-anchor="start" font-size="10" fill="#334155">그러나 <tspan font-weight='bold'>perception이 무너진다</tspan> — ChartQA 70.4 → <tspan font-weight='bold'>66.1</tspan> (−4.3), InfoVQA 60.8 → <tspan font-weight='bold'>56.8</tspan> (−4.0).</text>
+<text x="30" y="282" text-anchor="start" font-size="10" fill="#334155">논문 표현: "정확도 보상의 가중을 높일 수는 있지만 <tspan font-weight='bold'>핵심 perception 기술을 희생하는 대가를 치른다</tspan>"</text>
+<rect x="410" y="212" width="370" height="89" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="420" y="230" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="bold">T = 1.0 과 W = 50 — 둘 다 나빠진다</text>
+<text x="420" y="248" text-anchor="start" font-size="10" fill="#334155">T를 낮추면 <tspan font-weight='bold'>과제 간 변동이 커진다</tspan> — SAT 55.2 → <tspan font-weight='bold'>52.0</tspan> (−3.2).</text>
+<text x="420" y="265" text-anchor="start" font-size="10" fill="#334155">W를 50으로 늘리면 <tspan font-weight='bold'>거의 모든 항목이 떨어진다</tspan> (SAT −3.3, ScienceQA −1.1).</text>
+<text x="420" y="282" text-anchor="start" font-size="10" fill="#334155">재가중 시작이 100 iteration 늦춰져 <tspan font-weight='bold'>수렴률 항이 쓸모없어지기 때문</tspan>이다</text>
+<rect x="20" y="310" width="760" height="89" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="30" y="328" text-anchor="start" font-size="10.5" fill="#b91c1c" font-weight="bold">두 건의 서술 부정확</text>
+<text x="30" y="346" text-anchor="start" font-size="10" fill="#334155">논문의 서술 두 곳이 자기 표와 어긋난다 — 이 문서의 확인.</text>
+<text x="30" y="363" text-anchor="start" font-size="10" fill="#334155">① "α = 0.25가 ChartQA와 InfoVQA를 <tspan font-weight='bold'>3%</tspan> 줄인다"고 쓰지만 실제는 <tspan font-weight='bold'>−4.3 · −4.0</tspan>이다.</text>
+<text x="30" y="380" text-anchor="start" font-size="10" fill="#334155">② "온도를 낮추면 <tspan font-weight='bold'>MathVista에서 최고 점수</tspan>를 낸다"고 쓰지만 T=1.0은 33.4이고 표의 최고는 <tspan font-weight='bold'>α=0.25의 33.7</tspan>이다 (온도 변형끼리만 비교한 서술로 보인다)</text>
+</svg>
+<figcaption><strong>[Table 5 재구성 — 히트맵]</strong>: 기본 설정(굵은 행) 대비 각 변형의 방향을 초록(상승)·빨강(하락)으로 칠했다 — 전부 원문 수치다. 왼쪽 주황 박스가 가장 해석적으로 중요한데, <strong>$\alpha{=}0.25$로 불안정 항에 무게를 주면 추론이 오르지만 perception이 −4.3·−4.0으로 무너진다</strong> — 즉 §<em>두 신호</em>의 $c$와 $i$ 사이 균형이 곧 <em>추론과 perception 사이 균형</em>이며, 이것이 $\alpha{=}0.5$를 기본값으로 두는 실질적 이유다. 오른쪽 파란 박스의 $W{=}50$ 실패가 §<em>Algorithm 1</em>의 $2W$ 대기 구간과 직결된다. 맨 아래 빨간 박스는 이 문서가 확인한 두 건의 서술 부정확으로, <strong>"3% 감소"가 실제로는 4.3·4.0이고, "온도를 낮추면 MathVista 최고"가 표에서는 $\alpha{=}0.25$의 33.7</strong>이다 — 결론을 바꾸지는 않지만 표 수치를 기준으로 읽어야 한다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[부록] MTL 문헌과의 비교 — NYUv2 scene understanding + 런타임</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Table 4의 loss-magnitude 계열 전체와 gradient 계열 일부. Δm%는 낮을수록 좋다</text>
+<rect x="20" y="46" width="176" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="108" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Method</text>
+<rect x="196" y="46" width="92" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="242" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Seg mIoU ↑</text>
+<rect x="288" y="46" width="88" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="332" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Pix Acc ↑</text>
+<rect x="376" y="46" width="108" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="430" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Depth AbsErr ↓</text>
+<rect x="484" y="46" width="104" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="536" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Normal Mean ↓</text>
+<rect x="588" y="46" width="92" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="634" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Δm% ↓</text>
+<rect x="680" y="46" width="80" height="21" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="720" y="60" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">비용</text>
+<rect x="20" y="67" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="81" text-anchor="start" font-size="8.4" fill="#334155">STL (단일 과제 기준)</text>
+<rect x="196" y="67" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="81" text-anchor="middle" font-size="8.4" fill="#334155">38.30</text>
+<rect x="288" y="67" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="81" text-anchor="middle" font-size="8.4" fill="#334155">63.76</text>
+<rect x="376" y="67" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="81" text-anchor="middle" font-size="8.4" fill="#334155">0.6754</text>
+<rect x="484" y="67" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="81" text-anchor="middle" font-size="8.4" fill="#334155">25.01</text>
+<rect x="588" y="67" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="81" text-anchor="middle" font-size="8.4" fill="#334155">—</text>
+<rect x="680" y="67" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="81" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="88" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="102" text-anchor="start" font-size="8.4" fill="#334155">LS (linear scalarization)</text>
+<rect x="196" y="88" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="102" text-anchor="middle" font-size="8.4" fill="#334155">39.29</text>
+<rect x="288" y="88" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="102" text-anchor="middle" font-size="8.4" fill="#334155">65.33</text>
+<rect x="376" y="88" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="102" text-anchor="middle" font-size="8.4" fill="#334155">0.5493</text>
+<rect x="484" y="88" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="102" text-anchor="middle" font-size="8.4" fill="#334155">28.15</text>
+<rect x="588" y="88" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="102" text-anchor="middle" font-size="8.4" fill="#334155">5.59</text>
+<rect x="680" y="88" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="102" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="109" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="123" text-anchor="start" font-size="8.4" fill="#334155">SI (scale-invariant)</text>
+<rect x="196" y="109" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="123" text-anchor="middle" font-size="8.4" fill="#334155">38.45</text>
+<rect x="288" y="109" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="123" text-anchor="middle" font-size="8.4" fill="#334155">64.27</text>
+<rect x="376" y="109" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="123" text-anchor="middle" font-size="8.4" fill="#334155">0.5354</text>
+<rect x="484" y="109" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="123" text-anchor="middle" font-size="8.4" fill="#334155">27.60</text>
+<rect x="588" y="109" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="123" text-anchor="middle" font-size="8.4" fill="#334155">4.39</text>
+<rect x="680" y="109" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="123" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="130" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="144" text-anchor="start" font-size="8.4" fill="#334155">RLW (random loss weighting)</text>
+<rect x="196" y="130" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="144" text-anchor="middle" font-size="8.4" fill="#334155">37.17</text>
+<rect x="288" y="130" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="144" text-anchor="middle" font-size="8.4" fill="#334155">63.77</text>
+<rect x="376" y="130" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="144" text-anchor="middle" font-size="8.4" fill="#334155">0.5759</text>
+<rect x="484" y="130" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="144" text-anchor="middle" font-size="8.4" fill="#334155">28.27</text>
+<rect x="588" y="130" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="144" text-anchor="middle" font-size="8.4" fill="#334155">7.78</text>
+<rect x="680" y="130" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="144" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="151" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="165" text-anchor="start" font-size="8.4" fill="#334155">DWA</text>
+<rect x="196" y="151" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="165" text-anchor="middle" font-size="8.4" fill="#334155">39.11</text>
+<rect x="288" y="151" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="165" text-anchor="middle" font-size="8.4" fill="#334155">65.31</text>
+<rect x="376" y="151" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="165" text-anchor="middle" font-size="8.4" fill="#334155">0.5510</text>
+<rect x="484" y="151" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="165" text-anchor="middle" font-size="8.4" fill="#334155">27.61</text>
+<rect x="588" y="151" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="165" text-anchor="middle" font-size="8.4" fill="#334155">3.57</text>
+<rect x="680" y="151" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="165" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="172" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="186" text-anchor="start" font-size="8.4" fill="#334155">UW (uncertainty weighting)</text>
+<rect x="196" y="172" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="186" text-anchor="middle" font-size="8.4" fill="#334155">36.87</text>
+<rect x="288" y="172" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="186" text-anchor="middle" font-size="8.4" fill="#334155">63.17</text>
+<rect x="376" y="172" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="186" text-anchor="middle" font-size="8.4" fill="#334155">0.5446</text>
+<rect x="484" y="172" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="186" text-anchor="middle" font-size="8.4" fill="#334155">27.04</text>
+<rect x="588" y="172" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="186" text-anchor="middle" font-size="8.4" fill="#334155">4.05</text>
+<rect x="680" y="172" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="186" text-anchor="middle" font-size="8.4" fill="#334155">Θ(1)</text>
+<rect x="20" y="193" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="207" text-anchor="start" font-size="8.4" fill="#334155" font-weight="bold">RECAP (Ours)</text>
+<rect x="196" y="193" width="92" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="242" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">41.26</text>
+<rect x="288" y="193" width="88" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="332" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">66.79</text>
+<rect x="376" y="193" width="108" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="430" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">0.5303</text>
+<rect x="484" y="193" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">27.11</text>
+<rect x="588" y="193" width="92" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="634" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">0.77</text>
+<rect x="680" y="193" width="80" height="21" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="720" y="207" text-anchor="middle" font-size="8.4" fill="#334155" font-weight="bold">Θ(1)</text>
+<rect x="20" y="214" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="228" text-anchor="start" font-size="8.4" fill="#334155">CAGrad</text>
+<rect x="196" y="214" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="228" text-anchor="middle" font-size="8.4" fill="#334155">39.79</text>
+<rect x="288" y="214" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="228" text-anchor="middle" font-size="8.4" fill="#334155">65.49</text>
+<rect x="376" y="214" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="228" text-anchor="middle" font-size="8.4" fill="#334155">0.5486</text>
+<rect x="484" y="214" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="228" text-anchor="middle" font-size="8.4" fill="#334155">26.31</text>
+<rect x="588" y="214" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="228" text-anchor="middle" font-size="8.4" fill="#334155">0.20</text>
+<rect x="680" y="214" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="228" text-anchor="middle" font-size="8.4" fill="#334155">Θ(K)</text>
+<rect x="20" y="235" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="249" text-anchor="start" font-size="8.4" fill="#334155">IMTL-G</text>
+<rect x="196" y="235" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="249" text-anchor="middle" font-size="8.4" fill="#334155">39.35</text>
+<rect x="288" y="235" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="249" text-anchor="middle" font-size="8.4" fill="#334155">65.60</text>
+<rect x="376" y="235" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="249" text-anchor="middle" font-size="8.4" fill="#334155">0.5426</text>
+<rect x="484" y="235" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="249" text-anchor="middle" font-size="8.4" fill="#334155">26.02</text>
+<rect x="588" y="235" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="249" text-anchor="middle" font-size="8.4" fill="#334155">−0.76</text>
+<rect x="680" y="235" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="249" text-anchor="middle" font-size="8.4" fill="#334155">Θ(K)</text>
+<rect x="20" y="256" width="176" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="270" text-anchor="start" font-size="8.4" fill="#334155">Nash-MTL</text>
+<rect x="196" y="256" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="242" y="270" text-anchor="middle" font-size="8.4" fill="#334155">40.13</text>
+<rect x="288" y="256" width="88" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="332" y="270" text-anchor="middle" font-size="8.4" fill="#334155">65.93</text>
+<rect x="376" y="256" width="108" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="270" text-anchor="middle" font-size="8.4" fill="#334155">0.5261</text>
+<rect x="484" y="256" width="104" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="536" y="270" text-anchor="middle" font-size="8.4" fill="#334155">25.26</text>
+<rect x="588" y="256" width="92" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="270" text-anchor="middle" font-size="8.4" fill="#334155">−4.04</text>
+<rect x="680" y="256" width="80" height="21" fill="#fff" stroke="#e8edf3"/>
+<text x="720" y="270" text-anchor="middle" font-size="8.4" fill="#334155">Θ(K)</text>
+<rect x="20" y="290" width="380" height="72" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="30" y="308" text-anchor="start" font-size="10.5" fill="#15803d" font-weight="bold">결과</text>
+<text x="30" y="326" text-anchor="start" font-size="10" fill="#334155"><tspan font-weight='bold'>loss-reweighting 계열 전 지표 최고</tspan> (mIoU 41.26 · Pix Acc 66.79 · Δm% 0.77) — Angle Distance Mean에서만 UW와 경쟁적이다.</text>
+<text x="30" y="343" text-anchor="start" font-size="10" fill="#334155">그리고 GradNorm · MGDA · PCGrad · GradDrop 같은 <tspan font-weight='bold'>gradient 기반 방법 일부도 능가</tspan>하면서 <tspan font-weight='bold'>약 3배 빠르다</tspan>.</text>
+<rect x="410" y="290" width="370" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="420" y="308" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">왜 gradient 기반을 안 쓰는가</text>
+<text x="420" y="326" text-anchor="start" font-size="10" fill="#334155">gradient 기반은 <tspan font-weight='bold'>모든 과제의 gradient를 저장·계산</tspan>해야 해 Θ(K) 시공간 오버헤드가 든다.</text>
+<text x="420" y="343" text-anchor="start" font-size="10" fill="#334155">K=3인 합성 예제에서 이미 <tspan font-weight='bold'>~300s vs ~100s (3배)</tspan>. 본 RLVR 실험은 <tspan font-weight='bold'>4개 도메인 × 2목적 = K=8</tspan>이므로</text>
+<text x="420" y="360" text-anchor="start" font-size="10" fill="#334155">gradient 조작 방법은 <tspan font-weight='bold'>약 8배 느려진다</tspan> — 이것이 loss-reweighting을 택한 이유다</text>
+</svg>
+<figcaption><strong>[부록 Table 4 재구성]</strong>: NYUv2 scene understanding에서 loss-magnitude 계열 전체와 gradient 계열 일부를 비교했다 — 전부 원문 수치이며 $\Delta m\%$는 단일 과제 기준 대비 상대 저하로 낮을수록 좋다. 초록 행이 RECAP으로, <strong>loss-reweighting 계열에서 전 지표 최고</strong>이고 일부 gradient 기반 방법도 능가한다. 오른쪽 노란 박스가 이 비교의 실무적 요점인데, gradient 기반은 <strong>과제별 gradient를 저장·계산해야 해 $\Theta(K)$ 오버헤드</strong>가 들고 $K{=}3$에서 이미 3배 느리므로 <strong>본 RLVR 실험의 $K{=}8$에서는 약 8배</strong>가 된다 — LLM 규모 RL에서 gradient 조작 계열이 현실적이지 않다는 것이 §<em>부록 A.6</em>이 제시하는 첫 번째 이유다(두 번째는 on-policy RL 신호의 높은 분산). 다만 이 비교는 <strong>SFT 세팅의 부드러운 손실 곡선</strong>에서 이뤄진 것이라, 부록 Figure 14가 직접 지적하듯 실제 RLVR 보상보다 훨씬 안정적인 조건이다.</figcaption>
+</figure>
+
+<h2>§6 결론 · Limitations</h2>
+
+<p><strong>결론</strong>: "우리는 최근 추론 중심 vision-language 모델의 망각을 조사하고, <em>이 모델들이 사전학습에서 획득한 일반 지식의 명확한 망각을 보인다</em>는 것을 발견한다. 이에 동기를 받아 finetuning 중 일반 데이터를 replay하고 <strong>외부 모델 학습의 추가 비용 없이</strong> 목적을 재가중하는 plug-in 방법을 제안한다. 추론 벤치마크에서 우리 방법은 일반 지식을 보존할 뿐 아니라 <strong>그 과제들의 보상을 적절히 재가중함으로써 타깃 추론 성능도 개선</strong>한다."</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Limitations와 실무 적용 판단</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">위 두 박스는 저자 진술, 아래는 이 문서가 정리한 적용 조건</text>
+<rect x="20" y="44" width="374" height="104" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="207" y="63" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">저자가 밝히는 범위 한계</text>
+<text x="31" y="82" text-anchor="start" font-size="9" fill="#334155">프레임워크는 RLVR·SFT를 넘어 preference/alignment</text>
+<text x="31" y="97" text-anchor="start" font-size="9" fill="#334155">목적(DPO·ORPO·KTO·IPO)과 process reward model에도</text>
+<text x="31" y="112" text-anchor="start" font-size="9" fill="#334155">자연스럽게 확장된다고 주장하지만, <tspan font-weight='bold'>학습 데이터셋 제약</tspan></text>
+<text x="31" y="127" text-anchor="start" font-size="9" fill="#334155">때문에 <tspan font-weight='bold'>실증은 RLVR과 표준 SFT에 한정</tspan>된다</text>
+<rect x="406" y="44" width="374" height="104" rx="7" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="593" y="63" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">저자가 제시하는 근거</text>
+<text x="416" y="82" text-anchor="start" font-size="9" fill="#334155">"scheduler를 비-RL 손실에 적용하는 데</text>
+<text x="416" y="97" text-anchor="start" font-size="9" fill="#334155"><tspan font-weight='bold'>계수에 대한 값비싼 탐색이나 목적별 정규화가</tspan></text>
+<text x="416" y="112" text-anchor="start" font-size="9" fill="#334155"><tspan font-weight='bold'>필요하지 않다</tspan> — magnitude-agnostic하기 때문"</text>
+<text x="416" y="127" text-anchor="start" font-size="9" fill="#334155">→ 이론상 확장은 자연스럽지만 검증은 남아 있다</text>
+<rect x="50" y="164" width="700" height="28" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="183" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">① 목적이 <tspan font-weight='bold'>둘 이상</tspan>인가? (K ≥ 2) — 하나면 재가중할 대상이 없다</text>
+<rect x="50" y="197" width="700" height="28" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="216" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">② 목적들의 <tspan font-weight='bold'>수렴 속도가 다른가</tspan>? — 전부 비슷하면 λ가 균등에 수렴해 이득이 없다</text>
+<rect x="50" y="230" width="700" height="28" rx="5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="249" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">③ 손실이 <tspan font-weight='bold'>스텝마다 요동치는가</tspan>? — 부드러우면 스텝값만으로 충분해 윈도우가 불필요하다</text>
+<rect x="50" y="263" width="700" height="28" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="400" y="282" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">④ 보존하려는 능력의 <tspan font-weight='bold'>데이터를 확보할 수 있는가</tspan>? — replay 대상이 없으면 재가중만으로는 안 된다</text>
+<rect x="20" y="302" width="760" height="89" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="30" y="320" text-anchor="start" font-size="10.5" fill="#4338ca" font-weight="bold">판별 결과 읽는 법</text>
+<text x="30" y="338" text-anchor="start" font-size="10" fill="#334155">네 조건이 모두 참이면 적용 가치가 크다. ①②는 §<tspan font-style='italic'>Figure 4</tspan>가, ③은 §<tspan font-style='italic'>부록 A.6</tspan>(총 보상 std가 스텝 20에 0.9)이 이 논문의 설정에서 참임을 보인다.</text>
+<text x="30" y="355" text-anchor="start" font-size="10" fill="#334155">④가 실무에서 가장 자주 막히는 지점이다 — 이 논문은 RefCOCO·LLaVA-OneVision-OCR 같은 <tspan font-weight='bold'>공개 perception 데이터</tspan>를 썼지만, 사내 도메인에서는 "보존하려는 능력"에 해당하는 데이터가 없을 수 있다.</text>
+<text x="30" y="372" text-anchor="start" font-size="10" fill="#334155">반대로 ③이 거짓이면(손실이 부드러우면) 부록 Figure 14가 보이듯 <tspan font-weight='bold'>표준 MTL 기법이 그대로 통하므로</tspan> RECAP의 윈도우 기제가 필요 없다</text>
+</svg>
+<figcaption><strong>[Figure: Limitations와 적용 판단]</strong>: 위 두 카드는 저자가 Limitations 절에서 밝히는 범위 한계로, <strong>프레임워크가 preference/alignment 목적과 process reward model에 자연스럽게 확장된다고 주장하지만 학습 데이터셋 제약 때문에 실증은 RLVR과 표준 SFT에 한정</strong>된다. 아래 네 조건은 <strong>이 문서가 §4의 전제에서 역산한 적용 판별</strong>이다 — ①②는 §<em>Figure 4</em>가, ③은 부록 A.6(총 보상 표준편차가 스텝 20에 0.9)이 이 논문의 설정에서 참임을 보인다. 실무에서 가장 자주 막히는 것은 ④인데, 이 논문은 RefCOCO·LLaVA-OneVision-OCR 같은 공개 perception 데이터를 replay했지만 사내 도메인에서는 "보존하려는 능력"에 해당하는 데이터가 없을 수 있다. 그리고 ③이 거짓이면 — 손실 곡선이 부드러우면 — 부록 Figure 14가 직접 보이듯 <strong>표준 MTL 기법이 그대로 통하므로 RECAP의 윈도우 기제가 필요 없다</strong>.</figcaption>
+</figure>
+
+<h2>비판적 분석</h2>
+
+<h3>같은 문제의 다른 층위 — 짝 논문과 나란히</h3>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">RLVR 망각의 두 층위 — RECAP(과제 간)과 Correct-Set Turnover(과제 내)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">이 비교는 이 문서가 구성했다. Correct-Set Turnover 논문이 RECAP을 "cross-task capability loss"로 인용하며 자기 문제와 구별한다</text>
+<rect x="20" y="46" width="150" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="95" y="61" text-anchor="middle" font-size="9.0" fill="#334155" font-weight="bold">항목</text>
+<rect x="170" y="46" width="310" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="325" y="61" text-anchor="middle" font-size="9.0" fill="#334155" font-weight="bold">RECAP (Phan+, Meta)</text>
+<rect x="480" y="46" width="300" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="630" y="61" text-anchor="middle" font-size="9.0" fill="#334155" font-weight="bold">Correct-Set Turnover (Qin+, CAS)</text>
+<rect x="20" y="68" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="83" text-anchor="start" font-size="8.6" fill="#334155">망각의 단위</text>
+<rect x="170" y="68" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="83" text-anchor="middle" font-size="8.6" fill="#334155">능력 축 (perception, faithfulness)</text>
+<rect x="480" y="68" width="300" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="83" text-anchor="middle" font-size="8.6" fill="#334155">샘플 (프롬프트 하나)</text>
+<rect x="20" y="90" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="105" text-anchor="start" font-size="8.6" fill="#334155">측정 방법</text>
+<rect x="170" y="90" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="105" text-anchor="middle" font-size="8.6" fill="#334155">별도 벤치마크 평가 — 외부 측정 필요</text>
+<rect x="480" y="90" width="300" height="22" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="630" y="105" text-anchor="middle" font-size="8.6" fill="#334155">GRPO의 q̂_t(p) 재활용 — <tspan font-weight='bold'>무료</tspan></text>
+<rect x="20" y="112" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="127" text-anchor="start" font-size="8.6" fill="#334155">그래서 쓰는 것</text>
+<rect x="170" y="112" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="127" text-anchor="middle" font-size="8.6" fill="#334155">대리 신호 (수렴률 c, 불안정 i)</text>
+<rect x="480" y="112" width="300" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="127" text-anchor="middle" font-size="8.6" fill="#334155">직접 신호 (숙달 여부)</text>
+<rect x="20" y="134" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="149" text-anchor="start" font-size="8.6" fill="#334155">개입 대상</text>
+<rect x="170" y="134" width="310" height="22" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="325" y="149" text-anchor="middle" font-size="8.6" fill="#334155"><tspan font-weight='bold'>목적함수 가중</tspan> λ_k</text>
+<rect x="480" y="134" width="300" height="22" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="630" y="149" text-anchor="middle" font-size="8.6" fill="#334155"><tspan font-weight='bold'>배치 구성</tspan> (어떤 프롬프트를 넣을까)</text>
+<rect x="20" y="156" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="171" text-anchor="start" font-size="8.6" fill="#334155">핵심 기제</text>
+<rect x="170" y="156" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="171" text-anchor="middle" font-size="8.6" fill="#334155">replay + 온도 softmax 재가중</text>
+<rect x="480" y="156" width="300" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="171" text-anchor="middle" font-size="8.6" fill="#334155">FIFO 리뷰 큐 + 교체 배치</text>
+<rect x="20" y="178" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="193" text-anchor="start" font-size="8.6" fill="#334155">추가 비용</text>
+<rect x="170" y="178" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="193" text-anchor="middle" font-size="8.6" fill="#334155">Θ(KW) 스칼라 — 측정 가능한 지연 없음</text>
+<rect x="480" y="178" width="300" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="193" text-anchor="middle" font-size="8.6" fill="#334155">rollout 0 추가 · wall-clock 3%</text>
+<rect x="20" y="200" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="215" text-anchor="start" font-size="8.6" fill="#334155">KL 정규화와의 관계</text>
+<rect x="170" y="200" width="310" height="22" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="325" y="215" text-anchor="middle" font-size="8.6" fill="#334155"><tspan font-weight='bold'>KL의 한계를 명시적 동기로</tspan> 삼는다</text>
+<rect x="480" y="200" width="300" height="22" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="630" y="215" text-anchor="middle" font-size="8.6" fill="#334155">KL을 <tspan font-weight='bold'>끈</tspan> 조건에서만 측정</text>
+<rect x="20" y="222" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="237" text-anchor="start" font-size="8.6" fill="#334155">이론적 뒷받침</text>
+<rect x="170" y="222" width="310" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="237" text-anchor="middle" font-size="8.6" fill="#334155">Theorem 1 (엔트로피 정규화 배분)</text>
+<rect x="480" y="222" width="300" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="237" text-anchor="middle" font-size="8.6" fill="#334155">repair-window 유도 (heuristic ratio)</text>
+<rect x="20" y="244" width="150" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="259" text-anchor="start" font-size="8.6" fill="#334155">분산 보고</text>
+<rect x="170" y="244" width="310" height="22" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="325" y="259" text-anchor="middle" font-size="8.6" fill="#334155">없음 (단일 실행으로 보인다)</text>
+<rect x="480" y="244" width="300" height="22" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="630" y="259" text-anchor="middle" font-size="8.6" fill="#334155">없음</text>
+<rect x="20" y="290" width="760" height="106" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="30" y="308" text-anchor="start" font-size="10.5" fill="#4338ca" font-weight="bold">두 논문이 서로에게 말해 주는 것 — 이 문서의 종합</text>
+<text x="30" y="326" text-anchor="start" font-size="10" fill="#334155">• <tspan font-weight='bold'>직교한다</tspan>: 하나는 <tspan font-style='italic'>다른 능력 축</tspan>을, 다른 하나는 <tspan font-style='italic'>같은 과제 안의 샘플</tspan>을 지킨다. 개입 지점(목적함수 가중 vs 배치 구성)도 겹치지 않아 <tspan font-weight='bold'>동시 적용이 가능</tspan>하다</text>
+<text x="30" y="343" text-anchor="start" font-size="10" fill="#334155">• <tspan font-weight='bold'>측정 비용이 문제 구조를 정한다</tspan>: cross-task 퇴화는 외부 벤치마크를 요구하므로 RECAP은 대리 신호를 쓸 수밖에 없고, intra-task 회귀는 GRPO가 이미 계산하는 값이라 직접 신호를 쓴다</text>
+<text x="30" y="360" text-anchor="start" font-size="10" fill="#334155">• <tspan font-weight='bold'>KL에 대한 태도가 정반대다</tspan>: RECAP은 KL의 한계(현재 과제에서만 계산됨)를 동기로 삼는데, Correct-Set Turnover는 KL을 끈 조건에서만 측정한다 — 두 논문을 함께 읽으면 <tspan font-weight='bold'>KL이 두 층위 어느 쪽도 충분히 다루지 못한다</tspan>는 그림이 나온다</text>
+<text x="30" y="377" text-anchor="start" font-size="10" fill="#334155">• 공통 약점: <tspan font-weight='bold'>둘 다 표준편차를 보고하지 않는다</tspan>. 그리고 어느 쪽도 조합을 시도하지 않았다</text>
+</svg>
+<figcaption><strong>[Figure: RLVR 망각의 두 층위]</strong>: <strong>이 비교는 이 문서가 구성했다</strong> — 근거는 <a href="20260903_qin_correct-set-turnover.html">Correct-Set Turnover</a> 논문이 §2에서 RECAP(Phan+ 2025)을 "cross-task capability loss"로 인용하며 자기 문제를 그것과 명시적으로 구별한다는 점이다. 표에서 가장 중요한 두 행은 <strong>측정 방법</strong>과 <strong>KL 정규화와의 관계</strong>다. 전자는 문제 구조를 결정하는데, cross-task 퇴화는 외부 벤치마크 평가를 요구하므로 RECAP은 <em>대리 신호</em>(수렴률·불안정)를 쓸 수밖에 없고 intra-task 회귀는 GRPO가 이미 계산하는 값이라 직접 신호를 쓴다 — §<em>수렴·불안정 신호</em>가 슬라이딩 윈도우를 도입하는 이유가 여기서 나온다. 후자가 흥미로운데, <strong>RECAP은 KL의 한계를 명시적 동기로 삼고 짝 논문은 KL을 끈 조건에서만 측정</strong>하므로, 둘을 함께 읽으면 KL이 두 층위 어느 쪽도 충분히 다루지 못한다는 그림이 나온다. 두 방법은 직교하며 동시 적용이 가능한데 어느 논문도 시도하지 않았다.</figcaption>
+</figure>
+
+<h3>강점</h3>
+
+<ol>
+<li><strong>문제를 두 층위의 증거로 세운다.</strong> 남의 공개 모델을 6개 비추론 벤치마크로 재평가하고(Figure 1), <em>동시에</em> 자기 손으로 학습시켜 LISA IoU가 100 iteration 만에 base 아래로 떨어지는 것을 보인다(Figure 2). 문제의 존재를 주장이 아니라 <strong>두 종류의 측정</strong>으로 확립한다.</li>
+<li><strong>기존 대안이 왜 부족한지를 정확히 진단한다.</strong> "KL은 <em>현재 과제에서 계산되므로</em> 더 넓은 지식의 보존을 보장하지 않는다"는 한 문장이 이 논문의 방향을 결정한다. 그리고 LwF baseline으로 이를 실증한다 — KL을 켜면 perception은 유지되지만 <strong>추론이 깎인다</strong>(MMMU-PRO 29.59 vs 31.91).</li>
+<li><strong>재가중 규칙을 측정에서 유도한다.</strong> "format 보상은 50스텝에 포화하고 추론 정확도는 가장 크게 변동한다"는 <em>관찰</em>이 먼저 있고, $c$와 $i$가 그 관찰을 포착하도록 설계된다. 손으로 튜닝한 계수를 쓰는 선행 관행에 대한 직접적 대안이며, <strong>MoDoMoDo조차 최적 혼합을 고른 뒤 손 튜닝 보상 가중에 의존한다</strong>는 지적이 그 필요성을 정당화한다.</li>
+<li><strong>Theorem 1로 softmax를 heuristic에서 원리로 격상시킨다.</strong> 재가중 형태가 <em>엔트로피 정규화된 배분 문제의 유일한 해</em>임을 증명하고, 부록에 Lemma 1(존재)·Lemma 2(내부 최적성)로 전개한다. 온도 $T$의 역할도 이 틀에서 해석된다 — 엔트로피항의 가중이다.</li>
+<li><strong>Uniform baseline이 엄격한 대조군이다.</strong> 데이터 샘플링과 학습 파이프라인을 포함해 모든 하이퍼파라미터가 같고 오직 $\lambda_k$만 다르다. 그래서 Figure 5·12의 차이를 <em>재가중에 귀속시킬 수 있다</em>.</li>
+<li><strong>설계 오류를 스스로 찾아 고친다.</strong> 모든 도메인에 같은 thinking 보상을 주면 모델이 segmentation에서 CoT를 스스로 버린다는 것을 발견하고(Figure 6), 그에 따라 <strong>perception은 answer-format만, thinking은 필요한 과제만</strong>으로 설계를 바꾼다. 관찰 → 진단 → 설계 변경의 경로가 문서에 남아 있다.</li>
+<li><strong>MTL 문헌과 폭넓게 겨룬다.</strong> loss-magnitude 5종 + gradient 기반 10종과 합성 예제·NYUv2에서 비교하고, <strong>왜</strong> gradient 기반을 쓰지 않는지($K{=}8$에서 약 8배 느려진다)를 런타임 측정으로 뒷받침한다.</li>
+<li><strong>부수 효과를 정직하게 부수 효과로 제시한다.</strong> rationale이 60% 짧아지는 것(67 → 27 단어)을 <em>추가 발견</em>으로 보고하며, 그 실용적 의미(생성 토큰 감소 → 지연·비용 감소)를 과장 없이 서술한다.</li>
+</ol>
+
+<h3>한계와 의문점</h3>
+
+<ol>
+<li><strong>표준편차가 어디에도 없다.</strong> Table 1·2·5 전체에 분산 추정치가 없고 seed 반복 여부도 명시되지 않는다. 그런데 Table 2의 상당수 격차가 작다 — MathVista에서 RECAP 66.70 vs Coreset 66.90(<em>Coreset이 더 높다</em>), MathVerse 40.83 vs Reasoning-only 40.74(+0.09). <strong>주 주장인 LISA 67.24 vs 57.58은 크기가 충분하지만, "9개 중 6개 최고"라는 집계는 소수점 차이에 의존하는 셀을 포함한다</strong>.</li>
+<li><strong>Coreset이 두 항목에서 RECAP을 앞서는데 논문이 논평하지 않는다.</strong> AI2D 79.92 vs 78.21, VizWiz 63.76 vs 61.97이다. Coreset은 <em>단순히 절반 크기의 부분집합을 replay</em>할 뿐 재가중이 없다. 즉 <strong>동적 재가중이 더하는 몫은 주로 LISA(+2.42 vs Coreset)와 추론 축에 있고, perception 일부에서는 단순 replay가 더 낫다</strong> — 이 경계가 분석되지 않았다.</li>
+<li><strong>본문의 $s = c + i$와 부록의 $\alpha = 0.5$가 서로 다른 설정이다.</strong> §4는 "단순화를 위해 <em>가중 없는 합</em> $s = c+i$를 취한다"고 쓰는데, 부록은 $s = \alpha c + (1-\alpha)i$에서 $\alpha = 0.5$를 쓴다고 밝힌다. $\alpha{=}0.5$는 $s = (c+i)/2$이므로 <strong>$T{=}5$와 결합하면 유효 온도가 실질적으로 10</strong>이 된다. 둘 중 어느 것이 실제 실행 설정인지 본문만으로는 판정할 수 없다.</li>
+<li><strong>Figure 11의 축 라벨이 수식과 맞지 않는다.</strong> 축이 "RECAP weight $\lambda_k^{(t)}$"인데 값이 <strong>0.16~0.30</strong> 범위다. 그런데 수식 (1)의 정의상 $\frac{1}{K}\sum_k \lambda_k = 1$이므로 $K{=}5$에서 $\lambda$의 평균은 1이어야 한다. 0.16~0.30은 <em>prefactor $K$를 곱하기 전의 softmax 확률 $p_k$</em>와 정합한다. 즉 그림이 $\lambda$가 아니라 $p$를 그린 것으로 보이며, 실제 $\lambda$ 범위는 <strong>0.8~1.5</strong>로 환산된다.</li>
+<li><strong>Table 5의 서술 두 곳이 자기 표와 어긋난다.</strong> ⑴ "$\alpha{=}0.25$가 ChartQA와 InfoVQA를 <em>3%</em> 줄인다"고 쓰지만 실제는 −4.3, −4.0이다. ⑵ "온도를 낮추면 <em>MathVista에서 최고 점수</em>를 낸다"고 쓰지만 $T{=}1.0$은 33.4이고 표의 최고는 $\alpha{=}0.25$의 33.7이다. 결론은 바뀌지 않지만 표 수치를 기준으로 읽어야 한다.</li>
+<li><strong>KL을 끈 조건에서만 측정했다.</strong> "정규화 접근의 효과와 replay 기제의 효과를 분리하기 위해" 기본적으로 reference-KL을 끈다. 분리 자체는 합당한 설계지만, <strong>"RECAP + KL"이 "RECAP 단독"보다 나은지가 답해지지 않는다</strong>. LwF baseline은 <em>KL만</em> 쓰는 조건이라 이 조합을 검사하지 않는다. §2가 스스로 "최근 파이프라인이 KL을 제거해 망각을 악화시킬 가능성"을 지적하므로, 조합 실험이 자연스러운 다음 단계다.</li>
+<li><strong>재가중의 실제 개입 폭이 명시되지 않는다.</strong> §<em>수치 예제</em>에서 계산했듯 $T{=}5$의 기본 설정에서 $\lambda$ 범위는 대략 <strong>±10%</strong>다(Figure 11의 $p$를 환산해도 0.8~1.5). 이 완만함은 안정성 면에서 장점이지만, "동적 재가중"이라는 이름이 주는 인상보다 <em>훨씬 약한 개입</em>이며 논문은 이 규모를 서술하지 않는다.</li>
+<li><strong>좌상 사분면($c \approx 1$이면서 $i$가 큰 경우)이 다뤄지지 않는다.</strong> "포화됐는데 흔들린다"는 상태는 학습 진척이 아니라 <em>보상 해킹이나 평가 노이즈</em>의 신호일 수 있다. 그런데 $s = c + i$는 그곳에 <strong>더 많은 가중</strong>을 준다. 이 논문의 실험에서는 문제가 되지 않았지만 (format이 $i \approx 0$으로 떨어졌으므로) 노이즈가 큰 verifier에서는 위험 경로다.</li>
+<li><strong>부호와 방향 규약이 서술되지 않는다.</strong> 프레임워크가 "RL 보상 대리에서 오는지 지도학습 손실항에서 오는지 무관하게 작동한다"고 주장하는데, 보상은 <em>최대화</em>하고 손실은 <em>최소화</em>한다. $c_k = \tilde\mu_k/\mu_k > 1$이 "개선"을 뜻하려면 모든 $L_k$가 <em>감소하는 양</em>이어야 하므로 보상을 어떤 형태의 손실로 변환했는지가 중요한데, "reward surrogate"라는 표현만 나온다.</li>
+<li><strong>비교 범위가 정적 혼합과 MTL에 한정된다.</strong> continual learning의 정규화 계열 중 LwF만 비교하고 <strong>EWC·SI·MAS</strong>는 §2에서 인용만 된다. 그리고 <a href="20260903_qin_correct-set-turnover.html">Correct-Set Turnover</a>가 다루는 <em>과제 내</em> 회귀와의 조합도 검토되지 않았다 — 두 방법이 직교하므로 자연스러운 실험이다.</li>
+<li><strong>MTL 비교가 SFT 조건에서 이뤄진다.</strong> NYUv2 비교는 손실 곡선이 부드러운 세팅이고, 부록 Figure 14가 이를 직접 인정한다("우리 RL 보상은 훨씬 희소하고 Figure 4·10의 학습 곡선은 훨씬 큰 변동을 보인다"). 즉 <strong>RECAP이 MTL 기법보다 낫다는 비교는 RECAP에 유리한 조건이 아닌 곳에서 수행된 것</strong>이라 오히려 보수적이지만, 반대로 <em>RLVR 조건에서 MTL 기법과 직접 겨룬 결과는 없다</em>.</li>
+</ol>
+
+<h3>AI 논문 체크리스트 대조</h3>
+
+<table class="small-table">
+<thead><tr><th>항목</th><th>판정</th><th>근거</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗</td><td><strong>Table 1·2·5 전체에 분산 추정치가 없다.</strong> Table 2의 MathVista(66.70 vs Coreset 66.90)·MathVerse(+0.09) 같은 소수점 차이의 유의성을 판정할 수 없다</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>✓</td><td><strong>Uniform baseline이 데이터 샘플링·학습 파이프라인을 포함해 모든 하이퍼파라미터를 공유하고 $\lambda_k$만 다르다</strong> — 재가중 효과를 분리하는 가장 엄격한 형태. 5종 continual-learning baseline + 정적 혼합 상한(MoDoMoDo) + 참고용 오픈소스 모델</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침하는가</td><td>✓ / △</td><td>$\alpha$ 5수준·$T$ 4수준·$W$ 2수준(부록 Table 5, Figure 16·17), Figure 5의 format/accuracy 분리, Figure 12의 지표별 분해. 다만 <strong>$s = c$만 / $i$만 쓰는 극단($\alpha{=}0$, $\alpha{=}1$)은 합성 예제에서만</strong> 보이고 실제 벤치마크에는 없다</td></tr>
+<tr><td>계산 비용 대비 성능 개선이 실용적인가</td><td>✓</td><td>$\Theta(KW)$ 스칼라 연산·메모리로 모델의 $\Theta(10^{11}{\sim}10^{12})$ FLOPs 대비 무시할 수준이며 "실제로 측정 가능한 지연을 관측하지 못했다". <strong>보조 모델 불필요</strong>가 MoDoMoDo(proxy 모델 여러 개 학습)와의 결정적 차이</td></tr>
+<tr><td>코드/데이터 공개</td><td>△</td><td>Algorithm 1(의사코드)과 Algorithm 2(PyTorch 스타일 pseudocode), 데이터 통계(Table 3), 하이퍼파라미터, 평가 prompt가 부록에 있다. <strong>그러나 코드 저장소 링크가 없다</strong></td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>✓</td><td>$W{=}10$, $T{=}5.0$, $\alpha{=}0.5$, AdamW($\beta_1{=}0.9$, $\beta_2{=}0.999$, $\epsilon{=}10^{-8}$), 10% warm-up 후 $\eta_{max}{=}1\times10^{-6}$ 선형 감쇠, bfloat16, FlashAttention, 500스텝·8 GPU·per-device batch 1·grad accum 2(유효 16)·프롬프트당 4 rollout(옵티마이저 스텝당 64)</td></tr>
+<tr><td>데이터 누출 방지</td><td>✓</td><td>학습은 7개 출처(Table 3), 평가는 9개(hybrid)·6개(RLVR-only) <em>외부</em> 벤치마크로 분리. LISA는 학습에 LISA-train, 평가에 LISA를 쓰므로 in-domain에 가깝지만 이를 명시한다</td></tr>
+<tr><td>결과의 일관성·재현 검산</td><td>△</td><td>Figure 12의 세 개선폭(+2.01/+1.11/+1.40)이 막대값과 정확히 일치함을 이 문서가 확인. Figure 2 종점이 Table 2와 일치. 그러나 <strong>Figure 11의 축 라벨이 수식과 불일치</strong>(λ 범위가 0.16~0.30)하고, <strong>Table 5 서술 두 곳이 자기 표와 어긋난다</strong>, <strong>본문 $s=c+i$와 부록 $\alpha{=}0.5$가 다른 설정</strong></td></tr>
+<tr><td>부정적/약한 결과 보고</td><td>✓</td><td>VizWiz에서 Coreset에 뒤짐(61.97 vs 63.76), AI2D도 Coreset이 높음, $\alpha{=}0.25$의 perception 하락, $T{=}1$·$W{=}50$의 실패, Figure 12의 Think Format −0.33 — 전부 표·그림에 있다</td></tr>
+<tr><td>이론과 실험의 대응</td><td>✓ / △</td><td>Theorem 1이 softmax 형태를 정당화하고 $T$의 역할을 엔트로피 가중으로 해석한다. 다만 <strong>이론은 "주어진 $s$에 대한 최적 배분"만 말하고 $s = c+i$가 왜 좋은 우선순위인지는 증명하지 않는다</strong> — 그것은 Figure 4의 경험적 관찰에 근거한다</td></tr>
+<tr><td>헤드라인 수치의 정직성</td><td>✓</td><td>"9개 중 최고 또는 차상위"라는 표현이 정확하고 예외(VizWiz)를 명시한다. LISA +2.11(↑2%)과 −7% 하락도 Figure 2·Table 2에서 재현된다. 과장된 단일 수치를 초록에 쓰지 않는다</td></tr>
+</tbody>
+</table>
+
+<h2>Key Takeaways</h2>
+
+<ol>
+<li><strong>추론 post-training의 비용을 <em>측정하고 있는지</em> 먼저 확인할 것.</strong> 이 논문의 가장 실용적인 교훈은 방법이 아니라 진단이다 — RLVR로 추론을 올리는 동안 <strong>perception·faithfulness 같은 비타깃 축을 정기적으로 평가하지 않으면 −7%가 조용히 진행된다</strong>. 그리고 Figure 2가 보이듯 <em>100 iteration이면 이미 base 아래</em>다.</li>
+<li><strong>KL 정규화는 이 문제의 답이 아니다.</strong> "<em>현재 과제에서 계산되므로 더 넓은 지식의 보존을 보장하지 않는다</em>"는 진단이 이 논문의 출발점이고, LwF baseline이 이를 실증한다 — perception은 유지되지만 추론이 깎인다. 보존하려는 능력이 있다면 <strong>그 능력의 데이터를 실제로 섞어야 한다</strong>.</li>
+<li><strong>그런데 섞은 다음이 진짜 문제다.</strong> 이질 도메인을 replay하면 "각 목적에 얼마나 무게를 줄지"가 남고, 선행 연구는 이를 손으로 튜닝하며 <em>그 계수를 설명 없이 서로 다르게 설정한다</em>. RECAP의 기여는 replay가 아니라 <strong>그 계수를 학습 신호에서 자동으로 정하는 것</strong>이다.</li>
+<li><strong>보상마다 수렴 속도가 다르다는 관찰이 핵심이고, 이것은 자기 파이프라인에서 바로 확인할 수 있다.</strong> format 보상은 50스텝에 포화하고 추론 정확도는 끝까지 변동한다. ##목적별 손실을 <strong>최근 $W$스텝 평균과 그 앞 $W$스텝 평균으로 나눠 보기만 해도</strong> 어느 목적이 이미 끝났는지 드러난다## — 재가중을 도입하지 않더라도 유용한 진단이다.</li>
+<li><strong>스텝별 값이 아니라 윈도우 비교를 써야 한다.</strong> 총 보상 표준편차가 스텝 ~20에서 0.9에 이르는 환경에서 per-iteration 통계는 과제 진척의 신뢰할 만한 지표가 아니다. 이것이 MTL 문헌의 loss-magnitude 기법들이 RL에서 불안정한 이유이기도 하다 — 부록의 합성 실험이 이를 시각적으로 보인다.</li>
+<li><strong>개입은 생각보다 완만하다.</strong> $T{=}5$ 기본 설정에서 $\lambda$ 범위는 대략 ±10%이고, Figure 11의 값을 환산해도 0.8~1.5다. <strong>목적을 켜고 끄는 것이 아니라 500스텝에 걸친 누적 넛지</strong>이며, $T$를 낮춰 개입을 세게 하면(Table 5의 $T{=}1$) 오히려 나빠진다.</li>
+<li><strong>도메인마다 다른 format 보상을 줘야 한다.</strong> 모든 도메인에 thinking 보상을 주면 모델이 segmentation에서 CoT를 스스로 버린다(Figure 6). <strong>추론이 불필요한 과제에 긴 rationale을 장려하는 것은 해롭다</strong>. 이는 RECAP을 쓰지 않더라도 멀티도메인 RLVR 파이프라인 설계에 그대로 적용되는 교훈이다.</li>
+<li><strong>비판적으로 — 단순 replay가 이미 많은 것을 한다.</strong> Table 2에서 <strong>Coreset(절반 크기 부분집합 replay, 재가중 없음)이 AI2D와 VizWiz 두 항목에서 RECAP을 앞선다</strong>. 동적 재가중이 확실히 더하는 몫은 LISA(+2.42)와 추론 축이며, 그 경계는 분석되지 않았다. 도입을 검토한다면 <strong>먼저 replay만 켜 보고 재가중의 한계 이득을 직접 재는 것</strong>이 순서다. 그리고 §<em>한계</em>의 문서 불일치 셋(본문 $s{=}c{+}i$ vs 부록 $\alpha{=}0.5$, Figure 11 축 라벨, Table 5 서술 두 건)을 감안하면 <strong>재현 시 부록의 하이퍼파라미터를 기준으로 삼는 편이 안전하다</strong>.</li>
+</ol>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
