@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MT-SDPO: Answer-Verified Multi-Teacher Distillation</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>Learn from Whoever Is Right: Answer-Verified Multi-Teacher Distillation for Multi-Domain LLMs (MT-SDPO)</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Xixiang He, Xingming Li, Baiqi Wu, Qiyao Sun, Xuanyu Ji, Ao Cheng, Qingyong Hu†</li>
+  <li><strong>소속</strong>: National University of Defense Technology, Zhejiang University, Intelligent Game and Decision Lab</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (arXiv:2609.02548v1, cs.LG)</li>
+  <li><strong>연도</strong>: 2026 (v1: 2026-09-02)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2609.02548">arXiv:2609.02548</a> · <a href="https://github.com/hexixiang/MT-SDPO">GitHub (코드 공개)</a></li>
+  <li><strong>분량</strong>: 17페이지 (본문 8p + 참고문헌 + 부록 A–F 9p: 하이퍼파라미터·알고리즘·추가 결과·프롬프트 전문)</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 도메인별로 따로 post-training한 여러 교사 모델을 배포 가능한 학생 하나로 통합할 때, 기존 방법(MOPD 등)은 <em>도메인 라벨</em>로 감독할 교사를 고른다. 그러나 도메인 전문성은 평균의 성질일 뿐 — 이 논문의 훈련셋에서 라벨이 일치하는 교사가 실제로 정답인 표본은 52.9%뿐이고, 다른 도메인 교사가 맞히는 표본이 따로 있다(1개 이상 정답 교사 존재는 65.7%). 신뢰할 교사는 도메인이 아니라 <em>표본마다</em> 다르다.</li>
+  <li><strong>해결</strong>: MT-SDPO (Multi-Teacher Self-Distillation Policy Optimization) — 할당 규칙을 "라벨 일치"에서 "##답이 검증되어 옳은 자는 누구든 교사, 검증 안 된 자는 교사가 아니다##"로 교체한 온폴리시 다중 교사 자기 증류. ① 같은 rollout 그룹의 정답 rollout이 오답 동료의 self-anchor가 되고(가장 싼 검증된 교사), ② frozen 교사는 사적 답이 verifier를 통과한 표본에서만 피드백 자격을 얻으며, ③ anchor와 살균(sanitize)된 검증 피드백을 하나의 특권 컨텍스트로 합쳐 EMA self-teacher만 읽게 하고 학생에게 토큰별로 증류한다. 배포에는 학생 하나만 남는다.</li>
+  <li><strong>왜 작동하는가</strong>: 검증은 감독을 "더 많이"가 아니라 "옳은 곳에만" 흐르게 한다. 오답 교사의 피드백이 라벨이나 학습된 가중치로 위장 입장하는 경로를 차단하고(무검증 시 교사–표본 쌍의 50.2%가 오답 참조), 자격 교사 전원의 피드백을 집계해 커버리지를 넓힌다 — 라우팅이 균형을, 검증+집계가 정확도를 공급한다.</li>
+  <li><strong>비유</strong>: 논문 첫머리의 공자 인용이 그대로 요지다 — "세 사람이 길을 가면 반드시 나의 스승이 있다: 옳은 것을 골라 따르고, 옳지 않은 것은 고친다." 전공(도메인)이 무엇이든, 이 문제를 실제로 맞힌 사람에게만 배운다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>표본 수준 진단 (Sample-level diagnosis)</strong>: 도메인 일치 선택과 표본별 선택 사이의 신뢰성 격차를 정량화 — 일치 교사 정답 52.94% vs 검증 교사 1명 이상 65.69%. 일치 커버리지 / 타 도메인 구출(rescue) / 전원 실패의 3분해를 도메인별로 제시 (§5.2).</li>
+  <li><strong>MT-SDPO</strong>: 답 검증으로 표본별 교사 자격을 부여하고, 자격을 얻은 모든 교사를 학생의 self-anchor와 함께 하나의 특권 self-teacher로 통합하는 다중 교사 자기 증류. 검증·살균·집계·EMA 증류가 한 목적함수(식 7)로 묶이며, 추론 시에는 학생 정책 하나만 남는다.</li>
+  <li><strong>통제된 증거 (Controlled evidence)</strong>: 같은 초기화·같은 rollout 예산에서 답 검증, 표본별 재배정, 다중 교사 집계 각각의 기여를 분리하는 ablation (§5.5) — 검증 제거는 초기화보다도 나쁜 결과를 낳고, 재배정과 집계는 상보적임을 보인다.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 540" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">MT-SDPO 전체 지도 — 도메인 라벨이 아니라 '검증된 정답'이 교사를 정한다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">박스의 §번호·식 번호는 이 문서 기준</text>
+<rect x="20" y="46" width="374" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="207" y="65" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">문제 ① 도메인 라벨은 평균만 안다 (§배경)</text>
+<text x="31" y="84" text-anchor="start" font-size="9.5" fill="#334155">일치 도메인 교사가 정답인 표본은 52.9%뿐</text>
+<text x="31" y="99" text-anchor="start" font-size="9.5" fill="#334155">다른 도메인 교사가 맞는 표본이 따로 있다</text>
+<text x="31" y="114" text-anchor="start" font-size="9.5" fill="#334155">→ 신뢰할 교사는 표본마다 다르다</text>
+<rect x="406" y="46" width="374" height="96" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="593" y="65" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">문제 ② SDPO는 신호가 끊긴다 (§3)</text>
+<text x="416" y="84" text-anchor="start" font-size="9.5" fill="#334155">자기 증류의 anchor = 자신의 정답 rollout</text>
+<text x="416" y="99" text-anchor="start" font-size="9.5" fill="#334155">학생이 한 번도 못 푸는 문제 → anchor 없음</text>
+<text x="416" y="114" text-anchor="start" font-size="9.5" fill="#334155">→ 외부 교사가 필요한데, 누구를 믿나?</text>
+<rect x="20" y="158" width="246" height="100" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="143" y="177" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">① Self-Anchor (§4.2, 식 2–3)</text>
+<text x="31" y="196" text-anchor="start" font-size="9.5" fill="#334155">같은 그룹의 정답 rollout이</text>
+<text x="31" y="211" text-anchor="start" font-size="9.5" fill="#334155">오답 rollout들의 anchor가 됨</text>
+<text x="31" y="226" text-anchor="start" font-size="9.5" fill="#334155">= 가장 싼 '검증된 교사'</text>
+<rect x="277" y="158" width="246" height="100" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="177" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">② 답 검증 자격 (§4.3, 식 4–5)</text>
+<text x="288" y="196" text-anchor="start" font-size="9.5" fill="#334155">사적 답이 verifier를 통과한</text>
+<text x="288" y="211" text-anchor="start" font-size="9.5" fill="#334155">교사만 피드백 자격 획득</text>
+<text x="288" y="226" text-anchor="start" font-size="9.5" fill="#334155">도메인 라벨은 무시된다</text>
+<rect x="534" y="158" width="246" height="100" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="657" y="177" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">③ 특권 증류 (§4.4, 식 6–7)</text>
+<text x="545" y="196" text-anchor="start" font-size="9.5" fill="#334155">anchor + 검증 피드백 →</text>
+<text x="545" y="211" text-anchor="start" font-size="9.5" fill="#334155">EMA self-teacher만 읽고</text>
+<text x="545" y="226" text-anchor="start" font-size="9.5" fill="#334155">학생에게 토큰별 증류</text>
+<rect x="20" y="274" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="292" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">핵심 규칙 (§4.1)</text>
+<text x="30" y="310" text-anchor="start" font-size="10" fill="#334155">할당 규칙 한 줄: 어떤 소스든 답이 검증되어 옳으면 정당한 교사이고, 검증되지 않은 소스는 교사가 아니다.</text>
+<text x="30" y="327" text-anchor="start" font-size="10" fill="#334155">학생 자신의 정답 rollout이 가장 싼 검증된 교사이므로, frozen 교사들은 그것이 실패한 곳에서만 소환된다.</text>
+<text x="20" y="372" text-anchor="start" font-size="10.5" fill="#334155" font-weight="bold">대표 결과 — Qwen3-8B, SciKnowEval L3 화학·재료·물리, step 100 (§5.3)</text>
+<rect x="20" y="382" width="182" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="111" y="400" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">최약 도메인</text>
+<text x="111" y="424" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">+14.79</text>
+<text x="111" y="440" text-anchor="middle" font-size="8.5" fill="#555">화학 49.29→67.88 (+18.59)</text>
+<rect x="212" y="382" width="182" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="304" y="400" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">도메인 격차</text>
+<text x="304" y="424" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">20.96→5.30</text>
+<text x="304" y="440" text-anchor="middle" font-size="8.5" fill="#555">74.7% 감소</text>
+<rect x="405" y="382" width="182" height="66" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="496" y="400" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">Macro</text>
+<text x="496" y="424" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">+4.64</text>
+<text x="496" y="440" text-anchor="middle" font-size="8.5" fill="#555">Multi-Domain PT 대비</text>
+<rect x="598" y="382" width="182" height="66" rx="7" fill="#f1f5f9" stroke="#64748b" stroke-width="1.8"/>
+<text x="689" y="400" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">배포 산출물</text>
+<text x="689" y="424" text-anchor="middle" font-size="20" fill="#334155" font-weight="bold">정책 1개</text>
+<text x="689" y="440" text-anchor="middle" font-size="8.5" fill="#555">교사·verifier 전부 폐기</text>
+<rect x="20" y="464" width="760" height="54" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="30" y="482" text-anchor="start" font-size="10" fill="#334155">한계도 명시적: 표본의 34.3%는 정답 교사가 하나도 없어 어떤 집계로도 못 구하고,</text>
+<text x="30" y="499" text-anchor="start" font-size="10" fill="#334155">초기화가 이미 균형 잡힌 Llama-3.1-8B에서는 어떤 온라인 방법도 이득이 없다(음성 결과, §5.3).</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 위 줄의 두 문제가 아래 세 파란 카드의 컴포넌트와 1:1로 대응한다 — 라벨 신뢰성 문제(주황)는 ②답 검증 자격이, SDPO의 무신호 문제(빨강)는 ①self-anchor와 ②의 결합이 받고, ③특권 증류가 두 원천을 하나의 학습 신호로 접는다. 노란 박스의 할당 규칙 한 줄이 논문 전체의 요지다. 스코어보드는 Qwen3-8B의 step-100 대표 결과(§5.3)이고, 빨간 박스는 저자들이 스스로 명시한 두 경계 조건 — 정답 교사 0명인 34.3%와 Llama 음성 결과 — 이다.</figcaption>
+</figure>
+
+<h2>배경 (Background)</h2>
+
+<h3>용어 정리 — 이 논문에서의 의미</h3>
+<ul>
+  <li><strong>온폴리시 증류 (on-policy distillation)</strong>: 고정 코퍼스 위의 고전적 증류(off-policy)와 달리, <em>학생이 지금 생성하는 rollout</em>을 교사가 채점·교정하는 방식. 학생의 실제 실수 분포 위에서 배우므로 추론 시 분포 이탈(drift)이 적다.</li>
+  <li><strong>자기 증류 (self-distillation)</strong>: 교사가 외부 모델이 아니라 <em>자기 자신의 특권적 사본</em>인 증류. SDPO에서는 학생의 EMA(exponential moving average) 사본이 추가 정보(피드백, 정답 rollout)를 읽은 채 같은 시퀀스를 재채점한다.</li>
+  <li><strong>특권 정보 (privileged information) $c$</strong>: 학생의 프롬프트에는 없지만 self-teacher에게만 보이는 컨텍스트. 훈련에서만 쓰이고 배포 시에는 사라지므로 "특권"이다.</li>
+  <li><strong>Self-anchor</strong>: 특권 정보의 한 종류로, 같은 프롬프트에서 학생이 이미 만들어낸 <em>검증된 정답 rollout</em>. "현재 정책이 생산할 수 있음이 입증된 해"라는 점이 외부 모범답안과 다르다.</li>
+  <li><strong>Sanitizer $\Gamma$</strong>: 교사 피드백에서 정답 누설(라벨·정답 옵션 원문)과 주제 이탈을 걸러내는 어휘적(lexical) 게이트. 정답 키는 verifier와 sanitizer만 보며, 어떤 모델 프롬프트에도 들어가지 않는다.</li>
+  <li><strong>MOPD / Domain Routing</strong>: Multi-Teacher On-Policy Distillation (Ma et al. 2026) — 도메인별 교사를 독립적으로 만들고, 각 rollout을 <em>프롬프트의 도메인과 일치하는</em> 교사에게 보내는 규칙. 이 논문은 이 규칙을 Domain Routing 베이스라인으로 구현해 정면 비교한다.</li>
+</ul>
+
+<h3>문제 설정 — 도메인별 교사를 어떻게 하나로 접나</h3>
+
+<p><strong>왜 문제인가</strong>: 현대 LLM post-training은 도메인 단위로 조직된다 — 수학 추론의 검증 가능 보상 RL, 소프트웨어 진화 보상과 실행 가능한 SWE 환경, 지시 이행의 인간 선호 보상, 검색 에이전트의 상호작용 환경. 레시피마다 고유한 데이터와 rollout 프로토콜이 필요하므로 도메인마다 별도 교사가 만들어진다. 그러나 배포되는 시스템은 <em>하나의 정책</em>으로 모든 요청에 답한다: 교사 풀을 그대로 서빙하면 오버헤드가 늘고 도메인 경계를 넘는 요청을 처리하지 못한다. 그래서 멀티도메인 post-training은 결국 "교사들을 어떻게 하나의 배포 가능한 모델로 다시 접을 것인가"로 귀결된다.</p>
+
+<p>여러 경로(합동 멀티도메인 RL, 교사 완성문 off-policy 파인튜닝, 가중치 병합 등) 중 이 논문은 <strong>온폴리시 통합</strong>을 파고든다: 교사들은 동결하고 학생이 자기 rollout 위에서 배운다. 그러면 남는 질문은 하나 — <strong>어느 교사가 어느 rollout을 감독하는가?</strong> MOPD의 답은 "프롬프트의 도메인과 일치하는 교사"이고, 이는 <em>그 도메인의 모든 표본에서 그 교사가 옳다</em>는 가정을 깔고 있다.</p>
+
+<p><strong>가정이 깨지는 지점</strong>: 도메인 전문성은 평균의 성질이다. 도메인 경계는 겹치고, 공유 소스에서 훈련된 교사들은 같은 오류를 반복하며, 타 도메인 교사가 어쩌다 성공하는 표본이 따로 있다. 이 논문의 훈련셋 전수 조사에서 ##일치 교사가 정답인 표본은 52.9%, 정답 교사가 1명이라도 있는 표본은 65.7% — 신뢰할 교사는 도메인이 아니라 표본마다 다르다##. 그래서 질문이 바뀐다: <strong>학생은 누구를 믿어야 하는가(whom should the student trust)?</strong></p>
+
+<figure>
+<svg viewBox="0 0 800 470" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arrel0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ef4444"/></marker><marker id="arrel1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#16a34a"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">표본 수준 교사 신뢰성 격차 — Domain Routing vs MT-SDPO</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">논문 Figure 1 재구성. 시나리오: 재료 도메인 질문 “물이란 무엇인가?”, 정답을 아는 건 verifier뿐</text>
+<rect x="20" y="46" width="370" height="210" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="205" y="66" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">(a) Domain Routing — 라벨이 교사를 고른다</text>
+<rect x="36" y="82" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="46" y="101" text-anchor="start" font-size="8.8" fill="#334155">Chemistry 교사</text>
+<rect x="256" y="82" width="118" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="315" y="101" text-anchor="middle" font-size="8.6" fill="#15803d">사적 답: 정답</text>
+<rect x="36" y="120" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="46" y="139" text-anchor="start" font-size="8.8" fill="#334155" font-weight="bold">Materials 교사 ★도메인 일치</text>
+<rect x="256" y="120" width="118" height="30" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="315" y="139" text-anchor="middle" font-size="8.6" fill="#b91c1c">사적 답: 오답</text>
+<rect x="36" y="158" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="46" y="177" text-anchor="start" font-size="8.8" fill="#334155">Physics 교사</text>
+<rect x="256" y="158" width="118" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="315" y="177" text-anchor="middle" font-size="8.6" fill="#15803d">사적 답: 정답</text>
+<path d="M140,200 L140,218" stroke="#ef4444" stroke-width="1.4" fill="none" marker-end="url(#arrel0)"/>
+<text x="205" y="234" text-anchor="middle" font-size="9.3" fill="#b91c1c" font-weight="bold">라벨 = Materials → 오답 교사를 배정</text>
+<text x="205" y="250" text-anchor="middle" font-size="9" fill="#b91c1c">학생은 이 표본에서 오도(misled)된다</text>
+<rect x="410" y="46" width="370" height="210" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="595" y="66" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">(b) MT-SDPO — 검증이 교사를 고른다</text>
+<rect x="426" y="82" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="436" y="101" text-anchor="start" font-size="8.8" fill="#334155">Chemistry 교사</text>
+<rect x="646" y="82" width="118" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="705" y="101" text-anchor="middle" font-size="8.8" fill="#15803d" font-weight="bold">✓ 자격</text>
+<rect x="426" y="120" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="436" y="139" text-anchor="start" font-size="8.8" fill="#334155">Materials 교사 ★도메인 일치</text>
+<rect x="646" y="120" width="118" height="30" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="705" y="139" text-anchor="middle" font-size="8.8" fill="#b91c1c" font-weight="bold">✗ 탈락</text>
+<rect x="426" y="158" width="210" height="30" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="436" y="177" text-anchor="start" font-size="8.8" fill="#334155">Physics 교사</text>
+<rect x="646" y="158" width="118" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="705" y="177" text-anchor="middle" font-size="8.8" fill="#15803d" font-weight="bold">✓ 자격</text>
+<path d="M530,200 L530,218" stroke="#16a34a" stroke-width="1.4" fill="none" marker-end="url(#arrel1)"/>
+<text x="595" y="234" text-anchor="middle" font-size="9.3" fill="#15803d" font-weight="bold">Chemistry + Physics 두 교사의 피드백 사용</text>
+<text x="595" y="250" text-anchor="middle" font-size="9" fill="#15803d">일치 교사(Materials)는 이 표본에서 배제</text>
+<text x="20" y="292" text-anchor="start" font-size="10.5" fill="#334155" font-weight="bold">훈련셋(1,953문항) 전수 진단 (§5.2):</text>
+<text x="230" y="321" text-anchor="end" font-size="9.2" fill="#334155">일치 도메인 교사가 정답</text>
+<rect x="240" y="306" width="371" height="22" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="619" y="321" text-anchor="start" font-size="9.4" fill="#92400e">52.94%</text>
+<text x="230" y="357" text-anchor="end" font-size="9.2" fill="#334155">검증된 교사 1명 이상 존재</text>
+<rect x="240" y="342" width="460" height="22" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="708" y="357" text-anchor="start" font-size="9.4" fill="#1e40af">65.69%</text>
+<line x1="611" y1="300" x2="611" y2="382" stroke="#94a3b8" stroke-dasharray="4 3"/>
+<text x="20" y="404" text-anchor="start" font-size="9.3" fill="#334155">차이 12.75pt = 일치 교사가 놓치는 표본(47.06%)의 27.09%를 타 도메인 교사가 구출(rescue)한다.</text>
+<text x="20" y="422" text-anchor="start" font-size="9.3" fill="#334155">→ 신뢰할 교사는 표본마다 다르므로, 질문은 “어느 도메인인가”가 아니라 “이 표본에서 누가 옳은가”여야 한다.</text>
+<text x="20" y="452" text-anchor="start" font-size="8.3" fill="#94a3b8">※ (a)(b)의 교사 정오 패턴은 원 그림의 예시 시나리오이며, 하단 수치는 논문 §1·§5.2의 실측값이다.</text>
+</svg>
+<figcaption><strong>[Figure 1 재구성]</strong>: 원 논문 Figure 1의 시나리오를 두 패널로 옮겼다. (a)에서 Domain Routing은 도메인 라벨만 보고 재료 교사를 배정하지만 그 교사는 이 표본에서 틀렸고, 정답을 아는 화학·물리 교사는 라벨 불일치로 무시된다. (b)의 MT-SDPO는 세 교사의 사적 답을 verifier로 검사해 옳은 둘만 자격을 준다. 하단 막대가 이 차이의 규모다: 일치 교사 정답 52.94% vs 검증 교사 존재 65.69% — 격차 12.75pt는 일치 교사가 놓치는 표본의 27.09%에 해당하며(§5.2), 이 '구출 가능 영역'이 방법 전체의 존재 이유다.</figcaption>
+</figure>
+
+<h3>관련 연구 3갈래와 이 논문의 위치</h3>
+
+<table class="small-table">
+<thead><tr><th>갈래</th><th>대표 접근</th><th>MT-SDPO와의 차이</th></tr></thead>
+<tbody>
+<tr><td><strong>① 멀티도메인<br>능력 통합</strong></td><td>합동/계단식 멀티도메인 RL, 교사 완성문 off-policy 파인튜닝, 가중치 병합(Task Arithmetic, Model Soups), 부정 전이 제어, <strong>MOPD</strong>(가장 근접 — 도메인 라우팅)</td><td>MOPD의 2단 구조(교사 독립 학습 → 학생 온폴리시 통합)는 유지하되, 감독자 선택을 도메인 단위에서 <em>검증 기반 표본 단위</em>로 교체</td></tr>
+<tr><td><strong>② 온폴리시·<br>자기 증류</strong></td><td>고전 증류(off-policy) → 적응적 off-policy(학생 출력 재사용) → 온폴리시(별도 교사가 학생 rollout 채점) → 자기/컨텍스트 증류(자신이나 특권 사본에게서 학습). <strong>SDPO</strong>가 직계 기반</td><td>SDPO는 자신의 정답 rollout에 anchor를 걸 뿐, rollout이 없는 곳엔 신호가 없다. MT-SDPO는 self-anchor를 유지한 채 검증된 외부 교사를 추가 — 무앵커 표본도 "그 표본에서 옳은 누군가"의 감독을 받는다</td></tr>
+<tr><td><strong>③ 다중 교사 증류와<br>감독 신뢰성</strong></td><td>출력 혼합·표본별 라우팅·적응적 교사 가중치. 별도로, 검증 보상 RL·생성적 verifier는 정오를 <em>학생 출력</em>의 훈련 신호로 사용</td><td>기존 집계·라우팅은 <em>교사의 사적 답의 정오</em>로 감독을 게이트하지 않는다 — 오답 교사가 정답 교사처럼 가중되거나 라우팅될 수 있다. MT-SDPO는 ⓐ 자격을 교사 사적 답의 검증으로 결정, ⓑ 표본 단위라 타 도메인 교사도 기여, ⓒ 검증 교사들을 self-anchor와 함께 <em>단일 self-teacher</em>로 통합</td></tr>
+</tbody>
+</table>
+
+<h2>3. 예비 지식 — SDPO와 다중 교사 설정</h2>
+
+<p><strong>SDPO (Self-Distillation Policy Optimization)</strong>: 프롬프트 $x \sim \mathcal{D}$에서 온폴리시 rollout $y = (y_1,\dots,y_T) \sim \pi_\theta(\cdot\mid x)$를 샘플링하고, 특권 정보 $c$를 추가로 관찰하는 self-teacher로 재평가한다. 학생 분포를 $p_{\theta,t} = \pi_\theta(\cdot \mid x, y_{&lt;t})$, self-teacher 분포를 $q_{\bar\theta,t} = \mathrm{sg}\!\left[\pi_{\bar\theta}(\cdot \mid x, c, y_{&lt;t})\right]$로 쓰면 rollout 수준 목적함수는</p>
+
+$$\mathcal{L}_{\mathrm{SDPO}}(x, y, c) = \frac{1}{T}\sum_{t=1}^{T} D\!\left(p_{\theta,t}\,\|\,q_{\bar\theta,t}\right) \tag{1}$$
+
+<p>여기서 $D$는 토큰 수준 divergence, $\mathrm{sg}$는 self-teacher로의 그래디언트를 차단한다. $c$에는 환경 피드백이나 다른 검증된 정답 rollout이 들어갈 수 있으며, <em>$c$는 self-teacher의 분포만 바꿀 뿐 학생이 훈련되는 rollout 자체는 바꾸지 않는다</em>.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: "정답 힌트를 본 나"와 "못 본 나"가 같은 문장을 한 토큰씩 다시 읽는다. 두 분포가 갈라지는 토큰이 바로 힌트가 알려주는 교정 지점이고, 그 차이를 줄이도록 학생을 당기면 텍스트 피드백이 스칼라 보상이 아닌 <em>조밀한 토큰 수준 신호</em>가 된다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arsdpo0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="arsdpo1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="arsdpo2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">배경 — SDPO(Self-Distillation Policy Optimization)의 작동과 한계</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Hübotter et al. 2026. MT-SDPO가 딛고 선 출발점 (§3, 식 1)</text>
+<rect x="20" y="50" width="174" height="56" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="107" y="70" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">① 온폴리시 rollout</text>
+<text x="107" y="88" text-anchor="middle" font-size="9" fill="#334155">학생 π_θ가 y를 샘플링</text>
+<path d="M196,78 L212,78" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arsdpo0)"/>
+<rect x="216" y="50" width="174" height="56" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="302" y="70" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">② 특권 재평가</text>
+<text x="302" y="88" text-anchor="middle" font-size="9" fill="#334155">EMA 사본 π_θ̄가 [x, c, y]를 관찰</text>
+<path d="M391,78 L408,78" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arsdpo1)"/>
+<rect x="411" y="50" width="174" height="56" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="498" y="70" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">③ 토큰별 divergence</text>
+<text x="498" y="88" text-anchor="middle" font-size="9" fill="#334155">D(p_θ,t ‖ q_θ̄,t) 계산</text>
+<path d="M586,78 L604,78" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arsdpo2)"/>
+<rect x="606" y="50" width="174" height="56" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="693" y="70" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">④ 학생만 갱신</text>
+<text x="693" y="88" text-anchor="middle" font-size="9" fill="#334155">θ ← 업데이트, θ̄는 EMA 추적</text>
+<rect x="20" y="126" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="144" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">왜 self-teacher인가</text>
+<text x="30" y="162" text-anchor="start" font-size="10" fill="#334155">특권 컨텍스트 c = 학생 프롬프트에는 없는 정보(환경 피드백, 검증된 정답 rollout 등).</text>
+<text x="30" y="179" text-anchor="start" font-size="10" fill="#334155">같은 접두사 위에서 '컨텍스트를 본 나(self-teacher)'와 '못 본 나(student)'의 분포 차이가 곧 학습 신호 —</text>
+<text x="30" y="196" text-anchor="start" font-size="10" fill="#334155">텍스트 피드백이 스칼라 보상이 아니라 조밀한(dense) 토큰 수준 신호로 바뀐다.</text>
+<rect x="20" y="224" width="760" height="66" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="34" y="244" text-anchor="start" font-size="10.5" fill="#b91c1c" font-weight="bold">SDPO의 맹점 (§1, §4.2)</text>
+<text x="34" y="262" text-anchor="start" font-size="9" fill="#334155">anchor의 원천이 학생 자신의 정답 rollout뿐 → 학생이 한 번도 풀지 못하는 프롬프트에서는 anchor가 아예 없어 학습 신호가 끊긴다.</text>
+<text x="34" y="278" text-anchor="start" font-size="9" fill="#334155">MT-SDPO는 self-anchor를 유지한 채, 이 '무앵커' 구간을 검증된 외부 교사로 메운다.</text>
+<text x="400" y="314" text-anchor="middle" font-size="8.8" fill="#334155">θ̄(EMA)는 매 rollout 배치마다 θ̄ ← (1−τ)θ̄ + τθ, τ = 0.05로 갱신 — 온폴리시 증류를 안정화한다 (§4.4).</text>
+</svg>
+<figcaption><strong>[Figure: SDPO 작동 원리와 맹점]</strong>: MT-SDPO의 기반인 SDPO(식 1)를 4단계로 풀었다. 요점은 교사가 외부 모델이 아니라 특권 컨텍스트 c를 읽은 자기 자신의 EMA 사본이라는 것 — 같은 접두사에서 두 분기의 분포 차이가 토큰 수준의 조밀한 신호가 된다(§3). 아래 빨간 박스가 MT-SDPO의 출발점이 된 맹점이다: anchor 원천이 자신의 정답 rollout뿐이라, 학생이 전혀 못 푸는 프롬프트에서는 신호가 0이 아니라 아예 부재한다. §4.3의 검증된 외부 교사가 정확히 이 구멍에 삽입된다.</figcaption>
+</figure>
+
+<p><strong>다중 교사 설정</strong>: 훈련 인스턴스는 (프롬프트 $x_i$, 검증 가능한 참조 답 $a_i^*$, 도메인 라벨 $d_i$)로 구성된다. $K$개의 frozen 도메인 교사 $\{E_k\}_{k=1}^K$는 두 가지로 질의된다 — 사적 답변 $E_k^{\mathrm{ans}}$ 또는 주어진 rollout에 대한 비평 $E_k^{\mathrm{fb}}$. 프로그램적 verifier $\textsc{Verify}(\cdot, a_i^*) \in \{0,1\}$는 완성문에서 답을 추출해 $a_i^*$와 비교한다. <strong>참조 답은 verifier와 sanitizer에게만 도달하며, MT-SDPO의 어떤 단계에서도 학생·교사 프롬프트에 들어가지 않는다.</strong> 문제는: 각 학생 rollout에 대해 어느 교사가 기여해도 되는지 결정하고, 그 감독을 훈련이 유지하는 단일 정책 $\pi_\theta$로 통합하는 것.</p>
+
+<h2>4. 방법 — MT-SDPO</h2>
+
+<h3>4.1 프레임워크 개요</h3>
+
+<p>훈련은 세 가지 보조 장치와 함께 진행되며 <strong>셋 다 추론 시점에 사라진다</strong>: $K$개 frozen 도메인 교사, 프로그램적 verifier, self-teacher 역할의 학생 EMA 사본 $\pi_{\bar\theta}$. 흐름은:</p>
+
+<ul>
+  <li><strong>검증은 훈련 전 1회</strong>: 모든 교사가 모든 질문에 사적으로 먼저 답하고, verifier가 정답 교사를 표본별 자격 집합으로 캐시한다 — 훈련 중 반복 답변 비용이 없다.</li>
+  <li><strong>매 온라인 스텝은 감독을 rollout 단위로 정렬</strong>: 학생이 프롬프트당 $G$개 rollout을 샘플링하고 verifier가 정오를 표시한다. 정답 rollout은 같은 그룹의 나머지에게 self-anchor가 되고, 오답 rollout은 자격 교사들에게 보내져 살균된 피드백이 anchor와 함께 self-teacher만 읽는 특권 컨텍스트를 이룬다. self-teacher를 학생으로 증류하는 것이 유일한 파라미터 업데이트다.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 545" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arov0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#a855f7"/></marker><marker id="arov1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">MT-SDPO 한 사이클 — 오프라인 검증 · 온라인 4단계 · 배포</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">논문 Figure 2 재구성. 정답 키는 verifier·sanitizer에만 보이고 어떤 모델 프롬프트에도 안 들어간다</text>
+<rect x="20" y="46" width="760" height="96" rx="8" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.2"/>
+<text x="34" y="66" text-anchor="start" font-size="10.5" fill="#7e22ce" font-weight="bold">오프라인 (학습 전 1회, §4.1) — 표본 수준 자격 manifest</text>
+<text x="34" y="86" text-anchor="start" font-size="9" fill="#334155">K=3 frozen 교사(화학·재료·물리)가 1,953개 훈련 질문 전부에 사적 답변 생성 (온도 0, 최대 6,144 토큰)</text>
+<text x="34" y="103" text-anchor="start" font-size="9" fill="#334155">verifier가 각 답을 정답 키와 대조 → 표본별 자격 집합 V_i 캐시 (식 4) — 훈련 중 재답변 비용 없음</text>
+<text x="34" y="120" text-anchor="start" font-size="9" fill="#334155" font-style="italic">“이 표본에서 옳았던 자는 누구든 교사가 된다” — 도메인 라벨 d_i는 자격에 관여하지 않는다</text>
+<path d="M400,142 L400,156" stroke="#a855f7" stroke-width="1.4" fill="none" marker-end="url(#arov0)"/>
+<rect x="20" y="158" width="760" height="268" rx="8" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="34" y="178" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="bold">온라인 훈련 스텝 (×100, §4.1–4.4)</text>
+<rect x="36" y="192" width="356" height="100" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="48" y="212" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">① 그룹 rollout + 검증</text>
+<text x="48" y="232" text-anchor="start" font-size="8.6" fill="#334155">프롬프트당 G=8개 온폴리시 rollout</text>
+<text x="48" y="249" text-anchor="start" font-size="8.6" fill="#334155">프로그램 verifier가 정오 표시 (식 2)</text>
+<text x="48" y="266" text-anchor="start" font-size="8.6" fill="#334155">rollout = 훈련 단위</text>
+<rect x="412" y="192" width="356" height="100" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="424" y="212" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">② self-anchor + 검증 교사</text>
+<text x="424" y="232" text-anchor="start" font-size="8.6" fill="#334155">정답 rollout → 오답 동료의 anchor (식 3)</text>
+<text x="424" y="249" text-anchor="start" font-size="8.6" fill="#334155">오답 rollout → 자격 교사 V_i에 진단 요청</text>
+<text x="424" y="266" text-anchor="start" font-size="8.6" fill="#334155">sanitizer Γ가 정답 누설 피드백 폐기 (식 5)</text>
+<rect x="36" y="304" width="356" height="100" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="48" y="324" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">③ 특권 컨텍스트 조립</text>
+<text x="48" y="344" text-anchor="start" font-size="8.6" fill="#334155">c = [anchor ; 살아남은 피드백들]</text>
+<text x="48" y="361" text-anchor="start" font-size="8.6" fill="#334155">둘 다 없으면 mask=0 → 손실 제외 (식 6)</text>
+<text x="48" y="378" text-anchor="start" font-size="8.6" fill="#334155">빈 블록은 자리 없이 삭제 — 자연어 프롬프트 유지</text>
+<rect x="412" y="304" width="356" height="100" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="424" y="324" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">④ EMA 유도 증류</text>
+<text x="424" y="344" text-anchor="start" font-size="8.6" fill="#334155">self-teacher(EMA)만 c를 읽음</text>
+<text x="424" y="361" text-anchor="start" font-size="8.6" fill="#334155">masked·중요도가중 JSD (식 7)</text>
+<text x="424" y="378" text-anchor="start" font-size="8.6" fill="#334155">그래디언트는 학생 θ에만</text>
+<path d="M400,426 L400,440" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arov1)"/>
+<rect x="20" y="442" width="760" height="66" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="34" y="462" text-anchor="start" font-size="10.5" fill="#15803d" font-weight="bold">배포 (§4.1)</text>
+<text x="34" y="480" text-anchor="start" font-size="9" fill="#334155">남는 것은 통합 학생 정책 π_θ 하나. 교사 3개·verifier·EMA self-teacher 전부 폐기 —</text>
+<text x="34" y="496" text-anchor="start" font-size="9" fill="#334155">추론 시 도메인 식별도, 추가 모델도, 추가 정보도 필요 없다.</text>
+<text x="400" y="530" text-anchor="middle" font-size="8.6" fill="#334155">훈련 인프라는 GRPO의 rollout 수집을 재사용하지만, 이진 검증 결과는 보상 스칼라가 아니라 anchor 구축·교사 소환 게이트로만 쓰인다.</text>
+</svg>
+<figcaption><strong>[Figure 2 재구성]</strong>: 원 논문 Figure 2의 3열(Offline Expert / Online Training Step / Deployment)을 세로 흐름으로 재배열했다. 보라 단계의 오프라인 manifest가 §4.3의 식 (4)를 훈련 전에 한 번만 계산해 캐시하므로 훈련 중 교사 재답변 비용이 없고, 파란 단계의 ①→④가 매 스텝의 rollout 정렬-피드백-증류 사이클(§4.2–4.4)이다. 초록 단계가 이 방법의 배포 논거다: 교사·verifier·EMA를 전부 버리고 단일 정책만 남아, 추론 시 도메인 식별조차 필요 없다.</figcaption>
+</figure>
+
+<h3>4.2 Rollout별 self-anchor — 식 (2)(3)</h3>
+
+<p><strong>왜 문제인가</strong>: 특권 정보의 첫 원천은 학생 자신이다 — rollout 그룹에는 보통 정답과 오답이 섞여 있고, 정답 rollout은 <em>현재 정책이 이미 생산할 수 있음을 보인 해</em>다. 이를 놀리지 않고 감독으로 재활용한다.</p>
+
+<p><strong>해법</strong>: 프롬프트 $x_i$에서 $G$개 rollout $\{y_i^1,\dots,y_i^G\} \sim \pi_\theta(\cdot\mid x_i)$을 뽑고 프로그램 검사로 그룹을 가른다:</p>
+
+$$\mathcal{S}_i = \left\{ j : \textsc{Verify}(y_i^j, a_i^*) = 1 \right\} \tag{2}$$
+
+<p>rollout $j$의 self-anchor는 <em>자신을 제외한</em> 가장 이른 정답 동료다:</p>
+
+$$s_i^j = \begin{cases} \mathrm{Trunc}\big(y^{j^\star}\big), & \mathcal{S}_i \setminus \{j\} \neq \varnothing \\ \varnothing, & \text{otherwise} \end{cases}, \qquad j^\star = \min\big(\mathcal{S}_i \setminus \{j\}\big) \tag{3}$$
+
+<p>$\mathrm{Trunc}$는 해당 rollout의 풀이 부분을 anchor 토큰 예산(4,096) 안으로 절단한다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: "8번 풀어서 2번 맞았다면, 맞은 풀이를 옆에 놓고 틀린 6개를 다시 읽어라." 자기 자신을 anchor로 쓰지 않는 이유는 명확하다 — 그러면 self-teacher가 자기가 채점 중인 시퀀스의 완전한 사본을 관찰하게 되어 감독이 복사로 퇴화한다. 오답 rollout은 정답 동료를 재사용할 수 있지만, <strong>학생이 한 번도 풀지 못하는 프롬프트에는 self-anchor가 아예 없다</strong> — 이 공백이 다음 절의 외부 교사가 들어오는 자리다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">수치 예제 — 식 (2)(3): G=8 rollout 그룹의 self-anchor 배정</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가상의 검증 결과로 재구성한 계산. Trunc = anchor 토큰 예산(4,096) 내 절단</text>
+<rect x="40" y="52" width="110" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="95" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">rollout j</text>
+<rect x="150" y="52" width="150" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="225" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Verify(y_i^j, a*)</text>
+<rect x="300" y="52" width="150" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="375" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">S_i \ {j}</text>
+<rect x="450" y="52" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="515" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">j* = min(·)</text>
+<rect x="580" y="52" width="180" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="670" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">anchor s_i^j</text>
+<rect x="40" y="78" width="110" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="96" text-anchor="start" font-size="8.8" fill="#334155">R1</text>
+<rect x="150" y="78" width="150" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="225" y="96" text-anchor="middle" font-size="8.8" fill="#334155">1 (정답)</text>
+<rect x="300" y="78" width="150" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="375" y="96" text-anchor="middle" font-size="8.8" fill="#334155">{4}</text>
+<rect x="450" y="78" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="515" y="96" text-anchor="middle" font-size="8.8" fill="#334155">4</text>
+<rect x="580" y="78" width="180" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="670" y="96" text-anchor="middle" font-size="8.8" fill="#334155">Trunc(y⁴)</text>
+<rect x="40" y="104" width="110" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="122" text-anchor="start" font-size="8.8" fill="#334155">R2</text>
+<rect x="150" y="104" width="150" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="225" y="122" text-anchor="middle" font-size="8.8" fill="#334155">0</text>
+<rect x="300" y="104" width="150" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="375" y="122" text-anchor="middle" font-size="8.8" fill="#334155">{1, 4}</text>
+<rect x="450" y="104" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="515" y="122" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="580" y="104" width="180" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="670" y="122" text-anchor="middle" font-size="8.8" fill="#334155">Trunc(y¹)</text>
+<rect x="40" y="130" width="110" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="148" text-anchor="start" font-size="8.8" fill="#334155">R3</text>
+<rect x="150" y="130" width="150" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="225" y="148" text-anchor="middle" font-size="8.8" fill="#334155">0</text>
+<rect x="300" y="130" width="150" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="375" y="148" text-anchor="middle" font-size="8.8" fill="#334155">{1, 4}</text>
+<rect x="450" y="130" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="515" y="148" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="580" y="130" width="180" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="670" y="148" text-anchor="middle" font-size="8.8" fill="#334155">Trunc(y¹)</text>
+<rect x="40" y="156" width="110" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="174" text-anchor="start" font-size="8.8" fill="#334155">R4</text>
+<rect x="150" y="156" width="150" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="225" y="174" text-anchor="middle" font-size="8.8" fill="#334155">1 (정답)</text>
+<rect x="300" y="156" width="150" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="375" y="174" text-anchor="middle" font-size="8.8" fill="#334155">{1}</text>
+<rect x="450" y="156" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="515" y="174" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="580" y="156" width="180" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="670" y="174" text-anchor="middle" font-size="8.8" fill="#334155">Trunc(y¹)</text>
+<rect x="40" y="182" width="110" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="200" text-anchor="start" font-size="8.8" fill="#334155">R5–R8</text>
+<rect x="150" y="182" width="150" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="225" y="200" text-anchor="middle" font-size="8.8" fill="#334155">0</text>
+<rect x="300" y="182" width="150" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="375" y="200" text-anchor="middle" font-size="8.8" fill="#334155">{1, 4}</text>
+<rect x="450" y="182" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="515" y="200" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="580" y="182" width="180" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="670" y="200" text-anchor="middle" font-size="8.8" fill="#334155">Trunc(y¹)</text>
+<text x="40" y="230" text-anchor="start" font-size="9.5" fill="#334155">이 예에서 S_i = {1, 4} (식 2). 정답 rollout R1·R4도 서로를 anchor로 받는다 — 단, 자기 자신은 제외.</text>
+<rect x="20" y="250" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="268" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">설계 논리</text>
+<text x="30" y="286" text-anchor="start" font-size="10" fill="#334155">자기 자신을 제외하는 이유: j가 자기 anchor가 되면 self-teacher가 자신이 채점하는 시퀀스의 완전한 사본을 관찰,</text>
+<text x="30" y="303" text-anchor="start" font-size="10" fill="#334155">감독이 '복사'로 퇴화한다. 오답 rollout은 정답 동료를 재사용할 수 있지만, 학생이 전혀 못 푸는 프롬프트(S_i = ∅)는</text>
+<text x="30" y="320" text-anchor="start" font-size="10" fill="#334155">anchor가 없다 — 바로 이 공백이 §4.3의 검증된 외부 교사가 메우는 자리다.</text>
+<rect x="20" y="356" width="760" height="46" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="34" y="375" text-anchor="start" font-size="8.8" fill="#334155">S_i = ∅인 극단: 8개 전부 오답이면 anchor 전무. 자격 교사(V_i)마저 없으면 mask=0으로 손실에서 제외된다 (식 6) —</text>
+<text x="34" y="391" text-anchor="start" font-size="8.8" fill="#334155">무정보 rollout을 '0을 배워라'가 아니라 '배우지 않는다'로 처리하는 것이 붕괴 방지의 요점.</text>
+</svg>
+<figcaption><strong>[Figure: 식 (2)(3) self-anchor 수치 예제]</strong>: G=8 그룹에 정답이 R1·R4 둘인 가상 사례로 anchor 배정을 전개했다(검증 패턴은 재구성, 규칙은 원문). 오답 rollout(빨강)은 모두 가장 이른 정답 동료 y¹을 받고, 정답 rollout끼리는 서로를 받는다 — R1의 anchor가 y⁴인 것은 자기 제외 규칙(j* = min(S\{j})) 때문이다. 자기 자신을 anchor로 쓰면 self-teacher가 채점 대상의 사본을 관찰해 감독이 복사로 퇴화한다는 것이 §4.2의 논거이고, 하단 빨간 박스의 S=∅ 경우가 식 (6)의 마스크 처리와 §4.3의 외부 교사로 이어진다.</figcaption>
+</figure>
+
+<h3>4.3 답 검증 교사 자격 — 식 (4)(5)</h3>
+
+<p><strong>왜 문제인가</strong>: 도메인 일치는 "어느 교사가 평균적으로 강한가"를 알려줄 뿐 "주어진 질문에서 누가 옳은가"를 알려주지 않는다(MOPD의 가정). MT-SDPO는 이 대리 지표를 표본별 검사로 교체하고, 그렇게 생긴 교사 질의 비용을 <em>verifier가 오답 표시한 rollout에만</em> 쓴다 — self-anchor가 없을 수도 있는 바로 그곳이다.</p>
+
+<p><strong>자격은 훈련 시작 전에 사적 답변으로 결정된다</strong>: 교사 $k$가 질문과 선택지만으로 사적 완성문 $\hat y_{i,k} = E_k^{\mathrm{ans}}(x_i)$을 독립 생성하고, verifier가 정답인 교사만 남긴다:</p>
+
+$$\mathcal{V}_i = \left\{ k : \textsc{Verify}(\hat y_{i,k}, a_i^*) = 1 \right\} \tag{4}$$
+
+<p>자격 집합은 표본별이며 도메인 라벨 $d_i$를 무시한다: 타 도메인 교사도 정답이면 $\mathcal{V}_i$에 들어오고, 명목상 일치 교사도 오답이면 탈락한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 404" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">수치 예제 — 식 (4)(5): 답 검증 자격과 피드백 조립</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가상 시나리오로 재구성: 재료 도메인 질문, 정답 B. 교사 답의 정오는 예시</text>
+<rect x="40" y="52" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="105" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">교사 k</text>
+<rect x="170" y="52" width="190" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="265" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">도메인 라벨과의 관계</text>
+<rect x="360" y="52" width="140" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="430" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">사적 답 ŷ_{i,k}</text>
+<rect x="500" y="52" width="100" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="550" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Verify</text>
+<rect x="600" y="52" width="160" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="680" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">자격 (k ∈ V_i?)</text>
+<rect x="40" y="78" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="96" text-anchor="start" font-size="8.8" fill="#334155">Chemistry</text>
+<rect x="170" y="78" width="190" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="265" y="96" text-anchor="middle" font-size="8.8" fill="#334155">타 도메인</text>
+<rect x="360" y="78" width="140" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="96" text-anchor="middle" font-size="8.8" fill="#334155">B</text>
+<rect x="500" y="78" width="100" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="550" y="96" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="600" y="78" width="160" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="680" y="96" text-anchor="middle" font-size="8.8" fill="#334155">✓ 자격</text>
+<rect x="40" y="104" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="122" text-anchor="start" font-size="8.8" fill="#334155">Materials</text>
+<rect x="170" y="104" width="190" height="26" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="265" y="122" text-anchor="middle" font-size="8.8" fill="#334155">★ 도메인 일치</text>
+<rect x="360" y="104" width="140" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="122" text-anchor="middle" font-size="8.8" fill="#334155">C</text>
+<rect x="500" y="104" width="100" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="550" y="122" text-anchor="middle" font-size="8.8" fill="#334155">0</text>
+<rect x="600" y="104" width="160" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="680" y="122" text-anchor="middle" font-size="8.8" fill="#334155">✗ 탈락</text>
+<rect x="40" y="130" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="48" y="148" text-anchor="start" font-size="8.8" fill="#334155">Physics</text>
+<rect x="170" y="130" width="190" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="265" y="148" text-anchor="middle" font-size="8.8" fill="#334155">타 도메인</text>
+<rect x="360" y="130" width="140" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="430" y="148" text-anchor="middle" font-size="8.8" fill="#334155">B</text>
+<rect x="500" y="130" width="100" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="550" y="148" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="600" y="130" width="160" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="680" y="148" text-anchor="middle" font-size="8.8" fill="#334155">✓ 자격</text>
+<text x="40" y="176" text-anchor="start" font-size="9.5" fill="#334155" font-weight="bold">→ V_i = {Chemistry, Physics}. 오답 rollout j에 대한 피드백 (식 5):</text>
+<text x="60" y="196" text-anchor="start" font-size="9.3" fill="#334155">F_i^j = Γ(화학 교사의 진단) ⊕ Γ(물리 교사의 진단)   — 고정 순서(화학→재료→물리)로 연결, 다수결·가중치 없음</text>
+<rect x="20" y="216" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="234" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">규칙의 세부</text>
+<text x="30" y="252" text-anchor="start" font-size="10" fill="#334155">질의는 verifier가 오답 표시한 rollout에만 나간다 — self-anchor가 이미 있는 곳(정답 rollout)에는 교사를 부르지 않는다.</text>
+<text x="30" y="269" text-anchor="start" font-size="10" fill="#334155">자격 교사는 질문 + 선택지 + 학생의 오답 rollout만 받고, 정답 키 a*와 정오 라벨은 결코 받지 않는다.</text>
+<text x="30" y="286" text-anchor="start" font-size="10" fill="#334155">|V_i|명이 최대 |V_i|개 메시지 공급: 자격은 '누가 답하는가'가 아니라 '누가 옳았는가'를 고정한다.</text>
+<rect x="20" y="320" width="760" height="62" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="34" y="340" text-anchor="start" font-size="10" fill="#1e40af" font-weight="bold">검증은 할당 규칙이지 정확성 증명이 아니다 (§4.3 원문 강조)</text>
+<text x="34" y="358" text-anchor="start" font-size="8.8" fill="#334155">식 (4)는 고정 프롬프트·디코딩 설정의 캐시된 답 1개를 검사할 뿐 — 이후 작성될 진단문의 품질이나 교사의 일반 역량을</text>
+<text x="34" y="374" text-anchor="start" font-size="8.8" fill="#334155">보증하지 않는다. 저자들은 이를 §5.5의 하류 효과(vs 라우팅·vs 무검증)로 정당화한다.</text>
+</svg>
+<figcaption><strong>[Figure: 식 (4)(5) 자격 판정 수치 예제]</strong>: 재료 도메인 질문에서 도메인 일치 교사가 탈락하고 타 도메인 교사 둘이 자격을 얻는 가상 사례(정오 패턴은 예시, 규칙은 원문). 자격 집합 V_i가 도메인 라벨 d_i를 완전히 무시한다는 것이 Domain Routing과의 유일한 차이이자 §5.5 ablation에서 w/o Cross-Domain이 제거하는 바로 그 성분이다. 파란 박스는 원문이 명시적으로 강조하는 인식론적 경계 — 검증은 캐시된 답 하나의 검사일 뿐 비평 품질의 증명이 아니며, 정당화는 §5.5의 하류 효과로 한다.</figcaption>
+</figure>
+
+<p><strong>자격 교사 전원이 독립적으로 질의된다</strong>: 각 $k \in \mathcal{V}_i$는 질문·선택지 전체·해당 오답 rollout을 받지만 $a_i^*$도 정오 라벨도 받지 않는다. sanitizer를 통과한 메시지만 고정 교사 순서(화학→재료→물리)로 연결된다:</p>
+
+$$F_i^j = \begin{cases} \mathrm{Concat}_{k \in \mathcal{V}_i}\!\left[\Gamma\big(E_k^{\mathrm{fb}}(x_i, y_i^j)\big)\right], & j \notin \mathcal{S}_i \\ \varnothing, & \text{otherwise} \end{cases} \tag{5}$$
+
+<p>$\Gamma$는 메시지를 $x_i$와 $a_i^*$에 대조해 통과 또는 $\varnothing$을 반환한다. 자격은 "누가 답하는가"가 아니라 "누가 물어봄을 받는가"를 고정하며, $|\mathcal{V}_i|$명의 교사가 최대 $|\mathcal{V}_i|$개 메시지를 공급한다. 기존 다중 교사 집계와 달리 ##다수결도 도메인 기반 가중치도 적용하지 않는다 — 검증이 이미 자격을 걸렀으므로 집계는 단순 연결로 충분하다##는 설계다.</p>
+
+<p><strong>Sanitizer는 라벨 누설과 주제 이탈을 막는다</strong>: $\Gamma$는 정답 라벨을 드러내는 메시지 — 구조화된 답 패턴, 표적 라벨 표현, 정답 옵션 전문 — 를 통째로 기각하고, 질문에 등장하는 짧은 개념 anchor의 원문 인용을 요구해 비평이 특정 오류를 겨냥하게 한다. 두 게이트 모두 <em>어휘적</em>이다: 누설과 이탈을 경계 짓지만, 라벨의 모든 패러프레이즈를 잡지도 유지된 피드백의 의미적 타당성을 보증하지도 않는다.</p>
+
+<figure>
+<svg viewBox="0 0 800 392" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Sanitizer Γ — 차단되는 피드백 vs 통과하는 피드백</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">§4.3. 예시 문장은 규칙을 보이기 위한 재구성 (한국어 의역), 규칙 자체는 원문</text>
+<rect x="20" y="46" width="370" height="240" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="205" y="66" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">Γ가 통째로 기각하는 메시지</text>
+<rect x="34" y="82" width="342" height="40" rx="5" fill="#fff" stroke="#fca5a5"/>
+<text x="44" y="98" font-size="8.6" fill="#7f1d1d" font-family="monospace">“정답은 B입니다. 왜냐하면…”</text>
+<text x="44" y="114" text-anchor="start" font-size="8.2" fill="#b91c1c">✗ 정답 라벨 직접 노출</text>
+<rect x="34" y="132" width="342" height="40" rx="5" fill="#fff" stroke="#fca5a5"/>
+<text x="44" y="148" font-size="8.6" fill="#7f1d1d" font-family="monospace">“answer: B 형식으로 끝내라”</text>
+<text x="44" y="164" text-anchor="start" font-size="8.2" fill="#b91c1c">✗ 구조화된 답 패턴 / 표적 라벨 표현</text>
+<rect x="34" y="182" width="342" height="40" rx="5" fill="#fff" stroke="#fca5a5"/>
+<text x="44" y="198" font-size="8.6" fill="#7f1d1d" font-family="monospace">“‘산화칼슘(CaO)’이 옳다” (선택지 원문)</text>
+<text x="44" y="214" text-anchor="start" font-size="8.2" fill="#b91c1c">✗ 정답 옵션 전문 인용</text>
+<rect x="34" y="232" width="342" height="40" rx="5" fill="#fff" stroke="#fca5a5"/>
+<text x="44" y="248" font-size="8.6" fill="#7f1d1d" font-family="monospace">“열역학은 흥미로운 분야다…”</text>
+<text x="44" y="264" text-anchor="start" font-size="8.2" fill="#b91c1c">✗ 질문의 개념 anchor 부재 → 주제 이탈</text>
+<rect x="410" y="46" width="370" height="240" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="595" y="66" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">통과하는 메시지의 형태</text>
+<rect x="424" y="82" width="342" height="92" rx="5" fill="#fff" stroke="#86efac"/>
+<text x="434" y="100" font-size="8.6" fill="#14532d" font-family="monospace">“<concept>격자 에너지</concept></text>
+<text x="434" y="116" font-size="8.6" fill="#14532d" font-family="monospace"> 2단계에서 Born–Haber 순환의</text>
+<text x="434" y="132" font-size="8.6" fill="#14532d" font-family="monospace"> 부호를 뒤집어 적용했다. 이온화</text>
+<text x="434" y="148" font-size="8.6" fill="#14532d" font-family="monospace"> 에너지 항의 방향을 재검토하라.”</text>
+<text x="424" y="196" text-anchor="start" font-size="8.6" fill="#15803d">✓ 질문에 나온 개념 anchor(1~3단어) 원문 인용 필수</text>
+<text x="424" y="216" text-anchor="start" font-size="8.6" fill="#15803d">✓ 특정 단계·가정·개념의 오류를 지적 (3~5문장, ≤80단어)</text>
+<text x="424" y="236" text-anchor="start" font-size="8.6" fill="#15803d">✓ 정답 문자·정답 텍스트·verifier 존재 언급 금지</text>
+<text x="424" y="256" text-anchor="start" font-size="8.6" fill="#15803d">✓ 처음부터 다시 풀지 않음 (전체 풀이 금지)</text>
+<rect x="20" y="298" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="316" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">경계</text>
+<text x="30" y="334" text-anchor="start" font-size="10" fill="#334155">두 게이트는 어휘적(lexical)이다: 누설과 이탈을 막지만, 라벨의 모든 패러프레이즈를 잡지도, 남은 피드백의 의미적</text>
+<text x="30" y="351" text-anchor="start" font-size="10" fill="#334155">타당성을 보증하지도 못한다 — 원문이 명시한 한계. 통과분만 자격 교사 순서로 연결되어 특권 컨텍스트에 들어간다.</text>
+<text x="400" y="384" text-anchor="middle" font-size="8.6" fill="#64748b">피드백 생성: 온도 0.2, top-p 0.95, 256 토큰 상한 · 피드백 예산 1,024 토큰 (부록 B.3, Table 4)</text>
+</svg>
+<figcaption><strong>[Figure: sanitizer Γ의 차단/통과 기준]</strong>: §4.3의 살균 규칙을 텍스트 패널로 대비했다(예문은 규칙을 보이기 위한 한국어 재구성). 왼쪽 빨강이 통째로 기각되는 4가지 — 라벨 노출, 구조화된 답 패턴, 정답 옵션 인용, 개념 anchor 부재 — 이고, 오른쪽 초록이 통과 형태다: 질문 속 개념을 원문 인용으로 못 박고 특정 단계의 오류만 지적한다(부록 E.4의 진단 프롬프트가 3~5문장·80단어 상한과 금지 목록을 강제). 노란 박스는 원문이 자인하는 한계로, 게이트가 어휘적이라 패러프레이즈 누설과 의미적 오류는 통과할 수 있다 — §비판적 분석의 객관식 한계와 연결되는 지점이다.</figcaption>
+</figure>
+
+<p><strong>검증은 할당 규칙이지 정확성 증명이 아니다</strong>: 식 (4)는 고정 프롬프트·디코딩 설정 아래 캐시된 완성문 하나를 검사할 뿐, 교사가 이후 작성할 비평의 품질도 그 질문에 대한 일반 역량도 검증하지 않는다. 저자들은 이 규칙을 하류 효과 — §5.5에서 도메인 라우팅·무검증 집계와의 비교 — 로 정당화한다.</p>
+
+<h3>4.4 특권 증류와 학생 업데이트 — 식 (6)(7)</h3>
+
+<p><strong>해법</strong>: 두 감독 원천을 하나의 훈련 신호로 병합한다. rollout마다 특권 컨텍스트 $c_i^j = [s_i^j; F_i^j]$를 구성하고, self-teacher가 원 질문 뒤에 자연어 섹션 헤더로 이를 읽는다. 자격 마스크는:</p>
+
+$$m_i^j = \mathbb{1}\!\left[c_i^j \neq \varnothing\right] = \mathbb{1}\!\left[s_i^j \neq \varnothing \;\vee\; F_i^j \neq \varnothing\right] \tag{6}$$
+
+<p>컨텍스트는 네 경우를 가진다: 둘 다 있으면 완전 조건화, anchor만 있으면 SDPO 폴백, 피드백만 있으면 teacher-only SDPO, 둘 다 없으면 — 그룹에 다른 정답 rollout이 없고 살아남은 메시지도 없는 경우 — 마스크가 그 rollout을 접는다: <strong>무정보 rollout은 0-신호를 배우는 게 아니라 증류 손실에서 제외된다</strong>. 빈 원천은 placeholder 없이 블록째 삭제되어 컨텍스트는 끝까지 단일 자연어 프롬프트로 유지된다.</p>
+
+<p><strong>목적함수는 마스킹된 중요도 가중 토큰별 divergence다</strong>: rollout $y_i^j$의 토큰 $t$에서 학생은 질문만으로 접두사를 채점하고($p^j_{\theta,i,t} = \pi_\theta(\cdot\mid x_i, y^j_{i,&lt;t})$), self-teacher는 같은 접두사를 컨텍스트를 붙여 채점한다($q^j_{\bar\theta,i,t} = \mathrm{sg}[\pi_{\bar\theta}(\cdot\mid x_i, c_i^j, y^j_{i,&lt;t})]$). 같은 접두사를 강제하므로 두 분기는 토큰 정렬이 유지된다. 식 (1)을 마스킹·중요도 가중 배치 목적으로 확장하고 $D$를 대칭 Jensen–Shannon divergence로 인스턴스화하면:</p>
+
+$$\mathcal{L}_{\text{MT-SDPO}} = \frac{1}{Z} \sum_{i,j,t} m_i^j \, M_{i,t}^j \, w_{i,t}^j \, D_{\mathrm{JSD}}\!\left(p^j_{\theta,i,t} \,\Big\|\, q^j_{\bar\theta,i,t}\right) \tag{7}$$
+
+<p>$M^j_{i,t}$는 응답 토큰만 남기는 마스크, $w^j_{i,t}$는 detach·클리핑된 중요도 가중치(샘플링 시점 대비 정책 드리프트 보정, 상한 2.0), $Z$는 비마스크 토큰 수다. 대칭 divergence와 EMA self-teacher를 쓰는 이유는 둘 다 온폴리시 증류를 안정화하기 때문(선행 보고). $\pi_{\bar\theta}$는 EMA 사본이자 $c_i^j$를 읽는 유일한 분기이므로, divergence가 전달하는 것은 <em>컨텍스트로 조건화되고 시간적으로 평활된 이동</em>이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 412" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">수치 예제 — 식 (6)(7): 특권 컨텍스트의 4가지 경우와 손실 구성</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">c_i^j = [s_i^j ; F_i^j]. 마지막 열은 그 rollout이 손실에 내는 기여</text>
+<rect x="30" y="52" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="95" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">경우</text>
+<rect x="160" y="52" width="120" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="220" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">anchor s_i^j</text>
+<rect x="280" y="52" width="120" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="340" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">피드백 F_i^j</text>
+<rect x="400" y="52" width="90" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="445" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">mask m_i^j</text>
+<rect x="490" y="52" width="280" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="630" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">self-teacher가 읽는 것</text>
+<rect x="30" y="78" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="96" text-anchor="start" font-size="8.8" fill="#334155">완전 조건화</text>
+<rect x="160" y="78" width="120" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="220" y="96" text-anchor="middle" font-size="8.8" fill="#334155">있음</text>
+<rect x="280" y="78" width="120" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="340" y="96" text-anchor="middle" font-size="8.8" fill="#334155">있음</text>
+<rect x="400" y="78" width="90" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="445" y="96" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="490" y="78" width="280" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="96" text-anchor="middle" font-size="8.8" fill="#334155">질문 + anchor + 피드백</text>
+<rect x="30" y="104" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="122" text-anchor="start" font-size="8.8" fill="#334155">SDPO 폴백</text>
+<rect x="160" y="104" width="120" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="220" y="122" text-anchor="middle" font-size="8.8" fill="#334155">있음</text>
+<rect x="280" y="104" width="120" height="26" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="340" y="122" text-anchor="middle" font-size="8.8" fill="#334155">∅</text>
+<rect x="400" y="104" width="90" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="445" y="122" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="490" y="104" width="280" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="122" text-anchor="middle" font-size="8.8" fill="#334155">질문 + anchor (원조 SDPO와 동일)</text>
+<rect x="30" y="130" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="148" text-anchor="start" font-size="8.8" fill="#334155">교사 단독</text>
+<rect x="160" y="130" width="120" height="26" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="220" y="148" text-anchor="middle" font-size="8.8" fill="#334155">∅</text>
+<rect x="280" y="130" width="120" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="340" y="148" text-anchor="middle" font-size="8.8" fill="#334155">있음</text>
+<rect x="400" y="130" width="90" height="26" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="445" y="148" text-anchor="middle" font-size="8.8" fill="#334155">1</text>
+<rect x="490" y="130" width="280" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="630" y="148" text-anchor="middle" font-size="8.8" fill="#334155">질문 + 검증 교사 피드백만</text>
+<rect x="30" y="156" width="130" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="38" y="174" text-anchor="start" font-size="8.8" fill="#334155">무정보</text>
+<rect x="160" y="156" width="120" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="220" y="174" text-anchor="middle" font-size="8.8" fill="#334155">∅</text>
+<rect x="280" y="156" width="120" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="340" y="174" text-anchor="middle" font-size="8.8" fill="#334155">∅</text>
+<rect x="400" y="156" width="90" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="445" y="174" text-anchor="middle" font-size="8.8" fill="#334155">0</text>
+<rect x="490" y="156" width="280" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="630" y="174" text-anchor="middle" font-size="8.8" fill="#334155">— (손실에서 제외, 0-신호 아님)</text>
+<text x="30" y="196" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">손실 (식 7) — 마스킹·중요도 가중 토큰별 대칭 JSD:</text>
+<text x="50" y="218" text-anchor="start" font-size="10.5" fill="#1e40af">L = (1/Z) Σ_{i,j,t}  m_i^j · M_{i,t}^j · w_{i,t}^j · D_JSD( p^j_θ,i,t ‖ q^j_θ̄,i,t )</text>
+<text x="60" y="244" text-anchor="start" font-size="9.3" fill="#1e40af" font-weight="bold">m_i^j</text>
+<text x="140" y="244" text-anchor="start" font-size="9" fill="#334155">rollout 게이트 — 위 표. 넷째 경우를 통째로 제거</text>
+<text x="60" y="264" text-anchor="start" font-size="9.3" fill="#1e40af" font-weight="bold">M_{i,t}^j</text>
+<text x="140" y="264" text-anchor="start" font-size="9" fill="#334155">응답 토큰만 남기는 토큰 마스크 (프롬프트 토큰 제외)</text>
+<text x="60" y="284" text-anchor="start" font-size="9.3" fill="#1e40af" font-weight="bold">w_{i,t}^j</text>
+<text x="140" y="284" text-anchor="start" font-size="9" fill="#334155">detach·클리핑(≤2.0)된 중요도 가중 — 샘플링 시점과 현재 정책의 드리프트 보정</text>
+<text x="60" y="304" text-anchor="start" font-size="9.3" fill="#1e40af" font-weight="bold">q (EMA)</text>
+<text x="140" y="304" text-anchor="start" font-size="9" fill="#334155">self-teacher 분기만 c를 읽음, sg로 그래디언트 차단 — 학생 θ만 갱신·배포</text>
+<rect x="20" y="330" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="348" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">안정화 장치</text>
+<text x="30" y="366" text-anchor="start" font-size="10" fill="#334155">대칭 JSD + EMA self-teacher 채택 이유: 둘 다 온폴리시 증류를 안정화한다는 선행 보고(Agarwal 2024, Hübotter 2026).</text>
+<text x="30" y="383" text-anchor="start" font-size="10" fill="#334155">구현(식 8)은 학생 top-100 토큰 + 꼬리 질량으로 support를 절단하고 마이크로배치 단위로 정규화한다 (부록 B.1).</text>
+</svg>
+<figcaption><strong>[Figure: 식 (6)(7) 마스크 4경우와 손실 구성 수치 예제]</strong>: 특권 컨텍스트 c = [s; F]의 네 조합과 각각이 손실에 내는 기여를 표로 폈다. 위 세 경우는 각각 완전 조건화 / 원조 SDPO / teacher-only SDPO로 자연히 퇴화하고, 넷째 경우(빨강)는 m=0으로 손실에서 제외된다 — '0을 배워라'가 아니라 '배우지 않는다'로 처리해 무정보 rollout이 학습을 오염시키지 않게 한다. 아래 분해는 식 (7)의 각 인자의 역할이며, EMA·대칭 JSD·이중 비율 클리핑(식 8, 부록 B.1)은 모두 온폴리시 증류의 안정화 장치다(§4.4).</figcaption>
+</figure>
+
+<p><strong>학생만 업데이트되고 배포된다</strong>: 그래디언트는 $\theta$에만 흐르고, 모든 $E_k$는 동결이며, EMA는 rollout 배치마다 $\bar\theta \leftarrow (1-\tau)\bar\theta + \tau\theta$ ($\tau = 0.05$)로 그래디언트 없이 따라온다. 트레이너는 GRPO (Group Relative Policy Optimization) 인프라를 rollout 수집에 재사용하지만 스칼라 advantage는 식 (7)에 들어가지 않는다 — 이진 검사는 성공 표시, self-anchor 구축, 교사 질의 게이트로만 쓰인다. 훈련이 끝나면 EMA 상태와 교사 풀은 폐기된다.</p>
+
+<p>구현 세부(부록 B.1, 식 8): JSD는 전체 어휘가 아니라 <em>학생 top-100 토큰 + 꼬리 질량</em>의 절단 support 위에서 계산되고, 중요도 가중치는 PPO 근접 비율과 절단 중요도 샘플링 비율의 최소값(둘 다 위로만 2.0 클리핑), 정규화는 동적 마이크로배치 단위의 시퀀스 수 가중 평균으로 대체된다.</p>
+
+<p>전체 훈련 스텝을 부록 Algorithm 1 그대로 의사코드로 옮기면:</p>
+
+<div class="flow-diagram">입력: 데이터 D, 학생 π_θ, EMA self-teacher π_θ̄, frozen 교사 {E_k}, rollout 수 G, EMA율 τ
+── 오프라인 (1회) ──
+  V_i ← {k : Verify(E_k^ans(x_i), a*_i) = 1}   ∀(x_i, a*_i) ∈ D     # 표본별 자격 캐시
+── 온라인 (스텝마다) ──
+  배치 B ~ D;  각 x_i에 대해 y_i^{1..G} ~ π_θ(·|x_i)
+  S_i ← {j : Verify(y_i^j, a*_i) = 1}                               # 식 (2)
+  각 rollout y_i^j 에 대해:
+      s_i^j ← Trunc(가장 이른 정답 동료, 자기 제외) 또는 ∅            # 식 (3)
+      F_i^j ← ∅;  j ∉ S_i 이면:  각 k ∈ V_i 에 대해
+                    F_i^j ← Concat[F_i^j, Γ(E_k^fb(x_i, y_i^j))]     # 식 (5)
+      c_i^j ← [s_i^j ; F_i^j];  m_i^j ← 1[c_i^j ≠ ∅]                # 식 (6)
+      L_MT-SDPO 의 (i,j) 항 누적                                     # 식 (7)
+  θ 업데이트 (배치 전체) →  θ̄ ← (1−τ)θ̄ + τθ
+반환: π_θ  (θ̄와 모든 교사는 폐기)</div>
+
+<h2>5. 실험</h2>
+
+<h3>5.1 실험 설정 — 세 가지 질문</h3>
+
+<table class="small-table">
+<thead><tr><th>질문</th><th>대응 실험</th><th>답</th></tr></thead>
+<tbody>
+<tr><td><strong>Q1. 감독 할당</strong> — 프롬프트의 도메인이 정답 교사를 식별하는가?</td><td>§5.2 훈련셋 전수 진단</td><td>아니오 — 일치 교사 정답 52.94%뿐</td></tr>
+<tr><td><strong>Q2. 능력 통합</strong> — 집계와 최약 도메인 모두에서 강한 단일 정책이 나오는가?</td><td>§5.3 Table 1, 5개 학생</td><td>Qwen3-8B·OLMo에서 예, Llama에서 아니오(음성 결과)</td></tr>
+<tr><td><strong>Q3. 구성 요소 효과</strong> — 검증·재배정·집계가 각각 얼마나 기여하는가?</td><td>§5.5 ablation (Table 2)</td><td>검증이 최대(제거 시 초기화 이하), 재배정·집계는 상보적</td></tr>
+</tbody>
+</table>
+
+<p><strong>데이터셋과 모델</strong>: SciKnowEval L3 split의 Science Q&amp;A subset — 화학·재료과학·물리 3개 도메인의 객관식 문제(단일 참조 옵션을 verifier가 검사). 3개 도메인을 균형화하고 약 9:1 train–test 분할(훈련 질문 1,953개). 학생 5종: Qwen3-1.7B / 4B / 8B, Llama-3.1-8B-Instruct, OLMo-3-7B-Instruct — 3개 모델 패밀리. 각 학생의 교사 SFT 데이터는 <em>패밀리 일치 generator</em>(Qwen3-32B, Llama-3.1-70B-Instruct, OLMo-3.1-32B-Instruct)가 같은 프롬프트로 생성한다. 도메인별 post-training이 학생마다 frozen 교사 3개를 만들고, 3개 훈련셋의 합집합에 대한 Multi-Domain Post-Training(PT)이 <strong>모든 통제된 온라인 방법의 공유 초기화</strong>가 된다.</p>
+
+<p><strong>프로토콜</strong>: 모든 온라인 방법은 이 초기화에서 출발해 <strong>100 스텝</strong>, 프롬프트당 8개 온폴리시 rollout, 8×H100 80GB. 평가는 도메인별 held-out 79문항 × 16응답의 avg@16 도메인 정확도 $A_d$; Macro(평균) / Worst(최솟값) / Gap(범위)을 보고하고, step 100에서 <em>같은 학생의 Multi-Domain PT 대비 차이</em>를 잰다.</p>
+
+<p><strong>베이스라인</strong>: <em>SDPO</em> — 같은 verifier를 학생 자신의 rollout에만 써서 성공 rollout을 특권 자기 감독으로 승격 (외부 피드백이 무엇을 더하는지 재는 교사-무관 통제군). <em>Domain Routing</em> — MOPD의 도메인 배정 규칙: 모든 실패 rollout을 표본 해결 가능 여부 확인 없이 명목 도메인 교사에게 전송. self-anchor·sanitizer·특권 self-teacher는 그대로 물려받아 <strong>라우팅 규칙만 다르다</strong> — 비교가 통제되는 이유.</p>
+
+<p><strong>교사는 어떻게 만들어졌나 — SFT 데이터 구축의 무누설 설계 (부록 E.1)</strong>: 도메인 교사의 SFT 타깃 생성 자체에도 누설 방지가 깔려 있다. ① <em>독립 generator 샘플링</em>: 훈련 레코드당 후보 2개를 참조 답 없이 생성한다. ② <em>gold-conditioned fallback</em>: 두 후보 모두 파싱 가능한 정답을 못 내면, "사적 정확성 제약(private correctness constraint)"으로 정답을 준 뒤 <em>그 존재를 결코 언급·암시하지 말라</em>는 프롬프트로 풀이를 재구성시킨다 — 과학적으로 정당화할 수 없으면 제약을 노출하는 대신 문제의 비일관성만 설명하게 한다. ③ <em>self-verifier</em>: 생성된 풀이를 "정답 문자가 맞아도 추론이 잘못·비지지·순환·조작이면 REJECT"라는 기준으로 심사(ACCEPT/REJECT/REVIEW). Qwen3 데이터는 generator와 verifier가 모두 Qwen3-32B라 자기 검증이며, 유지된 완성문이 요약·재작성·정규화 없이 그대로 SFT 타깃이 된다.</p>
+
+<table class="small-table">
+<thead><tr><th colspan="2">공통 하이퍼파라미터 (부록 Table 3–4)</th></tr></thead>
+<tbody>
+<tr><td>Post-training</td><td>full-parameter, Fused AdamW, lr $1{\times}10^{-5}$, cosine(5% warmup), 3 epochs, batch 4, 최대 8,192 토큰, bf16</td></tr>
+<tr><td>온라인 훈련</td><td>업데이트당 프롬프트 32 × rollout 8, 100 업데이트, 학생 lr $1{\times}10^{-5}$, 샘플링 온도 1.0/top-p 1.0</td></tr>
+<tr><td>증류</td><td>support = 학생 top-100 + 꼬리 질량, JSD 계수 1/2, EMA $\tau{=}0.05$, IS 클리핑 2.0</td></tr>
+<tr><td>예산</td><td>anchor 4,096 / 피드백 1,024 / 특권 re-prompt 최대 10,240 토큰; 교사 피드백은 온도 0.2, 256 토큰 상한</td></tr>
+<tr><td>평가</td><td>도메인당 79문항 × 16응답, 온도 0.6/top-p 0.95/top-k 20; 1차 파서 실패 시 Qwen3-8B base 이진 판정(비정답 뒤집기 불가)</td></tr>
+</tbody>
+</table>
+
+<h3>5.2 도메인 일치는 정답 교사를 놓친다 (Q1)</h3>
+
+<p><strong>실험 의도</strong>: 훈련 시작 전, 식 (4)의 자격 집합 $\mathcal{V}_i$를 1,953개 훈련 표본 전부에 기록해 "도메인 라벨 = 신뢰성"이라는 가정을 데이터로 검사한다.</p>
+
+<p><strong>결과</strong>: 각 교사는 자기 held-out 도메인을 공유 base 대비 확실히 개선한다 — 화학 +8.55, 재료 +9.57, 물리 +2.77. 즉 <em>평균적으로는</em> 도메인 전문성이 실재한다. 그러나 표본 단위에서는 분리가 무너진다: 일치 교사 정답률 52.94%, 물리 표본에서는 <em>화학 교사가 물리 교사보다 정확</em>하다. 한 base 모델과 한 데이터 파이프라인을 공유하는 교사들의 역량은 라벨이 시사하는 것보다 훨씬 겹친다. 사적 답이 검증된 교사를 모두 인정하면 커버리지는 65.69%로 올라 <strong>일치 교사가 놓치는 것의 27.09%를 회수</strong>한다. 구출은 일치 교사가 가장 약한 물리에서 최대(+18.7pt)다. 정답 교사 수 분포를 보면 약 절반의 표본이 2~3명을 인정해 집계가 유의미하고, ##34.31%는 정답 교사가 0명 — 이 교사 풀 위에 세운 어떤 방법의 상한도 이 그룹이 함께 규정한다##. 이것이 MT-SDPO가 검증된 피드백을 self-anchor와 짝짓는 이유다.</p>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">훈련셋 진단 — 교사 커버리지와 정답 교사 수 분포</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">논문 Figure 3 재구성 (1,953개 훈련 질문). (a) 보라 = 일치 교사 정답, 주황 = 타 도메인이 구출, 회색 = 전원 오답</text>
+<text x="30" y="56" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">(a) 도메인별 커버리지 (질문 비율 %)</text>
+<rect x="100" y="72" width="293" height="28" fill="#c4b5fd" stroke="#fff"/>
+<text x="246" y="90" text-anchor="middle" font-size="8.8" fill="#4c1d95">47.2</text>
+<rect x="393" y="72" width="71" height="28" fill="#fdba74" stroke="#fff"/>
+<text x="428" y="90" text-anchor="middle" font-size="8.8" fill="#7c2d12">11.4</text>
+<rect x="463" y="72" width="257" height="28" fill="#d1d5db" stroke="#fff"/>
+<text x="592" y="90" text-anchor="middle" font-size="8.8" fill="#374151">41.5</text>
+<text x="90" y="90" text-anchor="end" font-size="9.5" fill="#334155" font-weight="bold">화학</text>
+<rect x="100" y="114" width="403" height="28" fill="#c4b5fd" stroke="#fff"/>
+<text x="302" y="132" text-anchor="middle" font-size="8.8" fill="#4c1d95">65.0</text>
+<rect x="503" y="114" width="50" height="28" fill="#fdba74" stroke="#fff"/>
+<text x="528" y="132" text-anchor="middle" font-size="8.8" fill="#7c2d12">8.1</text>
+<rect x="553" y="114" width="167" height="28" fill="#d1d5db" stroke="#fff"/>
+<text x="637" y="132" text-anchor="middle" font-size="8.8" fill="#374151">26.9</text>
+<text x="90" y="132" text-anchor="end" font-size="9.5" fill="#334155" font-weight="bold">재료</text>
+<rect x="100" y="156" width="290" height="28" fill="#c4b5fd" stroke="#fff"/>
+<text x="245" y="174" text-anchor="middle" font-size="8.8" fill="#4c1d95">46.7</text>
+<rect x="390" y="156" width="116" height="28" fill="#fdba74" stroke="#fff"/>
+<text x="448" y="174" text-anchor="middle" font-size="8.8" fill="#7c2d12">18.7</text>
+<rect x="505" y="156" width="215" height="28" fill="#d1d5db" stroke="#fff"/>
+<text x="613" y="174" text-anchor="middle" font-size="8.8" fill="#374151">34.6</text>
+<text x="90" y="174" text-anchor="end" font-size="9.5" fill="#334155" font-weight="bold">물리</text>
+<text x="100" y="212" text-anchor="start" font-size="8.6" fill="#4c1d95">■ 일치 교사 정답</text>
+<text x="230" y="212" text-anchor="start" font-size="8.6" fill="#7c2d12">■ 타 도메인 구출 (+27.09% of missed)</text>
+<text x="480" y="212" text-anchor="start" font-size="8.6" fill="#374151">■ 전원 오답 (어떤 방법도 이 풀에선 무력)</text>
+<text x="30" y="244" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">(b) 표본별 정답 교사 수 |V_i| 분포</text>
+<rect x="110" y="262" width="90" height="90" rx="4" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="155" y="252" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">670</text>
+<text x="155" y="368" text-anchor="middle" font-size="9.2" fill="#334155">0명</text>
+<rect x="270" y="308" width="90" height="44" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="315" y="298" text-anchor="middle" font-size="9.4" fill="#92400e" font-weight="bold">323</text>
+<text x="315" y="368" text-anchor="middle" font-size="9.2" fill="#334155">1명</text>
+<rect x="430" y="313" width="90" height="39" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="475" y="303" text-anchor="middle" font-size="9.4" fill="#1e40af" font-weight="bold">286</text>
+<text x="475" y="368" text-anchor="middle" font-size="9.2" fill="#334155">2명</text>
+<rect x="590" y="261" width="90" height="91" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<text x="635" y="251" text-anchor="middle" font-size="9.4" fill="#15803d" font-weight="bold">674</text>
+<text x="635" y="368" text-anchor="middle" font-size="9.2" fill="#334155">3명</text>
+<line x1="90" y1="352" x2="740" y2="352" stroke="#333" stroke-width="1.2"/>
+<text x="30" y="398" text-anchor="start" font-size="9" fill="#334155">구출이 가장 큰 곳은 물리(+18.7pt) — 일치 교사가 가장 약한 도메인이다. |V_i|≥2인 표본이 약 절반이라 집계(aggregation)가</text>
+<text x="30" y="414" text-anchor="start" font-size="9" fill="#334155">의미를 갖고, 0명인 34.31%(670개)는 이 교사 풀 위에 세운 어떤 방법의 상한도 함께 규정한다.</text>
+</svg>
+<figcaption><strong>[Figure 3 재구성]</strong>: 훈련셋 1,953문항의 오프라인 진단. (a) 스택 막대에서 주황(타 도메인 구출)이 가장 두꺼운 곳이 물리(+18.7pt)인데, 물리는 일치 교사가 가장 약한 도메인이다 — 라벨과 신뢰성의 괴리가 가장 큰 곳에서 구출도 가장 크다(§5.2). (b)의 |V_i| 분포에서 2~3명인 표본이 약 절반이라 집계(§4.3)가 의미를 갖고, 0명인 670개(34.31%)는 회색 영역과 함께 이 교사 풀 위 모든 방법의 상한을 규정한다 — MT-SDPO가 self-anchor를 병행하는 이유다. 수치는 논문 Figure 3의 라벨 값 그대로다.</figcaption>
+</figure>
+
+<h3>5.3 주 결과 — 능력 통합 (Q2)</h3>
+
+<table class="small-table">
+<thead><tr><th>모델</th><th>방법</th><th>화학</th><th>재료</th><th>물리</th><th>Macro↑ (Δ)</th><th>Worst↑ (Δ)</th><th>Gap↓ (Δ)</th></tr></thead>
+<tbody>
+<tr><td rowspan="6">Qwen3-1.7B</td><td>Base</td><td>37.10</td><td>41.14</td><td>46.52</td><td>41.59</td><td>37.10</td><td>9.41</td></tr>
+<tr><td>Matched Teachers (3)</td><td>45.33</td><td>65.59</td><td>50.24</td><td>53.72</td><td>45.33</td><td>20.25</td></tr>
+<tr><td>Multi-Domain PT</td><td>42.33</td><td>63.05</td><td>51.66</td><td>52.35</td><td>42.33</td><td>20.73</td></tr>
+<tr><td>SDPO</td><td>40.74</td><td>55.93</td><td>50.40</td><td>49.02 (−3.33)</td><td>40.74 (−1.59)</td><td>15.19 (−5.54)</td></tr>
+<tr><td>Domain Routing</td><td>45.33</td><td>55.46</td><td>44.78</td><td>48.52 (−3.83)</td><td>44.78 (+2.45)</td><td>10.68 (−10.05)</td></tr>
+<tr><td>MT-SDPO</td><td>46.52</td><td>56.65</td><td>46.20</td><td><strong>49.79</strong> (−2.56)</td><td><strong>46.20</strong> (+3.87)</td><td><strong>10.44</strong> (−10.29)</td></tr>
+<tr><td rowspan="6">Qwen3-4B</td><td>Base</td><td>41.69</td><td>58.94</td><td>59.65</td><td>53.43</td><td>41.69</td><td>17.96</td></tr>
+<tr><td>Matched Teachers (3)</td><td>51.27</td><td>69.38</td><td>66.06</td><td>62.24</td><td>51.27</td><td>18.12</td></tr>
+<tr><td>Multi-Domain PT</td><td>48.66</td><td>71.36</td><td>68.67</td><td>62.90</td><td>48.66</td><td>22.71</td></tr>
+<tr><td>SDPO</td><td>51.98</td><td>70.17</td><td>64.40</td><td><strong>62.18</strong> (−0.72)</td><td><strong>51.98</strong> (+3.32)</td><td>18.20 (−4.51)</td></tr>
+<tr><td>Domain Routing</td><td>47.78</td><td>63.77</td><td>65.27</td><td>58.94 (−3.96)</td><td>47.78 (−0.88)</td><td>17.48 (−5.23)</td></tr>
+<tr><td>MT-SDPO</td><td>50.63</td><td>62.26</td><td>63.92</td><td>58.94 (−3.96)</td><td>50.63 (+1.97)</td><td><strong>13.29</strong> (−9.42)</td></tr>
+<tr><td rowspan="6">Qwen3-8B</td><td>Base</td><td>44.38</td><td>58.47</td><td>66.22</td><td>56.36</td><td>44.38</td><td>21.84</td></tr>
+<tr><td>Matched Teachers (3)</td><td>52.93</td><td>68.04</td><td>68.99</td><td>63.32</td><td>52.93</td><td>16.06</td></tr>
+<tr><td>Multi-Domain PT</td><td>49.29</td><td>70.25</td><td>67.88</td><td>62.47</td><td>49.29</td><td>20.96</td></tr>
+<tr><td>SDPO</td><td>54.11</td><td>69.70</td><td>52.85</td><td>58.89 (−3.58)</td><td>52.85 (+3.56)</td><td>16.85 (−4.11)</td></tr>
+<tr><td>Domain Routing</td><td>62.03</td><td>67.33</td><td>63.29</td><td>64.21 (+1.74)</td><td>62.03 (+12.74)</td><td><strong>5.30</strong> (−15.66)</td></tr>
+<tr><td>MT-SDPO</td><td>67.88</td><td>69.38</td><td>64.08</td><td><strong>67.11</strong> (+4.64)</td><td><strong>64.08</strong> (+14.79)</td><td><strong>5.30</strong> (−15.66)</td></tr>
+<tr><td rowspan="6">Llama-3.1-8B-Inst</td><td>Base</td><td>30.38</td><td>43.04</td><td>41.53</td><td>38.32</td><td>30.38</td><td>12.66</td></tr>
+<tr><td>Matched Teachers (3)</td><td>62.03</td><td>63.69</td><td>56.57</td><td>60.76</td><td>56.57</td><td>7.12</td></tr>
+<tr><td>Multi-Domain PT</td><td>56.33</td><td>59.57</td><td>51.42</td><td>55.78</td><td>51.42</td><td>8.15</td></tr>
+<tr><td>SDPO</td><td>58.62</td><td>58.86</td><td>39.24</td><td>52.24 (−3.54)</td><td>39.24 (−12.18)</td><td>19.62 (+11.47)</td></tr>
+<tr><td>Domain Routing</td><td>57.20</td><td>53.96</td><td>43.43</td><td>51.53 (−4.25)</td><td>43.43 (−7.99)</td><td><strong>13.77</strong> (+5.62)</td></tr>
+<tr><td>MT-SDPO</td><td>59.57</td><td>53.48</td><td>44.62</td><td><strong>52.56</strong> (−3.22)</td><td><strong>44.62</strong> (−6.80)</td><td>14.95 (+6.80)</td></tr>
+<tr><td rowspan="6">OLMo-3-7B-Inst</td><td>Base</td><td>36.16</td><td>57.83</td><td>62.82</td><td>52.27</td><td>36.16</td><td>26.66</td></tr>
+<tr><td>Matched Teachers (3)</td><td>48.02</td><td>61.55</td><td>53.24</td><td>54.27</td><td>48.02</td><td>13.53</td></tr>
+<tr><td>Multi-Domain PT</td><td>48.42</td><td>63.21</td><td>57.67</td><td>56.43</td><td>48.42</td><td>14.79</td></tr>
+<tr><td>SDPO</td><td>45.41</td><td>62.66</td><td>54.91</td><td>54.33 (−2.10)</td><td>45.41 (−3.01)</td><td>17.25 (+2.46)</td></tr>
+<tr><td>Domain Routing</td><td>51.90</td><td>64.56</td><td>63.29</td><td>59.92 (+3.49)</td><td>51.90 (+3.48)</td><td>12.66 (−2.13)</td></tr>
+<tr><td>MT-SDPO</td><td>55.69</td><td>65.82</td><td>64.55</td><td><strong>62.02</strong> (+5.59)</td><td><strong>55.69</strong> (+7.27)</td><td><strong>10.13</strong> (−4.66)</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과 ① — Qwen3-8B에서 최약 도메인 회복</strong>: ##MT-SDPO는 Macro +4.64, Worst +14.79로 격차를 20.96→5.30(74.7% 감소)까지 좁힌다. 최약 도메인이던 화학이 18.59pt 올라 49.29→67.88##, 재료·물리는 합쳐 5pt 미만만 내준다. 모든 도메인을 다 올리는 것이 아니라 <em>능력을 통합</em>하는 것 — 배포되는 단일 정책이 필요로 하는 바로 그것이다.</p>
+
+<p><strong>결과 ② — 통합 정책 1개가 일치 교사 3개보다 균형적</strong>: Qwen3-8B에서 MT-SDPO는 "도메인마다 일치 교사를 서빙하는" 3-모델 참조(Matched Teachers) 대비 Macro +3.79, Worst +11.15 — 추론 모델은 하나다. Domain Routing도 같은 Gap 5.30을 얻지만 두 정확도 지표에서 2.90/2.05pt 낮다: <strong>라우팅만으로 균형은 회복되고, 검증과 집계가 정확도를 공급한다</strong>.</p>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Qwen3-8B step 100 — 같은 초기화에서 갈라지는 4개 온라인 방법</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Table 1 발췌. 회색 점선 = 공유 초기화(Multi-Domain PT). Gap은 낮을수록 좋다</text>
+<text x="150" y="66" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Macro ↑</text>
+<rect x="40" y="213" width="62" height="107" rx="4" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="71" y="203" text-anchor="middle" font-size="8.8" fill="#334155">58.89</text>
+<text x="71" y="334" text-anchor="middle" font-size="8" fill="#555">SDPO</text>
+<rect x="112" y="149" width="62" height="171" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="143" y="139" text-anchor="middle" font-size="8.8" fill="#92400e">64.21</text>
+<text x="143" y="334" text-anchor="middle" font-size="8" fill="#555">Domain Routing</text>
+<rect x="184" y="115" width="62" height="205" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="215" y="105" text-anchor="middle" font-size="8.8" fill="#1e40af" font-weight="bold">67.11</text>
+<text x="215" y="334" text-anchor="middle" font-size="8" fill="#555">MT-SDPO</text>
+<line x1="34" y1="170" x2="250" y2="170" stroke="#64748b" stroke-dasharray="5 3" stroke-width="1.3"/>
+<text x="256" y="174" text-anchor="start" font-size="7.8" fill="#64748b">초기화 62.47</text>
+<text x="412" y="66" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Worst ↑</text>
+<rect x="302" y="217" width="62" height="103" rx="4" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="333" y="207" text-anchor="middle" font-size="8.8" fill="#334155">52.85</text>
+<text x="333" y="334" text-anchor="middle" font-size="8" fill="#555">SDPO</text>
+<rect x="374" y="144" width="62" height="176" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="405" y="134" text-anchor="middle" font-size="8.8" fill="#92400e">62.03</text>
+<text x="405" y="334" text-anchor="middle" font-size="8" fill="#555">Domain Routing</text>
+<rect x="446" y="127" width="62" height="193" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="477" y="117" text-anchor="middle" font-size="8.8" fill="#1e40af" font-weight="bold">64.08</text>
+<text x="477" y="334" text-anchor="middle" font-size="8" fill="#555">MT-SDPO</text>
+<line x1="296" y1="246" x2="512" y2="246" stroke="#64748b" stroke-dasharray="5 3" stroke-width="1.3"/>
+<text x="518" y="250" text-anchor="start" font-size="7.8" fill="#64748b">초기화 49.29</text>
+<text x="674" y="66" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Gap ↓</text>
+<rect x="564" y="158" width="62" height="162" rx="4" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="595" y="148" text-anchor="middle" font-size="8.8" fill="#334155">16.85</text>
+<text x="595" y="334" text-anchor="middle" font-size="8" fill="#555">SDPO</text>
+<rect x="636" y="269" width="62" height="51" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="667" y="259" text-anchor="middle" font-size="8.8" fill="#92400e">5.30</text>
+<text x="667" y="334" text-anchor="middle" font-size="8" fill="#555">Domain Routing</text>
+<rect x="708" y="269" width="62" height="51" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="739" y="259" text-anchor="middle" font-size="8.8" fill="#1e40af" font-weight="bold">5.30</text>
+<text x="739" y="334" text-anchor="middle" font-size="8" fill="#555">MT-SDPO</text>
+<line x1="558" y1="119" x2="774" y2="119" stroke="#64748b" stroke-dasharray="5 3" stroke-width="1.3"/>
+<text x="780" y="123" text-anchor="start" font-size="7.8" fill="#64748b">초기화 20.96</text>
+<line x1="30" y1="320" x2="770" y2="320" stroke="#333" stroke-width="1.2"/>
+<text x="400" y="362" text-anchor="middle" font-size="9.2" fill="#334155">SDPO는 Macro를 −3.58 잃고, Domain Routing은 균형(Gap 5.30)은 회복하지만 정확도가 낮다.</text>
+<text x="400" y="380" text-anchor="middle" font-size="9.2" fill="#15803d">MT-SDPO만 균형과 정확도를 동시에: 라우팅이 균형을, 검증+집계가 정확도를 공급한다는 §5.3의 분해가 이 그림이다.</text>
+</svg>
+<figcaption><strong>[Figure: Qwen3-8B 방법 비교]</strong>: Table 1의 Qwen3-8B 블록을 지표별 막대로 폈다. 회색 점선(공유 초기화) 기준으로 SDPO는 Macro를 잃고(물리 67.88→52.85 붕괴가 주범), Domain Routing은 Worst를 +12.74 올려 Gap 5.30을 달성하지만 정확도 상한이 낮다. MT-SDPO는 같은 Gap 5.30에서 Macro·Worst를 각각 2.90/2.05pt 더 얹는다 — '라우팅이 균형을 회복하고, 검증+집계가 정확도를 공급한다'는 §5.3의 분해가 이 세 칸의 대비다. 세 방법 모두 같은 초기화·같은 rollout 예산·같은 보조 장치를 쓴다.</figcaption>
+</figure>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">능력 통합의 지형 — Macro × Worst 평면 (Qwen3-8B, step 100)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">논문 Figure 4(a)의 재구성: Table 1 수치를 같은 평면에 배치. 대각 점선 = 완전 균형(Macro = Worst)</text>
+<line x1="90" y1="336" x2="710" y2="336" stroke="#333" stroke-width="1.3"/>
+<line x1="90" y1="56" x2="90" y2="336" stroke="#333" stroke-width="1.3"/>
+<line x1="90.0" y1="56" x2="90.0" y2="336" stroke="#f1f5f9"/>
+<text x="90" y="352" text-anchor="middle" font-size="8.8" fill="#334155">54</text>
+<line x1="245.0" y1="56" x2="245.0" y2="336" stroke="#f1f5f9"/>
+<text x="245" y="352" text-anchor="middle" font-size="8.8" fill="#334155">58</text>
+<line x1="400.0" y1="56" x2="400.0" y2="336" stroke="#f1f5f9"/>
+<text x="400" y="352" text-anchor="middle" font-size="8.8" fill="#334155">62</text>
+<line x1="555.0" y1="56" x2="555.0" y2="336" stroke="#f1f5f9"/>
+<text x="555" y="352" text-anchor="middle" font-size="8.8" fill="#334155">66</text>
+<line x1="710.0" y1="56" x2="710.0" y2="336" stroke="#f1f5f9"/>
+<text x="710" y="352" text-anchor="middle" font-size="8.8" fill="#334155">70</text>
+<line x1="90" y1="336.0" x2="710" y2="336.0" stroke="#f1f5f9"/>
+<text x="82" y="339" text-anchor="end" font-size="8.8" fill="#334155">42</text>
+<line x1="90" y1="266.0" x2="710" y2="266.0" stroke="#f1f5f9"/>
+<text x="82" y="269" text-anchor="end" font-size="8.8" fill="#334155">48</text>
+<line x1="90" y1="196.0" x2="710" y2="196.0" stroke="#f1f5f9"/>
+<text x="82" y="199" text-anchor="end" font-size="8.8" fill="#334155">54</text>
+<line x1="90" y1="126.0" x2="710" y2="126.0" stroke="#f1f5f9"/>
+<text x="82" y="129" text-anchor="end" font-size="8.8" fill="#334155">60</text>
+<line x1="90" y1="56.0" x2="710" y2="56.0" stroke="#f1f5f9"/>
+<text x="82" y="59" text-anchor="end" font-size="8.8" fill="#334155">66</text>
+<text x="400" y="370" text-anchor="middle" font-size="9.5" fill="#334155">Macro 정확도 (%)</text>
+<text x="34" y="196.0" font-size="9.5" transform="rotate(-90 34 196.0)" text-anchor="middle">Worst-domain 정확도 (%)</text>
+<line x1="90" y1="196" x2="555" y2="56" stroke="#94a3b8" stroke-dasharray="6 4"/>
+<text x="524" y="68" text-anchor="start" font-size="8.2" fill="#94a3b8">완전 균형선 (Gap=0)</text>
+<circle cx="181.4" cy="308.2" r="6.5" fill="#9ca3af" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="191" y="312" text-anchor="start" font-size="8.8" fill="#334155">Base</text>
+<circle cx="418.2" cy="251.0" r="6.5" fill="#64748b" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="428" y="263" text-anchor="start" font-size="8.8" fill="#334155">Multi-Domain PT (초기화)</text>
+<circle cx="451.2" cy="208.5" r="6.5" fill="#a855f7" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="461" y="200" text-anchor="start" font-size="8.8" fill="#334155">Matched Teachers ×3 (참조)</text>
+<circle cx="279.5" cy="209.4" r="6.5" fill="#0ea5e9" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="267" y="199" text-anchor="start" font-size="8.8" fill="#334155">SDPO</text>
+<circle cx="485.6" cy="102.3" r="6.5" fill="#f59e0b" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="496" y="116" text-anchor="start" font-size="8.8" fill="#334155">Domain Routing</text>
+<circle cx="598.0" cy="78.4" r="9" fill="#16a34a" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="494" y="66" text-anchor="start" font-size="8.8" fill="#334155" font-weight="bold">MT-SDPO</text>
+<text x="400" y="396" text-anchor="middle" font-size="8.9" fill="#334155">우상단이 좋은 영역이고 균형선에 가까울수록 도메인 격차가 작다. MT-SDPO가 3-모델 Matched Teachers 참조에서 가장 멀리 우상단에 놓인다</text>
+<text x="400" y="414" text-anchor="middle" font-size="8.9" fill="#15803d">(Macro +3.79 / Worst +11.15) — 단일 정책이 도메인별 교사 서빙보다 균형·정확도 모두 낫다는 §5.3 주장의 시각화.</text>
+</svg>
+<figcaption><strong>[Figure 4 재구성]</strong>: 논문 Figure 4(a)의 절대 정확도 평면을 Table 1 수치로 다시 그렸다. 세로가 Worst, 가로가 Macro이므로 점선 균형선(Gap=0)에 가까울수록 도메인 프로파일이 평평하다. 초기화(회색)에서 SDPO는 위로만(균형 개선, 정확도 하락), Domain Routing은 균형선 쪽으로 크게 이동하지만, MT-SDPO(초록)가 가장 멀리 우상단으로 이동해 3-모델 Matched Teachers 참조(보라)까지 넘어선다(Domain Routing도 참조보다 우상단이지만 정확도에서 뒤진다). 원 그림의 (b) 이득 평면은 생략했고 대응 수치는 본문 Table 1 발췌에 있다 — 배치는 원 그림, 좌표는 Table 1 값 그대로다.</figcaption>
+</figure>
+
+<p><strong>결과 ③ — 평평해지는 두 가지 방식과 이득의 조건</strong>: Qwen3 세 스케일 모두 격차를 줄이지만(1.7B 49.6%, 4B 41.5%, 8B 74.7% 감소) Macro가 오르는 건 8B뿐이다. 1.7B·4B의 평탄화는 주로 강한 도메인이 내려와서다(최약 +4.19/+1.97 vs 나머지 −11.86/−13.85). 8B와 OLMo에서는 반대로 최약 도메인이 +18.59/+7.27 올라 Macro를 끌고 가고, OLMo는 자기 블록에서 Macro·Worst·Gap 모두 최고를 준다. ##검증된 피드백은 여지가 남은 곳 어디서든 프로파일을 평평하게 만들지만, 집계 이득은 최약 도메인 자체가 개선될 때만 나온다##.</p>
+
+<p><strong>결과 ④ — 정직한 음성 결과 (Llama)</strong>: Multi-Domain PT가 Llama-3.1-8B의 Worst를 이미 +21.04 올려 다섯 학생 중 가장 평평한 초기화를 만든다 — MT-SDPO가 착취할 최약 도메인의 여지가 온라인 단계 전에 소진된 것. 결과적으로 어떤 통제 온라인 방법도 이득이 없다(전부 음수). 저자들은 이를 "남은 headroom이 지불 여부를 결정한다"는 경계 조건으로 명시하고, 이 경계는 방법 간 순서가 아니라 남은 여지에 대한 것이라 강조한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 452" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">언제 이득인가 — 5개 학생의 최약 도메인 변화 (MT-SDPO − Multi-Domain PT)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Table 1의 Worst Δ. 오른쪽(초록) = 개선, 왼쪽(빨강) = 악화. 괄호는 Macro Δ</text>
+<text x="392" y="62" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">Qwen3-1.7B</text>
+<rect x="400" y="70" width="77" height="22" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<text x="485" y="85" text-anchor="start" font-size="9" fill="#15803d">+3.87  (Macro -2.56)</text>
+<text x="392" y="114" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">Qwen3-4B</text>
+<rect x="400" y="122" width="39" height="22" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<text x="447" y="137" text-anchor="start" font-size="9" fill="#15803d">+1.97  (Macro -3.96)</text>
+<text x="392" y="166" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">Qwen3-8B</text>
+<rect x="400" y="174" width="296" height="22" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<text x="704" y="189" text-anchor="start" font-size="9" fill="#15803d">+14.79  (Macro +4.64)</text>
+<text x="408" y="218" text-anchor="start" font-size="9.4" fill="#334155" font-weight="bold">Llama-3.1-8B-Inst</text>
+<rect x="264" y="226" width="136" height="22" rx="4" fill="#fef2f2" stroke="#ef4444" stroke-width="1.4"/>
+<text x="256" y="241" text-anchor="end" font-size="9" fill="#b91c1c">-6.80  (Macro -3.22)</text>
+<text x="392" y="270" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">OLMo-3-7B-Inst</text>
+<rect x="400" y="278" width="145" height="22" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<text x="553" y="293" text-anchor="start" font-size="9" fill="#15803d">+7.27  (Macro +5.59)</text>
+<line x1="400" y1="58" x2="400" y2="336" stroke="#333" stroke-width="1.3"/>
+<rect x="20" y="352" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="370" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">§5.3의 핵심 패턴</text>
+<text x="30" y="388" text-anchor="start" font-size="10" fill="#334155">패턴: 이득은 '최약 도메인의 남은 여지(headroom)'를 따라간다. 1.7B·4B는 강한 도메인이 내려와 평평해질 뿐이지만(Macro 음수),</text>
+<text x="30" y="405" text-anchor="start" font-size="10" fill="#334155">8B·OLMo는 최약 도메인 자체가 올라 Macro까지 끌어올린다. Llama는 Multi-Domain PT가 이미 Worst를 +21.04 올려 가장 평평한</text>
+<text x="30" y="422" text-anchor="start" font-size="10" fill="#334155">초기화가 된 상태 — 남은 여지가 없어 어떤 온라인 방법도 손해다 (SDPO −12.18, Routing −7.99, MT-SDPO −6.80). 정직한 음성 결과.</text>
+</svg>
+<figcaption><strong>[Figure: 5개 학생의 최약 도메인 변화 발산 막대]</strong>: Table 1의 Worst Δ(MT-SDPO − Multi-Domain PT)를 모델별로 늘어놓으면 §5.3의 headroom 패턴이 드러난다. 이득이 큰 8B(+14.79)·OLMo(+7.27)는 최약 도메인 자체가 올라 Macro까지 양수이고, 1.7B·4B는 Worst가 소폭 오르되 강한 도메인이 내려와 Macro는 음수 — 같은 '평탄화'라도 기전이 다르다. Llama의 음성 결과는 Multi-Domain PT가 이미 Worst를 +21.04 올려놓은 탓으로, 저자들은 이를 방법 간 순서가 아니라 남은 여지에 대한 경계로 읽는다. 초기화 프로파일 진단이 방법 선택보다 먼저라는 실무 교훈.</figcaption>
+</figure>
+
+<h3>5.4 학습 동역학 — 왜 고정 step 100 비교인가</h3>
+
+<p><strong>실험 의도</strong>: held-out 통합 지표와 훈련 시점 rollout 정확도를 한 화면에 놓아, 스냅숏 비교의 공정성과 각 방법의 안정성을 함께 본다.</p>
+
+<p><strong>결과</strong>: 궤적은 비단조적이다. SDPO는 step 50에서 정점을 찍고 이후 Macro를 7pt 이상 잃는 반면, MT-SDPO는 step 70 정점을 끝까지 대부분 유지한다. 어느 방법도 단조 개선하지 않으므로, 비교는 각 방법의 최적 중간 체크포인트가 아닌 <strong>고정 step 100</strong>에서 한다. step 100 기준 MT-SDPO−SDPO 차이: Macro +8.22, Worst +11.23, Gap −11.55 (훈련 rollout 정확도 차이는 +0.004로 사실상 동일 — 온라인 rollout을 더 잘 풀어서 이기는 게 아니라, <em>같은 rollout에서 더 나은 신호를 뽑아서</em> 이긴다).</p>
+
+<p><strong>스케일별 동역학 (부록 D.1)</strong>: 10스텝 간격의 전 궤적을 보면, step 100에서 Qwen3-1.7B·4B는 주로 초기화 대비 최약 도메인을 <em>회복</em>하는 데 그치고 Macro 개선은 없다. 8B에서만 MT-SDPO가 Macro·Worst 모두에서 초기화와 SDPO 위로 마감한다 — §5.3의 "이득은 headroom과 스케일을 따라간다" 패턴이 궤적 수준에서도 재확인된다. 중간 체크포인트는 진단용일 뿐, 주 비교는 사전 지정된 step-100 스냅숏을 유지한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">학습 궤적 — SDPO는 정점 후 붕괴, MT-SDPO는 정점을 유지</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">논문 Figure 5의 요지 재구성 (Qwen3-8B held-out). 곡선 개형은 근사이며 주석 수치만 원문 값</text>
+<rect x="60" y="70" width="320" height="190" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="220" y="62" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">Macro 정확도</text>
+<polyline points="80,190 122,150 164,130 220,118 276,140 318,160 360,200" fill="none" stroke="#64748b" stroke-width="2.2" stroke-dasharray="5 3"/>
+<polyline points="80,190 122,165 164,140 220,125 276,105 318,110 360,112" fill="none" stroke="#ef4444" stroke-width="2.2"/>
+<text x="370" y="94" text-anchor="end" font-size="9.5" fill="#b91c1c" font-weight="bold">Δ@100 = +8.22</text>
+<text x="220" y="278" text-anchor="middle" font-size="8.6" fill="#334155">훈련 스텝 (0 → 100)</text>
+<text x="220" y="294" text-anchor="middle" font-size="8.6" fill="#64748b">SDPO: step 50 정점 후 7pt+ 하락</text>
+<rect x="450" y="70" width="320" height="190" fill="#fafafa" stroke="#e5e7eb"/>
+<text x="610" y="62" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">최약 도메인 정확도</text>
+<polyline points="470,230 512,200 554,180 610,165 666,150 708,165 750,210" fill="none" stroke="#64748b" stroke-width="2.2" stroke-dasharray="5 3"/>
+<polyline points="470,230 512,190 554,160 610,140 666,110 708,118 750,120" fill="none" stroke="#ef4444" stroke-width="2.2"/>
+<text x="760" y="94" text-anchor="end" font-size="9.5" fill="#b91c1c" font-weight="bold">Δ@100 = +11.23</text>
+<text x="610" y="278" text-anchor="middle" font-size="8.6" fill="#334155">훈련 스텝 (0 → 100)</text>
+<text x="610" y="294" text-anchor="middle" font-size="8.6" fill="#64748b">MT-SDPO: step 70 정점, 끝까지 유지</text>
+<text x="140" y="340" text-anchor="start" font-size="9" fill="#b91c1c">— MT-SDPO (빨강)</text>
+<text x="280" y="340" text-anchor="start" font-size="9" fill="#64748b">-- SDPO (회색 점선)</text>
+<text x="400" y="366" text-anchor="middle" font-size="8.7" fill="#334155">어느 방법도 단조 증가하지 않으므로, 비교는 각자의 최적 중간 체크포인트가 아니라 고정 step 100에서 한다 (§5.4). Gap Δ@100 = −11.55.</text>
+</svg>
+<figcaption><strong>[Figure 5 요지 재구성]</strong>: 학습 중 held-out 궤적의 핵심 패턴 — SDPO(회색 점선)는 step 50 정점 후 Macro를 7pt 이상 반납하고, MT-SDPO(빨강)는 step 70 정점을 끝까지 유지한다. 곡선 개형은 근사 재구성이며 원문 값은 주석의 Δ@100(Macro +8.22, Worst +11.23, Gap −11.55)뿐이다. 두 방법의 훈련 rollout 정확도 차이는 +0.004로 사실상 같으므로, 격차는 rollout을 더 잘 풀어서가 아니라 같은 rollout에서 더 나은 감독을 추출해서 생긴다. 비단조 궤적 때문에 비교는 각 방법의 최적 체크포인트가 아닌 고정 step 100에서 이루어진다(§5.4).</figcaption>
+</figure>
+
+<h3>5.5 Ablation — 무엇이 기여하는가 (Q3)</h3>
+
+<p><strong>실험 의도</strong>: self-anchor·sanitizer·EMA self-teacher·초기화·업데이트 예산을 전부 고정한 채 <em>감독 할당 규칙만</em> 바꿔, 답 검증 / 표본별 재배정 / 다중 교사 집계 각각의 기여를 분리한다 (Qwen3-8B).</p>
+
+<table class="small-table">
+<thead><tr><th>변형</th><th>제거된 것</th><th>Macro↑ (Δ)</th><th>Worst↑ (Δ)</th><th>Gap↓ (Δ)</th></tr></thead>
+<tbody>
+<tr><td>w/o Cross-Domain</td><td>타 도메인 구출 — 검증된 <em>일치</em> 교사만 허용</td><td>65.08 (+2.61)</td><td>61.79 (+12.50)</td><td><strong>5.14</strong> (−15.82)</td></tr>
+<tr><td>w/o Aggregation</td><td>다중 교사 집계 — 자격 교사 1명만 사용</td><td>66.11 (+3.64)</td><td>62.26 (+12.97)</td><td>7.99 (−12.97)</td></tr>
+<tr><td>w/o Verification</td><td>답 검증 — 3개 교사 전원 무검증 사용</td><td>60.55 (−1.92)</td><td>55.14 (+5.85)</td><td>10.92 (−10.04)</td></tr>
+<tr><td><strong>MT-SDPO</strong></td><td>—</td><td><strong>67.11</strong> (+4.64)</td><td><strong>64.08</strong> (+14.79)</td><td>5.30 (−15.66)</td></tr>
+</tbody>
+</table>
+
+<p><strong>재배정과 집계는 상보적</strong>: 검증된 일치 교사로 제한(w/o Cross-Domain)한 것이 사다리의 바닥이고, 표본별 자격 교사 1명을 허용하면 Macro +1.03/Worst +0.47이 붙지만 Gap이 5.14→7.99로 벌어지며, 전 자격 교사를 집계하는 완전체가 +1.00/+1.82를 더 얹으면서 Gap 5.30으로 균형을 회복한다.</p>
+
+<p><strong>검증이 더 큰 교사 풀을 쓸모 있게 만든다</strong>: 자격 집합을 무검증 교사 3명 전원으로 교체(w/o Verification)하면 완전체 대비 Macro −6.56/Worst −8.94, ##심지어 공유 초기화보다 Macro가 1.92pt 낮다 — 교사를 셋이나 쓰고도 안 쓴 것만 못하다##. 오프라인 manifest가 이유를 보여준다: 무검증 규칙은 교사–표본 쌍의 50.21%에서 오답 답변을 참조한다(도메인 라우팅의 47.06%보다도 나쁨).</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">구성 요소 제거 실험 — 무엇이 정확도를, 무엇이 균형을 내는가</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Table 2 (Qwen3-8B). 파랑 원 = Macro, 초록 원 = Worst. 오른쪽 라벨 = Gap. 회색 점선 = 공유 초기화</text>
+<text x="288" y="80" text-anchor="end" font-size="9.2" fill="#334155" font-weight="bold">MT-SDPO (완전체)</text>
+<line x1="555" y1="76" x2="619" y2="76" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="619" cy="76" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+<circle cx="555" cy="76" r="7" fill="#16a34a" stroke="#fff" stroke-width="1.5"/>
+<text x="621" y="63" text-anchor="middle" font-size="8.6" fill="#1e40af">67.11</text>
+<text x="553" y="98" text-anchor="middle" font-size="8.6" fill="#15803d">64.08</text>
+<text x="720" y="80" text-anchor="start" font-size="9" fill="#334155" font-weight="bold">Gap 5.30</text>
+<text x="288" y="142" text-anchor="end" font-size="9.2" fill="#334155">w/o Cross-Domain (일치 교사만)</text>
+<line x1="507" y1="138" x2="576" y2="138" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="576" cy="138" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+<circle cx="507" cy="138" r="7" fill="#16a34a" stroke="#fff" stroke-width="1.5"/>
+<text x="578" y="125" text-anchor="middle" font-size="8.6" fill="#1e40af">65.08</text>
+<text x="505" y="160" text-anchor="middle" font-size="8.6" fill="#15803d">61.79</text>
+<text x="720" y="142" text-anchor="start" font-size="9" fill="#334155">Gap 5.14</text>
+<text x="288" y="204" text-anchor="end" font-size="9.2" fill="#334155">w/o Aggregation (자격 1명만)</text>
+<line x1="517" y1="200" x2="598" y2="200" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="598" cy="200" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+<circle cx="517" cy="200" r="7" fill="#16a34a" stroke="#fff" stroke-width="1.5"/>
+<text x="600" y="187" text-anchor="middle" font-size="8.6" fill="#1e40af">66.11</text>
+<text x="515" y="222" text-anchor="middle" font-size="8.6" fill="#15803d">62.26</text>
+<text x="720" y="204" text-anchor="start" font-size="9" fill="#334155">Gap 7.99</text>
+<text x="288" y="266" text-anchor="end" font-size="9.2" fill="#334155">w/o Verification (전 교사 무검증)</text>
+<line x1="366" y1="262" x2="480" y2="262" stroke="#94a3b8" stroke-width="3"/>
+<circle cx="480" cy="262" r="7" fill="#3b82f6" stroke="#fff" stroke-width="1.5"/>
+<circle cx="366" cy="262" r="7" fill="#16a34a" stroke="#fff" stroke-width="1.5"/>
+<text x="482" y="249" text-anchor="middle" font-size="8.6" fill="#1e40af">60.55</text>
+<text x="364" y="284" text-anchor="middle" font-size="8.6" fill="#15803d">55.14</text>
+<text x="720" y="266" text-anchor="start" font-size="9" fill="#334155">Gap 10.92</text>
+<line x1="521" y1="60" x2="521" y2="294" stroke="#64748b" stroke-dasharray="5 3"/>
+<text x="521" y="52" text-anchor="middle" font-size="7.8" fill="#64748b">초기화 Macro 62.47</text>
+<line x1="342.22222222222223" y1="66" x2="342.22222222222223" y2="292" stroke="#f1f5f9"/>
+<text x="342" y="306" text-anchor="middle" font-size="8.4" fill="#94a3b8">54</text>
+<line x1="426.66666666666663" y1="66" x2="426.66666666666663" y2="292" stroke="#f1f5f9"/>
+<text x="427" y="306" text-anchor="middle" font-size="8.4" fill="#94a3b8">58</text>
+<line x1="511.1111111111111" y1="66" x2="511.1111111111111" y2="292" stroke="#f1f5f9"/>
+<text x="511" y="306" text-anchor="middle" font-size="8.4" fill="#94a3b8">62</text>
+<line x1="595.5555555555555" y1="66" x2="595.5555555555555" y2="292" stroke="#f1f5f9"/>
+<text x="596" y="306" text-anchor="middle" font-size="8.4" fill="#94a3b8">66</text>
+<line x1="680.0" y1="66" x2="680.0" y2="292" stroke="#f1f5f9"/>
+<text x="680" y="306" text-anchor="middle" font-size="8.4" fill="#94a3b8">70</text>
+<rect x="20" y="320" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="338" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">읽는 법</text>
+<text x="30" y="356" text-anchor="start" font-size="10" fill="#334155">검증 제거가 최악: −6.56 Macro / −8.94 Worst, 초기화보다도 1.92pt 아래 — 무검증 풀은 교사–표본 쌍의 50.21%에서 오답</text>
+<text x="30" y="373" text-anchor="start" font-size="10" fill="#334155">교사를 참조한다(라우팅의 47.06%보다도 나쁨). 일치 교사 제한(w/o Cross-Domain)은 Gap은 최선(5.14)이나 정확도를 잃고,</text>
+<text x="30" y="390" text-anchor="start" font-size="10" fill="#334155">집계 제거는 Gap을 5.14→7.99로 벌린다 — 재배정과 집계가 상보적이라는 §5.5의 결론.</text>
+</svg>
+<figcaption><strong>[Figure: ablation 덤벨]</strong>: Table 2를 Macro(파랑)–Worst(초록) 덤벨로 폈다. 검증 제거(맨 아래)가 가장 파괴적이다 — 완전체 대비 −6.56/−8.94에 회색 점선(초기화 Macro 62.47)보다도 1.92pt 아래로, 교사 셋을 무검증으로 쓰면 안 쓴 것만 못하다. 기전은 오답 참조율 50.21%(라우팅의 47.06%보다 나쁨). 일치 교사 제한(w/o Cross-Domain)은 Gap 5.14로 균형은 최선이나 구출 표본을 포기해 정확도를 잃고, 집계 제거는 Gap을 7.99로 벌린다 — 재배정과 집계가 상보적이라는 §5.5의 결론이 세 덤벨의 위치 관계다.</figcaption>
+</figure>
+
+<h3>부록의 추가 진단 — 피드백 노출과 GRPO 참조</h3>
+
+<p><strong>피드백 노출 (부록 D.2, F)</strong>: 100 업데이트 동안 유지된 교사 피드백을 실제로 사용한 rollout 비율은 Domain Routing 23.07%, w/o Verification 27.32%인 반면 MT-SDPO는 5.64%에 불과하다. ##최고 성능 방법이 가장 적은 외부 피드백을 쓴다 — 검증은 외부 감독을 더 빈번하게가 아니라 더 선별적으로 만든다##. 저자들은 이 관찰이 서술적(descriptive)임을 부록 F에서 분명히 한다: 피드백 양은 그 자체로 유용성의 증거가 아니며, 개별 메시지의 인과적 교정 효과를 재려면 같은 오답 rollout에 피드백 유/무 쌍대 실험이 필요하다.</p>
+
+<figure>
+<svg viewBox="0 0 800 380" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">피드백을 더 쓰는 방법이 더 잘하는 게 아니다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">부록 D.2 노출 통계 × Table 1·2의 step-100 Worst. Qwen3-8B, 100 업데이트 평균</text>
+<line x1="90" y1="290" x2="710" y2="290" stroke="#333" stroke-width="1.3"/>
+<line x1="90" y1="60" x2="90" y2="290" stroke="#333" stroke-width="1.3"/>
+<text x="90" y="306" text-anchor="middle" font-size="8.6" fill="#334155">0</text>
+<text x="193" y="306" text-anchor="middle" font-size="8.6" fill="#334155">5</text>
+<text x="297" y="306" text-anchor="middle" font-size="8.6" fill="#334155">10</text>
+<text x="400" y="306" text-anchor="middle" font-size="8.6" fill="#334155">15</text>
+<text x="503" y="306" text-anchor="middle" font-size="8.6" fill="#334155">20</text>
+<text x="607" y="306" text-anchor="middle" font-size="8.6" fill="#334155">25</text>
+<text x="710" y="306" text-anchor="middle" font-size="8.6" fill="#334155">30</text>
+<text x="82" y="293" text-anchor="end" font-size="8.6" fill="#334155">52</text>
+<line x1="90" y1="290.0" x2="710" y2="290.0" stroke="#f1f5f9"/>
+<text x="82" y="227" text-anchor="end" font-size="8.6" fill="#334155">56</text>
+<line x1="90" y1="224.28571428571428" x2="710" y2="224.28571428571428" stroke="#f1f5f9"/>
+<text x="82" y="162" text-anchor="end" font-size="8.6" fill="#334155">60</text>
+<line x1="90" y1="158.57142857142858" x2="710" y2="158.57142857142858" stroke="#f1f5f9"/>
+<text x="82" y="96" text-anchor="end" font-size="8.6" fill="#334155">64</text>
+<line x1="90" y1="92.85714285714286" x2="710" y2="92.85714285714286" stroke="#f1f5f9"/>
+<text x="400" y="324" text-anchor="middle" font-size="9.5" fill="#334155">교사 피드백을 사용한 rollout 비율 (%, 100 업데이트 평균)</text>
+<text x="36" y="175.0" font-size="9.5" transform="rotate(-90 36 175.0)" text-anchor="middle">Worst-domain @ step 100 (%)</text>
+<circle cx="206.6" cy="91.5" r="8" fill="#3b82f6" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="217" y="80" text-anchor="start" font-size="8.8" fill="#334155" font-weight="bold">MT-SDPO</text>
+<circle cx="289.0" cy="121.4" r="8" fill="#64748b" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="299" y="113" text-anchor="start" font-size="8.8" fill="#334155">w/o Aggregation</text>
+<circle cx="304.7" cy="129.2" r="8" fill="#64748b" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="315" y="143" text-anchor="start" font-size="8.8" fill="#334155">w/o Cross-Domain</text>
+<circle cx="566.8" cy="125.2" r="8" fill="#f59e0b" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="547" y="113" text-anchor="end" font-size="8.8" fill="#334155">Domain Routing</text>
+<circle cx="654.6" cy="238.4" r="8" fill="#ef4444" fill-opacity="0.85" stroke="#fff" stroke-width="1.5"/>
+<text x="625" y="254" text-anchor="end" font-size="8.8" fill="#334155">w/o Verification</text>
+<text x="400" y="336" text-anchor="middle" font-size="9.2" fill="#15803d">최고 성능(MT-SDPO)이 가장 적은 피드백(5.64%)을 쓴다 — 검증은 외부 감독을 '더 자주'가 아니라 '더 선별적으로' 만든다.</text>
+<text x="400" y="354" text-anchor="middle" font-size="8.4" fill="#64748b">저자 주의(부록 F): 노출량과 성능의 이 역전은 서술적 관찰이며, 개별 피드백 메시지의 인과적 기여를 분리하려면 별도 실험이 필요하다.</text>
+</svg>
+<figcaption><strong>[Figure: 피드백 노출 vs 성능 산점도]</strong>: 부록 D.2의 노출 통계(가로축: 유지된 교사 피드백을 사용한 rollout 비율)와 step-100 Worst(세로축)를 짝지었다. 우하향 경향이 요점이다 — 무검증(27.32%)과 Domain Routing(23.07%)이 피드백을 4~5배 더 쓰고도 MT-SDPO(5.64%)에 뒤진다. 검증은 외부 감독을 늘리는 게 아니라 옳은 곳으로만 흘려보내는 장치라는 §5.5 해석의 시각화다. 단, 저자들이 부록 F에서 못 박듯 이는 서술적 관찰이며 개별 메시지의 인과 효과 측정은 아니다 — 산점도의 점 5개로 회귀선을 그을 수는 없다.</figcaption>
+</figure>
+
+<p><strong>검증 보상 RL 참조 (부록 D.3)</strong>: 같은 초기화·같은 rollout 예산에서 verifier의 이진 신호를 <em>증류 신호 할당</em>이 아니라 <em>GRPO의 스칼라 보상</em>으로 쓰면 어떻게 되는가. Qwen3-8B에서 GRPO는 Macro 67.27로 MT-SDPO(67.11)와 대등하지만 격차를 20.96→21.76으로 오히려 벌리고 최약 도메인에서 9.17pt 뒤진다 — <strong>같은 신호라도 스칼라 보상으로 쓰면 목적만 바뀌고 할당은 바뀌지 않아, 검증을 할당에 쓰는 것이 능력을 재분배한다</strong>. 반대로 Llama에서는 GRPO가 Macro 67.09/Worst 64.16으로 완승한다. 저자들은 GRPO가 목적함수 자체를 바꾸므로 통제 비교 밖의 참조로만 보고하며 두 목적 간 일반적 우열을 주장하지 않는다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">참조 비교 — 같은 예산의 GRPO(검증 보상 RL)와 어긋나는 지점</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">부록 D.3, Table 6. 같은 초기화·같은 rollout 예산, 목적함수만 교체. 낮은 Gap이 좋다</text>
+<text x="205" y="60" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Qwen3-8B — MT-SDPO 우세</text>
+<rect x="40" y="191" width="60" height="89" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="70" y="181" text-anchor="middle" font-size="8.6" fill="#92400e">54.91</text>
+<text x="70" y="294" text-anchor="middle" font-size="7.8" fill="#555">GRPO</text>
+<rect x="108" y="136" width="60" height="144" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="138" y="126" text-anchor="middle" font-size="8.6" fill="#1e40af">64.08</text>
+<text x="138" y="294" text-anchor="middle" font-size="7.8" fill="#555">MT-SDPO</text>
+<text x="104" y="316" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">Worst ↑</text>
+<rect x="210" y="123" width="60" height="157" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="240" y="113" text-anchor="middle" font-size="8.6" fill="#92400e">21.76</text>
+<text x="240" y="294" text-anchor="middle" font-size="7.8" fill="#555">GRPO</text>
+<rect x="278" y="242" width="60" height="38" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="308" y="232" text-anchor="middle" font-size="8.6" fill="#1e40af">5.30</text>
+<text x="308" y="294" text-anchor="middle" font-size="7.8" fill="#555">MT-SDPO</text>
+<text x="274" y="316" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">Gap ↓</text>
+<text x="205" y="344" text-anchor="middle" font-size="8.8" fill="#334155">GRPO는 Macro 67.27로 대등하지만</text>
+<text x="205" y="360" text-anchor="middle" font-size="8.8" fill="#334155">격차를 20.96→21.76으로 오히려 벌린다</text>
+<text x="595" y="60" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Llama-3.1-8B — GRPO 우세</text>
+<rect x="430" y="135" width="60" height="145" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="460" y="125" text-anchor="middle" font-size="8.6" fill="#92400e">64.16</text>
+<text x="460" y="294" text-anchor="middle" font-size="7.8" fill="#555">GRPO</text>
+<rect x="498" y="252" width="60" height="28" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="528" y="242" text-anchor="middle" font-size="8.6" fill="#1e40af">44.62</text>
+<text x="528" y="294" text-anchor="middle" font-size="7.8" fill="#555">MT-SDPO</text>
+<text x="494" y="316" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">Worst ↑</text>
+<rect x="600" y="233" width="60" height="47" rx="4" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="630" y="223" text-anchor="middle" font-size="8.6" fill="#92400e">6.49</text>
+<text x="630" y="294" text-anchor="middle" font-size="7.8" fill="#555">GRPO</text>
+<rect x="668" y="172" width="60" height="108" rx="4" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="698" y="162" text-anchor="middle" font-size="8.6" fill="#1e40af">14.95</text>
+<text x="698" y="294" text-anchor="middle" font-size="7.8" fill="#555">MT-SDPO</text>
+<text x="664" y="316" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">Gap ↓</text>
+<text x="595" y="344" text-anchor="middle" font-size="8.8" fill="#334155">Llama에서는 GRPO가 Macro 67.09,</text>
+<text x="595" y="360" text-anchor="middle" font-size="8.8" fill="#334155">Worst 64.16으로 완승 — 승자가 뒤집힌다</text>
+<line x1="30" y1="280" x2="770" y2="280" stroke="#333" stroke-width="1.2"/>
+<line x1="400" y1="52" x2="400" y2="330" stroke="#cbd5e1" stroke-dasharray="5 4"/>
+<text x="400" y="394" text-anchor="middle" font-size="8.6" fill="#64748b">저자들은 GRPO를 통제 비교 밖의 '별도 목적함수 참조'로만 보고한다 — 두 목적함수의 일반적 우열 순서를 주장하지 않는다.</text>
+</svg>
+<figcaption><strong>[Figure: GRPO 참조 비교]</strong>: 부록 D.3 Table 6. 같은 verifier 신호를 GRPO는 스칼라 보상으로, MT-SDPO는 감독 할당 규칙으로 쓴다. Qwen3-8B(왼쪽)에서 GRPO는 Macro가 대등(67.27 vs 67.11)한데도 Gap을 21.76으로 벌린다 — 신호를 보상으로 쓰면 목적만 바뀌고 감독의 흐름은 바뀌지 않는다는 §5.3의 주장을 지지한다. 그러나 Llama(오른쪽)에서는 GRPO가 완승해 승자가 뒤집힌다 — 목적함수 선택이 백본 특성(초기화 균형)에 의존함을 보여주는 결과로, 저자들은 이를 통제 비교 밖의 참조로만 보고하며 일반적 우열을 주장하지 않는다.</figcaption>
+</figure>
+
+<h2>6. 결론</h2>
+
+<p>교사 풀은 도메인 단위가 아니라 <strong>표본 단위</strong>로 할당하는 것이 낫다. 표본 수준 검증은 도메인 라우팅이 놓치는 표본의 4분의 1을 회수하고, 타 도메인 재배정은 균형을 대가로 정확도를 사며, 자격 교사 전원의 집계가 둘을 모두 되찾는다. 남은 한계 둘: ① 표본의 3분의 1은 정답 교사가 없고(교사 풀 자체의 상한), ② 균형 잡힌 초기화에는 남은 여지가 거의 없다. 정확-일치(exact-match) 답이 없는 설정으로 MT-SDPO를 확장하려면 신뢰할 수 있는 과제 적합 자격 기준이 필요하다.</p>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+<h3>강점</h3>
+<ul>
+  <li><strong>가정을 데이터로 먼저 부수는 구성</strong>: "도메인 일치 교사가 옳다"는 MOPD의 암묵 가정을 방법 제안 전에 전수 조사(52.94% vs 65.69%)로 반증하고, 방법의 각 컴포넌트를 그 진단의 각 숫자에 대응시킨다. 문제–해법의 정렬이 이례적으로 깔끔하다.</li>
+  <li><strong>통제된 ablation 설계</strong>: Domain Routing 베이스라인이 self-anchor·sanitizer·self-teacher를 전부 물려받고 <em>라우팅 규칙만</em> 다르며, ablation 3종도 할당 규칙만 바꾼다 — 이득의 출처를 규칙 수준에서 특정할 수 있다.</li>
+  <li><strong>음성 결과의 정직한 보고</strong>: Llama에서 모든 온라인 방법이 손해라는 결과를 감추지 않고 headroom 가설로 해석하며, GRPO가 Llama에서 완승하는 결과까지 부록에 싣는다. 피드백 노출 통계의 인과적 한계(부록 F)도 스스로 밝힌다.</li>
+  <li><strong>재현성</strong>: 하이퍼파라미터 전체(Table 3–5), 알고리즘 의사코드, 프롬프트 전문(부록 E), 코드 공개. 구현 수준 세부(top-100 support, 이중 비율 클리핑, 마이크로배치 정규화)까지 명시.</li>
+</ul>
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>객관식 단일 벤치마크</strong>: 평가가 SciKnowEval L3의 3개 과학 도메인 객관식에 국한된다. 정확-일치 verifier가 성립하는 가장 쉬운 설정이며, 저자들도 인정하듯 자유 생성·코드·에이전트 과제로의 확장은 자격 기준 자체를 다시 설계해야 한다. 객관식은 찍어도 맞으므로 "검증된 정답"이 "이해"를 보증하지 않는 문제도 이 설정에서 더 크다 (sanitizer가 의미 타당성을 못 본다는 원문 한계와 겹침).</li>
+  <li><strong>단일 run·좁은 평가셋</strong>: 도메인당 held-out 79문항 × 3 = 237문항으로 avg@16을 쓰더라도 표본이 작고, seed 반복·신뢰구간이 없다. Worst/Gap처럼 min/range 기반 지표는 작은 표본에서 특히 분산이 크다.</li>
+  <li><strong>K=3, 좁은 도메인 폭</strong>: 교사 3명·인접한 과학 3개 도메인이라 "도메인 겹침"이 애초에 큰 설정이다. 도메인이 진짜로 이질적이면(코드 vs 수학 vs 대화) 타 도메인 구출률이 급감해 방법의 이득 구조가 달라질 수 있는데, 이 축의 실험이 없다.</li>
+  <li><strong>비단조 궤적의 근본 원인 미해명</strong>: SDPO가 step 50 후 붕괴하는 이유, MT-SDPO가 유지되는 기전은 서술만 있고 분석이 없다. step-100 고정 비교는 공정하지만, 조기 종료 규칙이 실무에선 결과를 바꿀 수 있다.</li>
+  <li><strong>교사 질의 비용의 비대칭 미보고</strong>: MT-SDPO는 오프라인 manifest(교사 3 × 1,953 질문)와 온라인 오답 rollout당 최대 |V_i|회 피드백 생성을 요구한다. GPU 배분(정책 4 + 교사 서빙 4)은 명시되지만 방법 간 총 연산 비교표는 없다.</li>
+</ul>
+<h3>AI 논문 체크리스트 대조</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ 단일 run, 표준편차 없음. avg@16 응답 평균이 유일한 분산 완화</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>○ 공유 초기화·공유 rollout 예산·공유 컴포넌트, 규칙만 교체 — 통제 수준이 높다. GRPO는 목적이 달라 참조로 분리</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>○ 검증/재배정/집계 3축 분해 + 오답 참조율(50.21% vs 47.06%)로 기전까지 연결</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>△ 배포는 학생 1개로 저렴하나 훈련 시 교사 서빙 비용 비교 없음; 피드백 사용률 5.64%는 효율 방증</td></tr>
+<tr><td>코드/데이터 공개</td><td>○ 코드 GitHub 공개, 프롬프트 전문 수록. 데이터는 공개 벤치마크(SciKnowEval) 가공</td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>○ 오프라인·온라인·증류·예산·평가 전 설정 명시 (Table 3–5)</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>라벨은 평균, 검증은 표본</strong>: "이 도메인 전문가니까 이 질문도 맞겠지"는 절반 정도만 참이다(52.94%). 감독 소스를 고를 때 대리 지표(라벨·평균 성능·학습된 가중치)를 표본 수준 검증으로 바꿀 수 있다면 바꿔라 — 검증 실패 시의 대가는 "교사 셋을 쓰고도 안 쓴 것만 못한" 수준이다(w/o Verification이 초기화 이하).</li>
+  <li><strong>가장 싼 검증된 교사는 학생 자신</strong>: 정답 rollout을 오답 동료의 anchor로 재활용하는 SDPO 계열 구조는 외부 교사 호출을 "학생이 실패한 곳"으로만 한정시켜 비용과 간섭을 동시에 줄인다. 최고 성능 방법이 외부 피드백을 가장 적게 썼다(5.64%)는 관찰은 데이터 파이프라인 설계 전반에 시사적이다.</li>
+  <li><strong>같은 verifier, 다른 용도, 다른 결과</strong>: 이진 정오 신호를 스칼라 보상(GRPO)으로 쓰면 목적이 바뀌고, 할당 규칙(MT-SDPO)으로 쓰면 감독의 흐름이 바뀐다. Qwen3-8B에서 전자는 격차를 벌리고 후자는 좁혔다 — verifier를 갖고 있다면 보상 외의 사용처를 검토할 가치가 있다.</li>
+  <li><strong>이득은 headroom을 따라간다</strong>: 최약 도메인에 남은 여지가 있을 때만 온라인 통합이 지불한다(Llama 음성 결과). 방법 도입 전에 초기화의 도메인 프로파일부터 진단하라 — 이 논문의 표본 수준 진단(§5.2) 자체가 재사용 가능한 절차다.</li>
+  <li><strong>무정보는 0이 아니라 제외</strong>: anchor도 피드백도 없는 rollout을 손실에서 마스킹하는 처리(식 6)는 "신호 없음"을 "0을 배워라"와 구분하는 작지만 중요한 설계다.</li>
+  <li><strong>(비판적 관점)</strong> 증거는 인접한 과학 3도메인 객관식 + 단일 run + 237 held-out 문항 위에 서 있다. 규칙 자체는 우아하지만, 정확-일치 verifier가 없는 과제·이질적 도메인·큰 교사 풀에서의 일반화는 아직 증명되지 않았다 — 저자들 스스로 결론에서 이를 확장 조건으로 못 박는다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
