@@ -1,12 +1,16 @@
 ---
 name: paper-figures
-description: 논문 요약 HTML에 넣을 인라인 SVG 그림(논문 Figure 재현, 개념도, 수치 예제)과 상세 figcaption을 작성하는 방법. 논문 요약을 작성/수정할 때, 또는 기존 요약에 그림을 추가할 때 로드한다. 기준 예시는 20260728_kimiteam_kimik3.html (SVG 55개).
+description: 논문 요약 HTML에 넣을 인라인 SVG 그림(논문 Figure 재현, 개념도, 수치 예제)과 상세 figcaption을 작성하는 방법. 논문 요약을 작성/수정할 때, 또는 기존 요약에 그림을 추가할 때 로드한다. 개념도는 assets/svgkit.py 헬퍼로 만든다. 구조 기준 예시는 20260907_phan_recap.html (33p / SVG 18개).
 ---
 
 # 논문 요약용 SVG 그림 작성 가이드
 
-기준 예시(golden reference): `20260728_kimiteam_kimik3.html`
-— 47페이지 논문 → 4,841줄 / SVG 그림 55개 / 모든 그림에 3~5문장 분석형 캡션.
+구조 기준 예시: `20260907_phan_recap.html` — 33페이지 논문 → 2,183줄 / SVG 18개.
+**현재 기준으로 쓰인 요약**이므로 절 구성·캡션 밀도·표와 그림의 분담을 여기서 본다.
+
+`20260728_kimiteam_kimik3.html`(47p → 4,841줄 / SVG 55개)은 초기 예시다.
+**그림 밀도가 현재 기준의 2배 이상이므로 개수를 따라가지 않는다** — 서술 깊이와
+3~5문장 분석형 캡션의 품질만 참고한다.
 
 HTML 골격은 `assets/summary_template.html`을 복사해서 시작한다. head 안의
 KaTeX 설정(`ignoredTags`에 `svg` 포함), 목차 자동 생성 스크립트, 그림 번호
@@ -142,8 +146,8 @@ open('/tmp/f.svg','w').write(s.done())
 - 폭은 `0 0 780 …` ~ `0 0 800 …`이 본문 폭(860px)에 맞는다. 높이는 내용에 따라 200~560
 - `<svg>`에 `font-family="sans-serif"`를 걸고, 텍스트마다 `font-size`를 명시한다
   (제목 14~15, 박스 제목 11~12, 본문 10~10.5, 주석 9~9.5)
-- **`marker` id는 그림마다 다르게** 짓는다 (`mapA`, `ck1`, `kcp2`…). 한 문서에 55개 SVG가
-  들어가므로 id 충돌이 실제로 발생한다
+- **`marker` id는 그림마다 다르게** 짓는다 (`mapA`, `ck1`, `kcp2`…). 한 문서에 수십 개 SVG가
+  들어가므로 id 충돌이 실제로 발생한다 (svgkit의 `mid` 인자가 자동 처리)
 - 텍스트 줄바꿈은 없다. **여러 `<text>` 요소를 y좌표 15~18px 간격으로 쌓는다**
 - 좌표는 손으로 계산한다. 박스와 텍스트가 겹치지 않게 `y`는 박스 상단 +18, +36, +52 식으로
 - **SVG 안에서는 `$…$` KaTeX 문법이 렌더링되지 않는다** (head에서 `svg`를 ignoredTags로 제외).
