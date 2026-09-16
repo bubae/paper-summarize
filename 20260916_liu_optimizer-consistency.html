@@ -1,0 +1,1793 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Optimizer-Model Consistency: Full Finetuning with the Same Optimizer as Pretraining Forgets Less</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false},
+    {left: '\\(', right: '\\)', display: false},
+    {left: '\\[', right: '\\]', display: true}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+<h1>Optimizer-Model Consistency: Full Finetuning with the Same Optimizer as Pretraining Forgets Less</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Yuxing Liu, Jianyu Wang, Tong Zhang</li>
+  <li><strong>소속</strong>: UIUC (University of Illinois Urbana-Champaign), Apple — 모든 실험은 대학에서 수행</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.LG)</li>
+  <li><strong>연도</strong>: 2026 (v1: 2026-05-07)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2605.06654">arXiv:2605.06654</a></li>
+  <li><strong>분량</strong>: 25페이지 — 본문 11p(서론·현상·설명·사례 연구·관련 연구·결론) + 참고문헌 5p + 부록 9p(A 실험 설정과 추가 옵티마이저, B 추가 결과, C 정리 1 증명, D 라이선스). Figure 11개 · Table 3개 · Algorithm 3개 · 가정 4개 + 정리 1</li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 사전학습–지도 미세조정(SFT, supervised finetuning) 패러다임에서 SFT는 <em>새 능력을 배우면서 기존 능력을 보존해야</em> 하는 두 마리 토끼 문제다. 이 <strong>학습–망각 트레이드오프(learning-forgetting tradeoff)</strong>를 가장 잘 잡는 학습 알고리즘은 무엇인가? 후보는 여러 옵티마이저와 LoRA(Low-Rank Adaptation)다.</li>
+  <li><strong>해결</strong>: 답은 단순하다 — ##사전학습에 쓴 것과 같은 (계열의) 옵티마이저로 전체 미세조정하는 것이 최선이며, 이는 다른 옵티마이저는 물론 LoRA보다도 낫다.## 저자는 이 현상을 <strong>옵티마이저–모델 정합성(optimizer-model consistency)</strong>이라 부른다.</li>
+  <li><strong>왜 작동하는가</strong>: 옵티마이저는 "고정된 해로 가는 절차"가 아니라 <em>모델을 특정 모양으로 빚는 장치</em>다. 노름 제약에서 유도되는 옵티마이저 \(\mathcal{A}_{\alpha,\beta}\)는 입력 활성화를 \(\|\cdot\|_\alpha\)로, 출력 활성화를 \(\|\cdot\|_\beta\)로 정규화한다(Adam은 \(\alpha=1\)이라 활성화가 희소해지고 Muon은 \(\alpha=2\)라 그렇지 않다). 망각의 크기는 근사적으로 \(\tfrac12\mathbb{E}[\|\Delta W x\|_2^2]\)로 <em>사전학습 활성화 \(x\)</em>에 의해 결정되므로, SFT 업데이트도 그 활성화 구조에 맞는 노름을 따라야 덜 잊는다. 정리 1이 이를 형식화한다 — \(\alpha_2 = \alpha_1\), \(\beta_2 \ge 2\)일 때 (거의) 최적.</li>
+  <li><strong>비유</strong>: 목수가 만들어 둔 가구를 다른 사람이 손보는 일이다. 대패로 다듬은 결과 위에는 대패가, 끌로 판 자리에는 끌이 맞는다. 다른 연장을 쓰면 새 부분은 붙일 수 있어도 원래의 결이 뜯긴다. LoRA는 "덧댐판"에 해당하는데, 그 덧댐판의 모양(저랭크)은 어떤 연장의 결과도 아니어서 애초에 결에 맞지 않는다는 것이 이 논문의 주장이다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>옵티마이저–모델 정합성 현상의 제시</strong>: 사전학습과 같은 옵티마이저로 전체 미세조정하면 SFT 단계에서 다른 옵티마이저나 LoRA보다 나은 학습–망각 트레이드오프를 얻는다는 것을 GPT-2와 Llama-2-7B에서 보인다. ##특히 LoRA와의 비교에서, 학습률 스윕을 제대로 고려하면 전체 미세조정이 학습과 망각 <em>양쪽 모두에서</em> LoRA를 앞설 수 있다.##</li>
+  <li><strong>활성화 정규화로 현상을 설명</strong>: 옵티마이저는 자신이 유도된 노름과 관련된 방식으로 <strong>활성화에 정규화</strong>를 건다는 것을 이론과 실험으로 보이고, 단순화된 가정 아래 "SFT 업데이트가 사전학습 지식의 망각에 어떻게 영향을 주는가"와 연결해 정합성 현상에 대한 이론적 설명을 세운다(정리 1).</li>
+  <li><strong>Muon 사례 연구</strong>: Muon과 AdamW를 사전학습·SFT 양쪽에 일관되게 적용해 비교하고, ##수학 같은 추론 과제를 미세조정할 때 Muon이 사전학습에서의 우위를 잃을 수 있음##을 보인다. 합성 언어 모델링 실험으로 그 원인이 <strong>패턴을 배우기 전에 통암기부터 하는 성향</strong>일 수 있음을 제시한다.</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 486" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="armap0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="armap1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#16a34a"/></marker><marker id="armap2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#16a34a"/></marker><marker id="armap3" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Optimizer-Model Consistency — 논문 전체 지도</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">현상 관찰 → 원인(활성화 정규화) → 이론(정리 1) → Muon 사례 연구</text>
+<rect x="20" y="44" width="760" height="74" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="63" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">관찰  옵티마이저–모델 정합성</text>
+<text x="31" y="82" text-anchor="start" font-size="9.3" fill="#334155">SFT에서 사전학습과 같은 옵티마이저로 전체 미세조정하면</text>
+<text x="31" y="97" text-anchor="start" font-size="9.3" fill="#334155">학습–망각 트레이드오프가 가장 좋다 — LoRA보다도 (§2)</text>
+<path d="M400,120 L400,130" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#armap0)"/>
+<rect x="20" y="134" width="239" height="56" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="139" y="154" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">① ① 옵티마이저가 모델을 빚는다</text>
+<text x="139" y="172" text-anchor="middle" font-size="9" fill="#334155">가중치 스펙트럼 + 활성화 희소성 (§3.1)</text>
+<path d="M261,162 L278,162" stroke="#16a34a" stroke-width="1.4" fill="none" marker-end="url(#armap1)"/>
+<rect x="281" y="134" width="239" height="56" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="400" y="154" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">② ② 노름이 활성화를 정규화</text>
+<text x="400" y="172" text-anchor="middle" font-size="9" fill="#334155">A_{α,β} → ‖·‖_α 입력, ‖·‖_β 출력 (§3.2)</text>
+<path d="M521,162 L538,162" stroke="#16a34a" stroke-width="1.4" fill="none" marker-end="url(#armap2)"/>
+<rect x="541" y="134" width="239" height="56" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="661" y="154" text-anchor="middle" font-size="10.5" fill="#15803d" font-weight="bold">③ ③ SFT 업데이트도 그 구조를 따라야</text>
+<text x="661" y="172" text-anchor="middle" font-size="9" fill="#334155">정리 1: α₂=α₁, β₂≥2 (§3.3)</text>
+<path d="M400,194 L400,202" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#armap3)"/>
+<rect x="20" y="206" width="374" height="76" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="207" y="225" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">사례 연구  Muon vs AdamW (§4)</text>
+<text x="31" y="244" text-anchor="start" font-size="9.3" fill="#334155">Muon은 사전학습 후 전 과제에서 우세하지만</text>
+<text x="31" y="259" text-anchor="start" font-size="9.3" fill="#334155">수학·코드 SFT 후에는 그 우위가 사라진다</text>
+<rect x="406" y="206" width="374" height="76" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="593" y="225" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">가설  Muon은 더 많이 외운다 (§4.2)</text>
+<text x="416" y="244" text-anchor="start" font-size="9.3" fill="#334155">full-rank 업데이트 → 통암기가 쉽다</text>
+<text x="416" y="259" text-anchor="start" font-size="9.3" fill="#334155">손상 코퍼스 실험: 암기 65.0% vs AdamW 55.8%</text>
+<rect x="20" y="296" width="182" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="111" y="314" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">GPT-2 사전학습</text>
+<text x="111" y="338" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">Muon 우세</text>
+<text x="111" y="354" text-anchor="middle" font-size="8.5" fill="#555">OWT 손실 2.974 vs 3.010</text>
+<rect x="212" y="296" width="182" height="66" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="304" y="314" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">SFT 트레이드오프</text>
+<text x="304" y="338" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">같은 옵티마이저</text>
+<text x="304" y="354" text-anchor="middle" font-size="8.5" fill="#555">AdamW→AdamW, Muon→Muon</text>
+<rect x="405" y="296" width="182" height="66" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<text x="496" y="314" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">LoRA</text>
+<text x="496" y="338" text-anchor="middle" font-size="20" fill="#92400e" font-weight="bold">열세</text>
+<text x="496" y="354" text-anchor="middle" font-size="8.5" fill="#555">전체 미세조정이 지배한다 (§2.2)</text>
+<rect x="598" y="296" width="182" height="66" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.8"/>
+<text x="689" y="314" text-anchor="middle" font-size="10" fill="#b91c1c" font-weight="bold">Muon SFT</text>
+<text x="689" y="338" text-anchor="middle" font-size="20" fill="#b91c1c" font-weight="bold">딜레마</text>
+<text x="689" y="354" text-anchor="middle" font-size="8.5" fill="#555">정합성은 맞지만 추론엔 불리</text>
+<rect x="20" y="376" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="394" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">이 그림의 요점</text>
+<text x="30" y="412" text-anchor="start" font-size="10" fill="#334155">핵심 기여는 현상 자체보다 그 원인을 활성화 정규화로 설명하고 정리로 만든 데 있다 (§3).</text>
+<text x="30" y="429" text-anchor="start" font-size="10" fill="#334155">[요약자 주] 이 논문은 Liu et al.(2025)이 남긴 불일치 문제를 다루지만 Qu et al.(2026)을 인용하지는 않는다 — 세 논문의 관계 비교는</text>
+<text x="30" y="446" text-anchor="start" font-size="10" fill="#334155">원문에 없는, 문서 끝 §7의 요약자 정리다.</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 맨 위 파랑 카드가 관찰된 현상(§2)이고, 가운데 초록 3단계가 그 현상을 설명하는 논증의 뼈대다 — 옵티마이저가 모델을 빚고(§3.1), 그 빚는 방식이 노름에서 나오며(§3.2), 따라서 SFT 업데이트도 같은 노름을 따라야 한다(§3.3). 아래 두 카드는 Muon 사례 연구(§4)로, 사전학습 우위가 추론 과제 SFT에서 소진된다는 관찰과 그 원인 가설이다. 맨 아래 숫자 카드의 오른쪽 두 개가 이 논문의 논쟁적 지점이다 — LoRA를 부정하고, Muon에게 딜레마를 남긴다.</figcaption>
+</figure>
+
+<h2>1. 배경 — 학습–망각 트레이드오프를 어떻게 잴 것인가 (원문 §1 · §2 앞부분)</h2>
+
+<p><em>읽기 안내</em>: 이 요약의 절 번호는 원문과 다르며, 각 절 제목에 대응하는 원문 절을 병기했다. 반면 <strong>정리 1·가정 1~4·Remark 1~3·식 번호는 원문 번호를 그대로</strong> 쓴다 — 예컨대 "§3.3"은 이 요약의 절이고 "정리 1"은 원문의 정리다.</p>
+
+<h3>1.0 이 논문을 읽기 위한 용어</h3>
+
+<table class="small-table">
+<thead><tr><th>용어</th><th>이 논문에서의 뜻</th></tr></thead>
+<tbody>
+<tr><td><strong>옵티마이저–모델 정합성</strong><br>(optimizer-model consistency)</td><td>이 논문이 붙인 이름. "사전학습에 쓴 것과 같은 (계열의) 옵티마이저로 전체 미세조정하면 가장 좋은 학습–망각 트레이드오프가 나온다"는 현상을 가리킨다</td></tr>
+<tr><td><strong>학습–망각 트레이드오프</strong></td><td>SFT에서 새 과제를 배우는 정도와 사전학습 지식을 잃는 정도의 균형. 이 논문은 이를 <em>두 축의 파레토 전선</em>으로 다룬다</td></tr>
+<tr><td>\(\mathcal{A}_{\alpha,\beta}\)</td><td>행렬 유도 노름 \(\|\cdot\|_{\alpha,\beta}\)에서 유도된 옵티마이저. Muon은 \(\mathcal{A}_{2,2}\), Adam·SignSGD는 \(\mathcal{A}_{1,\infty}\) 계열</td></tr>
+<tr><td><strong>활성화 희소성</strong></td><td>활성화 벡터 \(x\)에 대해 \(\|x\|_1/(\sqrt{d}\,\|x\|_2)\). <em>값이 낮을수록 희소</em>하다는 점에 주의</td></tr>
+<tr><td><strong>Stable rank</strong></td><td>\(\sum_i\sigma_i^2/\sigma_1^2\). 행렬이 실질적으로 몇 개의 방향을 쓰는지를 재는 실효 차원 척도</td></tr>
+<tr><td><strong>Singular sparsity</strong></td><td>\(\sum_i\sigma_i/\sqrt{n\sum_i\sigma_i^2}\). 특이값 분포가 얼마나 고른지를 \([0,1]\)로 재는 척도</td></tr>
+<tr><td><strong>통암기</strong><br>(rote memorization)</td><td>패턴이나 규칙을 배우지 않고 데이터를 그대로 기억하는 것. §4.2의 합성 실험이 이를 패턴 학습과 분리해 측정한다</td></tr>
+</tbody>
+</table>
+
+<h3>1.1 왜 "트레이드오프"인가</h3>
+
+<p>대규모 언어 모델은 사전학습–미세조정 패러다임 아래에서 성공을 거뒀다. 사전학습 단계에서 방대한 혼합 코퍼스로 일반 언어 능력을 얻고, 그 체크포인트에서 출발해 고품질이지만 상대적으로 적은 양의 데이터로 수학·코드 같은 특정 다운스트림 과제의 기술을 배우는 것이 SFT다.</p>
+
+<p>SFT가 사전학습과 결정적으로 다른 점은 <strong>새 지식과 기술을 배우는 동시에 사전학습에서 얻은 일반 언어 능력을 보존해야 한다</strong>는 것이다. 저자는 이 둘의 균형을 <strong>학습–망각 트레이드오프</strong>라 부르고, 논문 전체의 질문을 이렇게 세운다 — <em>SFT 단계에서 어떤 학습 알고리즘이 가장 좋은 학습–망각 트레이드오프를 달성하는가?</em></p>
+
+<h3>1.2 측정 방식 — 한 점이 아니라 전선을 비교한다</h3>
+
+<p><strong>왜 문제인가</strong>: 두 알고리즘을 비교할 때 각각 학습률 하나만 골라 비교하면, "A가 더 배웠지만 더 잊었다"는 결과가 나오기 쉽고 우열을 판정할 수 없다. 학습률을 낮추면 어떤 알고리즘이든 덜 배우고 덜 잊는다.</p>
+
+<p><strong>해법</strong>: 각 학습 알고리즘에 대해 <strong>학습률 격자 탐색의 모든 실행</strong>을 고려하고, 한 실행 안에서도 <strong>중간 체크포인트를 모두 평가</strong>한 뒤, 그 알고리즘이 도달할 수 있는 한계로서 <strong>파레토 전선</strong>을 그린다. 축은 다음과 같다.</p>
+
+<table class="small-table">
+<thead><tr><th>축</th><th>GPT-2 실험</th><th>Llama-2-7B 실험</th></tr></thead>
+<tbody>
+<tr><td>망각 지표 (가로)</td><td>OpenWebText 검증 손실 — 사전학습 지식을 얼마나 보존했는가 (낮을수록 좋음)</td><td>일반 능력 평균 정확도 (HellaSwag, ARC-C, WinoGrande) — 높을수록 좋음</td></tr>
+<tr><td>학습 지표 (세로)</td><td>새 과제 검증 손실 — 얼마나 배웠는가 (낮을수록 좋음)</td><td>GSM8K Exact Match — 높을수록 좋음</td></tr>
+</tbody>
+</table>
+
+<p>파레토 전선을 그릴 때는 그림의 선명도를 위해 강건한 전선 선택 전략을 쓴다 — 특정 알고리즘의 점 \((x_i, y_i)\)는 같은 알고리즘의 다른 모든 점 \((x_j, y_j)\)에 대해 \(\{x_i \le x_j - c\ \text{또는}\ y_i \le y_j - c\}\)가 성립할 때만 전선에 올린다(\(c = 0.001\)). 즉 <strong>유의미한 개선이 있는 점만 남긴다</strong>. 정확도를 지표로 쓰는 그림에도 같은 \(c\)를 적용한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 학습–망각 트레이드오프와 파레토 전선 읽는 법]</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가로축 = 얼마나 잊었는가(사전학습 손실), 세로축 = 얼마나 배웠는가(과제 손실). 둘 다 낮을수록 좋다</text>
+<line x1="120" y1="320" x2="470" y2="320" stroke="#334155" stroke-width="1.4"/>
+<line x1="120" y1="320" x2="120" y2="90" stroke="#334155" stroke-width="1.4"/>
+<text x="295" y="342" text-anchor="middle" font-size="9" fill="#334155">망각 지표 →  (사전학습 검증 손실, 낮을수록 덜 잊음)</text>
+<text x="92" y="205" font-size="9" transform="rotate(-90 92 205)" text-anchor="middle">학습 지표 →  (과제 검증 손실, 낮을수록 잘 배움)</text>
+<polyline points="162.0,292.4 190.0,232.6 225.0,191.2 274.0,165.9 330.0,152.1 400.0,145.2" fill="none" stroke="#3b82f6" stroke-width="2.4"/>
+<circle cx="162.0" cy="292.4" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<circle cx="190.0" cy="232.6" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<circle cx="225.0" cy="191.2" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<circle cx="274.0" cy="165.9" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<circle cx="330.0" cy="152.1" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<circle cx="400.0" cy="145.2" r="4.5" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<rect x="300" y="108" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="318" y="118" text-anchor="start" font-size="8.8" fill="#1e40af" font-weight="bold">옵티마이저 A (일치)</text>
+<polyline points="197.0,297.0 232.0,246.4 277.5,209.6 330.0,186.6 386.0,172.8 442.0,165.9" fill="none" stroke="#f59e0b" stroke-width="2.4"/>
+<circle cx="197.0" cy="297.0" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<circle cx="232.0" cy="246.4" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<circle cx="277.5" cy="209.6" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<circle cx="330.0" cy="186.6" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<circle cx="386.0" cy="172.8" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<circle cx="442.0" cy="165.9" r="4.5" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<rect x="300" y="126" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="318" y="136" text-anchor="start" font-size="8.8" fill="#92400e" font-weight="bold">옵티마이저 B (불일치)</text>
+<text x="141" y="122" text-anchor="start" font-size="8.6" fill="#15803d" font-weight="bold">← 더 좋음</text>
+<path d="M225.0,159.0 L155.0,117.6" stroke="#16a34a" stroke-width="2" stroke-dasharray="4 3"/>
+<circle cx="274.0" cy="165.9" r="5" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<circle cx="330.0" cy="186.6" r="5" fill="#fef2f2" stroke="#ef4444" stroke-width="2"/>
+<path d="M330.0,186.6 L274.0,186.6 L274.0,165.9" fill="none" stroke="#ef4444" stroke-width="1.2" stroke-dasharray="3 3"/>
+<text x="302" y="198" text-anchor="middle" font-size="8.4" fill="#b91c1c" font-weight="bold">지배됨</text>
+<rect x="500" y="90" width="288" height="230" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="512" y="112" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">이 논문의 측정 방식</text>
+<text x="512" y="136" text-anchor="start" font-size="9" fill="#334155">① 각 학습 알고리즘마다 학습률 격자 탐색</text>
+<text x="512" y="153" text-anchor="start" font-size="9" fill="#334155">② 한 실행 안에서도 중간 체크포인트를 모두 평가</text>
+<text x="512" y="170" text-anchor="start" font-size="9" fill="#334155">③ 모든 점을 모아 그 알고리즘의 파레토 전선을 그림</text>
+<text x="512" y="196" text-anchor="start" font-size="9.6" fill="#1e40af" font-weight="bold">왜 이렇게 하는가</text>
+<text x="512" y="214" text-anchor="start" font-size="8.8" fill="#334155">학습률 하나만 고르면 '얼마나 배웠나'와</text>
+<text x="512" y="230" text-anchor="start" font-size="8.8" fill="#334155">'얼마나 잊었나'를 동시에 비교할 수 없다.</text>
+<text x="512" y="246" text-anchor="start" font-size="8.8" fill="#334155">전선 전체를 봐야 두 알고리즘의 우열이 정해진다.</text>
+<text x="512" y="272" text-anchor="start" font-size="8.8" fill="#64748b">이 차이가 §2.5에서 Biderman et al.(2024)의</text>
+<text x="512" y="288" text-anchor="start" font-size="8.8" fill="#64748b">'LoRA는 덜 배우고 덜 잊는다'는 결론과</text>
+<text x="512" y="304" text-anchor="start" font-size="8.8" fill="#64748b">다른 결론이 나오는 이유가 된다.</text>
+<rect x="20" y="346" width="760" height="54" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="364" text-anchor="start" font-size="10" fill="#334155">이 그림은 논문에 없는 개념 재구성이며 좌표는 예시다. 요점은 '한 점'이 아니라 '전선'을 비교한다는 것 —</text>
+<text x="30" y="381" text-anchor="start" font-size="10" fill="#334155">빨강 점처럼 다른 알고리즘의 어떤 점에 &lt;두 축 모두에서&gt; 밀리는 점이 있으면 그 알고리즘은 지배된다. 논문의 모든 비교가 이 형식으로 이뤄진다.</text>
+</svg>
+<figcaption><strong>[Figure: 학습–망각 트레이드오프를 읽는 법]</strong>: 두 축 모두 낮을수록 좋으므로 왼쪽 아래로 갈수록 좋은 결과다. 이 논문의 모든 비교가 '점'이 아니라 '전선' 단위로 이뤄지며, 빨강 점처럼 다른 전선의 어떤 점에 두 축 모두에서 밀리면 지배된다고 판정한다. 오른쪽 상자가 측정 절차이며, 학습률 격자 전체와 중간 체크포인트를 모아 한 알고리즘의 한계를 그린다는 점이 핵심이다. 이 차이가 §2.5에서 Biderman et al.(2024)과 다른 결론이 나오는 직접적 원인이 된다. 좌표는 논문에 없는 개념 예시다.</figcaption>
+</figure>
+
+<h2>2. 현상 — 같은 옵티마이저가 덜 잊는다 (원문 §2)</h2>
+
+<h3>2.0 이 논문이 답하려는 질문</h3>
+
+<table class="small-table">
+<thead><tr><th>#</th><th>질문</th><th>대응 실험</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>사전학습 옵티마이저가 다르면 SFT에서 어떤 옵티마이저가 유리한가?</td><td>GPT-2 2×3 파레토 전선 (§2.2)</td></tr>
+<tr><td>Q2</td><td>LoRA는 정말 덜 잊는가?</td><td>전체 미세조정 vs LoRA 랭크 4수준 (§2.3)</td></tr>
+<tr><td>Q3</td><td>작은 모델의 결론이 7B에서도 유지되는가?</td><td>Llama-2-7B + MetaMathQA (§2.4)</td></tr>
+<tr><td>Q4</td><td>기존 연구와 결론이 다른 이유는?</td><td>학습률 고정 vs 스윕 비교 (§2.5, 부록 B.1)</td></tr>
+<tr><td>Q5</td><td>왜 같은 옵티마이저가 유리한가?</td><td>가중치·활성화 측정 + 정리 1 (§3)</td></tr>
+<tr><td>Q6</td><td>그렇다면 Muon은 좋은 옵티마이저인가?</td><td>사전학습+SFT 일관 적용 3과제 + 합성 실험 (§4)</td></tr>
+</tbody>
+</table>
+
+
+<h3>2.1 실험 설계와 사전학습 결과</h3>
+
+<p>서로 다른 옵티마이저로 만든 체크포인트들 아래에서 SFT 성능을 비교하려면 <strong>사전학습부터 직접 해야 한다</strong>. 그래서 GPT-2 모델로 사전학습–미세조정 전 과정을 수행한다.</p>
+
+<table class="small-table">
+<thead><tr><th>항목</th><th>설정</th></tr></thead>
+<tbody>
+<tr><td>모델</td><td>GPT-2-small과 같은 구조·파라미터 수(약 123M). 활성화 함수만 GELU → <strong>SwiGLU</strong>로 변경</td></tr>
+<tr><td>사전학습</td><td>OpenWebText 8B 토큰, 시퀀스 1024, 유효 배치 240(4 GPU × 5 그래디언트 누적 × 12), cosine 스케줄 + 10% warmup, 그래디언트 클리핑 norm 1, weight decay 0.1, <strong>학습률 3e-3 (AdamW·Muon 공통)</strong></td></tr>
+<tr><td>SFT 과제</td><td>MetaMathQA(수학), Alpaca(지시 따르기), Magicoder-Evol-Instruct-110K(코딩). 모두 약 2 에폭 — Alpaca 800 iter, MetaMathQA 6,100 iter, Magicoder 1,800 iter</td></tr>
+<tr><td>학습 알고리즘</td><td>전체 미세조정: AdamW · Muon · SGD 세 가지. 그리고 AdamW를 쓴 LoRA(\(r = 4, 8, 32, 128\), \(\alpha = 2r\))</td></tr>
+<tr><td>옵티마이저 세부</td><td>AdamW \((\beta_1,\beta_2) = (0.9, 0.95)\), \(\epsilon\) = 1e-8. Muon은 <strong>RMSNorm 정렬 버전</strong>(Liu et al., 2025) — 모멘텀 0.9, 내부 AdamW \((0.9, 0.95)\). SGD에도 같은 업데이트 RMS 정렬을 적용: \(W \leftarrow W - \eta\cdot 0.2\cdot\sqrt{mn}\,g/\|g\|\) (여기서 \(g\)는 그래디언트가 아니라 <strong>모멘텀</strong>)</td></tr>
+<tr><td>연산 자원</td><td>GPT-2 사전학습 4× NVIDIA RTX A6000(48GB), GPT-2 SFT 1× A6000, Llama-2-7B 미세조정 4× A6000. 모두 bf16. nanoGPT 코드베이스(GPT-2), LlamaFactory + Dion의 Muon fsdp2 구현(Llama-2)</td></tr>
+</tbody>
+</table>
+
+<p><strong>사전학습 결과</strong>: Muon이 사전학습 데이터셋과 세 다운스트림 과제 <em>모두에서</em> AdamW를 앞선다. 사전학습에서 Muon이 유리하다는 선행 보고(Jordan et al., 2024; Liu et al., 2025)와 일치하는 결과다.</p>
+
+<table class="small-table">
+<caption>표 1 — GPT-2 사전학습 후 각 데이터셋의 검증 손실 (낮을수록 좋음). 원문 표에는 굵게 표시가 없으며, 여기서는 우세한 쪽을 요약자가 표시했다</caption>
+<thead><tr><th>사전학습 옵티마이저</th><th>OpenWebText</th><th>Alpaca</th><th>MetaMathQA</th><th>Magicoder</th></tr></thead>
+<tbody>
+<tr><td>AdamW</td><td>3.010</td><td>3.483</td><td>3.510</td><td>3.264</td></tr>
+<tr><td><strong>Muon</strong></td><td><strong>2.974</strong></td><td><strong>3.235</strong></td><td><strong>3.200</strong></td><td><strong>3.000</strong></td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 375" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[표 1 재구성] GPT-2 사전학습 직후의 검증 손실 — SFT 이전 출발점</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">네 데이터셋 모두에서 Muon이 AdamW보다 낮다 (낮을수록 좋음)</text>
+<line x1="250" y1="64" x2="250" y2="248" stroke="#eef2f6"/>
+<text x="250" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">2.9</text>
+<line x1="316" y1="64" x2="316" y2="248" stroke="#eef2f6"/>
+<text x="316" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.0</text>
+<line x1="382" y1="64" x2="382" y2="248" stroke="#eef2f6"/>
+<text x="382" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.1</text>
+<line x1="449" y1="64" x2="449" y2="248" stroke="#eef2f6"/>
+<text x="449" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.2</text>
+<line x1="515" y1="64" x2="515" y2="248" stroke="#eef2f6"/>
+<text x="515" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.3</text>
+<line x1="581" y1="64" x2="581" y2="248" stroke="#eef2f6"/>
+<text x="581" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.4</text>
+<line x1="647" y1="64" x2="647" y2="248" stroke="#eef2f6"/>
+<text x="647" y="58" text-anchor="middle" font-size="8" fill="#94a3b8">3.5</text>
+<text x="238" y="88" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">OpenWebText (사전학습)</text>
+<line x1="299.0" y1="84" x2="322.8" y2="84" stroke="#16a34a" stroke-width="3.2"/>
+<circle cx="322.8" cy="84" r="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<circle cx="299.0" cy="84" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="289" y="88" text-anchor="end" font-size="8.6" fill="#1e40af" font-weight="bold">2.974</text>
+<text x="333" y="88" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">3.010</text>
+<text x="373" y="88" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">Δ -0.036</text>
+<text x="238" y="130" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">Alpaca</text>
+<line x1="471.7" y1="126" x2="635.8" y2="126" stroke="#16a34a" stroke-width="3.2"/>
+<circle cx="635.8" cy="126" r="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<circle cx="471.7" cy="126" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="462" y="130" text-anchor="end" font-size="8.6" fill="#1e40af" font-weight="bold">3.235</text>
+<text x="646" y="130" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">3.483</text>
+<text x="686" y="130" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">Δ -0.248</text>
+<text x="238" y="172" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">MetaMathQA</text>
+<line x1="448.5" y1="168" x2="653.7" y2="168" stroke="#16a34a" stroke-width="3.2"/>
+<circle cx="653.7" cy="168" r="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<circle cx="448.5" cy="168" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="439" y="172" text-anchor="end" font-size="8.6" fill="#1e40af" font-weight="bold">3.200</text>
+<text x="664" y="172" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">3.510</text>
+<text x="704" y="172" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">Δ -0.310</text>
+<text x="238" y="214" text-anchor="end" font-size="9.4" fill="#334155" font-weight="bold">Magicoder</text>
+<line x1="316.2" y1="210" x2="490.9" y2="210" stroke="#16a34a" stroke-width="3.2"/>
+<circle cx="490.9" cy="210" r="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<circle cx="316.2" cy="210" r="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="306" y="214" text-anchor="end" font-size="8.6" fill="#1e40af" font-weight="bold">3.000</text>
+<text x="501" y="214" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">3.264</text>
+<text x="541" y="214" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">Δ -0.264</text>
+<rect x="260" y="262" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="278" y="272" text-anchor="start" font-size="8.8" fill="#92400e" font-weight="bold">AdamW</text>
+<rect x="360" y="262" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="378" y="272" text-anchor="start" font-size="8.8" fill="#1e40af" font-weight="bold">Muon</text>
+<text x="470" y="272" text-anchor="start" font-size="8.2" fill="#94a3b8">축 시작 2.90 — 절단 축</text>
+<rect x="20" y="296" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="314" text-anchor="start" font-size="10" fill="#334155">이 표가 §4의 사례 연구를 성립시키는 전제다. Muon은 SFT를 시작하기 &lt;전&gt;에 사전학습 과제와 세 SFT 과제 모두에서 AdamW보다 앞선다 —</text>
+<text x="30" y="331" text-anchor="start" font-size="10" fill="#334155">즉 더 좋은 출발점에서 시작한다. 그런데 §4.1에서 보듯 MetaMathQA·Magicoder로 SFT를 하고 나면 그 우위가 사라지거나 뒤집힌다.</text>
+<text x="30" y="348" text-anchor="start" font-size="10" fill="#334155">'사전학습이 더 좋은데 SFT 후에는 아니다'라는 이 격차가 Muon에 대한 저자의 문제 제기 전체를 떠받친다.</text>
+</svg>
+<figcaption><strong>[표 1 재구성]</strong>: 주황이 AdamW, 파랑이 Muon이며 네 데이터셋 모두에서 Muon의 검증 손실이 낮다. 이 표는 §4 사례 연구의 전제 조건이다 — Muon은 SFT를 시작하기 <em>전에</em> 사전학습 과제와 세 SFT 과제 모두에서 더 좋은 출발점을 갖는다. 그런데 §4.1에서 보듯 MetaMathQA·Magicoder로 SFT를 하고 나면 그 우위가 사라지거나 뒤집힌다. '사전학습은 더 좋은데 SFT 후에는 아니다'라는 이 격차가 Muon에 대한 저자의 문제 제기 전체를 떠받친다. 축은 2.90에서 시작하는 절단 축이다.</figcaption>
+</figure>
+
+<h3>2.2 같은 옵티마이저가 가장 좋은 트레이드오프를 낸다</h3>
+
+<p>사전학습 체크포인트를 손에 넣은 뒤 SFT 단계로 들어간다. AdamW와 Muon으로 전체 미세조정한 파레토 전선을 2(사전학습 옵티마이저) × 3(SFT 데이터셋) = 6개 패널로 비교하면, ##사전학습과 같은 옵티마이저가 언제나 가장 좋은 트레이드오프를 낸다 — AdamW든 Muon이든 상관없이.## 이는 지시 따르기 과제에서 같은 관찰을 보고한 Liu et al. (2025)과도 일치한다.</p>
+
+<p>SGD는 별도로 언급할 만하다 — 다운스트림 성능 자체는 합리적인 수준에 도달해 <em>적은 데이터로 배우는 능력</em>은 갖췄음을 보이지만, 같은 만큼의 다운스트림 능력을 얻을 때 <strong>훨씬 더 많이 잊는다</strong>.</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 2 재구성] GPT-2 파레토 전선 — 행 = 사전학습 옵티마이저, 열 = SFT 데이터셋</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">세 SFT 옵티마이저(AdamW·Muon·SGD)의 전선 비교. 왼쪽 아래로 갈수록 좋다 (두 축 모두 손실)</text>
+<rect x="60" y="92" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="160" y="84" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">Alpaca  |  기반 모델: AdamW</text>
+<polyline points="76.0,107.5 104.7,131.6 133.3,152.6 162.0,170.2 190.7,184.0 219.3,193.7 248.0,198.0" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="76.0,101.6 104.7,121.8 133.3,142.8 162.0,160.3 190.7,174.2 219.3,183.9 248.0,188.2" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="76.0,101.6 104.7,104.1 133.3,125.0 162.0,142.6 190.7,156.5 219.3,166.2 248.0,170.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="160" y="225" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="51" y="152" font-size="7.2" transform="rotate(-90 51 152)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="300" y="92" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="400" y="84" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">MetaMathQA  |  기반 모델: AdamW</text>
+<polyline points="316.0,107.5 344.7,131.6 373.3,152.6 402.0,170.2 430.7,184.0 459.3,193.7 488.0,198.0" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="316.0,101.6 344.7,121.8 373.3,142.8 402.0,160.3 430.7,174.2 459.3,183.9 488.0,188.2" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="316.0,101.6 344.7,104.1 373.3,125.0 402.0,142.6 430.7,156.5 459.3,166.2 488.0,170.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="400" y="225" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="291" y="152" font-size="7.2" transform="rotate(-90 291 152)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="540" y="92" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="640" y="84" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">Magicoder  |  기반 모델: AdamW</text>
+<polyline points="556.0,107.5 584.7,131.6 613.3,152.6 642.0,170.2 670.7,184.0 699.3,193.7 728.0,198.0" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="556.0,101.6 584.7,121.8 613.3,142.8 642.0,160.3 670.7,174.2 699.3,183.9 728.0,188.2" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="556.0,101.6 584.7,104.1 613.3,125.0 642.0,142.6 670.7,156.5 699.3,166.2 728.0,170.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="640" y="225" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="531" y="152" font-size="7.2" transform="rotate(-90 531 152)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="60" y="242" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="160" y="234" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">Alpaca  |  기반 모델: Muon</text>
+<polyline points="76.0,257.5 104.7,281.6 133.3,302.6 162.0,320.2 190.7,334.0 219.3,343.7 248.0,348.0" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="76.0,251.6 104.7,271.8 133.3,292.8 162.0,310.3 190.7,324.2 219.3,333.9 248.0,338.2" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="76.0,251.6 104.7,254.1 133.3,275.0 162.0,292.6 190.7,306.5 219.3,316.2 248.0,320.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="160" y="375" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="51" y="302" font-size="7.2" transform="rotate(-90 51 302)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="300" y="242" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="400" y="234" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">MetaMathQA  |  기반 모델: Muon</text>
+<polyline points="316.0,257.5 344.7,281.6 373.3,302.6 402.0,320.2 430.7,334.0 459.3,343.7 488.0,348.0" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="316.0,251.6 344.7,271.8 373.3,292.8 402.0,310.3 430.7,324.2 459.3,333.9 488.0,338.2" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="316.0,251.6 344.7,254.1 373.3,275.0 402.0,292.6 430.7,306.5 459.3,316.2 488.0,320.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="400" y="375" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="291" y="302" font-size="7.2" transform="rotate(-90 291 302)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="540" y="242" width="200" height="120" fill="#fff" stroke="#cbd5e1"/>
+<text x="640" y="234" text-anchor="middle" font-size="8.6" fill="#334155" font-weight="bold">Magicoder  |  기반 모델: Muon</text>
+<polyline points="556.0,257.5 584.7,281.6 613.3,302.6 642.0,320.2 670.7,334.0 699.3,343.7 728.0,348.0" fill="none" stroke="#3b82f6" stroke-width="1.9"/>
+<polyline points="556.0,251.6 584.7,271.8 613.3,292.8 642.0,310.3 670.7,324.2 699.3,333.9 728.0,338.2" fill="none" stroke="#f59e0b" stroke-width="1.9"/>
+<polyline points="556.0,251.6 584.7,254.1 613.3,275.0 642.0,292.6 670.7,306.5 699.3,316.2 728.0,320.5" fill="none" stroke="#16a34a" stroke-width="1.9"/>
+<text x="640" y="375" text-anchor="middle" font-size="7.4" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="531" y="302" font-size="7.2" transform="rotate(-90 531 302)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="230" y="396" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="248" y="406" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">SFT: AdamW</text>
+<rect x="360" y="396" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="378" y="406" text-anchor="start" font-size="8.6" fill="#1e40af" font-weight="bold">SFT: Muon</text>
+<rect x="490" y="396" width="12" height="12" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="508" y="406" text-anchor="start" font-size="8.6" fill="#15803d" font-weight="bold">SFT: SGD</text>
+<text x="400" y="386" text-anchor="middle" font-size="9.2" fill="#334155" font-weight="bold">각 패널에서 사전학습과 같은 옵티마이저의 전선이 가장 안쪽(왼쪽 아래)에 놓인다</text>
+<rect x="20" y="362" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="380" text-anchor="start" font-size="10" fill="#334155">원문 Figure 2는 6개 패널 각각의 축 눈금이 매우 작아 개별 값을 신뢰성 있게 읽을 수 없어, 여기서는 곡선의 &lt;상대적 배치&gt;만 옮긴 개념 재구성이다.</text>
+<text x="30" y="397" text-anchor="start" font-size="10" fill="#334155">인용 가능한 사실은 두 가지다 — (i) 어느 행이든 그 행의 사전학습 옵티마이저와 같은 SFT 옵티마이저가 가장 좋은 트레이드오프를 낸다,</text>
+<text x="30" y="414" text-anchor="start" font-size="10" fill="#334155">(ii) SGD는 downstream 성능 자체는 쓸 만하지만 같은 학습량을 얻을 때 훨씬 많이 잊는다(§2.2).</text>
+</svg>
+<figcaption><strong>[Figure 2 재구성]</strong>: 행이 사전학습 옵티마이저, 열이 SFT 데이터셋인 6개 패널이다. 각 패널에서 그 행의 사전학습 옵티마이저와 같은 SFT 옵티마이저의 전선이 가장 안쪽(왼쪽 아래)에 놓인다 — AdamW 기반이면 AdamW가, Muon 기반이면 Muon이 이긴다. SGD(초록)는 과제 손실 자체는 내려가지만 같은 학습량에서 훨씬 많이 잊는다(§2.2). 원문 패널의 축 눈금이 너무 작아 개별 값을 신뢰성 있게 읽을 수 없어 곡선의 상대 배치만 옮긴 개념 재구성이며, 인용 가능한 것은 '같은 옵티마이저가 안쪽'이라는 순서 관계뿐이다.</figcaption>
+</figure>
+
+<h3>2.3 전체 미세조정이 LoRA보다 덜 잊을 수 있다</h3>
+
+<p><strong>왜 문제인가</strong>: LoRA는 저랭크 구조 때문에 덜 잊는다고 일반적으로 알려져 있다(Biderman et al., 2024). 이 통념이 맞다면 "전체 미세조정이 최선"이라는 주장은 성립할 수 없다.</p>
+
+<p><strong>관찰</strong>: LoRA는 <em>학습 성능이 가장 좋은 지점</em>(세로축 최고점)에 있을 때 일반적으로 덜 잊는 것이 맞다 — 통념·기존 결과와 일치한다. 그러나 트레이드오프 <em>전체</em>를 보면 이야기가 달라진다. ##어떤 LoRA 체크포인트를 잡아도, 그보다 절대적으로 나은 — 즉 더 적게 잊으면서 같거나 더 많이 배운 — 전체 미세조정 체크포인트가 항상 존재한다.## 따라서 이 설정에서 LoRA는 같은 옵티마이저를 쓴 전체 미세조정보다 나쁜 학습–망각 트레이드오프를 준다. 덧붙여 <strong>LoRA 랭크가 클수록 트레이드오프가 좋아진다</strong>.</p>
+
+<p>저자의 결론: LoRA는 놀라운 파라미터 효율성을 가진 효과적인 학습 알고리즘이지만, <em>학습–망각 트레이드오프 성능을 개선하는 데는 반드시 도움이 되지 않는다</em>.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 3 재구성] 전체 미세조정 vs LoRA — 사전학습과 같은 옵티마이저를 양쪽에 쓴 경우</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">GPT-2 + MetaMathQA. LoRA 랭크 r = 4, 8, 32, 128 (α = 2r)</text>
+<rect x="70" y="100" width="300" height="190" fill="#fff" stroke="#cbd5e1"/>
+<text x="220" y="90" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">기반 모델: AdamW</text>
+<polyline points="91.0,133.0 124.0,163.0 157.0,189.7 190.0,213.1 223.0,233.0 256.0,249.3 289.0,261.7 322.0,269.9 355.0,273.2" fill="none" stroke="#f59e0b" stroke-width="2.6"/>
+<polyline points="91.0,119.0 124.0,149.0 157.0,175.7 190.0,199.0 223.0,219.0 256.0,235.2 289.0,247.7 322.0,255.9 355.0,259.2" fill="none" stroke="#16a34a" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="91.0,119.0 124.0,139.6 157.0,166.3 190.0,189.7 223.0,209.6 256.0,225.9 289.0,238.3 322.0,246.6 355.0,249.9" fill="none" stroke="#ef4444" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="91.0,119.0 124.0,130.3 157.0,157.0 190.0,180.4 223.0,200.3 256.0,216.5 289.0,229.0 322.0,237.2 355.0,240.5" fill="none" stroke="#a855f7" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="91.0,119.0 124.0,119.0 157.0,144.5 190.0,167.9 223.0,187.8 256.0,204.1 289.0,216.5 322.0,224.7 355.0,228.1" fill="none" stroke="#6366f1" stroke-width="2.0" stroke-dasharray="6 4"/>
+<text x="220" y="305" text-anchor="middle" font-size="8" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="60" y="195" font-size="8" transform="rotate(-90 60 195)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="430" y="100" width="300" height="190" fill="#fff" stroke="#cbd5e1"/>
+<text x="580" y="90" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">기반 모델: Muon</text>
+<polyline points="451.0,133.0 484.0,163.0 517.0,189.7 550.0,213.1 583.0,233.0 616.0,249.3 649.0,261.7 682.0,269.9 715.0,273.2" fill="none" stroke="#3b82f6" stroke-width="2.6"/>
+<polyline points="451.0,119.0 484.0,149.0 517.0,175.7 550.0,199.0 583.0,219.0 616.0,235.2 649.0,247.7 682.0,255.9 715.0,259.2" fill="none" stroke="#16a34a" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="451.0,119.0 484.0,139.6 517.0,166.3 550.0,189.7 583.0,209.6 616.0,225.9 649.0,238.3 682.0,246.6 715.0,249.9" fill="none" stroke="#ef4444" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="451.0,119.0 484.0,130.3 517.0,157.0 550.0,180.4 583.0,200.3 616.0,216.5 649.0,229.0 682.0,237.2 715.0,240.5" fill="none" stroke="#a855f7" stroke-width="2.0" stroke-dasharray="6 4"/>
+<polyline points="451.0,119.0 484.0,119.0 517.0,144.5 550.0,167.9 583.0,187.8 616.0,204.1 649.0,216.5 682.0,224.7 715.0,228.1" fill="none" stroke="#6366f1" stroke-width="2.0" stroke-dasharray="6 4"/>
+<text x="580" y="305" text-anchor="middle" font-size="8" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="420" y="195" font-size="8" transform="rotate(-90 420 195)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="120" y="322" width="12" height="12" rx="3" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="138" y="332" text-anchor="start" font-size="8.4" fill="#334155" font-weight="bold">전체 미세조정</text>
+<rect x="250" y="322" width="12" height="12" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="268" y="332" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">LoRA r=128</text>
+<rect x="380" y="322" width="12" height="12" rx="3" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="398" y="332" text-anchor="start" font-size="8.4" fill="#b91c1c" font-weight="bold">LoRA r=32</text>
+<rect x="510" y="322" width="12" height="12" rx="3" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.2"/>
+<text x="528" y="332" text-anchor="start" font-size="8.4" fill="#7e22ce" font-weight="bold">LoRA r=8</text>
+<rect x="640" y="322" width="12" height="12" rx="3" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.2"/>
+<text x="658" y="332" text-anchor="start" font-size="8.4" fill="#4338ca" font-weight="bold">LoRA r=4</text>
+<text x="400" y="356" text-anchor="middle" font-size="9.4" fill="#b91c1c" font-weight="bold">어느 LoRA 체크포인트를 잡아도, 그보다 '덜 잊으면서 같거나 더 배운' 전체 미세조정 체크포인트가 존재한다</text>
+<text x="400" y="374" text-anchor="middle" font-size="8.8" fill="#64748b">랭크가 클수록 전선이 좋아진다 — LoRA의 한계가 저랭크 제약에서 온다는 신호</text>
+<rect x="20" y="346" width="760" height="71" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="30" y="364" text-anchor="start" font-size="10" fill="#334155">원문 Figure 3의 축 눈금이 읽기 어려워 곡선의 상대 배치만 옮긴 개념 재구성이다(전체 미세조정 선은 굵게 표시). 이 결과가 이 논문에서 가장 논쟁적인 부분이며,</text>
+<text x="30" y="381" text-anchor="start" font-size="10" fill="#334155">'LoRA는 덜 배우고 덜 잊는다'는 통념(Biderman et al., 2024)과 충돌하는 것처럼 보인다. 저자의 해명은 §2.5에 있다 — 학습률 하나만 고정하면 통념이 재현되지만,</text>
+<text x="30" y="398" text-anchor="start" font-size="10" fill="#334155">학습률 선택까지 트레이드오프의 일부로 보면 전체 미세조정이 학습률을 낮추는 것만으로 '덜 배우고 덜 잊는' 지점에 도달할 수 있다.</text>
+</svg>
+<figcaption><strong>[Figure 3 재구성]</strong>: 사전학습과 같은 옵티마이저를 전체 미세조정과 LoRA 양쪽에 쓴 경우의 전선 비교다. 굵은 선이 전체 미세조정이고 점선들이 LoRA 랭크별 전선이다. 저자의 판정은 강하다 — 어떤 LoRA 체크포인트를 잡아도 그보다 덜 잊으면서 같거나 더 배운 전체 미세조정 체크포인트가 존재한다(§2.3). 랭크가 클수록 전선이 좋아진다는 점도 함께 읽을 만하다. 이 결과가 이 논문에서 가장 논쟁적인 부분이며, 통념과의 충돌은 §2.5에서 해명된다. 곡선은 상대 배치만 옮긴 개념 재구성이다.</figcaption>
+</figure>
+
+<h3>2.4 7B 규모에서도 결론이 유지된다</h3>
+
+<p>Llama-2-7B를 MetaMathQA로 미세조정하는 실험에서도 같은 결론이 나온다(Biderman et al., 2024의 설정을 대체로 따름). ##Llama-2는 Adam으로 사전학습되었고, weight decay 없이도 Adam 전체 미세조정이 다른 옵티마이저와 LoRA보다 나은 학습–망각 트레이드오프를 낸다.## 설정은 시퀀스 1024, 유효 배치 128(4 GPU × 8 누적 × 4), 3,055 iteration(1 에폭), 500 iteration마다 평가, 전체 미세조정 학습률 격자 \(\{1\text{e-}5, 2\text{e-}5, 5\text{e-}5, 1\text{e-}4\}\), LoRA \(r = 16, 64, 256\)에 \(\alpha = 2r\)·학습률 격자 \(\{5\text{e-}5, 1\text{e-}4, 2\text{e-}4, 5\text{e-}4\}\)다.</p>
+
+<p><strong>주의할 구분</strong>: 원문 Figure 1에는 Full FT (Muon) 전선이 실제로 그려져 있다 — 이는 <em>AdamW로 사전학습된</em> Llama-2를 Muon으로 SFT한, 즉 옵티마이저가 <em>어긋난</em> 조합이다. 제시되지 않은 것은 <strong>Muon으로 사전학습한 7B 체크포인트</strong> 기반 비교이며, <strong>적절한 규모의 Muon 사전학습 공개 모델이 현재 없기 때문</strong>이다. 저자는 향후 제공하고 싶다고 밝힌다. 따라서 §2.2의 양방향 확인(AdamW 기반 × Muon 기반)은 GPT-2 규모에서만 이뤄졌다.</p>
+
+<figure>
+<svg viewBox="0 0 800 440" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 1 재구성] Llama-2-7B + MetaMathQA 1 에폭의 파레토 전선</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가로 = 일반 능력 평균 정확도(HellaSwag, ARC-C, WinoGrande), 세로 = GSM8K Exact Match. 둘 다 높을수록 좋다</text>
+<line x1="110" y1="320" x2="600" y2="320" stroke="#94a3b8"/>
+<line x1="110" y1="320" x2="110" y2="86" stroke="#94a3b8"/>
+<line x1="164" y1="320" x2="164" y2="86" stroke="#eef2f6"/>
+<text x="164" y="335" text-anchor="middle" font-size="8" fill="#64748b">0.50</text>
+<line x1="273" y1="320" x2="273" y2="86" stroke="#eef2f6"/>
+<text x="273" y="335" text-anchor="middle" font-size="8" fill="#64748b">0.54</text>
+<line x1="382" y1="320" x2="382" y2="86" stroke="#eef2f6"/>
+<text x="382" y="335" text-anchor="middle" font-size="8" fill="#64748b">0.58</text>
+<line x1="491" y1="320" x2="491" y2="86" stroke="#eef2f6"/>
+<text x="491" y="335" text-anchor="middle" font-size="8" fill="#64748b">0.62</text>
+<line x1="600" y1="320" x2="600" y2="86" stroke="#eef2f6"/>
+<text x="600" y="335" text-anchor="middle" font-size="8" fill="#64748b">0.66</text>
+<line x1="110" y1="320" x2="600" y2="320" stroke="#eef2f6"/>
+<text x="104" y="324" text-anchor="end" font-size="8" fill="#64748b">0.30</text>
+<line x1="110" y1="247" x2="600" y2="247" stroke="#eef2f6"/>
+<text x="104" y="251" text-anchor="end" font-size="8" fill="#64748b">0.40</text>
+<line x1="110" y1="174" x2="600" y2="174" stroke="#eef2f6"/>
+<text x="104" y="178" text-anchor="end" font-size="8" fill="#64748b">0.50</text>
+<line x1="110" y1="101" x2="600" y2="101" stroke="#eef2f6"/>
+<text x="104" y="105" text-anchor="end" font-size="8" fill="#64748b">0.60</text>
+<text x="355" y="353" text-anchor="middle" font-size="9" fill="#334155">일반 능력 (덜 잊을수록 오른쪽)</text>
+<text x="70" y="203" font-size="9" transform="rotate(-90 70 203)" text-anchor="middle">과제 능력 (잘 배울수록 위)</text>
+<polyline points="306.0,98.4 355.0,99.9 469.3,103.6 529.2,110.1 542.8,159.1 548.3,232.2" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<rect x="302.5" y="94.9" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="351.5" y="96.4" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="465.8" y="100.1" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="525.7" y="106.6" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="539.3" y="155.6" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="544.8" y="228.8" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<path d="M306.0,92.4 l5,9 l-10,0 z" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<rect x="620" y="96" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="638" y="106" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">Full FT (AdamW)</text>
+<polyline points="156.3,113.1 349.6,129.1 469.3,148.2 523.8,173.8 540.1,206.7" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<rect x="152.8" y="109.6" width="7" height="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/>
+<rect x="346.1" y="125.6" width="7" height="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/>
+<rect x="465.8" y="144.7" width="7" height="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/>
+<rect x="520.3" y="170.2" width="7" height="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/>
+<rect x="536.6" y="203.2" width="7" height="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.3"/>
+<path d="M156.3,107.1 l5,9 l-10,0 z" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<rect x="620" y="116" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="638" y="126" text-anchor="start" font-size="8.6" fill="#1e40af" font-weight="bold">Full FT (Muon)</text>
+<polyline points="469.3,106.5 512.9,126.2 529.2,173.8 537.4,246.9 540.1,272.5" fill="none" stroke="#16a34a" stroke-width="2.1" stroke-dasharray="6 4"/>
+<rect x="465.8" y="103.0" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="509.4" y="122.7" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="525.7" y="170.2" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="533.9" y="243.4" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="536.6" y="269.0" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<path d="M469.3,100.5 l5,9 l-10,0 z" fill="#dcfce7" stroke="#16a34a" stroke-width="1.4"/>
+<rect x="620" y="136" width="12" height="12" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="638" y="146" text-anchor="start" font-size="8.6" fill="#15803d" font-weight="bold">LoRA (r=256)</text>
+<polyline points="425.8,122.6 504.7,140.8 523.8,195.7 534.7,254.2 537.4,279.8" fill="none" stroke="#ef4444" stroke-width="2.1" stroke-dasharray="6 4"/>
+<rect x="422.3" y="119.1" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="501.2" y="137.3" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="520.3" y="192.2" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="531.2" y="250.7" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="533.9" y="276.3" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<path d="M425.8,116.6 l5,9 l-10,0 z" fill="#fef2f2" stroke="#ef4444" stroke-width="1.4"/>
+<rect x="620" y="156" width="12" height="12" rx="3" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="638" y="166" text-anchor="start" font-size="8.6" fill="#b91c1c" font-weight="bold">LoRA (r=64)</text>
+<polyline points="493.8,150.3 518.3,181.1 529.2,224.9 534.7,265.2 537.4,282.0" fill="none" stroke="#a855f7" stroke-width="2.1" stroke-dasharray="6 4"/>
+<rect x="490.3" y="146.8" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="514.8" y="177.6" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="525.7" y="221.4" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="531.2" y="261.7" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="533.9" y="278.5" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<path d="M493.8,144.3 l5,9 l-10,0 z" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.4"/>
+<rect x="620" y="176" width="12" height="12" rx="3" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.2"/>
+<text x="638" y="186" text-anchor="start" font-size="8.6" fill="#7e22ce" font-weight="bold">LoRA (r=16)</text>
+<text x="620" y="216" text-anchor="start" font-size="8.4" fill="#64748b">삼각형 = 각 계열의</text>
+<text x="620" y="231" text-anchor="start" font-size="8.4" fill="#64748b">가장 왼쪽 끝점</text>
+<rect x="614" y="250" width="174" height="70" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="624" y="270" text-anchor="start" font-size="9" fill="#92400e" font-weight="bold">Full FT (AdamW)가</text>
+<text x="624" y="286" text-anchor="start" font-size="8.8" fill="#334155">가장 위쪽이면서 오른쪽 —</text>
+<text x="624" y="302" text-anchor="start" font-size="8.8" fill="#334155">같은 만큼 배우며 덜 잊는다</text>
+<rect x="20" y="350" width="760" height="88" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="368" text-anchor="start" font-size="10" fill="#334155">원문 Figure 1에는 축 눈금이 있으나 개별 점의 값은 표시되지 않아, 점 좌표는 그림에서 눈으로 읽은 근사다. 구조적 사실만 신뢰할 것 —</text>
+<text x="30" y="385" text-anchor="start" font-size="10" fill="#334155">Llama-2는 AdamW로 사전학습되었고, AdamW 전체 미세조정(파랑)의 전선이 Muon(주황)과 LoRA 세 계열(점선)보다 위·오른쪽에 있다.</text>
+<text x="30" y="402" text-anchor="start" font-size="10" fill="#334155">저자는 이를 '같은 옵티마이저로 전체 미세조정하는 것이 LoRA보다도 낫다'는 핵심 근거로 삼는다(§2.3). 주황 전선은 AdamW 사전학습 모델을 Muon으로</text>
+<text x="30" y="419" text-anchor="start" font-size="10" fill="#334155">SFT한 &lt;불일치&gt; 조합이며, Muon으로 &lt;사전학습&gt;한 7B 체크포인트는 공개된 것이 없어 양방향 확인은 GPT-2 규모(§2.2)에서만 이뤄진다.</text>
+</svg>
+<figcaption><strong>[Figure 1 재구성]</strong>: Llama-2-7B를 MetaMathQA로 1 에폭 미세조정한 결과로, 이 패널만 두 축이 모두 '높을수록 좋음'이다(가로=일반 능력 정확도, 세로=GSM8K). Llama-2는 Adam으로 사전학습되었고 주황(Full FT AdamW) 전선이 가장 위이면서 오른쪽에 있다 — 같은 만큼 배우면서 덜 잊는다는 뜻이다(§2.4). 점 좌표는 원문 그림에서 눈으로 읽은 근사이므로 구조적 사실만 신뢰할 것. 주황 전선(Full FT Muon)은 AdamW 사전학습 모델을 Muon으로 SFT한 <em>불일치</em> 조합이며, Muon으로 <em>사전학습</em>한 7B 체크포인트는 공개된 것이 없어 그 방향은 GPT-2 규모(§2.2)에서만 확인된다 — 저자가 명시한 한계다.</figcaption>
+</figure>
+
+<h3>2.5 Biderman et al. (2024)과 왜 결론이 다른가 (Remark 1)</h3>
+
+<p>이 논문의 결과는 "LoRA는 덜 배우고 덜 잊는다"는 Biderman et al. (2024)의 결론과 모순되어 보이지만, 저자는 <strong>실제로는 양립한다</strong>고 설명한다. 차이는 <em>비교 방식</em>에 있다.</p>
+
+<ul>
+  <li><strong>Biderman et al.</strong>: 각 학습 설정마다 <em>학습에서 최적인 학습률 하나</em>만 고려한다.</li>
+  <li><strong>이 논문</strong>: 트레이드오프를 모델링할 때 <em>여러 학습률</em>을 함께 고려한다.</li>
+</ul>
+
+<p>부록 B.1의 재현 실험이 이를 직접 보인다. 각 방법에서 수학 점수가 가장 좋은 학습률만 골라 비교하면 Biderman et al.의 관찰이 그대로 재현된다(이때 LoRA 랭크 64가 랭크 256보다 더 많이 잊는 것으로 보이는데, 이는 주로 랭크 256이 lr=5e-4에서 발산해 더 작은 학습률이 선택되었기 때문이다). 반면 전체 미세조정에 더 작은 학습률도 허용하면 결론이 뒤집힌다 — ##학습률만 낮춰도 전체 미세조정이 "덜 배우고 덜 잊는" 지점에 도달할 수 있으므로, 학습과 망각 양쪽에서 LoRA를 능가하는 체크포인트를 항상 찾을 수 있다.##</p>
+
+<p>부록의 학습률 ablation(Figure 9)이 이 메커니즘을 뒷받침한다 — <strong>큰 학습률은 상대적으로 높은 수학 점수를 주지만 훨씬 심한 망각을 동반한다</strong>. 동시기 연구인 Rofin et al. (2026)도 SFT에서 학습률 선택이 망각을 좌우한다는 점을 논의한다. 따라서 최종 모델에 요구되는 바에 따라 SFT 학습률을 적절히 고르는 것이 중요하다.</p>
+
+<figure>
+<svg viewBox="0 0 800 466" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 8 · 9 재구성] 학습률을 고정하면 LoRA가 이기고, 풀면 전체 미세조정이 이긴다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Biderman et al.(2024)의 결론과 이 논문의 결론이 갈리는 지점 (§2.5, 부록 B.1)</text>
+<rect x="60" y="96" width="300" height="170" fill="#fff" stroke="#cbd5e1"/>
+<text x="210" y="74" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">(a) 각 방법의 '최고 수학 점수' 학습률만 비교</text>
+<text x="210" y="88" text-anchor="middle" font-size="8.4" fill="#64748b">Biderman et al.의 관찰이 재현된다 — LoRA가 덜 배우고 덜 잊는다</text>
+<line x1="114.0" y1="109.6" x2="198.0" y2="164.0" stroke="#f59e0b" stroke-width="2.1"/>
+<rect x="110.5" y="106.1" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="194.5" y="160.5" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<line x1="246.0" y1="140.2" x2="300.0" y2="172.5" stroke="#16a34a" stroke-width="2.1"/>
+<rect x="242.5" y="136.7" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="296.5" y="169.0" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<line x1="270.0" y1="164.0" x2="318.0" y2="191.2" stroke="#ef4444" stroke-width="2.1"/>
+<rect x="266.5" y="160.5" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="314.5" y="187.7" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<line x1="288.0" y1="181.0" x2="336.0" y2="201.4" stroke="#a855f7" stroke-width="2.1"/>
+<rect x="284.5" y="177.5" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="332.5" y="197.9" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<text x="210" y="280" text-anchor="middle" font-size="7.8" fill="#94a3b8">일반 능력 (덜 잊을수록 오른쪽) →</text>
+<text x="50" y="181" font-size="7.8" transform="rotate(-90 50 181)" text-anchor="middle" fill="#94a3b8">과제 능력 →</text>
+<rect x="440" y="96" width="300" height="170" fill="#fff" stroke="#cbd5e1"/>
+<text x="590" y="74" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">(b) 전체 미세조정에 더 작은 학습률도 허용</text>
+<text x="590" y="88" text-anchor="middle" font-size="8.4" fill="#64748b">결론이 뒤집힌다 — 전체 미세조정이 더 배우고 덜 잊는다</text>
+<line x1="605.0" y1="113.0" x2="716.0" y2="153.8" stroke="#f59e0b" stroke-width="2.1"/>
+<rect x="601.5" y="109.5" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<rect x="712.5" y="150.3" width="7" height="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.3"/>
+<line x1="614.0" y1="143.6" x2="692.0" y2="170.8" stroke="#16a34a" stroke-width="2.1"/>
+<rect x="610.5" y="140.1" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<rect x="688.5" y="167.3" width="7" height="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<line x1="626.0" y1="164.0" x2="698.0" y2="187.8" stroke="#ef4444" stroke-width="2.1"/>
+<rect x="622.5" y="160.5" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<rect x="694.5" y="184.3" width="7" height="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<line x1="638.0" y1="177.6" x2="704.0" y2="198.0" stroke="#a855f7" stroke-width="2.1"/>
+<rect x="634.5" y="174.1" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<rect x="700.5" y="194.5" width="7" height="7" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.3"/>
+<text x="590" y="280" text-anchor="middle" font-size="7.8" fill="#94a3b8">일반 능력 (덜 잊을수록 오른쪽) →</text>
+<text x="430" y="181" font-size="7.8" transform="rotate(-90 430 181)" text-anchor="middle" fill="#94a3b8">과제 능력 →</text>
+<rect x="130" y="292" width="11" height="11" rx="2" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.1"/>
+<text x="146" y="301" text-anchor="start" font-size="8.2" fill="#92400e" font-weight="bold">Full FT (AdamW)</text>
+<rect x="280" y="292" width="11" height="11" rx="2" fill="#dcfce7" stroke="#16a34a" stroke-width="1.1"/>
+<text x="296" y="301" text-anchor="start" font-size="8.2" fill="#15803d" font-weight="bold">LoRA r=256</text>
+<rect x="430" y="292" width="11" height="11" rx="2" fill="#fef2f2" stroke="#ef4444" stroke-width="1.1"/>
+<text x="446" y="301" text-anchor="start" font-size="8.2" fill="#b91c1c" font-weight="bold">LoRA r=64</text>
+<rect x="580" y="292" width="11" height="11" rx="2" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.1"/>
+<text x="596" y="301" text-anchor="start" font-size="8.2" fill="#7e22ce" font-weight="bold">LoRA r=16</text>
+<rect x="60" y="316" width="680" height="48" rx="7" fill="#fffbea" stroke="#eab308" stroke-width="1.5"/>
+<text x="74" y="336" text-anchor="start" font-size="9.4" fill="#92400e" font-weight="bold">저자의 해명 (Remark 1): 두 결과는 모순이 아니라 &lt;비교 방식&gt;의 차이다.</text>
+<text x="74" y="356" text-anchor="start" font-size="9.2" fill="#334155">Biderman et al.은 학습률 하나(학습이 최선인 값)를 고정하고, 이 논문은 학습률 선택까지 트레이드오프의 일부로 본다.</text>
+<rect x="20" y="384" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="402" text-anchor="start" font-size="10" fill="#334155">곡선 좌표는 원문 Figure 8의 정성적 패턴을 옮긴 개념 재구성이다. 부록 Figure 9는 같은 결론을 학습률 ablation으로 보강한다 —</text>
+<text x="30" y="419" text-anchor="start" font-size="10" fill="#334155">큰 학습률은 과제 점수를 높이지만 망각을 훨씬 크게 만든다. 즉 '전체 미세조정이 많이 잊는다'는 통념의 상당 부분은 관행적으로 쓰는</text>
+<text x="30" y="436" text-anchor="start" font-size="10" fill="#334155">학습률이 컸기 때문이며, 낮추면 전체 미세조정도 '덜 배우고 덜 잊는' 지점에 도달할 수 있다는 것이 §2.5의 논지다.</text>
+</svg>
+<figcaption><strong>[Figure 8 · 9 재구성]</strong>: 같은 데이터에서 비교 방식만 바꿨을 때 결론이 뒤집히는 장면이다. (a)처럼 각 방법의 '수학 점수가 최선인 학습률'만 비교하면 Biderman et al.(2024)의 관찰 — LoRA가 덜 배우고 덜 잊는다 — 이 그대로 재현된다. (b)처럼 전체 미세조정에 더 작은 학습률도 허용하면 전체 미세조정이 두 축 모두에서 앞선다. 아래 노란 상자가 저자의 해명(Remark 1)이며, 부록 Figure 9의 학습률 ablation이 그 메커니즘을 뒷받침한다 — 큰 학습률은 과제 점수를 올리지만 망각을 훨씬 크게 만든다(§2.5). 좌표는 정성적 패턴만 옮긴 재구성이다.</figcaption>
+</figure>
+
+<h2>3. 왜 정합성이 생기는가 (원문 §3)</h2>
+
+<p>옵티마이저를 "어떤 고정된 해로 가는 절차"로만 보면 이 현상은 놀랍다. 그러나 LLM 학습의 손실은 일반적으로 비볼록이고, 서로 다른 옵티마이저는 매우 다른 궤적과 수렴점으로 간다. 체크포인트의 차이는 무작위 잡음 이상의 — <strong>가중치와 활성화에서 일관되게 나타나는 성질</strong>이다.</p>
+
+<h3>3.1 옵티마이저가 모델을 빚는다 (원문 §3.1)</h3>
+
+<h4>가중치 — 특이 스펙트럼의 차이</h4>
+
+<p>사전학습으로 만들어진 가중치의 특이 스펙트럼을 비교하면, Muon으로 학습한 모델이 더 조밀한 스펙트럼 분포를 보인다 — stable rank와 singular sparsity가 모두 높다. 이는 Liu et al. (2025), Wang et al. (2025)의 관찰과 일치한다. 직관적 설명은 간단하다 — Muon의 업데이트는 직교화 때문에 언제나 거의 full-rank이고, 최종 가중치는 그 업데이트들의 <em>누적</em>이므로 AdamW보다 full-rank에 가까워진다.</p>
+
+<table class="small-table">
+<caption>표 2 — 사전학습 후 특이 스펙트럼 비교. 특이값 \(\sigma_1 \ge \cdots \ge \sigma_n\)에 대해 stable rank는 \(\sum_{i=1}^{n}\sigma_i^2/\sigma_1^2\), singular sparsity는 \(\sum_{i=1}^{n}\sigma_i / \sqrt{n\sum_{i=1}^{n}\sigma_i^2}\). GPT-2의 모든 선형층 평균. 원문 표에는 굵게 표시가 없으며, 여기서는 우세한 쪽을 요약자가 표시했다</caption>
+<thead><tr><th>옵티마이저</th><th>Stable Rank</th><th>Singular Sparsity</th></tr></thead>
+<tbody>
+<tr><td>AdamW</td><td>65.75</td><td>0.837</td></tr>
+<tr><td><strong>Muon</strong></td><td><strong>114.72</strong></td><td><strong>0.875</strong></td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 425" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[표 2 재구성 + 수치 예제] 사전학습 후 가중치의 특이 스펙트럼</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">GPT-2의 모든 선형층 평균. stable rank = Σσᵢ²/σ₁², singular sparsity = Σσᵢ / √(n Σσᵢ²)</text>
+<rect x="180" y="52" width="180" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="270" y="68" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">사전학습 옵티마이저</text>
+<rect x="360" y="52" width="130" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="425" y="68" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Stable Rank</text>
+<rect x="490" y="52" width="150" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="565" y="68" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Singular Sparsity</text>
+<rect x="180" y="76" width="180" height="24" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="188" y="92" text-anchor="start" font-size="8.8" fill="#334155">AdamW</text>
+<rect x="360" y="76" width="130" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="425" y="92" text-anchor="middle" font-size="8.8" fill="#334155">65.75</text>
+<rect x="490" y="76" width="150" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="565" y="92" text-anchor="middle" font-size="8.8" fill="#334155">0.837</text>
+<rect x="180" y="100" width="180" height="24" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="188" y="116" text-anchor="start" font-size="8.8" fill="#334155">Muon</text>
+<rect x="360" y="100" width="130" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="425" y="116" text-anchor="middle" font-size="8.8" fill="#334155">114.72</text>
+<rect x="490" y="100" width="150" height="24" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="565" y="116" text-anchor="middle" font-size="8.8" fill="#334155">0.875</text>
+<text x="400" y="140" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">두 지표 모두 Muon 쪽이 높다 = 특이값이 더 고르게 퍼져 있다 (더 조밀한 스펙트럼)</text>
+<text x="50" y="172" text-anchor="start" font-size="9.4" fill="#92400e" font-weight="bold">편중된 스펙트럼 (AdamW 쪽)</text>
+<rect x="62" y="191" width="36" height="71" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="80" y="185" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">4.0</text>
+<text x="80" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ1</text>
+<rect x="110" y="244" width="36" height="18" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="128" y="238" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">1.0</text>
+<text x="128" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ2</text>
+<rect x="158" y="253" width="36" height="9" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="176" y="247" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.5</text>
+<text x="176" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ3</text>
+<rect x="206" y="258" width="36" height="4" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="224" y="252" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.2</text>
+<text x="224" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ4</text>
+<rect x="270" y="182" width="130" height="84" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.4"/>
+<text x="335" y="204" text-anchor="middle" font-size="8.8" fill="#92400e" font-weight="bold">stable rank</text>
+<text x="335" y="222" text-anchor="middle" font-size="11" fill="#92400e" font-weight="bold">1.081</text>
+<text x="335" y="242" text-anchor="middle" font-size="8.4" fill="#475569">singular sparsity</text>
+<text x="335" y="258" text-anchor="middle" font-size="9.6" fill="#92400e" font-weight="bold">0.685</text>
+<text x="440" y="172" text-anchor="start" font-size="9.4" fill="#1e40af" font-weight="bold">고른 스펙트럼 (Muon 쪽)</text>
+<rect x="452" y="223" width="36" height="39" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="470" y="217" text-anchor="middle" font-size="8" fill="#1e40af" font-weight="bold">2.2</text>
+<text x="470" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ1</text>
+<rect x="500" y="228" width="36" height="34" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="518" y="222" text-anchor="middle" font-size="8" fill="#1e40af" font-weight="bold">1.9</text>
+<text x="518" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ2</text>
+<rect x="548" y="234" width="36" height="28" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="566" y="228" text-anchor="middle" font-size="8" fill="#1e40af" font-weight="bold">1.6</text>
+<text x="566" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ3</text>
+<rect x="596" y="239" width="36" height="23" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="614" y="233" text-anchor="middle" font-size="8" fill="#1e40af" font-weight="bold">1.3</text>
+<text x="614" y="276" text-anchor="middle" font-size="8" fill="#64748b">σ4</text>
+<rect x="660" y="182" width="130" height="84" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.4"/>
+<text x="725" y="204" text-anchor="middle" font-size="8.8" fill="#1e40af" font-weight="bold">stable rank</text>
+<text x="725" y="222" text-anchor="middle" font-size="11" fill="#1e40af" font-weight="bold">2.624</text>
+<text x="725" y="242" text-anchor="middle" font-size="8.4" fill="#475569">singular sparsity</text>
+<text x="725" y="258" text-anchor="middle" font-size="9.6" fill="#1e40af" font-weight="bold">0.982</text>
+<text x="400" y="300" text-anchor="middle" font-size="8.8" fill="#64748b">n=4 장난감 예시 — 논문에 없는 계산이다. 지표가 '몇 개의 방향이 실질적으로 쓰이는가'를 잰다는 점만 확인하면 된다</text>
+<rect x="20" y="326" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="344" text-anchor="start" font-size="10" fill="#334155">저자의 설명은 단순하다 — Muon의 업데이트는 직교화 때문에 언제나 거의 full-rank이고, 최종 가중치는 그 업데이트들의 누적이므로</text>
+<text x="30" y="361" text-anchor="start" font-size="10" fill="#334155">AdamW보다 full-rank에 가까워진다. 이 관찰 자체는 Liu et al.(2025)·Wang et al.(2025)과 일치하지만, 이 논문이 새로 더하는 것은</text>
+<text x="30" y="378" text-anchor="start" font-size="10" fill="#334155">가중치가 아니라 &lt;활성화&gt;까지 옵티마이저가 정규화한다는 §3.1의 관찰이고, 그것이 §3.3의 정리로 이어진다.</text>
+</svg>
+<figcaption><strong>[표 2 재구성 + 수치 예제]</strong>: 위 표가 원문 표 2 그대로이고, 아래는 두 지표가 무엇을 재는지 n=4 장난감 스펙트럼으로 확인한 것이다(논문에 없는 계산). stable rank는 '몇 개의 방향이 실질적으로 쓰이는가'를, singular sparsity는 특이값 분포의 고름을 잰다. Muon 쪽이 두 지표 모두 높은 이유를 저자는 단순하게 설명한다 — Muon의 업데이트는 직교화 때문에 언제나 거의 full-rank이고 최종 가중치는 그 누적이다(§3.1). 이 관찰 자체는 선행 연구와 일치하며, 이 논문이 새로 더하는 것은 활성화까지 본다는 점이다.</figcaption>
+</figure>
+
+<h4>활성화 — 옵티마이저가 활성화를 정규화한다</h4>
+
+<p>명시적인 가중치 성질에 더해, 옵티마이저는 사전학습 데이터에 대한 <strong>활성화</strong>에도 영향을 준다. 이는 <em>모델이 사전학습 지식을 저장하는 방식</em>과 밀접하게 관련된다. 활성화 벡터 \(x\)의 희소성은 \(\|x\|_1/(\sqrt{d}\,\|x\|_2)\)로 재며 <strong>값이 낮을수록 희소</strong>하다.</p>
+
+<p><strong>관찰</strong>: AdamW로 학습한 모델의 활성화가, 특히 <em>입력 활성화</em>에서 Muon보다 훨씬 희소하다.</p>
+
+<p><strong>왜 활성화가 중요한가</strong>: 가중치는 "무엇을 아는가"를 저장하지만, 그 지식이 실제로 쓰이는 것은 <em>활성화</em>를 통해서다. 활성화가 희소하다는 것은 특정 입력에 대해 소수의 좌표만 크게 반응한다는 뜻이고, 고르다는 것은 여러 좌표가 함께 반응한다는 뜻이다. §3.3에서 보듯 망각의 크기는 \(\mathbb{E}[\|\Delta Wx\|_2^2]\)처럼 <strong>SFT 업데이트가 사전학습 활성화에 작용한 결과</strong>로 근사되므로, 활성화가 어떤 모양인지가 곧 "어느 방향으로 움직이면 많이 잊는가"를 결정한다. 즉 §3.1의 관찰은 단순한 부수 현상이 아니라 §3.3 이론의 입력값이다.</p>
+
+<p>부록 B.2는 같은 측정을 모듈 단위로 쪼개 보여 준다 — 어텐션의 QKV 투영과 출력 투영, FFN의 up·down 투영, 그리고 SwiGLU가 만드는 gate·value 분할까지. 전체 평균에서 본 패턴이 개별 모듈에서도 대체로 유지되지만, \(\mathcal{A}_{1,\infty}\) 계열(AdamW·SignSGD)에서는 <em>다음 층의 입력 활성화가 직전 층의 출력 활성화와 꽤 다를 수 있다</em>는 흥미로운 예외가 관찰된다. 저자는 이를 FFN 내부의 활성화 함수, 어텐션 모듈 내부의 로짓 계산, 모듈·층 사이의 layernorm과 잔차 연결 효과와 연결될 수 있다고 보고 향후 과제로 남긴다.</p>
+
+
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 4 재구성] 사전학습 중 활성화 희소성 — AdamW가 훨씬 희소하다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">희소성 = ‖x‖₁ / (√d ‖x‖₂), 값이 &lt;낮을수록&gt; 희소하다. 모든 선형층 평균, 4k 이터레이션</text>
+<text x="230" y="86" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">(a) 입력 활성화 평균 희소성</text>
+<line x1="80" y1="300" x2="380" y2="300" stroke="#94a3b8"/>
+<line x1="80" y1="300" x2="80" y2="96" stroke="#94a3b8"/>
+<line x1="80" y1="285" x2="380" y2="285" stroke="#eef2f6"/>
+<text x="75" y="289" text-anchor="end" font-size="7.6" fill="#64748b">0.45</text>
+<line x1="80" y1="259" x2="380" y2="259" stroke="#eef2f6"/>
+<text x="75" y="263" text-anchor="end" font-size="7.6" fill="#64748b">0.50</text>
+<line x1="80" y1="234" x2="380" y2="234" stroke="#eef2f6"/>
+<text x="75" y="238" text-anchor="end" font-size="7.6" fill="#64748b">0.55</text>
+<line x1="80" y1="208" x2="380" y2="208" stroke="#eef2f6"/>
+<text x="75" y="212" text-anchor="end" font-size="7.6" fill="#64748b">0.60</text>
+<line x1="80" y1="183" x2="380" y2="183" stroke="#eef2f6"/>
+<text x="75" y="187" text-anchor="end" font-size="7.6" fill="#64748b">0.65</text>
+<line x1="80" y1="157" x2="380" y2="157" stroke="#eef2f6"/>
+<text x="75" y="161" text-anchor="end" font-size="7.6" fill="#64748b">0.70</text>
+<line x1="80" y1="132" x2="380" y2="132" stroke="#eef2f6"/>
+<text x="75" y="136" text-anchor="end" font-size="7.6" fill="#64748b">0.75</text>
+<line x1="80" y1="106" x2="380" y2="106" stroke="#eef2f6"/>
+<text x="75" y="110" text-anchor="end" font-size="7.6" fill="#64748b">0.80</text>
+<text x="80" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">0</text>
+<text x="155" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">1000</text>
+<text x="230" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">2000</text>
+<text x="305" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">3000</text>
+<text x="380" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">4000</text>
+<text x="230" y="332" text-anchor="middle" font-size="8.8" fill="#334155">학습 이터레이션</text>
+<polyline points="80.0,129.1 83.8,155.9 87.5,178.0 91.2,196.2 95.0,211.3 98.8,223.7 102.5,233.9 106.2,242.3 110.0,249.3 113.8,255.0 117.5,259.8 121.2,263.7 125.0,266.9 128.8,269.6 132.5,271.8 136.2,273.6 140.0,275.1 143.8,276.3 147.5,277.3 151.2,278.2 155.0,278.9 158.8,279.5 162.5,279.9 166.2,280.3 170.0,280.6 173.8,280.9 177.5,281.1 181.2,281.3 185.0,281.4 188.8,281.6 192.5,281.7 196.2,281.8 200.0,281.8 203.8,281.9 207.5,281.9 211.2,282.0 215.0,282.0 218.8,282.0 222.5,282.0 226.2,282.1 230.0,282.1 233.8,282.1 237.5,282.1 241.2,282.1 245.0,282.1 248.8,282.1 252.5,282.1 256.2,282.1 260.0,282.1 263.8,282.1 267.5,282.1 271.2,282.1 275.0,282.1 278.8,282.1 282.5,282.1 286.2,282.1 290.0,282.1 293.8,282.1 297.5,282.1 301.2,282.1 305.0,282.1 308.8,282.1 312.5,282.1 316.2,282.1 320.0,282.1 323.8,282.1 327.5,282.1 331.2,282.1 335.0,282.1 338.8,282.1 342.5,282.1 346.2,282.1 350.0,282.1 353.8,282.1 357.5,282.1 361.2,282.1 365.0,282.1 368.8,282.1 372.5,282.1 376.2,282.1 380.0,282.1" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<rect x="284" y="104" width="11" height="11" rx="2" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.1"/>
+<text x="299" y="113" text-anchor="start" font-size="8.4" fill="#92400e" font-weight="bold">AdamW</text>
+<polyline points="80.0,129.1 83.8,133.0 87.5,136.4 91.2,139.4 95.0,142.1 98.8,144.5 102.5,146.6 106.2,148.5 110.0,150.1 113.8,151.6 117.5,152.9 121.2,154.1 125.0,155.1 128.8,156.1 132.5,156.9 136.2,157.6 140.0,158.2 143.8,158.8 147.5,159.3 151.2,159.8 155.0,160.2 158.8,160.5 162.5,160.8 166.2,161.1 170.0,161.4 173.8,161.6 177.5,161.8 181.2,161.9 185.0,162.1 188.8,162.2 192.5,162.4 196.2,162.5 200.0,162.6 203.8,162.6 207.5,162.7 211.2,162.8 215.0,162.8 218.8,162.9 222.5,162.9 226.2,163.0 230.0,163.0 233.8,163.1 237.5,163.1 241.2,163.1 245.0,163.1 248.8,163.2 252.5,163.2 256.2,163.2 260.0,163.2 263.8,163.2 267.5,163.2 271.2,163.2 275.0,163.2 278.8,163.3 282.5,163.3 286.2,163.3 290.0,163.3 293.8,163.3 297.5,163.3 301.2,163.3 305.0,163.3 308.8,163.3 312.5,163.3 316.2,163.3 320.0,163.3 323.8,163.3 327.5,163.3 331.2,163.3 335.0,163.3 338.8,163.3 342.5,163.3 346.2,163.3 350.0,163.3 353.8,163.3 357.5,163.3 361.2,163.3 365.0,163.3 368.8,163.3 372.5,163.3 376.2,163.3 380.0,163.3" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<rect x="284" y="122" width="11" height="11" rx="2" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.1"/>
+<text x="299" y="131" text-anchor="start" font-size="8.4" fill="#1e40af" font-weight="bold">Muon</text>
+<text x="620" y="86" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">(b) 출력 활성화 평균 희소성</text>
+<line x1="470" y1="300" x2="770" y2="300" stroke="#94a3b8"/>
+<line x1="470" y1="300" x2="470" y2="96" stroke="#94a3b8"/>
+<line x1="470" y1="285" x2="770" y2="285" stroke="#eef2f6"/>
+<text x="465" y="289" text-anchor="end" font-size="7.6" fill="#64748b">0.45</text>
+<line x1="470" y1="259" x2="770" y2="259" stroke="#eef2f6"/>
+<text x="465" y="263" text-anchor="end" font-size="7.6" fill="#64748b">0.50</text>
+<line x1="470" y1="234" x2="770" y2="234" stroke="#eef2f6"/>
+<text x="465" y="238" text-anchor="end" font-size="7.6" fill="#64748b">0.55</text>
+<line x1="470" y1="208" x2="770" y2="208" stroke="#eef2f6"/>
+<text x="465" y="212" text-anchor="end" font-size="7.6" fill="#64748b">0.60</text>
+<line x1="470" y1="183" x2="770" y2="183" stroke="#eef2f6"/>
+<text x="465" y="187" text-anchor="end" font-size="7.6" fill="#64748b">0.65</text>
+<line x1="470" y1="157" x2="770" y2="157" stroke="#eef2f6"/>
+<text x="465" y="161" text-anchor="end" font-size="7.6" fill="#64748b">0.70</text>
+<line x1="470" y1="132" x2="770" y2="132" stroke="#eef2f6"/>
+<text x="465" y="136" text-anchor="end" font-size="7.6" fill="#64748b">0.75</text>
+<line x1="470" y1="106" x2="770" y2="106" stroke="#eef2f6"/>
+<text x="465" y="110" text-anchor="end" font-size="7.6" fill="#64748b">0.80</text>
+<text x="470" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">0</text>
+<text x="545" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">1000</text>
+<text x="620" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">2000</text>
+<text x="695" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">3000</text>
+<text x="770" y="314" text-anchor="middle" font-size="7.6" fill="#64748b">4000</text>
+<text x="620" y="332" text-anchor="middle" font-size="8.8" fill="#334155">학습 이터레이션</text>
+<polyline points="470.0,129.1 473.8,137.2 477.5,143.8 481.2,149.3 485.0,153.8 488.8,157.5 492.5,160.6 496.2,163.1 500.0,165.2 503.8,166.9 507.5,168.3 511.2,169.5 515.0,170.5 518.8,171.3 522.5,171.9 526.2,172.5 530.0,172.9 533.8,173.3 537.5,173.6 541.2,173.9 545.0,174.1 548.8,174.2 552.5,174.4 556.2,174.5 560.0,174.6 563.8,174.7 567.5,174.7 571.2,174.8 575.0,174.8 578.8,174.9 582.5,174.9 586.2,174.9 590.0,175.0 593.8,175.0 597.5,175.0 601.2,175.0 605.0,175.0 608.8,175.0 612.5,175.0 616.2,175.0 620.0,175.0 623.8,175.0 627.5,175.0 631.2,175.0 635.0,175.0 638.8,175.0 642.5,175.0 646.2,175.0 650.0,175.0 653.8,175.0 657.5,175.0 661.2,175.0 665.0,175.0 668.8,175.0 672.5,175.0 676.2,175.0 680.0,175.0 683.8,175.0 687.5,175.0 691.2,175.0 695.0,175.0 698.8,175.0 702.5,175.0 706.2,175.0 710.0,175.0 713.8,175.0 717.5,175.0 721.2,175.0 725.0,175.0 728.8,175.0 732.5,175.0 736.2,175.0 740.0,175.0 743.8,175.0 747.5,175.0 751.2,175.0 755.0,175.0 758.8,175.0 762.5,175.0 766.2,175.0 770.0,175.0" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<rect x="674" y="104" width="11" height="11" rx="2" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.1"/>
+<text x="689" y="113" text-anchor="start" font-size="8.4" fill="#92400e" font-weight="bold">AdamW</text>
+<polyline points="470.0,129.1 473.8,128.0 477.5,127.0 481.2,126.1 485.0,125.3 488.8,124.6 492.5,123.9 496.2,123.4 500.0,122.9 503.8,122.4 507.5,122.1 511.2,121.7 515.0,121.4 518.8,121.1 522.5,120.9 526.2,120.7 530.0,120.5 533.8,120.3 537.5,120.1 541.2,120.0 545.0,119.9 548.8,119.8 552.5,119.7 556.2,119.6 560.0,119.5 563.8,119.5 567.5,119.4 571.2,119.4 575.0,119.3 578.8,119.3 582.5,119.2 586.2,119.2 590.0,119.2 593.8,119.2 597.5,119.1 601.2,119.1 605.0,119.1 608.8,119.1 612.5,119.1 616.2,119.0 620.0,119.0 623.8,119.0 627.5,119.0 631.2,119.0 635.0,119.0 638.8,119.0 642.5,119.0 646.2,119.0 650.0,119.0 653.8,119.0 657.5,119.0 661.2,119.0 665.0,119.0 668.8,119.0 672.5,119.0 676.2,119.0 680.0,119.0 683.8,119.0 687.5,119.0 691.2,119.0 695.0,119.0 698.8,119.0 702.5,119.0 706.2,119.0 710.0,119.0 713.8,119.0 717.5,119.0 721.2,119.0 725.0,119.0 728.8,119.0 732.5,119.0 736.2,119.0 740.0,119.0 743.8,119.0 747.5,119.0 751.2,119.0 755.0,119.0 758.8,119.0 762.5,119.0 766.2,119.0 770.0,119.0" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<rect x="674" y="122" width="11" height="11" rx="2" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.1"/>
+<text x="689" y="131" text-anchor="start" font-size="8.4" fill="#1e40af" font-weight="bold">Muon</text>
+<rect x="20" y="326" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="344" text-anchor="start" font-size="10" fill="#334155">축 눈금은 원문에서 읽었고 곡선 값은 근사 판독이다. 요점은 두 옵티마이저가 &lt;가중치&gt;뿐 아니라 &lt;활성화&gt;까지 서로 다른 모양으로 만든다는 것이며,</text>
+<text x="30" y="361" text-anchor="start" font-size="10" fill="#334155">특히 입력 활성화에서 격차가 크다(약 0.46 vs 0.69). 이 관찰이 §3.2의 이론적 설명 — 옵티마이저가 유도되는 노름이 활성화를 정규화한다 — 의 출발점이고,</text>
+<text x="30" y="378" text-anchor="start" font-size="10" fill="#334155">§3.3에서 '사전학습 체크포인트 주변의 곡률이 옵티마이저마다 다르다'는 논거로 이어진다. 활성화 희소성은 사전학습 지식이 저장되는 방식과 직결된다.</text>
+</svg>
+<figcaption><strong>[Figure 4 재구성]</strong>: 값이 낮을수록 희소하다는 점에 주의해야 한다. AdamW(주황)의 활성화가 Muon(파랑)보다 훨씬 희소하며 — 원문 Figure 4는 색 배정이 반대이나 이 문서 전체의 규칙(Muon=파랑, AdamW=주황)에 맞췄다 — 특히 입력 활성화에서 격차가 크다(약 0.46 vs 0.69). 이 관찰이 §3.2 이론의 출발점이다 — 옵티마이저가 유도되는 노름이 활성화를 정규화하고, Adam은 α=1이라 ‖·‖₁ 정규화(Lasso 효과)로 희소해진다. 활성화의 구조는 곧 사전학습 지식이 저장되는 방식이고, §3.3에서 망각의 크기를 결정하는 요소가 된다. 축 눈금은 원문에서 읽었고 곡선 값은 근사 판독이다.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 희소성 지표 수치 예제] ‖x‖₁ / (√d ‖x‖₂) 가 재는 것</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">d=4 벡터 두 개. ‖x‖₂를 같게 맞추면 ‖x‖₁이 작을수록 희소하다 — 이것이 ‖·‖₁ 정규화의 효과</text>
+<text x="40" y="62" text-anchor="start" font-size="9.6" fill="#15803d" font-weight="bold">완전히 희소:  x = (1, 0, 0, 0)</text>
+<rect x="54" y="88" width="34" height="72" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="71" y="82" text-anchor="middle" font-size="8" fill="#15803d" font-weight="bold">1.0</text>
+<text x="71" y="174" text-anchor="middle" font-size="8" fill="#64748b">x1</text>
+<rect x="100" y="160" width="34" height="2" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="117" y="154" text-anchor="middle" font-size="8" fill="#15803d" font-weight="bold">0.0</text>
+<text x="117" y="174" text-anchor="middle" font-size="8" fill="#64748b">x2</text>
+<rect x="146" y="160" width="34" height="2" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="163" y="154" text-anchor="middle" font-size="8" fill="#15803d" font-weight="bold">0.0</text>
+<text x="163" y="174" text-anchor="middle" font-size="8" fill="#64748b">x3</text>
+<rect x="192" y="160" width="34" height="2" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="209" y="154" text-anchor="middle" font-size="8" fill="#15803d" font-weight="bold">0.0</text>
+<text x="209" y="174" text-anchor="middle" font-size="8" fill="#64748b">x4</text>
+<rect x="54" y="186" width="330" height="96" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+<text x="66" y="208" text-anchor="start" font-size="9.4" fill="#334155">‖x‖₁ = 1.0</text>
+<text x="66" y="226" text-anchor="start" font-size="9.4" fill="#334155">‖x‖₂ = 1.0</text>
+<text x="66" y="248" text-anchor="start" font-size="9.4" fill="#334155">희소성 = ‖x‖₁ / (√4 · ‖x‖₂) = 1.0 / (2 × 1.0)</text>
+<text x="66" y="270" text-anchor="start" font-size="12" fill="#15803d" font-weight="bold">= 0.50</text>
+<text x="430" y="62" text-anchor="start" font-size="9.6" fill="#92400e" font-weight="bold">고르게 퍼짐:  x = (0.5, 0.5, 0.5, 0.5)</text>
+<rect x="444" y="124" width="34" height="36" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="461" y="118" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.5</text>
+<text x="461" y="174" text-anchor="middle" font-size="8" fill="#64748b">x1</text>
+<rect x="490" y="124" width="34" height="36" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="507" y="118" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.5</text>
+<text x="507" y="174" text-anchor="middle" font-size="8" fill="#64748b">x2</text>
+<rect x="536" y="124" width="34" height="36" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="553" y="118" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.5</text>
+<text x="553" y="174" text-anchor="middle" font-size="8" fill="#64748b">x3</text>
+<rect x="582" y="124" width="34" height="36" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="599" y="118" text-anchor="middle" font-size="8" fill="#92400e" font-weight="bold">0.5</text>
+<text x="599" y="174" text-anchor="middle" font-size="8" fill="#64748b">x4</text>
+<rect x="444" y="186" width="330" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="456" y="208" text-anchor="start" font-size="9.4" fill="#334155">‖x‖₁ = 2.0</text>
+<text x="456" y="226" text-anchor="start" font-size="9.4" fill="#334155">‖x‖₂ = 1.0</text>
+<text x="456" y="248" text-anchor="start" font-size="9.4" fill="#334155">희소성 = ‖x‖₁ / (√4 · ‖x‖₂) = 2.0 / (2 × 1.0)</text>
+<text x="456" y="270" text-anchor="start" font-size="12" fill="#92400e" font-weight="bold">= 1.00</text>
+<text x="400" y="306" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">두 벡터의 ‖x‖₂는 1.0으로 같다. 지표가 0.50이면 한 좌표에 몰려 있고, 1.00이면 완전히 고르게 퍼져 있다는 뜻이다</text>
+<rect x="20" y="326" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="344" text-anchor="start" font-size="10" fill="#334155">이 지표는 벡터의 크기가 아니라 &lt;에너지가 몇 개의 좌표에 모여 있는가&gt;를 잰다. 그래서 그림 9에서 AdamW의 입력 활성화가 0.46 근처로 떨어진다는 것은</text>
+<text x="30" y="361" text-anchor="start" font-size="10" fill="#334155">'평균적으로 소수의 좌표에 몰려 있다'는 뜻이고, Muon의 0.69는 '더 고르게 퍼져 있다'는 뜻이다. 수치 예제는 논문에 없는 것으로, 지표의 의미를</text>
+<text x="30" y="378" text-anchor="start" font-size="10" fill="#334155">확인하기 위해 지어낸 값이다(§3.1).</text>
+</svg>
+<figcaption><strong>[Figure: 희소성 지표 수치 예제]</strong>: 논문이 쓰는 지표 ‖x‖₁/(√d‖x‖₂)가 벡터의 <em>크기</em>가 아니라 <em>에너지가 몇 개의 좌표에 모여 있는가</em>를 잰다는 것을 d=4 예시로 확인한다. 두 벡터의 ‖x‖₂는 1.0으로 같지만 지표는 0.50과 1.00으로 갈린다. 그래서 그림 9에서 AdamW가 0.46 근처로 떨어진다는 것은 '소수의 좌표에 몰려 있다', Muon의 0.69는 '더 고르게 퍼져 있다'는 뜻이 된다. 이 값이 ‖·‖₁ 정규화의 직접적 결과라는 것이 §3.2의 논지다. 수치는 논문에 없는 예시다.</figcaption>
+</figure>
+
+<h3>3.2 노름 유도 프레임워크 — 왜 활성화가 정규화되는가 (원문 §3.1 후반)</h3>
+
+<p>이 차이가 어디서 오는지 설명하기 위해 Pethick et al. (2025)의 옵티마이저 유도 프레임워크를 가져온다. 가중치 \(W_t \in \mathbb{R}^{m\times n}\)의 그래디언트를 \(G_t\)라 할 때</p>
+
+$$W_{t+1} = \operatorname*{argmin}_{\|W - W_t\| \le R} \langle G_t,\, W - W_t\rangle \tag{1}$$
+
+<p>여기서 \(\|\cdot\|\)는 특정 노름이다. 신경망 가중치는 일반적으로 행렬 구조를 갖고 활성화 계산은 행렬–벡터 곱이므로, <strong>행렬 유도 노름(matrix induced norm)</strong>에 집중한다. \(\alpha, \beta \in [1,\infty]\)에 대해</p>
+
+$$\|A\|_{\alpha,\beta} \triangleq \max_{x \ne 0}\frac{\|Ax\|_\beta}{\|x\|_\alpha}$$
+
+<p>이고, \(\|\cdot\|_{\alpha,\beta}\)에서 유도된 옵티마이저를 \(\mathcal{A}_{\alpha,\beta}\)로 쓴다. 이 틀에서 Muon은 유도 과정상 기본적으로 \(\mathcal{A}_{2,2}\)이고, SignSGD는 벡터 무한 노름이 \(\|\cdot\|_{1,\infty}\)와 동치라는 점에서 \(\mathcal{A}_{1,\infty}\)다. Adam은 SignSGD의 강력한 변형으로 볼 수 있으므로(Balles &amp; Hennig, 2018 등) 역시 \(\mathcal{A}_{1,\infty}\) 계열에 속한다.</p>
+
+<p><strong>핵심 논리</strong>: 옵티마이저 \(\mathcal{A}_{\alpha,\beta}\)는 가중치를 \(\|\cdot\|_{\alpha,\beta}\)가 제한된 채로 갱신한다. 그런데 이는 가중치에 대한 직접 제약일 뿐 아니라 <strong>활성화에 대한 정규화</strong>로도 볼 수 있다. \(y = Wx\)이고 행렬 유도 노름의 정의상</p>
+
+$$\|y\|_\beta \le \|W\|_{\alpha,\beta}\,\|x\|_\alpha$$
+
+<p>이므로, \(\|W\|_{\alpha,\beta}\)를 작게 유지하면 입력 활성화의 \(\|\cdot\|_\alpha\)와 출력 활성화의 \(\|\cdot\|_\beta\)가 함께 억제된다. 구체적으로</p>
+
+<ul>
+  <li><strong>Muon은 \(\mathcal{A}_{2,2}\)</strong> → 입력 \(x\)를 \(\|\cdot\|_2\)로, 출력 \(y\)를 \(\|\cdot\|_2\)로 정규화</li>
+  <li><strong>Adam은 \(\mathcal{A}_{1,\infty}\)</strong> → 입력 \(x\)를 \(\|\cdot\|_1\)로, 출력 \(y\)를 \(\|\cdot\|_\infty\)로 정규화</li>
+</ul>
+
+<blockquote><strong>직관적으로 말하면</strong>: \(\|\cdot\|_1\) 정규화는 Lasso와 같아서 <em>희소한</em> 해를 만든다. 그래서 \(\alpha = 1\)인 옵티마이저(Adam, SignSGD)로 학습한 모델의 입력 활성화가 희소해지는 것이다 — 관찰이 아니라 <strong>예측</strong>이다.</blockquote>
+
+<p>저자는 이 예측을 검증하기 위해 SignSGD(\(\mathcal{A}_{1,\infty}\))·AdamW(\(\mathcal{A}_{1,\infty}\))·Muon(\(\mathcal{A}_{2,2}\))에 더해 \(\mathcal{A}_{1,1}\)과 \(\mathcal{A}_{\infty,\infty}\)를 직접 유도해 함께 비교한다(부록 A.3). 결과는 예측과 일치한다 — \(\alpha = 1\)인 알고리즘에서 입력 활성화가 일관되게 더 희소하고, \(\beta = 1\)일 때 출력 활성화에도 같은 논리가 성립한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">노름으로 옵티마이저를 유도하는 프레임워크 (식 1)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">W_{t+1} = argmin_{‖W−W_t‖ ≤ R} ⟨G_t, W − W_t⟩  — 어떤 노름으로 제약하느냐가 옵티마이저를 정한다</text>
+<text x="400" y="62" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">행렬 유도 노름:  ‖A‖_{α,β} ≜ max_{x≠0}  ‖Ax‖_β / ‖x‖_α    →  이 노름에서 유도된 옵티마이저를 A_{α,β} 라 쓴다</text>
+<rect x="55" y="82" width="190" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="150" y="98" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">옵티마이저</text>
+<rect x="245" y="82" width="105" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="298" y="98" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">대응 A_{α,β}</text>
+<rect x="350" y="82" width="105" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="402" y="98" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">입력 x 정규화</text>
+<rect x="455" y="82" width="105" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="508" y="98" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">출력 y 정규화</text>
+<rect x="560" y="82" width="190" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="655" y="98" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">예상되는 활성화</text>
+<rect x="55" y="106" width="190" height="24" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="63" y="122" text-anchor="start" font-size="8.8" fill="#334155">Muon</text>
+<rect x="245" y="106" width="105" height="24" fill="#dbeafe" stroke="#e8edf3"/>
+<text x="298" y="122" text-anchor="middle" font-size="8.8" fill="#334155">A_{2,2}</text>
+<rect x="350" y="106" width="105" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="402" y="122" text-anchor="middle" font-size="8.8" fill="#334155">‖x‖₂</text>
+<rect x="455" y="106" width="105" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="508" y="122" text-anchor="middle" font-size="8.8" fill="#334155">‖y‖₂</text>
+<rect x="560" y="106" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="655" y="122" text-anchor="middle" font-size="8.8" fill="#334155">희소하지 않음</text>
+<rect x="55" y="130" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="63" y="146" text-anchor="start" font-size="8.8" fill="#334155">SignSGD</text>
+<rect x="245" y="130" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="298" y="146" text-anchor="middle" font-size="8.8" fill="#334155">A_{1,∞}</text>
+<rect x="350" y="130" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="402" y="146" text-anchor="middle" font-size="8.8" fill="#334155">‖x‖₁</text>
+<rect x="455" y="130" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="508" y="146" text-anchor="middle" font-size="8.8" fill="#334155">‖y‖_∞</text>
+<rect x="560" y="130" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="655" y="146" text-anchor="middle" font-size="8.8" fill="#334155">입력이 희소 (Lasso 효과)</text>
+<rect x="55" y="154" width="190" height="24" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="63" y="170" text-anchor="start" font-size="8.8" fill="#334155">Adam / AdamW</text>
+<rect x="245" y="154" width="105" height="24" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="298" y="170" text-anchor="middle" font-size="8.8" fill="#334155">A_{1,∞} 계열</text>
+<rect x="350" y="154" width="105" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="402" y="170" text-anchor="middle" font-size="8.8" fill="#334155">‖x‖₁</text>
+<rect x="455" y="154" width="105" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="508" y="170" text-anchor="middle" font-size="8.8" fill="#334155">‖y‖_∞</text>
+<rect x="560" y="154" width="190" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="655" y="170" text-anchor="middle" font-size="8.8" fill="#334155">입력이 희소</text>
+<rect x="55" y="178" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="63" y="194" text-anchor="start" font-size="8.8" fill="#334155">A_{1,1} (Row Max Descent)</text>
+<rect x="245" y="178" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="298" y="194" text-anchor="middle" font-size="8.8" fill="#334155">A_{1,1}</text>
+<rect x="350" y="178" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="402" y="194" text-anchor="middle" font-size="8.8" fill="#334155">‖x‖₁</text>
+<rect x="455" y="178" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="508" y="194" text-anchor="middle" font-size="8.8" fill="#334155">‖y‖₁</text>
+<rect x="560" y="178" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="655" y="194" text-anchor="middle" font-size="8.8" fill="#334155">입력·출력 모두 희소</text>
+<rect x="55" y="202" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="63" y="218" text-anchor="start" font-size="8.8" fill="#334155">A_{∞,∞} (Column Max Descent)</text>
+<rect x="245" y="202" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="298" y="218" text-anchor="middle" font-size="8.8" fill="#334155">A_{∞,∞}</text>
+<rect x="350" y="202" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="402" y="218" text-anchor="middle" font-size="8.8" fill="#334155">‖x‖_∞</text>
+<rect x="455" y="202" width="105" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="508" y="218" text-anchor="middle" font-size="8.8" fill="#334155">‖y‖_∞</text>
+<rect x="560" y="202" width="190" height="24" fill="#f1f5f9" stroke="#e8edf3"/>
+<text x="655" y="218" text-anchor="middle" font-size="8.8" fill="#334155">희소하지 않음</text>
+<rect x="55" y="240" width="690" height="76" rx="8" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="67" y="262" text-anchor="start" font-size="10.2" fill="#92400e" font-weight="bold">왜 노름 제약이 활성화 정규화가 되는가</text>
+<text x="67" y="284" text-anchor="start" font-size="9.4" fill="#334155">y = Wx 이고 유도 노름의 정의상  ‖y‖_β ≤ ‖W‖_{α,β} · ‖x‖_α  이므로,</text>
+<text x="67" y="304" text-anchor="start" font-size="9.4" fill="#334155">‖W‖_{α,β}를 작게 유지하는 옵티마이저는 결과적으로 입력 활성화의 ‖·‖_α 와 출력 활성화의 ‖·‖_β 를 함께 억누른다.</text>
+<text x="400" y="336" text-anchor="middle" font-size="9.2" fill="#92400e" font-weight="bold">‖·‖₁ 정규화는 Lasso와 같아 희소 해를 만든다 — 그래서 α=1 인 옵티마이저(Adam, SignSGD)의 입력 활성화가 희소하다</text>
+<rect x="20" y="356" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="374" text-anchor="start" font-size="10" fill="#334155">이 프레임워크는 Pethick et al.(2025)의 것을 가져온 것이고, 이 논문의 기여는 그것을 &lt;활성화 정규화&gt;로 해석한 데 있다.</text>
+<text x="30" y="391" text-anchor="start" font-size="10" fill="#334155">Muon이 A_{2,2}라는 것은 Jordan et al.·Bernstein &amp; Newhouse의 유도에서 나오고, Adam을 SignSGD의 강력한 변형으로 보는 관점은</text>
+<text x="30" y="408" text-anchor="start" font-size="10" fill="#334155">Balles &amp; Hennig(2018) 등 선행 연구를 따른다. A_{1,1}·A_{∞,∞}는 이 논문이 비교를 위해 직접 유도한 알고리즘이다(부록 A.3, Algorithm 1·2).</text>
+</svg>
+<figcaption><strong>[Figure: 노름 유도 프레임워크]</strong>: 식 (1)에서 어떤 노름으로 제약하느냐가 옵티마이저를 정한다는 Pethick et al.(2025)의 틀이고, 이 논문의 기여는 그것을 <em>활성화 정규화</em>로 해석한 데 있다. 표가 다섯 옵티마이저를 (α, β)로 분류하고, 아래 노란 상자가 핵심 논리다 — y = Wx 이고 ‖y‖_β ≤ ‖W‖_{α,β}‖x‖_α 이므로 가중치 노름을 억누르면 입력·출력 활성화도 함께 억눌린다. α=1이면 Lasso 효과로 입력이 희소해지며, 이것이 그림 9의 관찰을 <em>예측</em>한다(§3.2). A_{1,1}·A_{∞,∞}는 이 논문이 검증을 위해 직접 유도한 알고리즘이다.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 800 427" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 5 정리] α와 β가 활성화 희소성을 예측한다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">이론이 예측하는 방향과 원문 Figure 5의 경험적 확인을 격자로 정리했다</text>
+<text x="275" y="82" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">α = 1</text>
+<text x="425" y="82" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">α = 2</text>
+<text x="575" y="82" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">α = ∞</text>
+<text x="190" y="130" text-anchor="end" font-size="9.6" fill="#334155" font-weight="bold">β = 1</text>
+<rect x="204" y="96" width="142" height="60" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="275" y="116" text-anchor="middle" font-size="9.2" fill="#b91c1c" font-weight="bold">A_{1,1}</text>
+<text x="275" y="144" text-anchor="middle" font-size="8" fill="#475569">입력·출력 모두 희소</text>
+<rect x="354" y="96" width="142" height="60" fill="#f8fafc" stroke="#e2e8f0"/>
+<rect x="504" y="96" width="142" height="60" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="190" y="198" text-anchor="end" font-size="9.6" fill="#334155" font-weight="bold">β = 2</text>
+<rect x="204" y="164" width="142" height="60" fill="#f8fafc" stroke="#e2e8f0"/>
+<rect x="354" y="164" width="142" height="60" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="425" y="184" text-anchor="middle" font-size="9.2" fill="#1e40af" font-weight="bold">Muon</text>
+<text x="425" y="212" text-anchor="middle" font-size="8" fill="#475569">희소하지 않음</text>
+<rect x="504" y="164" width="142" height="60" fill="#f8fafc" stroke="#e2e8f0"/>
+<text x="190" y="266" text-anchor="end" font-size="9.6" fill="#334155" font-weight="bold">β = ∞</text>
+<rect x="204" y="232" width="142" height="60" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="275" y="252" text-anchor="middle" font-size="9.2" fill="#92400e" font-weight="bold">Adam / AdamW</text>
+<text x="275" y="266" text-anchor="middle" font-size="9.2" fill="#92400e" font-weight="bold">SignSGD</text>
+<text x="275" y="280" text-anchor="middle" font-size="8" fill="#475569">입력 희소</text>
+<rect x="354" y="232" width="142" height="60" fill="#f8fafc" stroke="#e2e8f0"/>
+<rect x="504" y="232" width="142" height="60" rx="6" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.6"/>
+<text x="575" y="252" text-anchor="middle" font-size="9.2" fill="#7e22ce" font-weight="bold">A_{∞,∞}</text>
+<text x="575" y="280" text-anchor="middle" font-size="8" fill="#475569">희소하지 않음</text>
+<rect x="200" y="92" width="150" height="204" fill="none" stroke="#f59e0b" stroke-width="2.4" stroke-dasharray="6 4"/>
+<text x="275" y="314" text-anchor="middle" font-size="9" fill="#92400e" font-weight="bold">α = 1 열 — 입력 활성화가 희소해진다</text>
+<rect x="200" y="92" width="450" height="68" fill="none" stroke="#ef4444" stroke-width="2.4" stroke-dasharray="6 4"/>
+<text x="660" y="130" text-anchor="start" font-size="9" fill="#b91c1c" font-weight="bold">β = 1 행 — 출력 활성화가 희소</text>
+<text x="400" y="326" text-anchor="middle" font-size="9.2" fill="#334155" font-weight="bold">원문 Figure 5는 이 예측을 5개 옵티마이저로 경험적으로 확인한다 — α=1(A_{1,∞}, A_{1,1})에서 입력이 일관되게 더 희소하다</text>
+<rect x="20" y="346" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="364" text-anchor="start" font-size="10" fill="#334155">원문 Figure 5는 5개 옵티마이저의 활성화 희소성 곡선을 여러 모듈에 대해 그린 것인데, 곡선이 촘촘해 개별 값을 신뢰성 있게 읽기 어려워</text>
+<text x="30" y="381" text-anchor="start" font-size="10" fill="#334155">여기서는 &lt;그림이 검증하는 명제&gt;만 격자로 옮겼다. 이 격자가 §3.3 정리 1의 무대다 — 정리는 '사전학습 옵티마이저의 α를 SFT에서도 맞추라'고 말하므로,</text>
+<text x="30" y="398" text-anchor="start" font-size="10" fill="#334155">AdamW로 사전학습했으면 같은 α=1 열에서, Muon이면 α=2 열에서 SFT 옵티마이저를 골라야 한다(그림 15).</text>
+</svg>
+<figcaption><strong>[Figure 5 정리]</strong>: 원문 Figure 5는 다섯 옵티마이저의 활성화 희소성 곡선을 여러 모듈에 대해 그린 것인데 곡선이 촘촘해 개별 값을 신뢰성 있게 읽기 어려워, 여기서는 그 그림이 <em>검증하는 명제</em>만 (α, β) 격자로 옮겼다. 주황 테두리(α=1 열)는 입력 활성화가, 빨강 테두리(β=1 행)는 출력 활성화가 희소해지는 영역이다. 이 격자가 §3.3 정리 1의 무대가 된다 — 정리는 사전학습 옵티마이저의 α를 SFT에서도 맞추라고 말하므로, AdamW 체크포인트면 α=1 열에서, Muon이면 α=2 열에서 골라야 한다(그림 15).</figcaption>
+</figure>
+
+<h4>부록 A.3 — 새로 유도한 두 알고리즘</h4>
+
+<p>임의의 행렬 \(Z \in \mathbb{R}^{m\times n}\)에 대해 \(\|Z\|_{1,1} = \max_{i\in[m]}\sum_{j=1}^{n}|Z_{i,j}|\), \(\|Z\|_{\infty,\infty} = \max_{j\in[n]}\sum_{i=1}^{m}|Z_{i,j}|\)다. 식 (1)을 \(\|\cdot\|_{1,1}\)에 대해 풀면 다음 갱신이 나온다.</p>
+
+<div class="flow-diagram">A_{1,1} (Row Max Descent):   Z_{i,j} = R / k_i   if |G_{i,j}| = max_{l∈[n]} |G_{i,l}|,   else 0
+        k_i = 고정된 i 에 대해 |G_{i,j}| 가 그 행의 최댓값과 같은 항목의 개수, R = 업데이트 스케일
+
+A_{∞,∞} (Column Max Descent):  Z_{i,j} = R / k_j   if |G_{i,j}| = max_{l∈[m]} |G_{l,j}|,   else 0
+        k_j = 고정된 j 에 대해 |G_{i,j}| 가 그 열의 최댓값과 같은 항목의 개수</div>
+
+<p>직관적으로 \(\mathcal{A}_{1,1}\)은 <strong>매 반복 각 행에서 그래디언트가 가장 큰 항목만</strong> 갱신하고, \(\mathcal{A}_{\infty,\infty}\)는 <strong>각 열에서 가장 큰 항목만</strong> 갱신한다. 여기에 모멘텀과 업데이트 RMS 정렬(Liu et al., 2025)을 더해 Algorithm 1·2로 정식화하고, 같은 RMS 정렬을 적용한 SGD를 Algorithm 3으로 제시한다.</p>
+
+<h3>3.3 SFT 옵티마이저는 활성화 정규화에 맞아야 한다 (원문 §3.2)</h3>
+
+<p>옵티마이저가 모델을 빚는다는 관찰 위에서, 단순화된 설정 아래 정합성 현상에 대한 이론적 설명을 세운다. 직관은 간단하다 — <strong>서로 다른 옵티마이저는 서로 다른 성질의 사전학습 체크포인트를 만들고, 그러면 체크포인트 <em>주변의 곡률</em>도 달라진다. SFT 업데이트가 그 곡률에 더 잘 맞을수록 망각이 줄어들며, 같은 옵티마이저로 전체 미세조정하는 것이 그 맞춤을 얻는 방법이다.</strong></p>
+
+<h4>망각 손실의 근사 (가정 1)</h4>
+
+<p>SFT 단계에서는 가중치 변화가 작으므로 사전학습 손실 증가를 2차 테일러 전개로 근사한다. 사전학습 후 국소 최소 근처에 있으므로 \(\nabla_\theta\mathcal{L}_{\text{pre}}(\theta_0)\approx 0\)이고, 1차 항이 사라진다.</p>
+
+$$\mathcal{L}_{\text{pre}}(\theta_0+\Delta\theta) \approx \mathcal{L}_{\text{pre}}(\theta_0) + \tfrac{1}{2}\Delta\theta^{\mathsf{T}}\nabla_\theta^2\mathcal{L}_{\text{pre}}(\theta_0)\Delta\theta$$
+
+<p>헤시안이 층에 대해 블록 대각이라는 관찰을 이용해 층별로 보고, Fisher 정보 행렬 \(\mathbb{E}[gg^{\mathsf{T}}]\)로 헤시안을 근사한 뒤 크로네커 분리를 적용하면 \(\nabla^2_W\mathcal{L}_{\text{pre}}(\theta_0)\approx \mathbb{E}[\delta\delta^{\mathsf{T}}]\otimes\mathbb{E}[xx^{\mathsf{T}}]\)를 얻는다. 헤시안이 MLP의 <em>행</em>에 대해서도 블록 대각이라는 추가 관찰로 입력 활성화 항만 남기면 \(\nabla^2_W\mathcal{L}_{\text{pre}}(\theta_0)\propto\mathbb{E}[xx^{\mathsf{T}}]\)이고, 따라서</p>
+
+$$\hat{\mathcal{L}}_{\text{forget}}(\Delta W)\propto \tfrac{1}{2}\operatorname{tr}\!\left(\Delta W\,\mathbb{E}[xx^{\mathsf{T}}]\,\Delta W^{\mathsf{T}}\right) = \tfrac{1}{2}\mathbb{E}\!\left[\|\Delta Wx\|_2^2\right]$$
+
+<blockquote><strong>가정 1 (망각 손실 증가의 근사).</strong> SFT 업데이트 \(\Delta W \in \mathbb{R}^{m\times n}\)에 대해 SFT가 유발하는 손실 증가를 다음으로 근사한다.
+$$\mathcal{L}_{\text{forget}}(\Delta W) \triangleq \tfrac{1}{2}\mathbb{E}\!\left[\|\Delta Wx\|_2^2\right] \tag{2}$$
+\(x\)는 \(\theta_0\)에서의 사전학습 데이터 입력 활성화이며 기댓값은 \(x\)에 대해 취한다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 465" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arder0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arder1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arder2" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 망각 손실 근사의 유도] 왜 L_forget ∝ E[‖ΔW x‖₂²] 인가</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가정 1(식 2)에 이르는 네 단계. ΔW는 SFT가 만든 가중치 변화, x는 사전학습 데이터의 입력 활성화</text>
+<rect x="30" y="52" width="740" height="68" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="44" y="72" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">① 2차 테일러 전개</text>
+<text x="44" y="92" text-anchor="start" font-size="9.2" fill="#334155">L_pre(θ₀+Δθ) ≈ L_pre(θ₀) + ⟨∇L_pre(θ₀), Δθ⟩ + ½ Δθᵀ ∇²L_pre(θ₀) Δθ</text>
+<text x="44" y="110" text-anchor="start" font-size="8.4" fill="#64748b">사전학습 후 국소 최소에 있으므로 ∇L_pre(θ₀) ≈ 0 → 1차항 소멸</text>
+<path d="M400,120 L400,128" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arder0)"/>
+<rect x="30" y="130" width="740" height="68" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="44" y="150" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">② 층별 분해</text>
+<text x="44" y="170" text-anchor="start" font-size="9.2" fill="#334155">L̂_forget(ΔW) ≜ ½ vec(ΔW)ᵀ ∇²_W L_pre(θ₀) vec(ΔW)</text>
+<text x="44" y="188" text-anchor="start" font-size="8.4" fill="#64748b">헤시안이 층에 대해 블록 대각이라는 관찰(Martens &amp; Grosse 등)을 이용</text>
+<path d="M400,198 L400,206" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arder1)"/>
+<rect x="30" y="208" width="740" height="68" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="44" y="228" text-anchor="start" font-size="9.8" fill="#1e40af" font-weight="bold">③ Fisher 정보 행렬로 근사</text>
+<text x="44" y="248" text-anchor="start" font-size="9.2" fill="#334155">∇²_W L_pre(θ₀) ≈ E[ggᵀ] = E[(δ ⊗ x)(x ⊗ δ)ᵀ] ≈ E[δδᵀ] ⊗ E[xxᵀ]</text>
+<text x="44" y="266" text-anchor="start" font-size="8.4" fill="#64748b">g = vec(∇_W L_pre), δ = ∇_y L_pre. 입력 활성화와 출력 그래디언트의 기댓값을 분리</text>
+<path d="M400,276 L400,284" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arder2)"/>
+<rect x="30" y="286" width="740" height="68" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.5"/>
+<text x="44" y="306" text-anchor="start" font-size="9.8" fill="#15803d" font-weight="bold">④ 입력 활성화 항만 남기기</text>
+<text x="44" y="326" text-anchor="start" font-size="9.2" fill="#334155">∇²_W L_pre(θ₀) ∝ E[xxᵀ]  →  L̂_forget ∝ ½ tr(ΔW E[xxᵀ] ΔWᵀ) = ½ E[‖ΔW x‖₂²]</text>
+<text x="44" y="344" text-anchor="start" font-size="8.4" fill="#64748b">헤시안이 MLP의 행에 대해서도 블록 대각이라는 추가 관찰을 적용</text>
+<rect x="20" y="364" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="382" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">이것은 증명이 아니라 근사의 사슬이다</text>
+<text x="30" y="400" text-anchor="start" font-size="10" fill="#334155">이 유도는 완전한 증명이 아니라 &lt;근사의 사슬&gt;이다 — 국소 최소 가정, 층별 블록 대각 가정, Fisher 근사, 크로네커 분리 가정, 행 블록 대각 가정이</text>
+<text x="30" y="417" text-anchor="start" font-size="10" fill="#334155">차례로 쌓인다. 저자도 이를 '가정 1'로 명시적으로 세워 이후 논의의 출발점으로 삼는다. 결론의 형태가 중요하다 — 망각의 크기가 ΔW 자체가 아니라</text>
+<text x="30" y="434" text-anchor="start" font-size="10" fill="#334155">'ΔW가 사전학습 입력 활성화 x에 어떻게 작용하는가'로 결정된다는 것이며, 그래서 활성화의 구조(§3.1)가 곧 망각의 구조가 된다.</text>
+</svg>
+<figcaption><strong>[Figure: 망각 손실 근사의 유도]</strong>: 식 (2)에 이르는 네 단계를 순서대로 편 것이다. 각 단계가 근사이며, 국소 최소 가정 → 층별 블록 대각 → Fisher 근사와 크로네커 분리 → 행 블록 대각이 차례로 쌓인다. 결론의 <em>형태</em>가 중요하다 — 망각의 크기가 ΔW 자체가 아니라 'ΔW가 사전학습 입력 활성화 x에 어떻게 작용하는가'로 결정되므로, §3.1에서 본 활성화의 구조가 곧 망각의 구조가 된다. 저자도 이를 증명이 아니라 '가정 1'로 명시적으로 세워 이후 논의의 출발점으로 삼는다(§3.3).</figcaption>
+</figure>
+
+<h4>나머지 세 가정과 정리 1</h4>
+
+<blockquote><strong>가정 2 (가중치–활성화 정렬).</strong> \(\beta_* \in [1,\infty]\)를 고정하면 어떤 \(\alpha_* \in [1,\infty]\)가 존재해
+\(\mathbb{E}[\|\Delta Wx\|^2_{\beta_*}] = \Theta(\|\Delta W\|^2_{\alpha_*,\beta_*}\,\mathbb{E}[\|x\|^2_{\alpha_*}])\)
+가 성립한다. 유도 노름의 정의상 항상 \(\|Wx\|_\beta \le \|W\|_{\alpha,\beta}\|x\|_\alpha\)이므로, 이 가정은 <em>최적의 \(\alpha,\beta\) 쌍이 그 하한을 달성한다</em>는 뜻이다.</blockquote>
+
+<blockquote><strong>가정 3 (SFT 손실 근사).</strong> SFT에서 모델이 조금만 움직이므로 1차 테일러 전개로 근사한다: \(\mathcal{L}_{\text{SFT}}(\Delta W) \triangleq H_0 + \langle \Delta W, G\rangle\). \(G\)는 \(\theta_0\)에서의 SFT 손실 그래디언트, \(H_0\)는 \(\theta_0\)에서의 SFT 손실이다.</blockquote>
+
+<blockquote><strong>가정 4 (옵티마이저가 활성화를 정규화).</strong> 사전학습 옵티마이저 \(\mathcal{A}_{\alpha_1,\beta_1}\)과 SFT 옵티마이저 \(\mathcal{A}_{\alpha_2,\beta_2}\), 그리고 \(y \triangleq \Delta Wx\)에 대해 모든 \(\alpha,\beta\in[1,\infty]\)에서
+\(\mathbb{E}[\|x\|^2_{\alpha_1}] = \Theta(\mathbb{E}[\|x\|^2_\alpha])\ (\alpha\ge\alpha_1)\) 또는 \(\Theta(n^{\frac{2}{\alpha_1}-\frac{2}{\alpha}}\mathbb{E}[\|x\|^2_\alpha])\ (\alpha<\alpha_1)\),
+그리고 \(y\)에 대해 \(\beta_2\)를 기준으로 같은 형태가 성립한다. §3.1·§3.2에서 관찰한 활성화 정규화 효과를 형식화한 것이다.</blockquote>
+
+<blockquote><strong>정리 1 (같은 계열의 옵티마이저가 덜 잊는다).</strong> 가정 1~4 아래에서, SFT 옵티마이저 \(\mathcal{A}_{\alpha_2,\beta_2}\)에 \(\alpha_2 = \alpha_1\), \(\beta_2 \in [2,\infty]\)를 택하면 (거의) 최적의 학습–망각 트레이드오프를 얻는다. 형식적으로, 임의의 상수 \(C\)와 \(\mathcal{L}_{\text{SFT}}(\Delta W(\mathcal{A}_{\alpha,\beta})) \le C\)를 만족하는 \(\Delta W(\mathcal{A}_{\alpha,\beta})\)에 대해
+$$\mathcal{L}_{\text{forget}}\!\left(\Delta W(\mathcal{A}_{\alpha_2,\beta_2})\right) = \mathcal{O}\!\left(\inf_{\alpha\in[1,\infty],\,\beta\in[1,2]}\mathcal{L}_{\text{forget}}\!\left(\Delta W(\mathcal{A}_{\alpha,\beta})\right)\right)$$
+가 \(\alpha_2 = \alpha_1\), \(\beta_2 \ge 2\)에서 성립한다.</blockquote>
+
+
+<h4>증명에 쓰이는 두 보조정리 (부록 C.1)</h4>
+
+<blockquote><strong>보조정리 1 (벡터 노름 비교).</strong> 임의의 벡터 \(z \in \mathbb{R}^d\)와 \(\alpha_1 \le \alpha_2\)에 대해
+\(\|z\|_{\alpha_2} \le \|z\|_{\alpha_1} \le d^{\frac{1}{\alpha_1}-\frac{1}{\alpha_2}}\|z\|_{\alpha_2}\).</blockquote>
+
+<blockquote><strong>보조정리 2 (행렬 유도 노름 비교).</strong> 임의의 행렬 \(A \in \mathbb{R}^{m\times n}\)와 \(\alpha_1 \le \alpha_2\), \(\beta_1 \le \beta_2\)에 대해
+\(\|A\|_{\alpha_1,\beta} \le \|A\|_{\alpha_2,\beta} \le n^{\frac{1}{\alpha_1}-\frac{1}{\alpha_2}}\|A\|_{\alpha_1,\beta}\) 이고
+\(\|A\|_{\alpha,\beta_2} \le \|A\|_{\alpha,\beta_1} \le m^{\frac{1}{\beta_1}-\frac{1}{\beta_2}}\|A\|_{\alpha,\beta_2}\).</blockquote>
+
+<p>보조정리 1은 벡터 노름의 표준 결과이고 보조정리 2는 그 단순한 확장이다. 증명은 \(z_1 \in \operatorname{argmax}_{z\ne0}\|Az\|_\beta/\|z\|_{\alpha_1}\), \(z_2 \in \operatorname{argmax}_{z\ne0}\|Az\|_\beta/\|z\|_{\alpha_2}\)를 두고 보조정리 1을 각각에 적용하는 두 줄짜리 논변이다. 정리 1의 증명은 이 두 부등식으로 \(\alpha_*\)와 \(\beta_*\)의 최적값을 좁혀 간다.</p>
+
+<p><strong>증명의 뼈대</strong>(부록 C): 보조정리 1·2로 노름 사이의 부등식(\(\|z\|_{\alpha_2}\le\|z\|_{\alpha_1}\le d^{1/\alpha_1-1/\alpha_2}\|z\|_{\alpha_2}\) 등)을 정리한 뒤, 가정 2·4를 결합해 \(\alpha_* = \alpha_1\)이 가장 타이트한 상한을 준다는 것을 두 경우(\(\alpha\ge\alpha_1\), \(\alpha<\alpha_1\))로 나눠 보인다. 이어서 식 (1)과 가정 3으로부터 SFT 업데이트가 \(\Delta W(\mathcal{A}_{\alpha_2,\beta_2}) = \operatorname{argmin}_{\mathcal{L}_{\text{SFT}}(Z)\le C}\|Z\|_{\alpha_2,\beta_2}\)임을 KKT 조건으로 확인하고, 두 결과를 합쳐 \(\beta_2 \ge 2\)에서 상한이 달성됨을 보인다.</p>
+
+<figure>
+<svg viewBox="0 0 800 465" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arasm0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arasm1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 정리 1의 논리 구조] 네 가정이 어떻게 결론으로 모이는가</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">가정마다 근거의 성격이 다르다 — 어디까지가 관찰이고 어디부터가 가정인지 구분해서 읽을 것</text>
+<rect x="24" y="52" width="376" height="74" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="36" y="72" text-anchor="start" font-size="9.4" fill="#1e40af" font-weight="bold">가정 1  망각 손실 근사</text>
+<text x="36" y="92" text-anchor="start" font-size="8.6" fill="#334155">L_forget(ΔW) ≜ ½ E[‖ΔW x‖₂²]   … (2)</text>
+<text x="36" y="112" text-anchor="start" font-size="8.2" fill="#64748b">테일러 + Fisher 근사에서 유도 (그림 13)</text>
+<rect x="412" y="52" width="376" height="74" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="424" y="72" text-anchor="start" font-size="9.4" fill="#92400e" font-weight="bold">가정 2  가중치–활성화 정렬</text>
+<text x="424" y="92" text-anchor="start" font-size="8.6" fill="#334155">E[‖ΔWx‖²_{β*}] = Θ(‖ΔW‖²_{α*,β*} E[‖x‖²_{α*}])</text>
+<text x="424" y="112" text-anchor="start" font-size="8.2" fill="#64748b">유도 노름의 상한이 &lt;타이트&gt;하다는 가정</text>
+<rect x="24" y="136" width="376" height="74" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.5"/>
+<text x="36" y="156" text-anchor="start" font-size="9.4" fill="#1e40af" font-weight="bold">가정 3  SFT 손실 근사</text>
+<text x="36" y="176" text-anchor="start" font-size="8.6" fill="#334155">L_SFT(ΔW) ≜ H₀ + ⟨ΔW, G⟩</text>
+<text x="36" y="196" text-anchor="start" font-size="8.2" fill="#64748b">SFT에서 가중치가 조금만 움직인다는 1차 근사</text>
+<rect x="412" y="136" width="376" height="74" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.5"/>
+<text x="424" y="156" text-anchor="start" font-size="9.4" fill="#92400e" font-weight="bold">가정 4  옵티마이저가 활성화를 정규화</text>
+<text x="424" y="176" text-anchor="start" font-size="8.6" fill="#334155">α ≥ α₁ 이면 E[‖x‖²_{α₁}] = Θ(E[‖x‖²_α]) 등</text>
+<text x="424" y="196" text-anchor="start" font-size="8.2" fill="#64748b">그림 9·12의 관찰을 수식으로 형식화</text>
+<path d="M212,222 L212,238" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arasm0)"/>
+<path d="M600,222 L600,238" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arasm1)"/>
+<rect x="120" y="242" width="560" height="82" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="400" y="264" text-anchor="middle" font-size="10.6" fill="#15803d" font-weight="bold">정리 1  (같은 계열 옵티마이저가 덜 잊는다)</text>
+<text x="400" y="286" text-anchor="middle" font-size="9.4" fill="#334155">SFT 옵티마이저 A_{α₂,β₂}에 대해  α₂ = α₁,  β₂ ∈ [2, ∞]  를 택하면</text>
+<text x="400" y="306" text-anchor="middle" font-size="9.4" fill="#15803d" font-weight="bold">같은 SFT 성능을 내면서 (거의) 최소의 망각을 달성한다</text>
+<text x="400" y="340" text-anchor="middle" font-size="8.8" fill="#334155">형식적으로:  L_SFT(ΔW(A_{α,β})) ≤ C 인 모든 ΔW에 대해  L_forget(ΔW(A_{α₂,β₂})) = O( inf_{α∈[1,∞], β∈[1,2]} L_forget(ΔW(A_{α,β})) )</text>
+<rect x="20" y="364" width="760" height="89" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="382" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">어느 가정이 결정적인가</text>
+<text x="30" y="400" text-anchor="start" font-size="10" fill="#334155">가정 2와 4가 이 정리의 무게중심이다. 가정 2는 유도 노름 부등식 ‖ΔWx‖_β ≤ ‖ΔW‖_{α,β}‖x‖_α 가 &lt;등호에 가깝다&gt;고 놓는 것이고,</text>
+<text x="30" y="417" text-anchor="start" font-size="10" fill="#334155">가정 4는 그림 9·12의 경험적 관찰을 Θ 표기로 옮긴 것이다. 즉 정리의 결론은 '이 관찰들이 성립한다면 같은 α를 쓰는 것이 최적'이라는 조건부 진술이며,</text>
+<text x="30" y="434" text-anchor="start" font-size="10" fill="#334155">관찰 자체를 증명하지는 않는다. 저자도 가정 4에 대해 '활성화에 대해 다소 강한 가정일 수 있다'고 명시한다(§비판적 분석).</text>
+</svg>
+<figcaption><strong>[Figure: 정리 1의 논리 구조]</strong>: 네 가정의 성격이 다르다는 점을 색으로 구분했다 — 파랑은 유도나 테일러 전개에서 나온 것, 주황은 경험적 관찰을 형식화하거나 부등식이 타이트하다고 놓은 것이다. 가정 2와 4가 결론의 무게중심이며, 특히 가정 4는 그림 9·12의 관찰을 Θ 표기로 옮긴 것이다. 따라서 정리 1은 '이 관찰들이 성립한다면 같은 α를 쓰는 것이 (거의) 최적'이라는 조건부 진술이고, 관찰 자체를 증명하지는 않는다. 저자도 가정 4가 다소 강할 수 있다고 인정한다(§비판적 분석).</figcaption>
+</figure>
+
+<h4>실무적 함의 (Remark 2)</h4>
+
+<p>정리 1은 <strong>사전학습 옵티마이저와 같은 계열</strong>(더 구체적으로는 같은 \(\alpha\)와 \(\beta \ge 2\))의 옵티마이저로 전체 미세조정하는 것이 최선의 트레이드오프를 준다고 말한다. 예를 들어 AdamW 체크포인트를 미세조정할 때는 Adam, SignSGD, 또는 Lion과 그 변형을 고려할 수 있다.</p>
+
+<p>##또한 LoRA는 이 설정에서 일반적으로 최적 트레이드오프에 도달하지 못한다 — 어댑터 구조가 어떤 노름으로도 정규화되지 않는 형태이기 때문이다.## 식 (1)에서 유도되는 옵티마이저(Adam, Muon과 그 변형들)로 모델을 사전학습한 이상, 그 활성화 구조에 맞는 SFT 업데이트 구조는 어떤 노름의 최적해여야 하는데, 저랭크 어댑터 \(BA\)는 그런 구조가 아니라는 논변이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 정리 1의 실무 해석] 사전학습 옵티마이저별 SFT 옵티마이저 선택</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">규칙은 두 줄이다 — α는 사전학습과 같게, β는 2 이상으로</text>
+<rect x="20" y="48" width="374" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="207" y="67" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">사전학습이 AdamW (A_{1,∞}, α₁ = 1)</text>
+<text x="31" y="86" text-anchor="start" font-size="9" fill="#334155">SFT도 α₂ = 1, β₂ ≥ 2 인 옵티마이저</text>
+<text x="31" y="101" text-anchor="start" font-size="9" fill="#334155">→ Adam, SignSGD, Lion 계열 (모두 A_{1,∞})</text>
+<text x="31" y="116" text-anchor="start" font-size="9" fill="#334155">실제로 §2에서 AdamW→AdamW가 최적</text>
+<rect x="406" y="48" width="374" height="96" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="593" y="67" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">사전학습이 Muon (A_{2,2}, α₁ = 2)</text>
+<text x="416" y="86" text-anchor="start" font-size="9" fill="#334155">SFT도 α₂ = 2, β₂ ≥ 2 인 옵티마이저</text>
+<text x="416" y="101" text-anchor="start" font-size="9" fill="#334155">→ Muon (A_{2,2})</text>
+<text x="416" y="116" text-anchor="start" font-size="9" fill="#334155">실제로 §2에서 Muon→Muon이 최적</text>
+<rect x="24" y="158" width="752" height="96" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.7"/>
+<text x="38" y="180" text-anchor="start" font-size="10.2" fill="#b91c1c" font-weight="bold">LoRA는 왜 이 규칙을 만족할 수 없는가 (Remark 2)</text>
+<text x="38" y="204" text-anchor="start" font-size="9.4" fill="#334155">정리 1은 SFT 업데이트 ΔW 가 '어떤 노름으로 제약된 최적 구조'를 따라야 한다고 말한다.</text>
+<text x="38" y="224" text-anchor="start" font-size="9.4" fill="#334155">그런데 LoRA의 ΔW = BA 는 &lt;저랭크&gt;라는 별도의 구조를 강제로 씌운다 — 이 구조는 식 (1)의 어떤 노름 제약에서도 나오지 않는다.</text>
+<text x="38" y="244" text-anchor="start" font-size="9.4" fill="#b91c1c" font-weight="bold">따라서 사전학습을 식 (1) 계열 옵티마이저(Adam·Muon 등)로 한 이상, LoRA는 일반적으로 최적 트레이드오프에 도달하지 못한다.</text>
+<rect x="20" y="266" width="247" height="62" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="143" y="284" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">규칙 ①</text>
+<text x="143" y="308" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">α₂ = α₁</text>
+<text x="143" y="324" text-anchor="middle" font-size="8.5" fill="#555">사전학습과 같은 입력 노름</text>
+<rect x="277" y="266" width="247" height="62" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="400" y="284" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">규칙 ②</text>
+<text x="400" y="308" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">β₂ ≥ 2</text>
+<text x="400" y="324" text-anchor="middle" font-size="8.5" fill="#555">출력 노름은 2 이상이면 무방</text>
+<rect x="533" y="266" width="247" height="62" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="657" y="284" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">결과</text>
+<text x="657" y="308" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">같은 계열</text>
+<text x="657" y="324" text-anchor="middle" font-size="8.5" fill="#555">Adam↔SignSGD↔Lion은 서로 호환</text>
+<rect x="20" y="344" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="362" text-anchor="start" font-size="10" fill="#334155">규칙 ②가 흥미롭다 — β는 정확히 같을 필요가 없고 2 이상이기만 하면 된다. 그래서 '같은 옵티마이저'가 아니라 '같은 계열(family)'이라는 표현을 쓰며,</text>
+<text x="30" y="379" text-anchor="start" font-size="10" fill="#334155">AdamW 체크포인트를 Adam·SignSGD·Lion 중 무엇으로 미세조정해도 비슷한 트레이드오프를 기대할 수 있다는 실무 지침이 나온다.</text>
+<text x="30" y="396" text-anchor="start" font-size="10" fill="#334155">반대로 SGD처럼 이 프레임워크 밖에 있는 옵티마이저는 같은 학습량에서 훨씬 많이 잊는다(§2.2의 관찰과 일치).</text>
+</svg>
+<figcaption><strong>[Figure: 정리 1의 실무 해석]</strong>: 규칙은 두 줄로 압축된다 — α는 사전학습과 같게, β는 2 이상. 그래서 AdamW 체크포인트에는 Adam·SignSGD·Lion 같은 A_{1,∞} 계열이, Muon 체크포인트에는 Muon이 대응한다. β가 정확히 같을 필요가 없다는 점이 '같은 옵티마이저'가 아니라 '같은 계열'이라는 표현의 근거다. 가운데 빨강 상자가 Remark 2의 LoRA 배제 논변인데, 이것이 증명이 아니라 서술적 논변이라는 점은 §비판적 분석에서 다시 짚는다(§3.3).</figcaption>
+</figure>
+
+<h2>4. Muon 사례 연구 — 사전학습과 SFT 양쪽에 적용했을 때 (원문 §4)</h2>
+
+<p>정합성 때문에 SFT에서도 사전학습과 같은 옵티마이저를 써야 최선의 성능이 나온다면, <strong>사전학습–SFT 전 과정에 하나의 옵티마이저를 일관되게 적용했을 때의 학습–망각 트레이드오프</strong>야말로 그 옵티마이저를 평가하는 타당하고 포괄적인 지표가 된다. LLM 학습에서 미세조정은 보통 모델을 개선하기 위해 필요하기 때문이다. 이 절은 그 관점에서 Muon과 AdamW를 비교한다. 설정은 §2.1의 GPT-2 실험과 같다.</p>
+
+<h3>4.1 Muon은 추론 과제에서 더 나쁠 수 있다</h3>
+
+<p><strong>결과</strong>: 세 과제에서 방향이 갈린다.</p>
+
+<table class="small-table">
+<thead><tr><th>SFT 데이터셋</th><th>결과</th></tr></thead>
+<tbody>
+<tr><td>Alpaca (지시 따르기)</td><td>Muon이 AdamW보다 <strong>뚜렷하게 더 나은</strong> 트레이드오프를 달성</td></tr>
+<tr><td>Magicoder (코딩)</td><td>Muon이 <em>약간</em> 더 나음</td></tr>
+<tr><td>MetaMathQA (수학)</td><td>Muon이 <em>약간</em> 더 나쁨</td></tr>
+</tbody>
+</table>
+
+<p><strong>왜 이것이 문제인가</strong>: 표 1에서 보았듯 ##Muon은 SFT를 시작하기 전에 사전학습 과제와 세 SFT 과제 <em>모두에서</em> AdamW보다 확연히 앞선 상태다.## 그런데 정합성을 맞춰 각자 자기 옵티마이저로 SFT를 하고 나면 그 우위가 Alpaca에서만 유지된다. 즉 결과는 <strong>Muon이 코드·수학 과제 미세조정 후에 성능이 상대적으로 저하됨</strong>을 시사하며, Muon으로 SFT할 때 추론 능력을 학습하는 역량이 더 약할 수 있음을 보여 준다.</p>
+
+
+<p><strong>왜 Alpaca만 다른가</strong>: 저자의 가설에 따르면 과제의 성격 차이가 원인이다. 수학·코드 같은 추론 과제는 <em>새 능력의 습득</em>을 요구하는 반면, 지시 따르기 과제는 <em>암기와 더 관련이 깊다</em>. Muon이 암기에 강하고 패턴 학습에 상대적으로 약하다면, 암기 비중이 큰 Alpaca에서는 강점이 그대로 드러나고 추론 비중이 큰 MetaMathQA에서는 약점이 드러나는 것이 자연스럽다. §4.2의 합성 실험이 이 가설의 전반부 — Muon이 암기에 강하다 — 를 직접 검증한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 415" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 6 재구성] Muon과 AdamW를 사전학습·SFT 양쪽에 일관되게 썼을 때</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">각 옵티마이저는 자기 사전학습 체크포인트를 자기 것으로 미세조정한 결과 (정합성 조건 충족)</text>
+<rect x="55" y="100" width="210" height="150" fill="#fff" stroke="#cbd5e1"/>
+<text x="160" y="90" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">Alpaca (지시 따르기)</text>
+<polyline points="71.8,127.0 94.4,149.6 116.9,169.7 139.5,187.3 162.1,202.3 184.7,214.5 207.2,223.9 229.8,230.1 252.4,232.6" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<polyline points="71.8,115.0 94.4,130.4 116.9,150.5 139.5,168.1 162.1,183.1 184.7,195.3 207.2,204.7 229.8,210.9 252.4,213.4" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<text x="160" y="264" text-anchor="middle" font-size="7.6" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="45" y="175" font-size="7.6" transform="rotate(-90 45 175)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="55" y="274" width="210" height="26" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.3"/>
+<text x="160" y="292" text-anchor="middle" font-size="8.8" fill="#15803d" font-weight="bold">Muon이 뚜렷하게 우세</text>
+<rect x="305" y="100" width="210" height="150" fill="#fff" stroke="#cbd5e1"/>
+<text x="410" y="90" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">MetaMathQA (수학)</text>
+<polyline points="321.8,115.0 344.4,136.4 366.9,156.5 389.5,174.1 412.1,189.1 434.7,201.3 457.2,210.7 479.8,216.9 502.4,219.4" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<polyline points="321.8,123.4 344.4,146.0 366.9,166.1 389.5,183.7 412.1,198.7 434.7,210.9 457.2,220.3 479.8,226.5 502.4,229.0" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<text x="410" y="264" text-anchor="middle" font-size="7.6" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="295" y="175" font-size="7.6" transform="rotate(-90 295 175)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="305" y="274" width="210" height="26" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.3"/>
+<text x="410" y="292" text-anchor="middle" font-size="8.8" fill="#b91c1c" font-weight="bold">Muon이 약간 열세</text>
+<rect x="555" y="100" width="210" height="150" fill="#fff" stroke="#cbd5e1"/>
+<text x="660" y="90" text-anchor="middle" font-size="9.4" fill="#334155" font-weight="bold">Magicoder (코딩)</text>
+<polyline points="571.8,123.4 594.4,146.0 616.9,166.1 639.5,183.7 662.1,198.7 684.7,210.9 707.2,220.3 729.8,226.5 752.4,229.0" fill="none" stroke="#3b82f6" stroke-width="2.1"/>
+<polyline points="571.8,116.2 594.4,138.8 616.9,158.9 639.5,176.5 662.1,191.5 684.7,203.7 707.2,213.1 729.8,219.3 752.4,221.8" fill="none" stroke="#f59e0b" stroke-width="2.1"/>
+<text x="660" y="264" text-anchor="middle" font-size="7.6" fill="#94a3b8">일반 능력: OWT 검증 손실 →</text>
+<text x="545" y="175" font-size="7.6" transform="rotate(-90 545 175)" text-anchor="middle" fill="#94a3b8">과제 손실 →</text>
+<rect x="555" y="274" width="210" height="26" rx="5" fill="#f1f5f9" stroke="#64748b" stroke-width="1.3"/>
+<text x="660" y="292" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Muon이 약간 우세</text>
+<rect x="300" y="62" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="318" y="72" text-anchor="start" font-size="8.8" fill="#1e40af" font-weight="bold">Muon → Muon</text>
+<rect x="440" y="62" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="458" y="72" text-anchor="start" font-size="8.8" fill="#92400e" font-weight="bold">AdamW → AdamW</text>
+<rect x="20" y="336" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="354" text-anchor="start" font-size="10" fill="#334155">그림 3에서 보았듯 Muon은 SFT &lt;전&gt;에 네 데이터셋 모두에서 AdamW보다 앞선다. 그런데 정합성을 맞춰 각자 자기 옵티마이저로 SFT를 하고 나면</text>
+<text x="30" y="371" text-anchor="start" font-size="10" fill="#334155">그 우위가 Alpaca에서만 유지되고 수학에서는 오히려 뒤집힌다. 즉 Muon의 사전학습 우위가 추론 과제의 미세조정에서 소진된다는 것이 §4.1의 관찰이며,</text>
+<text x="30" y="388" text-anchor="start" font-size="10" fill="#334155">저자는 §4.2에서 그 원인을 '암기 성향'으로 설명한다. 곡선은 원문 Figure 6의 상대 배치만 옮긴 개념 재구성이다.</text>
+</svg>
+<figcaption><strong>[Figure 6 재구성]</strong>: 두 옵티마이저 각각이 자기 사전학습 체크포인트를 자기 것으로 미세조정한, 정합성 조건을 충족한 비교다. 결과가 과제마다 갈린다 — Alpaca에서는 Muon이 뚜렷하게 우세하고, Magicoder는 약간 우세, MetaMathQA는 약간 열세다. 그림 3에서 보았듯 Muon은 SFT 전에 네 데이터셋 모두에서 앞서 있었으므로, 이 결과는 '수학·코드 미세조정 후 상대적 저하'로 읽힌다(§4.1). 저자는 §4.2에서 그 원인을 암기 성향으로 설명한다. 곡선은 상대 배치만 옮긴 개념 재구성이다.</figcaption>
+</figure>
+
+<h4>실험 설정 세부 (부록 A.1)</h4>
+
+<table class="small-table">
+<thead><tr><th>SFT 과제</th><th>반복 수 (≈에폭)</th><th>평가 간격</th><th>전체 미세조정 학습률 격자</th><th>LoRA 설정</th></tr></thead>
+<tbody>
+<tr><td>Alpaca</td><td>800 (≈2)</td><td>200 iter</td><td>\(\{3\text{e-}5, 5\text{e-}5, 1\text{e-}4, 3\text{e-}4, 5\text{e-}4\}\)</td><td>—</td></tr>
+<tr><td>MetaMathQA</td><td>6,100 (≈2)</td><td>300 iter</td><td>\(\{5\text{e-}5, 1\text{e-}4, 3\text{e-}4, 5\text{e-}4\}\)</td><td>dropout 0.1, \(\alpha = 2r\) (\(r = 4, 8, 32, 128\)), 학습률 \(\{5\text{e-}4, 1\text{e-}3, 3\text{e-}3, 5\text{e-}3, 1\text{e-}2\}\)</td></tr>
+<tr><td>Magicoder</td><td>1,800 (≈2)</td><td>200 iter</td><td>\(\{5\text{e-}5, 1\text{e-}4, 3\text{e-}4, 5\text{e-}4, 1\text{e-}3\}\)</td><td>—</td></tr>
+<tr><td>Llama-2 MetaMathQA</td><td>3,055 (1)</td><td>500 iter</td><td>\(\{1\text{e-}5, 2\text{e-}5, 5\text{e-}5, 1\text{e-}4\}\)</td><td>dropout 0, \(\alpha = 2r\) (\(r = 16, 64, 256\)), 학습률 \(\{5\text{e-}5, 1\text{e-}4, 2\text{e-}4, 5\text{e-}4\}\)</td></tr>
+</tbody>
+</table>
+
+<p>GPT-2 SFT는 모두 시퀀스 1024, 유효 배치 128(1 GPU × 4 그래디언트 누적 × 32), cosine 스케줄 + 10% warmup, 그래디언트 클리핑 norm 1, 전체 미세조정 weight decay 0 · dropout 0.1이다. Llama-2는 유효 배치 128(4 GPU × 8 누적 × 4), dropout 0으로 다르다. SGD와 \(\mathcal{A}_{1,1}\)·\(\mathcal{A}_{\infty,\infty}\)를 포함한 모든 모멘텀 기반 옵티마이저의 모멘텀은 0.9다.</p>
+
+<h3>4.2 Muon은 더 많이 외우지만 덜 배울 수 있다</h3>
+
+<p><strong>가설</strong>: <em>Muon이 추론 과제 미세조정에서 더 나쁜 이유는, 데이터의 패턴이 충분히 습득되기 전에 먼저 외워 버리는 성향이 있기 때문이다.</em> 이는 데이터가 적을 때 — SFT 단계가 정확히 그렇다 — 학습을 해칠 수 있다. 추론 과제는 일반적으로 새 능력의 습득을 요구하는 반면 지시 따르기 과제는 암기와 더 관련이 깊으므로, SFT에서의 성능 편차와도 맞아떨어진다.</p>
+
+<p><strong>가설의 출처</strong>: Muon의 각 업데이트는 full-rank라서 AdamW·SGD의 저랭크 업데이트보다 더 많은 지식을 외울 수 있다(Yang et al., 2023). 즉 Muon에게는 <strong>통암기(rote memorization)가 더 쉽다</strong>. 암기가 쉬우면 모델은 손실을 더 빨리 낮추기 위해 패턴 학습 대신 통암기를 택하는 경향이 생기고, 일반화가 나빠진다.</p>
+
+<h4>합성 실험 — 패턴 학습과 통암기를 분리하기</h4>
+
+<p>가설을 검증하기 위해 <strong>손상된 언어 코퍼스</strong>로 합성 실험을 설계한다. 데이터를 클린 시퀀스와 손상 시퀀스로 나누되, 손상 시퀀스는 원래 클린 시퀀스의 토큰 순서를 무작위로 섞어 만든다 — 예컨대 "attention is all you need"를 무작위 셔플하면 "is need you all attention"이 된다. 이렇게 하면 <strong>언어의 내부 패턴이 파괴되어 통암기 말고는 맞힐 방법이 없다</strong>. Zhang et al. (2016)의 무작위화 검정을 언어 모델링에 적용한 설계다.</p>
+
+<table class="small-table">
+<thead><tr><th>항목</th><th>설정</th></tr></thead>
+<tbody>
+<tr><td>데이터</td><td>OpenWebText에서 4천만 토큰을 뽑아 표준 GPT-2 토크나이저로 토큰화, 길이 1024 블록으로 분할. 각 블록을 확률 \(\alpha = 0.5\)로 무작위 치환 — 어휘 빈도는 그대로 두고 패턴만 파괴</td></tr>
+<tr><td>모델·학습</td><td>§2와 같은 GPT-2 구성·옵티마이저. 시퀀스 길이 512, 유효 배치 256, 학습률 격자 \(\{3\text{e-}4, 5\text{e-}4, 1\text{e-}3, 3\text{e-}3\}\) 중 클린 데이터 정확도가 가장 좋은 실행 선택</td></tr>
+<tr><td>평가</td><td>학습셋에서 무작위 표본을 뽑아 평가셋 구성. 입력 길이 \(a\)를 주고 이어지는 길이 \(b\) 구간을 greedy decoding으로 생성해 원문과 <strong>정확히 일치</strong>하는지 확인. \((128, 8)\) = 입력 128 토큰, 생성 8 토큰</td></tr>
+</tbody>
+</table>
+
+<figure>
+<svg viewBox="0 0 800 400" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arsyn0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 합성 실험 설계] 패턴 학습과 통암기를 분리하는 법</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">OpenWebText에서 4천만 토큰을 뽑아 1024 토큰 블록으로 나누고, 확률 α = 0.5로 블록 안 토큰 순서를 무작위 치환</text>
+<rect x="30" y="56" width="360" height="128" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="44" y="78" text-anchor="start" font-size="9.8" fill="#15803d" font-weight="bold">클린 시퀀스 — 언어의 패턴이 살아 있다</text>
+<rect x="44" y="92" width="330" height="30" rx="5" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="56" y="112" font-size="10.5" font-family="monospace" fill="#15803d">attention is all you need</text>
+<text x="44" y="142" text-anchor="start" font-size="8.8" fill="#334155">다음 토큰이 문법·의미로 어느 정도 예측된다</text>
+<text x="44" y="160" text-anchor="start" font-size="8.8" fill="#15803d" font-weight="bold">→ 모델은 '패턴을 배워서' 맞힐 수 있다</text>
+<rect x="410" y="56" width="360" height="128" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="424" y="78" text-anchor="start" font-size="9.8" fill="#b91c1c" font-weight="bold">손상 시퀀스 — 순서를 무작위로 섞었다</text>
+<rect x="424" y="92" width="330" height="30" rx="5" fill="#fef2f2" stroke="#ef4444" stroke-width="1.2"/>
+<text x="436" y="112" font-size="10.5" font-family="monospace" fill="#b91c1c">is need you all attention</text>
+<text x="424" y="142" text-anchor="start" font-size="8.8" fill="#334155">어휘 빈도는 그대로지만 내부 패턴은 파괴됨</text>
+<text x="424" y="160" text-anchor="start" font-size="8.8" fill="#b91c1c" font-weight="bold">→ 통암기(rote memorization) 말고는 방법이 없다</text>
+<path d="M400,120 L404,120" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arsyn0)"/>
+<rect x="30" y="198" width="740" height="92" rx="8" fill="#f1f5f9" stroke="#64748b" stroke-width="1.4"/>
+<text x="44" y="220" text-anchor="start" font-size="9.8" fill="#334155" font-weight="bold">측정 방법</text>
+<text x="44" y="242" text-anchor="start" font-size="9.2" fill="#334155">학습 데이터에서 무작위 표본을 뽑아 평가셋을 만들고, 입력 길이 a 를 준 뒤 길이 b 의 이어지는 구간을</text>
+<text x="44" y="260" text-anchor="start" font-size="9.2" fill="#334155">greedy decoding으로 생성해 원문과 &lt;정확히 일치&gt;하는지 본다. 표기 (128, 8) = 입력 128 토큰, 생성 8 토큰.</text>
+<text x="44" y="280" text-anchor="start" font-size="8.8" fill="#64748b">설정: 시퀀스 512, 유효 배치 256, 학습률 격자 {3e-4, 5e-4, 1e-3, 3e-3} 중 클린 정확도가 가장 좋은 실행 선택</text>
+<rect x="20" y="306" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="324" text-anchor="start" font-size="10" fill="#334155">이 설계는 Zhang et al.(2016)의 무작위화 검정을 언어 모델링으로 옮긴 것이다. 클린과 손상 데이터를 &lt;섞어서&gt; 함께 학습시키므로,</text>
+<text x="30" y="341" text-anchor="start" font-size="10" fill="#334155">같은 모델·같은 학습 예산 안에서 '패턴을 배우는 능력'과 '통째로 외우는 능력'을 분리해 관찰할 수 있다.</text>
+<text x="30" y="358" text-anchor="start" font-size="10" fill="#334155">저자의 가설은 Muon의 업데이트가 full-rank라서 더 많은 지식을 외울 수 있고, 그 때문에 패턴 학습보다 암기를 먼저 시작한다는 것이다(§4.2).</text>
+</svg>
+<figcaption><strong>[Figure: 합성 실험 설계]</strong>: 클린 시퀀스와 토큰 순서를 섞은 손상 시퀀스를 함께 학습시켜, 같은 모델·같은 예산 안에서 '패턴을 배우는 능력'과 '통째로 외우는 능력'을 분리한다. 손상 시퀀스는 어휘 빈도를 유지하면서 내부 패턴만 파괴하므로 통암기 외에는 맞힐 방법이 없다 — Zhang et al.(2016)의 무작위화 검정을 언어 모델링으로 옮긴 설계다. 아래 상자가 측정 방법으로, 입력 128 토큰을 주고 이어지는 구간을 greedy decoding으로 생성해 원문과 정확히 일치하는지 본다(§4.2).</figcaption>
+</figure>
+
+<h4>관찰 1 — 모델은 패턴을 먼저 배운다</h4>
+
+<p>세 옵티마이저 모두에서 클린 데이터를 손상된 무작위 데이터보다 <strong>훨씬 빨리</strong> 외운다. 이는 자연어에 패턴이 존재하며 그것이 배우기 더 쉽다는 뜻이다. 또한 모델은 클린 데이터에 대해 어느 정도 용량을 확보한 <em>뒤에야</em> 손상 데이터를 (통암기로) 배우기 시작한다 — 컴퓨터 비전에서 모델이 암기보다 단순한 패턴을 먼저 배운다는 관찰(Arpit et al., 2017)과 일치한다.</p>
+
+<h4>관찰 2 — Muon은 패턴을 완전히 익히기 전에 외우기 시작한다</h4>
+
+<table class="small-table">
+<caption>표 3 — 서로 다른 옵티마이저로 학습한 모델의 암기 정확도와 최종 학습 손실. 입력 문맥 길이와 생성 길이를 바꿔 exact match 정확도를 측정. \((128, 8)\) = 입력 128 토큰, 생성 8 토큰</caption>
+<thead><tr><th rowspan="2">옵티마이저</th><th colspan="3">클린 데이터 암기 정확도</th><th colspan="3">손상 데이터 암기 정확도</th><th rowspan="2">학습 손실</th></tr>
+<tr><th>(128, 1)</th><th>(128, 8)</th><th>(128, 16)</th><th>(128, 1)</th><th>(128, 8)</th><th>(128, 16)</th></tr></thead>
+<tbody>
+<tr><td>Muon</td><td>88.9%</td><td>44.8%</td><td>25.4%</td><td><strong>65.0%</strong></td><td><strong>12.2%</strong></td><td><strong>5.2%</strong></td><td>1.143</td></tr>
+<tr><td>AdamW</td><td>90.1%</td><td>49.8%</td><td>29.7%</td><td>55.8%</td><td>7.0%</td><td>2.3%</td><td>1.440</td></tr>
+<tr><td>SGD</td><td><strong>93.4%</strong></td><td><strong>60.3%</strong></td><td><strong>40.8%</strong></td><td>32.9%</td><td>1.3%</td><td>0.0%</td><td>2.310</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과와 해석</strong>: ##Muon은 손상 데이터 암기 정확도가 세 옵티마이저 중 가장 높지만(65.0% vs AdamW 55.8% vs SGD 32.9%), 클린 데이터에서는 오히려 가장 낮다.## 또한 Muon의 손상 데이터 암기 정확도가 다른 둘보다 <strong>훨씬 일찍 올라가기 시작</strong>해, 통암기를 더 먼저 시작하는 성향을 보인다. 여기에 Muon의 최종 학습 손실이 가장 낮다는 사실(1.143)을 겹치면 — 손실을 가장 빨리 낮추지만 그 감소가 패턴 학습이 아니라 통암기에서 온다는 그림이 된다. 이 결과들은 가설을 대체로 뒷받침하며 §4.1의 SFT 성능 편차를 부분적으로 설명한다.</p>
+
+<figure>
+<svg viewBox="0 0 800 458" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[표 3 재구성] 암기 정확도 — Muon은 손상 데이터를 훨씬 잘 외운다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">(입력 길이, 생성 길이) 별 exact match 정확도(%). 왼쪽 = 패턴이 살아 있는 클린 데이터, 오른쪽 = 순서를 섞은 손상 데이터</text>
+<text x="220" y="92" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">클린 데이터 암기 정확도 (%)</text>
+<line x1="60" y1="290" x2="380" y2="290" stroke="#94a3b8"/>
+<line x1="60" y1="290" x2="380" y2="290" stroke="#eef2f6"/>
+<text x="55" y="294" text-anchor="end" font-size="7.6" fill="#64748b">0</text>
+<line x1="60" y1="253" x2="380" y2="253" stroke="#eef2f6"/>
+<text x="55" y="257" text-anchor="end" font-size="7.6" fill="#64748b">20</text>
+<line x1="60" y1="216" x2="380" y2="216" stroke="#eef2f6"/>
+<text x="55" y="220" text-anchor="end" font-size="7.6" fill="#64748b">40</text>
+<line x1="60" y1="178" x2="380" y2="178" stroke="#eef2f6"/>
+<text x="55" y="182" text-anchor="end" font-size="7.6" fill="#64748b">60</text>
+<line x1="60" y1="141" x2="380" y2="141" stroke="#eef2f6"/>
+<text x="55" y="145" text-anchor="end" font-size="7.6" fill="#64748b">80</text>
+<line x1="60" y1="104" x2="380" y2="104" stroke="#eef2f6"/>
+<text x="55" y="108" text-anchor="end" font-size="7.6" fill="#64748b">100</text>
+<rect x="74" y="125" width="26" height="165" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="87" y="119" text-anchor="middle" font-size="7.2" fill="#1e40af">88.9</text>
+<rect x="104" y="122" width="26" height="168" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="117" y="116" text-anchor="middle" font-size="7.2" fill="#92400e">90.1</text>
+<rect x="134" y="116" width="26" height="174" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="147" y="110" text-anchor="middle" font-size="7.2" fill="#15803d" font-weight="bold">93.4</text>
+<text x="113" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 1)</text>
+<rect x="181" y="207" width="26" height="83" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="194" y="201" text-anchor="middle" font-size="7.2" fill="#1e40af">44.8</text>
+<rect x="211" y="197" width="26" height="93" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="224" y="191" text-anchor="middle" font-size="7.2" fill="#92400e">49.8</text>
+<rect x="241" y="178" width="26" height="112" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="254" y="172" text-anchor="middle" font-size="7.2" fill="#15803d" font-weight="bold">60.3</text>
+<text x="220" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 8)</text>
+<rect x="287" y="243" width="26" height="47" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="300" y="237" text-anchor="middle" font-size="7.2" fill="#1e40af">25.4</text>
+<rect x="317" y="235" width="26" height="55" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="330" y="229" text-anchor="middle" font-size="7.2" fill="#92400e">29.7</text>
+<rect x="347" y="214" width="26" height="76" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="360" y="208" text-anchor="middle" font-size="7.2" fill="#15803d" font-weight="bold">40.8</text>
+<text x="327" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 16)</text>
+<text x="610" y="92" text-anchor="middle" font-size="9.6" fill="#334155" font-weight="bold">손상 데이터 암기 정확도 (%)</text>
+<line x1="450" y1="290" x2="770" y2="290" stroke="#94a3b8"/>
+<line x1="450" y1="290" x2="770" y2="290" stroke="#eef2f6"/>
+<text x="445" y="294" text-anchor="end" font-size="7.6" fill="#64748b">0</text>
+<line x1="450" y1="253" x2="770" y2="253" stroke="#eef2f6"/>
+<text x="445" y="257" text-anchor="end" font-size="7.6" fill="#64748b">20</text>
+<line x1="450" y1="216" x2="770" y2="216" stroke="#eef2f6"/>
+<text x="445" y="220" text-anchor="end" font-size="7.6" fill="#64748b">40</text>
+<line x1="450" y1="178" x2="770" y2="178" stroke="#eef2f6"/>
+<text x="445" y="182" text-anchor="end" font-size="7.6" fill="#64748b">60</text>
+<line x1="450" y1="141" x2="770" y2="141" stroke="#eef2f6"/>
+<text x="445" y="145" text-anchor="end" font-size="7.6" fill="#64748b">80</text>
+<line x1="450" y1="104" x2="770" y2="104" stroke="#eef2f6"/>
+<text x="445" y="108" text-anchor="end" font-size="7.6" fill="#64748b">100</text>
+<rect x="464" y="169" width="26" height="121" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+<text x="477" y="163" text-anchor="middle" font-size="7.2" fill="#1e40af" font-weight="bold">65.0</text>
+<rect x="494" y="186" width="26" height="104" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="507" y="180" text-anchor="middle" font-size="7.2" fill="#92400e">55.8</text>
+<rect x="524" y="229" width="26" height="61" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="537" y="223" text-anchor="middle" font-size="7.2" fill="#15803d">32.9</text>
+<text x="503" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 1)</text>
+<rect x="571" y="267" width="26" height="23" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+<text x="584" y="261" text-anchor="middle" font-size="7.2" fill="#1e40af" font-weight="bold">12.2</text>
+<rect x="601" y="277" width="26" height="13" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="614" y="271" text-anchor="middle" font-size="7.2" fill="#92400e">7.0</text>
+<rect x="631" y="288" width="26" height="2" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="644" y="282" text-anchor="middle" font-size="7.2" fill="#15803d">1.3</text>
+<text x="610" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 8)</text>
+<rect x="677" y="280" width="26" height="10" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="2"/>
+<text x="690" y="274" text-anchor="middle" font-size="7.2" fill="#1e40af" font-weight="bold">5.2</text>
+<rect x="707" y="286" width="26" height="4" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="720" y="280" text-anchor="middle" font-size="7.2" fill="#92400e">2.3</text>
+<rect x="737" y="290" width="26" height="2" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="750" y="284" text-anchor="middle" font-size="7.2" fill="#15803d">0.0</text>
+<text x="717" y="306" text-anchor="middle" font-size="8.4" fill="#334155">(128, 16)</text>
+<rect x="300" y="316" width="12" height="12" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="318" y="326" text-anchor="start" font-size="8.6" fill="#1e40af" font-weight="bold">Muon</text>
+<rect x="390" y="316" width="12" height="12" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="408" y="326" text-anchor="start" font-size="8.6" fill="#92400e" font-weight="bold">AdamW</text>
+<rect x="480" y="316" width="12" height="12" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="498" y="326" text-anchor="start" font-size="8.6" fill="#15803d" font-weight="bold">SGD</text>
+<text x="60" y="356" text-anchor="start" font-size="9.2" fill="#334155" font-weight="bold">최종 학습 손실:</text>
+<rect x="150" y="344" width="50" height="16" rx="3" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="206" y="356" text-anchor="start" font-size="8.4" fill="#1e40af" font-weight="bold">1.143</text>
+<text x="150" y="336" text-anchor="start" font-size="7.8" fill="#1e40af">Muon</text>
+<rect x="280" y="344" width="63" height="16" rx="3" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="349" y="356" text-anchor="start" font-size="8.4" fill="#92400e" font-weight="bold">1.440</text>
+<text x="280" y="336" text-anchor="start" font-size="7.8" fill="#92400e">AdamW</text>
+<rect x="410" y="344" width="102" height="16" rx="3" fill="#dcfce7" stroke="#16a34a" stroke-width="1.2"/>
+<text x="518" y="356" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">2.310</text>
+<text x="410" y="336" text-anchor="start" font-size="7.8" fill="#15803d">SGD</text>
+<rect x="20" y="376" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="394" text-anchor="start" font-size="10" fill="#334155">세 관찰이 겹친다 — (i) 모든 옵티마이저가 클린 데이터를 손상 데이터보다 훨씬 빨리 외운다(패턴을 먼저 배운다),</text>
+<text x="30" y="411" text-anchor="start" font-size="10" fill="#334155">(ii) Muon은 손상 데이터 암기에서 압도적이고(65.0 vs AdamW 55.8 vs SGD 32.9) 클린 데이터에서는 오히려 가장 낮다,</text>
+<text x="30" y="428" text-anchor="start" font-size="10" fill="#334155">(iii) Muon의 최종 학습 손실이 가장 낮은데, 그 손실 감소의 상당 부분이 패턴 학습이 아니라 통암기에서 온다는 뜻이 된다(§4.2).</text>
+</svg>
+<figcaption><strong>[표 3 재구성]</strong>: 왼쪽이 클린 데이터, 오른쪽이 손상 데이터 암기 정확도이며 굵은 테두리가 각 패널의 승자다. 세 관찰이 겹친다 — 모든 옵티마이저가 클린을 손상보다 훨씬 잘 외우고(패턴을 먼저 배운다), Muon은 손상 데이터에서 압도적이지만 클린에서는 오히려 가장 낮으며, 그럼에도 Muon의 최종 학습 손실이 가장 낮다(1.143). 세 번째 사실이 결정적이다 — 손실 감소의 상당 부분이 패턴 학습이 아니라 통암기에서 온다는 뜻이 되기 때문이다(§4.2).</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 800 468" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure 7 재구성] 암기 정확도의 학습 궤적 — 손상 데이터는 나중에 올라온다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">위 행 = 클린 데이터, 아래 행 = 손상 데이터. 열 = 생성 길이 1 / 8 / 16 (입력은 모두 128 토큰)</text>
+<rect x="60" y="96" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="160" y="88" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">클린 · 생성 길이 1</text>
+<polyline points="64.0,202.0 68.8,193.5 73.6,185.8 78.4,178.9 83.2,172.7 88.0,167.1 92.8,162.1 97.6,157.6 102.4,153.5 107.2,149.8 112.0,146.5 116.8,143.5 121.6,140.9 126.4,138.5 131.2,136.3 136.0,134.3 140.8,132.6 145.6,131.0 150.4,129.5 155.2,128.3 160.0,127.1 164.8,126.1 169.6,125.1 174.4,124.3 179.2,123.5 184.0,122.8 188.8,122.2 193.6,121.7 198.4,121.2 203.2,120.7 208.0,120.3 212.8,119.9 217.6,119.6 222.4,119.3 227.2,119.1 232.0,118.8 236.8,118.6 241.6,118.4 246.4,118.2 251.2,118.1 256.0,117.9" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="64.0,202.0 68.8,193.4 73.6,185.6 78.4,178.6 83.2,172.3 88.0,166.7 92.8,161.6 97.6,157.0 102.4,152.8 107.2,149.1 112.0,145.8 116.8,142.8 121.6,140.0 126.4,137.6 131.2,135.4 136.0,133.4 140.8,131.6 145.6,130.0 150.4,128.6 155.2,127.3 160.0,126.1 164.8,125.0 169.6,124.1 174.4,123.2 179.2,122.5 184.0,121.8 188.8,121.1 193.6,120.6 198.4,120.1 203.2,119.6 208.0,119.2 212.8,118.8 217.6,118.5 222.4,118.2 227.2,117.9 232.0,117.7 236.8,117.5 241.6,117.3 246.4,117.1 251.2,116.9 256.0,116.8" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="64.0,202.0 68.8,193.1 73.6,185.0 78.4,177.8 83.2,171.2 88.0,165.4 92.8,160.1 97.6,155.3 102.4,151.0 107.2,147.2 112.0,143.7 116.8,140.6 121.6,137.8 126.4,135.2 131.2,133.0 136.0,130.9 140.8,129.0 145.6,127.4 150.4,125.9 155.2,124.5 160.0,123.3 164.8,122.2 169.6,121.2 174.4,120.3 179.2,119.6 184.0,118.8 188.8,118.2 193.6,117.6 198.4,117.1 203.2,116.6 208.0,116.2 212.8,115.8 217.6,115.5 222.4,115.1 227.2,114.9 232.0,114.6 236.8,114.4 241.6,114.2 246.4,114.0 251.2,113.8 256.0,113.7" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="160" y="220" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="56" y="106" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="56" y="206" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="305" y="96" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="405" y="88" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">클린 · 생성 길이 8</text>
+<polyline points="309.0,202.0 313.8,197.7 318.6,193.9 323.4,190.4 328.2,187.3 333.0,184.4 337.8,181.9 342.6,179.6 347.4,177.6 352.2,175.7 357.0,174.0 361.8,172.5 366.6,171.2 371.4,170.0 376.2,168.9 381.0,167.9 385.8,167.0 390.6,166.2 395.4,165.5 400.2,164.8 405.0,164.3 409.8,163.7 414.6,163.3 419.4,162.8 424.2,162.5 429.0,162.1 433.8,161.8 438.6,161.5 443.4,161.3 448.2,161.0 453.0,160.8 457.8,160.7 462.6,160.5 467.4,160.3 472.2,160.2 477.0,160.1 481.8,160.0 486.6,159.9 491.4,159.8 496.2,159.7 501.0,159.6" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="309.0,202.0 313.8,197.2 318.6,192.9 323.4,189.1 328.2,185.6 333.0,182.5 337.8,179.7 342.6,177.1 347.4,174.8 352.2,172.8 357.0,170.9 361.8,169.3 366.6,167.8 371.4,166.4 376.2,165.2 381.0,164.1 385.8,163.1 390.6,162.2 395.4,161.4 400.2,160.7 405.0,160.0 409.8,159.5 414.6,158.9 419.4,158.5 424.2,158.0 429.0,157.7 433.8,157.3 438.6,157.0 443.4,156.7 448.2,156.5 453.0,156.2 457.8,156.0 462.6,155.9 467.4,155.7 472.2,155.5 477.0,155.4 481.8,155.3 486.6,155.2 491.4,155.1 496.2,155.0 501.0,154.9" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="309.0,202.0 313.8,196.2 318.6,191.0 323.4,186.4 328.2,182.1 333.0,178.4 337.8,174.9 342.6,171.9 347.4,169.1 352.2,166.6 357.0,164.4 361.8,162.4 366.6,160.5 371.4,158.9 376.2,157.4 381.0,156.1 385.8,154.9 390.6,153.8 395.4,152.9 400.2,152.0 405.0,151.2 409.8,150.5 414.6,149.9 419.4,149.3 424.2,148.8 429.0,148.3 433.8,147.9 438.6,147.5 443.4,147.2 448.2,146.9 453.0,146.6 457.8,146.3 462.6,146.1 467.4,145.9 472.2,145.7 477.0,145.6 481.8,145.4 486.6,145.3 491.4,145.2 496.2,145.1 501.0,145.0" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="405" y="220" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="301" y="106" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="301" y="206" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="550" y="96" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="650" y="88" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">클린 · 생성 길이 16</text>
+<polyline points="554.0,202.0 558.8,199.6 563.6,197.4 568.4,195.4 573.2,193.6 578.0,192.0 582.8,190.6 587.6,189.3 592.4,188.1 597.2,187.1 602.0,186.1 606.8,185.3 611.6,184.5 616.4,183.8 621.2,183.2 626.0,182.7 630.8,182.2 635.6,181.7 640.4,181.3 645.2,180.9 650.0,180.6 654.8,180.3 659.6,180.0 664.4,179.8 669.2,179.6 674.0,179.4 678.8,179.2 683.6,179.0 688.4,178.9 693.2,178.8 698.0,178.7 702.8,178.6 707.6,178.5 712.4,178.4 717.2,178.3 722.0,178.2 726.8,178.2 731.6,178.1 736.4,178.1 741.2,178.0 746.0,178.0" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="554.0,202.0 558.8,199.2 563.6,196.6 568.4,194.3 573.2,192.2 578.0,190.4 582.8,188.7 587.6,187.2 592.4,185.8 597.2,184.6 602.0,183.5 606.8,182.5 611.6,181.6 616.4,180.8 621.2,180.0 626.0,179.4 630.8,178.8 635.6,178.3 640.4,177.8 645.2,177.4 650.0,177.0 654.8,176.6 659.6,176.3 664.4,176.0 669.2,175.8 674.0,175.6 678.8,175.3 683.6,175.2 688.4,175.0 693.2,174.8 698.0,174.7 702.8,174.6 707.6,174.5 712.4,174.4 717.2,174.3 722.0,174.2 726.8,174.1 731.6,174.1 736.4,174.0 741.2,174.0 746.0,173.9" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="554.0,202.0 558.8,198.1 563.6,194.6 568.4,191.4 573.2,188.6 578.0,186.0 582.8,183.7 587.6,181.6 592.4,179.7 597.2,178.1 602.0,176.5 606.8,175.2 611.6,173.9 616.4,172.8 621.2,171.8 626.0,170.9 630.8,170.1 635.6,169.4 640.4,168.7 645.2,168.2 650.0,167.6 654.8,167.2 659.6,166.7 664.4,166.3 669.2,166.0 674.0,165.7 678.8,165.4 683.6,165.1 688.4,164.9 693.2,164.7 698.0,164.5 702.8,164.3 707.6,164.2 712.4,164.1 717.2,163.9 722.0,163.8 726.8,163.7 731.6,163.6 736.4,163.6 741.2,163.5 746.0,163.4" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="650" y="220" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="546" y="106" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="546" y="206" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="60" y="246" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="160" y="238" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">손상 · 생성 길이 1</text>
+<polyline points="64.0,352.0 68.8,352.0 73.6,352.0 78.4,352.0 83.2,352.0 88.0,352.0 92.8,352.0 97.6,352.0 102.4,352.0 107.2,352.0 112.0,352.0 116.8,352.0 121.6,352.0 126.4,352.0 131.2,352.0 136.0,352.0 140.8,352.0 145.6,352.0 150.4,352.0 155.2,341.2 160.0,332.2 164.8,324.8 169.6,318.7 174.4,313.6 179.2,309.4 184.0,306.0 188.8,303.1 193.6,300.8 198.4,298.8 203.2,297.2 208.0,295.9 212.8,294.8 217.6,293.9 222.4,293.2 227.2,292.5 232.0,292.0 236.8,291.6 241.6,291.3 246.4,291.0 251.2,290.7 256.0,290.5" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="64.0,352.0 68.8,352.0 73.6,352.0 78.4,352.0 83.2,352.0 88.0,352.0 92.8,352.0 97.6,352.0 102.4,352.0 107.2,352.0 112.0,352.0 116.8,352.0 121.6,352.0 126.4,352.0 131.2,352.0 136.0,352.0 140.8,352.0 145.6,352.0 150.4,352.0 155.2,352.0 160.0,352.0 164.8,352.0 169.6,352.0 174.4,340.9 179.2,332.0 184.0,325.0 188.8,319.5 193.6,315.1 198.4,311.6 203.2,308.9 208.0,306.7 212.8,305.0 217.6,303.6 222.4,302.5 227.2,301.7 232.0,301.0 236.8,300.5 241.6,300.0 246.4,299.7 251.2,299.4 256.0,299.2" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="64.0,352.0 68.8,352.0 73.6,352.0 78.4,352.0 83.2,352.0 88.0,352.0 92.8,352.0 97.6,352.0 102.4,352.0 107.2,352.0 112.0,352.0 116.8,352.0 121.6,352.0 126.4,352.0 131.2,352.0 136.0,352.0 140.8,352.0 145.6,352.0 150.4,352.0 155.2,352.0 160.0,352.0 164.8,352.0 169.6,352.0 174.4,345.4 179.2,340.2 184.0,336.1 188.8,332.8 193.6,330.3 198.4,328.2 203.2,326.6 208.0,325.3 212.8,324.3 217.6,323.5 222.4,322.8 227.2,322.3 232.0,321.9 236.8,321.6 241.6,321.4 246.4,321.2 251.2,321.0 256.0,320.9" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="160" y="370" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="56" y="256" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="56" y="356" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="305" y="246" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="405" y="238" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">손상 · 생성 길이 8</text>
+<polyline points="309.0,352.0 313.8,352.0 318.6,352.0 323.4,352.0 328.2,352.0 333.0,352.0 337.8,352.0 342.6,352.0 347.4,352.0 352.2,352.0 357.0,352.0 361.8,352.0 366.6,352.0 371.4,352.0 376.2,352.0 381.0,352.0 385.8,352.0 390.6,352.0 395.4,352.0 400.2,350.0 405.0,348.3 409.8,346.9 414.6,345.7 419.4,344.8 424.2,344.0 429.0,343.4 433.8,342.8 438.6,342.4 443.4,342.0 448.2,341.7 453.0,341.5 457.8,341.3 462.6,341.1 467.4,341.0 472.2,340.8 477.0,340.7 481.8,340.7 486.6,340.6 491.4,340.5 496.2,340.5 501.0,340.5" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="309.0,352.0 313.8,352.0 318.6,352.0 323.4,352.0 328.2,352.0 333.0,352.0 337.8,352.0 342.6,352.0 347.4,352.0 352.2,352.0 357.0,352.0 361.8,352.0 366.6,352.0 371.4,352.0 376.2,352.0 381.0,352.0 385.8,352.0 390.6,352.0 395.4,352.0 400.2,352.0 405.0,352.0 409.8,352.0 414.6,352.0 419.4,350.6 424.2,349.5 429.0,348.6 433.8,347.9 438.6,347.4 443.4,346.9 448.2,346.6 453.0,346.3 457.8,346.1 462.6,345.9 467.4,345.8 472.2,345.7 477.0,345.6 481.8,345.5 486.6,345.5 491.4,345.4 496.2,345.4 501.0,345.4" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="309.0,352.0 313.8,352.0 318.6,352.0 323.4,352.0 328.2,352.0 333.0,352.0 337.8,352.0 342.6,352.0 347.4,352.0 352.2,352.0 357.0,352.0 361.8,352.0 366.6,352.0 371.4,352.0 376.2,352.0 381.0,352.0 385.8,352.0 390.6,352.0 395.4,352.0 400.2,352.0 405.0,352.0 409.8,352.0 414.6,352.0 419.4,351.7 424.2,351.5 429.0,351.4 433.8,351.2 438.6,351.1 443.4,351.1 448.2,351.0 453.0,350.9 457.8,350.9 462.6,350.9 467.4,350.8 472.2,350.8 477.0,350.8 481.8,350.8 486.6,350.8 491.4,350.8 496.2,350.8 501.0,350.8" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="405" y="370" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="301" y="256" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="301" y="356" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="550" y="246" width="200" height="112" fill="#fff" stroke="#cbd5e1"/>
+<text x="650" y="238" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">손상 · 생성 길이 16</text>
+<polyline points="554.0,352.0 558.8,352.0 563.6,352.0 568.4,352.0 573.2,352.0 578.0,352.0 582.8,352.0 587.6,352.0 592.4,352.0 597.2,352.0 602.0,352.0 606.8,352.0 611.6,352.0 616.4,352.0 621.2,352.0 626.0,352.0 630.8,352.0 635.6,352.0 640.4,352.0 645.2,351.1 650.0,350.4 654.8,349.8 659.6,349.3 664.4,348.9 669.2,348.6 674.0,348.3 678.8,348.1 683.6,347.9 688.4,347.7 693.2,347.6 698.0,347.5 702.8,347.4 707.6,347.4 712.4,347.3 717.2,347.2 722.0,347.2 726.8,347.2 731.6,347.1 736.4,347.1 741.2,347.1 746.0,347.1" fill="none" stroke="#3b82f6" stroke-width="1.8"/>
+<polyline points="554.0,352.0 558.8,352.0 563.6,352.0 568.4,352.0 573.2,352.0 578.0,352.0 582.8,352.0 587.6,352.0 592.4,352.0 597.2,352.0 602.0,352.0 606.8,352.0 611.6,352.0 616.4,352.0 621.2,352.0 626.0,352.0 630.8,352.0 635.6,352.0 640.4,352.0 645.2,352.0 650.0,352.0 654.8,352.0 659.6,352.0 664.4,351.5 669.2,351.2 674.0,350.9 678.8,350.7 683.6,350.5 688.4,350.3 693.2,350.2 698.0,350.1 702.8,350.1 707.6,350.0 712.4,350.0 717.2,349.9 722.0,349.9 726.8,349.9 731.6,349.9 736.4,349.8 741.2,349.8 746.0,349.8" fill="none" stroke="#f59e0b" stroke-width="1.8"/>
+<polyline points="554.0,352.0 558.8,352.0 563.6,352.0 568.4,352.0 573.2,352.0 578.0,352.0 582.8,352.0 587.6,352.0 592.4,352.0 597.2,352.0 602.0,352.0 606.8,352.0 611.6,352.0 616.4,352.0 621.2,352.0 626.0,352.0 630.8,352.0 635.6,352.0 640.4,352.0 645.2,352.0 650.0,352.0 654.8,352.0 659.6,352.0 664.4,352.0 669.2,352.0 674.0,352.0 678.8,352.0 683.6,352.0 688.4,352.0 693.2,352.0 698.0,352.0 702.8,352.0 707.6,352.0 712.4,352.0 717.2,352.0 722.0,352.0 726.8,352.0 731.6,352.0 736.4,352.0 741.2,352.0 746.0,352.0" fill="none" stroke="#16a34a" stroke-width="1.8"/>
+<text x="650" y="370" text-anchor="middle" font-size="7.4" fill="#94a3b8">학습 이터레이션 →</text>
+<text x="546" y="256" text-anchor="end" font-size="7" fill="#94a3b8">1.0</text>
+<text x="546" y="356" text-anchor="end" font-size="7" fill="#94a3b8">0</text>
+<rect x="300" y="66" width="11" height="11" rx="2" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.1"/>
+<text x="316" y="75" text-anchor="start" font-size="8.4" fill="#1e40af" font-weight="bold">Muon</text>
+<rect x="390" y="66" width="11" height="11" rx="2" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.1"/>
+<text x="406" y="75" text-anchor="start" font-size="8.4" fill="#92400e" font-weight="bold">AdamW</text>
+<rect x="480" y="66" width="11" height="11" rx="2" fill="#dcfce7" stroke="#16a34a" stroke-width="1.1"/>
+<text x="496" y="75" text-anchor="start" font-size="8.4" fill="#15803d" font-weight="bold">SGD</text>
+<text x="400" y="366" text-anchor="middle" font-size="9.2" fill="#334155" font-weight="bold">손상 데이터(아래 행)는 클린 데이터에 어느 정도 용량이 생긴 뒤에야 올라오기 시작한다 — 모델은 패턴을 먼저 배운다</text>
+<rect x="20" y="386" width="760" height="71" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="404" text-anchor="start" font-size="10" fill="#334155">곡선 모양은 원문 Figure 7의 정성적 패턴을 옮긴 개념 재구성이고, 최종 도달값은 표 3의 순서 관계를 따르도록 근사한 값이다.</text>
+<text x="30" y="421" text-anchor="start" font-size="10" fill="#334155">핵심은 아래 행에서 파랑(Muon)이 다른 둘보다 &lt;일찍&gt; 올라오기 시작한다는 것이다 — 통암기를 더 먼저 시작한다는 뜻이며,</text>
+<text x="30" y="438" text-anchor="start" font-size="10" fill="#334155">저자는 이것이 SFT처럼 데이터가 적은 상황에서 패턴 습득을 해칠 수 있다고 본다(§4.2).</text>
+</svg>
+<figcaption><strong>[Figure 7 재구성]</strong>: 위 행이 클린, 아래 행이 손상 데이터이고 열은 생성 길이다. 아래 행이 위 행보다 늦게 올라오기 시작한다는 것이 '모델은 패턴을 먼저 배운다'는 관찰이고, 아래 행에서 파랑(Muon)이 다른 둘보다 <em>일찍</em> 올라온다는 것이 '통암기를 더 먼저 시작한다'는 관찰이다. 저자는 이것이 SFT처럼 데이터가 적은 상황에서 패턴 습득을 해칠 수 있다고 본다(§4.2). 곡선 모양은 개념 재구성이며 최종 도달값은 표 3의 순서 관계를 따르도록 근사한 값이다.</figcaption>
+</figure>
+
+<h4>Remark 3 — Muon에게 더 나은 미세조정 방법이 필요하다</h4>
+
+<p>Muon으로 사전학습한 모델은 <em>정합성 때문에</em> Muon으로 전체 미세조정해야 최선의 트레이드오프를 얻는다. 그런데 <em>암기 성향 때문에</em> SFT에서 Muon을 쓰면 전체 성능이 나빠질 수 있다. 두 요구가 충돌하는 이 딜레마가 이 논문이 남기는 가장 구체적인 열린 문제이며, 저자는 양쪽을 동시에 개선하는 Muon용 미세조정 방법이 LLM 학습에 도움이 될 것이라고 제안한다.</p>
+
+
+<h2>5. 관련 연구 맥락 (원문 §5)</h2>
+
+<h3>5.1 딥러닝 옵티마이저의 계보</h3>
+
+<p>트랜스포머 학습의 주력은 여전히 <strong>적응형 그래디언트 방법</strong>이다 — AdamW와 그 수많은 변형(Adagrad, RMSprop, Adadelta, Adafactor, AMSGrad, LAMB, Adam-mini, Schedule-Free, signSGD 계열 등). 여기에 최근 <strong>가중치의 행렬 구조를 인식하는 옵티마이저</strong>가 강력한 대안으로 부상했다. 신경망 구조를 옵티마이저 설계에 활용한 선구적 연구로 KFAC(Kronecker-Factored Approximate Curvature; Martens &amp; Grosse, 2015)와 Shampoo(Gupta et al., 2018)가 있고, 이 아이디어는 메모리 절감이나 학습 성능 개선을 목표로 여러 후속 연구로 이어졌다.</p>
+
+<p>이 계열은 <strong>Muon(Jordan et al., 2024)</strong> 이후 특히 인기를 얻어 Kimi K2/2.5, GLM-4.5, DeepSeek-V4 같은 실제 프런티어 모델 학습에 적용되었다. 옵티마이저들을 비교·이해하려는 연구는 경험적 벤치마킹(Wen et al.; Semenov et al.; Wang et al.)과 수렴 성질의 이론 분석(Duchi et al.; Liu et al.; Jiang et al.; Su) 양쪽에서 이뤄졌으나, <strong>대부분 사전학습 하나 또는 단일 학습 설정에 초점을 맞췄고 사전학습–SFT 패러다임 전체를 다루지 않았다</strong>는 것이 이 논문의 문제의식이다.</p>
+
+<h3>5.2 학습–망각 트레이드오프</h3>
+
+<p>새 과제를 학습할 때 이전 과제의 정보를 잃는 <strong>파국적 망각(catastrophic forgetting)</strong>은 지속 학습과 멀티태스크 학습의 중심 문제다. 정규화 도입, 이전 과제 샘플 재생(replay) 등 수많은 완화 방법이 제안되었다.</p>
+
+<p>LoRA를 이 관점에서 검토한 연구도 여럿이다. <strong>Biderman et al. (2024)</strong>은 지속 사전학습과 SFT에서 LoRA가 전체 미세조정보다 덜 배우지만 덜 잊는다고 주장했다. 그러나 순차적 지속 학습 설정에서는 결과가 갈린다 — LoRA가 망각에 강하다는 보고(Wistuba et al.; Qiao &amp; Mahdavi)와 상황·관점에 따라 LoRA가 덜 잊지 않을 수 있다는 보고(Shuttleworth et al.)가 공존한다. 동시기 연구인 <strong>Rofin et al. (2026)</strong>은 SFT에서의 망각을 사전학습 길이·SFT 학습률 선택과 연결해 논의하며, 이 논문의 §2.5 관찰과 맞닿는다.</p>
+
+<h3>5.3 암기와 일반화</h3>
+
+<p>모델의 암기와 일반화, 그리고 그 관계는 기계학습의 근본 문제다. 전통적 통계학습 이론은 VC 차원, Rademacher 복잡도, 균일 안정성의 관점을 제공했다. <strong>Zhang et al. (2016)</strong>은 이미지 분류에서 무작위화 검정 방법론으로 딥러닝 모델이 데이터를 쉽게 암기하면서도 잘 일반화할 수 있음을 보여, 그런 학습 능력이 전통 이론의 범위를 넘어설 수 있음을 시사했다. 같은 방법론 위에서 <strong>Arpit et al. (2017)</strong>은 신경망이 잡음보다 단순한 패턴을 먼저 배운다는 것을 보였다 — <strong>§4.2의 합성 실험이 이 두 연구의 직계 후손</strong>이다. 최근 연구는 이 논의를 대규모 기반 모델로 확장하고 있다(Carlini et al.; Tirumala et al.; Jagielski et al.; Schwarzschild et al.; Panwar et al.).</p>
+
+<h2>6. 결론과 한계</h2>
+
+<p>이 논문은 옵티마이저–모델 정합성 현상을 제시하고 분석한다. 그 이해를 바탕으로 SFT에서는 사전학습과 같은 (계열의) 옵티마이저로 전체 미세조정해야 최선의 학습–망각 트레이드오프를 얻는다고 제안하며, 사전학습–SFT 패러다임 전체에 걸친 Muon의 성능을 사례 연구로 살펴본다.</p>
+
+<p><strong>저자가 밝힌 주요 한계</strong>: 사전학습이 필요하고 연산 자원이 제한되어 <strong>실험이 주로 작은 모델에서 수행</strong>되었으며, <strong>이론은 여러 근사 아래에서 얻어진 것</strong>이다. 향후 실험 규모를 키우고 더 많은 옵티마이저를 탐색하는 데 관심이 있다고 밝힌다.</p>
+
+<h2>7. 세 논문을 함께 읽기 — Muon 미세조정 논쟁의 지도</h2>
+
+<p>이 요약이 다루는 세 논문은 같은 현상을 서로 다른 각도에서 다루며, 표면적으로는 LoRA에 대해 <em>정반대</em> 결론을 낸다. 그러나 자세히 보면 두 결론은 <strong>서로 다른 질문에 답하고 있어 양립한다</strong>.</p>
+
+<ul>
+  <li><strong>Qu et al. (2026)</strong>의 비교 — AdamW로 사전학습된 모델을 <em>Muon으로</em> 미세조정하는 <strong>불일치</strong> 상황. 이 상황에서는 LoRA가 낫다(업데이트를 제한해 피해를 줄인다).</li>
+  <li><strong>이 논문</strong>의 비교 — AdamW로 사전학습된 모델을 <em>AdamW로</em> 미세조정하는 <strong>일치</strong> 상황. 이 상황에서는 전체 미세조정이 LoRA보다 낫다.</li>
+</ul>
+
+<p>하나의 실무 규칙으로 압축하면 — <strong>사전학습 옵티마이저를 알고 그것을 SFT에도 쓸 수 있으면 같은 옵티마이저로 전체 미세조정하는 것이 최선이고, 모델만 받아 와서 다른 옵티마이저를 써야 한다면 LoRA로 업데이트를 제한하는 것이 차선이다.</strong></p>
+
+
+<table class="small-table">
+<caption>세 논문의 비교 (이 요약이 만든 정리)</caption>
+<thead><tr><th>축</th><th>Liu et al. 2025<br>(Muon is Scalable)</th><th>Qu et al. 2026<br>(Can Muon Fine-tune)</th><th>이 논문<br>(Optimizer-Model Consistency)</th></tr></thead>
+<tbody>
+<tr><td>주 관심</td><td>사전학습에서 Muon을 대규모로 확장</td><td>옵티마이저 불일치를 어떻게 완화할까</td><td>왜 불일치가 생기고 무엇이 최적인가</td></tr>
+<tr><td>불일치에 대한 입장</td><td>발견하고 "향후 과제"로 남김</td><td>LoRA로 완화된다</td><td>같은 옵티마이저로 전체 미세조정하는 것이 최선</td></tr>
+<tr><td>LoRA 평가</td><td>다루지 않음</td><td>완화 도구로 긍정적</td><td>최적 트레이드오프에 도달 불가</td></tr>
+<tr><td>원인 설명</td><td>없음</td><td>암묵적 편향 (max-노름 vs 스펙트럼 노름)</td><td>활성화 정규화 + 체크포인트 주변 곡률</td></tr>
+<tr><td>이론적 장치</td><td>Lemma 1 (업데이트 RMS)</td><td>정리 3.1·3.2 (암묵적 편향), 부록 D (LoRA 상한)</td><td>가정 1~4 + 정리 1 (\(\alpha_2=\alpha_1,\ \beta_2\ge2\))</td></tr>
+<tr><td>Muon 최종 평가</td><td>사전학습에 쓰라 (SFT에는 이득 없음)</td><td>LoRA 설정에 한해 드롭인 교체 가능</td><td>추론 과제 SFT에는 불리 (암기 성향)</td></tr>
+<tr><td>실험 규모</td><td>16B MoE · 5.7T 토큰</td><td>561M / 7B / 13B</td><td>GPT-2 123M / Llama-2-7B</td></tr>
+<tr><td>평가 방식</td><td>벤치마크 점수 표</td><td>3 시드 평균 ± 표준편차 + 메타분석</td><td>학습률 스윕 전체의 파레토 전선</td></tr>
+</tbody>
+</table>
+
+<h3>7.1 실무 체크리스트</h3>
+
+<ol>
+  <li><strong>사전학습 옵티마이저를 아는가?</strong> 모른다면(대부분의 공개 모델이 Adam 계열이지만 확정할 수 없다면) 보수적으로 Adam 계열을 쓰거나 LoRA로 업데이트를 제한한다.</li>
+  <li><strong>그 옵티마이저를 SFT에도 쓸 수 있는가?</strong> 쓸 수 있으면 전체 미세조정이 최선이다(이 논문). 쓸 수 없으면 LoRA가 불일치 피해를 줄인다(Qu et al.).</li>
+  <li><strong>LoRA를 쓴다면 랭크는?</strong> 불일치가 심할수록 낮은 랭크가 유리하지만 너무 낮으면 용량이 부족하다 — 중간 랭크가 절충점이다(Qu et al. §5.4). 반면 <em>일치</em> 상태에서 LoRA를 쓴다면 랭크가 클수록 낫다(이 논문 §2.3).</li>
+  <li><strong>학습률을 반드시 스윕하라.</strong> 세 논문이 공통으로 강조하는 부분이다. 특히 망각이 중요한 응용이라면 큰 학습률이 과제 점수를 올리는 대신 망각을 크게 만든다는 점(§2.5)을 기억할 것.</li>
+  <li><strong>Muon 계열 모델을 쓸 계획이라면</strong> 미세조정 방법을 별도 과제로 두어야 한다 — 정합성은 Muon SFT를 요구하지만 Muon SFT는 추론 과제에 불리할 수 있다(Remark 3).</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 470" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 세 논문의 관계] Muon–미세조정 논쟁의 지도</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">같은 현상을 세 논문이 서로 다른 각도에서 다룬다. 결론이 충돌해 보이지만 질문이 다르다</text>
+<rect x="30" y="52" width="130" height="27" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="95" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold"></text>
+<rect x="160" y="52" width="200" height="27" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="260" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Liu et al. 2025 (Moonlight)</text>
+<rect x="360" y="52" width="210" height="27" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="465" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Qu et al. 2026 (불일치)</text>
+<rect x="570" y="52" width="220" height="27" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="680" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">이 논문 (정합성)</text>
+<rect x="30" y="79" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="97" text-anchor="start" font-size="8.8" fill="#334155">주 관심</text>
+<rect x="160" y="79" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="97" text-anchor="middle" font-size="8.8" fill="#334155">사전학습에서 Muon 확장</text>
+<rect x="360" y="79" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="97" text-anchor="middle" font-size="8.8" fill="#334155">불일치를 어떻게 완화할까</text>
+<rect x="570" y="79" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="97" text-anchor="middle" font-size="8.8" fill="#334155">왜 불일치가 생기고 무엇이 최적인가</text>
+<rect x="30" y="106" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="124" text-anchor="start" font-size="8.8" fill="#334155">불일치에 대한 입장</text>
+<rect x="160" y="106" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="124" text-anchor="middle" font-size="8.8" fill="#334155">발견 후 향후 과제로 남김</text>
+<rect x="360" y="106" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="124" text-anchor="middle" font-size="8.8" fill="#334155">LoRA로 완화된다</text>
+<rect x="570" y="106" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="124" text-anchor="middle" font-size="8.8" fill="#334155">같은 옵티마이저 전체 미세조정이 최선</text>
+<rect x="30" y="133" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="151" text-anchor="start" font-size="8.8" fill="#334155">LoRA 평가</text>
+<rect x="160" y="133" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="151" text-anchor="middle" font-size="8.8" fill="#334155">다루지 않음</text>
+<rect x="360" y="133" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="151" text-anchor="middle" font-size="8.8" fill="#334155">완화 도구로 긍정적</text>
+<rect x="570" y="133" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="151" text-anchor="middle" font-size="8.8" fill="#334155">최적 트레이드오프에 도달 불가</text>
+<rect x="30" y="160" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="178" text-anchor="start" font-size="8.8" fill="#334155">원인 설명</text>
+<rect x="160" y="160" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="178" text-anchor="middle" font-size="8.8" fill="#334155">없음</text>
+<rect x="360" y="160" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="178" text-anchor="middle" font-size="8.8" fill="#334155">암묵적 편향 (max vs 스펙트럼 노름)</text>
+<rect x="570" y="160" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="178" text-anchor="middle" font-size="8.8" fill="#334155">활성화 정규화 + 헤시안 곡률</text>
+<rect x="30" y="187" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="205" text-anchor="start" font-size="8.8" fill="#334155">Muon 최종 평가</text>
+<rect x="160" y="187" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="205" text-anchor="middle" font-size="8.8" fill="#334155">사전학습에 쓰라</text>
+<rect x="360" y="187" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="205" text-anchor="middle" font-size="8.8" fill="#334155">LoRA 한정 드롭인 교체 가능</text>
+<rect x="570" y="187" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="205" text-anchor="middle" font-size="8.8" fill="#334155">추론 과제 SFT에는 불리 (암기 성향)</text>
+<rect x="30" y="214" width="130" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="38" y="232" text-anchor="start" font-size="8.8" fill="#334155">실험 규모</text>
+<rect x="160" y="214" width="200" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="260" y="232" text-anchor="middle" font-size="8.8" fill="#334155">16B MoE · 5.7T 토큰</text>
+<rect x="360" y="214" width="210" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="465" y="232" text-anchor="middle" font-size="8.8" fill="#334155">561M / 7B / 13B</text>
+<rect x="570" y="214" width="220" height="27" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="232" text-anchor="middle" font-size="8.8" fill="#334155">GPT-2 123M / Llama-2-7B</text>
+<rect x="30" y="226" width="740" height="96" rx="8" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="44" y="248" text-anchor="start" font-size="10.2" fill="#92400e" font-weight="bold">충돌처럼 보이지만 질문이 다르다</text>
+<text x="44" y="270" text-anchor="start" font-size="9.2" fill="#334155">Qu et al.(2026)의 비교 — AdamW로 사전학습된 모델을 &lt;Muon으로&gt; 미세조정하는 &lt;불일치&gt; 상황에서 LoRA가 낫다</text>
+<text x="44" y="290" text-anchor="start" font-size="9.2" fill="#334155">이 논문의 비교 — AdamW로 사전학습된 모델을 &lt;AdamW로&gt; 미세조정하는 &lt;일치&gt; 상황에서 전체 미세조정이 LoRA보다 낫다</text>
+<text x="44" y="310" text-anchor="start" font-size="9.4" fill="#15803d" font-weight="bold">두 진술은 양립한다: 옵티마이저를 맞출 수 있으면 전체 미세조정, 맞출 수 없으면 LoRA로 피해를 줄인다</text>
+<rect x="20" y="334" width="247" height="62" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="143" y="352" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">일치 가능</text>
+<text x="143" y="376" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">전체 미세조정</text>
+<text x="143" y="392" text-anchor="middle" font-size="8.5" fill="#555">이 논문의 권고</text>
+<rect x="277" y="334" width="247" height="62" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="400" y="352" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">불일치 불가피</text>
+<text x="400" y="376" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">LoRA</text>
+<text x="400" y="392" text-anchor="middle" font-size="8.5" fill="#555">Qu et al.의 권고</text>
+<rect x="533" y="334" width="247" height="62" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<text x="657" y="352" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">사전학습</text>
+<text x="657" y="376" text-anchor="middle" font-size="20" fill="#92400e" font-weight="bold">Muon</text>
+<text x="657" y="392" text-anchor="middle" font-size="8.5" fill="#555">Liu et al.의 권고</text>
+<rect x="20" y="410" width="760" height="54" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="30" y="428" text-anchor="start" font-size="10" fill="#334155">이 그림은 세 논문에 모두 없는, 요약자가 만든 정리다. 하나의 실무 규칙으로 압축하면 — 사전학습 옵티마이저를 알고 그것을 SFT에도 쓸 수 있다면</text>
+<text x="30" y="445" text-anchor="start" font-size="10" fill="#334155">같은 옵티마이저로 전체 미세조정하는 것이 가장 좋고, 모델만 받아 와서 다른 옵티마이저를 써야 한다면 LoRA로 업데이트를 제한하는 것이 차선이다.</text>
+</svg>
+<figcaption><strong>[Figure: 세 논문의 관계]</strong>: 이 요약이 다룬 세 논문을 여섯 축으로 비교한 것으로, 세 논문 어디에도 없는 정리다. 표면적으로 이 논문과 Qu et al.(2026)은 LoRA에 대해 정반대 결론을 내지만, 가운데 노란 상자가 보여 주듯 두 논문이 비교하는 상황이 다르다 — 하나는 옵티마이저가 <em>어긋난</em> 상황, 다른 하나는 <em>맞춘</em> 상황이다. 아래 숫자 카드가 그 둘을 하나의 실무 규칙으로 합친 것이다: 맞출 수 있으면 전체 미세조정, 맞출 수 없으면 LoRA(§7).</figcaption>
+</figure>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>평가 방식 자체를 문제 삼는다</strong>: 이 논문의 가장 큰 기여는 새 알고리즘이 아니라 <em>비교 프로토콜</em>이다. "학습률 하나를 고정하고 비교한다"는 관행이 결론을 바꿀 수 있음을 보이고(Remark 1), 학습률 선택까지 트레이드오프의 일부로 편입한 파레토 전선 비교를 제안한다. 기존 결론(Biderman et al., 2024)과의 충돌을 회피하지 않고 <em>재현해 보인 뒤</em> 차이의 출처를 지목한 것도 설득력을 높인다.</li>
+  <li><strong>사전학습을 직접 수행한 대조 설계</strong>: 옵티마이저가 체크포인트를 어떻게 빚는지 보려면 사전학습부터 통제해야 한다. GPT-2 규모로 낮춰서라도 AdamW·Muon 두 체크포인트를 직접 만들어 <strong>양방향</strong>(AdamW 기반 × Muon 기반)으로 비교한 설계가 주장의 대칭성을 보장한다.</li>
+  <li><strong>관찰 → 메커니즘 → 정리의 사슬이 끊기지 않는다</strong>: 가중치 스펙트럼 차이(표 2) → 활성화 희소성 차이(Figure 4) → 노름 유도 프레임워크로 그 차이를 <em>예측</em>(Figure 5로 검증) → 망각 손실이 활성화에 의해 결정됨을 유도(가정 1) → 정리 1. 각 단계가 앞 단계를 근거로 삼는다.</li>
+  <li><strong>예측을 만들고 검증한다</strong>: "\(\alpha=1\)이면 입력 활성화가 희소해진다"는 이론적 예측을 세운 뒤, 비교를 위해 \(\mathcal{A}_{1,1}\)·\(\mathcal{A}_{\infty,\infty}\)를 <em>직접 유도해</em> 다섯 옵티마이저로 검증한다. 기존 옵티마이저만 비교했다면 얻지 못했을 증거다.</li>
+  <li><strong>Muon에 대한 균형 잡힌 평가</strong>: 사전학습에서 Muon이 명확히 우세하다는 것(표 1)을 먼저 보인 뒤 SFT 후 그 우위가 사라지는 과제를 지목한다. 그리고 그 원인에 대한 가설을 합성 실험으로 검증한다 — 단순히 "Muon이 나쁘다"가 아니라 <em>어디서, 왜</em> 나쁜지를 좁혀 간다.</li>
+  <li><strong>재현 가능성</strong>: 사전학습부터 SFT·합성 실험까지 모든 학습률 격자, 반복 수, 배치 구성, 옵티마이저 계수, GPU 구성이 부록 A에 기재되어 있고 데이터·코드베이스 라이선스까지 부록 D에 정리되어 있다.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>정량 수치가 매우 적다</strong>: 본문의 표는 표 1(8셀)·표 2(4셀)·표 3(21셀)뿐이고, <strong>핵심 주장은 거의 전부 파레토 <em>그림</em>으로 제시된다</strong>. 그림에는 수치 주석이 없어 독자가 격차의 크기를 가늠할 수 없고, 요약에서도 "곡선의 상대 배치"만 재구성할 수밖에 없었다. "A의 전선이 B보다 안쪽"이라는 시각적 판정이 얼마나 견고한지 확인할 방법이 제공되지 않는다.</li>
+  <li><strong>시드 반복과 분산 보고가 없다</strong>: 파레토 전선은 학습률 격자와 중간 체크포인트를 모아 그린 것이지 반복 실행의 평균이 아니다. 전선 사이의 간격이 시드 잡음보다 큰지 판단할 근거가 없다.</li>
+  <li><strong>이론이 네 개의 근사·가정 위에 서 있다</strong>: 가정 1(테일러 + 층별 블록 대각 + Fisher + 크로네커 분리 + 행 블록 대각), 가정 2(유도 노름 부등식이 타이트), 가정 3(1차 근사), 가정 4(활성화 정규화의 \(\Theta\) 표기). 특히 <strong>가정 2와 4가 결론을 사실상 결정</strong>하는데, 저자도 가정 4에 대해 "활성화에 대해 다소 강한 가정일 수 있다"고 인정한다. 정리 1은 "이 가정들이 성립하면"의 조건부 진술이며 관찰 자체를 증명하지 않는다.</li>
+  <li><strong>LoRA를 배제하는 논거가 간접적이다</strong>: Remark 2의 핵심 문장 — "LoRA의 어댑터 구조는 어떤 노름으로도 정규화된 최적 구조에 맞출 수 없다" — 은 서술적 논변이지 증명이 아니다. 저랭크 제약이 왜 식 (1) 계열의 어떤 노름 최적해도 될 수 없는지는 보이지 않는다. 그러면서 "LoRA 랭크가 클수록 트레이드오프가 좋아진다"는 관찰을 함께 제시하는데, 이는 오히려 <em>저랭크 제약의 정도 문제</em>로도 읽힐 수 있다.</li>
+  <li><strong>실험 규모가 작다 (저자 인정)</strong>: 주 무대는 GPT-2-small(123M)이고, Llama-2-7B는 AdamW 방향 한 줄기만 검증한다. <strong>Muon 사전학습 7B 결과가 없어</strong> §4의 Muon 평가는 123M 규모의 관찰이다. 암기 성향이 규모에 따라 어떻게 변하는지는 알 수 없다.</li>
+  <li><strong>합성 실험과 SFT의 설정 차이</strong>: 암기 가설을 검증하는 합성 실험은 <em>사전학습 설정</em>(40M 토큰을 처음부터 학습)에서 수행되는데, 설명하려는 대상은 <em>SFT 설정</em>(사전학습된 모델에 소량 데이터)이다. "데이터가 적을 때 암기가 학습을 해친다"는 논지의 핵심 조건이 실험에서 직접 재현되지 않았다.</li>
+  <li><strong>Muon 결론이 과제에 크게 의존한다</strong>: Alpaca에서는 뚜렷하게 우세, Magicoder는 약간 우세, MetaMathQA는 약간 열세다. "추론 과제에서 나쁘다"는 진술은 사실상 <strong>한 데이터셋의 약한 열세</strong>에 기대고 있으며, 그 크기는 그림으로만 제시된다.</li>
+  <li><strong>정리 1과 실제 실험의 연결이 느슨하다</strong>: 정리는 \(\mathcal{A}_{\alpha,\beta}\) 계열 안에서의 선택을 다루는데, 실험에서 비교되는 SGD는 이 프레임워크 밖에 있고 LoRA는 옵티마이저가 아니라 파라미터화 방식이다. 정리가 직접 예측하는 것은 "AdamW 체크포인트에는 Adam/SignSGD/Lion이 좋다"인데, 이 예측 자체(예: SignSGD나 Lion으로 SFT)는 실험으로 검증되지 않았다.</li>
+  <li><strong>\(\beta_2 \ge 2\) 조건의 실무적 의미가 불분명하다</strong>: 정리는 \(\beta\)가 정확히 같을 필요는 없고 2 이상이면 된다고 하지만, 이 여유가 실제로 어떤 옵티마이저 선택의 폭을 주는지는 사례 하나(Adam↔SignSGD↔Lion)로만 언급된다.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">[Figure: 이 논문의 결론이 서 있는 범위]</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">주장의 강도와 근거의 강도를 나란히 놓았다</text>
+<rect x="20" y="44" width="374" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="207" y="63" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">규모의 한계</text>
+<text x="31" y="82" text-anchor="start" font-size="9" fill="#334155">사전학습을 직접 해야 하므로 GPT-2 123M이 주 무대</text>
+<text x="31" y="97" text-anchor="start" font-size="9" fill="#334155">Llama-2-7B는 AdamW 방향 한 줄기만 검증</text>
+<text x="31" y="112" text-anchor="start" font-size="9" fill="#334155">Muon 사전학습 7B 결과는 없다(저자 인정)</text>
+<rect x="406" y="44" width="374" height="96" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="593" y="63" text-anchor="middle" font-size="10.5" fill="#92400e" font-weight="bold">이론의 가정이 무겁다</text>
+<text x="416" y="82" text-anchor="start" font-size="9" fill="#334155">가정 1(테일러+Fisher) · 2(노름 부등식이 타이트)</text>
+<text x="416" y="97" text-anchor="start" font-size="9" fill="#334155">3(1차 근사) · 4(활성화 정규화의 Θ 표기)</text>
+<text x="416" y="112" text-anchor="start" font-size="9" fill="#334155">정리 1은 '이 가정들이 성립하면'의 조건부 진술</text>
+<rect x="20" y="154" width="374" height="96" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="207" y="173" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">정량 수치가 적다</text>
+<text x="31" y="192" text-anchor="start" font-size="9" fill="#334155">본문의 표는 표 1(8셀) · 표 2(4셀) · 표 3뿐</text>
+<text x="31" y="207" text-anchor="start" font-size="9" fill="#334155">핵심 주장은 대부분 파레토 &lt;그림&gt;으로 제시된다</text>
+<text x="31" y="222" text-anchor="start" font-size="9" fill="#334155">시드 반복·분산 보고가 없다</text>
+<rect x="406" y="154" width="374" height="96" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="593" y="173" text-anchor="middle" font-size="10.5" fill="#b91c1c" font-weight="bold">LoRA 부정의 근거는 간접적</text>
+<text x="416" y="192" text-anchor="start" font-size="9" fill="#334155">Remark 2: '어댑터 구조가 어떤 노름의 최적 구조도 아니다'</text>
+<text x="416" y="207" text-anchor="start" font-size="9" fill="#334155">왜 저랭크가 그 구조일 수 없는지는 증명되지 않음</text>
+<text x="416" y="222" text-anchor="start" font-size="9" fill="#334155">그림 5의 관찰 + 서술적 논변에 의존</text>
+<rect x="20" y="264" width="247" height="62" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<text x="143" y="282" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">암기 가설</text>
+<text x="143" y="306" text-anchor="middle" font-size="20" fill="#92400e" font-weight="bold">간접 증거</text>
+<text x="143" y="322" text-anchor="middle" font-size="8.5" fill="#555">합성 실험은 SFT가 아니라 사전학습 설정</text>
+<rect x="277" y="264" width="247" height="62" rx="7" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.8"/>
+<text x="400" y="282" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">Muon 결론</text>
+<text x="400" y="306" text-anchor="middle" font-size="20" fill="#92400e" font-weight="bold">과제 의존</text>
+<text x="400" y="322" text-anchor="middle" font-size="8.5" fill="#555">Alpaca는 우세, 수학은 열세</text>
+<rect x="533" y="264" width="247" height="62" rx="7" fill="#f1f5f9" stroke="#64748b" stroke-width="1.8"/>
+<text x="657" y="282" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">일반화</text>
+<text x="657" y="306" text-anchor="middle" font-size="20" fill="#334155" font-weight="bold">미검증</text>
+<text x="657" y="322" text-anchor="middle" font-size="8.5" fill="#555">다른 옵티마이저 계열은 다루지 않음</text>
+<rect x="20" y="338" width="760" height="71" rx="6" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="30" y="356" text-anchor="start" font-size="10" fill="#334155">이 그림은 논문에 없는 정리다. 이 논문의 가장 큰 강점은 '같은 옵티마이저가 낫다'는 현상을 활성화 정규화라는 하나의 메커니즘으로 설명하고</text>
+<text x="30" y="373" text-anchor="start" font-size="10" fill="#334155">그것을 정리로 형식화했다는 데 있다. 동시에 그 정리가 네 개의 근사·가정 위에 서 있고 실험 규모가 작다는 점이, 결론을 얼마나 멀리 적용할지</text>
+<text x="30" y="390" text-anchor="start" font-size="10" fill="#334155">판단할 때 반드시 함께 고려되어야 한다. 특히 LoRA에 대한 부정적 결론은 파레토 그림의 시각적 배치에 크게 의존한다.</text>
+</svg>
+<figcaption><strong>[Figure: 결론이 서 있는 범위]</strong>: 논문에 없는 정리로, 주장의 강도와 근거의 강도를 나란히 놓았다. 위 두 카드가 규모와 이론적 가정의 한계, 가운데 두 카드가 이 논문에서 가장 취약한 지점이다 — 본문의 정량 표가 세 개뿐이고 핵심 주장이 대부분 파레토 <em>그림</em>으로만 제시되며, LoRA를 배제하는 논거는 증명이 아니라 서술적 논변이다(그림 5의 관찰에 의존). 아래 숫자 카드는 결론을 다른 설정으로 옮길 때 확인해야 할 세 가지다(§비판적 분석).</figcaption>
+</figure>
+
+<h3>AI 논문 체크리스트 대조</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ — 시드 반복이나 분산 보고가 없다. 파레토 전선은 학습률 격자와 중간 체크포인트의 모음이지 반복 실행의 통계가 아니다</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>◎ — 사전학습부터 직접 수행해 AdamW·Muon 두 체크포인트를 만들고 양방향으로 비교. 방법마다 학습률 격자 탐색을 수행하며, 강건한 전선 선택 기준(\(c=0.001\))까지 명시</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>◯ — 옵티마이저 3종 × SFT 데이터셋 3종 × 사전학습 2종, LoRA 랭크 4수준(GPT-2)·3수준(Llama), 추가 옵티마이저 2종 직접 유도, 학습률 ablation. 다만 결과가 대부분 그림으로만 제시된다</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>△ — 이 논문은 효율 개선이 목적이 아니라 <em>선택 지침</em>을 주는 연구다. 권고 자체(같은 옵티마이저로 전체 미세조정)는 추가 비용이 없지만, 옵티마이저별 연산 비교는 제시되지 않는다</td></tr>
+<tr><td>코드/데이터 공개</td><td>◯ — 사용한 코드베이스(nanoGPT, LlamaFactory, Dion)와 데이터셋 라이선스를 부록 D에 명시. 다만 이 논문 자체의 코드 공개 링크는 본문에 없다</td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>◎ — 사전학습·SFT 3과제·Llama-2·합성 실험 각각의 시퀀스 길이, 유효 배치, 반복 수, 평가 간격, 스케줄, 클리핑, weight decay, dropout, 학습률 격자, 옵티마이저 계수까지 전부 부록 A에 기재</td></tr>
+<tr><td>이론적 주장의 검증</td><td>◯ — 정리 1은 완전한 증명이 부록 C에 있고 보조정리 1·2까지 제시된다. 다만 네 가정이 무겁고, 정리가 직접 예측하는 조합(SignSGD·Lion으로 SFT)은 실험으로 확인되지 않았다</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>비교 프로토콜이 결론을 바꾼다</strong>: "LoRA가 덜 잊는다"와 "전체 미세조정이 덜 잊는다"는 같은 데이터에서 <em>학습률을 고정하느냐 아니냐</em>로 갈린다. 학습–망각처럼 두 목표가 경쟁하는 문제에서는 한 점이 아니라 파레토 전선을 비교해야 하며, 그때 <strong>학습률 선택도 알고리즘의 일부</strong>로 봐야 한다.</li>
+  <li><strong>옵티마이저는 해가 아니라 모양을 정한다</strong>: 같은 손실을 같은 값까지 내려도, \(\mathcal{A}_{1,\infty}\)(Adam)는 희소한 활성화를, \(\mathcal{A}_{2,2}\)(Muon)는 고른 활성화를 만든다. 사전학습 옵티마이저를 알면 그 체크포인트가 어떤 모양인지도 어느 정도 예측할 수 있다.</li>
+  <li><strong>망각은 \(\Delta W\)의 크기가 아니라 \(\Delta W\)와 활성화의 상호작용이다</strong>: \(\mathcal{L}_{\text{forget}} \propto \mathbb{E}[\|\Delta Wx\|_2^2]\)라는 근사가 이 논문의 중심 아이디어다. 같은 크기의 업데이트라도 사전학습 활성화가 살아 있는 방향을 건드리면 훨씬 많이 잊는다 — 그래서 "덜 움직이기"보다 "맞는 방향으로 움직이기"가 중요해진다.</li>
+  <li><strong>실무 규칙은 두 줄이다</strong>: SFT 옵티마이저의 \(\alpha\)를 사전학습과 같게 맞추고, \(\beta\)는 2 이상으로 둔다. AdamW 체크포인트에는 Adam·SignSGD·Lion 계열을, Muon 체크포인트에는 Muon을 쓴다. 정확히 같은 옵티마이저가 아니라 <em>같은 계열</em>이면 된다는 점이 실용적이다.</li>
+  <li><strong>Muon의 딜레마를 기억할 것</strong>: Muon으로 사전학습했다면 정합성상 Muon으로 SFT해야 하는데, Muon은 통암기 성향 때문에 추론 과제 SFT에 불리할 수 있다. Muon 계열 모델을 쓸 계획이라면 미세조정 방법을 별도 과제로 두어야 한다는 신호다.</li>
+  <li><strong>(비판적 관점) 결론의 근거 대부분이 그림이다</strong>: 본문의 정량 표는 세 개뿐이고 시드 반복도 없다. "전선이 안쪽에 있다"는 시각적 판정과, 네 개의 무거운 가정 위에 세워진 정리가 주장의 두 기둥이다. 실험 규모(GPT-2 123M)까지 감안하면, 결론은 <em>강한 가설</em>로 받아들이고 자기 설정에서 다시 재 보는 편이 안전하다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+
+</div>
+</body>
+</html>
