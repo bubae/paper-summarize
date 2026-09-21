@@ -105,7 +105,7 @@ $$
 \mathcal{J}_{\mathrm{PPO}}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\ y \sim \pi_{\mathrm{infer}}(\theta_{\mathrm{old}})(\cdot|x)}\left[\frac{1}{|y|} \sum_{t=1}^{|y|} \min\left(w_t(\theta) \hat{A}_t,\ \mathrm{clip}(w_t(\theta), 1-\varepsilon, 1+\varepsilon) \hat{A}_t\right)\right] \qquad (1)
 $$
 $$
-w_t(\theta) = \frac{\pi_{\mathrm{train}}(\theta)(y_t | x, y_{<t})}{\pi_{\mathrm{train}}(\theta_{\mathrm{old}})(y_t | x, y_{<t})}
+w_t(\theta) = \frac{\pi_{\mathrm{train}}(\theta)(y_t | x, y_{&lt;t})}{\pi_{\mathrm{train}}(\theta_{\mathrm{old}})(y_t | x, y_{&lt;t})}
 $$
 <p>
 핵심 관찰: 데이터는 <strong>inference engine의 policy $\pi_{\mathrm{infer}}$</strong>에서 샘플되지만, loss는 <strong>training policy $\pi_{\mathrm{train}}$</strong>로 계산된다. 두 engine의 구현·최적화 차이(Megatron vs SGLang, FP16 vs BF16 kernel, tensor-parallel layout 등)로 $\pi_{\mathrm{infer}} \ne \pi_{\mathrm{train}}$이 되면 PPO의 importance sampling 가정이 어긋나 gradient가 편향된다.

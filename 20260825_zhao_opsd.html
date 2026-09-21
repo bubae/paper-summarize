@@ -233,9 +233,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <p>자기회귀 언어모델에서는 데이터셋 $S = \{(x, y^\star)\}$이 주어질 때 teacher $p_T$와 student $p_S$가 각각 어휘 $V$ 위의 토큰 수준 분포를 정의한다. 전통적 지도 증류는 고정 데이터셋에 대해 두 분포 사이의 divergence $D$를 평균한다.</p>
 $$\mathcal{L}_{\text{Supervised Distillation}}(\theta) = \mathbb{E}_{(x,y) \sim S}\big[D(p_T \| p_S)(y|x)\big] \tag{2}$$
-<p>여기서 $D(p_T\|p_S)(y|x) = \frac{1}{|y|}\sum_{n=1}^{|y|} D\big(p_T(\cdot|y_{<n},x) \| p_S(\cdot|y_{<n},x)\big)$가 토큰별 불일치를 잰다.</p>
+<p>여기서 $D(p_T\|p_S)(y|x) = \frac{1}{|y|}\sum_{n=1}^{|y|} D\big(p_T(\cdot|y_{&lt;n},x) \| p_S(\cdot|y_{&lt;n},x)\big)$가 토큰별 불일치를 잰다.</p>
 
-<p><strong>이 off-policy 접근의 문제</strong>: <em>분포 불일치(distribution mismatch)</em>다. student가 추론 시점에 자기회귀 생성으로 만나는 부분 시퀀스 $y_{<n}$은 고정 데이터셋에서 학습한 것과 다르고, 오차가 복합적으로 누적된다.</p>
+<p><strong>이 off-policy 접근의 문제</strong>: <em>분포 불일치(distribution mismatch)</em>다. student가 추론 시점에 자기회귀 생성으로 만나는 부분 시퀀스 $y_{&lt;n}$은 고정 데이터셋에서 학습한 것과 다르고, 오차가 복합적으로 누적된다.</p>
 
 <p><strong>on-policy 증류</strong> (Agarwal et al., 2024 GKD; Lu &amp; Lab, 2025; Xu et al., 2024a)는 student가 자기 생성 시퀀스 $\hat y \sim p_S(\cdot|x)$ 위에서 학습하게 함으로써 이를 해결한다.</p>
 $$\mathcal{L}_{\text{On-Policy Distillation}}(\theta) = \mathbb{E}_{x \sim S}\big[\mathbb{E}_{\hat y \sim p_S(\cdot|x)}[D(p_T\|p_S)(\hat y|x)]\big] \tag{3}$$
@@ -338,7 +338,7 @@ $$A_i = \frac{r_i - \mathrm{mean}(\{r_j\}_{j=1}^G)}{\mathrm{std}(\{r_j\}_{j=1}^G
 
 <p>GRPO 목적함수는 clipped surrogate loss와 참조 정책에 대한 reverse KL 페널티를 포함한다.</p>
 $$\mathcal{L}_{GRPO}(\theta) = \mathbb{E}\left[\frac{1}{G}\sum_{i=1}^{G}\frac{1}{|o_i|}\sum_{n=1}^{|o_i|} \min\big(\rho_i^n A_i,\ \mathrm{clip}(\rho_i^n, 1-\varepsilon, 1+\varepsilon)A_i\big) - \beta D_{KL}[\pi_\theta \| \pi_{ref}]\right] \tag{5}$$
-<p>$\rho_i^n = \frac{\pi_\theta(o_i^n|x, o_i^{<n})}{\pi_{\theta_{old}}(o_i^n|x,o_i^{<n})}$는 importance ratio, $\varepsilon$은 clipping 범위다.</p>
+<p>$\rho_i^n = \frac{\pi_\theta(o_i^n|x, o_i^{&lt;n})}{\pi_{\theta_{old}}(o_i^n|x,o_i^{&lt;n})}$는 importance ratio, $\varepsilon$은 clipping 범위다.</p>
 
 <p><strong>두 가지 한계</strong>가 이 논문의 출발점이다.</p>
 <ol>
@@ -552,7 +552,7 @@ Teacher Prompt
 <p><strong>student의 on-policy 샘플링</strong>: 문제 $x$가 주어지면 student가 응답을 생성한다.</p>
 $$\hat y = (\hat y_1, \dots, \hat y_{|\hat y|}) \sim p_S(\cdot|x)$$
 <p>그다음 두 정책이 이 student 생성 궤적을 평가한다. 각 위치 $n$에서 <strong>같은 student prefix</strong>에 조건화된 next-token 분포를 유도한다.</p>
-$$p_S(y_n|x, \hat y_{<n}), \qquad p_T(y_n|x, y^\star, \hat y_{<n})$$
+$$p_S(y_n|x, \hat y_{&lt;n}), \qquad p_T(y_n|x, y^\star, \hat y_{&lt;n})$$
 
 <figure>
 <svg viewBox="0 0 800 460" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
@@ -625,7 +625,7 @@ $$p_S(y_n|x, \hat y_{<n}), \qquad p_T(y_n|x, y^\star, \hat y_{<n})$$
 <h3>1.4 학습 목적함수 — full-vocabulary logit 증류</h3>
 
 <p>teacher와 student의 next-token 분포를 각 위치에서 맞추는 <strong>full-vocabulary divergence</strong> 목적함수를 세운다. student 생성 시퀀스 $\hat y$에 대해 궤적 평균 토큰별 divergence를 정의한다.</p>
-$$D\big(p_T \| p_S\big)(\hat y|x) \triangleq \frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} D\Big(p_T(\cdot|x,y^\star,\hat y_{<n}) \,\Big\|\, p_S(\cdot|x,\hat y_{<n})\Big) \tag{6}$$
+$$D\big(p_T \| p_S\big)(\hat y|x) \triangleq \frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} D\Big(p_T(\cdot|x,y^\star,\hat y_{&lt;n}) \,\Big\|\, p_S(\cdot|x,\hat y_{&lt;n})\Big) \tag{6}$$
 
 <p>$D$는 임의의 divergence가 될 수 있다. 예를 들어 가중치 $\beta \in [0,1]$에 대한 <strong>일반화 Jensen-Shannon divergence</strong>는 다음과 같다.</p>
 $$\mathrm{JSD}_\beta(p_T\|p_S) = \beta D_{KL}(p_T\|m) + (1-\beta)D_{KL}(p_S\|m) \tag{7}$$
@@ -663,9 +663,9 @@ $$D_{clip}^{(f)}(p_T\|p_S) = \frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|}\sum_{v \in 
 <h3>1.6 대안 목적함수 — sampled-token policy gradient</h3>
 
 <p>최근 on-policy 증류 방법(Lu &amp; Lab, 2025)을 따라, <strong>sampled-token reward 신호</strong>(샘플된 action에 대한 reverse-KL 신호)를 만들어 policy gradient로 최적화하는 변형도 정의한다. 샘플된 시퀀스 $\hat y$의 각 위치 $n$에서 advantage 항을 정의한다.</p>
-$$A_n(x,\hat y) = \log p_T(\hat y_n|x,y^\star,\hat y_{<n}) - \log p_S(\hat y_n|x,\hat y_{<n})$$
+$$A_n(x,\hat y) = \log p_T(\hat y_n|x,y^\star,\hat y_{&lt;n}) - \log p_S(\hat y_n|x,\hat y_{&lt;n})$$
 <p>그리고 policy-gradient 형태의 목적함수를 최적화한다.</p>
-$$\mathcal{L}(\theta) = -\mathbb{E}_{(x,y^\star)\sim S}\mathbb{E}_{\hat y \sim p_S(\cdot|x)}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} A_n(x,\hat y) \times \log p_S(\hat y_n|x,\hat y_{<n})\right] \tag{9}$$
+$$\mathcal{L}(\theta) = -\mathbb{E}_{(x,y^\star)\sim S}\mathbb{E}_{\hat y \sim p_S(\cdot|x)}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} A_n(x,\hat y) \times \log p_S(\hat y_n|x,\hat y_{&lt;n})\right] \tag{9}$$
 <p>$A_n$은 $\theta$에 대해 상수로 취급하므로(advantage로 gradient가 흐르지 않는다) gradient가 통상의 policy-gradient 형태 $A_n \nabla_\theta \log p_S$를 취한다.</p>
 
 <p>full-vocabulary divergence 목적함수와 비교하면, 이 on-policy shaping 목적함수는 <em>샘플된 토큰에만</em> 작동하며 teacher의 로그확률을 궤적 수준 shaping 신호로 쓴다. 각 스텝에서 전체 분포를 맞추지 않는다. §3.5에서 두 변형을 직접 비교한다.</p>
@@ -793,9 +793,9 @@ $$\nabla_\theta J_{STaR}(\theta) = \sum_{i=1}^{N}\mathbb{E}_{(r,y)\sim p_\theta(
 <p><strong>한계</strong>: STaR의 reward는 <em>시퀀스 수준</em>이다. 이진 지시자 $\mathbb{1}(y=y^\star)$가 궤적의 모든 토큰에 같은 신호를 주므로 중간 credit assignment가 없다. 그리고 샘플된 궤적이 모두 틀리면 학습 신호가 소멸한다.</p>
 
 <p><strong>OPSD를 dense-reward policy gradient로 보면</strong>: 학습 쌍 $(x,y^\star)$를 고정하고 student가 궤적 $\hat y \sim p_S(\cdot|x)$를 생성한다. 각 위치 $n$에서 토큰별 reward를 정의한다.</p>
-$$r_n(x,\hat y) \triangleq \log p_T(\hat y_n|x,y^\star,\hat y_{<n}) - \log p_S(\hat y_n|x,\hat y_{<n})$$
+$$r_n(x,\hat y) \triangleq \log p_T(\hat y_n|x,y^\star,\hat y_{&lt;n}) - \log p_S(\hat y_n|x,\hat y_{&lt;n})$$
 <p>이 reward는 <em>특권 teacher가 샘플된 토큰을 student에 비해 얼마나 선호하는가</em>를 잰다. $r_n$(등가적으로 advantage $A_n$)을 $\theta$에 대해 상수로 취급하면(두 항 모두에 stop-gradient) 수식 (9)의 gradient는 표준 policy-gradient 형태가 된다.</p>
-$$\nabla_\theta \mathcal{L}(\theta) = -\mathbb{E}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} r_n(x,\hat y)\nabla_\theta \log p_S(\hat y_n|x,\hat y_{<n})\right]$$
+$$\nabla_\theta \mathcal{L}(\theta) = -\mathbb{E}\left[\frac{1}{|\hat y|}\sum_{n=1}^{|\hat y|} r_n(x,\hat y)\nabla_\theta \log p_S(\hat y_n|x,\hat y_{&lt;n})\right]$$
 <p>이는 on-policy student rollout에 대한 기대 토큰별 reward를 최대화하는 것에 대응한다. ##이 reward는 촘촘하다 — 최종 답이 맞는지와 무관하게 모든 토큰 위치에서 학습 신호를 제공한다.##</p>
 
 <figure>

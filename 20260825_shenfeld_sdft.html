@@ -676,7 +676,7 @@ Now answer with a response of your own, including the thinking process:</div>
 $$\mathcal{L}(\theta) = D_{KL}\big(\pi_\theta(\cdot|x) \,\|\, \pi(\cdot|x,c)\big) = \mathbb{E}_{y \sim \pi_\theta(y|x)}\left[\log \frac{\pi_\theta(y|x)}{\pi(y|x,c)}\right] \tag{1}$$
 
 <p>모델의 autoregressive 구조를 이용해 이 목적함수를 토큰 수준 loss로 분해하고(Tang &amp; Munos, 2025의 유도 참조), teacher 분포를 고정으로 취급한 채 $\theta$에 대해 미분하면 다음 gradient 추정자가 나온다.</p>
-$$\nabla_\theta \mathcal{L}(\theta) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_t \sum_{y_t \in V} \pi_\theta(y_t|y_{<t},x) \log \frac{\pi_\theta(y_t|y_{<t},x)}{\pi(y_t|y_{<t},x,c)} \nabla_\theta \log \pi_\theta(y_t|y_{<t},x)\right] \tag{2}$$
+$$\nabla_\theta \mathcal{L}(\theta) = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_t \sum_{y_t \in V} \pi_\theta(y_t|y_{&lt;t},x) \log \frac{\pi_\theta(y_t|y_{&lt;t},x)}{\pi(y_t|y_{&lt;t},x,c)} \nabla_\theta \log \pi_\theta(y_t|y_{&lt;t},x)\right] \tag{2}$$
 <p>$V$는 토큰 어휘다.</p>
 
 <blockquote><strong>직관적으로 말하면</strong>: 수식 (2)에서 $\log$ 항은 <em>"이 토큰에 대해 시범을 본 나와 못 본 나의 의견이 얼마나 다른가"</em>이고, $\nabla_\theta \log \pi_\theta$는 <em>"그 토큰의 확률을 올리는 방향"</em>이다. 두 항의 곱은 policy gradient의 형태 — <strong>의견 차이가 곧 보상 신호가 된다.</strong> 이것이 §2에서 IRL로 형식화되는 지점이다.</blockquote>
@@ -902,8 +902,8 @@ $$\boxed{\pi^*_{k+1}(y|x) \approx \pi(y|x,c)} \tag{4}$$
 $$r(y,x,c) = \log \pi(y|x,c) - \log \pi_k(y|x) \tag{5}$$
 
 <p>이것은 궤적 수준 보상이므로, autoregressive 구조에 맞춰 토큰 수준으로 분해한다.</p>
-$$r_t(y_t|y_{<t},x,c) = \log \frac{\pi(y_t|y_{<t},x,c)}{\pi_k(y_t|y_{<t},x)}$$
-<p>그리고 모든 $y$에 대해 $\sum_t r_t(y_t|y_{<t},x,c) = r(y,x,c)$가 성립한다 (로그의 연쇄 분해).</p>
+$$r_t(y_t|y_{&lt;t},x,c) = \log \frac{\pi(y_t|y_{&lt;t},x,c)}{\pi_k(y_t|y_{&lt;t},x)}$$
+<p>그리고 모든 $y$에 대해 $\sum_t r_t(y_t|y_{&lt;t},x,c) = r(y,x,c)$가 성립한다 (로그의 연쇄 분해).</p>
 
 <h3>2.4 단계 4 — policy gradient가 reverse-KL 증류와 같다</h3>
 
@@ -2415,16 +2415,16 @@ $$KL(\pi_\theta \| \pi) = \mathbb{E}_{y \sim \pi_\theta}\left[\log \frac{\pi_\th
 <p>저자들은 세 추정자를 비교한다.</p>
 
 <p><strong>① Token-level (partial) 추정자</strong> — 널리 쓰이는 근사. KL을 토큰 수준 항으로 분해하고 각각을 독립적으로 미분한다.</p>
-$$\hat g_{token} = \sum_{t=1}^{T} \log \frac{\pi_\theta(y_t|y_{<t},x)}{\pi(y_t|y_{<t},x,c)} \nabla_\theta \log \pi_\theta(y_t|y_{<t},x)$$
+$$\hat g_{token} = \sum_{t=1}^{T} \log \frac{\pi_\theta(y_t|y_{&lt;t},x)}{\pi(y_t|y_{&lt;t},x,c)} \nabla_\theta \log \pi_\theta(y_t|y_{&lt;t},x)$$
 <p>최근 분석에 따르면 이것은 시퀀스 수준 KL의 <em>편미분</em>에 해당한다 — <strong>앞 토큰이 이후 토큰 분포에 미치는 영향을 무시</strong>하므로 참 gradient에 대해 편향되어 있다.</p>
 
 <p><strong>② Full analytic per-token 추정자</strong> ← 채택. 각 시점에서 어휘 전체를 marginalize해 KL을 해석적으로 계산한다.</p>
-$$\hat g_{analytic} = \sum_{t=1}^{T} \sum_{v \in V} \log \frac{\pi_\theta(v|y_{<t},x)}{\pi(v|y_{<t},x,c)} \nabla_\theta \log \pi_\theta(v|y_{<t},x)$$
+$$\hat g_{analytic} = \sum_{t=1}^{T} \sum_{v \in V} \log \frac{\pi_\theta(v|y_{&lt;t},x)}{\pi(v|y_{&lt;t},x,c)} \nabla_\theta \log \pi_\theta(v|y_{&lt;t},x)$$
 <p>샘플 기반 토큰 추정자보다 <strong>분산이 엄격히 작다</strong>. 다만 $y_t$의 선택이 이후 상태 $y_{>t}$에 미치는 영향을 여전히 반영하지 않으므로 <em>시퀀스 수준에서는 편향되어 있다</em>. 그럼에도 forward pass에서 이미 생산되는 양들을 활용하므로 계산상 매력적이다.</p>
 
 <p><strong>③ Rao-Blackwellized 추정자</strong> (Amini et al., 2025): next-token 분포를 해석적으로 적분하면서 prefix에 대한 Monte-Carlo 샘플링을 유지해 분산을 더 줄인다. KL과 그 gradient <em>양쪽에 대해 불편(unbiased)</em>이며 표준 Monte-Carlo보다 증명 가능하게 낮은 분산을 갖는다. 그러나 계산 비용이 더 크다.</p>
-$$\hat g_{rb} = \sum_{t=1}^{T}\left[\sum_{v \in V} \log \frac{\pi_\theta(v|y_{<t},x)}{\pi(v|y_{<t},x,c)} \nabla_\theta \log \pi_\theta(v|y_{<t},x) + k_\theta(y_{<t}) \sum_{i=1}^{t-1} \nabla_\theta \log \pi_\theta(y_i|y_{<i},x)\right]$$
-<p>여기서 $k_\theta(y_{<t})$는 단계별 KL 항 $KL(\pi_\theta(\cdot|y_{<t},x)\|\pi(\cdot|y_{<t},x,c))$다.</p>
+$$\hat g_{rb} = \sum_{t=1}^{T}\left[\sum_{v \in V} \log \frac{\pi_\theta(v|y_{&lt;t},x)}{\pi(v|y_{&lt;t},x,c)} \nabla_\theta \log \pi_\theta(v|y_{&lt;t},x) + k_\theta(y_{&lt;t}) \sum_{i=1}^{t-1} \nabla_\theta \log \pi_\theta(y_i|y_{&lt;i},x)\right]$$
+<p>여기서 $k_\theta(y_{&lt;t})$는 단계별 KL 항 $KL(\pi_\theta(\cdot|y_{&lt;t},x)\|\pi(\cdot|y_{&lt;t},x,c))$다.</p>
 
 <p><strong>결론</strong>: 세 추정자를 모두 실험한 결과, ##이론적 편향에도 불구하고 full analytic per-token 추정자가 일관되게 가장 안정적인 최적화와 최고의 downstream 성능##을 냈다. token-level 추정자는 분산이 크고 KL 제어가 약했으며, Rao-Blackwellized 추정자는 추가 복잡도에 비해 측정 가능한 이득을 주지 않았다.</p>
 

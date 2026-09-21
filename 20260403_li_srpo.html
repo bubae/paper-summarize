@@ -78,7 +78,7 @@ $$\mathcal{L}_{\text{GRPO}}(\theta) = \mathbb{E}\left[\min\left(\rho_{i,t}(\thet
 
 <h3>2.2 SDPO (Self-Distillation Policy Optimization)</h3>
 <p>Self-teacher $\pi_\theta(\cdot | x, f)$ (feedback-conditioned)에서 dense logit-level supervision. 학생과 교사 간 KL divergence 최소화:</p>
-$$\mathcal{L}_{\text{SDPO}}(\theta) = \sum_t \text{KL}\left(\pi_\theta(\cdot | x, y_{i,<t}) \| \text{stopgrad}[\pi_\theta(\cdot | x, f, y_{i,<t})]\right)$$
+$$\mathcal{L}_{\text{SDPO}}(\theta) = \sum_t \text{KL}\left(\pi_\theta(\cdot | x, y_{i,&lt;t}) \| \text{stopgrad}[\pi_\theta(\cdot | x, f, y_{i,&lt;t})]\right)$$
 
 <p>Self-teacher는 successful sibling rollout이나 environment feedback $f$를 conditioning하여, 원래 trajectory를 re-score. Dense하지만, correct sample에 적용하면 ##reward-equivalent한 다른 reasoning path를 임의로 강제##하는 ambiguity 발생.</p>
 
@@ -97,8 +97,8 @@ $$z_i^{\text{SDPO}} = (1 - c_i) \cdot m_i, \quad z_i^{\text{GRPO}} = 1 - z_i^{\t
 
 <p>##Incorrect + teacher available → SDPO branch. 나머지 전부 → GRPO branch##. 두 branch 모두 동일 policy $\pi_\theta$의 on-policy trajectory에서 동작하므로 policy-gradient 구조 보존. Gradient의 형태만 다름:</p>
 
-$$\nabla_\theta \mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\sum_t \nabla_\theta \log \pi_\theta(y_t | x, y_{<t}) \cdot A_i^{\text{GRPO}}\right]$$
-$$-\nabla_\theta \mathcal{L}_{\text{SDPO}} = \mathbb{E}\left[\sum_t \sum_{v \in \mathcal{V}} \nabla_\theta \log \pi_\theta(v | x, y_{<t}) \cdot A_{i,t}^{\text{SDPO}}(v)\right]$$
+$$\nabla_\theta \mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\sum_t \nabla_\theta \log \pi_\theta(y_t | x, y_{&lt;t}) \cdot A_i^{\text{GRPO}}\right]$$
+$$-\nabla_\theta \mathcal{L}_{\text{SDPO}} = \mathbb{E}\left[\sum_t \sum_{v \in \mathcal{V}} \nabla_\theta \log \pi_\theta(v | x, y_{&lt;t}) \cdot A_{i,t}^{\text{SDPO}}(v)\right]$$
 
 <p>GRPO의 advantage는 reward-derived + sequence-level, SDPO의 advantage는 teacher-derived + logit-level. ##Sample routing은 각 sample에 가장 적합한 advantage estimator를 선택##하는 것.</p>
 

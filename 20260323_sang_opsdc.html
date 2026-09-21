@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <h3>3.2 Training Objective</h3>
 <p>OPSDC는 student rollout 위에서 per-token reverse KL divergence를 최소화한다:</p>
 
-$$\mathcal{L}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)} \left[ \sum_{t=1}^{|y|} D_{\text{KL}}\Big(\pi_\theta(\cdot \mid x, y_{<t}) \,\Big\|\, \pi_{\bar{\theta}}(\cdot \mid x, c, y_{<t})\Big) \right] \quad (1)$$
+$$\mathcal{L}(\theta) = \mathbb{E}_{x \sim \mathcal{D},\, y \sim \pi_\theta(\cdot|x)} \left[ \sum_{t=1}^{|y|} D_{\text{KL}}\Big(\pi_\theta(\cdot \mid x, y_{&lt;t}) \,\Big\|\, \pi_{\bar{\theta}}(\cdot \mid x, c, y_{&lt;t})\Big) \right] \quad (1)$$
 
 <p>여기서 $\bar{\theta}$는 teacher weights로, 주기적으로 student와 동기화되며, teacher의 forward pass에는 gradient가 흐르지 않는다. $y \sim \pi_\theta(\cdot \mid x)$로 student 자신이 생성한 rollout에서 학습하므로 on-policy이다.</p>
 
@@ -177,7 +177,7 @@ return π_{θ*}</div>
 <h3>4.2 Implicit Reward Interpretation</h3>
 <p><strong>Theorem 1</strong> (Implicit reward): OPSDC의 objective (Eq. 1)은 다음과 같은 implicit reward를 최대화하는 것과 동등하다:</p>
 
-$$r(y_t, x) = \log \pi_{\bar{\theta}}(y_t \mid x, c, y_{<t}) - \log \pi_\theta(y_t \mid x, y_{<t}) \quad (3)$$
+$$r(y_t, x) = \log \pi_{\bar{\theta}}(y_t \mid x, c, y_{&lt;t}) - \log \pi_\theta(y_t \mid x, y_{&lt;t}) \quad (3)$$
 
 <p>직관적으로, concise teacher가 student보다 해당 토큰에 더 높은 확률을 부여하면 positive reward, 더 낮은 확률을 부여하면 negative reward가 된다. ##OPSDC는 명시적 길이 패널티 없이도 간결한 reasoning을 암묵적으로 보상##한다. Frozen teacher window 내에서 teacher weights가 implicit trust region 역할을 하여 unbounded policy drift를 방지한다 (Remark 1).</p>
 

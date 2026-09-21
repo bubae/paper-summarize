@@ -135,7 +135,7 @@ Now answer with a response of your own, including the thinking process:</div>
 $$\mathcal{L}(\theta) = D_{\mathrm{KL}}(\pi_\theta(\cdot|x) \,\Vert\, \pi(\cdot|x,c)) = \mathbb{E}_{y\sim \pi_\theta(\cdot|x)}\left[\log\frac{\pi_\theta(y|x)}{\pi(y|x,c)}\right] \quad (1)$$
 
 <p>Token-level decomposition (Tang & Munos 2025):</p>
-$$\nabla_\theta \mathcal{L} = \mathbb{E}_{y\sim \pi_\theta}\left[\sum_t\sum_{y_t\in V}\log\frac{\pi_\theta(y_t|y_{<t},x)}{\pi(y_t|y_{<t},x,c)}\nabla_\theta \log \pi_\theta(y_t|y_{<t},x)\right] \quad (2)$$
+$$\nabla_\theta \mathcal{L} = \mathbb{E}_{y\sim \pi_\theta}\left[\sum_t\sum_{y_t\in V}\log\frac{\pi_\theta(y_t|y_{&lt;t},x)}{\pi(y_t|y_{&lt;t},x,c)}\nabla_\theta \log \pi_\theta(y_t|y_{&lt;t},x)\right] \quad (2)$$
 <p>EMA-updated teacher 파라미터를 fixed로 두고 student parameter $\theta$로만 backprop.</p>
 
 <h3>2.3 Self-Distillation as Inverse RL (Section 3.1)</h3>
@@ -153,7 +153,7 @@ $$\pi^*_{k+1}(y|x) \approx \pi(y|x,c) \quad (4)$$
 <p>즉 demonstration-conditioned policy가 unknown optimal next policy를 근사. 그러면 implicit reward는</p>
 $$r(y,x,c) = \log\pi(y|x,c) - \log\pi(y|x) \quad (5)$$
 
-<p>Token-level reward $r_t(y_t|y_{<t},x,c) = \log\frac{\pi(y_t|y_{<t},x,c)}{\pi_k(y_t|y_{<t},x)}$로 분해. PG로 최대화하면:</p>
+<p>Token-level reward $r_t(y_t|y_{&lt;t},x,c) = \log\frac{\pi(y_t|y_{&lt;t},x,c)}{\pi_k(y_t|y_{&lt;t},x)}$로 분해. PG로 최대화하면:</p>
 $$\nabla_\theta J(\pi_k) = \mathbb{E}_{y\sim \pi_k}\left[\log\frac{\pi(y|x,c)}{\pi_k(y|x)}\nabla_\theta\log\pi_k(y|x)\right] \quad (6)$$
 <p>이는 정확히 Eq.(2) reverse KL gradient와 ##expectation 차원에서 동등##. 직관적으로 SDFT는 "##자기 자신의 더 wiser한 demonstration-aware 버전##"을 비교 기준으로 한 implicit IRL.</p>
 
@@ -173,7 +173,7 @@ EMA-updated teacher π_teacher (initialized from π)
 For each (x, c):
     1. Sample y ~ π_θ(·|x)                        # student rollout
     2. Token-level log ratios:
-         r_t = log π_teacher(y_t | y_<t, x, c) - log π_θ(y_t | y_<t, x)
+         r_t = log π_teacher(y_t | y_&lt;t, x, c) - log π_θ(y_t | y_&lt;t, x)
     3. Reverse KL gradient (Eq. 2):
          ∇𝓛 = Σ_t Σ_y' [log π_θ(y'|x) - log π_teacher(y'|x,c)] · ∇log π_θ(y'|x)
     4. θ ← θ - η · ∇𝓛

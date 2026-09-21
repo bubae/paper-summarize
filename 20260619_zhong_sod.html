@@ -121,7 +121,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 $$\tau = (x, y_1, o_1, \ldots, y_K, o_K, y_{K+1}) \tag{1}$$
 
-<p>$y_{K+1}$ = final response. Policy $\pi_\theta$는 model token만 생성, observation $\{o_k\}$는 environment가 제공. $y_t$ = generated token, $y_{<t}$ = prefix (model output + tool observation 포함).</p>
+<p>$y_{K+1}$ = final response. Policy $\pi_\theta$는 model token만 생성, observation $\{o_k\}$는 environment가 제공. $y_t$ = generated token, $y_{&lt;t}$ = prefix (model output + tool observation 포함).</p>
 
 <h3>3.2 GRPO (Group Relative Policy Optimization)</h3>
 
@@ -129,7 +129,7 @@ $$\tau = (x, y_1, o_1, \ldots, y_K, o_K, y_{K+1}) \tag{1}$$
 
 $$\hat{A}_i = \frac{r_i - \text{mean}(\{r_j\})}{\text{std}(\{r_j\}) + \epsilon_A} \tag{2}$$
 
-<p>Token-level importance ratio $\rho_{i,t}(\theta) = \pi_\theta(y_{i,t}|y_{i,<t}) / \pi_{\theta_{\text{old}}}(y_{i,t}|y_{i,<t})$. Objective:</p>
+<p>Token-level importance ratio $\rho_{i,t}(\theta) = \pi_\theta(y_{i,t}|y_{i,&lt;t}) / \pi_{\theta_{\text{old}}}(y_{i,t}|y_{i,&lt;t})$. Objective:</p>
 
 $$\mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\frac{1}{G}\sum_{i=1}^G \frac{1}{|\mathcal{T}_i|}\sum_{t \in \mathcal{T}_i} \min(\rho_{i,t}(\theta) \hat{A}_i, \text{clip}(\rho_{i,t}(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_i)\right] \tag{3}$$
 
@@ -139,7 +139,7 @@ $$\mathcal{L}_{\text{GRPO}} = -\mathbb{E}\left[\frac{1}{G}\sum_{i=1}^G \frac{1}{
 
 <p>Student-generated trajectory에서 dense token-level supervision (student visited state에서 reverse KL):</p>
 
-$$\mathcal{L}_{\text{OPD}} = \mathbb{E}\left[\sum_{t \in \mathcal{T}_i} (\log \pi_\theta(y_t | y_{<t}) - \log \pi_{\text{teacher}}(y_t | y_{<t}))\right] \tag{4}$$
+$$\mathcal{L}_{\text{OPD}} = \mathbb{E}\left[\sum_{t \in \mathcal{T}_i} (\log \pi_\theta(y_t | y_{&lt;t}) - \log \pi_{\text{teacher}}(y_t | y_{&lt;t}))\right] \tag{4}$$
 
 <p>이는 ##student-visited state에서 student/teacher policy의 reverse KL divergence##의 sampled estimator. Sparse reward 문제 완화 + sample efficiency 향상.</p>
 
@@ -152,7 +152,7 @@ $$\mathcal{L}_{\text{OPD}} = \mathbb{E}\left[\sum_{t \in \mathcal{T}_i} (\log \p
 
 <p>Step-level mismatch 정의:</p>
 
-$$\Delta_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} D_{\text{KL}}(\pi_\theta(\cdot|y_{<t}) \| \pi_{\text{teacher}}(\cdot|y_{<t})) \tag{5}$$
+$$\Delta_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} D_{\text{KL}}(\pi_\theta(\cdot|y_{&lt;t}) \| \pi_{\text{teacher}}(\cdot|y_{&lt;t})) \tag{5}$$
 
 <p>두 propositional 결과 (Appendix D):</p>
 
@@ -161,7 +161,7 @@ $$\Delta_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} D_{\text{KL}}(\
 </blockquote>
 
 <blockquote>
-<strong>Proposition 2 (Gradient SNR degradation)</strong>: Teacher-supported region $S_t^\epsilon = \{v \in \mathcal{V}: \pi_{\text{teacher}}(v|y_{<t}) \geq \epsilon\}$, overlap $\rho_t = \sum_{v \in S_t^\epsilon} \pi_\theta(v|y_{<t})$. $\rho_t \leq \rho$일 때, OPD loss의 second moment $\mathbb{E}[\ell_t^2] \geq (1-\rho)\log^2(1/\epsilon)$, ##gradient estimator SNR$(g_t) \to 0$ as $\rho_t \to 0$##.
+<strong>Proposition 2 (Gradient SNR degradation)</strong>: Teacher-supported region $S_t^\epsilon = \{v \in \mathcal{V}: \pi_{\text{teacher}}(v|y_{&lt;t}) \geq \epsilon\}$, overlap $\rho_t = \sum_{v \in S_t^\epsilon} \pi_\theta(v|y_{&lt;t})$. $\rho_t \leq \rho$일 때, OPD loss의 second moment $\mathbb{E}[\ell_t^2] \geq (1-\rho)\log^2(1/\epsilon)$, ##gradient estimator SNR$(g_t) \to 0$ as $\rho_t \to 0$##.
 </blockquote>
 
 <p>이 두 결과가 TIR-specific failure cascade 특성화: consecutive erroneous tool call이 compounding divergence amplification (Prop 1) 야기 → low-overlap state로 student를 progressively push → OPD gradient가 high-variance, uninformative contribution에 dominated (Prop 2). Figure 1에서 empirical confirm: error accumulate 시 divergence sharp acceleration (a), teacher entropy elevated and unstable (b).</p>
@@ -174,7 +174,7 @@ $$\Delta_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} D_{\text{KL}}(\
 
 <p><strong>Step-level divergence score</strong>:</p>
 
-$$d_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} |\log \pi_\theta(y_t|y_{<t}) - \log \pi_{\text{teacher}}(y_t|y_{<t})| \tag{6}$$
+$$d_k = \frac{1}{|\mathcal{I}_k|}\sum_{t \in \mathcal{I}_k} |\log \pi_\theta(y_t|y_{&lt;t}) - \log \pi_{\text{teacher}}(y_t|y_{&lt;t})| \tag{6}$$
 
 <p>$d_k$는 teacher supervision의 ##local reliability indicator##. 작으면 student가 teacher distribution과 well-aligned, 크면 substantial mismatch (tool-induced drift나 corrupted observation).</p>
 
@@ -190,11 +190,11 @@ $$w_k = \min\left(\prod_{u=1}^{k-1} \frac{d_u + \epsilon}{d_{u+1} + \epsilon}, 1
 
 <p>Student-generated trajectory에서 token $t$의 sampled-token OPD term:</p>
 
-$$\ell_{\text{OPD}}(y_t) = \log \pi_\theta(y_t | y_{<t}) - \log \pi_{\text{teacher}}(y_t | y_{<t}) \tag{8}$$
+$$\ell_{\text{OPD}}(y_t) = \log \pi_\theta(y_t | y_{&lt;t}) - \log \pi_{\text{teacher}}(y_t | y_{&lt;t}) \tag{8}$$
 
 <p>Step level uniform 적용 대신, step $k$의 모든 token을 weight $w_k$로 reweight:</p>
 
-$$\mathcal{L}_{\text{OPD}}^{\text{step}} = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{k=1}^{K+1} w_k \sum_{t \in \mathcal{I}_k}(\log \pi_\theta(y_t|y_{<t}) - \log \pi_{\text{teacher}}(y_t|y_{<t}))\right] \tag{9}$$
+$$\mathcal{L}_{\text{OPD}}^{\text{step}} = \mathbb{E}_{y \sim \pi_\theta}\left[\sum_{k=1}^{K+1} w_k \sum_{t \in \mathcal{I}_k}(\log \pi_\theta(y_t|y_{&lt;t}) - \log \pi_{\text{teacher}}(y_t|y_{&lt;t}))\right] \tag{9}$$
 
 <p>최종 training objective:</p>
 

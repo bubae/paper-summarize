@@ -105,8 +105,8 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <h3>2.1 API call 표현</h3>
 <p>API call을 tuple $c = (a_c, i_c)$로 표현 ($a_c$: API 이름, $i_c$: 입력). result $r$이 있을 때:</p>
-$$e(c) = \texttt{<API>} a_c(i_c) \texttt{</API>}$$
-$$e(c, r) = \texttt{<API>} a_c(i_c) \to r \texttt{</API>}$$
+$$e(c) = \texttt{&lt;API>} a_c(i_c) \texttt{&lt;/API>}$$
+$$e(c, r) = \texttt{&lt;API>} a_c(i_c) \to r \texttt{&lt;/API>}$$
 
 <p>실제로는 token vocabulary 수정 없이 "[", "]", "->" 같은 일반 토큰 시퀀스로 매핑.</p>
 
@@ -116,7 +116,7 @@ $$e(c, r) = \texttt{<API>} a_c(i_c) \to r \texttt{</API>}$$
 
 <h4>Step 1: Sampling API Calls</h4>
 <p>Few-shot prompt $P(\mathbf{x})$로 LM이 annotation 생성. Position $i$의 시작 확률:</p>
-$$p_i = p_M(\texttt{<API>} | P(\mathbf{x}), x_{1:i-1})$$
+$$p_i = p_M(\texttt{&lt;API>} | P(\mathbf{x}), x_{1:i-1})$$
 
 <p>Threshold $\tau_s$ 이상 위치 set $I = \{i | p_i > \tau_s\}$ 선정 (최대 $k$개). 각 위치마다 최대 $m$개 후보 API call $c_i^1, \ldots, c_i^m$ 샘플링.</p>
 
@@ -148,7 +148,7 @@ $$\mathbf{x}^* = x_{1:i-1}, e(c_i, r_i), x_{i:n}$$
 
 <h3>2.4 Inference</h3>
 
-<p>Regular decoding 진행 → "$\to$" token 생성 시 ##decoding 중단 → API 호출 → response 삽입 → "$</API>$" token 추가 후 decoding 재개##.</p>
+<p>Regular decoding 진행 → "$\to$" token 생성 시 ##decoding 중단 → API 호출 → response 삽입 → "$&lt;/API>$" token 추가 후 decoding 재개##.</p>
 
 <h3>2.5 알고리즘 흐름</h3>
 <div class="flow-diagram">[Data construction phase]

@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <h3>GRPO (Group Relative Policy Optimization)</h3>
 <p>Shao et al. 2024. Query $q$에 대해 old policy에서 $n$개 response $\{y^{(i)}\}$를 샘플링, 각 reward $R^{(i)}$를 그룹 내에서 정규화하여 advantage 계산. 목적함수:</p>
 <p>$$\mathcal{J}_{\text{GRPO}}(\theta) = \mathbb{E}_{q \sim Q, \{y^{(i)}\}_{i=1}^n \sim \pi_{\text{old}}}\left[\frac{1}{n}\sum_{i=1}^{n}\frac{1}{|y^{(i)}|}\sum_{t=1}^{|y^{(i)}|} \min(r_t^{(i)} \hat{A}_t^{(i)}, \text{clip}(r_t^{(i)}, 1-\epsilon, 1+\epsilon) \hat{A}_t^{(i)})\right] \tag{1}$$</p>
-<p>여기서 $r_t^{(i)} = \pi_\theta(y_t^{(i)} | q, y_{<t}^{(i)}) / \pi_{\text{old}}(y_t^{(i)} | q, y_{<t}^{(i)})$이고, advantage는 group mean/std로 정규화:</p>
+<p>여기서 $r_t^{(i)} = \pi_\theta(y_t^{(i)} | q, y_{&lt;t}^{(i)}) / \pi_{\text{old}}(y_t^{(i)} | q, y_{&lt;t}^{(i)})$이고, advantage는 group mean/std로 정규화:</p>
 <p>$$\hat{A}_t^{(i)} = \frac{R^{(i)} - \text{mean}(\{R^{(i)}\})}{\text{std}(\{R^{(i)}\})}$$</p>
 <p>Value function을 estimate할 필요가 없고 (PPO 대비 단순) 각 그룹 내 상대적 성과로 학습.</p>
 
@@ -151,7 +151,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <p>$$\mathcal{J}_{\text{init}}(\theta) = \mathbb{E}\left[\frac{1}{n}\sum_{i=1}^{n}\frac{1}{|y^{(i)}|}\sum_{t=1}^{|y^{(i)}|} \min(r_t^{(i)} \hat{A}_t^{(i)}, \text{clip}(...) \hat{A}_t^{(i)})\right] \tag{3}$$</p>
 
 <p><strong>Refined responses</strong>: Policy shaping을 사용:</p>
-<p>$$\rho_t^{(i')}(\theta) = \frac{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},<t}^{(i')})}{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},<t}^{(i')}) + \gamma}$$</p>
+<p>$$\rho_t^{(i')}(\theta) = \frac{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},&lt;t}^{(i')})}{\pi_\theta(y_{\text{refined},t}^{(i')} | q, y_{\text{refined},&lt;t}^{(i')}) + \gamma}$$</p>
 <p>여기서 $0 < \gamma < 1$ (Yan et al. 2025의 shaping factor). $\gamma$가 커질수록 low-probability token에 더 큰 gradient가 배분된다.</p>
 <p><em>직관</em>: Refined responses는 <em>현재 policy에서는 낮은 확률의 unfamiliar trajectory</em>다. 표준 importance sampling ratio를 쓰면 이 rare trajectory의 gradient가 vanishingly small해진다. Shaping은 이를 완화해 unfamiliar but valuable한 refinement token에 더 많은 학습을 배정.</p>
 <p>Refined objective:</p>

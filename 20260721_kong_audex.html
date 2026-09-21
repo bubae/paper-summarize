@@ -225,7 +225,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <p>Standard LLM loss:</p>
 
-$$\max_\theta \left\{ \frac{1}{\text{\#Trainable tokens}} \sum_{i: x_i \text{ is trainable}} \log p_\theta(x_i \mid x_{<i}) \right\} \tag{1}$$
+$$\max_\theta \left\{ \frac{1}{\text{\#Trainable tokens}} \sum_{i: x_i \text{ is trainable}} \log p_\theta(x_i \mid x_{&lt;i}) \right\} \tag{1}$$
 
 <p>Packed sequence의 경우, 각 sample <code>j</code>의 loss vector를 <code>L_j</code>, 길이를 <code>|L_j|</code>라 하면 <strong>square averaging loss</strong> 사용:</p>
 
@@ -239,7 +239,7 @@ $$\text{Scaled-Loss}(\{L_1, \dots, L_k\}) = \left( \sum_{j=1}^{k} \frac{\text{su
 <h4>4.3.3 Classifier-Free Guidance (CFG)</h4>
 <p>CFG 활성화를 위해 unconditional distribution <code>p_θ(·|∅)</code>도 학습. Inference 시 logit 수정:</p>
 
-$$p^{\text{CFG}}_\theta(\cdot | x_{<i}) = p_\theta(\cdot | x_{<i}) + (\lambda - 1) \cdot [p_\theta(\cdot | x_{<i}) - p_\theta(\cdot | \emptyset)] \tag{3}$$
+$$p^{\text{CFG}}_\theta(\cdot | x_{&lt;i}) = p_\theta(\cdot | x_{&lt;i}) + (\lambda - 1) \cdot [p_\theta(\cdot | x_{&lt;i}) - p_\theta(\cdot | \emptyset)] \tag{3}$$
 
 <p>UALM 방식 따라 <code>∅</code>는 <code>i-1</code> consecutive un-trainable padding token으로 설정 (<code>x_{<i}</code>와 동일 길이). CFG 학습을 위한 pre-processing 접근: speech/audio generation data 10%를 randomly 선정, transcription/caption을 random 수의 padding token으로 변환하여 training dataset에 blend. On-the-fly conditional flipping을 피해 parallelism 구현 단순화.</p>
 

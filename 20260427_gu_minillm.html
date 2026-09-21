@@ -110,28 +110,28 @@ $$\theta = \arg\min_\theta \mathcal{L}(\theta) = \arg\min_\theta \mathrm{KL}[q_\
 
 <h3>2.2 Policy Gradient 도출</h3>
 <p>Eq.(1)의 gradient는 PG 정리로:</p>
-$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim q_\theta(\cdot|x)}\sum_{t=1}^{T}(R_t - 1)\nabla \log q_\theta(y_t|y_{<t}, x) \quad (2)$$
-<p>여기서 $T=|y|$, $R_t = \sum_{t'=t}^{T}\log\frac{p(y_{t'}|y_{<t'},x)}{q_\theta(y_{t'}|y_{<t'},x)}$는 ##timestep $t$ 이후 누적 log-ratio reward##. 직관: 각 토큰에서 ##teacher가 student보다 더 좋아하는 정도##를 reward로 받아 reinforcement learning 형태로 정책을 업데이트.</p>
+$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim q_\theta(\cdot|x)}\sum_{t=1}^{T}(R_t - 1)\nabla \log q_\theta(y_t|y_{&lt;t}, x) \quad (2)$$
+<p>여기서 $T=|y|$, $R_t = \sum_{t'=t}^{T}\log\frac{p(y_{t'}|y_{&lt;t'},x)}{q_\theta(y_{t'}|y_{&lt;t'},x)}$는 ##timestep $t$ 이후 누적 log-ratio reward##. 직관: 각 토큰에서 ##teacher가 student보다 더 좋아하는 정도##를 reward로 받아 reinforcement learning 형태로 정책을 업데이트.</p>
 
 <h3>2.3 안정화 1 — Single-Step Decomposition</h3>
 <p>$R_t$를 $r_t$ (당시 토큰의 single-step reward)와 $R_{t+1}$로 분해:</p>
-$$\nabla \mathcal{L}(\theta) = \mathbb{E}\left[-\sum_t \nabla_\theta \mathbb{E}_{y_t\sim q_\theta(t)}[r_t]\right] + \mathbb{E}\left[-\sum_t R_{t+1}\nabla \log q_\theta(y_t|y_{<t},x)\right] \quad (3)$$
+$$\nabla \mathcal{L}(\theta) = \mathbb{E}\left[-\sum_t \nabla_\theta \mathbb{E}_{y_t\sim q_\theta(t)}[r_t]\right] + \mathbb{E}\left[-\sum_t R_{t+1}\nabla \log q_\theta(y_t|y_{&lt;t},x)\right] \quad (3)$$
 <p>= $(\nabla \mathcal{L})_{\text{Single}} + (\nabla \mathcal{L})_{\text{Long}}$. ##Single 부분은 vocab 전체 합으로 직접 계산 가능 → MC 샘플링 분산 제거, 수렴 가속##. 직관: 앞 token의 noise가 뒤로 전파되는 variance 누적을 끊는다.</p>
 
 <h3>2.4 안정화 2 — Teacher-Mixed Sampling</h3>
 <p>Reward hacking — student가 ##반복 phrase 같은 degenerate한 문장##에 teacher 분포가 우연히 높은 확률을 줘서 reward를 받는 현상 — 을 막기 위해 sampling distribution을 teacher와 mix:</p>
-$$\tilde p(y_t|y_{<t},x) = \alpha\cdot p(y_t|y_{<t},x) + (1-\alpha)\cdot q_\theta(y_t|y_{<t},x) \quad (4)$$
+$$\tilde p(y_t|y_{&lt;t},x) = \alpha\cdot p(y_t|y_{&lt;t},x) + (1-\alpha)\cdot q_\theta(y_t|y_{&lt;t},x) \quad (4)$$
 <p>$\alpha=0.2$. teacher mix-in이 ##low-quality generation을 사전 차단##. importance sampling으로 unbiased gradient 유지:</p>
 $$(\nabla \mathcal{L})_{\text{Single}} = -\mathbb{E}_{y\sim \tilde p}\left[\sum_t w_t \nabla \mathbb{E}_{y_t\sim q_\theta(t)}[r_t]\right] \quad (5)$$
-<p>$w_t = \prod_{t'=1}^{t} \frac{q_\theta}{\tilde p}$가 high-variance하므로 ##per-step approximation $w_t \approx \frac{q_\theta(y_t|y_{<t},x)}{\tilde p(y_t|y_{<t},x)}$##로 안정화.</p>
+<p>$w_t = \prod_{t'=1}^{t} \frac{q_\theta}{\tilde p}$가 high-variance하므로 ##per-step approximation $w_t \approx \frac{q_\theta(y_t|y_{&lt;t},x)}{\tilde p(y_t|y_{&lt;t},x)}$##로 안정화.</p>
 
 <h3>2.5 안정화 3 — Length Normalization</h3>
 <p>긴 시퀀스는 $R_{t+1}$이 작아 student가 짧은 응답을 생성하도록 편향. 길이 정규화:</p>
-$$R^{\text{Norm}}_{t+1} = \frac{1}{T-t-1}\sum_{t'=t+1}^{T}\log\frac{p(y_{t'}|y_{<t'},x)}{q_\theta(y_{t'}|y_{<t'},x)} \quad (6)$$
+$$R^{\text{Norm}}_{t+1} = \frac{1}{T-t-1}\sum_{t'=t+1}^{T}\log\frac{p(y_{t'}|y_{&lt;t'},x)}{q_\theta(y_{t'}|y_{&lt;t'},x)} \quad (6)$$
 <p>이 단순한 평균이 ##짧은 응답으로 도망가는 reward hacking##을 차단.</p>
 
 <h3>2.6 최종 Gradient</h3>
-$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim \tilde p(\cdot|x)}\left[\sum_t w_t \left[\nabla\sum_{y'\in V} q_\theta(y'|y_{<t},x)\log\frac{p(y'|y_{<t},x)}{q_\theta(y'|y_{<t},x)}\,\, +\,\, R^{\text{Norm}}_{t+1}\frac{\nabla q_\theta(y_t|y_{<t},x)}{q_\theta(y_t|y_{<t},x)}\right]\right] \quad (7)$$
+$$\nabla \mathcal{L}(\theta) = -\mathbb{E}_{x\sim p_x, y\sim \tilde p(\cdot|x)}\left[\sum_t w_t \left[\nabla\sum_{y'\in V} q_\theta(y'|y_{&lt;t},x)\log\frac{p(y'|y_{&lt;t},x)}{q_\theta(y'|y_{&lt;t},x)}\,\, +\,\, R^{\text{Norm}}_{t+1}\frac{\nabla q_\theta(y_t|y_{&lt;t},x)}{q_\theta(y_t|y_{&lt;t},x)}\right]\right] \quad (7)$$
 <p>주의: Single 부분은 vocab 전체 sum, Long 부분은 정규화된 reward × score function. 학습 시 ##언어 모델링 보존 손실 $\mathcal{L}_{\text{PT}}$도 같이 최적화##해 canonical NLP 벤치마크 성능 유지.</p>
 
 <h3>2.7 알고리즘 흐름도</h3>

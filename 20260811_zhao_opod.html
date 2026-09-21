@@ -85,7 +85,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <p>OPD는 최근 model post-training의 표준 도구가 되었다. Sequence-level distillation이 pre-collected teacher trajectory를 imitation하는 반면, OPD는 <em>student</em>가 sampling한 rollout에 대해 teacher와 student의 next-token distribution을 각 prefix에서 비교한다.</p>
 
 <p>Student policy $\pi_\theta$와 teacher policy $\pi_T$에 대해 OPD reward는 다음과 같다:</p>
-<p>$$r^{\text{opd}}_{i,t} = \log \pi_T(y_{i,t} \mid x_i, y_{i,<t}) - \log \pi_\theta(y_{i,t} \mid x_i, y_{i,<t}) \tag{1}$$</p>
+<p>$$r^{\text{opd}}_{i,t} = \log \pi_T(y_{i,t} \mid x_i, y_{i,&lt;t}) - \log \pi_\theta(y_{i,t} \mid x_i, y_{i,&lt;t}) \tag{1}$$</p>
 <p>이 log-ratio는 student rollout에 대한 reverse-KL의 dense token-level reward에 대응한다. 직관적으로 말하면, teacher와 student의 확률차가 각 위치에서 "얼마나 학생이 이 토큰을 더 잘/못 예측하는가"의 dense signal이다. 이는 outcome reward만 있는 sparse RL과 달리 매 토큰에서 감독을 준다.</p>
 
 <h3>Omni 상황에서의 두 가지 문제</h3>
@@ -144,7 +144,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <h3>3.5 Verification Reward</h3>
 <p>같은 modality teacher를 verifier로 재활용한다. 두 개의 signal:</p>
 <p><strong>(a) Answer confidence</strong>: Final answer position $S_i$에서 teacher가 gold answer $a_i^\star$에 얼마나 확률을 배분하는가:</p>
-<p>$$A_i = \frac{1}{|S_i|}\sum_{t \in S_i} \log \pi_T^{m_i}(y_{i,t} \mid x_i, y_{i,<t})$$</p>
+<p>$$A_i = \frac{1}{|S_i|}\sum_{t \in S_i} \log \pi_T^{m_i}(y_{i,t} \mid x_i, y_{i,&lt;t})$$</p>
 <p>Correctness 게이팅:</p>
 <p>$$\tilde{A}_i = \mathbf{1}[a_i = a_i^\star] \cdot \text{clip}(A_i, -C, 0)$$</p>
 <p>즉 학생이 정답을 낸 rollout에서만 answer confidence를 신호로 삼는다.</p>
@@ -162,10 +162,10 @@ document.addEventListener("DOMContentLoaded", function() {
 <p>Rollout group $\mathcal{G}_i$의 mean $\mu_i$, std $\sigma_i$에 대해 group-normalized advantage:</p>
 <p>$$\hat{R}_i = \frac{r_i - \mu_i}{\sigma_i + \delta}$$</p>
 <p>Policy loss:</p>
-<p>$$\mathcal{L}_{\text{rl}} = -\frac{1}{|\mathcal{B}|}\sum_{i \in \mathcal{B}} \hat{R}_i \frac{1}{T_i}\sum_{t=1}^{T_i}\log \pi_\theta(y_{i,t} \mid x_i, y_{i,<t})$$</p>
+<p>$$\mathcal{L}_{\text{rl}} = -\frac{1}{|\mathcal{B}|}\sum_{i \in \mathcal{B}} \hat{R}_i \frac{1}{T_i}\sum_{t=1}^{T_i}\log \pi_\theta(y_{i,t} \mid x_i, y_{i,&lt;t})$$</p>
 <p>Reference KL regularizer (rollout-averaged):</p>
 <p>$$\mathcal{L}_{\text{ref}} = \frac{1}{|\mathcal{B}|}\sum_i \frac{1}{T_i}\sum_{t=1}^{T_i} D_{\text{KL}}(\pi_\theta(\cdot \mid h_{i,t}) \| \pi_{\text{ref}}(\cdot \mid h_{i,t}))$$</p>
-<p>여기서 $h_{i,t} = (x_i, y_{i,<t})$, $\pi_{\text{ref}}$는 훈련 시작 이전 policy (고정).</p>
+<p>여기서 $h_{i,t} = (x_i, y_{i,&lt;t})$, $\pi_{\text{ref}}$는 훈련 시작 이전 policy (고정).</p>
 <p>최종 objective:</p>
 <p>$$\mathcal{L} = \mathcal{L}_{\text{rl}} + \mathcal{L}_{\text{tc}} + \alpha \mathcal{L}_{\text{ref}} \tag{5}$$</p>
 <p>세 항은 동일한 on-policy batch로 계산. Task+verification reward가 rollout-level advantage를 만들고, $\mathcal{L}_{\text{tc}}$가 token-level guidance를 (teacher가 앞선 곳에만) 준다. Gradient는 shared student만 업데이트 — routed teacher와 reference는 고정.</p>

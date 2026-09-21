@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <h2>배경 지식 (Background)</h2>
 
 <h3>Autoregressive vs. Diffusion vs. MTP</h3>
-<p><strong>AR</strong>은 다음 토큰 조건부 확률 $p_\theta(x_i | x_{<i})$을 순차적으로 sampling. 병렬성 제로, 왼쪽→오른쪽 linguistic prior 강함.</p>
+<p><strong>AR</strong>은 다음 토큰 조건부 확률 $p_\theta(x_i | x_{&lt;i})$을 순차적으로 sampling. 병렬성 제로, 왼쪽→오른쪽 linguistic prior 강함.</p>
 <p><strong>Discrete diffusion (masked)</strong>은 시퀀스를 마스킹하고 병렬로 복원. Block-wise diffusion (Arriola et al., 2025a)은 블록 단위 AR + 블록 내부 병렬로 KV 캐시 지원.</p>
 <p><strong>MTP (Multi-Token Prediction)</strong>는 Eagle3처럼 작은 draft head가 여러 미래 토큰을 예측하고, 큰 AR 모델이 검증. 두 병목: (a) draft head 용량 제한으로 short horizon만 신뢰 가능, (b) proposal이 recursive해 각 단계마다 embedding + LM head 비용 발생.</p>
 
@@ -89,8 +89,8 @@ document.addEventListener("DOMContentLoaded", function() {
 <p>SOL은 diffusion 모드의 <strong>내재적 병렬성 상한</strong>을 측정. 즉 AR verifier 개입 없이, diffusion 모델 자신이 이상적 sampler로 forward pass당 얼마나 많은 <em>정확한</em> 토큰을 예측할 수 있는가. 현재 sampler(confidence threshold) 대비 SOL이 얼마나 여유가 있는지를 정량화해, 향후 sampler 개선의 헤드룸을 보여줌.</p>
 
 <h3>Block Diffusion 재확인</h3>
-<p>시퀀스를 $B$개의 연속 블록 $\{x^b\}_{b=1}^{B}$로 분할. Noise level $t \sim \mathcal{U}[0,1]$에서 현재 블록의 토큰만 forward process $q$로 corrupt하고, prefix $x^{<b}$는 clean 유지. Diffusion objective:</p>
-$$\mathcal{L}_{\text{diff}}(\theta) = \mathbb{E}\left[-\frac{1}{t}\sum_{b=1}^{B}\log p_\theta\bigl(x^b\mid \tilde{x}^b_t, x^{<b}\bigr)\right].$$
+<p>시퀀스를 $B$개의 연속 블록 $\{x^b\}_{b=1}^{B}$로 분할. Noise level $t \sim \mathcal{U}[0,1]$에서 현재 블록의 토큰만 forward process $q$로 corrupt하고, prefix $x^{&lt;b}$는 clean 유지. Diffusion objective:</p>
+$$\mathcal{L}_{\text{diff}}(\theta) = \mathbb{E}\left[-\frac{1}{t}\sum_{b=1}^{B}\log p_\theta\bigl(x^b\mid \tilde{x}^b_t, x^{&lt;b}\bigr)\right].$$
 <p>직관적으로 말하면, ##이 설계는 블록 내부는 bidirectional (병렬 예측)이고 블록 간은 causal (KV 캐시 재사용)이라, AR과 자연스럽게 결합 가능##.</p>
 
 <h2>방법론 (Methodology)</h2>

@@ -116,7 +116,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <div class="flow-diagram">For each (question, reasoning_trace, answer) in D_init:
   1. Apply structured prompt template
   2. Identify computation steps in trace
-  3. Replace with <code>…</code> + <interpreter>result</interpreter>
+  3. Replace with <code>…</code> + &lt;interpreter&gt;result&lt;/interpreter&gt;
   4. Format verification: ensure <code></code> tag syntax 일관성
   5. Answer verification: final output이 ground-truth와 일치하는가
   6. Pass → add to D_CI</div>
@@ -130,7 +130,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <h4>2.3.1 PPO objective</h4>
 
 <p>표준 PPO를 수정해 ##rollout이 interleaved code execution을 포함##:</p>
-$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{(q,a) \sim \mathcal{D}, o_{\leq t} \sim \pi_{\theta_{\text{old}}}(\cdot | q)} \left[ \min\left( \frac{\pi_\theta(o_t | q, o_{<t}; \mathcal{CI})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{<t}; \mathcal{CI})} \hat{A}_t, \text{clip}\left(\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}, 1-\varepsilon, 1+\varepsilon\right) \hat{A}_t \right) \right]$$
+$$\mathcal{J}_{\text{PPO}}(\theta) = \mathbb{E}_{(q,a) \sim \mathcal{D}, o_{\leq t} \sim \pi_{\theta_{\text{old}}}(\cdot | q)} \left[ \min\left( \frac{\pi_\theta(o_t | q, o_{&lt;t}; \mathcal{CI})}{\pi_{\theta_{\text{old}}}(o_t | q, o_{&lt;t}; \mathcal{CI})} \hat{A}_t, \text{clip}\left(\frac{\pi_\theta}{\pi_{\theta_{\text{old}}}}, 1-\varepsilon, 1+\varepsilon\right) \hat{A}_t \right) \right]$$
 
 <p>$\mathcal{CI}$는 code interpreter context. 직관적으로 말하면 ##policy gradient를 계산할 때 interpreter feedback이 context의 일부##로 들어감.</p>
 
@@ -148,7 +148,7 @@ $$R(a, \hat{a}) = \begin{cases} 1, & \text{is\_equivalent}(a, \hat{a}) \\ -1, & 
 2. Code termination trigger </code> 감지 → generation pause
 3. 생성된 code c_1을 parse → Code Sandbox에 전송
 4. Sandbox 실행 결과 f_1 (success result or error message)
-5. f_1을 <interpreter></interpreter> 태그로 wrap → context에 추가
+5. f_1을 &lt;interpreter&gt;&lt;/interpreter&gt; 태그로 wrap → context에 추가
 6. LLM이 t_2 생성 재개
 7. 최종 answer o 출력까지 반복
 8. Hybrid trajectory: [t_1 ⊕ c_1 ⊕ f_1 ⊕ … ⊕ o]</div>

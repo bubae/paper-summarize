@@ -125,7 +125,7 @@ $$y^a = \{y^a_t\}_{t=1}^{T_a}, \quad y^a_t \in \{1, \dots, V_a\} \tag{3}$$
 
 <p>두 branch는 concurrent지만 audio branch는 causal: 현재 hidden state와 <code>s</code> 이전에 committed된 history에 조건화되며, 같은 update에서 예측 중인 text token에는 의존하지 않는다. Post-decoder 모델:</p>
 
-$$P(\mathbf{y}^a_s \mid \mathbf{y}^a_{<s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a) \tag{4}$$
+$$P(\mathbf{y}^a_s \mid \mathbf{y}^a_{&lt;s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a) \tag{4}$$
 
 <p>두 branch가 output을 emit한 후, <code>y^τ_s</code>와 <code>y^a_s</code>가 commit되어 <code>s+1</code>의 history가 된다. ##Synchronization은 timestamp-level (chunk-level이 아님)##: PRIME-Speech는 완성된 text, 고정 text chunk, word-to-frame alignment를 기다리지 않고, audio branch가 backbone trajectory에서 detach된 free-standing clock으로 실행되지도 않는다.</p>
 
@@ -156,7 +156,7 @@ $$h^{\text{mix}}_s = w_h h^{\text{mid}}_s + w_\tau e^\tau_{s-1} + w_a r^a_{s-1} 
 
 <p>Codec token은 25Hz로 생성되어 autoregressive audio decoding이 response latency를 지배할 수 있다. PRIME-Speech는 single-token 학습으로 stable hidden-state alignment를 확보한 뒤, audio post-decoder에 MTP head를 부착. Update <code>s</code>에서 post-decoder state는 <code>k</code>개의 미래 single-codebook codec token 분포를 예측:</p>
 
-$$p_{s,i} = P(y^a_{s,i} \mid \mathbf{y}^a_{<s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a), \quad i = 1, \dots, k. \tag{7}$$
+$$p_{s,i} = P(y^a_{s,i} \mid \mathbf{y}^a_{&lt;s}, y^\tau_{\le s}, H^{\text{mid}}_{\le s}; \theta_a), \quad i = 1, \dots, k. \tag{7}$$
 
 <p>목적함수는 유효 미래 token loss의 가중합:</p>
 
@@ -174,11 +174,11 @@ $$\mathcal{L}_{\text{mtp}} = -\sum_s \sum_{i=1}^{k} \lambda_i \log p_{s,i}(y^a_{
 
 <p>Text KV state는 across turns로 축적, audio KV state는 각 assistant turn마다 reset:</p>
 
-$$\mathbf{C}^{(n)}_m = \begin{cases} \mathbf{C}^{(<n)}_\tau \oplus \{\mathbf{K}^{(n)}_\tau, \mathbf{V}^{(n)}_\tau\}, & m = \tau, \\ \{\mathbf{K}^{(n)}_a, \mathbf{V}^{(n)}_a\}, & m = a, \end{cases} \tag{9}$$
+$$\mathbf{C}^{(n)}_m = \begin{cases} \mathbf{C}^{(&lt;n)}_\tau \oplus \{\mathbf{K}^{(n)}_\tau, \mathbf{V}^{(n)}_\tau\}, & m = \tau, \\ \{\mathbf{K}^{(n)}_a, \mathbf{V}^{(n)}_a\}, & m = a, \end{cases} \tag{9}$$
 
-<p><code>⊕</code>는 concatenation, <code>C^(<n)_τ</code>는 이전 턴들의 text state 저장. Codec 예측은 accumulated text semantics와 turn-local audio history에 조건화:</p>
+<p><code>⊕</code>는 concatenation, <code>C^(&lt;n)_τ</code>는 이전 턴들의 text state 저장. Codec 예측은 accumulated text semantics와 turn-local audio history에 조건화:</p>
 
-$$P(y^a_t \mid \mathbf{C}^{(<n)}_\tau, \mathbf{C}^{(n)}_a, H^{\text{mid}}; \theta_a) \tag{10}$$
+$$P(y^a_t \mid \mathbf{C}^{(&lt;n)}_\tau, \mathbf{C}^{(n)}_a, H^{\text{mid}}; \theta_a) \tag{10}$$
 
 <p>Audio position도 동일 boundary 적용. Packed single-turn 예제 학습 시 text position은 packed sequence에서 global 유지, audio positional index는 매 packed segment 시작 시 reset. 추론 시에도 새 assistant response마다 reset. 토큰 index <code>i</code>, modality tag <code>m_i</code>, 현재 audio segment 시작 index <code>s_n</code>일 때 audio branch가 사용하는 position:</p>
 

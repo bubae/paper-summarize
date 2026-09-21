@@ -122,13 +122,13 @@ document.addEventListener("DOMContentLoaded", function() {
 <h3>손실 함수</h3>
 <p>Sequence-level divergence를 token-level divergence의 합으로 분해한다:</p>
 
-$$\mathcal{L}(\theta) = \mathbb{E}_{(x,c) \sim \mathcal{D}, y \sim \pi_\theta(\cdot|x)} \left[ \frac{1}{|y|} \sum_{t=1}^{|y|} D_{\text{KL}}(\pi_\theta(\cdot \mid x, y_{<t}) \| \pi_{\text{teacher}}(\cdot \mid c, x, y_{<t})) \right] \tag{1}$$
+$$\mathcal{L}(\theta) = \mathbb{E}_{(x,c) \sim \mathcal{D}, y \sim \pi_\theta(\cdot|x)} \left[ \frac{1}{|y|} \sum_{t=1}^{|y|} D_{\text{KL}}(\pi_\theta(\cdot \mid x, y_{&lt;t}) \| \pi_{\text{teacher}}(\cdot \mid c, x, y_{&lt;t})) \right] \tag{1}$$
 
-<p>여기서 $c$는 내재화하려는 in-context knowledge, $\mathcal{D}$는 학습 데이터, $y$는 student model에서 샘플링된다. 핵심은 $y$가 ##student 자신의 정책에서 생성(on-policy)##되며, teacher는 이 동일한 trajectory $y_{<t}$에 context $c$를 추가하여 평가한다는 점이다.</p>
+<p>여기서 $c$는 내재화하려는 in-context knowledge, $\mathcal{D}$는 학습 데이터, $y$는 student model에서 샘플링된다. 핵심은 $y$가 ##student 자신의 정책에서 생성(on-policy)##되며, teacher는 이 동일한 trajectory $y_{&lt;t}$에 context $c$를 추가하여 평가한다는 점이다.</p>
 
 <p>Token-level reverse KL divergence의 계산:</p>
 
-$$D_{\text{KL}}(\pi_\theta(\cdot \mid x, y_{<t}) \| \pi_{\text{teacher}}(\cdot \mid c, x, y_{<t})) = \sum_{y'_t \in \mathcal{V}} \pi_\theta(y'_t \mid x, y_{<t}) \left( \log \pi_\theta(y'_t \mid x, y_{<t}) - \log \pi_{\text{teacher}}(y'_t \mid c, x, y_{<t}) \right) \tag{2}$$
+$$D_{\text{KL}}(\pi_\theta(\cdot \mid x, y_{&lt;t}) \| \pi_{\text{teacher}}(\cdot \mid c, x, y_{&lt;t})) = \sum_{y'_t \in \mathcal{V}} \pi_\theta(y'_t \mid x, y_{&lt;t}) \left( \log \pi_\theta(y'_t \mid x, y_{&lt;t}) - \log \pi_{\text{teacher}}(y'_t \mid c, x, y_{&lt;t}) \right) \tag{2}$$
 
 <p>여기서 $\mathcal{V}$는 전체 vocabulary이다. 실제 구현에서는 student의 top-$k$ 토큰으로 합산을 제한하여 계산 효율을 높인다.</p>
 

@@ -83,7 +83,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <h3>Autoregressive vs. Block Diffusion for Language</h3>
 <p>AR 언어 모델은 다음 토큰을 순차적으로 하나씩 예측한다:</p>
-$$P_\theta(\mathbf{x}) = \prod_i P_\theta(x_i \mid x_{<i}), \quad \mathcal{L}_{\text{AR}} = -\sum_i \log p_\theta(x_i \mid x_{<i}).$$
+$$P_\theta(\mathbf{x}) = \prod_i P_\theta(x_i \mid x_{&lt;i}), \quad \mathcal{L}_{\text{AR}} = -\sum_i \log p_\theta(x_i \mid x_{&lt;i}).$$
 <p>직관적으로 말하면, 각 토큰의 조건부 확률을 왼쪽 문맥에만 의존해 계산하므로 병렬 처리가 어렵고 배치 1 상황에서 GPU 연산 자원이 놀게 된다.</p>
 
 <p>Masked diffusion language model은 각 토큰을 확률 $t \in (0,1)$로 독립적으로 마스킹하고, 역방향 모델 $p_\theta(\mathbf{x}_0 \mid \mathbf{x}_t)$가 마스크된 토큰을 복원하도록 학습한다. Block-wise discrete diffusion은 시퀀스를 크기 $\hat{B}$의 블록으로 나눠, 블록 단위로는 autoregressive하고 블록 내부에서는 병렬로 denoising한다. 이 구조는 이미 완료된 블록의 KV cache를 다음 블록에서 재사용할 수 있어 실용적 가속을 가능케 한다.</p>
