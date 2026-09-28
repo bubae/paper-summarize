@@ -622,6 +622,28 @@ $$p_S(y_n|x, \hat y_{&lt;n}), \qquad p_T(y_n|x, y^\star, \hat y_{&lt;n})$$
 <figcaption><strong>[Figure 1 재구성]</strong>: 초록이 student 경로, 파랑이 teacher 경로, 빨간 화살표가 gradient 방향이다. 아래 네 항목이 이 설계의 핵심이며, 그중 ②와 ③이 실용적으로 중요하다 — teacher가 토큰을 생성하지 않으므로 추가 생성 비용이 없고(총 비용은 student rollout 1회가 지배), 정답 채점이 없으므로 §배경에서 본 GRPO의 advantage 소멸 함정이 애초에 존재하지 않는다. ④는 <a href="20260825_shenfeld_sdft.html">SDFT 논문</a>과 갈라지는 지점으로, SDFT는 teacher를 student의 EMA로 두는 반면 OPSD는 초기 정책에 고정한다 — 저자들은 이것이 학습을 안정화하고 초기 정책에서의 과도한 이탈을 막는 암묵적 정규화로 작동한다고 밝힌다. 원 논문 Figure 1은 좌우 배치 도식이며 여기서는 gradient 방향과 비대칭이 드러나게 재배치했다.</figcaption>
 </figure>
 
+<div class="qa-block">
+  <p><strong>Q:</strong> OPSD에서 teacher에 들어가는 condition은 어떻게 생성하나? (2026-09-29)</p>
+  <p><strong>A:</strong> <strong>생성하지 않는다.</strong> condition은 학습 데이터셋에 이미 들어 있는 <strong>참조 풀이 $y^\star$</strong>를 그대로 쓴다. 데이터셋 $S = \{(x_i, y_i^\star)\}$는 OpenThoughts 수학 부분집합에서 뽑은 문제–풀이 쌍(최대 30K, chain-of-thought 포함)이며, 이 풀이들은 더 강한 LLM이 미리 만들어 둔 전문가 궤적이다(그래서 같은 데이터로 한 SFT를 "off-policy 증류"로 본다). 학습 중에는 다음처럼 조립만 한다.</p>
+  <ol>
+    <li>student prompt = 문제 $x$ → student가 $\hat y$를 1개 생성 (최대 1,024 토큰).</li>
+    <li>teacher prompt = 문제 $x$ + "Here is a reference solution: $y^\star$" + "After understanding the reference solution, please try to solve this problem using your own approach below:" (위 Teacher Prompt 박스).</li>
+    <li>teacher는 이 prompt 뒤에 student의 $\hat y$를 붙여 prefill만 해서 토큰별 분포 $p_T(y_n \mid x, y^\star, \hat y_{&lt;n})$를 얻는다. teacher 가중치는 <em>초기 정책에 고정</em>이다.</li>
+  </ol>
+  <p><strong>SDPO와의 차이</strong> (<a href="20260922_wang_denser-not-better.html">Denser ≠ Better 요약 §1.3 Q&amp;A</a> 참조):</p>
+  <table class="small-table">
+  <thead><tr><th></th><th>OPSD</th><th>SDPO</th></tr></thead>
+  <tbody>
+  <tr><td>condition의 출처</td><td>데이터셋의 정적 참조 풀이 $y^\star$ (학습 전에 이미 존재)</td><td>학습 중 채점기가 통과시킨 정답 풀이·환경 피드백 (매 스텝 새로 생김)</td></tr>
+  <tr><td>채점기(verifier) 필요</td><td>불필요 — 정답 대조를 하지 않는다</td><td>필요 — 무엇이 "정답 풀이"인지 가려야 한다</td></tr>
+  <tr><td>문제당 rollout</td><td>1개</td><td>그룹(GRPO와 같은 여러 개)</td></tr>
+  <tr><td>teacher 가중치</td><td>초기 정책에 고정</td><td>현재 정책 또는 EMA</td></tr>
+  </tbody>
+  </table>
+  <blockquote><strong>비유로 말하면</strong>: OPSD는 <em>교과서 뒤의 해설집</em>(미리 인쇄된 $y^\star$)을 펴 놓고 자기 답안을 다시 읽는 방식이고, SDPO는 <em>그날 반에서 만점 받은 친구의 답안</em>(채점을 통과한 rollout)을 빌려 와 읽는 방식이다. 해설집은 늘 있지만 누가 써 줘야 하고, 친구 답안은 공짜지만 반 전체가 틀린 날에는 없다.</blockquote>
+  <p>함의: OPSD는 참조 풀이가 딸린 데이터셋이 있어야만 쓸 수 있고, 그 풀이의 품질·스타일이 teacher 신호를 좌우한다. 반대로 정답 채점이 없으므로 GRPO의 "그룹 전원이 틀려 advantage가 0" 문제는 생기지 않는다(§배경).</p>
+</div>
+
 <h3>1.4 학습 목적함수 — full-vocabulary logit 증류</h3>
 
 <p>teacher와 student의 next-token 분포를 각 위치에서 맞추는 <strong>full-vocabulary divergence</strong> 목적함수를 세운다. student 생성 시퀀스 $\hat y$에 대해 궤적 평균 토큰별 divergence를 정의한다.</p>
