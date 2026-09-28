@@ -644,6 +644,19 @@ $$p_S(y_n|x, \hat y_{&lt;n}), \qquad p_T(y_n|x, y^\star, \hat y_{&lt;n})$$
   <p>함의: OPSD는 참조 풀이가 딸린 데이터셋이 있어야만 쓸 수 있고, 그 풀이의 품질·스타일이 teacher 신호를 좌우한다. 반대로 정답 채점이 없으므로 GRPO의 "그룹 전원이 틀려 advantage가 0" 문제는 생기지 않는다(§배경).</p>
 </div>
 
+<div class="qa-block">
+  <p><strong>Q:</strong> 참조 풀이 $y^\star$(CoT)는 어떤 모델로 생성한 것인가? (2026-09-29)</p>
+  <p><strong>A:</strong> <strong>논문에는 명시되어 있지 않다.</strong> 원문은 "the mathematical reasoning subset of OpenThoughts (Guha et al., 2025)에서 CoT가 포함된 문제–풀이 쌍 최대 30K"라고만 쓰고, 버전·HF 데이터셋 이름·필드도 밝히지 않는다. SFT 설명에서 "추론 궤적을 생성한 더 강한 LLM으로부터의 off-policy 증류"라고 하지만 그 LLM이 무엇인지는 말하지 않는다. 데이터셋 카드(외부 확인)로 좁히면 후보는 둘이다.</p>
+  <table class="small-table">
+  <thead><tr><th>후보</th><th>추론 궤적 생성 모델</th><th>비고</th></tr></thead>
+  <tbody>
+  <tr><td>OpenThoughts3-1.2M (Guha et al., 2025 논문의 데이터셋)</td><td>QwQ-32B</td><td>수학 약 85만 문항. 대화(conversations) 형식</td></tr>
+  <tr><td>OpenThoughts-114k (Open Thoughts Team, 2025-01)</td><td>DeepSeek-R1</td><td>별도 <code>ground_truth_solution</code> 필드 — 수학은 AI-MO/NuminaMath-CoT의 원 풀이</td></tr>
+  </tbody>
+  </table>
+  <p><strong>판단의 단서 (요약자 추론)</strong>: 인용 기준으로는 Guha et al.(2025) → OpenThoughts3 → QwQ-32B가 가장 직접적이다. 그런데 원문은 SFT 성능 하락을 "ground-truth solution의 <em>간결한(concise)</em> 추론 스타일" 탓으로 돌린다. QwQ-32B·R1의 추론 궤적은 보통 수천 토큰으로 길어서 "간결"과 잘 맞지 않고, 오히려 OpenThoughts-114k의 <code>ground_truth_solution</code>(NuminaMath-CoT 풀이)과 더 잘 맞는다. 참고문헌에 NuminaMath와 Open Thoughts(2025-01)도 함께 들어 있다. 그래서 <strong>"$y^\star$ = 강한 모델의 긴 궤적"인지 "원 데이터셋의 짧은 CoT 풀이"인지 원문만으로는 판별할 수 없다</strong>. 저자 코드나 데이터 스크립트를 봐야 확정된다.</p>
+</div>
+
 <h3>1.4 학습 목적함수 — full-vocabulary logit 증류</h3>
 
 <p>teacher와 student의 next-token 분포를 각 위치에서 맞추는 <strong>full-vocabulary divergence</strong> 목적함수를 세운다. student 생성 시퀀스 $\hat y$에 대해 궤적 평균 토큰별 divergence를 정의한다.</p>
