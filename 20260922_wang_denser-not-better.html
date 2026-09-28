@@ -340,6 +340,23 @@ $$\mathcal{L}_{\text{SDPO}}(\theta) = \sum_t D_{\text{JSD}}(\beta)\!\left(\pi_\t
 <figcaption><strong>[Figure: SDPO의 자기증류 루프]</strong>: 같은 가중치가 학생과 교사를 겸하되, 교사만 특권 문맥 c(정답·피드백·힌트)를 추가로 본다. 그 비대칭이 학습 신호를 만든다. 오른쪽 초록 열이 손실이 걸리는 단위로, 생성된 토큰 하나하나가 각자의 JSD 항을 갖는다 — GRPO라면 그 전체에 스칼라 하나가 붙는다. 아래 상자처럼 stopgrad가 교사 쪽에 걸리므로 '교사를 언제 갱신할 것인가'가 별도 설계 문제로 남고, 그것이 §2.1의 주제가 된다.</figcaption>
 </figure>
 
+<div class="qa-block">
+  <p><strong>Q:</strong> SDPO에서 feedback(특권 문맥 $c$)은 어떻게 생성하나? (2026-09-29)</p>
+  <p><strong>A:</strong> 별도의 교사 모델이 feedback을 "써 주는" 것이 아니다. $c$는 <strong>환경(채점기)이 이미 내놓은 정보</strong>를 텍스트로 붙인 것이고, 그 문맥을 읽는 쪽이 같은 모델(교사 = 자기 자신 또는 EMA 사본)이다. 흐름은 다음과 같다.</p>
+  <ol>
+    <li><strong>학생이 rollout 생성</strong>: 프롬프트 $x$에 대해 현재 정책이 응답 그룹을 뽑는다 (GRPO와 같다).</li>
+    <li><strong>환경이 채점</strong>: 수학·과학은 정답 검증기, 코드는 테스트 실행 결과를 낸다. 원 SDPO(Hübotter et al., 2026)는 이 채점 결과를 스칼라 보상 하나로 뭉개지 말고 <em>런타임 에러·채점 결과 같은 풍부한 텍스트 피드백</em>으로 쓰자는 설정(RLRF)을 정식화한다.</li>
+    <li><strong>특권 문맥 $c$ 조립</strong>: 이 논문(SDPO 공식 구현 사용)의 수학·과학·도구 사용 실험에서 $c$는 <strong>앞서 정답으로 검증된 풀이</strong>다. 부록의 "SDPO Regeneration Prompt"가 그대로 보여 준다:
+      <div class="flow-diagram">{question}
+Please reason step by step, and put your final answer within \boxed{}.
+Correct solution: {previously correct solution}
+Correctly solve the original question.</div></li>
+    <li><strong>교사가 재채점 (생성하지 않음)</strong>: 교사는 이 확장 프롬프트 뒤에 <em>학생이 이미 만든 응답 $y$</em>를 그대로 붙여 한 토큰씩 다음 토큰 분포 $\pi_\theta(\cdot\mid x, c, y_{&lt;t})$를 계산한다. 학생 분포 $\pi_\theta(\cdot\mid x, y_{&lt;t})$와의 JSD가 토큰별 손실이 된다 (위 그림의 초록 열).</li>
+  </ol>
+  <blockquote><strong>비유로 말하면</strong>: 학생이 시험지를 낸 뒤, 같은 학생이 <em>모범답안을 옆에 펴 놓고</em> 자기 답안을 한 줄씩 다시 읽으며 "여기서는 이렇게 썼어야 했다"를 표시하는 셈이다. 모범답안(=$c$)은 채점기가 통과시킨 누군가의 답안에서 오고, 빨간 펜을 드는 사람은 여전히 자기 자신이다.</blockquote>
+  <p><strong>주의</strong>: 이 저장소에는 원 SDPO 논문의 요약이 없어서, 위 내용은 이 논문의 기술(§2.3, 부록 프롬프트 템플릿)과 관련 요약(<a href="20260914_he_mtsdpo.html">MT-SDPO</a>: 같은 rollout 그룹의 정답 rollout을 오답 동료의 교사 문맥으로 쓴다)에 근거한다. "정답 풀이를 어느 rollout에서 가져오나(같은 그룹의 다른 성공 rollout인지), 그룹에 성공 rollout이 하나도 없으면 어떻게 하나, 코드 과제에서 에러 메시지를 어떤 형식으로 넣나" 같은 세부는 원 논문(arXiv, Hübotter et al., 2026 "Reinforcement Learning via Self-Distillation")에서 확인해야 한다. 참고로 이 논문의 §3.2 CoT 변형(SDPO<sup>CoT</sup>)은 $c$를 바꾸는 것이 아니라, 응답의 Chain-of-Thought 토큰까지 증류 대상에 넣어 토큰 목표를 늘린 변형이다.</p>
+</div>
+
 <h3>1.4 손실의 단위를 눈으로 확인하기</h3>
 
 <p>일반화 JS 발산은 두 KL의 가중 평균이며 \(\beta = 0.5\)일 때 표준 대칭 JS 발산이 된다(식 A.2).</p>
