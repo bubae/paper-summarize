@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MOPD — Multi-Teacher On-Policy Distillation 요약</title>
+<!-- KaTeX (수식 렌더링) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+  onload="renderMathInElement(document.body, {delimiters: [
+    {left: '$$', right: '$$', display: true},
+    {left: '$', right: '$', display: false},
+    {left: '\\(', right: '\\)', display: false},
+    {left: '\\[', right: '\\]', display: true}
+  ], ignoredTags: ['script','noscript','style','textarea','pre','code','option','svg']});"></script>
+<!-- ##...## 하이라이트 -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const el = document.getElementById('main-content');
+  if (el) {
+    el.innerHTML = el.innerHTML.replace(/##([\s\S]*?)##/g,
+      '<span style="background-color:#ffeb3b;color:#000">$1</span>');
+  }
+});
+</script>
+<!-- 목차 + 그림 번호 자동 생성 (하이라이트 스크립트 이후에 실행되어야 함) -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const main = document.getElementById('main-content');
+  if (!main) return;
+  // 그림 번호
+  const caps = main.querySelectorAll('figcaption');
+  caps.forEach(function(c, i) {
+    const tag = document.createElement('span');
+    tag.className = 'fignum';
+    tag.textContent = '그림 ' + (i + 1) + '. ';
+    c.insertBefore(tag, c.firstChild);
+    const fig = c.closest('figure');
+    if (fig) fig.id = 'fig' + (i + 1);
+  });
+  // 목차
+  const toc = document.getElementById('toc-body');
+  if (!toc) return;
+  const heads = main.querySelectorAll('h2, h3');
+  let html = '<ul>', nH2 = 0;
+  heads.forEach(function(h, i) {
+    const id = 'sec' + i;
+    h.id = id;
+    const nFig = [];
+    let n = h.nextElementSibling;
+    while (n && n.tagName !== 'H2' && n.tagName !== 'H3') {
+      if (n.tagName === 'FIGURE' && n.id) nFig.push(n.id.replace('fig', ''));
+      if (n.querySelectorAll) n.querySelectorAll('figure[id]').forEach(function(f){ nFig.push(f.id.replace('fig','')); });
+      n = n.nextElementSibling;
+    }
+    const isH2 = h.tagName === 'H2';
+    if (isH2) nH2++;
+    html += '<li class="' + (isH2 ? 'toc-h2' : 'toc-h3') + '"><a href="#' + id + '">' + h.textContent + '</a>'
+         + (nFig.length ? ' <span class="tocfig">그림 ' + nFig[0] + (nFig.length > 1 ? '–' + nFig[nFig.length-1] : '') + '</span>' : '')
+         + '</li>';
+  });
+  toc.innerHTML = html + '</ul>';
+  const cnt = document.getElementById('toc-count');
+  if (cnt) cnt.textContent = nH2 + '개 절 · ' + (heads.length - nH2) + '개 하위 절 · 그림 ' + caps.length + '개';
+});
+</script>
+<style>
+  body { max-width: 860px; margin: 2rem auto; padding: 0 1rem; font-family: 'Noto Sans KR', sans-serif; line-height: 1.8; color: #1a1a1a; }
+  h1 { border-bottom: 2px solid #333; padding-bottom: 0.3rem; }
+  h2 { border-bottom: 1px solid #ccc; padding-bottom: 0.2rem; margin-top: 2rem; }
+  h3 { margin-top: 1.5rem; }
+  table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+  th, td { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+  th { background: #f5f5f5; }
+  blockquote { border-left: 4px solid #4a90d9; padding: 0.5rem 1rem; margin: 1rem 0; background: #f8f9fa; }
+  code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; font-size: 0.9em; }
+  .metadata { background: #f8f9fa; padding: 1rem; border-radius: 8px; margin: 1rem 0; }
+  .critical-analysis { background: #fff8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #e67e22; }
+  .takeaways { background: #f0f8f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #27ae60; margin: 1rem 0; }
+  .flow-diagram { background: #f5f5f5; padding: 1rem; border-radius: 8px; font-family: monospace; white-space: pre; line-height: 1.5; margin: 1rem 0; overflow-x: auto; }
+  .tldr { background: #f0f4ff; padding: 1rem; border-radius: 8px; border-left: 4px solid #3498db; margin: 1rem 0; }
+  .qa-block { background: #e8f4fd; padding: 0.8rem 1rem; border-radius: 6px; margin: 0.8rem 0; border-left: 3px solid #2196F3; }
+  .personal-notes { background: #f0f7f0; padding: 1rem; border-radius: 8px; border-left: 4px solid #4caf50; margin-top: 2rem; }
+  figure { margin: 1.5rem 0; text-align: center; }
+  figure svg { max-width: 100%; height: auto; }
+  figcaption { font-size: 0.88rem; color: #555; margin-top: 0.5rem; text-align: left; }
+  .fignum { font-weight: 700; color: #2c3e50; }
+  #toc { background: #f8f9fa; border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem 1.2rem; margin: 1.5rem 0 2rem; }
+  #toc h3 { margin: 0 0 0.2rem; font-size: 1rem; }
+  #toc-count { font-size: 0.82rem; color: #6b7280; }
+  #toc ul { list-style: none; padding: 0; margin: 0.6rem 0 0; columns: 2; column-gap: 1.5rem; }
+  #toc li { font-size: 0.88rem; line-height: 1.7; break-inside: avoid; }
+  #toc li.toc-h2 { font-weight: 600; margin-top: 0.35rem; }
+  #toc li.toc-h3 { padding-left: 0.9rem; font-size: 0.83rem; color: #6b7280; }
+  #toc li.toc-h3 a { color: #6b7280; }
+  #toc a { color: #2c3e50; text-decoration: none; }
+  #toc a:hover { color: #4a90d9; text-decoration: underline; }
+  .tocfig { color: #9ca3af; font-size: 0.78rem; }
+  @media (max-width: 640px) { #toc ul { columns: 1; } }
+  .small-table td, .small-table th { padding: 5px 8px; font-size: 0.9em; }
+</style>
+</head>
+<body>
+<div id="main-content">
+
+<h1>MOPD: Multi-Teacher On-Policy Distillation for Capability Integration in LLM Post-Training</h1>
+
+<div class="metadata">
+<ul>
+  <li><strong>저자</strong>: Wenhan Ma*, Jianyu Wei, Liang Zhao, Hailin Zhang, Bangjun Xiao, Lei Li, Qibin Yang, Bofei Gao, Yudong Wang, Rang Li, Jinhao Dong, Zhifang Sui†, Fuli Luo† (*Xiaomi 인턴 중 수행, †공동 교신)</li>
+  <li><strong>소속</strong>: Peking University, LLM Core (Xiaomi), University of Hong Kong, Renmin University of China</li>
+  <li><strong>학회/저널</strong>: arXiv preprint (cs.CL), arXiv:2606.30406v1</li>
+  <li><strong>연도</strong>: 2026 (2026-06-29)</li>
+  <li><strong>링크</strong>: <a href="https://arxiv.org/abs/2606.30406">https://arxiv.org/abs/2606.30406</a></li>
+  <li><strong>분량</strong>: 15페이지 (본문 §1–§6 약 11쪽 + 참고문헌 약 3.5쪽 + 부록 A·B 1쪽), Figure 3개 · Table 5개 · 식 5개</li>
+  <li><strong>관련 요약</strong>: 이 논문을 기반으로 merge 초기화를 더한 후속 연구 — <a href="20260930_kim_im-mopd.html">IM-MOPD (KAIST·Kakao, 2026)</a></li>
+</ul>
+</div>
+
+<nav id="toc">
+  <h3>목차</h3>
+  <div id="toc-count"></div>
+  <div id="toc-body"></div>
+</nav>
+
+<h2>TL;DR</h2>
+<div class="tldr">
+<ul>
+  <li><strong>문제</strong>: 최신 LLM (Large Language Model) post-training은 도메인마다 다른 reinforcement learning (RL) 파이프라인 — 수학은 검증 가능한 정답 RL, 소프트웨어 엔지니어링(SWE)은 sandbox agent RL, 지시 따르기(IF)는 rubric RL — 으로 능력을 끌어올린다. 그런데 이 능력들을 한 모델에 모으는 기존 방법들은 각자 결함이 있다. Mix-RL은 도메인 간 간섭(see-saw), Cascade RL은 앞 단계 능력의 감쇠, Off-Policy Finetune(teacher rollout으로 supervised fine-tuning (SFT))은 exposure bias, Param-Merge는 불안정성을 겪는다.</li>
+  <li><strong>해결</strong>: <strong>MOPD</strong> (Multi-teacher On-Policy Distillation). ① 공통 SFT 모델을 만들고, ② 거기서 도메인마다 독립적으로 RL을 해 전문 teacher를 얻은 뒤, ③ student(같은 SFT 모델)가 스스로 답을 생성하면 프롬프트 도메인에 맞는 teacher가 그 답을 prefill해 토큰별 확률을 주고, student는 per-token reverse Kullback–Leibler (KL) divergence로 teacher를 따라간다.</li>
+  <li><strong>왜 작동하는가</strong>: student가 자기 rollout 위에서 배우므로 학습–추론 분포가 같다(exposure bias 없음). teacher가 토큰마다 분포를 주므로 응답당 보상 하나인 RL보다 신호가 훨씬 촘촘하다. 통합이 가중치 평균이 아니라 프롬프트별 라우팅이라 안정적이고, teacher가 모두 같은 SFT에서 출발(same-origin)해 student와 분포가 가깝다(초기 KL 0.04).</li>
+  <li><strong>비유</strong>: 과목마다 전담 선생님을 따로 키운 뒤, 학생이 숙제를 직접 하면 과목에 맞는 선생님이 한 글자씩 빨간 펜으로 첨삭한다. 선생님들이 학생과 같은 학교 출신이라 말투가 비슷해서 첨삭이 잘 통한다.</li>
+</ul>
+</div>
+
+<h2>핵심 기여 (Key Contributions)</h2>
+<ol>
+  <li><strong>MOPD 패러다임</strong>: 여러 도메인 RL teacher의 능력을 student 자신의 rollout 위에서 토큰 단위로 증류하는 post-training 방식. 통합을 가중치 공간이나 정적 데이터 공간이 아니라 정책 공간에서 한다 (§3).</li>
+  <li><strong>두 가지 구현과 인프라</strong>: 기존 PPO/GRPO 프레임워크에 advantage만 바꿔 끼우는 policy-gradient 형태, teacher top-k 토큰 위에서 편향을 보정한 top-k 형태, 그리고 teacher를 보상 서비스처럼 비동기로 돌려 시간 오버헤드를 거의 없애는 배치 (§3.2–§3.3).</li>
+  <li><strong>통제 비교와 대규모 배포</strong>: Qwen3-30B-A3B에서 Mix-RL·Cascade RL·Off-Policy Finetune·Param-Merge를 모두 넘는 정규화 점수 0.937(차선 0.882)과 도메인별 91–95% 회복, 309B MiMo-V2-Flash의 실제 post-training 배포 (§4.2–§4.3).</li>
+  <li><strong>분석</strong>: 두 손실 형태가 비슷하다는 것, same-origin teacher가 안정성의 조건이라는 것(외부 235B teacher로 바꾸면 붕괴), 여러 라운드 반복으로 더 올라간다는 것(0.937 → 0.986) (§4.4).</li>
+</ol>
+
+<figure>
+<svg viewBox="0 0 800 430" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="armap0" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="armap1" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">MOPD 전체 지도 — 도메인 RL 전문가들을 student 자신의 rollout 위에서 합친다</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">박스 안 §는 이 문서의 절 번호</text>
+<rect x="20" y="44" width="760" height="54" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="400" y="63" text-anchor="middle" font-size="10.3" fill="#92400e" font-weight="bold">문제: 도메인마다 다른 RL로 키운 능력(수학·지시 따르기·SWE…)을 한 모델에 모으기 (§배경, §1)</text>
+<text x="400" y="81" text-anchor="middle" font-size="9" fill="#334155">Mix-RL은 see-saw 간섭, Cascade RL은 앞 단계 능력 감쇠, Off-Policy Finetune은 exposure bias, Param-Merge는 불안정 (Table 1)</text>
+<rect x="20" y="112" width="239" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="139" y="132" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">① Stage 1 · 일반 SFT</text>
+<text x="139" y="150" text-anchor="middle" font-size="9" fill="#334155">공통 출발점 (§3.1)</text>
+<path d="M261,139 L278,139" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#armap0)"/>
+<rect x="281" y="112" width="239" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="400" y="132" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">② Stage 2 · 도메인 RL</text>
+<text x="400" y="150" text-anchor="middle" font-size="9" fill="#334155">teacher 병렬 학습</text>
+<path d="M521,139 L538,139" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#armap1)"/>
+<rect x="541" y="112" width="239" height="54" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="661" y="132" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">③ Stage 3 · MOPD</text>
+<text x="661" y="150" text-anchor="middle" font-size="9" fill="#334155">student rollout + teacher prefill</text>
+<rect x="20" y="182" width="246" height="74" rx="7" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="143" y="201" text-anchor="middle" font-size="10.5" fill="#4338ca" font-weight="bold">Policy-gradient 형태 (§3.2.1)</text>
+<text x="31" y="220" text-anchor="start" font-size="9.5" fill="#334155">advantage = log π_φ − log π_θ</text>
+<text x="31" y="235" text-anchor="start" font-size="9.5" fill="#334155">양쪽 clip ±5, 기존 GRPO에 그대로</text>
+<rect x="277" y="182" width="246" height="74" rx="7" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.6"/>
+<text x="400" y="201" text-anchor="middle" font-size="10.5" fill="#4338ca" font-weight="bold">Top-k 형태 (§3.2.2)</text>
+<text x="288" y="220" text-anchor="start" font-size="9.5" fill="#334155">teacher top-64 토큰 위 reverse KL</text>
+<text x="288" y="235" text-anchor="start" font-size="9.5" fill="#334155">+ 편향 보정항 (π_φ − π_θ)</text>
+<rect x="534" y="182" width="246" height="74" rx="7" fill="#f1f5f9" stroke="#64748b" stroke-width="1.6"/>
+<text x="657" y="201" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">인프라 (§3.3)</text>
+<text x="545" y="220" text-anchor="start" font-size="9.5" fill="#334155">teacher = 독립 prefill 서비스</text>
+<text x="545" y="235" text-anchor="start" font-size="9.5" fill="#334155">비동기 → 시간 오버헤드 거의 0</text>
+<rect x="20" y="272" width="144" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="92" y="290" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">Qwen3-30B-A3B 정규화</text>
+<text x="92" y="314" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">0.937</text>
+<text x="92" y="330" text-anchor="middle" font-size="8.5" fill="#555">차선 Mix-RL 0.882 · §4.2</text>
+<rect x="174" y="272" width="144" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="246" y="290" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">도메인별 회복 범위</text>
+<text x="246" y="314" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">0.91–0.95</text>
+<text x="246" y="330" text-anchor="middle" font-size="8.5" fill="#555">가장 균일 · §4.2</text>
+<rect x="328" y="272" width="144" height="66" rx="7" fill="#dcfce7" stroke="#16a34a" stroke-width="1.8"/>
+<text x="400" y="290" text-anchor="middle" font-size="10" fill="#15803d" font-weight="bold">MiMo-V2-Flash ≥ teacher</text>
+<text x="400" y="314" text-anchor="middle" font-size="20" fill="#15803d" font-weight="bold">5 / 7</text>
+<text x="400" y="330" text-anchor="middle" font-size="8.5" fill="#555">벤치마크 · 309B · §4.3</text>
+<rect x="482" y="272" width="144" height="66" rx="7" fill="#fef2f2" stroke="#ef4444" stroke-width="1.8"/>
+<text x="554" y="290" text-anchor="middle" font-size="10" fill="#b91c1c" font-weight="bold">외부 teacher (235B)</text>
+<text x="554" y="314" text-anchor="middle" font-size="20" fill="#b91c1c" font-weight="bold">0.600 / −1.19</text>
+<text x="554" y="330" text-anchor="middle" font-size="8.5" fill="#555">PG / top-k · §4.4.2</text>
+<rect x="636" y="272" width="144" height="66" rx="7" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.8"/>
+<text x="708" y="290" text-anchor="middle" font-size="10" fill="#1e40af" font-weight="bold">2라운드 반복</text>
+<text x="708" y="314" text-anchor="middle" font-size="20" fill="#1e40af" font-weight="bold">0.937 → 0.986</text>
+<text x="708" y="330" text-anchor="middle" font-size="8.5" fill="#555">§4.4.3</text>
+<rect x="20" y="352" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="370" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">요점</text>
+<text x="30" y="388" text-anchor="start" font-size="10" fill="#334155">핵심: 통합을 가중치 공간(merge)이나 정적 데이터 공간(SFT)이 아니라 '정책 공간'에서 — 프롬프트별 teacher 라우팅으로 — 한다.</text>
+<text x="30" y="405" text-anchor="start" font-size="10" fill="#334155">same-origin teacher(같은 SFT에서 출발한 RL teacher)가 안정성의 조건이다 (초기 KL 0.04 vs 외부 teacher 0.19, §4.4.2).</text>
+</svg>
+<figcaption><strong>[Figure: 논문 전체 지도]</strong>: 주황 = 출발 문제와 네 가지 기존 해법의 결함(§배경), 파랑 = 세 단계 파이프라인(§3.1), 인디고·회색 = 두 손실 구현과 인프라(§3.2–§3.3), 아래 카드 = 핵심 결과(§4)다. 결과 중 빨간 카드(외부 teacher)는 실패 사례로, same-origin 조건(§4.4.2)이 이 방법의 전제임을 보여 준다. 마지막 파란 카드의 반복 라운드(§4.4.3)는 teacher 상한을 넘는 방법으로 읽을 수 있다.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">비유로 보는 MOPD — '과목별 전담 과외 선생님이 학생의 숙제를 고친다'</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">비유는 이해를 돕기 위한 것이며 원문에 없는 표현이다</text>
+<rect x="20" y="44" width="182" height="210" rx="8" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.6"/>
+<text x="111" y="64" text-anchor="middle" font-size="10.8" fill="#92400e" font-weight="bold">Mix-RL</text>
+<text x="111" y="92" text-anchor="middle" font-size="9.4" fill="#334155">모든 과목을 한 반에서</text>
+<text x="111" y="112" text-anchor="middle" font-size="9.4" fill="#334155">동시에 수업</text>
+<text x="111" y="132" text-anchor="middle" font-size="9.4" fill="#334155"></text>
+<text x="111" y="152" text-anchor="middle" font-size="9.4" fill="#334155">수학 진도가 국어를</text>
+<text x="111" y="172" text-anchor="middle" font-size="9.4" fill="#334155">방해하는 '시소' 효과</text>
+<text x="111" y="192" text-anchor="middle" font-size="9.4" fill="#1e3a8a" font-weight="bold">→ 모든 과목이 조금씩</text>
+<text x="111" y="212" text-anchor="middle" font-size="9.4" fill="#334155">전담반보다 낮다</text>
+<rect x="212" y="44" width="182" height="210" rx="8" fill="#f3e8ff" stroke="#a855f7" stroke-width="1.6"/>
+<text x="303" y="64" text-anchor="middle" font-size="10.8" fill="#7e22ce" font-weight="bold">Cascade RL</text>
+<text x="303" y="92" text-anchor="middle" font-size="9.4" fill="#334155">국어 → 수학 → 코딩</text>
+<text x="303" y="112" text-anchor="middle" font-size="9.4" fill="#334155">순서대로 한 과목씩</text>
+<text x="303" y="132" text-anchor="middle" font-size="9.4" fill="#334155"></text>
+<text x="303" y="152" text-anchor="middle" font-size="9.4" fill="#334155">새 과목을 배우는 동안</text>
+<text x="303" y="172" text-anchor="middle" font-size="9.4" fill="#334155">앞 과목을 잊는다</text>
+<text x="303" y="192" text-anchor="middle" font-size="9.4" fill="#1e3a8a" font-weight="bold">→ 수학 회복 57%</text>
+<text x="303" y="212" text-anchor="middle" font-size="9.4" fill="#334155"></text>
+<rect x="404" y="44" width="182" height="210" rx="8" fill="#fef2f2" stroke="#ef4444" stroke-width="1.6"/>
+<text x="495" y="64" text-anchor="middle" font-size="10.8" fill="#b91c1c" font-weight="bold">Off-Policy / Merge</text>
+<text x="495" y="92" text-anchor="middle" font-size="9.4" fill="#334155">전담 선생님의 풀이를</text>
+<text x="495" y="112" text-anchor="middle" font-size="9.4" fill="#334155">베껴 쓰거나(SFT),</text>
+<text x="495" y="132" text-anchor="middle" font-size="9.4" fill="#334155">선생님 '두뇌'를 평균</text>
+<text x="495" y="152" text-anchor="middle" font-size="9.4" fill="#334155">내 이식한다(Merge)</text>
+<text x="495" y="172" text-anchor="middle" font-size="9.4" fill="#1e3a8a" font-weight="bold">→ 베끼기는 내 실수를</text>
+<text x="495" y="192" text-anchor="middle" font-size="9.4" fill="#334155">못 고치고, 평균 이식은</text>
+<text x="495" y="212" text-anchor="middle" font-size="9.4" fill="#334155">들쭉날쭉</text>
+<rect x="596" y="44" width="182" height="210" rx="8" fill="#dcfce7" stroke="#16a34a" stroke-width="1.6"/>
+<text x="687" y="64" text-anchor="middle" font-size="10.8" fill="#15803d" font-weight="bold">MOPD</text>
+<text x="687" y="92" text-anchor="middle" font-size="9.4" fill="#334155">학생이 숙제를 직접 하고</text>
+<text x="687" y="112" text-anchor="middle" font-size="9.4" fill="#334155">과목에 맞는 전담 선생님이</text>
+<text x="687" y="132" text-anchor="middle" font-size="9.4" fill="#334155">한 글자씩 빨간 펜으로</text>
+<text x="687" y="152" text-anchor="middle" font-size="9.4" fill="#334155">첨삭 (reverse KL)</text>
+<text x="687" y="172" text-anchor="middle" font-size="9.4" fill="#334155"></text>
+<text x="687" y="192" text-anchor="middle" font-size="9.4" fill="#1e3a8a" font-weight="bold">→ 모든 과목 91–95%</text>
+<text x="687" y="212" text-anchor="middle" font-size="9.4" fill="#334155">선생님 수준 회복</text>
+<rect x="20" y="270" width="760" height="72" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="288" text-anchor="start" font-size="10.5" fill="#92400e" font-weight="bold">요점</text>
+<text x="30" y="306" text-anchor="start" font-size="10" fill="#334155">요점: 선생님들이 모두 '같은 학교 출신'(same-origin)이라 학생과 말투가 비슷해야 첨삭이 통한다. 다른 학교의 더 뛰어난 교수(235B)를</text>
+<text x="30" y="323" text-anchor="start" font-size="10" fill="#334155">모셔 오면 오히려 수학이 무너진다(§4.4.2). 그리고 각 선생님은 서로 기다리지 않고 동시에 실력을 키울 수 있다(§5).</text>
+</svg>
+<figcaption><strong>[Figure: 과목별 전담 과외 비유]</strong>: 원문에 없는, 이해를 돕기 위한 비유 그림이다. 네 칸은 §배경의 Mix-RL, Cascade RL, Off-Policy Finetune·Param-Merge, 그리고 MOPD에 대응하며, 칸 안의 '수학 회복 57%'와 '91–95%'는 §4.2의 실제 수치다. 아래 요점의 '같은 학교 출신'은 §4.4.2 same-origin, '서로 기다리지 않는다'는 §5 병렬 개발을 가리킨다.</figcaption>
+</figure>
+
+<h2>배경 (Background) — 능력 통합 문제와 네 가지 기존 해법 (§1, §2)</h2>
+
+<h3>도메인별 RL과 '하나의 모델' 문제</h3>
+
+<p>RL은 LLM 능력을 끌어올리는 중요한 방법이 되었고, 도메인마다 다른 RL 파이프라인을 쓴다. 수학 추론은 검증 가능한 정답 RL(DeepSeek-R1, DeepSeekMath), 소프트웨어 엔지니어링은 실행 가능한 sandbox의 agent식 RL(R2E-Gym, SWE-RL), 지시 따르기와 창작은 rubric 기반 RL(InstructGPT), 검색 agent는 웹 환경 RL(Search-R1, WebGPT)이다. 각 파이프라인은 목표 도메인에서 확실히 능력을 올린다. 그러나 최종적으로 원하는 것은 이 모든 도메인에서 잘하는 <strong>하나의 모델</strong>이고, 이를 만드는 것은 여전히 열린 문제다.</p>
+
+<p>reinforcement learning with verifiable rewards (RLVR)에서는 PPO (Proximal Policy Optimization)식과 GRPO (Group Relative Policy Optimization)식 결과 보상 최적화가 표준이다. 각 파이프라인이 강한 도메인 전문가를 만들어 내므로, 그것들을 한 모델로 모으는 multi-domain / multi-task 문제가 자연스럽게 생긴다.</p>
+
+<h3>기존 네 가지 해법 (Table 1)</h3>
+
+<ol>
+  <li><strong>Mix-RL</strong> (Qwen3): 모든 도메인의 프롬프트를 한 데이터셋으로 모아 공동 RL을 한다(각 표본은 자기 도메인의 보상과 advantage를 그대로 쓴다). 도메인 간 학습 신호가 서로 간섭해 <strong>see-saw 효과</strong>가 나고, 공동 모델이 도메인별 teacher보다 낮게 남는다.</li>
+  <li><strong>Cascade RL</strong> (Nemotron-Cascade): 도메인을 하나씩 순서대로 학습한다. 뒤 단계가 진행되면서 앞 단계 능력이 감쇠할 수 있고, 전체 학습이 길어져 안정성 위험이 커진다.</li>
+  <li><strong>Off-Policy Finetune</strong> (DeepSeek-V3.2): 도메인별 RL teacher를 학습하고 그 rollout으로 student를 SFT한다. 이 off-policy 지도는 고전적인 <strong>exposure bias</strong>를 낳는다 — student는 teacher가 쓴 앞부분만 보고 배우지만 추론 때는 자기가 쓴 앞부분을 이어 가야 한다.</li>
+  <li><strong>Param-Merge</strong> (task arithmetic, model soups): teacher 가중치를 평균하거나 가중치 공간에서 task vector를 조합한다. 합친 모델은 보통 불안정하고 모든 teacher의 능력을 다 맞추지 못한다. TIES-Merging, DARE, AdaMerging 같은 후속 연구가 파라미터 충돌을 줄이려 한다.</li>
+</ol>
+
+<p>요컨대 이 방법들은 학습 효율, 도달 가능한 최고 성능, 학습 안정성을 서로 맞바꾸며, 만족스러운 중간 지점이 없다.</p>
+
+<blockquote><strong>비유로 말하면</strong>: 수학·영어·코딩 실력을 한 학생에게 모두 키워 주는 네 가지 방법이다. 한 반에서 다 같이 가르치면(Mix-RL) 진도끼리 부딪히고, 한 과목씩 순서대로 가르치면(Cascade) 앞에서 배운 것을 잊는다. 전담 선생님의 풀이를 베끼게 하면(Off-Policy) 자기가 실제로 틀리는 지점을 못 고치고, 선생님들의 '두뇌를 평균 내 이식'하면(Merge) 결과가 들쭉날쭉하다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 270" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Table 1 재현 — 능력 통합 패러다임 비교</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">세 축: 촘촘한 최적화 신호 / on-policy 학습 / 도메인 병렬 개발 가능</text>
+<rect x="20" y="44" width="170" height="28" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="105" y="63" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">방법</text>
+<rect x="190" y="44" width="90" height="28" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="235" y="63" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Dense</text>
+<rect x="280" y="44" width="90" height="28" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="325" y="63" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">On-policy</text>
+<rect x="370" y="44" width="90" height="28" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="415" y="63" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">Parallel</text>
+<rect x="460" y="44" width="320" height="28" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="620" y="63" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">한 줄 요약</text>
+<rect x="20" y="72" width="170" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="91" text-anchor="start" font-size="8.8" fill="#334155">Param-Merge</text>
+<rect x="190" y="72" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="235" y="91" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="280" y="72" width="90" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="325" y="91" text-anchor="middle" font-size="8.8" fill="#334155">—</text>
+<rect x="370" y="72" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="415" y="91" text-anchor="middle" font-size="8.8" fill="#334155">✓</text>
+<rect x="460" y="72" width="320" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="620" y="91" text-anchor="middle" font-size="8.8" fill="#334155">가중치 평균·task vector, 학습 없음</text>
+<rect x="20" y="100" width="170" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="119" text-anchor="start" font-size="8.8" fill="#334155">Off-Policy Finetune</text>
+<rect x="190" y="100" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="235" y="119" text-anchor="middle" font-size="8.8" fill="#334155">✓</text>
+<rect x="280" y="100" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="325" y="119" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="370" y="100" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="415" y="119" text-anchor="middle" font-size="8.8" fill="#334155">✓</text>
+<rect x="460" y="100" width="320" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="620" y="119" text-anchor="middle" font-size="8.8" fill="#334155">teacher rollout으로 SFT → exposure bias</text>
+<rect x="20" y="128" width="170" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="147" text-anchor="start" font-size="8.8" fill="#334155">Mix-RL</text>
+<rect x="190" y="128" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="235" y="147" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="280" y="128" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="325" y="147" text-anchor="middle" font-size="8.8" fill="#334155">✓</text>
+<rect x="370" y="128" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="415" y="147" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="460" y="128" width="320" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="620" y="147" text-anchor="middle" font-size="8.8" fill="#334155">도메인 섞어 joint RL → see-saw</text>
+<rect x="20" y="156" width="170" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="175" text-anchor="start" font-size="8.8" fill="#334155">Cascade RL</text>
+<rect x="190" y="156" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="235" y="175" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="280" y="156" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="325" y="175" text-anchor="middle" font-size="8.8" fill="#334155">✓</text>
+<rect x="370" y="156" width="90" height="28" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="415" y="175" text-anchor="middle" font-size="8.8" fill="#334155">×</text>
+<rect x="460" y="156" width="320" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="620" y="175" text-anchor="middle" font-size="8.8" fill="#334155">도메인 순차 RL → 앞 단계 감쇠</text>
+<rect x="20" y="184" width="170" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="203" text-anchor="start" font-size="8.8" fill="#334155" font-weight="bold">MOPD (ours)</text>
+<rect x="190" y="184" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="235" y="203" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">✓</text>
+<rect x="280" y="184" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="325" y="203" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">✓</text>
+<rect x="370" y="184" width="90" height="28" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="415" y="203" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">✓</text>
+<rect x="460" y="184" width="320" height="28" fill="#fff" stroke="#e8edf3"/>
+<text x="620" y="203" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">student rollout + teacher 토큰 지도</text>
+<rect x="20" y="204" width="760" height="54" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="222" text-anchor="start" font-size="10" fill="#334155">'Dense' = 토큰마다 신호가 있는가(RL은 응답당 보상 1개라 ×), 'Parallel' = 도메인 teacher를 서로 독립적으로 동시에 만들 수 있는가.</text>
+<text x="30" y="239" text-anchor="start" font-size="10" fill="#334155">Param-Merge의 on-policy 칸이 '—'인 것은 학습 자체가 없어 해당 없음이라는 뜻이다.</text>
+</svg>
+<figcaption><strong>[Table 1 재현]</strong>: 원문 Table 1의 세 축 비교에 한 줄 요약을 덧붙였다. 초록 ✓와 빨강 ×로 보면 MOPD만 세 칸이 모두 초록이며, 나머지는 각자 한두 축을 잃는다 — Mix-RL·Cascade는 응답당 보상이라 Dense가 아니고 도메인을 함께·차례로 학습해 Parallel이 아니며, Off-Policy Finetune은 teacher rollout을 베껴 On-policy가 아니다. 이 세 축이 §3.1의 '구조적 이점' 목록과 §5 워크플로 논의의 뼈대다.</figcaption>
+</figure>
+
+<h3>On-policy distillation</h3>
+
+<p>고전적 증류(Hinton et al., 2015; Kim &amp; Rush, 2016)는 teacher 출력으로 이뤄진 고정 corpus에서 forward KL을 최소화하므로 off-policy이고, student의 추론 궤적이 학습 분포에서 벗어날 수 있다. On-policy distillation은 student 자신의 rollout에서 teacher를 채점 신호로 써서 이를 해결한다 — MiniLLM(reverse KL), teacher-as-reward 변형(GKD, SimPO). 그러나 이들은 <strong>teacher 하나, 도메인 하나</strong>로 제한되어 있었다. MOPD는 "student가 샘플하고 teacher가 채점한다"는 틀을 유지하면서 이를 프롬프트별로 라우팅되는 여러 도메인 teacher로 확장하고, 실제 production 규모 base 모델에서 검증한다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: on-policy distillation은 RL과 증류의 장점을 합친다. RL처럼 student가 자기 답으로 배우고(분포 일치), 증류처럼 teacher가 토큰마다 정답 분포를 준다(신호 밀도). MOPD는 여기서 "teacher를 과목마다 따로 두자"는 한 걸음을 더한다.</blockquote>
+
+<h2>§3 방법</h2>
+
+<h3>3.1 파이프라인 — 세 단계</h3>
+
+<ul>
+  <li><strong>Stage 1: 일반 SFT</strong>. 관심 있는 모든 기본 능력을 덮는 넓은 corpus로 base 모델을 fine-tuning해 SFT 체크포인트를 만든다. 이것이 Stage 2 도메인 RL의 공통 초기화이자 Stage 3 student의 초기화다.</li>
+  <li><strong>Stage 2: 도메인 특화 RL</strong>. 도메인 $d$마다 Stage-1 체크포인트에서 전문가 $\pi_{\phi_d}$를 학습한다. 각 전문가는 자기 도메인에 가장 자연스러운 RL 레시피(수학은 정답 검증 RL, SWE는 실행 sandbox agent RL 등)를 쓴다. 도메인별 학습은 서로 독립이라 완전히 병렬로 실행할 수 있다.</li>
+  <li><strong>Stage 3: MOPD</strong>. student를 Stage-1 SFT에서 초기화하고, Stage-2 전문가 $\{\pi_{\phi_d}\}$를 고정해 teacher 그룹으로 둔다. 다중 도메인 데이터셋으로 student를 학습하며, 매 최적화 스텝은 (1) 프롬프트 배치를 샘플링하고, (2) student가 프롬프트마다 궤적을 생성하며 토큰별 확률분포를 기록하고, (3) 각 궤적을 과제 도메인에 맞는 teacher로 보내 teacher가 그 궤적을 prefill해 토큰별 확률분포를 얻고, (4) 궤적을 따라 student와 해당 teacher 사이 per-token reverse KL을 최소화해 student를 갱신한다. 끝나면 모든 도메인 능력을 가진 단일 모델이 나온다.</li>
+</ul>
+
+<figure>
+<svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+<defs><marker id="arf10" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf11" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf12" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf13" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf14" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf15" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#64748b"/></marker><marker id="arf16" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#3b82f6"/></marker><marker id="arf17" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#f59e0b"/></marker><marker id="arf18" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#ef4444"/></marker><marker id="arf19" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L7,3 z" fill="#f59e0b"/></marker></defs>
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Figure 1 재구성 — MOPD 3단계 파이프라인</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Stage 3의 한 스텝: ① student 생성 → ② teacher prefill → ③ reverse KL로 student 갱신</text>
+<rect x="20" y="50" width="120" height="210" rx="6" fill="#f1f5f9" stroke="#64748b" stroke-width="1.2"/>
+<text x="80" y="72" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Stage 1</text>
+<text x="80" y="90" text-anchor="middle" font-size="9.5" fill="#334155">일반 SFT</text>
+<rect x="40" y="110" width="80" height="34" rx="4" fill="#fff" stroke="#94a3b8"/>
+<text x="80" y="131" text-anchor="middle" font-size="9" fill="#334155">SFT 데이터</text>
+<rect x="40" y="190" width="80" height="40" rx="4" fill="#e0e7ff" stroke="#6366f1"/>
+<text x="80" y="214" text-anchor="middle" font-size="9.5" fill="#4338ca" font-weight="bold">SFT 모델</text>
+<path d="M80,146 L80,188" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf10)"/>
+<rect x="170" y="50" width="170" height="210" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="255" y="72" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">Stage 2 · 도메인 RL (병렬)</text>
+<rect x="185" y="86" width="140" height="26" rx="4" fill="#fff" stroke="#f59e0b"/>
+<text x="255" y="103" text-anchor="middle" font-size="8.8" fill="#334155">Math (verifiable RL)</text>
+<path d="M122,210 L183,99" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf11)"/>
+<rect x="185" y="120" width="140" height="26" rx="4" fill="#fff" stroke="#f59e0b"/>
+<text x="255" y="137" text-anchor="middle" font-size="8.8" fill="#334155">IF (rubric RL)</text>
+<path d="M122,210 L183,133" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf12)"/>
+<rect x="185" y="154" width="140" height="26" rx="4" fill="#fff" stroke="#f59e0b"/>
+<text x="255" y="171" text-anchor="middle" font-size="8.8" fill="#334155">SWE (sandbox agent RL)</text>
+<path d="M122,210 L183,167" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf13)"/>
+<rect x="185" y="188" width="140" height="26" rx="4" fill="#fff" stroke="#f59e0b"/>
+<text x="255" y="205" text-anchor="middle" font-size="8.8" fill="#334155">Search</text>
+<path d="M122,210 L183,201" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf14)"/>
+<rect x="185" y="222" width="140" height="26" rx="4" fill="#fff" stroke="#f59e0b"/>
+<text x="255" y="239" text-anchor="middle" font-size="8.8" fill="#334155">Safety …</text>
+<path d="M122,210 L183,235" stroke="#64748b" stroke-width="1.4" fill="none" marker-end="url(#arf15)"/>
+<rect x="370" y="50" width="410" height="210" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.2"/>
+<text x="575" y="72" text-anchor="middle" font-size="10.5" fill="#1e40af" font-weight="bold">Stage 3 · MOPD</text>
+<rect x="390" y="90" width="120" height="44" rx="6" fill="#e0e7ff" stroke="#6366f1" stroke-width="1.2"/>
+<text x="450" y="108" text-anchor="middle" font-size="10" fill="#4338ca" font-weight="bold">Student</text>
+<text x="450" y="124" text-anchor="middle" font-size="8.5" fill="#334155">(SFT 모델에서 시작)</text>
+<rect x="390" y="190" width="120" height="44" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="1.2"/>
+<text x="450" y="208" text-anchor="middle" font-size="10" fill="#92400e" font-weight="bold">Teacher 그룹</text>
+<text x="450" y="224" text-anchor="middle" font-size="8.5" fill="#334155">(Stage 2, 고정)</text>
+<rect x="560" y="100" width="34" height="24" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="577" y="116" text-anchor="middle" font-size="8.5" fill="#334155">t1</text>
+<rect x="600" y="100" width="34" height="24" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="617" y="116" text-anchor="middle" font-size="8.5" fill="#334155">t2</text>
+<rect x="640" y="100" width="34" height="24" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="657" y="116" text-anchor="middle" font-size="8.5" fill="#334155">t3</text>
+<rect x="680" y="100" width="34" height="24" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="697" y="116" text-anchor="middle" font-size="8.5" fill="#334155">t4</text>
+<rect x="720" y="100" width="34" height="24" rx="3" fill="#dbeafe" stroke="#3b82f6"/>
+<text x="737" y="116" text-anchor="middle" font-size="8.5" fill="#334155">t5</text>
+<path d="M512,112 L556,112" stroke="#3b82f6" stroke-width="1.4" fill="none" marker-end="url(#arf16)"/>
+<text x="534" y="104" text-anchor="middle" font-size="8.5" fill="#1e40af" font-weight="bold">① 생성</text>
+<path d="M640,128 L512,205" stroke="#f59e0b" stroke-width="1.4" fill="none" marker-end="url(#arf17)"/>
+<text x="600" y="172" text-anchor="middle" font-size="8.8" fill="#92400e" font-weight="bold">② prefill (도메인 teacher로 라우팅)</text>
+<path d="M450,188 L450,136" stroke="#ef4444" stroke-width="1.4" fill="none" marker-end="url(#arf18)"/>
+<text x="462" y="166" text-anchor="start" font-size="8.8" fill="#b91c1c" font-weight="bold">③ reverse KL</text>
+<text x="575" y="252" text-anchor="middle" font-size="9" fill="#555">토큰마다 teacher 분포 → student 분포를 맞춤</text>
+<path d="M342,155 L368,210" stroke="#f59e0b" stroke-width="1.4" fill="none" marker-end="url(#arf19)"/>
+<rect x="20" y="276" width="760" height="37" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="294" text-anchor="start" font-size="10" fill="#334155">Stage 1 모델이 두 번 쓰인다: Stage 2 teacher들의 공통 출발점이자 Stage 3 student의 초기화. 이 공유가 'same-origin' 안정성의 근원이다 (§4.4.2).</text>
+</svg>
+<figcaption><strong>[Figure 1 재구성]</strong>: 원문 Figure 1의 세 단계를 옮겼다. 회색 Stage 1의 SFT 모델에서 주황 Stage 2의 도메인 teacher들이 병렬로 갈라지고, 같은 SFT 모델이 파랑 Stage 3의 student로 다시 쓰인다. Stage 3 안의 ①②③은 원문의 Generate–Prefill–Optimization(reverse KL) 순서이며, Search·Safety 도메인은 원문 그림에 예시로만 있고 30B 통제 실험은 Math·IF·SWE 세 도메인만 쓴다(§4.1).</figcaption>
+</figure>
+
+<p><strong>구조적 이점</strong> (원문 정리):</p>
+<ul>
+  <li><strong>Exposure bias 없음</strong>: student가 자기 rollout으로 학습하므로 학습과 추론의 상태 분포가 구조적으로 같다.</li>
+  <li><strong>촘촘한 토큰별 지도</strong>: teacher가 궤적의 모든 토큰에서 확률분포를 준다. 표준 RL의 궤적 단위 보상보다 훨씬 촘촘해 분산이 낮고 표본 효율이 높다.</li>
+  <li><strong>정책 공간의 안정적 통합</strong>: teacher 파라미터를 평균하거나 task arithmetic을 하지 않고 프롬프트를 맞는 teacher로 라우팅해 능력을 합친다. 가중치 공간 융합 특유의 불안정을 피한다.</li>
+  <li><strong>모듈형·병렬 teacher</strong>: teacher RL은 완전히 병렬로 돌고 각자 하이퍼파라미터를 쓸 수 있다. 한 teacher 학습의 실패나 수정이 다른 teacher에 영향을 주지 않는다.</li>
+  <li><strong>Same-origin teacher 안정성</strong>: 각 teacher가 student를 초기화한 바로 그 SFT 체크포인트에서 도메인 RL로 만들어지므로, teacher와 student의 정책 분포가 가깝다. 초기 KL이 낮고 증류 내내 최적화가 매끄럽다 (§4.4.2).</li>
+</ul>
+
+<h3>3.2 알고리즘 — per-token reverse KL</h3>
+
+<p>Stage 3에서 student는 배정된 teacher에 대한 per-token reverse KL로 최적화된다.</p>
+
+$$\mathcal{L}_{\text{rev-KL}} = \mathbb{E}_{x,\, y \sim \pi_\theta}\left[\frac{1}{|y|}\sum_t \sum_v \pi_\theta(v) \log \frac{\pi_\theta(v)}{\pi_{\phi_d}(v)}\right] \tag{1}$$
+
+<p>$\pi_{\phi_d}$는 프롬프트 $x$에 배정된 teacher이고, $\pi_\theta(v)$, $\pi_{\phi_d}(v)$는 각각 $\pi_\theta(v \mid x, y_{&lt;t})$, $\pi_{\phi_d}(v \mid x, y_{&lt;t})$의 줄임이다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: reverse KL $\mathrm{KL}(\pi_\theta \| \pi_\phi)$는 "student가 확률을 준 곳에서 teacher가 동의하지 않으면 벌을 준다". 그래서 student는 teacher가 낮게 보는 토큰을 피하게 되고(mode-seeking), teacher가 여러 답을 허용하더라도 그중 하나를 확실히 고르는 쪽으로 간다. forward KL처럼 "teacher의 모든 가능성을 다 덮으라"고 요구하지 않는다.</blockquote>
+
+<h4>3.2.1 Policy-gradient 구현</h4>
+
+<p>MiniLLM을 따라 MOPD 증류를 RL 과정으로 본다. (1)의 기울기는</p>
+
+$$\nabla_\theta \mathcal{L} = -\mathbb{E}_{x,y}\left[\frac{1}{|y|}\sum_t \log \frac{\pi_{\phi_d}(y_t)}{\pi_\theta(y_t)}\, \nabla_\theta \log \pi_\theta(y_t)\right] \tag{2}$$
+
+<p>로, 정확히 policy-gradient 형태이며 teacher–student 로그 차이가 토큰별 advantage 역할을 한다.</p>
+
+$$\hat{A}_{\text{MOPD},t} = \mathrm{sg}\left[\log \pi_{\phi_d}(y_t) - \log \pi_\theta(y_t)\right] \tag{3}$$
+
+<p>학습 안정성을 위해 advantage를 양쪽으로 clip한다: $\hat{A}^{\text{clip}}_{\text{MOPD},t} = \mathrm{clip}(\hat{A}_{\text{MOPD},t}, -A_{\max}, +A_{\max})$ (기본 $A_{\max} = 5$). 최종 손실은</p>
+
+$$\mathcal{L}^{\text{PG}}_{\text{MOPD}}(\theta) = -\mathbb{E}_{x,y}\left[\frac{1}{|y|}\sum_t \hat{A}^{\text{clip}}_{\text{MOPD},t}\, \log \pi_\theta(y_t)\right] \tag{4}$$
+
+<p>이다. 이 형태는 기존 PPO/GRPO 학습 프레임워크에 바로 들어가며, 바뀌는 것은 advantage 계산뿐이다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: GRPO가 "응답 전체에 점수 하나"를 advantage로 쓰는 자리에, MOPD는 "토큰마다 teacher가 student보다 이 토큰을 얼마나 더(덜) 좋아하나"를 넣는다. 양수면 그 토큰 확률을 올리고, 음수면 내린다. clip은 teacher가 극단적으로 싫어하는 토큰 하나가 기울기를 폭발시키지 않게 막는 안전장치다.</blockquote>
+
+<blockquote><strong>비유로 말하면</strong>: 학생이 쓴 글의 단어마다 선생님이 "+2점(이 단어 좋다)", "−1점(나라면 안 쓴다)"을 붙여 준다. 학생은 높은 점수를 받은 단어를 더 자주 쓰도록 배운다. 다만 한 단어에 ±5점 넘게는 주지 않는다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Eq. (1)–(4) 수치 예제 — 한 위치에서 reverse KL과 policy-gradient advantage</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">어휘 4개 {A,B,C,D}, student가 샘플한 토큰 = B · 확률은 가상 수치</text>
+<rect x="20" y="44" width="230" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="135" y="62" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold"></text>
+<rect x="250" y="44" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="315" y="62" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">A</text>
+<rect x="380" y="44" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="445" y="62" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">B (샘플됨)</text>
+<rect x="510" y="44" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="575" y="62" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">C</text>
+<rect x="640" y="44" width="130" height="26" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="705" y="62" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">D</text>
+<rect x="20" y="70" width="230" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="88" text-anchor="start" font-size="8.8" fill="#334155">teacher π_φ(v)</text>
+<rect x="250" y="70" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="315" y="88" text-anchor="middle" font-size="8.8" fill="#334155">0.60</text>
+<rect x="380" y="70" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="445" y="88" text-anchor="middle" font-size="8.8" fill="#334155">0.25</text>
+<rect x="510" y="70" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="575" y="88" text-anchor="middle" font-size="8.8" fill="#334155">0.10</text>
+<rect x="640" y="70" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="705" y="88" text-anchor="middle" font-size="8.8" fill="#334155">0.05</text>
+<rect x="20" y="96" width="230" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="114" text-anchor="start" font-size="8.8" fill="#334155">student π_θ(v)</text>
+<rect x="250" y="96" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="315" y="114" text-anchor="middle" font-size="8.8" fill="#334155">0.30</text>
+<rect x="380" y="96" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="445" y="114" text-anchor="middle" font-size="8.8" fill="#334155">0.50</text>
+<rect x="510" y="96" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="575" y="114" text-anchor="middle" font-size="8.8" fill="#334155">0.15</text>
+<rect x="640" y="96" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="705" y="114" text-anchor="middle" font-size="8.8" fill="#334155">0.05</text>
+<rect x="20" y="122" width="230" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="140" text-anchor="start" font-size="8.8" fill="#334155">π_θ log(π_θ/π_φ)</text>
+<rect x="250" y="122" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="315" y="140" text-anchor="middle" font-size="8.8" fill="#334155">-0.208</text>
+<rect x="380" y="122" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="445" y="140" text-anchor="middle" font-size="8.8" fill="#334155">+0.347</text>
+<rect x="510" y="122" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="575" y="140" text-anchor="middle" font-size="8.8" fill="#334155">+0.061</text>
+<rect x="640" y="122" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="705" y="140" text-anchor="middle" font-size="8.8" fill="#334155">+0.000</text>
+<rect x="20" y="148" width="230" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="166" text-anchor="start" font-size="8.8" fill="#334155">log π_φ − log π_θ (각 토큰)</text>
+<rect x="250" y="148" width="130" height="26" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="315" y="166" text-anchor="middle" font-size="8.8" fill="#334155">+0.693</text>
+<rect x="380" y="148" width="130" height="26" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="445" y="166" text-anchor="middle" font-size="8.8" fill="#334155">-0.693</text>
+<rect x="510" y="148" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="575" y="166" text-anchor="middle" font-size="8.8" fill="#334155">-0.405</text>
+<rect x="640" y="148" width="130" height="26" fill="#fff" stroke="#e8edf3"/>
+<text x="705" y="166" text-anchor="middle" font-size="8.8" fill="#334155">+0.000</text>
+<rect x="20" y="186" width="210" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="125" y="202" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">양</text>
+<rect x="230" y="186" width="250" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="355" y="202" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">계산</text>
+<rect x="480" y="186" width="110" height="24" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="535" y="202" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">값</text>
+<rect x="20" y="210" width="210" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="226" text-anchor="start" font-size="8.8" fill="#334155">Eq. (1) 이 위치의 reverse KL</text>
+<rect x="230" y="210" width="250" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="355" y="226" text-anchor="middle" font-size="8.8" fill="#334155">Σ_v π_θ log(π_θ/π_φ)</text>
+<rect x="480" y="210" width="110" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="535" y="226" text-anchor="middle" font-size="8.8" fill="#334155">0.199</text>
+<rect x="20" y="234" width="210" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="250" text-anchor="start" font-size="8.8" fill="#334155">Eq. (3) advantage (B)</text>
+<rect x="230" y="234" width="250" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="355" y="250" text-anchor="middle" font-size="8.8" fill="#334155">log 0.25 − log 0.50</text>
+<rect x="480" y="234" width="110" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="535" y="250" text-anchor="middle" font-size="8.8" fill="#334155">-0.693</text>
+<rect x="20" y="258" width="210" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="274" text-anchor="start" font-size="8.8" fill="#334155">clip(±5) 후</text>
+<rect x="230" y="258" width="250" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="355" y="274" text-anchor="middle" font-size="8.8" fill="#334155">|−0.693| &lt; 5 → 그대로</text>
+<rect x="480" y="258" width="110" height="24" fill="#fff" stroke="#e8edf3"/>
+<text x="535" y="274" text-anchor="middle" font-size="8.8" fill="#334155">−0.693</text>
+<rect x="610" y="186" width="175" height="123" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="620" y="204" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="bold">읽는 법</text>
+<text x="620" y="222" text-anchor="start" font-size="10" fill="#334155">advantage &lt; 0 → B 확률을 내림.</text>
+<text x="620" y="239" text-anchor="start" font-size="10" fill="#334155">teacher가 선호하는 A는 이번에</text>
+<text x="620" y="256" text-anchor="start" font-size="10" fill="#334155">샘플되지 않아 직접 신호가 없다</text>
+<text x="620" y="273" text-anchor="start" font-size="10" fill="#334155">(샘플 1개 추정의 한계) → top-k</text>
+<text x="620" y="290" text-anchor="start" font-size="10" fill="#334155">형태(§3.2.2)가 이를 보완.</text>
+</svg>
+<figcaption><strong>[Figure: Eq. (1)–(4) 수치 예제]</strong>: 어휘 4개짜리 한 위치에서 reverse KL과 policy-gradient advantage를 계산했다(가상 수치). 위 표의 셋째 행을 더하면 Eq. (1)의 이 위치 KL 0.199가 되고, student가 샘플한 B의 advantage는 log 0.25 − log 0.50 = −0.693이라 B 확률을 내리는 신호가 된다(Eq. 3–4). teacher가 선호하는 A(+0.693)는 이번에 샘플되지 않아 직접 신호를 받지 못하는데, 이것이 §3.2.2 top-k 형태가 '분산이 낮은 대안'인 이유다.</figcaption>
+</figure>
+
+<h4>3.2.2 Top-k 증류 구현</h4>
+
+<p><strong>왜 문제인가</strong>: policy-gradient 형태는 rollout 위치마다 샘플된 토큰 하나만 쓴다. <strong>해법</strong>: 분산이 더 낮은 대안으로 teacher의 top-$k$ 토큰 위에서 증류한다(Peng et al., 2024). 구현이 간단하면서 teacher 분포를 더 많이 쓴다. 위치 $t$에서 teacher의 top-$k$ 토큰 집합을 $\mathcal{T}^d_t = \mathrm{TopK}_k(\pi_{\phi_d}(\cdot \mid x, y_{&lt;t}))$라 하면</p>
+
+$$\mathcal{L}^{\text{TopK}}_{\text{MOPD}}(\theta) = \mathbb{E}_{x,y}\left[\frac{1}{|y|}\sum_t \sum_{v \in \mathcal{T}^d_t} \left(\pi_\theta(v) \log \frac{\pi_\theta(v)}{\pi_{\phi_d}(v)} - \pi_\theta(v) + \pi_{\phi_d}(v)\right)\right] \tag{5}$$
+
+<p>표준 reverse KL에 $\pi_{\phi_d}(v) - \pi_\theta(v)$ 항을 더했다. 이 항이 top-$k$ 절단이 만드는 편향을 바로잡아 손실이 top-$k$ 토큰에서 $\pi_\theta = \pi_{\phi_d}$일 때 최소가 되게 한다. 순진하게 잘라 낸 top-$k$ reverse KL은 이 성질이 없다. 정확성 외에 인프라 부담도 줄인다 — teacher prefill 결과를 가벼운 보상 신호처럼 보낼 수 있을 만큼 작게 유지한다. 전체 어휘 증류는 토큰마다 어휘 전체 분포를 보내야 한다.</p>
+
+<blockquote><strong>직관적으로 말하면</strong>: 잘라 낸 집합 위에서는 확률 합이 1이라는 제약이 없다. 그래서 $q \log(q/p)$만 최소화하면 student가 모든 확률을 teacher의 $1/e$ 수준(약 37%)으로 깎아 내리는 이상한 해가 나온다. $-q + p$는 이를 상쇄하는 "확률 질량 보존" 항으로, 미분하면 정확히 $\log(q/p) = 0$, 즉 $q = p$가 된다 (아래 그림은 요약자 유도).</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 330" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Eq. (5) 수치 예제 — top-k reverse KL에 왜 보정항(π_φ − π_θ)이 필요한가</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">teacher top-2 = {A: 0.5, B: 0.3} · 각 토큰에 대해 손실을 최소화하는 π_θ(v)를 구함 · 요약자 유도</text>
+<rect x="20" y="50" width="210" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="125" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">손실 (토큰 v 하나)</text>
+<rect x="230" y="50" width="150" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="305" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">항</text>
+<rect x="380" y="50" width="150" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="455" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">∂/∂q = 0</text>
+<rect x="530" y="50" width="120" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="590" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">최적 q</text>
+<rect x="650" y="50" width="130" height="30" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="715" y="70" text-anchor="middle" font-size="9.200000000000001" fill="#334155" font-weight="bold">A / B 최적값</text>
+<rect x="20" y="80" width="210" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="100" text-anchor="start" font-size="8.8" fill="#334155">순진한 truncated reverse KL</text>
+<rect x="230" y="80" width="150" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="305" y="100" text-anchor="middle" font-size="8.8" fill="#334155">q·log(q/p)</text>
+<rect x="380" y="80" width="150" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="455" y="100" text-anchor="middle" font-size="8.8" fill="#334155">log(q/p) + 1 = 0</text>
+<rect x="530" y="80" width="120" height="30" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="590" y="100" text-anchor="middle" font-size="8.8" fill="#334155">q = p / e</text>
+<rect x="650" y="80" width="130" height="30" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="715" y="100" text-anchor="middle" font-size="8.8" fill="#334155">0.184 / 0.110</text>
+<rect x="20" y="110" width="210" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="28" y="130" text-anchor="start" font-size="8.8" fill="#334155">MOPD Eq. (5)</text>
+<rect x="230" y="110" width="150" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="305" y="130" text-anchor="middle" font-size="8.8" fill="#334155">q·log(q/p) − q + p</text>
+<rect x="380" y="110" width="150" height="30" fill="#fff" stroke="#e8edf3"/>
+<text x="455" y="130" text-anchor="middle" font-size="8.8" fill="#334155">log(q/p) = 0</text>
+<rect x="530" y="110" width="120" height="30" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="590" y="130" text-anchor="middle" font-size="8.8" fill="#334155">q = p</text>
+<rect x="650" y="110" width="130" height="30" fill="#dcfce7" stroke="#e8edf3"/>
+<text x="715" y="130" text-anchor="middle" font-size="8.8" fill="#334155">0.500 / 0.300</text>
+<polyline points="83.8,258.1 88.5,261.0 93.2,263.4 98.0,265.6 102.8,267.4 107.5,269.0 112.2,270.3 117.0,271.4 121.8,272.3 126.5,273.0 131.2,273.6 136.0,274.0 140.8,274.3 145.5,274.4 150.2,274.4 155.0,274.2 159.8,274.0 164.5,273.6 169.2,273.1 174.0,272.5 178.8,271.9 183.5,271.1 188.2,270.2 193.0,269.3 197.7,268.2 202.5,267.1 207.2,265.9 212.0,264.7 216.8,263.3 221.5,261.9 226.2,260.4 231.0,258.9 235.8,257.2 240.5,255.6 245.2,253.8 250.0,252.0 254.7,250.1 259.5,248.2 264.2,246.2 269.0,244.2 273.8,242.1 278.5,240.0 283.2,237.8 288.0,235.5 292.8,233.2 297.5,230.9 302.2,228.5 307.0,226.1 311.8,223.6 316.5,221.1 321.2,218.5 326.0,215.9 330.7,213.3 335.5,210.6 340.2,207.8 345.0,205.1 349.8,202.2 354.5,199.4 359.2,196.5 364.0,193.6 368.8,190.6 373.5,187.6 378.2,184.6 383.0,181.5 387.8,178.4 392.5,175.2 397.2,172.1 402.0,168.9 406.8,165.6 411.5,162.3 416.2,160.0 421.0,160.0 425.8,160.0 430.5,160.0 435.2,160.0 440.0,160.0" fill="none" stroke="#ef4444" stroke-width="2.2"/>
+<polyline points="83.8,160.0 88.5,160.0 93.2,161.8 98.0,166.3 102.8,170.5 107.5,174.4 112.2,178.1 117.0,181.6 121.8,184.8 126.5,187.9 131.2,190.9 136.0,193.6 140.8,196.3 145.5,198.7 150.2,201.1 155.0,203.3 159.8,205.4 164.5,207.4 169.2,209.3 174.0,211.1 178.8,212.8 183.5,214.4 188.2,215.9 193.0,217.3 197.7,218.6 202.5,219.9 207.2,221.0 212.0,222.1 216.8,223.1 221.5,224.1 226.2,225.0 231.0,225.8 235.8,226.5 240.5,227.2 245.2,227.8 250.0,228.4 254.7,228.9 259.5,229.3 264.2,229.7 269.0,230.0 273.8,230.3 278.5,230.5 283.2,230.7 288.0,230.8 292.8,230.9 297.5,230.9 302.2,230.9 307.0,230.8 311.8,230.7 316.5,230.5 321.2,230.3 326.0,230.1 330.7,229.8 335.5,229.5 340.2,229.1 345.0,228.7 349.8,228.2 354.5,227.7 359.2,227.2 364.0,226.7 368.8,226.1 373.5,225.4 378.2,224.7 383.0,224.0 387.8,223.3 392.5,222.5 397.2,221.7 402.0,220.9 406.8,220.0 411.5,219.1 416.2,218.1 421.0,217.1 425.8,216.1 430.5,215.1 435.2,214.0 440.0,212.9" fill="none" stroke="#16a34a" stroke-width="2.2"/>
+<line x1="60" y1="230.9" x2="440" y2="230.9" stroke="#94a3b8"/>
+<line x1="297.5" y1="160" x2="297.5" y2="290" stroke="#16a34a" stroke-dasharray="4 3"/>
+<text x="302" y="172" text-anchor="start" font-size="8.8" fill="#15803d">q = p = 0.5</text>
+<line x1="147.4" y1="160" x2="147.4" y2="290" stroke="#ef4444" stroke-dasharray="4 3"/>
+<text x="151" y="284" text-anchor="start" font-size="8.8" fill="#b91c1c">q = p/e ≈ 0.18</text>
+<text x="250" y="306" text-anchor="middle" font-size="9" fill="#334155">student 확률 q = π_θ(A)  (teacher p = 0.5)</text>
+<rect x="470" y="150" width="315" height="106" rx="6" fill="#dbeafe" stroke="#3b82f6" stroke-width="1.6"/>
+<text x="480" y="168" text-anchor="start" font-size="10.5" fill="#1e40af" font-weight="bold">한 줄 유도</text>
+<text x="480" y="186" text-anchor="start" font-size="10" fill="#334155">빨강: 보정 없으면 최소점이 p/e — student가 teacher</text>
+<text x="480" y="203" text-anchor="start" font-size="10" fill="#334155">top-k 토큰 확률을 37%로 '깎아내리는' 쪽으로 학습된다.</text>
+<text x="480" y="220" text-anchor="start" font-size="10" fill="#334155">초록: −q + p를 더하면 최소점이 정확히 q = p, 최솟값 0.</text>
+<text x="480" y="237" text-anchor="start" font-size="10" fill="#334155">→ 원문 '보정항이 π_θ = π_φ에서 최소가 되게 한다'의 수학적 내용.</text>
+</svg>
+<figcaption><strong>[Figure: Eq. (5) 보정항 수치 예제]</strong>: teacher top-k 토큰 하나(p = 0.5)에 대해 student 확률 q의 함수로 두 손실을 그렸다(요약자 유도). 빨강(보정 없는 절단 reverse KL)은 q = p/e ≈ 0.18에서 최소라 student가 teacher top-k 토큰의 확률을 깎아 내리도록 학습되고, 초록(Eq. 5)은 정확히 q = p에서 최솟값 0을 갖는다. 원문 §3.2.2의 '보정항이 π_θ = π_φ에서 최소가 되게 한다'는 주장의 수학적 내용이며, 원문은 이 유도를 보여 주지 않는다.</figcaption>
+</figure>
+
+<h3>3.3 인프라 — teacher를 보상 서비스처럼</h3>
+
+<p><strong>왜 문제인가</strong>: Stage 3의 추가 연산은 teacher prefill이다 — 모든 student rollout을 배정된 teacher에 통과시켜 토큰별 로그확률(또는 top-$k$ logit)을 얻어야 한다. 이를 RL 학습 루프 안에 넣으면 인프라가 복잡해지고 직렬 지연이 늘어난다.</p>
+
+<p><strong>해법</strong>: teacher prefill 계산이 RL의 보상 계산과 같은 성격이라는 점에 착안해, 각 도메인 teacher를 RL trainer 바깥의 독립 prefill 서비스로 배치한다. student sampler는 계속 rollout을 생성하고, 한 시퀀스의 rollout이 끝나는 즉시 trainer가 해당 teacher 서비스에 비동기 prefill 요청을 보낸다. teacher 서비스는 토큰별 로그확률을 계산해 돌려준다. teacher prefill과 다른 시퀀스의 샘플링이 시간상 겹치므로 MOPD의 wall-clock 비용은 샘플링이 지배하고 teacher 비용은 student 샘플링 뒤에 거의 숨는다. 저자들의 배포에서 ##teacher는 측정 가능한 wall-clock 오버헤드를 거의 더하지 않았다.##</p>
+
+<blockquote><strong>비유로 말하면</strong>: 시험지를 다 걷은 뒤 한꺼번에 채점하면 채점이 끝날 때까지 다음 수업을 못 한다. 대신 먼저 낸 학생 답안부터 바로 채점실(teacher 서비스)로 보내면, 마지막 학생이 답안을 낼 즈음엔 채점도 거의 끝나 있다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">§3.3 인프라 — teacher prefill을 '보상 계산처럼' 비동기 서비스로</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">타임라인 개념도 (요약자 재구성) · 주황 = student 샘플링, 파랑 = teacher prefill</text>
+<text x="20" y="60" text-anchor="start" font-size="10" fill="#b91c1c" font-weight="bold">직렬(나이브)</text>
+<rect x="150.0" y="70" width="224.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="150.0" y="90" width="308.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="150.0" y="110" width="392.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="150.0" y="130" width="168.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="542.0" y="150" width="140.0" height="18" rx="3" fill="#3b82f6"/>
+<text x="612" y="163" text-anchor="middle" font-size="8.2" fill="#fff" font-weight="bold">teacher prefill (몰아서)</text>
+<text x="688" y="163" text-anchor="start" font-size="8.8" fill="#b91c1c">→ 학습 단계가 늦게 시작</text>
+<line x1="542" y1="64" x2="542" y2="172" stroke="#cbd5e1" stroke-dasharray="5 4"/>
+<text x="20" y="200" text-anchor="start" font-size="10" fill="#15803d" font-weight="bold">비동기(MOPD)</text>
+<rect x="150.0" y="208" width="224.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="374.0" y="208" width="33.6" height="18" rx="3" fill="#3b82f6"/>
+<rect x="150.0" y="228" width="308.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="458.0" y="228" width="33.6" height="18" rx="3" fill="#3b82f6"/>
+<rect x="150.0" y="248" width="392.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="542.0" y="248" width="33.6" height="18" rx="3" fill="#3b82f6"/>
+<rect x="150.0" y="268" width="168.0" height="18" rx="3" fill="#f59e0b"/>
+<rect x="318.0" y="268" width="33.6" height="18" rx="3" fill="#3b82f6"/>
+<text x="582" y="270" text-anchor="start" font-size="8.8" fill="#15803d">→ prefill이 다른 시퀀스 샘플링 뒤에 숨는다</text>
+<text x="20" y="310" text-anchor="start" font-size="8.6" fill="#555">rollout 길이는 서로 다르므로, 먼저 끝난 시퀀스부터 바로 teacher 서비스에 보내면 전체 시간은 '가장 긴 샘플링'이 결정한다</text>
+</svg>
+<figcaption><strong>[Figure: 비동기 teacher prefill 타임라인]</strong>: §3.3의 서술을 Gantt 형태로 재구성한 개념도다(막대 길이는 예시). 위의 직렬 방식은 모든 rollout이 끝난 뒤 teacher prefill을 몰아 해 학습 시작이 늦어지고, 아래 MOPD 방식은 먼저 끝난 시퀀스부터 바로 teacher 서비스에 보내 prefill이 다른 시퀀스의 샘플링 뒤에 숨는다. 원문은 '측정 가능한 오버헤드가 거의 없었다'고만 하고 정량 수치를 주지 않는다.</figcaption>
+</figure>
+
+<h2>§4 실험</h2>
+
+<p>실험이 답하는 질문과 대응 절:</p>
+<table class="small-table">
+<thead><tr><th>#</th><th>질문</th><th>답하는 곳</th></tr></thead>
+<tbody>
+<tr><td>Q1</td><td>같은 출발점·데이터에서 MOPD가 네 가지 통합 방법보다 나은가?</td><td>§4.2 (Table 2, Figure 2)</td></tr>
+<tr><td>Q2</td><td>309B 산업용 모델에서도 통하는가?</td><td>§4.3 (Table 3)</td></tr>
+<tr><td>Q3</td><td>policy-gradient와 top-k 형태 중 무엇이 나은가?</td><td>§4.4.1 (Table 4, Figure 3)</td></tr>
+<tr><td>Q4</td><td>더 강한 외부 teacher를 쓰면 더 좋아지는가?</td><td>§4.4.2 (Table 4, Figure 3)</td></tr>
+<tr><td>Q5</td><td>MOPD를 여러 라운드 반복하면 더 올라가는가?</td><td>§4.4.3 (Table 5)</td></tr>
+</tbody>
+</table>
+
+<h3>4.1 실험 설정</h3>
+
+<p><strong>SFT 모델</strong>: 출발 체크포인트는 Qwen3-30B-A3B-Base다. RL의 강한 출발점이 되도록 모든 목표 도메인을 덮는 넓은 corpus로 fine-tuning한다. 모든 기준선과 MOPD가 이 SFT 체크포인트에서 시작한다.</p>
+
+<p><strong>과제와 평가</strong>: 세 도메인 — 수학(AIME25, AIME26), 지시 따르기(IFBench, IFEval), 소프트웨어 엔지니어링(SWE-bench Verified). 부록 B: AIME는 문항당 32번 샘플링해 평균(avg@32), IFBench·IFEval·SWE-bench는 1회씩 평가하며, 모든 벤치마크에서 temperature 1.0, top-p·top-k 절단 없음.</p>
+
+<p><strong>학습 데이터 (부록 A)</strong>:</p>
+<ul>
+  <li><strong>Math</strong>: SFT는 주로 Mixture-of-Thoughts의 수학 부분, RL 데이터는 BigMath·ORZ 등 여러 오픈소스에서 수집·필터링. 최대 시퀀스 길이 32,768.</li>
+  <li><strong>IF</strong>: SFT 프롬프트는 IFBench 방식으로 만들고 gpt-oss-120b로 증류, RL 데이터도 IFBench 레시피로 합성. 최대 길이 32,768.</li>
+  <li><strong>SWE</strong>: SFT는 R2E-Gym 과제를 오픈소스 모델로 증류, RL은 R2E-Gym-Lite. 최대 길이 65,536, 상호작용 턴 최대 50.</li>
+</ul>
+
+<table class="small-table">
+<thead><tr><th>하이퍼파라미터 (부록 A)</th><th>LR</th><th>배치</th><th>프롬프트당 rollout N</th><th>도메인 비율 / 기타</th></tr></thead>
+<tbody>
+<tr><td>도메인 RL (Math, IF)</td><td>3e-6</td><td>144</td><td>8</td><td>약 175K 시퀀스</td></tr>
+<tr><td>도메인 RL (SWE)</td><td>3e-6</td><td>80</td><td>8</td><td>약 150K 시퀀스</td></tr>
+<tr><td>Cascade RL</td><td colspan="3">도메인 RL과 같음</td><td>순서 IF → Math → SWE</td></tr>
+<tr><td>Mix-RL</td><td>4e-6</td><td>256</td><td>8</td><td>Math : IF : SWE = 0.35 : 0.35 : 0.3</td></tr>
+<tr><td>MOPD</td><td>(미기재)</td><td>2048</td><td>1</td><td>같은 비율, Dynamic Sampling 미사용, A_max = 5, top-k의 k = 64</td></tr>
+</tbody>
+</table>
+<p>RL은 Dynamic Sampling(DAPO)을 쓰는 on-policy GRPO로, rollout 데이터는 gradient update 한 번에 쓰고 버린다. MOPD의 learning rate는 부록에 적혀 있지 않다.</p>
+
+<p><strong>기준선</strong>: (i) Mix-RL — 모든 도메인 프롬프트를 섞은 공동 RL, (ii) Cascade RL — 도메인별 RL을 순차 적용(각 단계는 이전 단계에서 시작), (iii) Off-Policy Finetune — Stage-2 teacher의 rollout으로 student를 오프라인 SFT, (iv) Param-Merge — Stage-2 teacher들의 선형 평균 / task arithmetic merge, (v) MOPD.</p>
+
+<p><strong>평가 지표 — 정규화 점수</strong>: 세 도메인의 절대 여유(headroom)가 크게 달라 원점수 평균은 여유가 큰 도메인을 과대 반영한다. 그래서 도메인 $d$마다 Stage-1 SFT student 정확도 $s^s_d$, Stage-2 전문가 정확도 $s^t_d$로</p>
+
+$$\tilde{s}_d = \frac{s_d - s^s_d}{s^t_d - s^s_d}, \qquad \bar{\tilde{s}} = \frac{1}{|\mathcal{D}|}\sum_{d \in \mathcal{D}} \tilde{s}_d$$
+
+<p>를 쓴다. student가 0, 도메인 전문가 teacher가 1이며, 1 초과는 전문가 이상, 0 미만은 Stage-1 student보다 퇴보를 뜻한다. Table 2 값으로 역산하면 도메인 점수 $s_d$는 그 도메인 벤치마크들의 평균이다(요약자 확인, 아래 히트맵).</p>
+
+<h3>4.2 주요 결과</h3>
+
+<p><strong>실험 의도</strong>: Q1 — 같은 SFT 출발점, 같은 teacher에서 어떤 통합 방법이 세 도메인 능력을 가장 많이, 가장 고르게 한 모델에 모으는가.</p>
+
+<table class="small-table">
+<thead><tr><th rowspan="2">Table 2 (Qwen3-30B-A3B)</th><th colspan="2">Math</th><th colspan="2">IF</th><th>SWE</th><th rowspan="2">Norm.</th></tr>
+<tr><th>AIME25</th><th>AIME26</th><th>IFBench</th><th>IFEval</th><th>SWE-bench V.</th></tr></thead>
+<tbody>
+<tr><td>Student (SFT-only)</td><td>45.42</td><td>54.48</td><td>42.69</td><td>84.17</td><td>35.80</td><td>0.0000</td></tr>
+<tr><td>RL Teacher</td><td>54.79</td><td>63.65</td><td>78.40</td><td>95.50</td><td>51.20</td><td>1.0000</td></tr>
+<tr><td>Mix-RL</td><td><strong>52.71</strong></td><td>63.75</td><td>75.00</td><td>94.58</td><td>48.80</td><td>0.8818</td></tr>
+<tr><td>Cascade RL</td><td>48.54</td><td>61.88</td><td>77.11</td><td>95.80</td><td>47.80</td><td>0.7752</td></tr>
+<tr><td>Off-Policy Finetune</td><td>51.56</td><td>63.44</td><td><strong>80.95</strong></td><td>93.35</td><td>45.80</td><td>0.8241</td></tr>
+<tr><td>Param-Merge (Avg.)</td><td>47.81</td><td>59.58</td><td>53.74</td><td>88.79</td><td>39.60</td><td>0.3280</td></tr>
+<tr><td>Param-Merge (Task Arith.)</td><td>49.38</td><td>63.96</td><td>78.23</td><td><strong>95.81</strong></td><td>48.80</td><td>0.8574</td></tr>
+<tr><td><strong>MOPD (ours)</strong></td><td>51.46</td><td><strong>65.31</strong></td><td>77.89</td><td>93.84</td><td><strong>50.40</strong></td><td><strong>0.9373</strong></td></tr>
+<tr><td>Δ (MOPD − RL Teacher)</td><td>−3.33</td><td>+1.66</td><td>−0.51</td><td>−1.66</td><td>−0.80</td><td>−0.0627</td></tr>
+</tbody>
+</table>
+
+<p><strong>관찰 1 — Mix-RL, Cascade RL, Off-Policy Finetune은 각자 다른 모양의 공백을 남긴다</strong>: 정규화 점수 0.882, 0.775, 0.824로 총합은 비슷하지만 도메인별 약점이 다르다. Cascade RL(IF→Math→SWE 순)은 도메인 간 간섭을 보인다: 처음 학습한 IF는 여유의 98%를 메우지만 두 번째 Math는 57%만 메우며, Figure 2에서 이후 SWE 단계 동안 Math 정확도가 떨어진다. Off-Policy Finetune은 IF에서 teacher를 넘지만(1.01) SWE에서는 65%만 메워, teacher 궤적의 오프라인 모방이 과제 유형마다 고르지 않게 옮겨진다는 것을 시사한다. Mix-RL이 가장 균형 잡힌 기준선(도메인 간 범위 0.064)이지만 여전히 MOPD보다 5.5점 낮다.</p>
+
+<p><strong>관찰 2 — MOPD가 가장 높고 가장 균일하다</strong>: ##정규화 점수 0.937로 차선(Mix-RL 0.882)보다 +0.055.## 세 도메인 정규화 점수가 [0.91, 0.95]에 들어 범위가 ##0.044로 모든 방법 중 가장 작다.## Cascade RL은 0.57–0.98(범위 0.41), Off-Policy Finetune은 0.65–1.01(범위 0.36)이다.</p>
+
+<figure>
+<svg viewBox="0 0 800 360" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Table 2 정규화 히트맵 — 도메인별 회복 정도 (0 = SFT student, 1 = RL teacher)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">도메인 점수 = 그 도메인 벤치마크 평균 (Math = AIME25·26, IF = IFBench·IFEval, SWE = SWE-bench V.) · 요약자 계산, 평균은 원문 Norm.과 일치</text>
+<text x="308" y="58" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">Math</text>
+<text x="408" y="58" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">IF</text>
+<text x="508" y="58" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">SWE</text>
+<text x="608" y="58" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">평균 (원문)</text>
+<text x="708" y="58" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">범위</text>
+<text x="250" y="87" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Mix-RL</text>
+<rect x="260" y="66" width="96" height="32" fill="rgb(56,174,92)"/>
+<text x="308" y="87" text-anchor="middle" font-size="10" fill="#334155">0.89</text>
+<rect x="360" y="66" width="96" height="32" fill="rgb(53,173,90)"/>
+<text x="408" y="87" text-anchor="middle" font-size="10" fill="#334155">0.91</text>
+<rect x="460" y="66" width="96" height="32" fill="rgb(67,178,98)"/>
+<text x="508" y="87" text-anchor="middle" font-size="10" fill="#334155">0.84</text>
+<rect x="560" y="66" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="87" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.882</text>
+<rect x="660" y="66" width="96" height="32" fill="#dcfce7"/>
+<text x="708" y="87" text-anchor="middle" font-size="10" fill="#334155">0.064</text>
+<text x="250" y="123" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Cascade RL</text>
+<rect x="260" y="102" width="96" height="32" fill="rgb(128,199,131)"/>
+<text x="308" y="123" text-anchor="middle" font-size="10" fill="#334155">0.57</text>
+<rect x="360" y="102" width="96" height="32" fill="rgb(37,168,82)"/>
+<text x="408" y="123" text-anchor="middle" font-size="10" fill="#334155">0.98</text>
+<rect x="460" y="102" width="96" height="32" fill="rgb(81,183,106)"/>
+<text x="508" y="123" text-anchor="middle" font-size="10" fill="#334155">0.78</text>
+<rect x="560" y="102" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="123" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.775</text>
+<rect x="660" y="102" width="96" height="32" fill="#fef2f2"/>
+<text x="708" y="123" text-anchor="middle" font-size="10" fill="#334155">0.412</text>
+<text x="250" y="159" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Off-Policy Finetune</text>
+<rect x="260" y="138" width="96" height="32" fill="rgb(74,180,102)"/>
+<text x="308" y="159" text-anchor="middle" font-size="10" fill="#334155">0.81</text>
+<rect x="360" y="138" width="96" height="32" fill="rgb(31,166,78)"/>
+<text x="408" y="159" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">1.01</text>
+<rect x="460" y="138" width="96" height="32" fill="rgb(110,193,121)"/>
+<text x="508" y="159" text-anchor="middle" font-size="10" fill="#334155">0.65</text>
+<rect x="560" y="138" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="159" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.824</text>
+<rect x="660" y="138" width="96" height="32" fill="#fef2f2"/>
+<text x="708" y="159" text-anchor="middle" font-size="10" fill="#334155">0.359</text>
+<text x="250" y="195" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Param-Merge (Avg.)</text>
+<rect x="260" y="174" width="96" height="32" fill="rgb(164,212,150)"/>
+<text x="308" y="195" text-anchor="middle" font-size="10" fill="#334155">0.40</text>
+<rect x="360" y="174" width="96" height="32" fill="rgb(180,217,159)"/>
+<text x="408" y="195" text-anchor="middle" font-size="10" fill="#334155">0.33</text>
+<rect x="460" y="174" width="96" height="32" fill="rgb(199,224,169)"/>
+<text x="508" y="195" text-anchor="middle" font-size="10" fill="#334155">0.25</text>
+<rect x="560" y="174" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="195" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.328</text>
+<rect x="660" y="174" width="96" height="32" fill="#fef2f2"/>
+<text x="708" y="195" text-anchor="middle" font-size="10" fill="#334155">0.157</text>
+<text x="250" y="231" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Param-Merge (Task Arith.)</text>
+<rect x="260" y="210" width="96" height="32" fill="rgb(93,187,112)"/>
+<text x="308" y="231" text-anchor="middle" font-size="10" fill="#334155">0.72</text>
+<rect x="360" y="210" width="96" height="32" fill="rgb(32,166,79)"/>
+<text x="408" y="231" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">1.00</text>
+<rect x="460" y="210" width="96" height="32" fill="rgb(67,178,98)"/>
+<text x="508" y="231" text-anchor="middle" font-size="10" fill="#334155">0.84</text>
+<rect x="560" y="210" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="231" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.857</text>
+<rect x="660" y="210" width="96" height="32" fill="#fef2f2"/>
+<text x="708" y="231" text-anchor="middle" font-size="10" fill="#334155">0.278</text>
+<text x="250" y="267" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">MOPD</text>
+<rect x="260" y="246" width="96" height="32" fill="rgb(52,173,90)"/>
+<text x="308" y="267" text-anchor="middle" font-size="10" fill="#334155">0.91</text>
+<rect x="360" y="246" width="96" height="32" fill="rgb(43,170,85)"/>
+<text x="408" y="267" text-anchor="middle" font-size="10" fill="#334155">0.95</text>
+<rect x="460" y="246" width="96" height="32" fill="rgb(44,170,86)"/>
+<text x="508" y="267" text-anchor="middle" font-size="10" fill="#334155">0.95</text>
+<rect x="560" y="246" width="96" height="32" fill="#e0e7ff"/>
+<text x="608" y="267" text-anchor="middle" font-size="10" fill="#3730a3" font-weight="bold">0.937</text>
+<rect x="660" y="246" width="96" height="32" fill="#dcfce7"/>
+<text x="708" y="267" text-anchor="middle" font-size="10" fill="#334155">0.044</text>
+<text x="20" y="300" text-anchor="start" font-size="9" fill="#334155">MOPD 계산 예: Math = ((51.46+65.31)/2 − 49.95) / (59.22 − 49.95) = 8.435 / 9.27 = 0.910 · IF = 0.954 · SWE = 14.6 / 15.4 = 0.948</text>
+<text x="20" y="318" text-anchor="start" font-size="9" fill="#334155">→ 평균 (0.910 + 0.954 + 0.948) / 3 = 0.937 (원문 0.9373).  범위 = 최대 − 최소: 원문 Mix-RL 0.064, MOPD 0.044와 일치.</text>
+</svg>
+<figcaption><strong>[Figure: Table 2 정규화 히트맵]</strong>: 각 칸은 요약자가 Table 2 원점수로 계산한 도메인별 정규화 점수이고(도메인 점수 = 벤치마크 평균), 보라 칸은 원문 Norm. 열, 오른쪽은 도메인 간 범위다. 계산값이 원문 서술 — Cascade 0.57–0.98, Off-Policy 0.65–1.01, Task Arith. IF 1.00·Math 0.72, Mix-RL 범위 0.064, MOPD 범위 0.044 — 과 모두 맞아 정규화 방식이 확인된다. 초록 범위 칸이 MOPD와 Mix-RL뿐이라는 점이 §4.2 관찰 1·2의 '균일성' 논지를 요약한다.</figcaption>
+</figure>
+
+<p><strong>관찰 3 — Param-Merge는 merge 레시피에 매우 민감하다</strong>: 선형 평균은 전반적으로 실패하고(0.328), task arithmetic은 0.857로 회복하지만 도메인별 편차가 크다 — IF에서는 teacher를 넘고(1.00) Math는 73%만 메운다. 결과가 merge 계수와 벤치마크 모두에 좌우되어 신뢰할 수 있는 통합 도구가 아니다.</p>
+
+<blockquote><strong>비유로 말하면</strong>: 성적표를 과목별로 보면 성격이 드러난다. Cascade 학생은 처음 배운 국어만 만점이고 수학은 반쯤, Off-Policy 학생은 국어는 선생님보다 잘하지만 코딩은 3분의 2, Merge 학생은 평균 내는 방식에 따라 성적이 널뛴다. MOPD 학생은 세 과목 모두 선생님의 91–95%로 고르다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">도메인 회복의 균일성 — 각 방법의 최저 도메인 ~ 최고 도메인</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">점 = 도메인별 정규화 점수(앞 그림 값) · 막대가 짧을수록 고르게 통합</text>
+<line x1="230.0" y1="44" x2="230.0" y2="270" stroke="#e5e7eb"/>
+<text x="230" y="284" text-anchor="middle" font-size="8.5" fill="#666">0.2</text>
+<line x1="341.1" y1="44" x2="341.1" y2="270" stroke="#e5e7eb"/>
+<text x="341" y="284" text-anchor="middle" font-size="8.5" fill="#666">0.4</text>
+<line x1="452.2" y1="44" x2="452.2" y2="270" stroke="#e5e7eb"/>
+<text x="452" y="284" text-anchor="middle" font-size="8.5" fill="#666">0.6</text>
+<line x1="563.3" y1="44" x2="563.3" y2="270" stroke="#e5e7eb"/>
+<text x="563" y="284" text-anchor="middle" font-size="8.5" fill="#666">0.8</text>
+<line x1="674.4" y1="44" x2="674.4" y2="270" stroke="#e5e7eb"/>
+<text x="674" y="284" text-anchor="middle" font-size="8.5" fill="#666">1.0</text>
+<text x="220" y="66" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Mix-RL</text>
+<line x1="587.9" y1="62" x2="623.4" y2="62" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="615.1" cy="62" r="5.5" fill="#ef4444"/>
+<circle cx="623.4" cy="62" r="5.5" fill="#3b82f6"/>
+<circle cx="587.9" cy="62" r="5.5" fill="#16a34a"/>
+<text x="220" y="102" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Cascade RL</text>
+<line x1="434.1" y1="98" x2="662.8" y2="98" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="434.1" cy="98" r="5.5" fill="#ef4444"/>
+<circle cx="662.8" cy="98" r="5.5" fill="#3b82f6"/>
+<circle cx="551.8" cy="98" r="5.5" fill="#16a34a"/>
+<text x="220" y="138" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Off-Policy Finetune</text>
+<line x1="479.6" y1="134" x2="679.2" y2="134" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="571.4" cy="134" r="5.5" fill="#ef4444"/>
+<circle cx="679.2" cy="134" r="5.5" fill="#3b82f6"/>
+<circle cx="479.6" cy="134" r="5.5" fill="#16a34a"/>
+<text x="220" y="174" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Param-Merge (Avg.)</text>
+<line x1="256.0" y1="170" x2="343.3" y2="170" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="343.3" cy="170" r="5.5" fill="#ef4444"/>
+<circle cx="304.0" cy="170" r="5.5" fill="#3b82f6"/>
+<circle cx="256.0" cy="170" r="5.5" fill="#16a34a"/>
+<text x="220" y="210" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Param-Merge (Task Arith.)</text>
+<line x1="521.6" y1="206" x2="676.1" y2="206" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="521.6" cy="206" r="5.5" fill="#ef4444"/>
+<circle cx="676.1" cy="206" r="5.5" fill="#3b82f6"/>
+<circle cx="587.9" cy="206" r="5.5" fill="#16a34a"/>
+<text x="220" y="246" text-anchor="end" font-size="10" fill="#1e40af" font-weight="bold">MOPD</text>
+<line x1="624.4" y1="242" x2="648.8" y2="242" stroke="#cbd5e1" stroke-width="6"/>
+<circle cx="624.4" cy="242" r="5.5" fill="#ef4444"/>
+<circle cx="648.8" cy="242" r="5.5" fill="#3b82f6"/>
+<circle cx="645.6" cy="242" r="5.5" fill="#16a34a"/>
+<rect x="240" y="288" width="12" height="9" fill="#ef4444"/>
+<text x="256" y="296" text-anchor="start" font-size="9" fill="#333">Math</text>
+<rect x="298.8" y="288" width="12" height="9" fill="#3b82f6"/>
+<text x="315" y="296" text-anchor="start" font-size="9" fill="#333">IF</text>
+<rect x="345.2" y="288" width="12" height="9" fill="#16a34a"/>
+<text x="361" y="296" text-anchor="start" font-size="9" fill="#333">SWE</text>
+</svg>
+<figcaption><strong>[Figure: 도메인 회복 범위]</strong>: 앞 히트맵의 세 도메인 값을 한 줄에 점으로 찍었다(빨강 Math, 파랑 IF, 초록 SWE). 막대가 길수록 한 도메인을 희생한 통합이며, Cascade(Math 0.57)와 Off-Policy(SWE 0.65)의 약점, Param-Merge 평균의 전반적 실패가 보인다. MOPD 막대가 가장 짧고 가장 오른쪽에 있는 것이 §4.2 관찰 2이고, 그래도 Math(0.91)가 MOPD의 상대적 약점이라는 점은 §4.4.3 반복 라운드에서 Math를 다시 다루는 이유와 맞닿는다.</figcaption>
+</figure>
+
+<p><strong>관찰 4 — MOPD는 표본 효율이 훨씬 높다</strong>: Figure 2(x축: 도메인별 소비 표본)처럼 ##MOPD는 IF에서 약 25K IF 표본, SWE에서 약 30K SWE 표본 안에 teacher 수준 plateau에 도달하는 반면, Mix-RL은 도메인마다 150–180K 표본 예산을 다 써야## 비슷한 수준에 다가간다. teacher의 촘촘한 토큰별 지도가 궤적 단위 RL 보상보다 표본당 기울기 신호가 풍부해 수렴이 빠르다.</p>
+
+<p><strong>패턴 분석</strong>: (1) MOPD는 AIME26(+1.66)에서는 teacher를 넘지만 AIME25(−3.33)에서는 가장 크게 뒤진다 — Math 도메인 정규화 0.91이 세 도메인 중 가장 낮다. AIME는 문항이 30개라 avg@32라도 몇 문항 차이가 수 점이 된다(요약자 지적). (2) MOPD 곡선은 약 40K 표본에서 끝나는데(Figure 2), 원문은 MOPD를 더 길게 돌렸을 때를 보여 주지 않는다. "teacher 수준 plateau"가 그 이상 오를 여지가 없는지, 단지 학습을 멈춘 것인지는 그림만으로 판별할 수 없다. (3) 표본 효율 비교는 "도메인별 학습 표본 수" 기준이다. MOPD는 배치 2048·N=1, Mix-RL은 배치 256·N=8이라 프롬프트당 생성 수와 teacher prefill 비용이 다르므로, 계산량 기준 효율은 별도로 따져야 한다(요약자 지적).</p>
+
+<figure>
+<svg viewBox="0 0 800 310" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Figure 2 재구성 — 도메인별 정확도 vs 누적 학습 샘플 (Qwen3-30B-A3B)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">값은 원문 그림에서 읽은 근사치 · x = 해당 도메인 학습 샘플(K) · MOPD 곡선은 ~40K에서 끝남</text>
+<rect x="50" y="50" width="210" height="190" fill="#fff" stroke="#94a3b8"/>
+<text x="155" y="44" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">IF</text>
+<text x="50" y="252" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="108" y="252" text-anchor="middle" font-size="8" fill="#555">50</text>
+<text x="167" y="252" text-anchor="middle" font-size="8" fill="#555">100</text>
+<text x="225" y="252" text-anchor="middle" font-size="8" fill="#555">150</text>
+<text x="46" y="243" text-anchor="end" font-size="8" fill="#555">60</text>
+<text x="46" y="180" text-anchor="end" font-size="8" fill="#555">70</text>
+<text x="46" y="116" text-anchor="end" font-size="8" fill="#555">80</text>
+<text x="46" y="53" text-anchor="end" font-size="8" fill="#555">90</text>
+<polyline points="50.0,221.0 61.7,211.5 79.2,184.3 96.7,151.3 108.3,129.2 137.5,107.0 166.7,92.4 195.8,88.0 225.0,75.3 254.2,76.6" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
+<polyline points="50.0,222.9 79.2,207.1 108.3,164.0 137.5,138.7 166.7,117.8 195.8,110.2 225.0,100.7 254.2,100.7" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+<polyline points="55.8,80.4 108.3,78.5 166.7,79.8 225.0,75.3 254.2,81.7" fill="none" stroke="#2563eb" stroke-width="1.5"/>
+<polyline points="50.0,78.5 67.5,72.2 90.8,70.3 114.2,67.7 143.3,72.2 166.7,69.0 195.8,73.4 213.3,71.5" fill="none" stroke="#16a34a" stroke-width="1.5"/>
+<polyline points="50.0,221.0 55.8,138.7 67.5,113.3 73.3,84.8 79.2,75.3 96.7,82.9" fill="none" stroke="#dc2626" stroke-width="2.4"/>
+<rect x="300" y="50" width="210" height="190" fill="#fff" stroke="#94a3b8"/>
+<text x="405" y="44" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Math</text>
+<text x="300" y="252" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="358" y="252" text-anchor="middle" font-size="8" fill="#555">50</text>
+<text x="417" y="252" text-anchor="middle" font-size="8" fill="#555">100</text>
+<text x="475" y="252" text-anchor="middle" font-size="8" fill="#555">150</text>
+<text x="296" y="243" text-anchor="end" font-size="8" fill="#555">47</text>
+<text x="296" y="185" text-anchor="end" font-size="8" fill="#555">51</text>
+<text x="296" y="126" text-anchor="end" font-size="8" fill="#555">55</text>
+<text x="296" y="68" text-anchor="end" font-size="8" fill="#555">59</text>
+<polyline points="300.0,197.6 329.2,168.4 358.3,145.0 387.5,123.1 416.7,86.5 445.8,108.5 475.0,71.9 486.7,63.2 504.2,74.8" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
+<polyline points="300.0,188.8 329.2,181.5 358.3,128.9 387.5,149.4 416.7,115.8 445.8,101.2 475.0,86.5 504.2,86.5" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+<polyline points="305.8,221.0 329.2,199.1 358.3,145.0 387.5,111.4 416.7,96.8 445.8,101.2 475.0,86.5 504.2,111.4" fill="none" stroke="#2563eb" stroke-width="1.5"/>
+<polyline points="300.0,112.8 329.2,102.6 358.3,120.2 387.5,117.2 416.7,86.5 445.8,130.4 463.3,120.2" fill="none" stroke="#16a34a" stroke-width="1.5"/>
+<polyline points="300.0,188.8 305.8,137.7 317.5,79.2 323.3,120.2 335.0,73.4 340.8,85.1 349.0,66.1" fill="none" stroke="#dc2626" stroke-width="2.4"/>
+<rect x="550" y="50" width="210" height="190" fill="#fff" stroke="#94a3b8"/>
+<text x="655" y="44" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">SWE</text>
+<text x="550" y="252" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="608" y="252" text-anchor="middle" font-size="8" fill="#555">50</text>
+<text x="667" y="252" text-anchor="middle" font-size="8" fill="#555">100</text>
+<text x="725" y="252" text-anchor="middle" font-size="8" fill="#555">150</text>
+<text x="546" y="243" text-anchor="end" font-size="8" fill="#555">34</text>
+<text x="546" y="180" text-anchor="end" font-size="8" fill="#555">40</text>
+<text x="546" y="116" text-anchor="end" font-size="8" fill="#555">46</text>
+<text x="546" y="53" text-anchor="end" font-size="8" fill="#555">52</text>
+<polyline points="550.0,218.9 579.2,166.1 608.3,134.4 637.5,139.7 666.7,123.9 695.8,60.6 713.3,81.7" fill="none" stroke="#8b5cf6" stroke-width="1.5"/>
+<polyline points="550.0,224.2 561.7,221.0 579.2,171.4 608.3,147.1 631.7,96.4 666.7,89.1 695.8,123.9 725.0,76.4" fill="none" stroke="#f59e0b" stroke-width="1.5"/>
+<polyline points="564.0,187.2 579.2,142.9 608.3,145.0 637.5,134.4 649.2,102.8 666.7,157.7 690.0,90.1 725.0,93.3" fill="none" stroke="#16a34a" stroke-width="1.5"/>
+<polyline points="550.0,218.9 553.5,113.3 555.8,84.8 567.5,79.6 579.2,69.0 585.0,102.8 590.8,84.8 594.3,92.2" fill="none" stroke="#dc2626" stroke-width="2.4"/>
+<rect x="50" y="282" width="12" height="9" fill="#8b5cf6"/>
+<text x="66" y="290" text-anchor="start" font-size="9" fill="#333">RL Teacher</text>
+<rect x="136.0" y="282" width="12" height="9" fill="#f59e0b"/>
+<text x="152" y="290" text-anchor="start" font-size="9" fill="#333">Mix-RL</text>
+<rect x="197.2" y="282" width="12" height="9" fill="#2563eb"/>
+<text x="213" y="290" text-anchor="start" font-size="9" fill="#333">Cascade (Math 단계)</text>
+<rect x="326.6" y="282" width="12" height="9" fill="#16a34a"/>
+<text x="343" y="290" text-anchor="start" font-size="9" fill="#333">Cascade (SWE 단계)</text>
+<rect x="449.8" y="282" width="12" height="9" fill="#dc2626"/>
+<text x="466" y="290" text-anchor="start" font-size="9" fill="#333">MOPD</text>
+</svg>
+<figcaption><strong>[Figure 2 재구성]</strong>: 도메인별 정확도를 그 도메인 누적 학습 표본(K)에 대해 그렸다(원문 그림에서 읽은 근사치). 빨간 MOPD 곡선은 IF·SWE에서 25–30K 표본 안에 teacher(보라) 수준에 닿고, 주황 Mix-RL은 150–180K를 다 써야 가까워진다 — §4.2 관찰 4의 표본 효율 주장이다. IF 패널의 보라선은 원문 범례대로 Cascade의 IF 단계와 같은 곡선이다. Math 패널의 초록 선(Cascade의 SWE 단계)이 시작점보다 내려가는 것이 '뒤 단계가 앞 단계 능력을 깎는' Cascade의 간섭이며, MOPD 곡선이 약 40K에서 끝나 그 이후는 알 수 없다.</figcaption>
+</figure>
+
+<h3>4.3 309B 모델로 확장 — MiMo-V2-Flash</h3>
+
+<p><strong>실험 의도</strong>: Q2 — MOPD가 산업 규모 frontier 모델로 옮겨 가는가. 세 단계 파이프라인 전체를 MiMo-V2-Flash(309B)에 적용하고, Math, Code, IF, SWE, Tool Use 도메인 teacher를 쓴다. 모든 teacher는 RL로 학습되었다.</p>
+
+<p>(AIME25·HMMT25 = 고등학생 수학 경시대회 문제, LCB = LiveCodeBench 코딩, τ² = 도구 사용 agent 벤치마크.)</p>
+<table class="small-table">
+<thead><tr><th>Table 3</th><th>AIME25</th><th>HMMT25</th><th>LCB</th><th>IFBench</th><th>SWE-Bench V.</th><th>τ²-Bench</th><th>τ²-Telecom</th></tr></thead>
+<tbody>
+<tr><td>Student</td><td>89.3</td><td>76.9</td><td>77.5</td><td>55.4</td><td>67.8</td><td>75.9</td><td>92.7</td></tr>
+<tr><td>Teacher</td><td>93.9</td><td>82.6</td><td>82.6</td><td>68.9</td><td>74.2</td><td>79.6</td><td>95.0</td></tr>
+<tr><td>MOPD</td><td>94.1</td><td>84.4</td><td>83.2</td><td>66.7</td><td>73.4</td><td>80.3</td><td>95.3</td></tr>
+<tr><td>Δ (MOPD − Teacher)</td><td>+0.2</td><td>+1.8</td><td>+0.6</td><td>−2.2</td><td>−0.8</td><td>+0.7</td><td>+0.3</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: MOPD는 대부분의 벤치마크에서 해당 teacher와 같거나 넘는다. 두 하락, IFBench(−2.2)와 SWE-Bench Verified(−0.8)는 나머지 벤치마크의 이득에 비해 작다. <strong>뒷받침하는 주장</strong>: MOPD가 frontier 규모에서도 실용적이다. 다만 이 실험에는 Mix-RL 등 기준선 비교가 없어, "다른 방법보다 낫다"가 아니라 "teacher 능력을 거의 다 물려받는다"까지만 지지한다. 30B 결과와 마찬가지로 IF와 SWE에서 teacher보다 약간 뒤지는 패턴이 반복된다.</p>
+
+<figure>
+<svg viewBox="0 0 800 300" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Table 3 재현 — MiMo-V2-Flash(309B)에서 student → teacher → MOPD</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">○ = student, ◆ = 해당 도메인 teacher, ● = MOPD · 오른쪽 = MOPD − teacher</text>
+<line x1="170.0" y1="44" x2="170.0" y2="270" stroke="#e5e7eb"/>
+<text x="170" y="284" text-anchor="middle" font-size="8.5" fill="#666">50</text>
+<line x1="274.0" y1="44" x2="274.0" y2="270" stroke="#e5e7eb"/>
+<text x="274" y="284" text-anchor="middle" font-size="8.5" fill="#666">60</text>
+<line x1="378.0" y1="44" x2="378.0" y2="270" stroke="#e5e7eb"/>
+<text x="378" y="284" text-anchor="middle" font-size="8.5" fill="#666">70</text>
+<line x1="482.0" y1="44" x2="482.0" y2="270" stroke="#e5e7eb"/>
+<text x="482" y="284" text-anchor="middle" font-size="8.5" fill="#666">80</text>
+<line x1="586.0" y1="44" x2="586.0" y2="270" stroke="#e5e7eb"/>
+<text x="586" y="284" text-anchor="middle" font-size="8.5" fill="#666">90</text>
+<line x1="690.0" y1="44" x2="690.0" y2="270" stroke="#e5e7eb"/>
+<text x="690" y="284" text-anchor="middle" font-size="8.5" fill="#666">100</text>
+<text x="160" y="64" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">AIME25</text>
+<line x1="578.7" y1="60" x2="628.6" y2="60" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="578.7" cy="60" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M626.6,54 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="628.6" cy="60" r="5" fill="#dc2626"/>
+<text x="770" y="64" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+0.2</text>
+<text x="160" y="94" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">HMMT25</text>
+<line x1="449.8" y1="90" x2="527.8" y2="90" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="449.8" cy="90" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M509.0,84 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="527.8" cy="90" r="5" fill="#dc2626"/>
+<text x="770" y="94" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+1.8</text>
+<text x="160" y="124" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">LCB</text>
+<line x1="456.0" y1="120" x2="515.3" y2="120" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="456.0" cy="120" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M509.0,114 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="515.3" cy="120" r="5" fill="#dc2626"/>
+<text x="770" y="124" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+0.6</text>
+<text x="160" y="154" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">IFBench</text>
+<line x1="226.2" y1="150" x2="366.6" y2="150" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="226.2" cy="150" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M366.6,144 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="343.7" cy="150" r="5" fill="#dc2626"/>
+<text x="770" y="154" text-anchor="end" font-size="10" fill="#b91c1c" font-weight="bold">-2.2</text>
+<text x="160" y="184" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">SWE-Bench V.</text>
+<line x1="355.1" y1="180" x2="421.7" y2="180" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="355.1" cy="180" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M421.7,174 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="413.4" cy="180" r="5" fill="#dc2626"/>
+<text x="770" y="184" text-anchor="end" font-size="10" fill="#b91c1c" font-weight="bold">-0.8</text>
+<text x="160" y="214" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">τ²-Bench</text>
+<line x1="439.4" y1="210" x2="485.1" y2="210" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="439.4" cy="210" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M477.8,204 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="485.1" cy="210" r="5" fill="#dc2626"/>
+<text x="770" y="214" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+0.7</text>
+<text x="160" y="244" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">τ²-Telecom</text>
+<line x1="614.1" y1="240" x2="641.1" y2="240" stroke="#cbd5e1" stroke-width="3"/>
+<circle cx="614.1" cy="240" r="5" fill="#fff" stroke="#64748b" stroke-width="2"/>
+<path d="M638.0,234 l6,6 -6,6 -6,-6z" fill="#8b5cf6"/>
+<circle cx="641.1" cy="240" r="5" fill="#dc2626"/>
+<text x="770" y="244" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+0.3</text>
+</svg>
+<figcaption><strong>[Table 3 재현]</strong>: MiMo-V2-Flash(309B)의 student(빈 원), 해당 도메인 teacher(보라 마름모), MOPD(빨간 점)다. 7개 중 5개 벤치마크에서 빨간 점이 마름모 오른쪽(teacher 이상)에 있고, 두 하락(IFBench −2.2, SWE −0.8)은 30B 실험(§4.2)에서도 IF·SWE가 teacher보다 약간 낮던 패턴과 같다. 이 실험에는 다른 통합 방법과의 비교가 없어, '산업 규모에서도 teacher 능력을 거의 다 물려받는다'까지만 지지한다(§4.3).</figcaption>
+</figure>
+
+<h3>4.4 분석</h3>
+
+<h4>4.4.1 Policy-gradient와 top-k 증류는 비슷하다</h4>
+
+<p><strong>실험 의도</strong>: Q3 — §3.2의 두 손실 형태 비교. Qwen3-30B-A3B에서 같은 teacher·데이터 예산·하이퍼파라미터로, top-$k$는 $k = 64$.</p>
+
+<p><strong>결과</strong>: top-$k$는 Math에서 비슷하고 IF·SWE에서 약간 낮으며, 정규화 점수는 0.909 vs 0.937로 전체 능력이 비슷하다. Figure 3도 같은 결론이다: same-origin teacher에서 두 형태의 학습 궤적이 거의 겹친다 — 수학 정확도는 매끄럽게 오르고, 토큰별 reverse KL은 이미 낮은 초기값(약 0.04)에서 단조 감소하며, policy entropy는 내내 약 0.30에서 안정적이다. teacher와 student 분포가 가까우면 student rollout이 teacher의 고확률 영역에 모여, 두 기울기 추정량이 비슷하게 유익한 신호를 받아 비슷한 끝점으로 수렴한다. 즉 ##same-origin teacher에서는 policy-gradient 형태로 이미 충분히 안정적이고, top-k를 써도 추가 안정성이나 분산 감소가 없다.##</p>
+
+<h4>4.4.2 Same-origin teacher가 증류를 안정시킨다</h4>
+
+<p><strong>실험 의도</strong>: Q4 — MOPD의 teacher는 student에서 RL로 만들어져 정책 분포가 비슷하다. 최근 연구(Ko et al., 2026; Li et al., 2026)는 teacher–student 정책 차이와 on-policy 증류 안정성의 관계를 다룬다. 그렇다면 더 강하지만 분포가 다른 외부 모델로 teacher를 바꾸면 더 좋아질까? Math 도메인에서만 Qwen3-30B-A3B Math RL teacher를 훨씬 크고 수학이 강한 Qwen3-235B-A22B로 바꾸고, 나머지(IF·SWE teacher, 데이터, 하이퍼파라미터)는 그대로 둔다.</p>
+
+<table class="small-table">
+<thead><tr><th>Table 4: Math teacher</th><th>손실 형태</th><th>AIME25</th><th>AIME26</th><th>IFBench</th><th>IFEval</th><th>SWE-bench V.</th><th>Norm.</th></tr></thead>
+<tbody>
+<tr><td rowspan="2">RL Teacher (same-origin)</td><td>Policy gradient</td><td>51.46</td><td>65.31</td><td>77.89</td><td>93.84</td><td>50.40</td><td>0.9373</td></tr>
+<tr><td>Top-k 증류</td><td>51.77</td><td>64.79</td><td>75.85</td><td>93.07</td><td>50.20</td><td>0.9093</td></tr>
+<tr><td rowspan="2">Qwen3-235B-A22B (외부)</td><td>Policy gradient</td><td>45.63</td><td>51.56</td><td>79.25</td><td>93.99</td><td>50.60</td><td>0.6003</td></tr>
+<tr><td>Top-k 증류</td><td>0.94</td><td>0.42</td><td>72.96</td><td>88.97</td><td>51.20</td><td>−1.1898</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: 235B의 절대 수학 능력이 훨씬 강한데도, 두 손실 형태 모두에서 MOPD student의 Math 성능이 나빠진다. Figure 3이 메커니즘을 보여 준다. 초기 토큰별 KL이 same-origin보다 약 5배 높아(약 0.19 vs 0.04) 큰 분포 차이를 정량적으로 확인한다. policy-gradient 형태에서는 수학 정확도가 점점 떨어지고 entropy가 0.30에서 0.21로 수축한다 — student가 teacher의 저확률 영역에서 주로 벌점 신호를 받아 정책이 하나의 mode로 좁아진다. top-$k$ 형태에서는 붕괴가 더 심해 학습이 약 18 step에서 파국적으로 발산하고 KL과 entropy가 크게 진동해 최적화 안정성을 완전히 잃는다(AIME 0점대). <strong>뒷받침하는 주장</strong>: ##MOPD의 same-origin teacher 사용은 결정적##이며, 가까운 분포 정렬이 학습 내내 안정적 최적화와 일관된 이득을 보장한다.</p>
+
+<blockquote><strong>비유로 말하면</strong>: 같은 학교 바로 윗기수 선배(same-origin RL teacher)의 첨삭은 학생이 알아듣는다. 다른 학교의 대가(235B)는 실력은 더 좋지만 풀이 방식 자체가 달라, 학생 답안의 거의 모든 단어에 "나라면 이렇게 안 쓴다"는 빨간 줄을 긋는다. 벌점만 계속 받은 학생은 점점 소심해져 한 가지 답만 고집하고(entropy 수축), 결국 수학을 망친다.</blockquote>
+
+<blockquote><strong>직관적으로 말하면</strong>: reverse KL의 advantage $\log \pi_\phi - \log \pi_\theta$는 student가 샘플한 토큰에서만 계산된다. student의 토큰이 teacher가 거의 안 쓰는 토큰이면 advantage가 크게 음수가 되고, 이런 토큰이 대부분이면 기울기가 "확률을 내려라"로만 채워진다. 무엇을 올려야 하는지에 대한 신호는 거의 없다 — 이것이 "주로 벌점 신호"의 뜻이다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Figure 3 재구성 — Math 도메인 학습 동역학: same-origin teacher vs 외부 teacher(235B)</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">값은 원문 그림에서 읽은 근사치 · 실선 = 같은 출발점 RL teacher, 점선 = Qwen3-235B-A22B teacher</text>
+<rect x="50" y="50" width="200" height="200" fill="#fff" stroke="#94a3b8"/>
+<text x="150" y="44" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">Math 정확도 (%) · 45 미만 축 밖</text>
+<text x="50" y="262" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="117" y="262" text-anchor="middle" font-size="8" fill="#555">20</text>
+<text x="183" y="262" text-anchor="middle" font-size="8" fill="#555">40</text>
+<text x="250" y="262" text-anchor="middle" font-size="8" fill="#555">60</text>
+<text x="46" y="253" text-anchor="end" font-size="8" fill="#555">45</text>
+<text x="46" y="153" text-anchor="end" font-size="8" fill="#555">53</text>
+<text x="46" y="53" text-anchor="end" font-size="8" fill="#555">61</text>
+<polyline points="50.0,187.5 70.0,143.8 90.0,113.8 110.0,87.5 130.0,115.0 150.0,123.7 170.0,100.0 190.0,82.5 210.0,92.5 230.0,90.0 250.0,75.0" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-dasharray=""/>
+<polyline points="50.0,187.5 70.0,120.0 90.0,112.5 110.0,87.5 130.0,88.8 150.0,100.0 170.0,83.8 190.0,96.3 210.0,98.7 230.0,97.5 250.0,82.5" fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray=""/>
+<polyline points="50.0,187.5 70.0,137.5 90.0,150.0 110.0,181.2 130.0,215.0 143.3,250.0" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="5 3"/>
+<polyline points="176.7,250.0 190.0,205.0 210.0,218.8 226.7,250.0" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="5 3"/>
+<polyline points="50.0,187.5 70.0,118.8 90.0,143.8 93.3,250.0" fill="none" stroke="#7e22ce" stroke-width="2" stroke-dasharray="5 3"/>
+<rect x="300" y="50" width="200" height="200" fill="#fff" stroke="#94a3b8"/>
+<text x="400" y="44" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">student–teacher KL</text>
+<text x="300" y="262" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="367" y="262" text-anchor="middle" font-size="8" fill="#555">20</text>
+<text x="433" y="262" text-anchor="middle" font-size="8" fill="#555">40</text>
+<text x="500" y="262" text-anchor="middle" font-size="8" fill="#555">60</text>
+<text x="296" y="253" text-anchor="end" font-size="8" fill="#555">0.00</text>
+<text x="296" y="153" text-anchor="end" font-size="8" fill="#555">0.16</text>
+<text x="296" y="53" text-anchor="end" font-size="8" fill="#555">0.32</text>
+<polyline points="300.0,225.0 333.3,233.1 366.7,237.5 433.3,240.0 500.0,241.2" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-dasharray=""/>
+<polyline points="300.0,225.0 333.3,233.8 366.7,238.1 433.3,240.6 500.0,241.9" fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray=""/>
+<polyline points="300.0,131.2 320.0,140.6 340.0,156.2 383.3,168.8 433.3,159.4 500.0,162.5" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="5 3"/>
+<polyline points="300.0,131.2 320.0,140.6 340.0,155.0 353.3,153.1 360.0,56.2 366.7,112.5 373.3,137.5 380.0,118.8" fill="none" stroke="#7e22ce" stroke-width="2" stroke-dasharray="5 3"/>
+<rect x="550" y="50" width="200" height="200" fill="#fff" stroke="#94a3b8"/>
+<text x="650" y="44" text-anchor="middle" font-size="10" fill="#334155" font-weight="bold">policy entropy</text>
+<text x="550" y="262" text-anchor="middle" font-size="8" fill="#555">0</text>
+<text x="617" y="262" text-anchor="middle" font-size="8" fill="#555">20</text>
+<text x="683" y="262" text-anchor="middle" font-size="8" fill="#555">40</text>
+<text x="750" y="262" text-anchor="middle" font-size="8" fill="#555">60</text>
+<text x="546" y="253" text-anchor="end" font-size="8" fill="#555">0.15</text>
+<text x="546" y="153" text-anchor="end" font-size="8" fill="#555">0.30</text>
+<text x="546" y="53" text-anchor="end" font-size="8" fill="#555">0.46</text>
+<polyline points="550.0,146.8 590.0,166.1 616.7,156.5 683.3,153.2 750.0,153.2" fill="none" stroke="#1d4ed8" stroke-width="2" stroke-dasharray=""/>
+<polyline points="550.0,146.8 590.0,169.4 616.7,153.2 683.3,153.2 750.0,150.0" fill="none" stroke="#fb923c" stroke-width="2" stroke-dasharray=""/>
+<polyline points="550.0,146.8 583.3,146.8 600.0,172.6 633.3,214.5 683.3,211.3 750.0,211.3" fill="none" stroke="#b91c1c" stroke-width="2" stroke-dasharray="5 3"/>
+<polyline points="550.0,146.8 570.0,130.6 590.0,133.9 610.0,108.1 616.7,185.5 620.0,56.5 626.7,172.6 630.0,127.4" fill="none" stroke="#7e22ce" stroke-width="2" stroke-dasharray="5 3"/>
+<text x="150" y="278" text-anchor="middle" font-size="9" fill="#555">학습 step</text>
+<rect x="50" y="292" width="12" height="9" fill="#1d4ed8"/>
+<text x="66" y="300" text-anchor="start" font-size="9" fill="#333">RL Teacher + PG</text>
+<rect x="171.0" y="292" width="12" height="9" fill="#fb923c"/>
+<text x="187" y="300" text-anchor="start" font-size="9" fill="#333">RL Teacher + Top-k</text>
+<rect x="310.6" y="292" width="12" height="9" fill="#b91c1c"/>
+<text x="327" y="300" text-anchor="start" font-size="9" fill="#333">235B + PG</text>
+<rect x="394.40000000000003" y="292" width="12" height="9" fill="#7e22ce"/>
+<text x="410" y="300" text-anchor="start" font-size="9" fill="#333">235B + Top-k</text>
+</svg>
+<figcaption><strong>[Figure 3 재구성]</strong>: Table 4의 네 run의 Math 도메인 학습 동역학이다(원문 그림에서 읽은 근사치). 실선(같은 출발점 RL teacher)은 정확도가 오르고 KL이 약 0.04에서 단조 감소하며 entropy가 약 0.30으로 안정적이다. 점선(235B teacher)은 KL이 약 0.19에서 시작하고(정확도 패널은 원문처럼 45%에서 잘려, 그 아래 구간은 그리지 않았다), PG는 entropy가 0.21로 수축하며 정확도가 떨어지고, top-k는 정확도가 약 13 step에 축 아래로 떨어진 뒤 약 18 step 전후로 KL·entropy가 크게 진동한다 — §4.4.2 'same-origin이 결정적'이라는 결론의 메커니즘이다.</figcaption>
+</figure>
+<figure>
+<svg viewBox="0 0 800 270" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Table 4 재현 — 정규화 점수: 손실 형태 × Math teacher 출신</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">IF·SWE teacher는 그대로, Math teacher만 교체 · 0 = SFT student 수준</text>
+<line x1="330" y1="44" x2="330" y2="200" stroke="#333"/>
+<text x="190" y="70" text-anchor="end" font-size="10.5" fill="#334155" font-weight="bold">RL Teacher + PG</text>
+<rect x="330.0" y="56" width="93.7" height="22" rx="3" fill="#16a34a"/>
+<text x="430" y="72" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">0.937</text>
+<text x="190" y="106" text-anchor="end" font-size="10.5" fill="#334155" font-weight="bold">RL Teacher + Top-k</text>
+<rect x="330.0" y="92" width="90.9" height="22" rx="3" fill="#16a34a"/>
+<text x="427" y="108" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">0.909</text>
+<text x="190" y="142" text-anchor="end" font-size="10.5" fill="#334155" font-weight="bold">235B + PG</text>
+<rect x="330.0" y="128" width="60.0" height="22" rx="3" fill="#f59e0b"/>
+<text x="396" y="144" text-anchor="start" font-size="10" fill="#334155" font-weight="bold">0.600</text>
+<text x="190" y="178" text-anchor="end" font-size="10.5" fill="#334155" font-weight="bold">235B + Top-k</text>
+<rect x="211.0" y="164" width="119.0" height="22" rx="3" fill="#ef4444"/>
+<text x="219" y="180" text-anchor="start" font-size="10" fill="#fff" font-weight="bold">-1.190</text>
+<rect x="468" y="44" width="100" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="518" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">Math teacher · 형태</text>
+<rect x="568" y="44" width="44" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="590" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">AIME25</text>
+<rect x="612" y="44" width="44" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="634" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">AIME26</text>
+<rect x="656" y="44" width="48" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="680" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">IFBench</text>
+<rect x="704" y="44" width="44" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="726" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">IFEval</text>
+<rect x="748" y="44" width="44" height="22" fill="#e2e8f0" stroke="#94a3b8"/>
+<text x="770" y="59" text-anchor="middle" font-size="8.8" fill="#334155" font-weight="bold">SWE-V</text>
+<rect x="468" y="66" width="100" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="476" y="81" text-anchor="start" font-size="8.4" fill="#334155">RL · PG</text>
+<rect x="568" y="66" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="590" y="81" text-anchor="middle" font-size="8.4" fill="#334155">51.46</text>
+<rect x="612" y="66" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="81" text-anchor="middle" font-size="8.4" fill="#334155">65.31</text>
+<rect x="656" y="66" width="48" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="81" text-anchor="middle" font-size="8.4" fill="#334155">77.89</text>
+<rect x="704" y="66" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="726" y="81" text-anchor="middle" font-size="8.4" fill="#334155">93.84</text>
+<rect x="748" y="66" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="770" y="81" text-anchor="middle" font-size="8.4" fill="#334155">50.40</text>
+<rect x="468" y="88" width="100" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="476" y="103" text-anchor="start" font-size="8.4" fill="#334155">RL · Top-k</text>
+<rect x="568" y="88" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="590" y="103" text-anchor="middle" font-size="8.4" fill="#334155">51.77</text>
+<rect x="612" y="88" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="634" y="103" text-anchor="middle" font-size="8.4" fill="#334155">64.79</text>
+<rect x="656" y="88" width="48" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="103" text-anchor="middle" font-size="8.4" fill="#334155">75.85</text>
+<rect x="704" y="88" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="726" y="103" text-anchor="middle" font-size="8.4" fill="#334155">93.07</text>
+<rect x="748" y="88" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="770" y="103" text-anchor="middle" font-size="8.4" fill="#334155">50.20</text>
+<rect x="468" y="110" width="100" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="476" y="125" text-anchor="start" font-size="8.4" fill="#334155">235B · PG</text>
+<rect x="568" y="110" width="44" height="22" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="590" y="125" text-anchor="middle" font-size="8.4" fill="#334155">45.63</text>
+<rect x="612" y="110" width="44" height="22" fill="#fef3c7" stroke="#e8edf3"/>
+<text x="634" y="125" text-anchor="middle" font-size="8.4" fill="#334155">51.56</text>
+<rect x="656" y="110" width="48" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="125" text-anchor="middle" font-size="8.4" fill="#334155">79.25</text>
+<rect x="704" y="110" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="726" y="125" text-anchor="middle" font-size="8.4" fill="#334155">93.99</text>
+<rect x="748" y="110" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="770" y="125" text-anchor="middle" font-size="8.4" fill="#334155">50.60</text>
+<rect x="468" y="132" width="100" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="476" y="147" text-anchor="start" font-size="8.4" fill="#334155">235B · Top-k</text>
+<rect x="568" y="132" width="44" height="22" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="590" y="147" text-anchor="middle" font-size="8.4" fill="#334155">0.94</text>
+<rect x="612" y="132" width="44" height="22" fill="#fef2f2" stroke="#e8edf3"/>
+<text x="634" y="147" text-anchor="middle" font-size="8.4" fill="#334155">0.42</text>
+<rect x="656" y="132" width="48" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="680" y="147" text-anchor="middle" font-size="8.4" fill="#334155">72.96</text>
+<rect x="704" y="132" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="726" y="147" text-anchor="middle" font-size="8.4" fill="#334155">88.97</text>
+<rect x="748" y="132" width="44" height="22" fill="#fff" stroke="#e8edf3"/>
+<text x="770" y="147" text-anchor="middle" font-size="8.4" fill="#334155">51.20</text>
+<rect x="20" y="212" width="760" height="37" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="230" text-anchor="start" font-size="10" fill="#334155">235B + Top-k는 AIME가 0점대로 붕괴(−1.19 = SFT student보다 훨씬 아래). 같은 출발점 teacher에서는 두 형태가 비슷하다(0.937 vs 0.909).</text>
+</svg>
+<figcaption><strong>[Table 4 재현]</strong>: 왼쪽은 정규화 점수, 오른쪽은 원점수이며, Math teacher만 바꾸고 IF·SWE teacher는 그대로다. 같은 출발점 teacher에서는 두 손실 형태가 0.937 vs 0.909로 비슷하고(§4.4.1), 외부 235B teacher에서는 PG 0.600, top-k −1.190으로 떨어진다(§4.4.2). 흥미롭게도 235B 행들의 IF·SWE 점수는 기본과 비슷하거나 약간 높아(IFBench 79.25, SWE 51.20), 붕괴가 Math 도메인에 국한된다.</figcaption>
+</figure>
+
+<h4>4.4.3 여러 라운드의 student–teacher 진화</h4>
+
+<p><strong>실험 의도</strong>: Q5 — 한 라운드의 MOPD가 모든 도메인에서 여유 대부분을 메우지만 Math와 IF에는 여유가 남는다. MOPD 후 모델을 새 student로 삼아 절차를 반복한다: 이 student에서 도메인 teacher를 다시 학습하고, 새 teacher들로 MOPD를 한 번 더 한다. 2라운드에서는 Math와 IF에만 RL 학습과 MOPD 증류를 적용한다(SWE는 둘 다 하지 않음).</p>
+
+<table class="small-table">
+<thead><tr><th>Table 5</th><th>AIME25</th><th>AIME26</th><th>IFBench</th><th>IFEval</th><th>SWE-bench V.</th><th>Norm.</th></tr></thead>
+<tbody>
+<tr><td>Iter 1 MOPD</td><td>51.46</td><td>65.31</td><td>77.89</td><td>93.84</td><td>50.40</td><td>0.937</td></tr>
+<tr><td>Iter 2 RL Teacher</td><td>54.27</td><td>65.52</td><td>81.46</td><td>95.65</td><td>50.40</td><td>1.030</td></tr>
+<tr><td>Iter 2 MOPD</td><td>53.44</td><td>64.90</td><td>79.76</td><td>95.44</td><td>50.20</td><td>0.986</td></tr>
+</tbody>
+</table>
+
+<p><strong>결과</strong>: (i) Iter-1 student에서 다음 라운드 도메인 RL을 시작하면 실제로 더 강한 teacher가 나온다 — Iter-2 RL Teacher의 정규화 점수 1.030은 Iter-1 MOPD보다 +0.093이며, 한 라운드가 다 뽑아내지 못한 도메인별 여유가 남아 있음을 확인한다. (ii) Iter-2 teacher의 지도로 Iter-2 student는 Math와 IF에서 더 좋아져 정규화 점수가 0.937 → 0.986(+0.049)으로 오른다. MOPD 파이프라인이 더 강한 teacher로부터 계속 능력을 흡수할 수 있다는 뜻이다. (SWE는 2라운드에서 teacher를 재학습하거나 증류하지 않았으므로, SWE 점수는 Math/IF 증류의 간접 효과만 반영한다: 50.40 → 50.20.)</p>
+
+<p><strong>척도 확인</strong>: 원문은 명시하지 않지만, Stage-1 student와 1라운드 RL teacher를 0과 1로 둔 같은 척도로 다시 계산하면 Iter-2 teacher 1.030(Math 1.073, IF 1.068, SWE 0.948), Iter-2 MOPD 0.986(Math 0.995, IF 1.028, SWE 0.935)이 그대로 나온다(요약자 확인). 즉 1.030은 "1라운드 teacher를 넘었다"는 뜻이다.</p>
+
+<blockquote><strong>비유로 말하면</strong>: 1년 차에 선생님들께 배운 학생이 2년 차에는 직접 각 과목 심화반(RL)을 거쳐 더 강한 선생님이 되고, 그 선생님들이 다시 원래 학생을 가르친다. 대를 이어 실력이 쌓인다 — 다만 이번에는 SWE 심화반을 열지 않아 SWE는 그대로다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 320" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">Table 5 재현 — 2라운드 student–teacher 진화</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">Iter-1 MOPD → (그 student에서 다시 RL) Iter-2 teacher → Iter-2 MOPD · SWE는 2라운드에서 teacher 재학습·증류 없음</text>
+<text x="200" y="52" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Iter 1 MOPD</text>
+<line x1="200" y1="60" x2="200" y2="296" stroke="#e5e7eb"/>
+<text x="400" y="52" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Iter 2 RL Teacher</text>
+<line x1="400" y1="60" x2="400" y2="296" stroke="#e5e7eb"/>
+<text x="600" y="52" text-anchor="middle" font-size="10.5" fill="#334155" font-weight="bold">Iter 2 MOPD</text>
+<line x1="600" y1="60" x2="600" y2="296" stroke="#e5e7eb"/>
+<text x="110" y="82" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">AIME25</text>
+<circle cx="200" cy="78" r="5" fill="#64748b"/>
+<text x="200" y="69" text-anchor="middle" font-size="9" fill="#334155">51.46</text>
+<circle cx="400" cy="78" r="5" fill="#8b5cf6"/>
+<text x="400" y="69" text-anchor="middle" font-size="9" fill="#334155">54.27</text>
+<circle cx="600" cy="78" r="5" fill="#dc2626"/>
+<text x="600" y="69" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">53.44</text>
+<line x1="206" y1="78" x2="394" y2="78" stroke="#cbd5e1"/><line x1="406" y1="78" x2="594" y2="78" stroke="#cbd5e1"/>
+<text x="760" y="82" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+1.98</text>
+<text x="110" y="120" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">AIME26</text>
+<circle cx="200" cy="116" r="5" fill="#64748b"/>
+<text x="200" y="107" text-anchor="middle" font-size="9" fill="#334155">65.31</text>
+<circle cx="400" cy="116" r="5" fill="#8b5cf6"/>
+<text x="400" y="107" text-anchor="middle" font-size="9" fill="#334155">65.52</text>
+<circle cx="600" cy="116" r="5" fill="#dc2626"/>
+<text x="600" y="107" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">64.90</text>
+<line x1="206" y1="116" x2="394" y2="116" stroke="#cbd5e1"/><line x1="406" y1="116" x2="594" y2="116" stroke="#cbd5e1"/>
+<text x="760" y="120" text-anchor="end" font-size="10" fill="#b91c1c" font-weight="bold">-0.41</text>
+<text x="110" y="158" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">IFBench</text>
+<circle cx="200" cy="154" r="5" fill="#64748b"/>
+<text x="200" y="145" text-anchor="middle" font-size="9" fill="#334155">77.89</text>
+<circle cx="400" cy="154" r="5" fill="#8b5cf6"/>
+<text x="400" y="145" text-anchor="middle" font-size="9" fill="#334155">81.46</text>
+<circle cx="600" cy="154" r="5" fill="#dc2626"/>
+<text x="600" y="145" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">79.76</text>
+<line x1="206" y1="154" x2="394" y2="154" stroke="#cbd5e1"/><line x1="406" y1="154" x2="594" y2="154" stroke="#cbd5e1"/>
+<text x="760" y="158" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+1.87</text>
+<text x="110" y="196" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">IFEval</text>
+<circle cx="200" cy="192" r="5" fill="#64748b"/>
+<text x="200" y="183" text-anchor="middle" font-size="9" fill="#334155">93.84</text>
+<circle cx="400" cy="192" r="5" fill="#8b5cf6"/>
+<text x="400" y="183" text-anchor="middle" font-size="9" fill="#334155">95.65</text>
+<circle cx="600" cy="192" r="5" fill="#dc2626"/>
+<text x="600" y="183" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">95.44</text>
+<line x1="206" y1="192" x2="394" y2="192" stroke="#cbd5e1"/><line x1="406" y1="192" x2="594" y2="192" stroke="#cbd5e1"/>
+<text x="760" y="196" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+1.60</text>
+<text x="110" y="234" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">SWE-bench V.</text>
+<circle cx="200" cy="230" r="5" fill="#64748b"/>
+<text x="200" y="221" text-anchor="middle" font-size="9" fill="#334155">50.40</text>
+<circle cx="400" cy="230" r="5" fill="#8b5cf6"/>
+<text x="400" y="221" text-anchor="middle" font-size="9" fill="#334155">50.40</text>
+<circle cx="600" cy="230" r="5" fill="#dc2626"/>
+<text x="600" y="221" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">50.20</text>
+<line x1="206" y1="230" x2="394" y2="230" stroke="#cbd5e1"/><line x1="406" y1="230" x2="594" y2="230" stroke="#cbd5e1"/>
+<text x="760" y="234" text-anchor="end" font-size="10" fill="#b91c1c" font-weight="bold">-0.20</text>
+<text x="110" y="272" text-anchor="end" font-size="10" fill="#334155" font-weight="bold">Norm. score</text>
+<circle cx="200" cy="268" r="5" fill="#64748b"/>
+<text x="200" y="259" text-anchor="middle" font-size="9" fill="#334155">0.937</text>
+<circle cx="400" cy="268" r="5" fill="#8b5cf6"/>
+<text x="400" y="259" text-anchor="middle" font-size="9" fill="#334155">1.030</text>
+<circle cx="600" cy="268" r="5" fill="#dc2626"/>
+<text x="600" y="259" text-anchor="middle" font-size="9" fill="#334155" font-weight="bold">0.986</text>
+<line x1="206" y1="268" x2="394" y2="268" stroke="#cbd5e1"/><line x1="406" y1="268" x2="594" y2="268" stroke="#cbd5e1"/>
+<text x="760" y="272" text-anchor="end" font-size="10" fill="#15803d" font-weight="bold">+0.049</text>
+<text x="760" y="52" text-anchor="end" font-size="9" fill="#555" font-weight="bold">Iter2 − Iter1</text>
+</svg>
+<figcaption><strong>[Table 5 재현]</strong>: 1라운드 MOPD(회색) → 그 student에서 다시 RL한 2라운드 teacher(보라) → 2라운드 MOPD(빨강)의 값을 이었고, 오른쪽은 2라운드 MOPD − 1라운드 MOPD다. Math(AIME25 +1.98)와 IF(IFBench +1.87, IFEval +1.60)가 올라 정규화 점수가 0.937 → 0.986이 되고, 2라운드에서 다루지 않은 SWE는 50.40 → 50.20으로 거의 그대로다(§4.4.3). AIME26은 −0.41로 약간 내려가 모든 벤치마크가 오르지는 않는다.</figcaption>
+</figure>
+
+<h2>§5 논의 — 워크플로 관점</h2>
+
+<p>MOPD는 실험상의 이득 외에, 다중 도메인 post-training에 내재한 직렬 의존성을 구조적으로 끊는다 — 능력 생산(Stage 2 도메인 RL)과 능력 통합(Stage 3 증류)을 분리한다. 워크플로상 세 가지 결과가 따른다.</p>
+<ul>
+  <li><strong>병렬 개발</strong>: Stage-2 teacher들은 서로 독립이다. 각 도메인 팀이 자기 보상·sandbox·데이터 파이프라인을 정해진 순서 없이 동시에 반복할 수 있고, 계산 자원이 충분하면 팀 전체의 개발 처리량이 그대로 오른다.</li>
+  <li><strong>레시피 수준 분리</strong>: 각 도메인은 다른 도메인과의 충돌이나 자기 최적화 선택이 남을 방해할 걱정 없이 RL 레시피(알고리즘, rollout 절차, 보상 함수, 하이퍼파라미터 등)를 자유롭게 고른다.</li>
+  <li><strong>위험 격리</strong>: RL 학습은 능력을 올리거나 안정성 문제를 해결하려고 알고리즘·하이퍼파라미터를 반복 조정해야 하고, 조정마다 학습을 재시작해야 한다. 공동 다중 도메인 RL에서는 재시작이 전체 run을 처음으로 되돌리지만, MOPD의 병렬 teacher 개발에서는 재시작이 영향받은 한 도메인에 국한되고 다른 teacher는 방해받지 않는다.</li>
+</ul>
+
+<blockquote><strong>비유로 말하면</strong>: 공동 RL은 다섯 명이 한 줄로 묶여 달리는 2인3각 경기 같다 — 한 명이 넘어지면 모두 출발선으로 돌아간다. MOPD는 각자 따로 달리다가 결승선에서 바통만 모으는 방식이라, 한 명이 넘어져도 그 사람만 다시 뛰면 된다.</blockquote>
+
+<figure>
+<svg viewBox="0 0 800 290" xmlns="http://www.w3.org/2000/svg" font-family="sans-serif">
+
+<text x="400" y="17" text-anchor="middle" font-size="14.5" font-weight="bold">§5 워크플로 — 공동 RL의 재시작 비용 vs MOPD의 위험 격리</text>
+<text x="400" y="33" text-anchor="middle" font-size="9.5" fill="#666">개념도 (요약자 재구성) · 막대 = 시간, 빨간 X = 한 도메인의 학습 실패·하이퍼파라미터 수정</text>
+<text x="20" y="62" text-anchor="start" font-size="10" fill="#92400e" font-weight="bold">Mix-RL (공동)</text>
+<rect x="150" y="50" width="224.0" height="20" rx="3" fill="#f59e0b"/>
+<text x="378" y="65" text-anchor="start" font-size="9" fill="#b91c1c" font-weight="bold">✗ SWE 보상 버그</text>
+<rect x="464.0" y="50" width="280.0" height="20" rx="3" fill="#f59e0b"/>
+<text x="604" y="64" text-anchor="middle" font-size="8.6" fill="#fff" font-weight="bold">전 도메인 처음부터 재시작</text>
+<text x="20" y="112" text-anchor="start" font-size="10" fill="#7e22ce" font-weight="bold">Cascade RL</text>
+<rect x="150.0" y="100" width="140.0" height="20" rx="3" fill="#a855f7"/>
+<text x="220" y="114" text-anchor="middle" font-size="8.8" fill="#fff" font-weight="bold">IF</text>
+<rect x="290.0" y="100" width="140.0" height="20" rx="3" fill="#a855f7"/>
+<text x="360" y="114" text-anchor="middle" font-size="8.8" fill="#fff" font-weight="bold">Math</text>
+<rect x="430.0" y="100" width="168.0" height="20" rx="3" fill="#a855f7"/>
+<text x="514" y="114" text-anchor="middle" font-size="8.8" fill="#fff" font-weight="bold">SWE</text>
+<text x="604" y="115" text-anchor="start" font-size="9" fill="#7e22ce">순서 고정 · 앞 단계 대기</text>
+<text x="20" y="160" text-anchor="start" font-size="10" fill="#15803d" font-weight="bold">MOPD</text>
+<rect x="150" y="146" width="168.0" height="18" rx="3" fill="#16a34a"/>
+<text x="234" y="159" text-anchor="middle" font-size="8.6" fill="#fff" font-weight="bold">Math teacher</text>
+<rect x="150" y="170" width="145.6" height="18" rx="3" fill="#16a34a"/>
+<text x="223" y="183" text-anchor="middle" font-size="8.6" fill="#fff" font-weight="bold">IF teacher</text>
+<rect x="150" y="194" width="190.39999999999998" height="18" rx="3" fill="#16a34a"/>
+<text x="245" y="207" text-anchor="middle" font-size="8.6" fill="#fff" font-weight="bold">SWE teacher</text>
+<text x="344" y="207" text-anchor="start" font-size="8.8" fill="#b91c1c" font-weight="bold">✗ → SWE만 재시작</text>
+<rect x="450.4" y="194" width="168.0" height="18" rx="3" fill="#16a34a"/>
+<rect x="618.4" y="146" width="78.39999999999999" height="66" rx="3" fill="#2563eb"/>
+<text x="658" y="184" text-anchor="middle" font-size="8.6" fill="#fff" font-weight="bold">Stage 3</text>
+<rect x="20" y="228" width="760" height="54" rx="6" fill="#fffbea" stroke="#eab308" stroke-width="1.6"/>
+<text x="30" y="246" text-anchor="start" font-size="10" fill="#334155">MOPD는 '능력 생산'(Stage 2)과 '능력 통합'(Stage 3)을 분리한다: 도메인 팀은 각자 보상·sandbox·하이퍼파라미터를 고치고,</text>
+<text x="30" y="263" text-anchor="start" font-size="10" fill="#334155">한 팀의 재시작이 다른 팀의 진행을 되돌리지 않는다 (§5 병렬 개발 · 레시피 분리 · 위험 격리).</text>
+</svg>
+<figcaption><strong>[Figure: 워크플로 비교]</strong>: §5의 세 가지 워크플로 이점을 Gantt 형태로 재구성한 개념도다(막대 길이와 '보상 버그' 사례는 예시). Mix-RL은 한 도메인의 문제로 전 도메인을 재시작해야 하고, Cascade는 순서가 고정되어 앞 단계를 기다려야 하며, MOPD는 SWE teacher만 다시 학습하고 다른 teacher는 그대로 둔 채 마지막 Stage 3에서 합친다. 원문은 이 이점을 정성적으로만 서술하며 개발 시간 단축의 정량 수치는 없다.</figcaption>
+</figure>
+
+<h2>§6 결론</h2>
+
+<p>MOPD는 다중 도메인 능력 통합을 정책 공간에서 수행하는 post-training 패러다임이다: student가 자기 rollout에서 샘플링하고, 각 프롬프트가 해당 고정 도메인 teacher로 라우팅되며, teacher가 모든 위치에서 촘촘한 토큰 단위 로그확률 신호를 준다. Qwen3-30B-A3B에서 MOPD는 Mix-RL, Cascade RL, Off-Policy Finetune, Param-Merge 중 가장 좋은 총합 통합을 달성하고, 차선보다 정규화 점수 5.5점 앞서며, 모든 도메인에서 student–teacher 여유의 91–95%를 메운다. MiMo-V2-Flash에서는 같은 레시피가 대부분의 벤치마크에서 해당 teacher와 같거나 넘는다. 분석은 두 손실 형태가 비슷하고, same-origin teacher가 안정적 최적화에 결정적이며, 파이프라인이 여러 라운드의 student–teacher 진화를 지원함을 보인다. §5의 구조적 분리와 합쳐, MOPD는 병렬 개발과 빠른 통합을 지원하는 대규모 LLM post-training의 공학적 경로를 제시한다고 저자들은 결론짓는다. 별도의 한계(Limitations) 절은 없다.</p>
+
+<h2>이 저장소의 관련 요약과의 연결</h2>
+
+<p>MOPD는 이 저장소에 정리된 여러 on-policy 증류 논문과 같은 뼈대("student가 샘플하고 teacher가 채점")를 공유한다. 차이는 <em>teacher가 누구이고, 무엇을 보며, student는 어디서 출발하는가</em>에 있다.</p>
+
+<table class="small-table">
+<thead><tr><th>논문</th><th>teacher</th><th>teacher가 보는 것</th><th>student 출발점</th><th>MOPD와의 관계</th></tr></thead>
+<tbody>
+<tr><td>MOPD (이 논문)</td><td>도메인별 RL teacher 여러 개 (same-origin)</td><td>같은 프롬프트</td><td>공통 SFT 모델</td><td>기준</td></tr>
+<tr><td><a href="20260930_kim_im-mopd.html">IM-MOPD</a></td><td>SFT·RLVR로 키운 도메인 teacher 5개</td><td>같은 프롬프트</td><td>teacher task vector merge + 학습 중 반복 merge</td><td>MOPD를 기준선으로 삼아, SFT teacher의 전이 실패를 merge 초기화로 보완</td></tr>
+<tr><td><a href="20261001_cao_x-opd.html">X-OPD</a></td><td>텍스트 LLM 하나</td><td>같은 의미의 <em>텍스트</em> (student는 음성)</td><td>음성 LLM</td><td>teacher를 모달리티로 나눈 단일 teacher 판</td></tr>
+<tr><td><a href="20260825_zhao_opsd.html">OPSD</a></td><td>자기 자신 (초기 정책 고정)</td><td>프롬프트 + 참조 풀이</td><td>같은 모델</td><td>teacher를 '특권 정보를 본 자기 자신'으로 바꾼 판</td></tr>
+</tbody>
+</table>
+
+<p>공통된 교훈은 §4.4.2와 같다 — teacher와 student의 분포가 가까울 때 on-policy 증류가 잘 작동한다. MOPD는 이를 same-origin teacher로, IM-MOPD는 student를 teacher 쪽으로 미리 옮기는 merge로, OPSD는 teacher를 아예 자기 자신으로 만들어 달성한다(요약자 정리).</p>
+
+<blockquote><strong>비유로 말하면</strong>: 모두 "학생이 답을 쓰고 선생님이 첨삭한다"는 같은 수업 방식인데, MOPD는 과목별 선생님을 여럿 두고, X-OPD는 학생은 듣고 선생님은 읽게 하며, OPSD는 학생이 해설지를 본 자기 자신에게 첨삭받고, IM-MOPD는 첨삭이 잘 먹히도록 학생에게 선생님들의 손맛을 미리 조금 이식해 둔다.</blockquote>
+
+<h2>비판적 분석 (Critical Analysis)</h2>
+<div class="critical-analysis">
+
+<h3>강점</h3>
+<ul>
+  <li><strong>간단하고 바로 쓸 수 있는 레시피</strong>: GRPO 프레임워크에서 advantage 계산만 바꾸면 되고(Eq. 3–4), teacher를 보상 서비스처럼 비동기로 붙여 시간 비용이 거의 없다. 309B 모델의 실제 post-training에 배포했다는 점이 실용성을 뒷받침한다.</li>
+  <li><strong>통제된 비교</strong>: 다섯 가지 통합 방법이 같은 SFT 출발점과 같은 Stage-2 teacher를 공유한다. 정규화 점수의 정의도 명확하고, 그 값을 원 표에서 정확히 재현할 수 있다.</li>
+  <li><strong>"균일성"이라는 유용한 관점</strong>: 총점뿐 아니라 도메인 간 범위(0.044 vs 0.36–0.41)를 보고해, 다른 방법들이 "평균은 비슷하지만 특정 도메인을 버리는" 실패 양상을 드러낸다.</li>
+  <li><strong>Same-origin 실험의 설득력</strong>: "더 강한 teacher가 더 좋은 teacher인가?"에 대해 KL·entropy 궤적까지 보여 주는 대조 실험으로 '아니다'를 보인다. IM-MOPD 등 후속 연구가 이 관찰 위에 서 있다.</li>
+  <li><strong>top-k 보정항</strong>: 절단 reverse KL의 편향을 짚고 한 줄 보정으로 고친 것은 깔끔한 기술적 기여다.</li>
+</ul>
+
+<h3>한계와 의문점</h3>
+<ul>
+  <li><strong>통계적 불확실성</strong>: 모든 결과가 단일 run으로 보이고 표준편차가 없다. AIME는 avg@32지만 IFBench·IFEval·SWE-bench는 1회 평가이며, SWE-bench Verified(500과제)의 1–2점 차이는 노이즈일 수 있다. 0.055 차이(MOPD vs Mix-RL)의 유의성은 판단할 수 없다.</li>
+  <li><strong>계산량 비교 부재</strong>: MOPD는 배치 2048·N=1, Mix-RL은 256·N=8이고 MOPD는 teacher prefill이 추가된다. "표본 효율"은 도메인별 학습 표본 수 기준이며, GPU 시간이나 FLOPs 기준 비교가 없다. MOPD의 learning rate도 부록에 없다.</li>
+  <li><strong>기준선 구현 세부</strong>: Param-Merge(task arithmetic)의 계수, Off-Policy Finetune의 데이터 양·epoch이 보고되지 않는다. 특히 Param-Merge는 "레시피에 민감하다"고 결론짓지만 탐색한 계수 범위가 없다 — IM-MOPD가 보여 주듯 merge는 MOPD의 대체재가 아니라 보완재일 수도 있다.</li>
+  <li><strong>teacher 상한 문제</strong>: MOPD는 정의상 teacher를 넘기 어렵고(정규화 0.937 &lt; 1), 30B에서 MOPD가 teacher를 넘은 벤치마크는 AIME26 하나다. 2라운드 반복이 이를 우회하지만, 라운드마다 도메인 RL을 다시 해야 하는 비용이 든다.</li>
+  <li><strong>same-origin의 경계</strong>: 외부 teacher 실험은 Math 한 도메인, 한 모델(235B)뿐이다. "teacher가 같은 SFT에서 나와야 한다"는 결론은 강하지만, 분포 차이가 어느 정도까지 허용되는지(예: 같은 계열의 더 큰 모델, SFT warm-up 후의 외부 teacher)는 보여 주지 않는다. 또 이 조건은 서로 다른 base·이력의 teacher를 합칠 수 없다는 제약이기도 하다.</li>
+  <li><strong>MiMo 실험의 범위</strong>: 309B 결과에는 기준선 비교가 없고, teacher별 학습 설정·데이터도 공개되지 않는다. "산업 규모에서도 teacher 수준"까지만 지지한다.</li>
+  <li><strong>도메인 수와 충돌</strong>: 통제 실험은 세 도메인(Math, IF, SWE)뿐이다. 프롬프트가 여러 도메인에 걸치거나(예: 수학을 코드로 푸는 과제) 도메인 라벨이 애매할 때의 라우팅 규칙은 다루지 않는다.</li>
+  <li><strong>코드 공개</strong>: 코드나 학습 데이터 공개 언급이 없다.</li>
+</ul>
+
+<h3>AI 논문 체크리스트 대조</h3>
+<table class="small-table">
+<thead><tr><th>항목</th><th>평가</th></tr></thead>
+<tbody>
+<tr><td>충분한 seed/run 반복 (표준편차 보고)</td><td>✗ — 단일 run, 표준편차 없음. 평가는 AIME만 avg@32, 나머지 1회</td></tr>
+<tr><td>공정한 베이스라인 비교</td><td>○ — 같은 SFT 출발점·같은 teacher·같은 데이터 원천. 단 방법마다 배치·rollout 수가 다르고 계산량 정규화가 없으며, merge 계수 탐색 범위 미보고</td></tr>
+<tr><td>Ablation이 핵심 주장을 뒷받침</td><td>○ — 손실 형태, teacher 출신, 반복 라운드 ablation이 각 주장을 지지. 도메인 비율·A_max·k ablation은 없음</td></tr>
+<tr><td>Compute 대비 성능이 실용적인가</td><td>○ — teacher prefill 오버헤드가 거의 없다고 보고, 표본 효율이 높음. 정량적 시간·FLOPs 표는 없음</td></tr>
+<tr><td>코드/데이터 공개</td><td>✗ — 언급 없음</td></tr>
+<tr><td>하이퍼파라미터 명시</td><td>△ — 도메인 RL·Mix-RL·MOPD 배치·N·비율·A_max·k 명시. MOPD LR, 학습 step 수, Off-Policy Finetune·Param-Merge 설정은 없음</td></tr>
+</tbody>
+</table>
+</div>
+
+<h2>Key Takeaways — 이 논문에서 가져갈 것</h2>
+<div class="takeaways">
+<ol>
+  <li><strong>다중 도메인 통합은 '정책 공간'에서 하라</strong>: 도메인별 RL teacher를 따로 만든 뒤, student rollout 위에서 프롬프트별 teacher로 토큰 단위 reverse KL을 거는 것이 Mix-RL·Cascade·SFT·merge보다 높고 고르게 통합한다(0.937, 도메인 범위 0.044).</li>
+  <li><strong>구현은 GRPO에서 advantage 한 줄 바꾸기</strong>: $\hat{A}_t = \mathrm{clip}(\log \pi_\phi(y_t) - \log \pi_\theta(y_t), \pm 5)$. teacher는 보상 서비스처럼 비동기로 붙이면 시간 비용이 거의 숨는다.</li>
+  <li><strong>teacher는 '가장 강한 모델'이 아니라 '같은 출발점의 모델'</strong>: 외부 235B teacher는 초기 KL이 5배 높아 학습을 망쳤다(top-k는 AIME 0점대 붕괴). teacher를 student와 같은 SFT에서 만드는 것이 안정성의 조건이다.</li>
+  <li><strong>top-k 증류에는 질량 보정항이 필요하다</strong>: 잘라 낸 reverse KL만 쓰면 최적점이 $p/e$로 치우친다. $-\pi_\theta + \pi_\phi$를 더하면 정확히 $\pi_\theta = \pi_\phi$에서 최소가 된다.</li>
+  <li><strong>조직 관점의 이득이 크다</strong>: 도메인 팀이 서로 기다리지 않고 각자 RL 레시피를 고치며, 한 팀의 재시작이 다른 팀을 되돌리지 않는다. 이 워크플로 분리가 frontier 모델 개발에서는 성능 차이만큼 중요할 수 있다.</li>
+  <li><strong>(비판적) 단일 run, 계산량 미정규화, merge 탐색 범위 미보고</strong>라는 조건을 감안해야 한다. 특히 merge는 MOPD의 경쟁자가 아니라 출발점으로 쓸 때 보완 효과가 있다는 후속 결과(IM-MOPD)와 함께 읽는 것이 좋다.</li>
+</ol>
+</div>
+
+<h2>개인 메모</h2>
+<div class="personal-notes">
+</div>
+
+</div>
+</body>
+</html>
