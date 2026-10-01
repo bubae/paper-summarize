@@ -1814,6 +1814,19 @@ return θ</div>
 
 <h2>개인 메모</h2>
 <div class="personal-notes">
+<div class="qa-block">
+  <p><strong>Q:</strong> 결국 이 논문은 MOPD 학습 셋업을 어떻게 하라는 것인가? (2026-10-01)</p>
+  <p><strong>A:</strong> 논문의 권고를 순서대로 정리하면 다음과 같다.</p>
+  <ol>
+    <li><strong>출발점은 reference가 아니라 teacher merge로</strong>: $\theta_0 = \theta_{\text{ref}} + \frac{1}{K}\sum_i \tau_i$ (균등 merge). 추가 SFT warm-up 단계나 teacher 학습 데이터가 필요 없다 (§3.1, Table 1: 4B 42.8 → 53.8).</li>
+    <li><strong>merge 계수를 미리 탐색하지 말고 학습 중에 보정</strong>: $H=25$ update마다 도메인별 검증 정규화 회복을 재고, $\gamma$ 이하(4B 0.6, 1.7B 0.4)인 도메인에만 $\delta=0.3$의 task vector를 더한다. 계수 합 $\lambda$를 1로 묶지 않는다 (§3.2, 4B 86.9).</li>
+    <li><strong>merge는 반드시 MOPD 사이에 끼워 넣는다</strong>: 같은 계수를 처음에 몰아 주면 79.0, 끝에 몰아 주면 23.3, 나눠 주면 86.9 (§4.3 Table 2).</li>
+    <li><strong>초기화를 초기 벤치마크 점수로 고르지 않는다</strong>: 점수가 높은 SFT warm-up이 MOPD 후에는 더 낮게 끝난다. 후보를 비교하려면 teacher 이어쓰기 성능이나 짧은 MOPD 후 점수를 본다 (§3.1, §5).</li>
+  </ol>
+  <p><strong>MOPD 자체 설정 (부록 A.2)</strong>: 100 update · 배치 128 프롬프트 · 도메인 균등 샘플링 · 프롬프트당 completion 1개 · LR $10^{-6}$ · 최대 16,384 토큰 · temperature 1, top-p 1 · reverse KL의 policy-gradient 형태, advantage 크기 5로 clip · 잘린 completion은 mask · task reward와 reference-KL 항 없음. 검증셋은 Tool Use 128과제, 그 외 도메인 256 프롬프트.</p>
+  <blockquote><strong>비유로 말하면</strong>: "견습생을 백지에서 시작시키지 말고 요리사들의 손맛을 조금씩 이식한 채로 수업을 시작하라. 매달 시험을 봐서 뒤처진 과목에만 보충 수업을 한 회차씩 넣고, 보충 뒤에는 반드시 수업(MOPD)을 이어 가라."</blockquote>
+  <p><strong>적용 조건과 주의</strong>: (1) teacher들이 같은 reference에서 갈라져 나와야 task vector를 정의할 수 있다. (2) 이득은 주로 SFT로 만든 teacher 도메인(Tool Use·Medical·Law)에서 나오고, RL teacher는 기준 MOPD로도 4B에서 0.93–0.96까지 회복된다. (3) Qwen3 4B·1.7B, 5개 도메인, 단일 run 결과이며 γ·δ는 작은 모델(1.7B)에서 민감하다(57–76). 자기 설정에서는 γ·δ를 2–3개 후보로 짧게 sweep하는 것이 안전하다.</p>
+</div>
 </div>
 
 </div>
