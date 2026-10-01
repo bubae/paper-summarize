@@ -128,7 +128,7 @@ document.addEventListener("DOMContentLoaded", function() {
 <ul>
   <li><strong>문제</strong>: 음성을 직접 입력받는 end-to-end (E2E) 음성 LLM (Large Language Model)은 지연이 짧고 억양·감정 같은 정보를 살리지만, 같은 backbone의 텍스트 LLM보다 추론·지시 따르기·지식 질의에서 크게 떨어진다. Qwen3-Omni-A3B는 텍스트 버전 Qwen3-A3B 대비 음성 입력에서 평균 11.29%, 텍스트로 물어도 5.51% 낮다. 같은 데이터로 supervised fine-tuning (SFT), offline knowledge distillation (KD), generalized knowledge distillation (GKD)을 해 보면 오히려 더 나빠진다.</li>
   <li><strong>해결</strong>: <strong>X-OPD</strong> (Cross-Modal On-Policy Distillation). 같은 내용의 (음성, 텍스트) 쌍을 만들고, 음성 LLM(student)이 텍스트·음성 각각을 입력받아 스스로 답을 생성(rollout)하게 한다. 그러면 텍스트 LLM(teacher)이 <em>텍스트만 보고</em> 그 답의 토큰마다 로그확률을 매긴다. teacher − student 로그확률 차이를 토큰별 advantage로 써서 policy gradient로 학습한다. 텍스트 조건 항(in-modal)과 음성 조건 항(cross-modal)을 λ = 0.5로 섞는다.</li>
-  <li><strong>왜 작동하는가</strong>: (1) student가 직접 쓴 답 위에서 채점하므로, 정답지를 외우는 방식(SFT·offline KD)과 달리 추론 중 실제로 저지르는 실수를 고친다(exposure bias 완화). (2) 같은 의미의 텍스트를 본 teacher의 판단이 곧 채점표라 정답 응답(ground truth)이 필요 없다. (3) RL식 on-policy 갱신이라 원래 오디오 능력을 덜 건드린다(MMAR 망각 −2.0점 vs SFT −11.0점).</li>
+  <li><strong>왜 작동하는가</strong>: (1) student가 직접 쓴 답 위에서 채점하므로, 정답지를 외우는 방식(SFT·offline KD)과 달리 추론 중 실제로 저지르는 실수를 고친다(exposure bias 완화). (2) 같은 의미의 텍스트를 본 teacher의 판단이 곧 채점표라 정답 응답(ground truth)이 필요 없다. (3) reinforcement learning (RL)식 on-policy 갱신이라 원래 오디오 능력을 덜 건드린다(MMAR 망각 −2.0점 vs SFT −11.0점).</li>
   <li><strong>비유</strong>: 통역 연습생(student)이 녹음만 듣고 답하면, 같은 내용의 받아쓰기 원고를 가진 선배(teacher)가 "이 단어는 나라면 이렇게 말했을 것"이라고 단어마다 표시해 준다. 모범 답안을 외우게 하는 대신 연습생이 실제로 한 답을 고쳐 준다.</li>
 </ul>
 </div>
@@ -323,7 +323,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
 <p>최근 연구들은 증류로 음성 LLM의 성능 격차를 메우려 했다. DeSTA2.5-Audio는 backbone LLM이 오디오 캡션에서 응답을 생성하게 하고 이를 SFT의 ground truth 목표로 써서 cross-modal 정렬을 한다. SALAD는 cross-modal 증류와 능동적 데이터 선택을 결합한 2단계 방식으로 높은 표본 효율을 얻는다. Wang et al.은 logit 수준 지도를 쓰는 이중 채널 증류로 텍스트 teacher의 복잡한 추론 능력을 옮긴다. 그러나 ##이 방법들은 근본적으로 off-policy##다 — 모델 자신의 추론 rollout이 아니라 정적인 teacher 궤적이나 고정 목표에 의존한다. 그래서 exposure bias가 생기고, 모델은 추론 경로가 벗어났을 때 스스로 고치는 법을 배우지 못한다.</p>
 
-<p>Qwen3-Omni는 여러 모달리티에서 cross-modality 격차 없이 SOTA를 달성했다고 주장했지만, Big Bench Audio와 Audio Multi-Challenge 같은 주류 오디오 이해 벤치마크에서는 Qwen3 counterpart보다 성능이 떨어진다. 저자들은 이것이 표준 SFT+RL 학습만으로는 격차를 메우기에 부족하다는 추가 증거라고 본다.</p>
+<p>Qwen3-Omni는 여러 모달리티에서 cross-modality 격차 없이 state-of-the-art (SOTA)를 달성했다고 주장했지만, Big Bench Audio와 Audio Multi-Challenge 같은 주류 오디오 이해 벤치마크에서는 Qwen3 counterpart보다 성능이 떨어진다. 저자들은 이것이 표준 SFT+RL 학습만으로는 격차를 메우기에 부족하다는 추가 증거라고 본다.</p>
 
 <h3>2.2 On-policy distillation</h3>
 
@@ -533,7 +533,7 @@ $$\mathcal{L}(\theta) = \lambda\, \mathcal{L}_{im}(\theta) + (1-\lambda)\, \math
 
 <p>$\lambda \in [0, 1]$은 균형 하이퍼파라미터이며, 기본값은 0.5다(Table 2).</p>
 
-<blockquote><strong>직관적으로 말하면</strong>: GRPO·PPO 같은 RL 손실에서 "응답 하나에 붙는 스칼라 보상" 자리에 "토큰마다 붙는 teacher–student 로그확률 차"를 넣은 것이다. 응답 길이로 나누고($1/|y_j|$) rollout 개수로 평균($1/m$)하므로 긴 답·짧은 답이 비슷한 무게를 갖는다.</blockquote>
+<blockquote><strong>직관적으로 말하면</strong>: Group Relative Policy Optimization (GRPO)·Proximal Policy Optimization (PPO) 같은 RL 손실에서 "응답 하나에 붙는 스칼라 보상" 자리에 "토큰마다 붙는 teacher–student 로그확률 차"를 넣은 것이다. 응답 길이로 나누고($1/|y_j|$) rollout 개수로 평균($1/m$)하므로 긴 답·짧은 답이 비슷한 무게를 갖는다.</blockquote>
 
 <p><strong>표기상 주의 (요약자 지적)</strong>: Eq. (3)–(4)는 "손실 $\mathcal{L}$"로 이름 붙었지만, advantage에 확률비를 곱한 형태라 실제로는 <em>최대화</em>할 surrogate 목적이다(손실로 쓰려면 부호가 반대여야 한다). 또 $r_{j,t}$의 조건 "$\cdot$"이 in-modal 항에서는 $T$, cross-modal 항에서는 $S$로 읽혀야 하는데, 이를 명시하지 않는다. PPO식 clipping 사용 여부도 적혀 있지 않다.</p>
 
@@ -746,7 +746,7 @@ $$\mathcal{L}(\theta) = \lambda\, \mathcal{L}_{im}(\theta) + (1-\lambda)\, \math
 
 <p><strong>결과 2 — 정답지 기반 방법은 오히려 악화시킨다</strong>: SFT, offline KD, GKD는 X-OPD와 같은 데이터로 학습했는데도 ##직관과 반대로 성능 하락을 키운다##(ΔS 11.29 → 19.62–22.76, ΔT 5.51 → 15.02–17.49). 저자들은 순진한 정렬 시도가 두 모달리티를 조화시키기보다 base 모델의 내부 prior와 충돌할 수 있다고 해석한다. 반대로 X-OPD는 이 "alignment tax"를 크게 줄여, Qwen3-Omni-A3B의 평균 하락을 음성 ##11.29% → 3.43%##, 텍스트 5.51% → 0.97%로 낮춘다. 회복은 BIG Bench Audio와 Audio Multi-Challenge 같은 어려운 과제에서 가장 크고, VoiceBench에서는 base 모델과 같은 수준(천장에 도달)을 유지한다.</p>
 
-<p><strong>패턴 분석</strong>: (1) X-OPD의 BIG Bench Audio 음성 점수 93.41은 Gemini-2.5-Flash(81.42)·Gemini-3-Flash-Preview(80.77)·GPT-4o-Audio(88.50)보다 높다(다만 다른 계열 모델과의 비교는 teacher가 다르므로 참고용이다). (2) 이득이 큰 과제는 base와의 격차가 컸던 과제(BBA 12.05점, AMC 5.74점)이고, 격차가 1.78점뿐이던 VoiceBench는 거의 그대로다 — 메울 격차가 있어야 효과가 있다. (3) SFT는 BBA 음성 점수를 85.67 → 87.52로 약간 올리면서 AMC를 23.57 → 15.04로 크게 떨어뜨린다: 단일 턴 추론은 조금 배우고 멀티턴 대화 능력을 크게 잃는 trade-off다(요약자 해석).</p>
+<p><strong>패턴 분석</strong>: (1) X-OPD의 BIG Bench Audio 음성 점수 93.41은 Gemini-2.5-Flash(81.42)·Gemini-3-Flash-Preview(80.77)·GPT-4o-Audio(88.50)보다 높다(다만 다른 계열 모델과의 비교는 teacher가 다르므로 참고용이다). (2) 이득이 큰 과제는 base와의 격차가 컸던 과제(BIG Bench Audio(BBA) 12.05점, Audio Multi-Challenge(AMC) 5.74점)이고, 격차가 1.78점뿐이던 VoiceBench는 거의 그대로다 — 메울 격차가 있어야 효과가 있다. (3) SFT는 BBA 음성 점수를 85.67 → 87.52로 약간 올리면서 AMC를 23.57 → 15.04로 크게 떨어뜨린다: 단일 턴 추론은 조금 배우고 멀티턴 대화 능력을 크게 잃는 trade-off다(요약자 해석).</p>
 
 <blockquote><strong>비유로 말하면</strong>: 모범 답안을 외우게 한 학생들(SFT·KD)은 외운 유형 문제는 조금 낫지만, 대화형 시험(멀티턴)에서는 크게 무너지고 원래 잘하던 과목도 까먹었다. 자기 답을 첨삭받은 학생(X-OPD)은 약점 과목은 크게 오르고 강한 과목은 그대로다.</blockquote>
 
@@ -991,7 +991,7 @@ $$\mathcal{L}(\theta) = \lambda\, \mathcal{L}_{im}(\theta) + (1-\lambda)\, \math
 
 <h3>4.6 Catastrophic forgetting 분석</h3>
 
-<p><strong>실험 의도</strong>: Q4 — 기초 능력이 남아 있는가. 소리·음악·음성에 걸친 추론을 1,000개 엄선 표본으로 평가하는 MMAR 벤치마크를 사전학습 지식 보존의 대리 지표로 쓴다. 학습 데이터(구어 지시)와 성격이 다른 오디오 이해 능력이라 망각을 재기에 적합하다.</p>
+<p><strong>실험 의도</strong>: Q4 — 기초 능력이 남아 있는가. 소리·음악·음성에 걸친 추론을 1,000개 엄선 표본으로 평가하는 MMAR 벤치마크를 사전학습 지식 보존의 대리 지표로 쓴다. (학습 데이터인 구어 지시와 성격이 다른 오디오 이해 능력이라 망각을 재기에 적합하다는 것은 요약자 해석이다.)</p>
 
 <table class="small-table">
 <thead><tr><th>Table 3</th><th>MMAR (%)</th><th>Drop</th></tr></thead>
@@ -1008,7 +1008,7 @@ $$\mathcal{L}(\theta) = \lambda\, \mathcal{L}_{im}(\theta) + (1-\lambda)\, \math
 
 <p><strong>결과</strong>: SFT, offline KD, GKD는 정확도가 71.3%에서 60% 안팎(최저 59.9%)으로 급락한다. 반대로 모든 X-OPD 변형은 69% 이상으로 거의 손실이 없다. 텍스트 전용 증류(λ = 1)가 70.7%로 가장 많이 보존하는데, in-modal 최적화가 사전학습된 오디오 특징을 가장 덜 간섭한다는 것을 보여 준다. cross-modal 목적을 넣어도(λ = 0, 0.5) 기준선들보다 하락이 훨씬 작다. <strong>뒷받침하는 주장</strong>: ##X-OPD의 RL식 패러다임이 모델 행동을 효과적으로 정규화해 cross-modal 정렬과 일반 능력 보존을 함께 달성한다.##</p>
 
-<p><strong>패턴 분석</strong>: λ 안에서는 정렬과 보존 사이 trade-off가 보인다 — λ = 0.5는 정렬(ΔS 3.43)이 가장 좋고, λ = 1은 보존(−0.6)이 가장 좋다. 음성 조건 항(λ &lt; 1)은 음성 입력 경로를 직접 움직이므로 오디오 표현에 약간의 비용을 치르는 것으로 해석된다(요약자 해석). 다만 audio tower와 adapter는 고정되어 있으므로, 이 망각은 backbone이 오디오 특징을 <em>해석</em>하는 방식의 변화에서 온다.</p>
+<p><strong>패턴 분석</strong>: λ 안에서는 정렬과 보존 사이 trade-off가 보인다 — λ = 0.5는 정렬(ΔS 3.43)이 가장 좋고, λ = 1은 보존(−0.6)이 가장 좋다. 음성 조건 항(λ &lt; 1)은 음성 입력 경로를 직접 움직이므로 오디오 표현에 약간의 비용을 치르는 것으로 해석된다(요약자 해석). 다만 audio tower와 adapter는 고정되어 있으므로, 이 망각은 backbone이 오디오 특징을 <em>해석</em>하는 방식의 변화에서 오는 것으로 보인다(요약자 해석).</p>
 
 <blockquote><strong>비유로 말하면</strong>: 통역 연습을 시키는 동안 연습생이 원래 갖고 있던 "음악 듣고 감상 말하기" 실력이 얼마나 남는지 보는 시험이다. 모범 답안 암기형 연습은 이 실력을 크게 망가뜨렸고, 자기 답 첨삭형 연습은 거의 그대로 남겼다.</blockquote>
 
