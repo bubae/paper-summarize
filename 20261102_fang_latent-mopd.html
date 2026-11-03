@@ -1174,9 +1174,7 @@ $$W = (S^\top S + \lambda_r I)^{-1} S^\top T, \qquad \lambda_r = 10^{-3}\, d_S.$
   <p><strong>A:</strong> 같을 필요는 없다. 원문은 두 경우를 나눠 다룬다.</p>
   <ul>
     <li><strong>Same-family (주 실험)</strong>: teacher가 student보다 크지 않다. 세 teacher(JustRL-DeepSeek-1.5B, Archer2-Code-1.5B, Nemotron-ProRL-1.5B)는 모두 student(DeepSeek-R1-Distill-Qwen-1.5B)와 같은 1.5B 계보에서 RL로 각 도메인 전문가가 된 체크포인트다. 그래서 폭이 1,536으로 같고, $g_\psi$는 항등 map이다. 이 논문의 teacher는 "더 큰 모델"이 아니라 "같은 크기의 도메인 전문가"이고, 목표는 여러 전문가를 한 모델로 합치는 것(capability integration)이다.</li>
-    <li><strong>Cross-family (확장 실험, §4.3)</strong>: 7B teacher의 폭은 3,584로 student 1,536의 약 2.3배다. 이때는 bias 없는 학습 가능한 선형 map $g_\psi: \mathbb R^{1536}	o\mathbb R^{3584}$로 student 상태를 teacher 공간으로 <em>올려서</em> 비교한다(식 2: $\|
-u(g_\psi(z^S_t)) - \mathrm{sg}[
-u(z^T_t)]\|^2$).
+    <li><strong>Cross-family (확장 실험, §4.3)</strong>: 7B teacher의 폭은 3,584로 student 1,536의 약 2.3배다. 이때는 bias 없는 학습 가능한 선형 map $g_\psi: \mathbb R^{1536}\to\mathbb R^{3584}$로 student 상태를 teacher 공간으로 <em>올려서</em> 비교한다(식 2: $\|\nu(g_\psi(z^S_t)) - \mathrm{sg}[\nu(z^T_t)]\|^2$).
       <ul>
         <li>map은 student 롤아웃 42개에서 얻은 134,843쌍에 ridge 회귀를 닫힌 형태로 풀어 초기화한다.</li>
         <li>이후 student와 함께 학습되고, 학습이 끝나면 버린다. 추론에는 student만 쓴다.</li>
