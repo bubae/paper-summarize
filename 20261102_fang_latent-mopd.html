@@ -1190,6 +1190,20 @@ $$W = (S^\top S + \lambda_r I)^{-1} S^\top T, \qquad \lambda_r = 10^{-3}\, d_S.$
   <p>그래서 "cross-family"라도 실제로는 크기와 post-training만 다른 같은 계열이다. 깊이나 tokenizer가 다른 진짜 이종 teacher는 범위 밖이며, 부록 J도 이를 향후 확장으로 남긴다. 또 cross-family의 Norm은 0.26으로, 남은 headroom이 크다(§4.3). 폭이 다른 큰 teacher에서는 정렬 신호가 약해진다는 뜻으로 읽을 수 있다.</p>
 </div>
 
+<div class="qa-block">
+  <p><strong>Q:</strong> (2026-11-03) 선형 맵핑이란 학습 가능한 파라미터를 가진 1-layer로 매핑한다는 뜻인가?</p>
+  <p><strong>A:</strong> 그렇다. bias와 activation이 없는 linear layer 하나, 즉 행렬 곱 하나다: $g_\psi(z^S) = W z^S$, $W \in \mathbb R^{3584\times 1536}$.</p>
+  <ul>
+    <li><strong>파라미터</strong>: 1,536 × 3,584 = 5,505,024개(약 5.5M). student 1.5B의 약 0.4% 수준이다.</li>
+    <li><strong>초기화</strong>: 랜덤이 아니라 ridge 회귀 닫힌 해 $W = (S^\top S + \lambda_r I)^{-1} S^\top T$($\lambda_r = 10^{-3} d_S$)로 시작한다. 처음부터 "student 공간 → teacher 공간"의 최소제곱 대응에 가깝게 출발한다.</li>
+    <li><strong>학습</strong>: 식 (2)의 표현 손실 gradient로 student와 동시에 갱신된다. teacher 쪽은 stop-gradient로 고정이다.</li>
+    <li><strong>공유</strong>: worker마다 하나만 두고, 라우팅된 세 teacher(math·code·logic)와 선택된 층이 모두 같은 $W$를 쓴다. teacher마다 따로 두지 않는다.</li>
+    <li><strong>폐기</strong>: 학습이 끝나면 버린다. 추론 모델에는 남지 않는다.</li>
+    <li><strong>비교 변형</strong>: 2-layer MLP(1536→6144→3584, GELU, 랜덤 초기화, 31.5M 파라미터)는 Norm 0.27로 선형 map(0.26)과 비슷했다. 다만 구조와 초기화가 동시에 다르므로 깔끔한 비교는 아니다(부록 A).</li>
+  </ul>
+  <p>(이 문서의 해석) $W$도 학습되므로 이론적으로는 $W$가 불일치를 흡수해 student 표현이 덜 바뀌는 쪽으로 갈 수도 있다. ridge 초기화, 정규화 $\nu$, crossfade로 표현 항이 일시적이라는 점이 이를 어느 정도 제한한다. 원문은 $W$가 학습 중 얼마나 움직이는지는 별도로 보고하지 않는다.</p>
+</div>
+
 <h3>3.3 하나의 스케줄 — teacher별 시계 위의 crossfade</h3>
 
 <p><strong>왜 문제인가</strong>: LastOPD는 단일 teacher에서 지속적인 latent 지도가 붕괴를 부를 수 있음을 보였고, 이 논문의 cross-family 실험에서도 지속적 표현-only 지도는 초기 student보다 aggregate가 낮다(Norm −0.05). 그렇다고 표현 지도를 아예 빼면 hidden state에서 오는 정보를 잃는다. 여러 teacher가 순환하는 경우, "global step 기준"으로 crossfade하면 teacher마다 받는 표현 지도 양이 순환 위치에 따라 달라진다.</p>
