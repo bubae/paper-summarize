@@ -1169,6 +1169,29 @@ $$W = (S^\top S + \lambda_r I)^{-1} S^\top T, \qquad \lambda_r = 10^{-3}\, d_S.$
 
 <p>map은 student와 함께 최적화되고 worker마다 저장되며, 프로세스 재시작 시 ridge 초기값을 다시 불러온다. 학습 후 버린다. Table 2의 MLP 변형은 이를 두 개의 bias 없는 선형층 $1536 \to 6144 \to 3584$ (사이에 GELU)로 바꾸고 <em>무작위 초기화</em>한다. 파라미터 수는 MLP 31,457,280 vs 선형 5,505,024 (5.71×). 따라서 Table 2의 선형 vs MLP 비교는 projector 구조와 초기화를 <em>동시에</em> 바꾼다.</p>
 
+<div class="qa-block">
+  <p><strong>Q:</strong> (2026-11-03) teacher와 student의 hidden dimension이 같아야 하는 것 아닌가? 보통 teacher가 student보다 큰 모델인데 같을 수가 있나?</p>
+  <p><strong>A:</strong> 같을 필요는 없다. 원문은 두 경우를 나눠 다룬다.</p>
+  <ul>
+    <li><strong>Same-family (주 실험)</strong>: teacher가 student보다 크지 않다. 세 teacher(JustRL-DeepSeek-1.5B, Archer2-Code-1.5B, Nemotron-ProRL-1.5B)는 모두 student(DeepSeek-R1-Distill-Qwen-1.5B)와 같은 1.5B 계보에서 RL로 각 도메인 전문가가 된 체크포인트다. 그래서 폭이 1,536으로 같고, $g_\psi$는 항등 map이다. 이 논문의 teacher는 "더 큰 모델"이 아니라 "같은 크기의 도메인 전문가"이고, 목표는 여러 전문가를 한 모델로 합치는 것(capability integration)이다.</li>
+    <li><strong>Cross-family (확장 실험, §4.3)</strong>: 7B teacher의 폭은 3,584로 student 1,536의 약 2.3배다. 이때는 bias 없는 학습 가능한 선형 map $g_\psi: \mathbb R^{1536}	o\mathbb R^{3584}$로 student 상태를 teacher 공간으로 <em>올려서</em> 비교한다(식 2: $\|
+u(g_\psi(z^S_t)) - \mathrm{sg}[
+u(z^T_t)]\|^2$).
+      <ul>
+        <li>map은 student 롤아웃 42개에서 얻은 134,843쌍에 ridge 회귀를 닫힌 형태로 풀어 초기화한다.</li>
+        <li>이후 student와 함께 학습되고, 학습이 끝나면 버린다. 추론에는 student만 쓴다.</li>
+        <li>두 층짜리 MLP projector(1536→6144→3584)도 시험했는데, Norm이 0.27로 선형 map의 0.26과 비슷했다.</li>
+      </ul>
+    </li>
+  </ul>
+  <p>폭 말고도 두 가지를 맞춰야 한다. 원문은 다음 조건 덕분에 이것이 쉬웠다고 밝힌다.</p>
+  <ul>
+    <li><strong>층 대응</strong>: 네 모델 모두 Qwen 백본에 28 block이라 "마지막 층 ↔ 마지막 층"이 자연스럽게 짝지어진다.</li>
+    <li><strong>tokenizer</strong>: 모든 teacher가 student와 같은 tokenizer를 쓰므로 토큰 위치가 일대일로 맞는다.</li>
+  </ul>
+  <p>그래서 "cross-family"라도 실제로는 크기와 post-training만 다른 같은 계열이다. 깊이나 tokenizer가 다른 진짜 이종 teacher는 범위 밖이며, 부록 J도 이를 향후 확장으로 남긴다. 또 cross-family의 Norm은 0.26으로, 남은 headroom이 크다(§4.3). 폭이 다른 큰 teacher에서는 정렬 신호가 약해진다는 뜻으로 읽을 수 있다.</p>
+</div>
+
 <h3>3.3 하나의 스케줄 — teacher별 시계 위의 crossfade</h3>
 
 <p><strong>왜 문제인가</strong>: LastOPD는 단일 teacher에서 지속적인 latent 지도가 붕괴를 부를 수 있음을 보였고, 이 논문의 cross-family 실험에서도 지속적 표현-only 지도는 초기 student보다 aggregate가 낮다(Norm −0.05). 그렇다고 표현 지도를 아예 빼면 hidden state에서 오는 정보를 잃는다. 여러 teacher가 순환하는 경우, "global step 기준"으로 crossfade하면 teacher마다 받는 표현 지도 양이 순환 위치에 따라 달라진다.</p>
